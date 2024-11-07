@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Search Items{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Search Items</h2>
+    <form action="{{ url_for('main.search') }}" method="get" class="d-flex mb-4">
+        <input type="text" name="q" class="form-control me-2" placeholder="Search items..." required>
+        <button type="submit" class="btn btn-outline-success">Search</button>
+    </form>
+</div>
+{% endblock %}

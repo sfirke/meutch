@@ -1,5 +1,7 @@
 from flask import render_template, current_app as app, request, flash, redirect, url_for
 from flask_login import login_required, current_user
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 from app import db
 from app.models import Item, Category, Tag, LoanRequest
 from app.forms import ListItemForm  
@@ -57,26 +59,41 @@ def list_item():
     return render_template('main/list_item.html', form=form)
 
 @main_bp.route('/search', methods=['GET', 'POST'])
-@login_required
 def search():
-    if request.method == 'POST':
-        query = request.form.get('query', '').strip()
-        if not query:
-            flash("Please enter a search term.")
-            return render_template('main/search.html')
-        
-        # Perform the search (example: case-insensitive search on item names)
-        results = Item.query.filter(Item.name.ilike(f'%{query}%')).all()
-        logger.debug(f"Search query: {query}, Results found: {len(results)}")
-        return render_template('main/search_results.html', query=query, results=results)
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Number of items per page
+
+    if request.method == 'GET' and not query:
+        # Display the search form
+        return render_template('search_items.html')
+
+    if not query:
+        flash('Please enter a search term.', 'warning')
+        return redirect(url_for('main.search'))
     
-    # For GET request, just render the search form
-    return render_template('main/search.html')
+    # Perform case-insensitive search on name and description
+    # Also search tags by joining the Tag model
+    items_pagination = Item.query.outerjoin(Item.tags).outerjoin(Item.category).filter(
+        or_(
+            Item.name.ilike(f'%{query}%'),
+            Item.description.ilike(f'%{query}%'),
+            Tag.name.ilike(f'%{query}%')
+        )
+    ).distinct().paginate(page=page, per_page=per_page, error_out=False)
+
+    items = items_pagination.items
+
+    return render_template('search_results.html', items=items, query=query, pagination=items_pagination)
 
 @main_bp.route('/item/<int:item_id>')
 def item_detail(item_id):
-    item = Item.query.get_or_404(item_id)
-    return render_template('main/item_detail.html', item=item)
+    item = Item.query.options(
+        joinedload(Item.owner),
+        joinedload(Item.category),
+        joinedload(Item.tags)
+    ).filter_by(id=item_id).first_or_404()
+    return render_template('item_detail.html', item=item)
 
 @main_bp.route('/item/<int:item_id>/request', methods=['GET', 'POST'])
 @login_required

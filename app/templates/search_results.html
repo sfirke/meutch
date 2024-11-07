@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Search Results for "{{ query }}"</h2>
+    {% if items %}
+        <ul class="list-group">
+            {% for item in items %}
+                <li class="list-group-item">
+                    <h4><a href="{{ url_for('main.item_detail', item_id=item.id) }}">{{ item.name }}</a></h4>
+                    <p>{{ item.description }}</p>
+                    <p><strong>Category:</strong> {{ item.category.name }}</p>
+                    <p><strong>Tags:</strong>
+                        {% for tag in item.tags %}
+                            <span class="badge bg-info text-dark">{{ tag.name }}</span>
+                        {% endfor %}
+                    </p>
+                    <p><strong>Status:</strong> {{ "Available" if item.available else "Currently Borrowed" }}</p>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No items found matching your search criteria.</p>
+    {% endif %}
+
+        <!-- Pagination -->
+        {% if pagination.pages > 1 %}
+            <nav aria-label="Search results pages">
+                <ul class="pagination justify-content-center mt-4">
+                    {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.search', q=query, page=pagination.prev_num) }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link" aria-hidden="true">&laquo;</span>
+                        </li>
+                    {% endif %}
+
+                    {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+                        {% if p %}
+                            {% if p == pagination.page %}
+                                <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                            {% else %}
+                                <li class="page-item"><a class="page-link" href="{{ url_for('main.search', q=query, page=p) }}">{{ p }}</a></li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.search', q=query, page=pagination.next_num) }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link" aria-hidden="true">&raquo;</span>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+</div>
+{% endblock %}
