@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, StringField, PasswordField, SubmitField, TextAreaField
+from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
+from app.models import Category
 
 class EmptyForm(FlaskForm):
     pass
@@ -66,3 +67,14 @@ class SearchCircleForm(FlaskForm):
         Length(max=100, message="Search term must be under 100 characters.")
     ])
     submit = SubmitField('Search')
+
+class ListItemForm(FlaskForm):
+    name = StringField('Item Name', validators=[DataRequired(), Length(max=100)])
+    description = TextAreaField('Description', validators=[Length(max=500)])
+    category = SelectField('Category', coerce=int, validators=[DataRequired()])
+    tags = StringField('Tags (comma-separated)', validators=[Length(max=200)])
+    submit = SubmitField('List Item')
+    
+    def __init__(self, *args, **kwargs):
+        super(ListItemForm, self).__init__(*args, **kwargs)
+        self.category.choices = [(category.id, category.name) for category in Category.query.order_by('name')]

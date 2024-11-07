@@ -1,29 +1,55 @@
+<!-- app/templates/main/list_item.html -->
+
 {% extends "base.html" %}
 
+{% block title %}List Item{% endblock %}
+
 {% block content %}
-<h1>List an Item</h1>
-<form method="post">
-    <p>
-        <label for="name">Item Name:</label>
-        <input type="text" id="name" name="name" required>
-    </p>
-    <p>
-        <label for="description">Description:</label>
-        <textarea id="description" name="description"></textarea>
-    </p>
-    <p>
-        <label>Categories:</label>
-        {% for category in categories %}
-        <label class="checkbox">
-            <input type="checkbox" name="categories" value="{{ category.id }}">
-            {{ category.name }}
-        </label>
-        {% endfor %}
-    </p>
-    <p>
-        <label for="tags">Tags (comma separated):</label>
-        <input type="text" id="tags" name="tags">
-    </p>
-    <input type="submit" value="List Item">
-</form>
+<div class="container mt-5">
+    <h2>List a New Item</h2>
+    <form method="post">
+        {{ form.csrf_token }}
+        
+        <!-- Item Name -->
+        <div class="mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control", placeholder="Enter item name") }}
+            {% for error in form.name.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Description -->
+        <div class="mb-3">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class="form-control", placeholder="Enter item description", rows="3") }}
+            {% for error in form.description.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Category -->
+        <div class="mb-3">
+            {{ form.category.label(class="form-label") }}
+            {{ form.category(class="form-select") }}
+            {% for error in form.category.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Tags -->
+        <div class="mb-3">
+            {{ form.tags.label(class="form-label") }}
+            {{ form.tags(class="form-control", placeholder="Enter tags separated by commas") }}
+            {% for error in form.tags.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Submit Button -->
+        <div class="mb-3">
+            {{ form.submit(class="btn btn-primary") }}
+        </div>
+    </form>
+</div>
 {% endblock %}

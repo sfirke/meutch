@@ -1,5 +1,5 @@
 from datetime import datetime
-from app import db, login
+from app import db
 from flask_login import UserMixin
 
 # Association table for many-to-many relationship between Users and Circles
@@ -8,9 +8,10 @@ circle_members = db.Table('circle_members',
     db.Column('circle_id', db.Integer, db.ForeignKey('circle.id'), primary_key=True),
     db.Column('joined_at', db.DateTime, default=datetime.utcnow)
 )
-item_categories = db.Table('item_categories',
-    db.Column('item_id', db.Integer, db.ForeignKey('item.id')),
-    db.Column('category_id', db.Integer, db.ForeignKey('item_category.id'))
+
+item_tags = db.Table('item_tags',
+    db.Column('item_id', db.Integer, db.ForeignKey('item.id'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
 )
 
 class Friendship(db.Model):
@@ -50,15 +51,19 @@ class User(UserMixin, db.Model):
         return f'<User {self.email}>'
 
 class Item(db.Model):
+    __tablename__ = 'item'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     available = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    categories = db.relationship('ItemCategory', secondary=item_categories, backref='items')
-    tags = db.relationship('ItemTag', backref='item')
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     loan_requests = db.relationship('LoanRequest', backref='item')
+
+    def __repr__(self):
+        return f'<Item {self.name}>'
+
     
 class Circle(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -75,16 +80,26 @@ class Circle(db.Model):
     def __repr__(self):
         return f'<Circle {self.name}>'
 
-
     
-class ItemCategory(db.Model):
+class Category(db.Model):
+    __tablename__ = 'category'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), unique=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    
+    items = db.relationship('Item', backref='category', lazy=True)
+    
+    def __repr__(self):
+        return f'<Category {self.name}>'
 
-class ItemTag(db.Model):
+
+class Tag(db.Model):
+    __tablename__ = 'tag'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50))
-    item_id = db.Column(db.Integer, db.ForeignKey('item.id'))
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    items = db.relationship('Item', secondary=item_tags, backref=db.backref('tags', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<Tag {self.name}>'
 
 class LoanRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)

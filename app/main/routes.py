@@ -1,12 +1,10 @@
 from flask import render_template, current_app as app, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from app import db
-from app.models import Item
-import logging
+from app.models import Item, Category, Tag, LoanRequest
+from app.forms import ListItemForm  
 from app.main import bp as main_bp
 
-logger = logging.getLogger(__name__)
-logger.debug("Loading app.main.routes")
 
 @main_bp.route('/')
 def index():
@@ -23,20 +21,40 @@ def index():
 @main_bp.route('/list-item', methods=['GET', 'POST'])
 @login_required
 def list_item():
-    if request.method == 'POST':
-        name = request.form['name']
-        description = request.form['description']
-        item = Item(
-            name=name,
-            description=description,
-            owner=current_user
+    form = ListItemForm()
+    if form.validate_on_submit():
+        item_name = form.name.data.strip()
+        item_description = form.description.data.strip()
+        category_id = form.category.data
+        tag_input = form.tags.data.strip()
+        
+        # Retrieve the selected category
+        category = Category.query.get_or_404(category_id)
+        
+        # Create new item
+        new_item = Item(
+            name=item_name,
+            description=item_description,
+            owner=current_user,
+            category=category
         )
-        db.session.add(item)
+        
+        # Process tags
+        if tag_input:
+            tag_names = [tag.strip().lower() for tag in tag_input.split(',') if tag.strip()]
+            for tag_name in tag_names:
+                tag = Tag.query.filter_by(name=tag_name).first()
+                if not tag:
+                    tag = Tag(name=tag_name)
+                    db.session.add(tag)
+                new_item.tags.append(tag)
+        
+        db.session.add(new_item)
         db.session.commit()
-        flash('Item listed successfully!')
+        
+        flash(f'Item "{new_item.name}" has been listed successfully!', 'success')
         return redirect(url_for('main.index'))
-    return render_template('main/list_item.html')
-
+    return render_template('main/list_item.html', form=form)
 
 @main_bp.route('/search', methods=['GET', 'POST'])
 @login_required
