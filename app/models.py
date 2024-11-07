@@ -96,7 +96,7 @@ class Tag(db.Model):
     __tablename__ = 'tag'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False, index=True)
-    items = db.relationship('Item', secondary=item_tags, backref=db.backref('tags', lazy='dynamic'))
+    items = db.relationship('Item', secondary=item_tags, backref=db.backref('tags'))
     
     def __repr__(self):
         return f'<Tag {self.name}>'

@@ -22,7 +22,7 @@
     <div class="tags">
         <h3>Tags:</h3>
         {% for tag in item.tags %}
-            <span class="tag">{{ tag.name }}</span>
+            <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" class="badge bg-info text-dark text-decoration-none">{{ tag.name }}</a>
         {% endfor %}
     </div>
 </div>

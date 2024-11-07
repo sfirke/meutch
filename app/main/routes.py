@@ -93,7 +93,7 @@ def item_detail(item_id):
         joinedload(Item.category),
         joinedload(Item.tags)
     ).filter_by(id=item_id).first_or_404()
-    return render_template('item_detail.html', item=item)
+    return render_template('main/item_detail.html', item=item)
 
 @main_bp.route('/item/<int:item_id>/request', methods=['GET', 'POST'])
 @login_required
@@ -139,10 +139,34 @@ def process_loan(loan_id, action):
     flash(f'Loan request {action}d')
     return redirect(url_for('main.manage_loans'))
     
-@main_bp.route('/debug')
-def debug():
-    logger = logging.getLogger(__name__)
-    logger.debug('Debug route accessed')
-    return 'App is running, blueprints: ' + str(app.blueprints.keys())
+@main_bp.route('/tag/<int:tag_id>')
+def tag_items(tag_id):
+    # Retrieve the tag or return 404 if not found
+    tag = Tag.query.get_or_404(tag_id)
 
+    # Get pagination parameters from the request
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Number of items per page
 
+    # Perform a paginated query to retrieve items associated with the tag
+    items_pagination = (
+        Item.query
+        .join(Item.tags)  # Join with tags
+        .filter(Tag.id == tag_id)  # Filter by the specific tag
+        .options(
+            joinedload(Item.owner),
+            joinedload(Item.category),
+            joinedload(Item.tags)
+        )
+        .paginate(page=page, per_page=per_page, error_out=False)
+    )
+
+    # Extract items from the pagination object
+    items = items_pagination.items
+
+    return render_template(
+        'main/tag_items.html',
+        tag=tag,
+        items=items,
+        pagination=items_pagination
+    )

@@ -1,8 +1,12 @@
+<!-- app/templates/main/tag_items.html -->
 {% extends "base.html" %}
+
+{% block title %}Items Tagged "{{ tag.name }}"{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-    <h2>Search Results for "{{ query }}"</h2>
+    <h2>Items Tagged "{{ tag.name }}"</h2>
+    
     {% if items %}
         <ul class="list-group">
             {% for item in items %}
@@ -12,24 +16,21 @@
                     <p><strong>Category:</strong> {{ item.category.name }}</p>
                     <p><strong>Tags:</strong>
                         {% for tag in item.tags %}
-                        <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" class="badge bg-info text-dark text-decoration-none">{{ tag.name }}</a>
+                            <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" class="badge bg-info text-dark text-decoration-none">{{ tag.name }}</a>
                         {% endfor %}
                     </p>
                     <p><strong>Status:</strong> {{ "Available" if item.available else "Currently Borrowed" }}</p>
                 </li>
             {% endfor %}
         </ul>
-    {% else %}
-        <p>No items found matching your search criteria.</p>
-    {% endif %}
-
-        <!-- Pagination -->
+        
+        <!-- Pagination Controls -->
         {% if pagination.pages > 1 %}
-            <nav aria-label="Search results pages">
+            <nav aria-label="Tag items pages">
                 <ul class="pagination justify-content-center mt-4">
                     {% if pagination.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('main.search', q=query, page=pagination.prev_num) }}" aria-label="Previous">
+                            <a class="page-link" href="{{ url_for('main.tag_items', tag_id=tag.id, page=pagination.prev_num) }}" aria-label="Previous">
                                 <span aria-hidden="true">&laquo;</span>
                             </a>
                         </li>
@@ -38,22 +39,22 @@
                             <span class="page-link" aria-hidden="true">&laquo;</span>
                         </li>
                     {% endif %}
-
+                    
                     {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
                         {% if p %}
                             {% if p == pagination.page %}
                                 <li class="page-item active"><span class="page-link">{{ p }}</span></li>
                             {% else %}
-                                <li class="page-item"><a class="page-link" href="{{ url_for('main.search', q=query, page=p) }}">{{ p }}</a></li>
+                                <li class="page-item"><a class="page-link" href="{{ url_for('main.tag_items', tag_id=tag.id, page=p) }}">{{ p }}</a></li>
                             {% endif %}
                         {% else %}
                             <li class="page-item disabled"><span class="page-link">…</span></li>
                         {% endif %}
                     {% endfor %}
-
+                    
                     {% if pagination.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('main.search', q=query, page=pagination.next_num) }}" aria-label="Next">
+                            <a class="page-link" href="{{ url_for('main.tag_items', tag_id=tag.id, page=pagination.next_num) }}" aria-label="Next">
                                 <span aria-hidden="true">&raquo;</span>
                             </a>
                         </li>
@@ -65,5 +66,8 @@
                 </ul>
             </nav>
         {% endif %}
+    {% else %}
+        <p>No items found with the tag "{{ tag.name }}".</p>
+    {% endif %}
 </div>
 {% endblock %}
