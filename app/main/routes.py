@@ -4,7 +4,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from app import db
 from app.models import Item, Category, Tag, LoanRequest
-from app.forms import ListItemForm  
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm
 from app.main import bp as main_bp
 
 
@@ -112,6 +112,59 @@ def request_loan(item_id):
         return redirect(url_for('main.item_detail', item_id=item_id))
     return render_template('main/request_loan.html', item=item)
 
+
+@main_bp.route('/item/<int:item_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_item(item_id):
+    item = Item.query.get_or_404(item_id)
+    if item.owner != current_user:
+        flash('You do not have permission to edit this item.', 'danger')
+        return redirect(url_for('main.profile'))
+    
+    form = ListItemForm(obj=item)
+    if form.validate_on_submit():
+        item.name = form.name.data
+        item.description = form.description.data
+        item.category_id = form.category.data
+        
+        # Update tags
+        tag_input = form.tags.data.strip()
+        if tag_input:
+            tag_names = [tag.strip().lower() for tag in tag_input.split(',') if tag.strip()]
+            item.tags.clear()
+            for tag_name in tag_names:
+                tag = Tag.query.filter_by(name=tag_name).first()
+                if not tag:
+                    tag = Tag(name=tag_name)
+                    db.session.add(tag)
+                item.tags.append(tag)
+        
+        db.session.commit()
+        flash('Item has been updated.', 'success')
+        return redirect(url_for('main.profile'))
+    
+    # Prepopulate tags field
+    form.tags.data = ', '.join([tag.name for tag in item.tags])
+    
+    return render_template('main/edit_item.html', form=form, item=item)
+
+@main_bp.route('/item/<int:item_id>/delete', methods=['POST'])
+@login_required
+def delete_item(item_id):
+    form = DeleteItemForm()
+    if form.validate_on_submit():
+        item = Item.query.get_or_404(item_id)
+        if item.owner != current_user:
+            flash('You do not have permission to delete this item.', 'danger')
+            return redirect(url_for('main.profile'))
+        
+        db.session.delete(item)
+        db.session.commit()
+        flash('Item has been deleted.', 'success')
+    else:
+        flash('Invalid request.', 'danger')
+    return redirect(url_for('main.profile'))
+
 @main_bp.route('/loans/manage')
 @login_required
 def manage_loans():
@@ -170,3 +223,23 @@ def tag_items(tag_id):
         items=items,
         pagination=items_pagination
     )
+
+@main_bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    form = EditProfileForm()
+    if form.validate_on_submit():
+        current_user.about_me = form.about_me.data
+        db.session.commit()
+        flash('Your profile has been updated.', 'success')
+        return redirect(url_for('main.profile'))
+    elif request.method == 'GET':
+        form.about_me.data = current_user.about_me
+    
+    # Fetch user's items
+    user_items = Item.query.filter_by(owner_id=current_user.id).all()
+    
+    # Create a DeleteItemForm for each item
+    delete_forms = {item.id: DeleteItemForm() for item in user_items}
+    
+    return render_template('main/profile.html', form=form, user=current_user, items=user_items, delete_forms=delete_forms)

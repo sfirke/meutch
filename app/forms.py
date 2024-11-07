@@ -78,3 +78,10 @@ class ListItemForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super(ListItemForm, self).__init__(*args, **kwargs)
         self.category.choices = [(category.id, category.name) for category in Category.query.order_by('name')]
+
+class EditProfileForm(FlaskForm):
+    about_me = TextAreaField('About Me', validators=[Length(max=500)])
+    submit = SubmitField('Update Profile')
+
+class DeleteItemForm(FlaskForm):
+    submit = SubmitField('Delete')
