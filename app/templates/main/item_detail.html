@@ -6,7 +6,7 @@
 <div class="item-detail">
     <h1>{{ item.name }}</h1>
     <p>{{ item.description }}</p>
-    <p>Owner: {{ item.owner.email }}</p>
+    <p>Owner: <a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}">{{ item.owner.first_name }} {{ item.owner.last_name }}</a></p>
     <p>Status: {{ "Available" if item.available else "Currently Borrowed" }}</p>
     
     {% if current_user != item.owner and item.available %}

@@ -33,7 +33,7 @@
                 <div class="item-card">
                     <h3>{{ item.name }}</h3>
                     <p>{{ item.description }}</p>
-                    <p>Owner: {{ item.owner.first_name }} {{ item.owner.last_name }}</p>
+                    <p>Owner: <a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}">{{ item.owner.first_name }} {{ item.owner.last_name }}</a></p>
                     <a href="{{ url_for('main.item_detail', item_id=item.id) }}">View Details</a>
                 </div>
             {% else %}

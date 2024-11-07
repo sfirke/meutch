@@ -15,6 +15,7 @@
                         <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" class="badge bg-info text-dark text-decoration-none">{{ tag.name }}</a>
                         {% endfor %}
                     </p>
+                    <p><strong>Owner:</strong> <a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}">{{ item.owner.first_name }} {{ item.owner.last_name }}</a></p>
                     <p><strong>Status:</strong> {{ "Available" if item.available else "Currently Borrowed" }}</p>
                 </li>
             {% endfor %}
