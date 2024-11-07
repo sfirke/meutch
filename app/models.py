@@ -23,9 +23,20 @@ class Friendship(db.Model):
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
-    full_name = db.Column(db.String(100), nullable=False)
-    address = db.Column(db.Text, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    
+    # Updated Name Fields
+    first_name = db.Column(db.String(50), nullable=False)
+    last_name = db.Column(db.String(50), nullable=False)
+    
+    # Updated Address Fields
+    street = db.Column(db.String(200), nullable=False)
+    city = db.Column(db.String(100), nullable=False)
+    state = db.Column(db.String(100), nullable=False)
+    zip_code = db.Column(db.String(20), nullable=False)
+    country = db.Column(db.String(100), nullable=False, default='USA')  # Default to 'USA'
+    
+    # Relationships
     items = db.relationship('Item', backref='owner', lazy=True)
     circles = db.relationship('Circle', secondary=circle_memberships, backref='members')
     friends = db.relationship('User',

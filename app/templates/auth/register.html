@@ -4,27 +4,66 @@
 
 {% block content %}
     <h1>Register</h1>
-    <form method="post">
+    <form method="post" action="{{ url_for('auth.register') }}">
+        <!-- Email Field -->
         <p>
-            <label for="email">Email:</label>
+            <label for="email">Email:</label><br>
             <input type="email" id="email" name="email" required>
         </p>
+        
+        <!-- First Name -->
         <p>
-            <label for="full_name">Full Name:</label>
-            <input type="text" id="full_name" name="full_name" required>
+            <label for="first_name">First Name:</label><br>
+            <input type="text" id="first_name" name="first_name" required>
         </p>
+        
+        <!-- Last Name -->
         <p>
-            <label for="address">Address:</label>
-            <textarea id="address" name="address" required></textarea>
+            <label for="last_name">Last Name:</label><br>
+            <input type="text" id="last_name" name="last_name" required>
         </p>
+        
+        <!-- Street Address -->
         <p>
-            <label for="password">Password:</label>
+            <label for="street">Street Address:</label><br>
+            <input type="text" id="street" name="street" required>
+        </p>
+        
+        <!-- City -->
+        <p>
+            <label for="city">City:</label><br>
+            <input type="text" id="city" name="city" required>
+        </p>
+        
+        <!-- State -->
+        <p>
+            <label for="state">State:</label><br>
+            <input type="text" id="state" name="state" required>
+        </p>
+        
+        <!-- ZIP Code -->
+        <p>
+            <label for="zip_code">ZIP Code:</label><br>
+            <input type="text" id="zip_code" name="zip_code" required>
+        </p>
+        
+        <!-- Country -->
+        <p>
+            <label for="country">Country:</label><br>
+            <input type="text" id="country" name="country" value="USA" readonly>
+        </p>
+        
+        <!-- Password Fields -->
+        <p>
+            <label for="password">Password:</label><br>
             <input type="password" id="password" name="password" required>
         </p>
         <p>
-            <label for="confirm_password">Confirm Password:</label>
+            <label for="confirm_password">Confirm Password:</label><br>
             <input type="password" id="confirm_password" name="confirm_password" required>
         </p>
+        
+        <!-- Submit Button -->
         <p><input type="submit" value="Register"></p>
     </form>
 {% endblock %}

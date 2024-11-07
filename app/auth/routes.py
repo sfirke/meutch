@@ -14,9 +14,15 @@ logger.debug("Loading app.main.routes")
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
+        # Capture form data
         email = request.form['email']
-        full_name = request.form['full_name']
-        address = request.form['address']
+        first_name = request.form['first_name']
+        last_name = request.form['last_name']
+        street = request.form['street']
+        city = request.form['city']
+        state = request.form['state']
+        zip_code = request.form['zip_code']
+        country = request.form.get('country', 'USA')  # Default to 'USA'
         password = request.form['password']
         confirm_password = request.form['confirm_password']
 
@@ -34,8 +40,13 @@ def register():
         # Create new user
         user = User(
             email=email,
-            full_name=full_name,
-            address=address
+            first_name=first_name,
+            last_name=last_name,
+            street=street,
+            city=city,
+            state=state,
+            zip_code=zip_code,
+            country=country
         )
         user.password_hash = generate_password_hash(password)
         db.session.add(user)
