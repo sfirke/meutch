@@ -1,10 +1,12 @@
+<!-- app/templates/item_detail.html -->
+
 {% extends "base.html" %}
 
 {% block content %}
 <div class="item-detail">
     <h1>{{ item.name }}</h1>
     <p>{{ item.description }}</p>
-    <p>Owner: {{ item.owner.full_name }}</p>
+    <p>Owner: {{ item.owner.email }}</p>
     <p>Status: {{ "Available" if item.available else "Currently Borrowed" }}</p>
     
     {% if current_user != item.owner and item.available %}
@@ -12,11 +14,9 @@
            class="button request">Request to Borrow</a>
     {% endif %}
     
-    <div class="categories">
-        <h3>Categories:</h3>
-        {% for category in item.categories %}
-            <span class="category">{{ category.name }}</span>
-        {% endfor %}
+    <div class="category">
+        <h3>Category:</h3>
+        <span class="category-name">{{ item.category.name }}</span>
     </div>
     
     <div class="tags">
