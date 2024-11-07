@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>List an Item</h1>
+<form method="post">
+    <p>
+        <label for="name">Item Name:</label>
+        <input type="text" id="name" name="name" required>
+    </p>
+    <p>
+        <label for="description">Description:</label>
+        <textarea id="description" name="description"></textarea>
+    </p>
+    <p>
+        <label>Categories:</label>
+        {% for category in categories %}
+        <label class="checkbox">
+            <input type="checkbox" name="categories" value="{{ category.id }}">
+            {{ category.name }}
+        </label>
+        {% endfor %}
+    </p>
+    <p>
+        <label for="tags">Tags (comma separated):</label>
+        <input type="text" id="tags" name="tags">
+    </p>
+    <input type="submit" value="List Item">
+</form>
+{% endblock %}

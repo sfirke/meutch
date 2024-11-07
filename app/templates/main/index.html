@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+    <h1>Welcome to OurStuff</h1>
+    <div class="items-grid">
+        {% for item in items %}
+            <div class="item-card">
+                <h3>{{ item.name }}</h3>
+                <p>{{ item.description }}</p>
+                <p>Owner: {{ item.owner.full_name }}</p>
+                <a href="{{ url_for('main.item_detail', item_id=item.id) }}">View Details</a>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

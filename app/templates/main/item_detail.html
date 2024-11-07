@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="item-detail">
+    <h1>{{ item.name }}</h1>
+    <p>{{ item.description }}</p>
+    <p>Owner: {{ item.owner.full_name }}</p>
+    <p>Status: {{ "Available" if item.available else "Currently Borrowed" }}</p>
+    
+    {% if current_user != item.owner and item.available %}
+        <a href="{{ url_for('main.request_loan', item_id=item.id) }}" 
+           class="button request">Request to Borrow</a>
+    {% endif %}
+    
+    <div class="categories">
+        <h3>Categories:</h3>
+        {% for category in item.categories %}
+            <span class="category">{{ category.name }}</span>
+        {% endfor %}
+    </div>
+    
+    <div class="tags">
+        <h3>Tags:</h3>
+        {% for tag in item.tags %}
+            <span class="tag">{{ tag.name }}</span>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
