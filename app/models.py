@@ -1,13 +1,13 @@
 from datetime import datetime
-from app import db
+from app import db, login
 from flask_login import UserMixin
 
-# Many-to-many relationships
-circle_memberships = db.Table('circle_memberships',
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
-    db.Column('circle_id', db.Integer, db.ForeignKey('circle.id'))
+# Association table for many-to-many relationship between Users and Circles
+circle_members = db.Table('circle_members',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('circle_id', db.Integer, db.ForeignKey('circle.id'), primary_key=True),
+    db.Column('joined_at', db.DateTime, default=datetime.utcnow)
 )
-
 item_categories = db.Table('item_categories',
     db.Column('item_id', db.Integer, db.ForeignKey('item.id')),
     db.Column('category_id', db.Integer, db.ForeignKey('item_category.id'))
@@ -21,24 +21,24 @@ class Friendship(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class User(UserMixin, db.Model):
+    __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     
-    # Updated Name Fields
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     
-    # Updated Address Fields
     street = db.Column(db.String(200), nullable=False)
     city = db.Column(db.String(100), nullable=False)
     state = db.Column(db.String(100), nullable=False)
     zip_code = db.Column(db.String(20), nullable=False)
     country = db.Column(db.String(100), nullable=False, default='USA')  # Default to 'USA'
-    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
     # Relationships
     items = db.relationship('Item', backref='owner', lazy=True)
-    circles = db.relationship('Circle', secondary=circle_memberships, backref='members')
+    circles = db.relationship('Circle', secondary=circle_members, back_populates='members')
     friends = db.relationship('User',
         secondary='friendship',
         primaryjoin=(Friendship.requester_id == id) & (Friendship.status == 'approved'),
@@ -46,6 +46,9 @@ class User(UserMixin, db.Model):
         backref='friend_of'
     )
     
+    def __repr__(self):
+        return f'<User {self.email}>'
+
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -59,10 +62,20 @@ class Item(db.Model):
     
 class Circle(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    description = db.Column(db.Text, nullable=True)
     uuid = db.Column(db.String(36), unique=True)
     visibility = db.Column(db.String(20))  # public-open, public-approval, private
+    requires_approval = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Define the other side of the relationship using back_populates
+    members = db.relationship('User', secondary=circle_members, back_populates='circles')
+    
+    def __repr__(self):
+        return f'<Circle {self.name}>'
+
+
     
 class ItemCategory(db.Model):
     id = db.Column(db.Integer, primary_key=True)

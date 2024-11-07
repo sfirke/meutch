@@ -1,41 +1,34 @@
-from flask import render_template, redirect, url_for, flash, request, current_app
+from flask import render_template, redirect, request, url_for, flash
 from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.auth import bp as auth_bp
-from app.models import User, Item, LoanRequest, Circle
+from app.models import User, LoanRequest, Item
 from app import db
-from datetime import datetime
+from app.forms import RegistrationForm
 import logging
 
 logger = logging.getLogger(__name__)
 logger.debug("Loading app.auth.routes")
-logger.debug("Loading app.main.routes")
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
-    if request.method == 'POST':
-        # Capture form data
-        email = request.form['email']
-        first_name = request.form['first_name']
-        last_name = request.form['last_name']
-        street = request.form['street']
-        city = request.form['city']
-        state = request.form['state']
-        zip_code = request.form['zip_code']
-        country = request.form.get('country', 'USA')  # Default to 'USA'
-        password = request.form['password']
-        confirm_password = request.form['confirm_password']
-
-        # Validate password confirmation
-        if password != confirm_password:
-            flash("Passwords do not match.")
-            return render_template('auth/register.html')
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        first_name = form.first_name.data
+        last_name = form.last_name.data
+        street = form.street.data
+        city = form.city.data
+        state = form.state.data
+        zip_code = form.zip_code.data
+        country = form.country.data or 'USA'
+        password = form.password.data
 
         # Check if the email already exists
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
             flash("Email already registered.")
-            return render_template('auth/register.html')
+            return render_template('auth/register.html', form=form)
 
         # Create new user
         user = User(
@@ -54,7 +47,7 @@ def register():
         logger.debug(f'User registered: {user.email}')
         flash("Registration successful. Please log in.")
         return redirect(url_for('auth.login'))
-    return render_template('auth/register.html')
+    return render_template('auth/register.html', form=form)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():

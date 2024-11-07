@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Create Circle{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Create a New Circle</h2>
+    <form method="post">
+        {{ form.csrf_token }}
+        
+        <!-- Circle Name -->
+        <div class="mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control", placeholder="Enter circle name") }}
+            {% for error in form.name.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Description -->
+        <div class="mb-3">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class="form-control", placeholder="Enter description (optional)", rows="3") }}
+            {% for error in form.description.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Requires Approval -->
+        <div class="form-check mb-3">
+            {{ form.requires_approval(class="form-check-input") }}
+            {{ form.requires_approval.label(class="form-check-label") }}
+            {% for error in form.requires_approval.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Submit Button -->
+        <div class="mb-3">
+            {{ form.submit(class="btn btn-primary") }}
+        </div>
+    </form>
+</div>
+{% endblock %}

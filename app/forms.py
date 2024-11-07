@@ -1,0 +1,68 @@
+from flask_wtf import FlaskForm
+from wtforms import BooleanField, StringField, PasswordField, SubmitField, TextAreaField
+from wtforms.validators import DataRequired, Email, EqualTo, Length
+
+class EmptyForm(FlaskForm):
+    pass
+
+class RegistrationForm(FlaskForm):
+    email = StringField('Email', validators=[
+        DataRequired(message="Email is required."),
+        Email(message="Invalid email format."),
+        Length(max=120, message="Email must be under 120 characters.")
+    ])
+    first_name = StringField('First Name', validators=[
+        DataRequired(message="First name is required."),
+        Length(max=50, message="First name must be under 50 characters.")
+    ])
+    last_name = StringField('Last Name', validators=[
+        DataRequired(message="Last name is required."),
+        Length(max=50, message="Last name must be under 50 characters.")
+    ])
+    street = StringField('Street Address', validators=[
+        DataRequired(message="Street address is required."),
+        Length(max=200, message="Street address must be under 200 characters.")
+    ])
+    city = StringField('City', validators=[
+        DataRequired(message="City is required."),
+        Length(max=100, message="City must be under 100 characters.")
+    ])
+    state = StringField('State', validators=[
+        DataRequired(message="State is required."),
+        Length(max=100, message="State must be under 100 characters.")
+    ])
+    zip_code = StringField('ZIP Code', validators=[
+        DataRequired(message="ZIP Code is required."),
+        Length(max=20, message="ZIP Code must be under 20 characters.")
+    ])
+    country = StringField('Country', validators=[
+        DataRequired(message="Country is required."),
+        Length(max=100, message="Country must be under 100 characters.")
+    ], default='USA')
+    password = PasswordField('Password', validators=[
+        DataRequired(message="Password is required."),
+        Length(min=6, message="Password must be at least 6 characters long.")
+    ])
+    confirm_password = PasswordField('Confirm Password', validators=[
+        DataRequired(message="Please confirm your password."),
+        EqualTo('password', message="Passwords must match.")
+    ])
+    submit = SubmitField('Register')
+
+class CreateCircleForm(FlaskForm):
+        name = StringField('Circle Name', validators=[
+            DataRequired(message="Circle name is required."),
+            Length(max=100, message="Circle name must be under 100 characters.")
+        ])
+        description = TextAreaField('Description', validators=[
+            Length(max=500, message="Description must be under 500 characters.")
+        ])
+        requires_approval = BooleanField('Require Approval to Join')
+        submit = SubmitField('Create Circle')
+
+class SearchCircleForm(FlaskForm):
+    search_query = StringField('Search Circles', validators=[
+        DataRequired(message="Please enter a search term."),
+        Length(max=100, message="Search term must be under 100 characters.")
+    ])
+    submit = SubmitField('Search')

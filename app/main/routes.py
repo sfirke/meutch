@@ -10,14 +10,15 @@ logger.debug("Loading app.main.routes")
 
 @main_bp.route('/')
 def index():
-    logger.debug('Index route accessed')
-    try:
-        items = Item.query.limit(10).all()
-        return render_template('main/index.html', items=items)
-    except Exception as e:
-        # Log the full traceback
-        logger.error("Error rendering index template:", exc_info=True)
-        return "An error occurred while rendering the page.", 500
+    # Fetch all items (you can modify the query as needed)
+    items = Item.query.all()
+    
+    circles = []
+    if current_user.is_authenticated:
+        # Fetch the circles the current user is a member of
+        circles = current_user.circles
+        
+    return render_template('main/index.html', items=items, circles=circles)
 
 @main_bp.route('/list-item', methods=['GET', 'POST'])
 @login_required

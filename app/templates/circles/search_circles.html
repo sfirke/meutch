@@ -1,0 +1,54 @@
+<!-- app/templates/circles/search_circles.html -->
+
+{% extends "base.html" %}
+
+{% block title %}Search Circles{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Search for Circles</h2>
+    <form method="post" class="mb-4">
+        {{ form.csrf_token }}
+        
+        <!-- Search Query -->
+        <div class="input-group">
+            {{ form.search_query(class="form-control", placeholder="Enter circle name") }}
+            <button class="btn btn-outline-secondary" type="submit">{{ form.submit.label.text }}</button>
+        </div>
+        {% for error in form.search_query.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </form>
+    
+    <!-- Search Results -->
+    {% if circles %}
+        <h3>Search Results:</h3>
+        <ul class="list-group">
+            {% for circle in circles %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5>{{ circle.name }}</h5>
+                        <p>{{ circle.description }}</p>
+                        <small>Members: {{ circle.members|length }}</small>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-info btn-sm">View</a>
+                        {% if current_user not in circle.members %}
+                            <form action="{{ url_for('circles.join_circle', circle_id=circle.id) }}" method="post" class="d-inline">
+                                {{ form.csrf_token }}
+                                <button type="submit" class="btn btn-primary btn-sm">Join</button>
+                            </form>
+                        {% else %}
+                            <form action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" method="post" class="d-inline">
+                                {{ form.csrf_token }}
+                                <button type="submit" class="btn btn-danger btn-sm">Leave</button>
+                            </form>
+                            <span class="badge bg-success">Member</span>
+                        {% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</div>
+{% endblock %}

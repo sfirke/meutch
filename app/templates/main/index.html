@@ -1,17 +1,44 @@
+<!-- app/templates/main/index.html -->
+
 {% extends "base.html" %}
 
 {% block title %}Home{% endblock %}
 
 {% block content %}
     <h1>Welcome to OurStuff</h1>
-    <div class="items-grid">
-        {% for item in items %}
-            <div class="item-card">
-                <h3>{{ item.name }}</h3>
-                <p>{{ item.description }}</p>
-                <p>Owner: {{ item.owner.full_name }}</p>
-                <a href="{{ url_for('main.item_detail', item_id=item.id) }}">View Details</a>
-            </div>
-        {% endfor %}
-    </div>
+    
+    {% if current_user.is_authenticated %}
+        <section class="user-circles">
+            <h2>Your Circles</h2>
+            {% if circles %}
+                <div class="circles-grid">
+                    {% for circle in circles %}
+                        <div class="circle-card">
+                            <h3>{{ circle.name }}</h3>
+                            <p>{{ circle.description }}</p>
+                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}">View Circle</a>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>You are not a member of any circles yet. <a href="{{ url_for('circles.create_circle') }}">Create one now!</a></p>
+            {% endif %}
+        </section>
+    {% endif %}
+    
+    <section class="items-section">
+        <h2>Available Items</h2>
+        <div class="items-grid">
+            {% for item in items %}
+                <div class="item-card">
+                    <h3>{{ item.name }}</h3>
+                    <p>{{ item.description }}</p>
+                    <p>Owner: {{ item.owner.first_name }} {{ item.owner.last_name }}</p>
+                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}">View Details</a>
+                </div>
+            {% else %}
+                <p>No items available at the moment.</p>
+            {% endfor %}
+        </div>
+    </section>
 {% endblock %}

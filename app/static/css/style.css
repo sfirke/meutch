@@ -1,3 +1,36 @@
+/* app/static/css/style.css */
+
+.flashes {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    width: 300px;
+    z-index: 1000;
+}
+
+.flash {
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    color: #fff;
+}
+
+.flash.success {
+    background-color: #28a745;
+}
+
+.flash.danger {
+    background-color: #dc3545;
+}
+
+.flash.warning {
+    background-color: #ffc107;
+}
+
+.flash.info {
+    background-color: #17a2b8;
+}
+
 .button {
     display: inline-block;
     padding: 8px 16px;
@@ -23,4 +56,50 @@
     max-width: 800px;
     margin: 20px auto;
     padding: 20px;
+}
+
+.circles-grid, .items-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.circle-card, .item-card {
+    border: 1px solid #ccc;
+    padding: 15px;
+    border-radius: 5px;
+    width: 200px;
+}
+
+.btn {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 3px;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.btn-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-sm {
+    padding: 3px 6px;
+    font-size: 0.875rem;
+}
+
+.badge.bg-success {
+    background-color: #28a745;
+    color: white;
 }

@@ -1,13 +1,17 @@
+# app/__init__.py
+
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
+from flask_wtf import CSRFProtect
 from config import Config
 import logging
 
 db = SQLAlchemy()
 migrate = Migrate()
 login = LoginManager()
+csrf = CSRFProtect()
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -20,19 +24,22 @@ def create_app(config_class=Config):
     logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger(__name__)
 
+    # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
     login.init_app(app)
-    login.login_view = 'auth.login'  # Redirect to 'auth.login' when login is required
+    login.login_view = 'auth.login'
+    csrf.init_app(app)
 
     # Register blueprints
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
-    logger.debug(f'Registered main blueprint: {main_bp.name}')
 
     from app.auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
-    logger.debug(f'Registered auth blueprint: {auth_bp.name}')
+
+    from app.circles import bp as circles_bp
+    app.register_blueprint(circles_bp, url_prefix='/circles')
 
     # Log the URL map
     logger.debug(f'URL Map after blueprint registration: {app.url_map}')
@@ -45,5 +52,3 @@ def create_app(config_class=Config):
         return User.query.get(int(user_id))
 
     return app
-
-from app import models  # Import models after app creation to avoid circular imports

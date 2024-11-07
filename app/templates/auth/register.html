@@ -5,65 +5,99 @@
 {% block content %}
     <h1>Register</h1>
     <form method="post" action="{{ url_for('auth.register') }}">
-        <!-- Email Field -->
+        {{ form.csrf_token }}
+
+        <!-- Email -->
         <p>
-            <label for="email">Email:</label><br>
-            <input type="email" id="email" name="email" required>
+            {{ form.email.label }}<br>
+            {{ form.email(size=32) }}<br>
+            {% for error in form.email.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
         </p>
         
         <!-- First Name -->
         <p>
-            <label for="first_name">First Name:</label><br>
-            <input type="text" id="first_name" name="first_name" required>
+            {{ form.first_name.label }}<br>
+            {{ form.first_name(size=32) }}<br>
+            {% for error in form.first_name.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
         </p>
         
         <!-- Last Name -->
         <p>
-            <label for="last_name">Last Name:</label><br>
-            <input type="text" id="last_name" name="last_name" required>
+            {{ form.last_name.label }}<br>
+            {{ form.last_name(size=32) }}<br>
+            {% for error in form.last_name.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
         </p>
         
         <!-- Street Address -->
         <p>
-            <label for="street">Street Address:</label><br>
-            <input type="text" id="street" name="street" required>
+            {{ form.street.label }}<br>
+            {{ form.street(size=64) }}<br>
+            {% for error in form.street.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
         </p>
         
         <!-- City -->
         <p>
-            <label for="city">City:</label><br>
-            <input type="text" id="city" name="city" required>
+            {{ form.city.label }}<br>
+            {{ form.city(size=32) }}<br>
+            {% for error in form.city.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
         </p>
         
         <!-- State -->
         <p>
-            <label for="state">State:</label><br>
-            <input type="text" id="state" name="state" required>
+            {{ form.state.label }}<br>
+            {{ form.state(size=32) }}<br>
+            {% for error in form.state.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
         </p>
         
         <!-- ZIP Code -->
         <p>
-            <label for="zip_code">ZIP Code:</label><br>
-            <input type="text" id="zip_code" name="zip_code" required>
+            {{ form.zip_code.label }}<br>
+            {{ form.zip_code(size=10) }}<br>
+            {% for error in form.zip_code.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
         </p>
         
         <!-- Country -->
         <p>
-            <label for="country">Country:</label><br>
-            <input type="text" id="country" name="country" value="USA" readonly>
+            {{ form.country.label }}<br>
+            {{ form.country(size=32, readonly=True) }}<br>
+            {% for error in form.country.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
         </p>
         
-        <!-- Password Fields -->
+        <!-- Password -->
         <p>
-            <label for="password">Password:</label><br>
-            <input type="password" id="password" name="password" required>
+            {{ form.password.label }}<br>
+            {{ form.password(size=32) }}<br>
+            {% for error in form.password.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
         </p>
+        
+        <!-- Confirm Password -->
         <p>
-            <label for="confirm_password">Confirm Password:</label><br>
-            <input type="password" id="confirm_password" name="confirm_password" required>
+            {{ form.confirm_password.label }}<br>
+            {{ form.confirm_password(size=32) }}<br>
+            {% for error in form.confirm_password.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
         </p>
         
         <!-- Submit Button -->
-        <p><input type="submit" value="Register"></p>
+        <p>{{ form.submit() }}</p>
     </form>
 {% endblock %}
