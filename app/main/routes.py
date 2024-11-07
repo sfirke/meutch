@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from app import db
-from app.models import Item, Category, Tag, LoanRequest
+from app.models import Item, Category, LoanRequest, Tag, User
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm
 from app.main import bp as main_bp
 
@@ -243,3 +243,29 @@ def profile():
     delete_forms = {item.id: DeleteItemForm() for item in user_items}
     
     return render_template('main/profile.html', form=form, user=current_user, items=user_items, delete_forms=delete_forms)
+
+
+@main_bp.route('/user/<int:user_id>')
+def user_profile(user_id):
+    user = User.query.get_or_404(user_id)
+    
+    # Pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    
+    # Fetch user's items with pagination
+    items_pagination = Item.query.filter_by(owner_id=user.id).paginate(page=page, per_page=per_page, error_out=False)
+    items = items_pagination.items
+    
+    # Create DeleteItemForm for each item if the current user is the owner
+    delete_forms = {}
+    if current_user.is_authenticated and current_user.id == user.id:
+        delete_forms = {item.id: DeleteItemForm() for item in items}
+    
+    return render_template(
+        'main/user_profile.html',
+        user=user,
+        items=items,
+        pagination=items_pagination,
+        delete_forms=delete_forms
+    )
