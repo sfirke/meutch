@@ -123,6 +123,10 @@ def edit_item(item_id):
         return redirect(url_for('main.profile'))
     
     form = ListItemForm(obj=item)
+
+    if request.method == 'GET':
+        form.category.data = str(item.category_id)
+
     if form.validate_on_submit():
         item.name = form.name.data
         item.description = form.description.data
