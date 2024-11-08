@@ -6,6 +6,18 @@ from app.models import Category
 class EmptyForm(FlaskForm):
     pass
 
+class LoginForm(FlaskForm):
+    email = StringField('Email', validators=[
+        DataRequired(message="Email is required."),
+        Email(message="Invalid email format."),
+        Length(max=120, message="Email must be under 120 characters.")
+    ])
+    password = PasswordField('Password', validators=[
+        DataRequired(message="Password is required."),
+        Length(min=6, message="Password must be at least 6 characters long.")
+    ])
+    submit = SubmitField('Log In')
+
 class RegistrationForm(FlaskForm):
     email = StringField('Email', validators=[
         DataRequired(message="Email is required."),
@@ -71,7 +83,7 @@ class SearchCircleForm(FlaskForm):
 class ListItemForm(FlaskForm):
     name = StringField('Item Name', validators=[DataRequired(), Length(max=100)])
     description = TextAreaField('Description', validators=[Length(max=500)])
-    category = SelectField('Category', coerce=int, validators=[DataRequired()])
+    category = SelectField('Category', coerce=str, validators=[DataRequired()])
     tags = StringField('Tags (comma-separated)', validators=[Length(max=200)])
     submit = SubmitField('List Item')
     

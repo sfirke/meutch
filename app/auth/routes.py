@@ -4,7 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app.auth import bp as auth_bp
 from app.models import User, LoanRequest, Item
 from app import db
-from app.forms import RegistrationForm
+from app.forms import RegistrationForm, LoginForm
 import logging
 
 logger = logging.getLogger(__name__)
@@ -51,14 +51,15 @@ def register():
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        user = User.query.filter_by(email=request.form['email']).first()
-        if user and check_password_hash(user.password_hash, request.form['password']):
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user and check_password_hash(user.password_hash, form.password.data):
             login_user(user)
             logger.debug(f'User logged in: {user.email}')
             return redirect(url_for('main.index'))
         flash('Invalid email or password')
-    return render_template('auth/login.html')
+    return render_template('auth/login.html', form=form)
 
 @auth_bp.route('/logout')
 def logout():

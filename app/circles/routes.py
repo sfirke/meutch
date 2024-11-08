@@ -43,7 +43,7 @@ def search_circles():
             flash('No circles found matching your search criteria.', 'info')
     return render_template('circles/search_circles.html', form=form, circles=circles)
 
-@circles_bp.route('/circle/<int:circle_id>', methods=['GET'])
+@circles_bp.route('/circle/<uuid:circle_id>', methods=['GET'])
 @login_required
 def view_circle(circle_id):
     circle = Circle.query.get_or_404(circle_id)
@@ -51,7 +51,7 @@ def view_circle(circle_id):
     form = EmptyForm()  # Instantiate EmptyForm
     return render_template('circles/view_circle.html', circle=circle, is_member=is_member, form=form)
 
-@circles_bp.route('/join-circle/<int:circle_id>', methods=['POST'])
+@circles_bp.route('/join-circle/<uuid:circle_id>', methods=['POST'])
 @login_required
 def join_circle(circle_id):
     circle = Circle.query.get_or_404(circle_id)
@@ -70,7 +70,7 @@ def join_circle(circle_id):
     
     return redirect(url_for('circles.view_circle', circle_id=circle.id))
 
-@circles_bp.route('/leave-circle/<int:circle_id>', methods=['POST'])
+@circles_bp.route('/leave-circle/<uuid:circle_id>', methods=['POST'])
 @login_required
 def leave_circle(circle_id):
     circle = Circle.query.get_or_404(circle_id)

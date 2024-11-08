@@ -1,3 +1,4 @@
+from uuid import UUID
 from flask import render_template, current_app as app, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from sqlalchemy import or_
@@ -86,7 +87,7 @@ def search():
 
     return render_template('search_results.html', items=items, query=query, pagination=items_pagination)
 
-@main_bp.route('/item/<int:item_id>')
+@main_bp.route('/item/<uuid:item_id>/', methods=['GET', 'POST'])
 def item_detail(item_id):
     item = Item.query.options(
         joinedload(Item.owner),
@@ -95,7 +96,7 @@ def item_detail(item_id):
     ).filter_by(id=item_id).first_or_404()
     return render_template('main/item_detail.html', item=item)
 
-@main_bp.route('/item/<int:item_id>/request', methods=['GET', 'POST'])
+@main_bp.route('/item/<uuid:item_id>/request', methods=['GET', 'POST'])
 @login_required
 def request_loan(item_id):
     item = Item.query.get_or_404(item_id)
@@ -113,7 +114,7 @@ def request_loan(item_id):
     return render_template('main/request_loan.html', item=item)
 
 
-@main_bp.route('/item/<int:item_id>/edit', methods=['GET', 'POST'])
+@main_bp.route('/item/<uuid:item_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_item(item_id):
     item = Item.query.get_or_404(item_id)
@@ -148,7 +149,7 @@ def edit_item(item_id):
     
     return render_template('main/edit_item.html', form=form, item=item)
 
-@main_bp.route('/item/<int:item_id>/delete', methods=['POST'])
+@main_bp.route('/item/<uuid:item_id>/delete', methods=['POST'])
 @login_required
 def delete_item(item_id):
     form = DeleteItemForm()
@@ -174,7 +175,7 @@ def manage_loans():
     ).all()
     return render_template('main/manage_loans.html', requests=pending_requests)
 
-@main_bp.route('/loan/<int:loan_id>/<string:action>')
+@main_bp.route('/loan/<uuid:loan_id>/<string:action>')
 @login_required
 def process_loan(loan_id, action):
     loan = LoanRequest.query.get_or_404(loan_id)
@@ -192,7 +193,7 @@ def process_loan(loan_id, action):
     flash(f'Loan request {action}d')
     return redirect(url_for('main.manage_loans'))
     
-@main_bp.route('/tag/<int:tag_id>')
+@main_bp.route('/tag/<uuid:tag_id>')
 def tag_items(tag_id):
     # Retrieve the tag or return 404 if not found
     tag = Tag.query.get_or_404(tag_id)
@@ -245,7 +246,7 @@ def profile():
     return render_template('main/profile.html', form=form, user=current_user, items=user_items, delete_forms=delete_forms)
 
 
-@main_bp.route('/user/<int:user_id>')
+@main_bp.route('/user/<uuid:user_id>')
 def user_profile(user_id):
     user = User.query.get_or_404(user_id)
     
