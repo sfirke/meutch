@@ -84,17 +84,14 @@ class SearchCircleForm(FlaskForm):
 class ListItemForm(FlaskForm):
     name = StringField('Item Name', validators=[DataRequired(), Length(max=100)])
     description = TextAreaField('Description', validators=[Length(max=500)])
-    image = FileField('Image', validators=[
-        Optional(),
-        FileAllowed(['jpg', 'jpeg', 'png'], 'Images only!')
-    ])
     category = SelectField('Category', coerce=str, validators=[DataRequired()])
     tags = StringField('Tags (comma-separated)', validators=[Length(max=200)])
+    image = FileField('Image', validators=[Optional(), FileAllowed(['jpg', 'jpeg', 'png'], 'Images only!')])
     submit = SubmitField('List Item')
     
     def __init__(self, *args, **kwargs):
         super(ListItemForm, self).__init__(*args, **kwargs)
-        self.category.choices = [(category.id, category.name) for category in Category.query.order_by('name')]
+        self.category.choices = [('', 'Select a category...')] + [(str(c.id), c.name) for c in Category.query.order_by('name')]
 
 class EditProfileForm(FlaskForm):
     about_me = TextAreaField('About Me', validators=[Length(max=500)])

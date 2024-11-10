@@ -5,7 +5,7 @@ app = create_app()
 app.app_context().push()
 
 def populate_categories():
-    categories = ['Tools', 'Cooking', 'Sports Equipment', 'Games', 'Music', 'Books', 'Electronics', 'Clothing', 'Outdoor', 'Miscellaneous']
+    categories = ['Tools', 'Cooking', 'Sports Equipment', 'Games', 'Music', 'Books', 'Electronics', 'Clothing', 'Outdoor', 'Kids', 'Miscellaneous']
     for cat in categories:
         existing = Category.query.filter_by(name=cat).first()
         if not existing:
