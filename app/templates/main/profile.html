@@ -24,29 +24,38 @@
     </div>
     
     <!-- User's Items -->
-    <div>
-        <h4>Your Items</h4>
+    <div class="container mt-5">
+        <h2>{{ user.first_name }}'s Items</h2>
+        
         {% if items %}
-            <ul class="list-group">
+            <div class="row row-cols-1 row-cols-md-3 g-4">
                 {% for item in items %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5>{{ item.name }}</h5>
-                            <p>{{ item.description }}</p>
+                    <div class="col">
+                        <div class="card item-card h-100">
+                            {% if item.image_url %}
+                                <img src="{{ item.image_url }}" class="card-img-top" alt="{{ item.name }}">
+                            {% endif %}
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="text-decoration-none">{{ item.name }}</a>
+                                </h5>
+                                <p class="card-text">{{ item.description|truncate(100) }}</p>
+                            </div>
+                            {% if current_user.is_authenticated and current_user.id == user.id %}
+                                <div class="card-footer bg-transparent">
+                                    <a href="{{ url_for('main.edit_item', item_id=item.id) }}" class="btn btn-sm btn-warning">Edit</a>
+                                    <form action="{{ url_for('main.delete_item', item_id=item.id) }}" method="post" style="display:inline;">
+                                        {{ delete_forms[item.id].hidden_tag() }}
+                                        {{ delete_forms[item.id].submit(class="btn btn-sm btn-danger", onclick="return confirm('Are you sure you want to delete this item?');") }}
+                                    </form>
+                                </div>
+                            {% endif %}
                         </div>
-                        <div>
-                            <a href="{{ url_for('main.edit_item', item_id=item.id) }}" class="btn btn-sm btn-warning">Edit</a>
-                            <form action="{{ url_for('main.delete_item', item_id=item.id) }}" method="post" style="display:inline;">
-                                {{ delete_forms[item.id].hidden_tag() }}
-                                {{ delete_forms[item.id].submit(class="btn btn-sm btn-danger", onclick="return confirm('Are you sure you want to delete this item?');") }}
-                            </form>
-                        </div>
-                    </li>
+                    </div>
                 {% endfor %}
-            </ul>
+            </div>
         {% else %}
-            <p>You have not listed any items yet.</p>
+            <p>No items found.</p>
         {% endif %}
     </div>
-</div>
 {% endblock %}
