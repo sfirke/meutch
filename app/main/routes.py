@@ -168,6 +168,8 @@ def delete_item(item_id):
         if item.owner != current_user:
             flash('You do not have permission to delete this item.', 'danger')
             return redirect(url_for('main.profile'))
+        if item.image_url:
+            delete_file(item.image_url)
         
         db.session.delete(item)
         db.session.commit()
