@@ -28,34 +28,35 @@
         <h2>{{ user.first_name }}'s Items</h2>
         
         {% if items %}
-            <div class="row row-cols-1 row-cols-md-3 g-4">
-                {% for item in items %}
-                    <div class="col">
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for item in items %}
+                <div class="col">
+                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="text-decoration-none">
                         <div class="card item-card h-100">
                             {% if item.image_url %}
                                 <img src="{{ item.image_url }}" class="card-img-top" alt="{{ item.name }}">
                             {% endif %}
                             <div class="card-body">
-                                <h5 class="card-title">
-                                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="text-decoration-none">{{ item.name }}</a>
-                                </h5>
-                                <p class="card-text">{{ item.description|truncate(100) }}</p>
+                                <h5 class="card-title text-primary">{{ item.name }}</h5>
+                                <p class="card-text text-dark">{{ item.description|truncate(100) }}</p>
                             </div>
                             {% if current_user.is_authenticated and current_user.id == user.id %}
-                                <div class="card-footer bg-transparent">
-                                    <a href="{{ url_for('main.edit_item', item_id=item.id) }}" class="btn btn-sm btn-warning">Edit</a>
-                                    <form action="{{ url_for('main.delete_item', item_id=item.id) }}" method="post" style="display:inline;">
+                                <div class="card-footer bg-transparent" onclick="event.stopPropagation();">
+                                    <a href="{{ url_for('main.edit_item', item_id=item.id) }}" class="btn btn-sm btn-warning" onclick="event.stopPropagation();">Edit</a>
+                                    <form action="{{ url_for('main.delete_item', item_id=item.id) }}" method="post" style="display:inline;" onclick="event.stopPropagation();">
                                         {{ delete_forms[item.id].hidden_tag() }}
                                         {{ delete_forms[item.id].submit(class="btn btn-sm btn-danger", onclick="return confirm('Are you sure you want to delete this item?');") }}
                                     </form>
                                 </div>
                             {% endif %}
                         </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p>No items found.</p>
-        {% endif %}
-    </div>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No items found.</p>
+    {% endif %}
+</div>
+
 {% endblock %}

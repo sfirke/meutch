@@ -136,10 +136,18 @@
 
 .item-card {
     transition: transform 0.2s;
-    cursor: pointer;
 }
 
 .item-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Ensure text colors are readable */
+.card-title.text-primary {
+    color: #007bff !important;
+}
+
+.card-text.text-dark {
+    color: #212529 !important;
 }
