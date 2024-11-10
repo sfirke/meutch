@@ -49,7 +49,7 @@ class Item(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('category.id'), nullable=False)
     loan_requests = db.relationship('LoanRequest', backref='item')
-
+    image_url = db.Column(db.String(500), nullable=True)
     def __repr__(self):
         return f'<Item {self.name}>'
 

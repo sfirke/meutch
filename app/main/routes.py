@@ -1,5 +1,5 @@
 from uuid import UUID
-from flask import render_template, current_app as app, request, flash, redirect, url_for
+from flask import render_template, current_app, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
@@ -7,6 +7,7 @@ from app import db
 from app.models import Item, Category, LoanRequest, Tag, User
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm
 from app.main import bp as main_bp
+from app.utils.storage import upload_file, delete_file
 
 
 @main_bp.route('/')
@@ -26,23 +27,21 @@ def index():
 def list_item():
     form = ListItemForm()
     if form.validate_on_submit():
-        item_name = form.name.data.strip()
-        item_description = form.description.data.strip()
-        category_id = form.category.data
-        tag_input = form.tags.data.strip()
-        
-        # Retrieve the selected category
-        category = Category.query.get_or_404(category_id)
-        
-        # Create new item
         new_item = Item(
-            name=item_name,
-            description=item_description,
+            name=form.name.data.strip(),
+            description=form.description.data.strip(),
             owner=current_user,
-            category=category
+            category_id=form.category.data
         )
         
-        # Process tags
+        if form.image.data:
+            image_url = upload_file(form.image.data)
+            if image_url:
+                new_item.image_url = image_url
+
+        db.session.add(new_item)
+        
+        tag_input = form.tags.data.strip()
         if tag_input:
             tag_names = [tag.strip().lower() for tag in tag_input.split(',') if tag.strip()]
             for tag_name in tag_names:
@@ -51,12 +50,12 @@ def list_item():
                     tag = Tag(name=tag_name)
                     db.session.add(tag)
                 new_item.tags.append(tag)
-        
-        db.session.add(new_item)
+
         db.session.commit()
         
         flash(f'Item "{new_item.name}" has been listed successfully!', 'success')
         return redirect(url_for('main.index'))
+    
     return render_template('main/list_item.html', form=form)
 
 @main_bp.route('/search', methods=['GET', 'POST'])
@@ -143,7 +142,14 @@ def edit_item(item_id):
                     tag = Tag(name=tag_name)
                     db.session.add(tag)
                 item.tags.append(tag)
-        
+
+        if form.image.data:
+            if item.image_url:
+                delete_file(item.image_url)
+            image_url = upload_file(form.image.data)
+            if image_url:
+                item.image_url = image_url
+
         db.session.commit()
         flash('Item has been updated.', 'success')
         return redirect(url_for('main.profile'))

@@ -1,29 +1,46 @@
-<!-- app/templates/item_detail.html -->
-
+<!-- app/templates/main/item_detail.html -->
 {% extends "base.html" %}
-
 {% block content %}
-<div class="item-detail">
-    <h1>{{ item.name }}</h1>
-    <p>{{ item.description }}</p>
-    <p>Owner: <a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}">{{ item.owner.first_name }} {{ item.owner.last_name }}</a></p>
-    <p>Status: {{ "Available" if item.available else "Currently Borrowed" }}</p>
-    
-    {% if current_user != item.owner and item.available %}
-        <a href="{{ url_for('main.request_loan', item_id=item.id) }}" 
-           class="button request">Request to Borrow</a>
+<div class="container mt-4">
+    {% if item.image_url %}
+        <div class="row mb-4">
+            <div class="col-md-8 offset-md-2">
+                <img src="{{ item.image_url }}" alt="{{ item.name }}" class="img-fluid rounded">
+            </div>
+        </div>
     {% endif %}
     
-    <div class="category">
-        <h3>Category:</h3>
-        <span class="category-name">{{ item.category.name }}</span>
-    </div>
-    
-    <div class="tags">
-        <h3>Tags:</h3>
-        {% for tag in item.tags %}
-            <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" class="badge bg-info text-dark text-decoration-none">{{ tag.name }}</a>
-        {% endfor %}
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1>{{ item.name }}</h1>
+            <p class="lead">{{ item.description }}</p>
+            
+            <p>Owner: <a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}">
+                {{ item.owner.first_name }} {{ item.owner.last_name }}</a>
+            </p>
+            
+            <p>Status: {{ "Available" if item.available else "Currently Borrowed" }}</p>
+            
+            {% if current_user != item.owner and item.available %}
+                <a href="{{ url_for('main.request_loan', item_id=item.id) }}" 
+                   class="btn btn-primary">Request to Borrow</a>
+            {% endif %}
+            
+            <div class="mt-4">
+                <h3>Category:</h3>
+                <span class="badge bg-secondary">{{ item.category.name }}</span>
+            </div>
+            
+            {% if item.tags %}
+                <div class="mt-3">
+                    <h3>Tags:</h3>
+                    {% for tag in item.tags %}
+                        <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" 
+                           class="badge bg-info text-dark text-decoration-none">{{ tag.name }}</a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

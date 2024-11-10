@@ -7,7 +7,7 @@
 {% block content %}
 <div class="container mt-5">
     <h2>List a New Item</h2>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
         {{ form.csrf_token }}
         
         <!-- Item Name -->
@@ -28,6 +28,12 @@
             {% endfor %}
         </div>
         
+        <!-- Image -->
+        <div class="form-group">
+            {{ form.image.label }}
+            {{ form.image(class="form-control") }}
+        </div>
+
         <!-- Category -->
         <div class="mb-3">
             {{ form.category.label(class="form-label") }}

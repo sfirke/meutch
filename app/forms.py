@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, EqualTo, Length
+from flask_wtf.file import FileField, FileAllowed
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional
 from app.models import Category
 
 class EmptyForm(FlaskForm):
@@ -83,6 +84,10 @@ class SearchCircleForm(FlaskForm):
 class ListItemForm(FlaskForm):
     name = StringField('Item Name', validators=[DataRequired(), Length(max=100)])
     description = TextAreaField('Description', validators=[Length(max=500)])
+    image = FileField('Image', validators=[
+        Optional(),
+        FileAllowed(['jpg', 'jpeg', 'png'], 'Images only!')
+    ])
     category = SelectField('Category', coerce=str, validators=[DataRequired()])
     tags = StringField('Tags (comma-separated)', validators=[Length(max=200)])
     submit = SubmitField('List Item')
