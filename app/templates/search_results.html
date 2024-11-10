@@ -2,17 +2,17 @@
 
 {% block content %}
 <div class="container mt-5">
-    <h2>Search Results for "{{ query }}"</h2>
+    <h2 class="mb-4">Search Results for "{{ query }}"</h2>
     {% if items %}
-        <ul class="list-group">
+        <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for item in items %}
-            <div class="col-md-4 mb-4">
-                {% include 'main/_item_card.html' %}
-            </div>
+                <div class="col">
+                    {% include 'main/_item_card.html' %}
+                </div>
             {% endfor %}
-        </ul>
+        </div>
     {% else %}
-        <p>No items found matching your search criteria.</p>
+        <p>No items found matching your search.</p>
     {% endif %}
 
         <!-- Pagination -->

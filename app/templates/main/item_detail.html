@@ -3,11 +3,7 @@
 {% block content %}
 <div class="container mt-4">
     {% if item.image_url %}
-        <div class="row mb-4">
-            <div class="col-md-8 offset-md-2">
-                <img src="{{ item.image_url }}" alt="{{ item.name }}" class="img-fluid rounded">
-            </div>
-        </div>
+    <img src="{{ item.image_url }}" class="item-detail-image" alt="{{ item.name }}">
     {% endif %}
     
     <div class="row">

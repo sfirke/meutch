@@ -103,3 +103,33 @@
     background-color: #28a745;
     color: white;
 }
+
+/* Card image constraints */
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+    width: 100%;
+}
+
+/* Detail page image constraints */
+.item-detail-image {
+    max-height: 400px;
+    width: 100%;
+    object-fit: contain;
+}
+
+/* Search results and profile page thumbnails */
+.item-thumbnail {
+    height: 150px;
+    object-fit: cover;
+    width: 100%;
+}
+
+.search-card {
+    max-width: 350px;
+    margin: 0 auto;
+}
+
+.card {
+    max-width: 350px;
+}
