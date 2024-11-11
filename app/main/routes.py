@@ -144,6 +144,14 @@ def edit_item(item_id):
                     db.session.add(tag)
                 item.tags.append(tag)
 
+        if form.delete_image.data:
+            if item.image_url:
+                current_app.logger.debug("Deleting existing image")
+                delete_file(item.image_url)
+                item.image_url = None
+                current_app.logger.debug("Set item.image_url to None")
+                flash('Image has been removed.', 'success')
+ 
         if form.image.data:
             if item.image_url:
                 delete_file(item.image_url)
