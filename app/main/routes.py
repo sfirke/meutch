@@ -160,6 +160,7 @@ def edit_item(item_id):
     
     return render_template('main/edit_item.html', form=form, item=item)
 
+
 @main_bp.route('/item/<uuid:item_id>/delete', methods=['POST'])
 @login_required
 def delete_item(item_id):

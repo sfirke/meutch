@@ -22,6 +22,8 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
     csrf.init_app(app)
     
+    configure_logging(app)
+
     # Set the login view for @login_required
     login_manager.login_view = 'auth.login'
     
@@ -46,3 +48,25 @@ def create_app(config_class=Config):
         return User.query.get(uuid_obj)
     
     return app
+
+
+def configure_logging(app):
+    # Remove the default Flask logger handlers
+    del app.logger.handlers[:]
+    
+    # Create a new logger handler
+    handler = logging.StreamHandler()
+    handler.setLevel(app.config['LOG_LEVEL'])
+
+    # Define log format
+    formatter = logging.Formatter(
+        '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+    )
+    handler.setFormatter(formatter)
+
+    # Add the handler to the app's logger
+    app.logger.addHandler(handler)
+    app.logger.setLevel(app.config['LOG_LEVEL'])
+
+    # Optional: Disable werkzeug's default logger if necessary
+    # logging.getLogger('werkzeug').setLevel(logging.ERROR)

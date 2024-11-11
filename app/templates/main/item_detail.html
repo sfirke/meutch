@@ -31,7 +31,7 @@
                 <div class="mt-3">
                     <h3>Tags:</h3>
                     {% for tag in item.tags %}
-                        <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" 
+                        <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}"
                            class="badge bg-info text-dark text-decoration-none">{{ tag.name }}</a>
                     {% endfor %}
                 </div>

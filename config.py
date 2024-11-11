@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+import logging
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv()
@@ -14,6 +15,7 @@ class Config:
     DO_SPACES_SECRET = os.environ.get('DO_SPACES_SECRET')
     DO_SPACES_BUCKET = os.environ.get('DO_SPACES_BUCKET')
 
-    LOG_LEVEL = 'INFO'  # Set to DEBUG to see all logs
+    LOG_LEVEL = logging.DEBUG  # Set to DEBUG to see all logs
+    DEBUG = True
     LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     LOG_FILE = 'app.log'

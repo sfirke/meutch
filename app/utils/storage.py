@@ -11,7 +11,6 @@ def get_s3_client():
         aws_secret_access_key=current_app.config['DO_SPACES_SECRET']
     )
 
-# app/utils/storage.py
 def upload_file(file):
     if not file:
         return None

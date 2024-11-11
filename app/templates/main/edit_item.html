@@ -1,55 +1,49 @@
-<!-- app/templates/main/edit_item.html -->
 {% extends "base.html" %}
-
-{% block title %}Edit Item{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-    <h2>Edit Item: {{ item.name }}</h2>
-    <form method="post">
+    <h1>Edit Item</h1>
+    <form method="post" enctype="multipart/form-data">
         {{ form.hidden_tag() }}
         
-        <!-- Item Name -->
         <div class="mb-3">
-            {{ form.name.label(class="form-label") }}
+            {{ form.name.label }}
             {{ form.name(class="form-control") }}
-            {% for error in form.name.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
         </div>
         
-        <!-- Description -->
         <div class="mb-3">
-            {{ form.description.label(class="form-label") }}
-            {{ form.description(class="form-control", rows="3") }}
-            {% for error in form.description.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
+            {{ form.description.label }}
+            {{ form.description(class="form-control") }}
         </div>
         
-        <!-- Category -->
         <div class="mb-3">
-            {{ form.category.label(class="form-label") }}
-            {{ form.category(class="form-select") }}
-            {% for error in form.category.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
+            {{ form.category.label }}
+            {{ form.category(class="form-control") }}
         </div>
         
-        <!-- Tags -->
         <div class="mb-3">
-            {{ form.tags.label(class="form-label") }}
+            {{ form.tags.label }}
             {{ form.tags(class="form-control") }}
-            {% for error in form.tags.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
+            <small class="text-muted">Separate tags with commas</small>
         </div>
-        
-        <!-- Submit Button -->
+
+        {% if item.image_url %}
         <div class="mb-3">
-            <button type="submit" class="btn btn-primary">Update Item</button>
-            <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Cancel</a>
+            <img src="{{ item.image_url }}" alt="{{ item.name }}" class="img-thumbnail" style="max-width: 200px">
+            <div class="form-check">
+                {{ form.delete_image(class="form-check-input") }}
+                {{ form.delete_image.label(class="form-check-label") }}
+            </div>
         </div>
+        {% endif %}
+        
+        <div class="mb-3">
+            {{ form.image.label }}
+            {{ form.image(class="form-control") }}
+        </div>
+
+        {{ form.submit(class="btn btn-primary") }}
+        <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="btn btn-secondary">Cancel</a>
     </form>
 </div>
 {% endblock %}

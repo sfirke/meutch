@@ -86,13 +86,17 @@ class ListItemForm(FlaskForm):
     description = TextAreaField('Description', validators=[Length(max=500)])
     category = SelectField('Category', coerce=str, validators=[DataRequired()])
     tags = StringField('Tags (comma-separated)', validators=[Length(max=200)])
-    image = FileField('Image', validators=[Optional(), FileAllowed(['jpg', 'jpeg', 'png'], 'Images only!')])
+    image = FileField('Image', validators=[
+        Optional(),
+        FileAllowed(['jpg', 'jpeg', 'png'], 'Images only!')
+    ])
+    delete_image = BooleanField('Delete current image')
     submit = SubmitField('List Item')
     
     def __init__(self, *args, **kwargs):
         super(ListItemForm, self).__init__(*args, **kwargs)
         self.category.choices = [('', 'Select a category...')] + [(str(c.id), c.name) for c in Category.query.order_by('name')]
-
+    
 class EditProfileForm(FlaskForm):
     about_me = TextAreaField('About Me', validators=[Length(max=500)])
     profile_image = FileField('Profile Picture', validators=[
