@@ -1,6 +1,6 @@
 <div class="card h-100">
-    {% if item.image_url %}
-        <img src="{{ item.image_url }}" class="card-img-top" alt="{{ item.name }}">
+    {% if item.image %}
+    <img src="{{ item.image }}" class="card-img-top" alt="{{ item.name }}">
     {% endif %}
     <div class="card-body">
         <h5 class="card-title">{{ item.name }}</h5>

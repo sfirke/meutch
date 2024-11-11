@@ -2,8 +2,8 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-4">
-    {% if item.image_url %}
-    <img src="{{ item.image_url }}" class="item-detail-image" alt="{{ item.name }}">
+    {% if item.image %}
+    <img src="{{ item.image }}" alt="{{ item.name }}" class="img-fluid rounded">
     {% endif %}
     
     <div class="row">

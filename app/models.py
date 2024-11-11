@@ -56,6 +56,11 @@ class Item(db.Model):
     category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('category.id'), nullable=False)
     loan_requests = db.relationship('LoanRequest', backref='item')
     image_url = db.Column(db.String(500), nullable=True)
+
+    @property
+    def image(self):
+        return self.image_url or url_for('static', filename='img/default_item_photo.png')
+    
     def __repr__(self):
         return f'<Item {self.name}>'
 
