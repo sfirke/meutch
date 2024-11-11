@@ -52,12 +52,6 @@
     background: #eee;
 }
 
-.item-detail {
-    max-width: 800px;
-    margin: 20px auto;
-    padding: 20px;
-}
-
 .circles-grid, .items-grid {
     display: flex;
     flex-wrap: wrap;
@@ -111,13 +105,6 @@
     width: 100%;
 }
 
-/* Detail page image constraints */
-.item-detail-image {
-    max-height: 400px;
-    width: 100%;
-    object-fit: contain;
-}
-
 /* Search results and profile page thumbnails */
 .item-thumbnail {
     height: 150px;
@@ -132,6 +119,28 @@
 
 .card {
     max-width: 350px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    display: flex; /* Enable Flexbox */
+    flex-direction: column; /* Arrange children vertically */
+    height: 100%; /* Ensure cards have equal height */
+}
+
+.card-body {
+    flex: 1; /* Allow card body to expand and fill space */
+    display: flex;
+    flex-direction: column;
+}
+
+.card-footer {
+    margin-top: auto; /* Push footer to the bottom */
+}
+
+/* Optional: Style the "View Details" button */
+.view-details-btn {
+    align-self: flex-start; /* Align button to the start */
+    margin-top: 10px; /* Add spacing above the button */
 }
 
 .item-card {
@@ -175,4 +184,15 @@
 .faq-item p {
     margin-left: 20px;
     color: #555;
+}
+
+.item-image {
+    max-width: 400px; /* Adjust the value as needed */
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
 }

@@ -2,13 +2,13 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-4">
-    {% if item.image %}
-    <img src="{{ item.image }}" alt="{{ item.name }}" class="img-fluid rounded">
+    <h1>{{ item.name }}</h1>
+    {% if item.image_url %}
+        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-image">
     {% endif %}
     
     <div class="row">
         <div class="col-md-8 offset-md-2">
-            <h1>{{ item.name }}</h1>
             <p class="lead">{{ item.description }}</p>
             
             <p>Owner: <a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}">
@@ -38,6 +38,7 @@
             {% endif %}
         </div>
     </div>
+    <p></p>
     <div class="row mt-4"></div>
         <div class="col-md-8 offset-md-2">
             <div class="d-flex justify-content-between align-items-start">
