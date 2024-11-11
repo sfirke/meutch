@@ -4,13 +4,16 @@
 
 {% block content %}
 <div class="container mt-5">
-    <h2>{{ user.first_name }} {{ user.last_name }}'s Profile</h2>
-    
-    <!-- About Me Section -->
-    <div class="mb-4">
-        <h4>About Me</h4>
-        <p>{{ user.about_me }}</p>
+    <div class="row">
+        <div class="col-md-4 text-center">
+            <img src="{{ user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
+            <h2>{{ user.first_name }}'s Profile</h2>
+            {% if user.about_me %}
+                <p class="mt-3">{{ user.about_me }}</p>
+            {% endif %}
+        </div>
     </div>
+</div>
     
     <!-- User's Items -->
     <div>

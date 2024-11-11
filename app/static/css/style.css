@@ -151,3 +151,28 @@
 .card-text.text-dark {
     color: #212529 !important;
 }
+
+.profile-image {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid #ddd; /* Optional: Add a border for better appearance */
+}
+
+.faq-section {
+    margin-top: 20px;
+}
+
+.faq-item {
+    margin-bottom: 20px;
+}
+
+.faq-item h4 {
+    color: #0d6efd; /* Bootstrap primary color */
+}
+
+.faq-item p {
+    margin-left: 20px;
+    color: #555;
+}

@@ -5,23 +5,30 @@
 
 {% block content %}
 <div class="container mt-5">
-    <h2>{{ user.first_name }} {{ user.last_name }}'s Profile</h2>
-    
-    <!-- About Me Section -->
-    <div class="mb-4">
-        <h4>About Me</h4>
-        <form method="post">
-            {{ form.hidden_tag() }}
-            <div class="mb-3">
-                {{ form.about_me.label(class="form-label") }}
-                {{ form.about_me(class="form-control", rows="5") }}
-                {% for error in form.about_me.errors %}
-                    <div class="text-danger">{{ error }}</div>
-                {% endfor %}
-            </div>
-            {{ form.submit(class="btn btn-primary") }}
-        </form>
+    <div class="row">
+        <div class="col-md-4 text-center">
+            <img src="{{ current_user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
+            <form method="post" enctype="multipart/form-data">
+                {{ form.csrf_token }}
+                <div class="mb-3">
+                    {{ form.about_me.label }}
+                    {{ form.about_me(class="form-control") }}
+                </div>
+                <div class="mb-3">
+                    {{ form.profile_image.label }}
+                    {{ form.profile_image(class="form-control") }}
+                </div>
+                {% if current_user.profile_image_url %}
+                    <div class="mb-3">
+                        {{ form.delete_image.label }}
+                        {{ form.delete_image() }}
+                    </div>
+                {% endif %}
+                {{ form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
     </div>
+</div>
     
     <!-- User's Items -->
     <div class="container mt-5">

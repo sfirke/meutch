@@ -243,13 +243,26 @@ def tag_items(tag_id):
 def profile():
     form = EditProfileForm()
     if form.validate_on_submit():
+        # Handle profile image deletion
+        if form.delete_image.data and current_user.profile_image_url:
+            delete_file(current_user.profile_image_url)
+            current_user.profile_image_url = None
+        
+        # Handle profile image upload
+        if form.profile_image.data:
+            if current_user.profile_image_url:
+                delete_file(current_user.profile_image_url)
+            image_url = upload_file(form.profile_image.data)
+            if image_url:
+                current_user.profile_image_url = image_url
+        
         current_user.about_me = form.about_me.data
         db.session.commit()
         flash('Your profile has been updated.', 'success')
         return redirect(url_for('main.profile'))
     elif request.method == 'GET':
         form.about_me.data = current_user.about_me
-    
+ 
     # Fetch user's items
     user_items = Item.query.filter_by(owner_id=current_user.id).all()
     
@@ -283,3 +296,7 @@ def user_profile(user_id):
         pagination=items_pagination,
         delete_forms=delete_forms
     )
+
+@main_bp.route('/about')
+def about():
+    return render_template('main/about.html')

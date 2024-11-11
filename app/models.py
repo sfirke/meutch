@@ -3,6 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 from app import db
 from flask_login import UserMixin
+from flask import url_for
 
 # Association table for many-to-many relationship between Users and Circles
 circle_members = db.Table('circle_members',
@@ -30,6 +31,11 @@ class User(UserMixin, db.Model):
     state = db.Column(db.String(100), nullable=False)
     zip_code = db.Column(db.String(20), nullable=False)
     country = db.Column(db.String(100), nullable=False, default='USA')  # Default to 'USA'
+    profile_image_url = db.Column(db.String(500), nullable=True)
+    @property
+    def profile_image(self):
+        return self.profile_image_url or url_for('static', filename='img/generic_user_avatar.png')
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships

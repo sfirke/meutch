@@ -95,6 +95,11 @@ class ListItemForm(FlaskForm):
 
 class EditProfileForm(FlaskForm):
     about_me = TextAreaField('About Me', validators=[Length(max=500)])
+    profile_image = FileField('Profile Picture', validators=[
+        Optional(),
+        FileAllowed(['jpg', 'jpeg', 'png'], 'Images only!')
+    ])
+    delete_image = BooleanField('Delete current profile picture')
     submit = SubmitField('Update Profile')
 
 class DeleteItemForm(FlaskForm):
