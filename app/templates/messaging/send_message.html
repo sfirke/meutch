@@ -1,25 +1,14 @@
+<!-- templates/messaging/send_message.html -->
 {% extends "base.html" %}
 
 {% block content %}
 <div class="container mt-5">
-    <h2>Send a Message</h2>
-    <form method="POST" action="{{ url_for('main.send_message') }}">
-        {{ form.hidden_tag() }}  <!-- CSRF Token -->
-
-        <!-- Recipient Selection -->
-        <div class="mb-3">
-            {{ form.recipient.label(class="form-label") }}
-            {{ form.recipient(class="form-select") }}
-            {% if form.recipient.errors %}
-                <div class="text-danger">
-                    {% for error in form.recipient.errors %}
-                        {{ error }}
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- Message Body -->
+    <h2>Message about {{ item.name }}</h2>
+    <p>To: {{ item.owner.first_name }} {{ item.owner.last_name }}</p>
+    
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        
         <div class="mb-3">
             {{ form.body.label(class="form-label") }}
             {{ form.body(class="form-control", rows="5") }}
@@ -32,8 +21,8 @@
             {% endif %}
         </div>
 
-        <!-- Submit Button -->
         <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+        <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="btn btn-secondary">Cancel</a>
     </form>
 </div>
 {% endblock %}

@@ -37,6 +37,12 @@
                 </div>
             {% endif %}
         </div>
+        <!-- Message Owner Button - only show if viewer is not owner -->
+    {% if current_user.is_authenticated and current_user.id != item.owner.id %}
+    <a href="{{ url_for('main.message_owner', item_id=item.id) }}" class="btn btn-primary">
+        Send Message to Owner
+    </a>
+    {% endif %}
     </div>
     <p></p>
     <div class="row mt-4"></div>

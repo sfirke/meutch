@@ -121,15 +121,19 @@ class Feedback(db.Model):
 class Message(db.Model):
     __tablename__ = 'messages'
     
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sender_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
     recipient_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id'), nullable=False)
     body = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     is_read = db.Column(db.Boolean, default=False)
+    parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('messages.id'), nullable=True)
     
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
     recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
-    
+    item = db.relationship('Item', backref='messages')
+    parent = db.relationship('Message', remote_side=[id], backref='replies')
+
     def __repr__(self):
-        return f"<Message {self.id} from {self.sender.email} to {self.recipient.email}>"
+        return f"<Message {self.id} from {self.sender.username} to {self.recipient.username}>"

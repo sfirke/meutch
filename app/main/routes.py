@@ -362,7 +362,7 @@ def inbox():
     messages = Message.query.filter_by(recipient_id=current_user.id).order_by(Message.timestamp.desc()).all()
     return render_template('messaging/inbox.html', messages=messages)
 
-@main_bp.route('/message/<int:message_id>')
+@main_bp.route('/message/<uuid:message_id>', methods=['GET'])
 @login_required
 def view_message(message_id):
     msg = Message.query.get_or_404(message_id)
@@ -375,3 +375,28 @@ def view_message(message_id):
         db.session.commit()
     
     return render_template('messaging/view_message.html', message=msg)
+
+@main_bp.route('/item/<uuid:item_id>/message', methods=['GET', 'POST'])
+@login_required
+def message_owner(item_id):
+    item = Item.query.get_or_404(item_id)
+    
+    # Prevent messaging yourself
+    if item.owner == current_user:
+        flash('You cannot message yourself about your own item.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+        
+    form = MessageForm()
+    if form.validate_on_submit():
+        msg = Message(
+            sender_id=current_user.id,
+            recipient_id=item.owner.id,
+            item_id=item.id,
+            body=form.body.data
+        )
+        db.session.add(msg)
+        db.session.commit()
+        flash('Your message has been sent.', 'success')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+        
+    return render_template('messaging/send_message.html', form=form, item=item)
