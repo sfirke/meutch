@@ -6,14 +6,33 @@
     {% if messages %}
         <ul class="list-group">
             {% for message in messages %}
-                <li class="list-group-item {% if not message.is_read %}list-group-item-action list-group-item-primary{% endif %}">
-                    <a href="{{ url_for('main.view_message', message_id=message.id) }}" class="text-decoration-none">
-                        <strong>From:</strong> {{ message.sender.first_name }} {{ message.sender.last_name }} at <small>{{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</small> <br>
-                        <strong>About item:</strong> {{ message.item.name }} <br>
+                <li class="list-group-item {% if not message.is_read %}bg-light{% endif %}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="mb-1">
+                                <strong>From:</strong> 
+                                <a href="{{ url_for('main.user_profile', user_id=message.sender.id) }}" class="text-decoration-none fw-semibold">
+                                    {{ message.sender.first_name }} {{ message.sender.last_name }}
+                                </a>
+                                <span class="text-muted">at {{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+                            </p>
+                            <p class="mb-1">
+                                <strong>About item:</strong> 
+                                <a href="{{ url_for('main.item_detail', item_id=message.item.id) }}" class="text-decoration-none">
+                                    {{ message.item.name }}
+                                </a>
+                            </p>
+                            <p class="mb-1 text-truncate" style="max-width: 600px;">
+                                {{ message.body }}
+                            </p>
+                        </div>
                         {% if not message.is_read %}
                             <span class="badge bg-primary">New</span>
                         {% endif %}
-                    </a>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{{ url_for('main.view_message', message_id=message.id) }}" class="btn btn-sm btn-primary">View Message</a>
+                    </div>
                 </li>
             {% endfor %}
         </ul>
