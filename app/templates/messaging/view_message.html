@@ -9,7 +9,11 @@
             <a href="{{ url_for('main.user_profile', user_id=message.sender.id) }}">
                 {{ message.sender.first_name }} {{ message.sender.last_name }} <br>
             </a>
-            <strong>To:</strong> {{ message.recipient.first_name }} {{ message.recipient.last_name }} <br>
+            <strong>About item:</strong> 
+            <a href="{{ url_for('main.item_detail', item_id=message.item.id) }}">
+                {{ message.item.name }}
+            </a>
+            <br>
             <small>{{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
         </div>
         <div class="card-body">

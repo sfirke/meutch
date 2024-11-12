@@ -8,8 +8,8 @@
             {% for message in messages %}
                 <li class="list-group-item {% if not message.is_read %}list-group-item-action list-group-item-primary{% endif %}">
                     <a href="{{ url_for('main.view_message', message_id=message.id) }}" class="text-decoration-none">
-                        <strong>From:</strong> {{ message.sender.first_name }} {{ message.sender.last_name }} <br>
-                        <small>{{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                        <strong>From:</strong> {{ message.sender.first_name }} {{ message.sender.last_name }} at <small>{{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</small> <br>
+                        <strong>About item:</strong> {{ message.item.name }} <br>
                         {% if not message.is_read %}
                             <span class="badge bg-primary">New</span>
                         {% endif %}
