@@ -87,14 +87,38 @@ def search():
 
     return render_template('search_results.html', items=items, query=query, pagination=items_pagination)
 
-@main_bp.route('/item/<uuid:item_id>/', methods=['GET', 'POST'])
+@main_bp.route('/item/<uuid:item_id>', methods=['GET', 'POST'])
+@login_required
 def item_detail(item_id):
-    item = Item.query.options(
-        joinedload(Item.owner),
-        joinedload(Item.category),
-        joinedload(Item.tags)
-    ).filter_by(id=item_id).first_or_404()
-    return render_template('main/item_detail.html', item=item)
+    item = Item.query.get_or_404(item_id)
+    
+    # Initialize the MessageForm
+    form = MessageForm()
+    
+    # Process form submission
+    if form.validate_on_submit():
+        # Prevent owners from sending messages to themselves
+        if current_user.id == item.owner.id:
+            flash("You cannot send a message to yourself.", "warning")
+            return redirect(url_for('main.item_detail', item_id=item.id))
+        
+        # Create a new message
+        message = Message(
+            sender_id=current_user.id,
+            recipient_id=item.owner.id,
+            item_id=item.id,
+            body=form.body.data
+        )
+        db.session.add(message)
+        db.session.commit()
+        
+        flash("Your message has been sent.", "success")
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Retrieve messages related to this item (optional)
+    messages = Message.query.filter_by(item_id=item.id, recipient_id=current_user.id).order_by(Message.timestamp.desc()).all()
+    
+    return render_template('main/item_detail.html', item=item, form=form, messages=messages)
 
 @main_bp.route('/item/<uuid:item_id>/request', methods=['GET', 'POST'])
 @login_required
@@ -375,28 +399,3 @@ def view_message(message_id):
         db.session.commit()
     
     return render_template('messaging/view_message.html', message=msg)
-
-@main_bp.route('/item/<uuid:item_id>/message', methods=['GET', 'POST'])
-@login_required
-def message_owner(item_id):
-    item = Item.query.get_or_404(item_id)
-    
-    # Prevent messaging yourself
-    if item.owner == current_user:
-        flash('You cannot message yourself about your own item.', 'warning')
-        return redirect(url_for('main.item_detail', item_id=item.id))
-        
-    form = MessageForm()
-    if form.validate_on_submit():
-        msg = Message(
-            sender_id=current_user.id,
-            recipient_id=item.owner.id,
-            item_id=item.id,
-            body=form.body.data
-        )
-        db.session.add(msg)
-        db.session.commit()
-        flash('Your message has been sent.', 'success')
-        return redirect(url_for('main.item_detail', item_id=item.id))
-        
-    return render_template('messaging/send_message.html', form=form, item=item)
