@@ -196,3 +196,22 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     margin-bottom: 20px;
 }
+
+/* Highlight unread messages */
+.unread-message {
+    background-color: #e6f7ff; /* Light blue background */
+    font-weight: bold;         /* Bold text */
+    border-left: 4px solid #1890ff; /* Blue left border */
+    transition: background-color 0.3s, border-left 0.3s; /* Smooth transition */
+}
+
+/* Optional: Hover effect for better user experience */
+.unread-message:hover {
+    background-color: #d0ebff; /* Slightly darker blue on hover */
+    cursor: pointer;           /* Pointer cursor to indicate interactivity */
+}
+
+.unread-message .badge {
+    background-color: #ffc107; /* Bootstrap warning color for badges */
+    color: #212529; /* Dark text for badges */
+}
