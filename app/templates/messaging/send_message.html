@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Send a Message</h2>
+    <form method="POST" action="{{ url_for('main.send_message') }}">
+        {{ form.hidden_tag() }}  <!-- CSRF Token -->
+
+        <!-- Recipient Selection -->
+        <div class="mb-3">
+            {{ form.recipient.label(class="form-label") }}
+            {{ form.recipient(class="form-select") }}
+            {% if form.recipient.errors %}
+                <div class="text-danger">
+                    {% for error in form.recipient.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Message Body -->
+        <div class="mb-3">
+            {{ form.body.label(class="form-label") }}
+            {{ form.body(class="form-control", rows="5") }}
+            {% if form.body.errors %}
+                <div class="text-danger">
+                    {% for error in form.body.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+    </form>
+</div>
+{% endblock %}

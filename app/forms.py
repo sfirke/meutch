@@ -108,3 +108,8 @@ class EditProfileForm(FlaskForm):
 
 class DeleteItemForm(FlaskForm):
     submit = SubmitField('Delete')
+
+class MessageForm(FlaskForm):
+    recipient = SelectField('Recipient', coerce=str, validators=[DataRequired()])
+    body = TextAreaField('Message', validators=[DataRequired(), Length(min=1, max=1000)])
+    submit = SubmitField('Send')

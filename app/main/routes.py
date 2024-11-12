@@ -4,8 +4,8 @@ from flask_login import login_required, current_user
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from app import db
-from app.models import Item, Category, LoanRequest, Tag, User
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm
+from app.models import Item, Category, LoanRequest, Tag, User, Message
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm
 from app.main import bp as main_bp
 from app.utils.storage import upload_file, delete_file
 from datetime import datetime
@@ -309,3 +309,69 @@ def user_profile(user_id):
 @main_bp.route('/about')
 def about():
     return render_template('main/about.html')
+
+# Messaging -----------------------------------------------------
+
+@main_bp.route('/send_message', methods=['GET', 'POST'])
+@login_required
+def send_message():
+    form = MessageForm()
+    # Populate recipient choices excluding the current user
+    users = User.query.filter(User.id != current_user.id).all()
+    form.recipient.choices = [(str(user.id), user.email) for user in users]
+    
+    if form.validate_on_submit():
+        print("Form Submitted:")
+        print("Recipient ID:", form.recipient.data)
+        print("Message Body:", form.body.data)
+ 
+        recipient = User.query.get(form.recipient.data)
+        if recipient:
+            try:
+                msg = Message(
+                    sender_id=current_user.id,
+                    recipient_id=recipient.id,
+                    body=form.body.data
+                )
+                db.session.add(msg)
+                db.session.commit()
+                flash('Your message has been sent.', 'success')
+                return redirect(url_for('main.inbox'))
+            except Exception as e:
+                db.session.rollback()
+                flash('An error occurred while sending your message.', 'danger')
+                print("Database Commit Failed:", e)
+        else:
+            flash('Invalid recipient.', 'danger')
+            print("Recipient Lookup Failed:")
+            print(form.errors)
+    
+    # Debugging: Print form errors if validation fails
+    if request.method == 'POST' and not form.validate():
+        print("Form Validation Failed:")
+        print(form.errors)
+    
+    # Additional Debugging: Print recipient choices
+    print("Recipient Choices:", form.recipient.choices)
+    
+    return render_template('messaging/send_message.html', form=form)
+
+@main_bp.route('/inbox')
+@login_required
+def inbox():
+    messages = Message.query.filter_by(recipient_id=current_user.id).order_by(Message.timestamp.desc()).all()
+    return render_template('messaging/inbox.html', messages=messages)
+
+@main_bp.route('/message/<int:message_id>')
+@login_required
+def view_message(message_id):
+    msg = Message.query.get_or_404(message_id)
+    if msg.recipient != current_user and msg.sender != current_user:
+        flash('You do not have permission to view this message.', 'danger')
+        return redirect(url_for('main.inbox'))
+    
+    if msg.recipient == current_user and not msg.is_read:
+        msg.is_read = True
+        db.session.commit()
+    
+    return render_template('messaging/view_message.html', message=msg)

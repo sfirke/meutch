@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Inbox</h2>
+    {% if messages %}
+        <ul class="list-group">
+            {% for message in messages %}
+                <li class="list-group-item {% if not message.is_read %}list-group-item-action list-group-item-primary{% endif %}">
+                    <a href="{{ url_for('main.view_message', message_id=message.id) }}" class="text-decoration-none">
+                        <strong>From:</strong> {{ message.sender.first_name }} {{ message.sender.last_name }} <br>
+                        <small>{{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                        {% if not message.is_read %}
+                            <span class="badge bg-primary">New</span>
+                        {% endif %}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>You have no messages.</p>
+    {% endif %}
+</div>
+{% endblock %}
