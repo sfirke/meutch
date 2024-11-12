@@ -319,12 +319,12 @@ def send_message():
     # Populate recipient choices excluding the current user
     users = User.query.filter(User.id != current_user.id).all()
     form.recipient.choices = [(str(user.id), user.email) for user in users]
-    
+
     if form.validate_on_submit():
         print("Form Submitted:")
         print("Recipient ID:", form.recipient.data)
         print("Message Body:", form.body.data)
- 
+
         recipient = User.query.get(form.recipient.data)
         if recipient:
             try:
@@ -353,7 +353,7 @@ def send_message():
     
     # Additional Debugging: Print recipient choices
     print("Recipient Choices:", form.recipient.choices)
-    
+        
     return render_template('messaging/send_message.html', form=form)
 
 @main_bp.route('/inbox')

@@ -5,7 +5,10 @@
     <h2>Message Details</h2>
     <div class="card">
         <div class="card-header">
-            <strong>From:</strong> {{ message.sender.first_name }} {{ message.sender.last_name }} <br>
+            <strong>From:</strong>
+            <a href="{{ url_for('main.user_profile', user_id=message.sender.id) }}">
+                {{ message.sender.first_name }} {{ message.sender.last_name }} <br>
+            </a>
             <strong>To:</strong> {{ message.recipient.first_name }} {{ message.recipient.last_name }} <br>
             <small>{{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
         </div>
