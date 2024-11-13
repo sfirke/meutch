@@ -196,3 +196,49 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     margin-bottom: 20px;
 }
+
+.unread-conversation {
+    background-color: #fff3cd; /* Light yellow background */
+    font-weight: bold;          /* Bold text */
+    border-left: 5px solid #ffc107; /* Yellow left border */
+    transition: background-color 0.3s, border-left 0.3s; /* Smooth transition */
+}
+
+.unread-conversation:hover {
+    background-color: #ffeeba; /* Slightly darker yellow on hover */
+}
+
+/* Style for the combined conversation link */
+.conversation-link {
+    color: #0d6efd; /* Bootstrap primary blue */
+    font-size: 1rem; /* Normal text size */
+}
+
+/* Style for the "New" badge */
+.badge.bg-warning.text-dark {
+    font-size: 0.85rem;
+    padding: 0.4em 0.6em;
+}
+
+/* Truncate long message snippets gracefully */
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Ensure the container has proper spacing */
+.container.mt-5 {
+    margin-top: 3rem !important;
+}
+
+.other-user {
+    font-weight: bold;
+    color: #ff8c00;
+}
+
+/* Make the item name italic and a different color */
+.item-name {
+    font-style: italic;
+    color: #28a745; /* Bootstrap success color or choose another */
+}

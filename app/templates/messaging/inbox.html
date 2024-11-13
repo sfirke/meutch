@@ -1,0 +1,38 @@
+<!-- templates/messaging/inbox.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Inbox</h2>
+    {% if conversations %}
+        <ul class="list-group">
+            {% for convo in conversations %}
+                <li class="list-group-item {% if convo.unread_count > 0 %}unread-conversation{% endif %}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <!-- Combined Header Link with Highlighted Name and Item -->
+                            <h5>
+                                <a href="{{ url_for('main.view_conversation', message_id=convo.latest_message.id) }}" class="text-decoration-none conversation-link">
+                                    Conversation with <span class="other-user">{{ convo.other_user.first_name }} {{ convo.other_user.last_name }}</span> about <span class="item-name">{{ convo.item.name }}</span>
+                                </a>
+                                {% if convo.unread_count > 0 %}
+                                    <span class="badge bg-warning text-dark ms-2">{{ convo.unread_count }} New</span>
+                                {% endif %}
+                            </h5>
+                            <!-- Last Message Snippet -->
+                            <p class="mb-1 text-truncate" style="max-width: 600px;">
+                                <strong>Last message:</strong>
+                                {{ convo.latest_message.body }}
+                            </p>
+                        </div>
+                        <span class="text-muted">{{ convo.latest_message.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>You have no conversations.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -56,7 +56,6 @@ def login():
         user = User.query.filter_by(email=form.email.data).first()
         if user and check_password_hash(user.password_hash, form.password.data):
             login_user(user)
-            logger.debug(f'User logged in: {user.email}')
             return redirect(url_for('main.index'))
         flash('Invalid email or password')
     return render_template('auth/login.html', form=form)
@@ -64,5 +63,4 @@ def login():
 @auth_bp.route('/logout')
 def logout():
     logout_user()
-    logger.debug('User logged out')
     return redirect(url_for('main.index'))

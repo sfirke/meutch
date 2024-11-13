@@ -1,11 +1,11 @@
 from uuid import UUID
 from flask import render_template, current_app, request, flash, redirect, url_for
 from flask_login import login_required, current_user
-from sqlalchemy import or_
+from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload
 from app import db
-from app.models import Item, Category, LoanRequest, Tag, User
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm
+from app.models import Item, Category, LoanRequest, Tag, User, Message
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm
 from app.main import bp as main_bp
 from app.utils.storage import upload_file, delete_file
 from datetime import datetime
@@ -87,14 +87,34 @@ def search():
 
     return render_template('search_results.html', items=items, query=query, pagination=items_pagination)
 
-@main_bp.route('/item/<uuid:item_id>/', methods=['GET', 'POST'])
+@main_bp.route('/item/<uuid:item_id>', methods=['GET', 'POST'])
+@login_required
 def item_detail(item_id):
-    item = Item.query.options(
-        joinedload(Item.owner),
-        joinedload(Item.category),
-        joinedload(Item.tags)
-    ).filter_by(id=item_id).first_or_404()
-    return render_template('main/item_detail.html', item=item)
+    item = Item.query.get_or_404(item_id)
+    
+    # Initialize the MessageForm
+    form = MessageForm()
+    
+    # Process form submission
+    if form.validate_on_submit():
+
+        # Create a new message
+        message = Message(
+            sender_id=current_user.id,
+            recipient_id=item.owner.id,
+            item_id=item.id,
+            body=form.body.data
+        )
+        db.session.add(message)
+        db.session.commit()
+        
+        flash("Your message has been sent.", "success")
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Retrieve messages related to this item (optional)
+    messages = Message.query.filter_by(item_id=item.id, recipient_id=current_user.id).order_by(Message.timestamp.desc()).all()
+    
+    return render_template('main/item_detail.html', item=item, form=form, messages=messages)
 
 @main_bp.route('/item/<uuid:item_id>/request', methods=['GET', 'POST'])
 @login_required
@@ -309,3 +329,112 @@ def user_profile(user_id):
 @main_bp.route('/about')
 def about():
     return render_template('main/about.html')
+
+# Messaging -----------------------------------------------------
+
+@main_bp.route('/inbox')
+@login_required
+def inbox():
+    # Subquery to determine the latest message timestamp per conversation
+    latest_messages_subquery = db.session.query(
+        func.least(Message.sender_id, Message.recipient_id).label('user1_id'),
+        func.greatest(Message.sender_id, Message.recipient_id).label('user2_id'),
+        Message.item_id,
+        func.max(Message.timestamp).label('latest_timestamp')
+    ).filter(
+        or_(Message.sender_id == current_user.id, Message.recipient_id == current_user.id)
+    ).group_by(
+        func.least(Message.sender_id, Message.recipient_id),
+        func.greatest(Message.sender_id, Message.recipient_id),
+        Message.item_id
+    ).subquery()
+
+    # Join the subquery with the Message table to get the latest message per conversation
+    latest_conversations = db.session.query(Message).join(
+        latest_messages_subquery,
+        and_(
+            func.least(Message.sender_id, Message.recipient_id) == latest_messages_subquery.c.user1_id,
+            func.greatest(Message.sender_id, Message.recipient_id) == latest_messages_subquery.c.user2_id,
+            Message.item_id == latest_messages_subquery.c.item_id,
+            Message.timestamp == latest_messages_subquery.c.latest_timestamp
+        )
+    ).order_by(Message.timestamp.desc()).all()
+
+    # Prepare conversation summaries
+    conversation_summaries = []
+    for convo in latest_conversations:
+        # Identify the other participant
+        if convo.sender_id == current_user.id:
+            other_user = User.query.get(convo.recipient_id)
+        else:
+            other_user = User.query.get(convo.sender_id)
+        
+        # Calculate unread messages where current_user is the recipient
+        unread_count = Message.query.filter(
+            Message.item_id == convo.item_id,
+            Message.recipient_id == current_user.id,
+            Message.sender_id == other_user.id,
+            Message.is_read == False
+        ).count()
+        
+        conversation_summaries.append({
+            'conversation_id': f"{min(convo.sender_id, convo.recipient_id)}_{max(convo.sender_id, convo.recipient_id)}_{convo.item_id}",
+            'other_user': other_user,
+            'item': Item.query.get(convo.item_id),
+            'latest_message': convo,
+            'unread_count': unread_count
+        })
+
+    return render_template('messaging/inbox.html', conversations=conversation_summaries)
+
+@main_bp.route('/message/<uuid:message_id>', methods=['GET', 'POST'])
+@login_required
+def view_conversation(message_id):
+    message = Message.query.get_or_404(message_id)
+
+    if message.sender_id == current_user.id:
+        other_user = User.query.get(message.recipient_id)
+    else:
+        other_user = User.query.get(message.sender_id)
+
+    # Ensure that only the recipient can view the message
+    if message.recipient_id != current_user.id and message.sender_id != current_user.id:
+        flash("You do not have permission to view this message.", "danger")
+        return redirect(url_for('main.inbox'))
+    
+    # Fetch the entire thread (all messages related to the item between the two users)
+    thread_messages = Message.query.filter(
+        Message.item_id == message.item_id,
+        db.or_(
+            db.and_(Message.sender_id == message.sender_id, Message.recipient_id == message.recipient_id),
+            db.and_(Message.sender_id == message.recipient_id, Message.recipient_id == message.sender_id)
+        )
+    ).order_by(Message.timestamp.asc()).all()
+
+    if not message.is_read:
+        message.is_read = True
+        db.session.commit()
+
+    form = MessageForm()
+    if form.validate_on_submit():
+        reply = Message(
+            sender_id=current_user.id,
+            recipient_id=other_user.id,
+            item_id=message.item_id,
+            body=form.body.data,
+            is_read=False,
+            parent_id=message.id
+        )
+        db.session.add(reply)
+        db.session.commit()
+        flash("Your reply has been sent.", "success")
+        return redirect(url_for('main.view_conversation', message_id=message_id))
+
+    return render_template('messaging/view_conversation.html', message=message, thread_messages=thread_messages, form=form)
+
+@main_bp.context_processor
+def inject_unread_messages():
+    if current_user.is_authenticated:
+        unread_count = Message.query.filter_by(recipient_id=current_user.id, is_read=False).count()
+        return dict(unread_messages_count=unread_count)
+    return dict(unread_messages_count=0)
