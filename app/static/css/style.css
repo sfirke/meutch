@@ -209,14 +209,10 @@
     cursor: pointer;           /* Pointer cursor for interactivity */
 }
 
-/* Style for the conversation title */
-.list-group-item h5 a {
+/* Style for the combined conversation link */
+.conversation-link {
     color: #0d6efd; /* Bootstrap primary blue */
-    text-decoration: none;
-}
-
-.list-group-item h5 a:hover {
-    text-decoration: underline;
+    font-size: 1rem; /* Normal text size */
 }
 
 /* Style for the "New" badge */
@@ -235,4 +231,15 @@
 /* Ensure the container has proper spacing */
 .container.mt-5 {
     margin-top: 3rem !important;
+}
+
+.other-user {
+    font-weight: bold;
+    color: #ff8c00;
+}
+
+/* Make the item name italic and a different color */
+.item-name {
+    font-style: italic;
+    color: #28a745; /* Bootstrap success color or choose another */
 }
