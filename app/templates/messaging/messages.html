@@ -1,10 +1,8 @@
-<!-- templates/messaging/inbox.html -->
-
 {% extends "base.html" %}
 
 {% block content %}
 <div class="container mt-5">
-    <h2>Inbox</h2>
+    <h2>Messages</h2>
     {% if conversations %}
         <ul class="list-group">
             {% for convo in conversations %}

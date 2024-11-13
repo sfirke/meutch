@@ -13,8 +13,8 @@
             <a href="{{ url_for('main.profile') }}">Profile</a>
             <a href="{{ url_for('main.list_item') }}">List Item</a>
             <a href="{{ url_for('main.search') }}">Search Items</a>
-            <a {% if unread_messages_count > 0 %}style="font-weight: bold;"{% endif %} href="{{ url_for('main.inbox') }}">
-                Inbox
+            <a {% if unread_messages_count > 0 %}style="font-weight: bold;"{% endif %} href="{{ url_for('main.messages') }}">
+                Messages
                 {% if unread_messages_count > 0 %}
                     ({{ unread_messages_count }})
                 {% endif %}
