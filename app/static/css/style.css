@@ -197,21 +197,42 @@
     margin-bottom: 20px;
 }
 
-/* Highlight unread messages */
-.unread-message {
-    background-color: #e6f7ff; /* Light blue background */
-    font-weight: bold;         /* Bold text */
-    border-left: 4px solid #1890ff; /* Blue left border */
+.unread-conversation {
+    background-color: #fff3cd; /* Light yellow background */
+    font-weight: bold;          /* Bold text */
+    border-left: 5px solid #ffc107; /* Yellow left border */
     transition: background-color 0.3s, border-left 0.3s; /* Smooth transition */
 }
 
-/* Optional: Hover effect for better user experience */
-.unread-message:hover {
-    background-color: #d0ebff; /* Slightly darker blue on hover */
-    cursor: pointer;           /* Pointer cursor to indicate interactivity */
+.unread-conversation:hover {
+    background-color: #ffeeba; /* Slightly darker yellow on hover */
+    cursor: pointer;           /* Pointer cursor for interactivity */
 }
 
-.unread-message .badge {
-    background-color: #ffc107; /* Bootstrap warning color for badges */
-    color: #212529; /* Dark text for badges */
+/* Style for the conversation title */
+.list-group-item h5 a {
+    color: #0d6efd; /* Bootstrap primary blue */
+    text-decoration: none;
+}
+
+.list-group-item h5 a:hover {
+    text-decoration: underline;
+}
+
+/* Style for the "New" badge */
+.badge.bg-warning.text-dark {
+    font-size: 0.85rem;
+    padding: 0.4em 0.6em;
+}
+
+/* Truncate long message snippets gracefully */
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Ensure the container has proper spacing */
+.container.mt-5 {
+    margin-top: 3rem !important;
 }

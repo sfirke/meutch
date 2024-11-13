@@ -1,7 +1,7 @@
 from uuid import UUID
 from flask import render_template, current_app, request, flash, redirect, url_for
 from flask_login import login_required, current_user
-from sqlalchemy import or_
+from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload
 from app import db
 from app.models import Item, Category, LoanRequest, Tag, User, Message
@@ -383,8 +383,66 @@ def send_message():
 @main_bp.route('/inbox')
 @login_required
 def inbox():
-    messages = Message.query.filter_by(recipient_id=current_user.id).order_by(Message.timestamp.desc()).all()
-    return render_template('messaging/inbox.html', messages=messages)
+    # Subquery to determine the latest message timestamp per conversation
+    latest_messages_subquery = db.session.query(
+        func.least(Message.sender_id, Message.recipient_id).label('user1_id'),
+        func.greatest(Message.sender_id, Message.recipient_id).label('user2_id'),
+        Message.item_id,
+        func.max(Message.timestamp).label('latest_timestamp')
+    ).filter(
+        or_(Message.sender_id == current_user.id, Message.recipient_id == current_user.id)
+    ).group_by(
+        func.least(Message.sender_id, Message.recipient_id),
+        func.greatest(Message.sender_id, Message.recipient_id),
+        Message.item_id
+    ).subquery()
+
+    # Join the subquery with the Message table to get the latest message per conversation
+    latest_conversations = db.session.query(Message).join(
+        latest_messages_subquery,
+        and_(
+            func.least(Message.sender_id, Message.recipient_id) == latest_messages_subquery.c.user1_id,
+            func.greatest(Message.sender_id, Message.recipient_id) == latest_messages_subquery.c.user2_id,
+            Message.item_id == latest_messages_subquery.c.item_id,
+            Message.timestamp == latest_messages_subquery.c.latest_timestamp
+        )
+    ).order_by(Message.timestamp.desc()).all()
+
+    # Prepare conversation summaries
+    conversation_summaries = []
+    for convo in latest_conversations:
+        # Identify the other participant
+        if convo.sender_id == current_user.id:
+            other_user = User.query.get(convo.recipient_id)
+        else:
+            other_user = User.query.get(convo.sender_id)
+        
+        # Check for unread messages in the conversation
+        unread_count = Message.query.filter(
+            Message.item_id == convo.item_id,
+            or_(
+                and_(
+                    Message.sender_id == other_user.id,
+                    Message.recipient_id == current_user.id,
+                    Message.is_read == False
+                ),
+                and_(
+                    Message.sender_id == current_user.id,
+                    Message.recipient_id == other_user.id,
+                    Message.is_read == False
+                )
+            )
+        ).count()
+        
+        conversation_summaries.append({
+            'conversation_id': f"{min(convo.sender_id, convo.recipient_id)}_{max(convo.sender_id, convo.recipient_id)}_{convo.item_id}",
+            'other_user': other_user,
+            'item': Item.query.get(convo.item_id),
+            'latest_message': convo,
+            'unread_count': unread_count
+        })
+
+    return render_template('messaging/inbox.html', conversations=conversation_summaries)
 
 @main_bp.route('/message/<uuid:message_id>', methods=['GET', 'POST'])
 @login_required
