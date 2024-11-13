@@ -97,11 +97,7 @@ def item_detail(item_id):
     
     # Process form submission
     if form.validate_on_submit():
-        # Prevent owners from sending messages to themselves
-        if current_user.id == item.owner.id:
-            flash("You cannot send a message to yourself.", "warning")
-            return redirect(url_for('main.item_detail', item_id=item.id))
-        
+
         # Create a new message
         message = Message(
             sender_id=current_user.id,
