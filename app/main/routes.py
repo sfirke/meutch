@@ -417,21 +417,12 @@ def inbox():
         else:
             other_user = User.query.get(convo.sender_id)
         
-        # Check for unread messages in the conversation
+        # Calculate unread messages where current_user is the recipient
         unread_count = Message.query.filter(
             Message.item_id == convo.item_id,
-            or_(
-                and_(
-                    Message.sender_id == other_user.id,
-                    Message.recipient_id == current_user.id,
-                    Message.is_read == False
-                ),
-                and_(
-                    Message.sender_id == current_user.id,
-                    Message.recipient_id == other_user.id,
-                    Message.is_read == False
-                )
-            )
+            Message.recipient_id == current_user.id,
+            Message.sender_id == other_user.id,
+            Message.is_read == False
         ).count()
         
         conversation_summaries.append({
@@ -449,8 +440,13 @@ def inbox():
 def view_message(message_id):
     message = Message.query.get_or_404(message_id)
 
+    if message.sender_id == current_user.id:
+        other_user = User.query.get(message.recipient_id)
+    else:
+        other_user = User.query.get(message.sender_id)
+
     # Ensure that only the recipient can view the message
-    if message.recipient_id != current_user.id:
+    if message.recipient_id != current_user.id and message.sender_id != current_user.id:
         flash("You do not have permission to view this message.", "danger")
         return redirect(url_for('main.inbox'))
     
@@ -471,7 +467,7 @@ def view_message(message_id):
     if form.validate_on_submit():
         reply = Message(
             sender_id=current_user.id,
-            recipient_id=message.sender_id,
+            recipient_id=other_user.id,
             item_id=message.item_id,
             body=form.body.data,
             is_read=False,

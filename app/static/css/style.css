@@ -206,7 +206,6 @@
 
 .unread-conversation:hover {
     background-color: #ffeeba; /* Slightly darker yellow on hover */
-    cursor: pointer;           /* Pointer cursor for interactivity */
 }
 
 /* Style for the combined conversation link */
