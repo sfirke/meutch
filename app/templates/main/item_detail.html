@@ -40,7 +40,7 @@
         <!-- Message Owner Button - only show if viewer is not owner -->
     {% if current_user.is_authenticated and current_user.id != item.owner.id %}
         <hr>
-        <h4>Send a Message to the Owner</h4>
+        <h4>Message the owner about this item</h4>
         <form method="POST" action="{{ url_for('main.item_detail', item_id=item.id) }}">
             {{ form.hidden_tag() }}
             
