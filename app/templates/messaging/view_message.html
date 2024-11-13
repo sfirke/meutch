@@ -30,6 +30,7 @@
                 </div>
             </div>
         {% endfor %}
+        <div id="end-of-thread"></div>
     </div>
 
     <div class="card">
@@ -54,4 +55,13 @@
     </div>
     <a href="{{ url_for('main.inbox') }}" class="btn btn-secondary mt-3">Back to Inbox</a>
 </div>
+<!-- Scroll to the end of the thread -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var element = document.getElementById("end-of-thread");
+        if(element){
+            element.scrollIntoView({ behavior: "smooth" });
+        }
+    });
+</script>
 {% endblock %}
