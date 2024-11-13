@@ -332,9 +332,9 @@ def about():
 
 # Messaging -----------------------------------------------------
 
-@main_bp.route('/inbox')
+@main_bp.route('/messages')
 @login_required
-def inbox():
+def messages():
     # Subquery to determine the latest message timestamp per conversation
     latest_messages_subquery = db.session.query(
         func.least(Message.sender_id, Message.recipient_id).label('user1_id'),
@@ -385,7 +385,7 @@ def inbox():
             'unread_count': unread_count
         })
 
-    return render_template('messaging/inbox.html', conversations=conversation_summaries)
+    return render_template('messaging/messages.html', conversations=conversation_summaries)
 
 @main_bp.route('/message/<uuid:message_id>', methods=['GET', 'POST'])
 @login_required
@@ -400,7 +400,7 @@ def view_message(message_id):
     # Ensure that only the recipient can view the message
     if message.recipient_id != current_user.id and message.sender_id != current_user.id:
         flash("You do not have permission to view this message.", "danger")
-        return redirect(url_for('main.inbox'))
+        return redirect(url_for('main.messages'))
     
     # Fetch the entire thread (all messages related to the item between the two users)
     thread_messages = Message.query.filter(
