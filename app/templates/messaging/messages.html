@@ -11,7 +11,7 @@
                         <div>
                             <!-- Combined Header Link with Highlighted Name and Item -->
                             <h5>
-                                <a href="{{ url_for('main.view_message', message_id=convo.latest_message.id) }}" class="text-decoration-none conversation-link">
+                                <a href="{{ url_for('main.view_conversation', message_id=convo.latest_message.id) }}" class="text-decoration-none conversation-link">
                                     Conversation with <span class="other-user">{{ convo.other_user.first_name }} {{ convo.other_user.last_name }}</span> about <span class="item-name">{{ convo.item.name }}</span>
                                 </a>
                                 {% if convo.unread_count > 0 %}

@@ -389,7 +389,7 @@ def messages():
 
 @main_bp.route('/message/<uuid:message_id>', methods=['GET', 'POST'])
 @login_required
-def view_message(message_id):
+def view_conversation(message_id):
     message = Message.query.get_or_404(message_id)
 
     if message.sender_id == current_user.id:
@@ -428,9 +428,9 @@ def view_message(message_id):
         db.session.add(reply)
         db.session.commit()
         flash("Your reply has been sent.", "success")
-        return redirect(url_for('main.view_message', message_id=message_id))
+        return redirect(url_for('main.view_conversation', message_id=message_id))
 
-    return render_template('messaging/view_message.html', message=message, thread_messages=thread_messages, form=form)
+    return render_template('messaging/view_conversation.html', message=message, thread_messages=thread_messages, form=form)
 
 @main_bp.context_processor
 def inject_unread_messages():
