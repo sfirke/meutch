@@ -20,6 +20,26 @@
             <p>{{ message.body }}</p>
         </div>
     </div>
+    <div class="card">
+        <div class="card-header">
+            <h5>Reply to this message</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('main.view_message', message_id=message.id) }}">
+                {{ form.hidden_tag() }}
+                <div class="mb-3">
+                    {{ form.body.label(class="form-label") }}
+                    {{ form.body(class="form-control", rows="5", placeholder="Type your reply here...") }}
+                    {% for error in form.body.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div>
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
     <a href="{{ url_for('main.inbox') }}" class="btn btn-secondary mt-3">Back to Inbox</a>
 </div>
 {% endblock %}

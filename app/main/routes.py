@@ -386,19 +386,36 @@ def inbox():
     messages = Message.query.filter_by(recipient_id=current_user.id).order_by(Message.timestamp.desc()).all()
     return render_template('messaging/inbox.html', messages=messages)
 
-@main_bp.route('/message/<uuid:message_id>', methods=['GET'])
+@main_bp.route('/message/<uuid:message_id>', methods=['GET', 'POST'])
 @login_required
 def view_message(message_id):
-    msg = Message.query.get_or_404(message_id)
-    if msg.recipient != current_user and msg.sender != current_user:
-        flash('You do not have permission to view this message.', 'danger')
+    message = Message.query.get_or_404(message_id)
+
+    # Ensure that only the recipient can view the message
+    if message.recipient_id != current_user.id:
+        flash("You do not have permission to view this message.", "danger")
         return redirect(url_for('main.inbox'))
     
-    if msg.recipient == current_user and not msg.is_read:
-        msg.is_read = True
+    if not message.is_read:
+        message.is_read = True
         db.session.commit()
-    
-    return render_template('messaging/view_message.html', message=msg)
+
+    form = MessageForm()
+    if form.validate_on_submit():
+        reply = Message(
+            sender_id=current_user.id,
+            recipient_id=message.sender_id,
+            item_id=message.item_id,
+            body=form.body.data,
+            is_read=False,
+            parent_id=message.id
+        )
+        db.session.add(reply)
+        db.session.commit()
+        flash("Your reply has been sent.", "success")
+        return redirect(url_for('main.view_message', message_id=message_id))
+
+    return render_template('messaging/view_message.html', message=message, form=form)
 
 @main_bp.context_processor
 def inject_unread_messages():
