@@ -396,6 +396,15 @@ def view_message(message_id):
         flash("You do not have permission to view this message.", "danger")
         return redirect(url_for('main.inbox'))
     
+    # Fetch the entire thread (all messages related to the item between the two users)
+    thread_messages = Message.query.filter(
+        Message.item_id == message.item_id,
+        db.or_(
+            db.and_(Message.sender_id == message.sender_id, Message.recipient_id == message.recipient_id),
+            db.and_(Message.sender_id == message.recipient_id, Message.recipient_id == message.sender_id)
+        )
+    ).order_by(Message.timestamp.asc()).all()
+
     if not message.is_read:
         message.is_read = True
         db.session.commit()
@@ -415,7 +424,7 @@ def view_message(message_id):
         flash("Your reply has been sent.", "success")
         return redirect(url_for('main.view_message', message_id=message_id))
 
-    return render_template('messaging/view_message.html', message=message, form=form)
+    return render_template('messaging/view_message.html', message=message, thread_messages=thread_messages, form=form)
 
 @main_bp.context_processor
 def inject_unread_messages():

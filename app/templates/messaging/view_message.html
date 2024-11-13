@@ -2,24 +2,36 @@
 
 {% block content %}
 <div class="container mt-5">
-    <h2>Message Details</h2>
-    <div class="card">
-        <div class="card-header">
-            <strong>From:</strong>
-            <a href="{{ url_for('main.user_profile', user_id=message.sender.id) }}">
-                {{ message.sender.first_name }} {{ message.sender.last_name }} <br>
-            </a>
-            <strong>About item:</strong> 
-            <a href="{{ url_for('main.item_detail', item_id=message.item.id) }}">
-                {{ message.item.name }}
-            </a>
-            <br>
-            <small>{{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
-        </div>
-        <div class="card-body">
-            <p>{{ message.body }}</p>
-        </div>
+    <h2>Message Thread</h2>
+
+    <!-- Display All Messages in the Thread -->
+    <div class="thread-container">
+        {% for msg in thread_messages %}
+            <div class="card mb-3 {% if msg.sender_id != current_user.id and not msg.is_read %}unread-message{% endif %}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>From:</strong> 
+                        <a href="{{ url_for('main.user_profile', user_id=msg.sender.id) }}" class="text-decoration-none fw-semibold">
+                            {{ msg.sender.first_name }} {{ msg.sender.last_name }}
+                        </a>
+                        <span class="text-muted">at {{ msg.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                    {% if msg.sender_id != current_user.id and not msg.is_read %}
+                        <span class="badge bg-warning text-dark">New</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <p><strong>About item:</strong> 
+                        <a href="{{ url_for('main.item_detail', item_id=msg.item.id) }}" class="text-decoration-none">
+                            {{ msg.item.name }}
+                        </a>
+                    </p>
+                    <p>{{ msg.body }}</p>
+                </div>
+            </div>
+        {% endfor %}
     </div>
+
     <div class="card">
         <div class="card-header">
             <h5>Reply to this message</h5>
