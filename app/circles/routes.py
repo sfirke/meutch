@@ -57,9 +57,10 @@ def manage_circles():
 @login_required
 def view_circle(circle_id):
     circle = Circle.query.get_or_404(circle_id)
-    if current_user not in circle.members:
-        flash('You are not a member of this circle.', 'danger')
-        return redirect(url_for('circles.manage_circles'))
+    is_member = current_user in circle.members
+    if circle.requires_approval and not is_member:
+        flash("You are not a member of this circle.", "danger")
+        return redirect(url_for('circles.list_circles'))
     
     is_member = True  # Since we've already checked membership
     form = EmptyForm()  # Form for leaving the circle
