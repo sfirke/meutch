@@ -58,7 +58,7 @@ def manage_circles():
 def view_circle(circle_id):
     circle = Circle.query.get_or_404(circle_id)
     is_member = current_user in circle.members
-    
+
     # Only redirect non-members for private circles
     if circle.requires_approval and not is_member:
         join_form = CircleJoinRequestForm()
@@ -121,14 +121,14 @@ def leave_circle(circle_id):
         flash('You are not a member of this circle.', 'info')
         return redirect(url_for('circles.view_circle', circle_id=circle_id))
     
-    # Check if current user is an admin
-    if circle.is_admin(current_user):
+    # Check if current user is an admin and there are other members
+    if circle.is_admin(current_user) and len(circle.members) > 1:
         admin_count = db.session.query(circle_members).filter_by(
             circle_id=circle.id,
             is_admin=True
         ).count()
         
-        if admin_count == 1 and len(circle.members) > 1:
+        if admin_count == 1:
             # Find earliest member to assign as new admin
             next_admin_assoc = db.session.query(circle_members).filter(
                 circle_members.c.circle_id == circle.id,
@@ -143,17 +143,18 @@ def leave_circle(circle_id):
                     )
                 ).values(is_admin=True)
                 db.session.execute(stmt)
+
+    # Remove the member using the relationship
+    circle.members.remove(current_user)
     
-    # Remove user from circle
-    stmt = circle_members.delete().where(
-        and_(
-            circle_members.c.circle_id == circle_id,
-            circle_members.c.user_id == current_user.id
-        )
-    )
-    db.session.execute(stmt)
+    # If this was the last member, delete the circle
+    if len(circle.members) == 0:
+        db.session.delete(circle)
+        db.session.commit()
+        flash('Circle has been deleted as it has no remaining members.', 'info')
+        return redirect(url_for('circles.manage_circles'))
+    
     db.session.commit()
-    
     flash('You have left the circle.', 'success')
     return redirect(url_for('circles.manage_circles'))
 
