@@ -9,7 +9,7 @@
     <p><strong>Members:</strong> {{ circle.members|length }}</p>
     <p><strong>Requires Approval:</strong> {{ 'Yes' if circle.requires_approval else 'No' }}</p>
 
-    <!-- Members section -->
+    <!-- Members section with Admin Controls -->
     <h3>Members ({{ circle.members|length }})</h3>
     <ul class="list-group mb-4">
         {% for member in circle.members %}
@@ -25,20 +25,40 @@
                         <span class="ms-2"> [Admin]</span>
                     {% endif %}
                 </div>
+                {% if circle.is_admin(current_user) and member != current_user %}
+                    <div class="btn-group">
+                        {% if circle.is_admin(member) %}
+                            <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='remove') }}" method="POST" class="d-inline">
+                                {{ form.csrf_token }}
+                                <button type="submit" class="btn btn-warning btn-sm">Remove Admin</button>
+                            </form>
+                        {% else %}
+                            <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='add') }}" method="POST" class="d-inline">
+                                {{ form.csrf_token }}
+                                <button type="submit" class="btn btn-primary btn-sm">Make Admin</button>
+                            </form>
+                        {% endif %}
+                        <form action="{{ url_for('circles.remove_member', circle_id=circle.id, user_id=member.id) }}" method="POST" class="d-inline ms-2">
+                            {{ form.csrf_token }}
+                            <button type="submit" class="btn btn-danger btn-sm" 
+                                    onclick="return confirm('Are you sure you want to remove this member from the circle?');">
+                                Remove
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
             </li>
         {% endfor %}
     </ul>
 
-    <!-- Admin Controls -->
     {% if circle.is_admin(current_user) %}
-        <div class="card mb-4">
-            <div class="card-header">
-                <h4>Admin Controls</h4>
-            </div>
-            <div class="card-body">
-                <!-- Pending Join Requests -->
-                {% if circle.join_requests %}
-                    <h5>Pending Join Requests</h5>
+        <!-- Pending Join Requests -->
+        {% if circle.join_requests %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4>Pending Join Requests</h4>
+                </div>
+                <div class="card-body">
                     <ul class="list-group">
                         {% for request in circle.join_requests %}
                             {% if request.status == 'pending' %}
@@ -52,7 +72,7 @@
                                         </div>
                                         <div class="btn-group">
                                             <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='approve') }}" method="POST" class="d-inline">
-                                                {{ form.csrf_token }} <!-- Ensure CSRF token is included -->
+                                                {{ form.csrf_token }}
                                                 <button type="submit" class="btn btn-success btn-sm">Approve</button>
                                             </form>
                                             <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='reject') }}" method="POST" class="d-inline">
@@ -65,46 +85,9 @@
                             {% endif %}
                         {% endfor %}
                     </ul>
-                {% endif %}
-
-                <!-- Member Management -->
-                <h5 class="mt-3">Manage Members</h5>
-                <ul class="list-group">
-                    {% for member in circle.members %}
-                        {% if member != current_user %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    {{ member.first_name }} {{ member.last_name }}
-                                    {% if circle.is_admin(member) %}
-                                        <span class="badge bg-primary ms-2">Admin</span>
-                                    {% endif %}
-                                </div>
-                                <div class="btn-group">
-                                    {% if circle.is_admin(member) %}
-                                        <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='remove') }}" method="POST" class="d-inline">
-                                            {{ form.csrf_token }}
-                                            <button type="submit" class="btn btn-warning btn-sm">Remove Admin</button>
-                                        </form>
-                                    {% else %}
-                                        <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='add') }}" method="POST" class="d-inline">
-                                            {{ form.csrf_token }}
-                                            <button type="submit" class="btn btn-primary btn-sm">Make Admin</button>
-                                        </form>
-                                    {% endif %}
-                                    <form action="{{ url_for('circles.remove_member', circle_id=circle.id, user_id=member.id) }}" method="POST" class="d-inline ms-2">
-                                        {{ form.csrf_token }}
-                                        <button type="submit" class="btn btn-danger btn-sm" 
-                                                onclick="return confirm('Are you sure you want to remove this member from the circle?');">
-                                            Remove
-                                        </button>
-                                    </form>
-                                </div>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ul>
+                </div>
             </div>
-        </div>
+        {% endif %}
     {% endif %}
 
     <!-- Join/Leave Controls -->
