@@ -90,23 +90,20 @@
     {% endif %}
 
     <!-- Join/Leave Controls -->
-    {% if not is_member %}
-        {% if circle.requires_approval %}
-            <form action="{{ url_for('circles.join_circle', circle_id=circle.id) }}" method="POST">
-                {{ join_form.csrf_token }}
-                {{ join_form.message(class="form-control mb-2", placeholder="Optional message to circle admins") }}
-                {{ join_form.submit(class="btn btn-primary") }}
-            </form>
-        {% else %}
-            <form action="{{ url_for('circles.join_circle', circle_id=circle.id) }}" method="POST">
-                {{ form.csrf_token }}
-                <button type="submit" class="btn btn-primary">Join Circle</button>
-            </form>
-        {% endif %}
-    {% else %}
-        <form action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" method="POST">
-            {{ form.csrf_token }}
+    {% if is_member %}
+        <form method="post" action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}">
+            {{ form.hidden_tag() }}
             <button type="submit" class="btn btn-danger">Leave Circle</button>
+        </form>
+    {% else %}
+        <form method="post" action="{{ url_for('circles.join_circle', circle_id=circle.id) }}">
+            {{ join_form.hidden_tag() }}
+            {% if circle.requires_approval %}
+                <div class="form-group">
+                    {{ join_form.message.label }} {{ join_form.message(class="form-control") }}
+                </div>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">Join Circle</button>
         </form>
     {% endif %}
 </div>

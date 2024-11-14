@@ -58,17 +58,14 @@ def manage_circles():
 def view_circle(circle_id):
     circle = Circle.query.get_or_404(circle_id)
     is_member = current_user in circle.members
-    if circle.requires_approval and not is_member:
-        flash("You are not a member of this circle.", "danger")
-        return redirect(url_for('circles.list_circles'))
     
-    is_member = True  # Since we've already checked membership
-    form = EmptyForm()  # Form for leaving the circle
-
-    if circle.requires_approval:
-        join_form = CircleJoinRequestForm()  # Form for requesting to join (if needed elsewhere)
+    # Only redirect non-members for private circles
+    if circle.requires_approval and not is_member:
+        join_form = CircleJoinRequestForm()
     else:
-        join_form = EmptyForm()  # Simple form for joining without approval
+        join_form = EmptyForm()
+
+    form = EmptyForm() if is_member else None
 
     return render_template(
         'circles/circle_details.html',
@@ -77,7 +74,6 @@ def view_circle(circle_id):
         form=form,
         join_form=join_form
     )
-
 
 @circles_bp.route('/circles/join/<uuid:circle_id>', methods=['POST'])
 @login_required
