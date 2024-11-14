@@ -19,8 +19,7 @@
                     ({{ unread_messages_count }})
                 {% endif %}
             </a>
-            <a href="{{ url_for('circles.create_circle') }}">Create Circle</a>
-            <a href="{{ url_for('circles.search_circles') }}">Search Circles</a>
+            <a href="{{ url_for('main.manage_circles') }}">Circles</a>
             <a href="{{ url_for('auth.logout') }}">Logout</a>
         {% else %}
             <a href="{{ url_for('auth.login') }}">Login</a>

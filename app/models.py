@@ -73,7 +73,6 @@ class Circle(db.Model):
     requires_approval = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Define the other side of the relationship using back_populates
     members = db.relationship('User', secondary=circle_members, back_populates='circles')
     
     def __repr__(self):

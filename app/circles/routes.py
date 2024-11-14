@@ -2,7 +2,7 @@ from flask import render_template, redirect, url_for, flash, request
 from flask_login import current_user, login_required
 from app.circles import bp as circles_bp
 from app.models import User, Circle, db
-from app.forms import CreateCircleForm, EmptyForm, SearchCircleForm
+from app.forms import CircleCreateForm, EmptyForm, CircleSearchForm
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 @circles_bp.route('/create-circle', methods=['GET', 'POST'])
 @login_required
 def create_circle():
-    form = CreateCircleForm()
+    form = CircleCreateForm()
     if form.validate_on_submit():
         circle_name = form.name.data.strip()
         existing_circle = Circle.query.filter_by(name=circle_name).first()
@@ -34,7 +34,7 @@ def create_circle():
 @circles_bp.route('/search-circles', methods=['GET', 'POST'])
 @login_required
 def search_circles():
-    form = SearchCircleForm()
+    form = CircleSearchForm()
     circles = []
     if form.validate_on_submit():
         query = form.search_query.data.strip()

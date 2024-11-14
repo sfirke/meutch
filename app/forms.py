@@ -63,7 +63,7 @@ class RegistrationForm(FlaskForm):
     ])
     submit = SubmitField('Register')
 
-class CreateCircleForm(FlaskForm):
+class CircleCreateForm(FlaskForm):
         name = StringField('Circle Name', validators=[
             DataRequired(message="Circle name is required."),
             Length(max=100, message="Circle name must be under 100 characters.")
@@ -74,7 +74,7 @@ class CreateCircleForm(FlaskForm):
         requires_approval = BooleanField('Require Approval to Join')
         submit = SubmitField('Create Circle')
 
-class SearchCircleForm(FlaskForm):
+class CircleSearchForm(FlaskForm):
     search_query = StringField('Search Circles', validators=[
         DataRequired(message="Please enter a search term."),
         Length(max=100, message="Search term must be under 100 characters.")
