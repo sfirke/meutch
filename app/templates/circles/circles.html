@@ -11,26 +11,36 @@
     {% if user_circles %}
         <ul class="list-group mb-4">
             {% for circle in user_circles %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5>
-                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
-                                {{ circle.name }}
-                            </a>
-                        </h5>
-                        <p>{{ circle.description }}</p>
-                        <small>Members: {{ circle.members|length }}</small>
-                    </div>
-                    <div>
-                        <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-info btn-sm">View</a>
-                        <form action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" method="post" class="d-inline">
-                            {{ search_form.csrf_token }}
-                            <button type="submit" class="btn btn-danger btn-sm">Leave</button>
-                        </form>
-                    </div>
-                </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center 
+                {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}bg-light border-warning{% endif %}">
+                <div>
+                    <h5>
+                        <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" 
+                           class="text-decoration-none {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}text-dark{% endif %}">
+                            {{ circle.name }}
+                        </a>
+                        {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}
+                            <span class="badge bg-warning text-dark ms-2">
+                                <i class="fas fa-bell me-1"></i>
+                                {{ user_admin_circles[circle.id|string] }} pending request{{ 's' if user_admin_circles[circle.id|string] > 1 }}
+                            </span>
+                        {% endif %}
+                    </h5>
+                    <p>{{ circle.description }}</p>
+                    <small>Members: {{ circle.members|length }}</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" 
+                       class="btn {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}btn-warning{% else %}btn-info{% endif %} btn-sm">
+                        View{% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %} Requests{% endif %}
+                    </a>
+                    <form action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" method="post" class="d-inline">
+                        {{ search_form.csrf_token }}
+                        <button type="submit" class="btn btn-danger btn-sm">Leave</button>
+                    </form>
+                </div>
+            </li>
             {% endfor %}
-        </ul>
     {% else %}
         <p>You are not part of any circles yet.</p>
     {% endif %}

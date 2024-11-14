@@ -17,6 +17,29 @@ def manage_circles():
     circle_form = CircleCreateForm()
     search_form = CircleSearchForm()
     searched_circles = None
+
+    # Get user's admin circles with pending request counts
+    admin_circle_counts = db.session.query(
+        Circle.id.cast(db.String).label('circle_id'),  # Convert UUID to string
+        db.func.count(CircleJoinRequest.id).label('pending_count')
+    ).join(
+        circle_members,
+        Circle.id == circle_members.c.circle_id
+    ).outerjoin(
+        CircleJoinRequest,
+        db.and_(
+            Circle.id == CircleJoinRequest.circle_id,
+            CircleJoinRequest.status == 'pending'
+        )
+    ).filter(
+        circle_members.c.user_id == current_user.id,
+        circle_members.c.is_admin == True
+    ).group_by(Circle.id).all()
+
+    # Convert to dictionary with pre-converted string IDs
+    user_admin_circles = {circle_id: count for circle_id, count in admin_circle_counts}
+
+
     if request.method == 'POST':
         if 'create_circle' in request.form and circle_form.validate_on_submit():
             # Handle Circle Creation
@@ -58,7 +81,8 @@ def manage_circles():
     return render_template('circles/circles.html', 
                            circle_form=circle_form, 
                            search_form=search_form, 
-                           user_circles=user_circles, 
+                           user_circles=user_circles,
+                           user_admin_circles=user_admin_circles,
                            searched_circles=searched_circles)
 
 

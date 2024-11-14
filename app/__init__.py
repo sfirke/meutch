@@ -6,7 +6,7 @@ from flask_login import LoginManager
 from flask_wtf import CSRFProtect
 from config import Config
 from uuid import UUID
-from app.context_processors import inject_unread_messages_count
+from app.context_processors import inject_unread_messages_count, inject_total_pending
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -50,6 +50,7 @@ def create_app(config_class=Config):
     
     # Register the context processor
     app.context_processor(inject_unread_messages_count)
+    app.context_processor(inject_total_pending)
 
     return app
 
