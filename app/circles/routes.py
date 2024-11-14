@@ -17,7 +17,6 @@ def manage_circles():
     circle_form = CircleCreateForm()
     search_form = CircleSearchForm()
     searched_circles = None
-
     if request.method == 'POST':
         if 'create_circle' in request.form and circle_form.validate_on_submit():
             # Handle Circle Creation
@@ -30,12 +29,22 @@ def manage_circles():
                     description=circle_form.description.data,
                     requires_approval=circle_form.requires_approval.data
                 )
-                new_circle.members.append(current_user)  # Add creator as a member
                 db.session.add(new_circle)
+                db.session.flush()  # Ensure circle has an ID
+                
+                # Add creator as admin member
+                stmt = circle_members.insert().values(
+                    user_id=current_user.id,
+                    circle_id=new_circle.id,
+                    joined_at=datetime.utcnow(),
+                    is_admin=True
+                )
+                db.session.execute(stmt)
                 db.session.commit()
+                
                 flash('Circle created successfully.', 'success')
                 return redirect(url_for('circles.manage_circles'))
-        
+            
         elif 'search_circles' in request.form and search_form.validate_on_submit():
             # Handle Circle Search
             query = search_form.search_query.data
@@ -281,13 +290,22 @@ def create_circle():
             description=form.description.data.strip(),
             requires_approval=form.requires_approval.data
         )
-        new_circle.members.append(current_user)  # Add creator as a member
         db.session.add(new_circle)
+        db.session.flush()
+        
+        stmt = circle_members.insert().values(
+            user_id=current_user.id,
+            circle_id=new_circle.id,
+            joined_at=datetime.utcnow(),
+            is_admin=True
+        )
+        db.session.execute(stmt)
         db.session.commit()
         
         flash(f'Circle "{new_circle.name}" has been created successfully!', 'success')
         return redirect(url_for('circles.view_circle', circle_id=new_circle.id))
     return render_template('circles/create_circle.html', form=form)
+
 
 
 @circles_bp.route('/search-circles', methods=['GET', 'POST'])
