@@ -73,19 +73,31 @@
                     {% for member in circle.members %}
                         {% if member != current_user %}
                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                {{ member.first_name }} {{ member.last_name }}
+                                <div>
+                                    {{ member.first_name }} {{ member.last_name }}
+                                    {% if circle.is_admin(member) %}
+                                        <span class="badge bg-primary ms-2">Admin</span>
+                                    {% endif %}
+                                </div>
                                 <div class="btn-group">
                                     {% if circle.is_admin(member) %}
-                                        <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='remove') }}" method="POST">
+                                        <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='remove') }}" method="POST" class="d-inline">
                                             {{ form.csrf_token }}
                                             <button type="submit" class="btn btn-warning btn-sm">Remove Admin</button>
                                         </form>
                                     {% else %}
-                                        <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='add') }}" method="POST">
+                                        <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='add') }}" method="POST" class="d-inline">
                                             {{ form.csrf_token }}
                                             <button type="submit" class="btn btn-primary btn-sm">Make Admin</button>
                                         </form>
                                     {% endif %}
+                                    <form action="{{ url_for('circles.remove_member', circle_id=circle.id, user_id=member.id) }}" method="POST" class="d-inline ms-2">
+                                        {{ form.csrf_token }}
+                                        <button type="submit" class="btn btn-danger btn-sm" 
+                                                onclick="return confirm('Are you sure you want to remove this member from the circle?');">
+                                            Remove
+                                        </button>
+                                    </form>
                                 </div>
                             </li>
                         {% endif %}

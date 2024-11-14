@@ -1,7 +1,7 @@
 from flask import render_template, redirect, url_for, flash, request
 from flask_login import current_user, login_required
 from app.circles import bp as circles_bp
-from app.models import Circle, db, circle_members, CircleJoinRequest
+from app.models import Circle, db, circle_members, CircleJoinRequest, User
 from app.forms import CircleCreateForm, EmptyForm, CircleSearchForm, CircleJoinRequestForm
 import logging
 from sqlalchemy import and_
@@ -343,3 +343,37 @@ def search_circles():
         if not circles:
             flash('No circles found matching your search criteria.', 'info')
     return render_template('circles/search_circles.html', form=form, circles=circles)
+
+@circles_bp.route('/circles/<uuid:circle_id>/remove/<uuid:user_id>', methods=['POST'])
+@login_required
+def remove_member(circle_id, user_id):
+    circle = Circle.query.get_or_404(circle_id)
+    if not circle.is_admin(current_user):
+        flash('You must be an admin to remove members.', 'danger')
+        return redirect(url_for('circles.view_circle', circle_id=circle_id))
+    
+    user_to_remove = User.query.get_or_404(user_id)
+    if user_to_remove not in circle.members:
+        flash('User is not a member of this circle.', 'warning')
+        return redirect(url_for('circles.view_circle', circle_id=circle_id))
+    
+    if user_to_remove == current_user:
+        flash('Use the leave circle button to remove yourself.', 'warning')
+        return redirect(url_for('circles.view_circle', circle_id=circle_id))
+    
+    # Check if this would leave the circle without admins
+    if circle.is_admin(user_to_remove):
+        admin_count = db.session.query(circle_members).filter_by(
+            circle_id=circle.id,
+            is_admin=True
+        ).count()
+        if admin_count <= 1:
+            flash('Cannot remove the last admin. Make someone else an admin first.', 'danger')
+            return redirect(url_for('circles.view_circle', circle_id=circle_id))
+    
+    # Remove the member
+    circle.members.remove(user_to_remove)
+    db.session.commit()
+    
+    flash(f'{user_to_remove.first_name} {user_to_remove.last_name} has been removed from the circle.', 'success')
+    return redirect(url_for('circles.view_circle', circle_id=circle_id))
