@@ -112,3 +112,10 @@ class DeleteItemForm(FlaskForm):
 class MessageForm(FlaskForm):
     body = TextAreaField('Message', validators=[DataRequired(), Length(min=1, max=1000)])
     submit = SubmitField('Send')
+
+class CircleJoinRequestForm(FlaskForm):
+    message = TextAreaField(
+        'Message to Circle Admins',
+        validators=[Optional(), Length(max=500)]
+    )
+    submit = SubmitField('Request to Join')

@@ -18,8 +18,8 @@
                         <small>Members: {{ circle.members|length }}</small>
                     </div>
                     <div>
-                        <a href="{{ url_for('main.view_circle', circle_id=circle.id) }}" class="btn btn-info btn-sm">View</a>
-                        <form action="{{ url_for('main.leave_circle', circle_id=circle.id) }}" method="post" class="d-inline">
+                        <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-info btn-sm">View</a>
+                        <form action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" method="post" class="d-inline">
                             {{ search_form.csrf_token }}
                             <button type="submit" class="btn btn-danger btn-sm">Leave</button>
                         </form>
@@ -57,9 +57,9 @@
                             <small>Members: {{ circle.members|length }}</small>
                         </div>
                         <div>
-                            <a href="{{ url_for('main.view_circle', circle_id=circle.id) }}" class="btn btn-info btn-sm">View</a>
+                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-info btn-sm">View</a>
                             {% if current_user not in circle.members %}
-                                <form action="{{ url_for('main.join_circle', circle_id=circle.id) }}" method="post" class="d-inline">
+                                <form action="{{ url_for('circles.join_circle', circle_id=circle.id) }}" method="post" class="d-inline">
                                     {{ search_form.csrf_token }}
                                     <button type="submit" class="btn btn-primary btn-sm">Join</button>
                                 </form>

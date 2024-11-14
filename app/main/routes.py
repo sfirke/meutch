@@ -4,8 +4,8 @@ from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload
 from app import db
-from app.models import Item, Category, LoanRequest, Tag, User, Message, Circle
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, CircleCreateForm, CircleSearchForm
+from app.models import Item, Category, LoanRequest, Tag, User, Message
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm
 from app.main import bp as main_bp
 from app.utils.storage import upload_file, delete_file
 from datetime import datetime
@@ -431,98 +431,3 @@ def view_conversation(message_id):
         return redirect(url_for('main.view_conversation', message_id=message_id))
 
     return render_template('messaging/view_conversation.html', message=message, thread_messages=thread_messages, form=form)
-
-@main_bp.context_processor
-def inject_unread_messages():
-    if current_user.is_authenticated:
-        unread_count = Message.query.filter_by(recipient_id=current_user.id, is_read=False).count()
-        return dict(unread_messages_count=unread_count)
-    return dict(unread_messages_count=0)
-
-# Circles -----------------------------------------------------
-
-@main_bp.route('/circles', methods=['GET', 'POST'])
-@login_required
-def manage_circles():
-    circle_form = CircleCreateForm()
-    search_form = CircleSearchForm()
-    searched_circles = None
-
-    if request.method == 'POST':
-        if 'create_circle' in request.form and circle_form.validate_on_submit():
-            # Handle Circle Creation
-            existing_circle = Circle.query.filter(db.func.lower(Circle.name) == db.func.lower(circle_form.name.data)).first()
-            if existing_circle:
-                flash('A circle with this name already exists.', 'danger')
-            else:
-                new_circle = Circle(
-                    name=circle_form.name.data,
-                    description=circle_form.description.data,
-                    requires_approval=circle_form.requires_approval.data
-                )
-                new_circle.members.append(current_user)  # Add creator as a member
-                db.session.add(new_circle)
-                db.session.commit()
-                flash('Circle created successfully.', 'success')
-                return redirect(url_for('main.manage_circles'))
-        
-        elif 'search_circles' in request.form and search_form.validate_on_submit():
-            # Handle Circle Search
-            query = search_form.search_query.data
-            searched_circles = Circle.query.filter(Circle.name.ilike(f'%{query}%')).all()
-            if not searched_circles:
-                flash('No circles found matching your search.', 'info')
-    
-    # Fetch user's circles
-    user_circles = current_user.circles  # Assuming 'circles' relationship exists in User model
-
-    return render_template('circles/circles.html', 
-                           circle_form=circle_form, 
-                           search_form=search_form, 
-                           user_circles=user_circles, 
-                           searched_circles=searched_circles)
-
-@main_bp.route('/circles/join/<uuid:circle_id>', methods=['POST'])
-@login_required
-def join_circle(circle_id):
-    circle = Circle.query.get_or_404(circle_id)
-    if current_user in circle.members:
-        flash('You are already a member of this circle.', 'info')
-    else:
-        if circle.requires_approval:
-            # Implement approval workflow if necessary
-            flash('Joining this circle requires approval. Please wait for confirmation.', 'warning')
-            # You might want to implement a notification or request system here
-        else:
-            circle.members.append(current_user)
-            db.session.commit()
-            flash(f'You have joined the circle "{circle.name}".', 'success')
-    return redirect(url_for('main.manage_circles'))
-
-@main_bp.route('/circles/leave/<uuid:circle_id>', methods=['POST'])
-@login_required
-def leave_circle(circle_id):
-    circle = Circle.query.get_or_404(circle_id)
-    if current_user in circle.members:
-        circle.members.remove(current_user)
-        db.session.commit()
-        if len(circle.members) == 0:
-            db.session.delete(circle)
-            db.session.commit()
-            flash(f'You were the last member. The circle "{circle.name}" has been deleted.', 'warning')
-        else:
-            flash(f'You have left the circle "{circle.name}".', 'success')
-    else:
-        flash('You are not a member of this circle.', 'info')
-    return redirect(url_for('main.manage_circles'))
-
-
-@main_bp.route('/circles/<uuid:circle_id>', methods=['GET'])
-@login_required
-def view_circle(circle_id):
-    circle = Circle.query.get_or_404(circle_id)
-    if current_user not in circle.members:
-        flash('You are not a member of this circle.', 'danger')
-        return redirect(url_for('main.manage_circles'))
-
-    return render_template('circles/circle_details.html', circle=circle)
