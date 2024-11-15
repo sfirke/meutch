@@ -100,12 +100,32 @@ def view_circle(circle_id):
 
     form = EmptyForm() if is_member else None
 
+    # Query members with their joined_at and is_admin status
+    members_info = db.session.query(
+        User,
+        circle_members.c.joined_at,
+        circle_members.c.is_admin
+    ).join(
+        circle_members,
+        and_(
+            User.id == circle_members.c.user_id,
+            circle_members.c.circle_id == circle_id
+        )
+    ).all()
+
+    # Sort members: admins first, then by joined_at ascending
+    ordered_members = sorted(
+        members_info,
+        key=lambda x: (not x.is_admin, x.joined_at)
+    )
+
     return render_template(
         'circles/circle_details.html',
         circle=circle,
         is_member=is_member,
         form=form,
-        join_form=join_form
+        join_form=join_form,
+        ordered_members=ordered_members  # Pass the ordered list to the template
     )
 
 @circles_bp.route('/circles/join/<uuid:circle_id>', methods=['POST'])
