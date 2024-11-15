@@ -28,21 +28,21 @@
                     {% endif %}
                 </div>
                 {% if circle.is_admin(current_user) and member != current_user %}
-                    <div class="btn-group btn-group-sm" role="group">
+                    <div class="button-group">
                         {% if is_admin %}
                             <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='remove') }}" method="POST">
                                 {{ form.csrf_token }}
-                                <button type="submit" class="btn btn-warning">Remove Admin</button>
+                                <button type="submit" class="btn btn-warning btn-sm">Remove Admin</button>
                             </form>
                         {% else %}
                             <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='add') }}" method="POST">
                                 {{ form.csrf_token }}
-                                <button type="submit" class="btn btn-primary">Make Admin</button>
+                                <button type="submit" class="btn btn-primary btn-sm">Make Admin</button>
                             </form>
                         {% endif %}
                         <form action="{{ url_for('circles.remove_member', circle_id=circle.id, user_id=member.id) }}" method="POST">
                             {{ form.csrf_token }}
-                            <button type="submit" class="btn btn-danger" 
+                            <button type="submit" class="btn btn-danger btn-sm" 
                                     onclick="return confirm('Are you sure you want to remove this member from the circle?');">
                                 Remove
                             </button>
@@ -72,14 +72,14 @@
                                                 <p class="mb-1">{{ request.message }}</p>
                                             {% endif %}
                                         </div>
-                                        <div class="btn-group btn-group-sm" role="group">
+                                        <div class="button-group">
                                             <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='approve') }}" method="POST">
                                                 {{ form.csrf_token }}
-                                                <button type="submit" class="btn btn-success">Approve</button>
+                                                <button type="submit" class="btn btn-success btn-sm">Approve</button>
                                             </form>
                                             <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='reject') }}" method="POST">
                                                 {{ form.csrf_token }}
-                                                <button type="submit" class="btn btn-danger">Reject</button>
+                                                <button type="submit" class="btn btn-danger btn-sm">Reject</button>
                                             </form>
                                         </div>
                                     </div>
