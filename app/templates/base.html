@@ -9,6 +9,11 @@
 </head>
 <body>
     <nav>
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('main.profile') }}" class="profile-picture-link">
+                <img src="{{ current_user.profile_image }}" alt="Profile" class="profile-picture-small" width="40" height="40">
+            </a>
+        {% endif %}
         <a href="{{ url_for('main.index') }}">Home</a>
         {% if current_user.is_authenticated %}
             <a href="{{ url_for('main.profile') }}">Profile</a>

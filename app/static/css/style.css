@@ -169,6 +169,21 @@
     border: 2px solid #ddd; /* Optional: Add a border for better appearance */
 }
 
+.profile-picture-link {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    z-index: 1000; /* Ensures the profile picture stays above other elements */
+}
+
+.profile-picture-small {
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #fff; /* Optional: Adds a white border around the image */
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); /* Optional: Adds a subtle shadow for depth */
+    cursor: pointer;
+}
+
 .faq-section {
     margin-top: 20px;
 }
