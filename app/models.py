@@ -9,7 +9,8 @@ from flask import url_for
 circle_members = db.Table('circle_members',
     db.Column('user_id', UUID(as_uuid=True), db.ForeignKey('user.id'), primary_key=True),
     db.Column('circle_id', UUID(as_uuid=True), db.ForeignKey('circle.id'), primary_key=True),
-    db.Column('joined_at', db.DateTime, default=datetime.utcnow)
+    db.Column('joined_at', db.DateTime, default=datetime.utcnow),
+    db.Column('is_admin', db.Boolean, default=False)
 )
 
 item_tags = db.Table('item_tags',
@@ -73,11 +74,17 @@ class Circle(db.Model):
     requires_approval = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Define the other side of the relationship using back_populates
     members = db.relationship('User', secondary=circle_members, back_populates='circles')
     
     def __repr__(self):
         return f'<Circle {self.name}>'
+    
+    def is_admin(self, user):
+        member = db.session.query(circle_members).filter_by(
+            user_id=user.id,
+            circle_id=self.id
+        ).first()
+        return member and member.is_admin if member else False
 
     
 class Category(db.Model):
@@ -137,3 +144,15 @@ class Message(db.Model):
 
     def __repr__(self):
         return f"<Message {self.id} from {self.sender.username} to {self.recipient.username}>"
+    
+class CircleJoinRequest(db.Model):
+    __tablename__ = 'circle_join_requests'
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    circle_id = db.Column(UUID(as_uuid=True), db.ForeignKey('circle.id'), nullable=False)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    message = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    circle = db.relationship('Circle', backref='join_requests')
+    user = db.relationship('User', backref='circle_join_requests')

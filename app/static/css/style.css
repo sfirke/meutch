@@ -242,3 +242,8 @@
     font-style: italic;
     color: #28a745; /* Bootstrap success color or choose another */
 }
+
+.button-group {
+    display: flex;
+    gap: 5px; /* Adjust spacing as needed */
+}

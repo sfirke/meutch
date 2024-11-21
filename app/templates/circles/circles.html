@@ -1,0 +1,121 @@
+<!-- app/templates/circles/circles.html -->
+
+{% extends "base.html" %}
+
+{% block title %}Circles{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <!-- User's Joined Circles -->
+    <h2>Your Circles</h2>
+    {% if user_circles %}
+        <ul class="list-group mb-4">
+            {% for circle in user_circles %}
+            <li class="list-group-item d-flex justify-content-between align-items-center 
+                {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}bg-light border-warning{% endif %}">
+                <div>
+                    <h5>
+                        <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" 
+                           class="text-decoration-none {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}text-dark{% endif %}">
+                            {{ circle.name }}
+                        </a>
+                        {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}
+                            <span class="badge bg-warning text-dark ms-2">
+                                <i class="fas fa-bell me-1"></i>
+                                {{ user_admin_circles[circle.id|string] }} pending request{{ 's' if user_admin_circles[circle.id|string] > 1 }}
+                            </span>
+                        {% endif %}
+                    </h5>
+                    <p>{{ circle.description }}</p>
+                    <small>Members: {{ circle.members|length }}</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" 
+                       class="btn {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}btn-warning{% else %}btn-info{% endif %} btn-sm">
+                        View{% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %} Requests{% endif %}
+                    </a>
+                    <form action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" method="post" class="d-inline">
+                        {{ search_form.csrf_token }}
+                        <button type="submit" class="btn btn-danger btn-sm">Leave</button>
+                    </form>
+                </div>
+            </li>
+            {% endfor %}
+    {% else %}
+        <p>You are not part of any circles yet.</p>
+    {% endif %}
+
+    <!-- Search Circles -->
+    <h2>Search Circles</h2>
+    <form method="post" class="mb-4">
+        {{ search_form.csrf_token }}
+        <div class="input-group">
+            {{ search_form.search_query(class="form-control", placeholder="Enter circle name") }}
+            <button class="btn btn-outline-secondary" type="submit" name="search_circles">{{ search_form.submit.label.text }}</button>
+        </div>
+        {% for error in search_form.search_query.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </form>
+
+    <!-- Display Search Results if Any -->
+        {% if searched_circles %}
+            <h3>Search Results</h3>
+            <ul class="list-group mb-4">
+                {% for circle in searched_circles %}
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5>
+                            {% if circle.requires_approval %}
+                                <i class="fas fa-lock text-muted me-2"></i>
+                            {% endif %}
+                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
+                                {{ circle.name }}
+                            </a>
+                        </h5>
+                        <small>{{ circle.members|length }} members</small>
+                    </div>
+                    <p class="mb-0">{{ circle.description }}</p>
+                </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    <!-- Create New Circle -->
+    <h2>Create a New Circle</h2>
+    <form method="post">
+        {{ circle_form.csrf_token }}
+        
+        <!-- Circle Name -->
+        <div class="mb-3">
+            {{ circle_form.name.label(class="form-label") }}
+            {{ circle_form.name(class="form-control", placeholder="Enter circle name") }}
+            {% for error in circle_form.name.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Description -->
+        <div class="mb-3">
+            {{ circle_form.description.label(class="form-label") }}
+            {{ circle_form.description(class="form-control", placeholder="Enter description (optional)", rows="3") }}
+            {% for error in circle_form.description.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Requires Approval -->
+        <div class="form-check mb-3">
+            {{ circle_form.requires_approval(class="form-check-input") }}
+            {{ circle_form.requires_approval.label(class="form-check-label") }}
+            {% for error in circle_form.requires_approval.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Submit Button -->
+        <div class="mb-3">
+            <button type="submit" class="btn btn-primary" name="create_circle">{{ circle_form.submit.label.text }}</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

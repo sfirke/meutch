@@ -431,10 +431,3 @@ def view_conversation(message_id):
         return redirect(url_for('main.view_conversation', message_id=message_id))
 
     return render_template('messaging/view_conversation.html', message=message, thread_messages=thread_messages, form=form)
-
-@main_bp.context_processor
-def inject_unread_messages():
-    if current_user.is_authenticated:
-        unread_count = Message.query.filter_by(recipient_id=current_user.id, is_read=False).count()
-        return dict(unread_messages_count=unread_count)
-    return dict(unread_messages_count=0)
