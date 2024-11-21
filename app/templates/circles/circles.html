@@ -15,6 +15,9 @@
                 {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}bg-light border-warning{% endif %}">
                 <div>
                     <h5>
+                        {% if circle.requires_approval %}
+                            <i class="fas fa-lock text-muted me-2"></i>
+                        {% endif %}
                         <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" 
                            class="text-decoration-none {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}text-dark{% endif %}">
                             {{ circle.name }}
