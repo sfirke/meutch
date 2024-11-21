@@ -59,8 +59,6 @@
     </form>
 
     <!-- Display Search Results if Any -->
-    {% if searched_circles is defined %}
-        <h3>Search Results:</h3>
         {% if searched_circles %}
             <h3>Search Results</h3>
             <ul class="list-group mb-4">
@@ -82,8 +80,6 @@
                 {% endfor %}
             </ul>
         {% endif %}
-    {% endif %}
-
     <!-- Create New Circle -->
     <h2>Create a New Circle</h2>
     <form method="post">
