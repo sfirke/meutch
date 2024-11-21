@@ -62,34 +62,25 @@
     {% if searched_circles is defined %}
         <h3>Search Results:</h3>
         {% if searched_circles %}
-            <ul class="list-group">
+            <h3>Search Results</h3>
+            <ul class="list-group mb-4">
                 {% for circle in searched_circles %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5>
-                                <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
-                                    {{ circle.name }}
-                                </a>
-                            </h5>
-                            <p>{{ circle.description }}</p>
-                            <small>Members: {{ circle.members|length }}</small>
-                        </div>
-                        <div>
-                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-info btn-sm">View</a>
-                            {% if current_user not in circle.members %}
-                                <form action="{{ url_for('circles.join_circle', circle_id=circle.id) }}" method="post" class="d-inline">
-                                    {{ search_form.csrf_token }}
-                                    <button type="submit" class="btn btn-primary btn-sm">Join</button>
-                                </form>
-                            {% else %}
-                                <span class="badge bg-success">Member</span>
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5>
+                            {% if circle.requires_approval %}
+                                <i class="fas fa-lock text-muted me-2"></i>
                             {% endif %}
-                        </div>
-                    </li>
+                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
+                                {{ circle.name }}
+                            </a>
+                        </h5>
+                        <small>{{ circle.members|length }} members</small>
+                    </div>
+                    <p class="mb-0">{{ circle.description }}</p>
+                </li>
                 {% endfor %}
             </ul>
-        {% else %}
-            <p>No circles found matching your search.</p>
         {% endif %}
     {% endif %}
 

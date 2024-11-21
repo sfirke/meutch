@@ -92,32 +92,37 @@ def view_circle(circle_id):
     circle = Circle.query.get_or_404(circle_id)
     is_member = current_user in circle.members
 
-    # Only redirect non-members for private circles
-    if circle.requires_approval and not is_member:
-        join_form = CircleJoinRequestForm()
-    else:
-        join_form = EmptyForm()
+    # Create form instance for CSRF protection
+    form = EmptyForm()  # Use this for all basic forms including cancel
+    join_form = CircleJoinRequestForm() if circle.requires_approval and not is_member else None
 
-    form = EmptyForm() if is_member else None
+    # Check for pending request
+    pending_request = CircleJoinRequest.query.filter_by(
+        circle_id=circle_id,
+        user_id=current_user.id,
+        status='pending'
+    ).first()
 
-    # Query members with their joined_at and is_admin status
-    members_info = db.session.query(
-        User,
-        circle_members.c.joined_at,
-        circle_members.c.is_admin
-    ).join(
-        circle_members,
-        and_(
-            User.id == circle_members.c.user_id,
-            circle_members.c.circle_id == circle_id
+    # Only query member details if public circle or user is member
+    if not circle.requires_approval or is_member:
+        members_info = db.session.query(
+            User,
+            circle_members.c.joined_at,
+            circle_members.c.is_admin
+        ).join(
+            circle_members,
+            and_(
+                User.id == circle_members.c.user_id,
+                circle_members.c.circle_id == circle_id
+            )
+        ).all()
+
+        ordered_members = sorted(
+            members_info,
+            key=lambda x: (not x.is_admin, x.joined_at)
         )
-    ).all()
-
-    # Sort members: admins first, then by joined_at ascending
-    ordered_members = sorted(
-        members_info,
-        key=lambda x: (not x.is_admin, x.joined_at)
-    )
+    else:
+        ordered_members = []
 
     return render_template(
         'circles/circle_details.html',
@@ -125,7 +130,8 @@ def view_circle(circle_id):
         is_member=is_member,
         form=form,
         join_form=join_form,
-        ordered_members=ordered_members  # Pass the ordered list to the template
+        ordered_members=ordered_members,
+        pending_request=pending_request
     )
 
 @circles_bp.route('/circles/join/<uuid:circle_id>', methods=['POST'])
@@ -276,6 +282,29 @@ def handle_join_request(circle_id, request_id, action):
     db.session.commit()
     return redirect(url_for('circles.view_circle', circle_id=circle_id))
 
+@circles_bp.route('/circles/<uuid:circle_id>/cancel-request', methods=['POST'])
+@login_required
+def cancel_join_request(circle_id):
+    circle = Circle.query.get_or_404(circle_id)
+    
+    # Find and delete pending request
+    pending_request = CircleJoinRequest.query.filter_by(
+        circle_id=circle_id,
+        user_id=current_user.id,
+        status='pending'
+    ).first()
+    
+    if pending_request:
+        db.session.delete(pending_request)
+        try:
+            db.session.commit()
+            flash('Join request cancelled.', 'info')
+        except:
+            db.session.rollback()
+            flash('Error cancelling request.', 'danger')
+    
+    # Force a fresh query on redirect
+    return redirect(url_for('circles.view_circle', circle_id=circle_id))
 
 @circles_bp.route('/circles/<uuid:circle_id>/admin/<uuid:user_id>/<action>', methods=['POST'])
 @login_required

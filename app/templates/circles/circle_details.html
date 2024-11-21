@@ -11,10 +11,12 @@
     <p><strong>Members:</strong> {{ circle.members|length }}</p>
     <p><strong>Requires Approval:</strong> {{ 'Yes' if circle.requires_approval else 'No' }}</p>
 
-    <!-- Members section with Admin Controls -->
-    <h3>Members ({{ circle.members|length }})</h3>
-    <ul class="list-group mb-4">
-        {% for member, joined_at, is_admin in ordered_members %}
+    {% if not circle.requires_approval or is_member %}
+        <!-- Members section with Admin Controls -->
+        <h3>Members ({{ circle.members|length }})</h3>
+        <ul class="list-group mb-4">
+            {% for member, joined_at, is_admin in ordered_members %}
+
             <li class="list-group-item d-flex justify-content-between align-items-center">
                 <div>
                     {% if is_admin %}
@@ -52,7 +54,12 @@
             </li>
         {% endfor %}
     </ul>
-
+    {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-lock me-2"></i>
+            This is a private circle. Join to see its members.
+        </div>
+    {% endif %}
     {% if circle.is_admin(current_user) %}
         <!-- Pending Join Requests -->
         {% if circle.join_requests %}
@@ -99,15 +106,26 @@
             <button type="submit" class="btn btn-danger">Leave Circle</button>
         </form>
     {% else %}
-        <form method="post" action="{{ url_for('circles.join_circle', circle_id=circle.id) }}">
-            {{ join_form.hidden_tag() }}
-            {% if circle.requires_approval %}
-                <div class="form-group">
-                    {{ join_form.message.label }} {{ join_form.message(class="form-control") }}
-                </div>
-            {% endif %}
-            <button type="submit" class="btn btn-primary">Join Circle</button>
+    {% if pending_request %}
+        <div class="alert alert-info">
+            <i class="fas fa-clock me-2"></i>
+            Your request to join this circle is pending approval.
+        </div>
+        <form method="post" action="{{ url_for('circles.cancel_join_request', circle_id=circle.id) }}">
+            {{ form.hidden_tag() }}  <!-- Using the base form for CSRF -->
+            <button type="submit" class="btn btn-warning">Cancel Join Request</button>
         </form>
+        {% else %}
+            <form method="post" action="{{ url_for('circles.join_circle', circle_id=circle.id) }}">
+                {{ join_form.hidden_tag() }}
+                {% if circle.requires_approval %}
+                    <div class="form-group">
+                        {{ join_form.message.label }} {{ join_form.message(class="form-control") }}
+                    </div>
+                {% endif %}
+                <button type="submit" class="btn btn-primary">Join Circle</button>
+            </form>
+        {% endif %}
     {% endif %}
 </div>
 {% endblock %}
