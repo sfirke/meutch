@@ -229,11 +229,17 @@
     font-size: 1rem; /* Normal text size */
 }
 
-/* Style for the "New" badge */
-.badge.bg-warning.text-dark {
-    font-size: 0.85rem;
-    padding: 0.4em 0.6em;
+.conversation-header.card {
+    max-width: none;  /* Override the default card max-width */
+    width: 100%;      /* Allow it to expand full width */
 }
+
+.conversation-header h2 {
+    white-space: nowrap;  /* Prevent text wrapping */
+    overflow: hidden;     /* In case of very long names/titles */
+    text-overflow: ellipsis;  /* Show ... if text overflows */
+}
+
 
 /* Truncate long message snippets gracefully */
 .text-truncate {

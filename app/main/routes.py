@@ -494,11 +494,18 @@ def view_conversation(message_id):
     # Fetch the entire thread (all messages related to the item between the two users)
     thread_messages = Message.query.filter(
         Message.item_id == message.item_id,
-        db.or_(
-            db.and_(Message.sender_id == message.sender_id, Message.recipient_id == message.recipient_id),
-            db.and_(Message.sender_id == message.recipient_id, Message.recipient_id == message.sender_id)
+        or_(
+            and_(Message.sender_id == message.sender_id, 
+                 Message.recipient_id == message.recipient_id),
+            and_(Message.sender_id == message.recipient_id, 
+                 Message.recipient_id == message.sender_id)
         )
-    ).order_by(Message.timestamp.asc()).all()
+    ).order_by(Message.timestamp).all()
+
+    # Add other_user to each message
+    for msg in thread_messages:
+        msg.other_user = msg.recipient if msg.sender_id == current_user.id else msg.sender
+
 
     if not message.is_read:
         message.is_read = True

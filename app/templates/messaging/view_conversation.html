@@ -1,24 +1,40 @@
-<!-- templates/messaging/view_conversation.html -->
-
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-5">
-    <!-- Item Details Header -->
-    <div class="card mb-4">
+    <div class="card mb-4 conversation-header">
         <div class="card-header">
             <h2>
-                <a href="{{ url_for('main.item_detail', item_id=thread_messages[0].item.id) }}">
-                    {{ thread_messages[0].item.name }}
+                Conversation with 
+                <a href="{{ url_for('main.user_profile', user_id=thread_messages[0].other_user.id) }}" class="text-decoration-none">
+                    <span class="other-user">{{ thread_messages[0].other_user.full_name }}</span>
+                </a>
+                about 
+                <a href="{{ url_for('main.item_detail', item_id=thread_messages[0].item.id) }}" class="text-decoration-none">
+                    <span class="item-name">{{ thread_messages[0].item.name }}</span>
                 </a>
             </h2>
         </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col">
-                    <p><strong>Owner:</strong> {{ thread_messages[0].item.owner.full_name }}</p>
+    </div>
+
+    <!-- Item Details Card -->
+    <div class="card mb-4">
+        <div class="row g-0">
+            <div class="col-md-4">
+                {% if thread_messages[0].item.image %}
+                    <img src="{{ thread_messages[0].item.image }}" 
+                         class="img-fluid rounded-start item-thumbnail" 
+                         alt="{{ thread_messages[0].item.name }}">
+                {% endif %}
+            </div>
+            <div class="col-md-8">
+                <div class="card-body">
+                    <h5 class="card-title">{{ thread_messages[0].item.name }}</h5>
+                    <p class="card-text">{{ thread_messages[0].item.description }}</p>
+                    <p class="card-text">
+                        <strong>Owner:</strong> {{ thread_messages[0].item.owner.full_name }}
+                    </p>
                     {% if thread_messages[0].item.current_loan and thread_messages[0].item.current_loan.borrower == current_user %}
-                        <span class="badge bg-info">You are currently borrowing this item.</span>
+                        <span class="badge bg-info">You are currently borrowing this item</span>
                     {% elif thread_messages[0].item.available %}
                         <span class="badge bg-success">Available</span>
                     {% else %}
