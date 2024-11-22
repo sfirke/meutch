@@ -228,17 +228,34 @@ def delete_item(item_id):
     form = DeleteItemForm()
     if form.validate_on_submit():
         item = Item.query.get_or_404(item_id)
+        
+        # Verify ownership
         if item.owner != current_user:
             flash('You do not have permission to delete this item.', 'danger')
             return redirect(url_for('main.profile'))
-        if item.image_url:
-            delete_file(item.image_url)
         
+        # Check for active loan requests
+        active_loan_requests = LoanRequest.query.filter(
+            LoanRequest.item_id == item.id,
+            LoanRequest.status.in_(('pending', 'approved'))
+        ).count()
+        
+        if active_loan_requests > 0:
+            flash('Cannot delete this item because there are active loans or requests. Please resolve them first.', 'warning')
+            return redirect(url_for('main.item_detail', item_id=item.id))
+        
+        # Proceed with deletion
         db.session.delete(item)
-        db.session.commit()
-        flash('Item has been deleted.', 'success')
+        try:
+            db.session.commit()
+            flash('Item deleted successfully.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Error deleting item {item.id}: {e}')
+            flash('An error occurred while deleting the item. Please try again.', 'danger')
     else:
-        flash('Invalid request.', 'danger')
+        flash('Invalid deletion request.', 'danger')
+    
     return redirect(url_for('main.profile'))
 
 @main_bp.route('/loan/<uuid:loan_id>/<string:action>', methods=['POST'])

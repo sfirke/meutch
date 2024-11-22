@@ -143,15 +143,58 @@
     margin-top: 10px; /* Add spacing above the button */
 }
 
+item-link {
+    text-decoration: none; /* Remove underlines */
+    color: inherit;        /* Inherit text color */
+    display: block;        /* Ensure the link wraps the entire card */
+}
+
+/* Optional: Change cursor to pointer for clickable cards */
 .item-card {
-    transition: transform 0.2s;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .item-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
+/* Optional: Ensure images don't have default link styles */
+.item-link img {
+    display: block; /* Removes bottom margin/padding */
+    color: inherit; /* Inherit text color */
+}
+
+/* Ensure inner text doesn't get extra styles from <a> */
+.item-link .card-title,
+.item-link .card-text {
+    color: inherit;
+}
+
+/* Ensure the 'My Items' edit and delete buttons are styled correctly */
+.card-footer a.btn {
+    margin-right: 5px;
+    text-decoration: none; /* Remove underlines from buttons */
+}
+
+/* Optional: Prevent links inside the card footer from affecting the parent link */
+.card-footer a,
+.card-footer form {
+    pointer-events: auto;
+}
+
+/* Remove pointer events from the parent link when interacting with footer elements */
+.card-footer {
+    position: relative;
+}
+
+/* Ensure that the footer buttons are clickable without triggering the parent link */
+.card-footer a.btn,
+.card-footer form {
+    position: relative;
+    z-index: 2;
+}
 /* Ensure text colors are readable */
 .card-title.text-primary {
     color: #007bff !important;
