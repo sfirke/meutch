@@ -66,6 +66,13 @@ class Item(db.Model):
     def image(self):
         return self.image_url or url_for('static', filename='img/default_item_photo.png')
     
+    @property
+    def current_loan(self):
+        return LoanRequest.query.filter_by(
+            item_id=self.id,
+            status='approved'
+        ).order_by(LoanRequest.end_date.desc()).first()
+
     def __repr__(self):
         return f'<Item {self.name}>'
 
