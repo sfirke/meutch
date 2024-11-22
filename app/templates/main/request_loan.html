@@ -1,16 +1,80 @@
+<!-- request_loan.html -->
+
 {% extends "base.html" %}
 
+{% block title %}Request to Borrow: {{ item.name }}{% endblock %}
+
 {% block content %}
-<h1>Request to Borrow: {{ item.name }}</h1>
-<form method="post">
-    <p>
-        <label for="start_date">Start Date:</label>
-        <input type="date" id="start_date" name="start_date" required>
-    </p>
-    <p>
-        <label for="end_date">End Date:</label>
-        <input type="date" id="end_date" name="end_date" required>
-    </p>
-    <input type="submit" value="Submit Request">
-</form>
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2>Request to Borrow</h2>
+                </div>
+                <div class="card-body">
+                    <!-- Item Details Card -->
+                    <div class="item-card mb-4">
+                        {% if item.image %}
+                            <img src="{{ item.image }}" 
+                                 class="item-thumbnail mb-3" 
+                                 alt="{{ item.name }}" 
+                                 width="200" 
+                                 height="150">
+                        {% endif %}
+                        <h4>{{ item.name }}</h4>
+                        <p>{{ item.description }}</p>
+                        <p><strong>Owner:</strong> {{ item.owner.first_name }} {{ item.owner.last_name }}</p>
+                    </div>
+
+                    <!-- Loan Request Form -->
+                    <form method="post">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Date Fields -->
+                        <div class="form-row">
+                            <div>
+                                {{ form.start_date.label(class="form-label") }}
+                                {{ form.start_date(class="form-control form-control-small") }}
+                                {% for error in form.start_date.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div>
+                                {{ form.end_date.label(class="form-label") }}
+                                {{ form.end_date(class="form-control form-control-small") }}
+                                {% for error in form.end_date.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Message Section -->
+                        <div class="mb-3">
+                            <!-- Label on its own line -->
+                            {{ form.message.label(class="form-label d-block") }}
+                        </div>
+                        <div class="mb-3">
+                            <!-- Textbox on a new line -->
+                            {{ form.message(class="form-control mb-2", rows="8") }}
+                            {% for error in form.message.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            <!-- Helper text below the textbox -->
+                            <small class="text-muted">
+                                Please include any relevant details about pickup/return and preferred contact method.
+                            </small>
+                        </div>
+
+                        <!-- Form Buttons -->
+                        <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+                        <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="btn btn-secondary">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

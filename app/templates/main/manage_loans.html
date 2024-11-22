@@ -1,22 +1,39 @@
+<!-- templates/manage_loans.html -->
+
 {% extends "base.html" %}
 
+{% block title %}Manage Loans{% endblock %}
+
 {% block content %}
-<h1>Manage Loan Requests</h1>
-{% if not requests %}
-    <p>No pending requests</p>
-{% else %}
-    {% for request in requests %}
-    <div class="loan-request">
-        <h3>{{ request.item.name }}</h3>
-        <p>Requested by: {{ request.borrower.full_name }}</p>
-        <p>Duration: {{ request.start_date.strftime('%Y-%m-%d') }} to {{ request.end_date.strftime('%Y-%m-%d') }}</p>
-        <div class="actions">
-            <a href="{{ url_for('main.process_loan', loan_id=request.id, action='approve') }}" 
-               class="button approve">Approve</a>
-            <a href="{{ url_for('main.process_loan', loan_id=request.id, action='deny') }}" 
-               class="button deny">Deny</a>
+<div class="container mt-5">
+    <h1>Manage Loan Requests</h1>
+    {% if not requests %}
+        <p>You have no pending loan requests.</p>
+    {% else %}
+        {% for request in requests %}
+        <div class="loan-request card mb-3">
+            <div class="card-body">
+                <h3 class="card-title">{{ request.item.name }}</h3>
+                <p class="card-text"><strong>Requested by:</strong> {{ request.borrower.full_name }}</p>
+                <p class="card-text"><strong>Duration:</strong> {{ request.start_date.strftime('%Y-%m-%d') }} to {{ request.end_date.strftime('%Y-%m-%d') }}</p>
+                <p class="card-text"><strong>Message:</strong> {{ request.message }}</p>
+                
+                <div class="actions">
+                    <!-- Approve Form -->
+                    <form method="POST" action="{{ url_for('main.process_loan', loan_id=request.id, action='approve') }}" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="button approve">Approve</button>
+                    </form>
+                    
+                    <!-- Deny Form -->
+                    <form method="POST" action="{{ url_for('main.process_loan', loan_id=request.id, action='deny') }}" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="button deny">Deny</button>
+                    </form>
+                </div>
+            </div>
         </div>
-    </div>
-    {% endfor %}
-{% endif %}
+        {% endfor %}
+    {% endif %}
+</div>
 {% endblock %}

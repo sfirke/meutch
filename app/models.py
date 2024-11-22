@@ -37,6 +37,10 @@ class User(UserMixin, db.Model):
     def profile_image(self):
         return self.profile_image_url or url_for('static', filename='img/generic_user_avatar.png')
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -117,6 +121,11 @@ class LoanRequest(db.Model):
     status = db.Column(db.String(20), default='pending')  # pending, approved, denied, completed
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    borrower = db.relationship('User', foreign_keys=[borrower_id], backref='loan_requests')
+
+    def __repr__(self):
+        return f'<LoanRequest {self.id} for Item {self.item_id} by User {self.borrower_id}>'
+    
 class Feedback(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     loan_request_id = db.Column(UUID(as_uuid=True), db.ForeignKey('loan_request.id'), nullable=False)
@@ -143,8 +152,8 @@ class Message(db.Model):
     parent = db.relationship('Message', remote_side=[id], backref='replies')
 
     def __repr__(self):
-        return f"<Message {self.id} from {self.sender.username} to {self.recipient.username}>"
-    
+        return f"<Message from {self.sender_id} to {self.recipient_id} at {self.timestamp}>"
+        
 class CircleJoinRequest(db.Model):
     __tablename__ = 'circle_join_requests'
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

@@ -34,3 +34,13 @@ def inject_total_pending():
     total_pending = sum(circle[1] for circle in user_admin_circles) if user_admin_circles else 0
     
     return {'total_pending': total_pending}
+
+def inject_pending_loans():
+    if current_user.is_authenticated:
+        # Check if the user owns any items with pending loan requests
+        pending_count = LoanRequest.query.join(Item).filter(
+            Item.owner_id == current_user.id,
+            LoanRequest.status == 'pending'
+        ).count()
+        return dict(has_pending_loans=pending_count > 0)
+    return dict(has_pending_loans=False)

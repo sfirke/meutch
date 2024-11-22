@@ -2,7 +2,7 @@ from flask import render_template, redirect, request, url_for, flash
 from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.auth import bp as auth_bp
-from app.models import User, LoanRequest, Item
+from app.models import User
 from app import db
 from app.forms import RegistrationForm, LoginForm
 import logging

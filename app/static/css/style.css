@@ -262,3 +262,35 @@
     display: flex;
     gap: 5px; /* Adjust spacing as needed */
 }
+
+/* Form Controls */
+.form-control {
+    width: 100%;                 /* Occupies full width of the parent container */
+    padding: 8px;                /* Adds padding inside the textbox */
+    border: 1px solid #ccc;      /* Defines a light gray border */
+    border-radius: 4px;          /* Rounds the corners of the textbox */
+    box-sizing: border-box;      /* Ensures padding and border are included in the total width */
+    resize: vertical;            /* Allows users to resize the textbox vertically */
+    font-size: 14px;             /* Sets a comfortable font size */
+    font-family: Arial, sans-serif; /* Defines a clean font */
+}
+
+/* Optional: Focus State for Better UX */
+.form-control:focus {
+    border-color: #80bdff;       /* Changes border color on focus */
+    outline: none;               /* Removes the default outline */
+    box-shadow: 0 0 5px rgba(128, 189, 255, 0.5); /* Adds a subtle shadow */
+}
+
+/* Smaller Form Control for Datepickers */
+.form-control-small {
+    width: 150px; /* Adjust the width as needed */
+}
+
+/* Flex Layout for Form Rows */
+.form-row {
+    display: flex;
+    gap: 20px; /* Space between the columns */
+    align-items: flex-start; /* Align items to the top */
+    margin-bottom: 15px; /* Space below the row */
+}

@@ -1,8 +1,9 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField
+from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField
 from flask_wtf.file import FileField, FileAllowed
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional
 from app.models import Category
+from datetime import datetime
 
 class EmptyForm(FlaskForm):
     pass
@@ -119,3 +120,26 @@ class CircleJoinRequestForm(FlaskForm):
         validators=[Optional(), Length(max=500)]
     )
     submit = SubmitField('Request to Join')
+
+class LoanRequestForm(FlaskForm):
+    start_date = DateField('Start Date', 
+        validators=[DataRequired(message="Please select a start date.")])
+    end_date = DateField('End Date', 
+        validators=[DataRequired(message="Please select an end date.")])
+    message = TextAreaField('Message to Owner', 
+        validators=[
+            DataRequired(message="Please include a message with your request."),
+            Length(min=10, max=1000, 
+                message="Message must be between 10 and 1000 characters.")
+        ])
+    submit = SubmitField('Submit Request')
+
+    def validate_end_date(self, field):
+        if field.data < self.start_date.data:
+            raise ValidationError('End date must be after start date.')
+        if field.data < datetime.now().date():
+            raise ValidationError('End date cannot be in the past.')
+
+    def validate_start_date(self, field):
+        if field.data < datetime.now().date():
+            raise ValidationError('Start date cannot be in the past.')
