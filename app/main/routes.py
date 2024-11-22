@@ -324,6 +324,44 @@ def cancel_loan_request(loan_id):
     original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
     return redirect(url_for('main.view_conversation', message_id=original_message.id))
 
+@main_bp.route('/loan/<uuid:loan_id>/complete', methods=['POST'])
+@login_required
+def complete_loan(loan_id):
+    loan = LoanRequest.query.get_or_404(loan_id)
+    
+    if loan.item.owner_id != current_user.id:
+        flash("You are not authorized to perform this action.", "danger")
+        return redirect(url_for('main.inbox'))
+    
+    if loan.status != 'approved':
+        flash("This loan is not currently active.", "warning")
+        return redirect(url_for('main.inbox'))
+    
+    # Update loan status and item availability
+    loan.status = 'completed'
+    loan.item.available = True
+    
+    # Create completion message
+    message = Message(
+        sender_id=current_user.id,
+        recipient_id=loan.borrower_id,
+        item_id=loan.item_id,
+        body="The item has been marked as returned. Thank you for borrowing!",
+        loan_request_id=loan.id
+    )
+    db.session.add(message)
+    
+    try:
+        db.session.commit()
+        flash("Loan has been marked as completed.", "success")
+    except:
+        db.session.rollback()
+        flash("An error occurred completing the loan.", "danger")
+    
+    # Find original conversation
+    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+    return redirect(url_for('main.view_conversation', message_id=original_message.id))
+
 @main_bp.route('/tag/<uuid:tag_id>')
 def tag_items(tag_id):
     # Retrieve the tag or return 404 if not found

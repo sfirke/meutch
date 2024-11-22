@@ -69,37 +69,41 @@
                 </div>
                 <div class="card-body">
                     {% if msg.is_loan_request_message %}
-                        <div class="loan-request-details mb-3">
-                            <h5>Loan Request Details</h5>
-                            <p><strong>Duration:</strong> {{ msg.loan_request.start_date.strftime('%Y-%m-%d') }} to {{ msg.loan_request.end_date.strftime('%Y-%m-%d') }}</p>
-                            <p><strong>Status:</strong> 
-                                <span class="badge bg-{{ 'warning' if msg.loan_request.status == 'pending' else 'success' if msg.loan_request.status == 'approved' else 'danger' }}">
-                                    {{ msg.loan_request.status|title }}
-                                </span>
-                            </p>
-                            
-                            {% if msg.loan_request.status == 'pending' %}
-                                {% if msg.item.owner == current_user %}
-                                    <div class="actions">
-                                        <form method="POST" action="{{ url_for('main.process_loan', loan_id=msg.loan_request.id, action='approve') }}" style="display: inline;">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn btn-success btn-sm">Approve Request</button>
-                                        </form>
-                                        <form method="POST" action="{{ url_for('main.process_loan', loan_id=msg.loan_request.id, action='deny') }}" style="display: inline;">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn btn-danger btn-sm">Deny Request</button>
-                                        </form>
-                                    </div>
-                                {% elif msg.loan_request.borrower_id == current_user.id %}
-                                    <form method="POST" action="{{ url_for('main.cancel_loan_request', loan_id=msg.loan_request.id) }}" style="display: inline;">
+                    <div class="loan-request-details mb-3">
+                        <h5>Loan Request Details</h5>
+                        <p><strong>Duration:</strong> {{ msg.loan_request.start_date.strftime('%Y-%m-%d') }} to {{ msg.loan_request.end_date.strftime('%Y-%m-%d') }}</p>
+                        <p><strong>Status:</strong> 
+                            <span class="badge bg-{{ 'warning' if msg.loan_request.status == 'pending' else 'success' if msg.loan_request.status == 'approved' else 'danger' }}">
+                                {{ msg.loan_request.status|title }}
+                            </span>
+                        </p>
+                        
+                        {% if msg.loan_request.status == 'pending' %}
+                            {% if msg.item.owner == current_user %}
+                                <div class="actions">
+                                    <form method="POST" action="{{ url_for('main.process_loan', loan_id=msg.loan_request.id, action='approve') }}" style="display: inline;">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-warning btn-sm">Cancel Request</button>
+                                        <button type="submit" class="btn btn-success btn-sm">Approve Request</button>
                                     </form>
-                                {% endif %}
+                                    <form method="POST" action="{{ url_for('main.process_loan', loan_id=msg.loan_request.id, action='deny') }}" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-danger btn-sm">Deny Request</button>
+                                    </form>
+                                </div>
+                            {% elif msg.loan_request.borrower_id == current_user.id %}
+                                <form method="POST" action="{{ url_for('main.cancel_loan_request', loan_id=msg.loan_request.id) }}" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-warning btn-sm">Cancel Request</button>
+                                </form>
                             {% endif %}
-                        </div>
-                    {% endif %}
-                    
+                        {% elif msg.loan_request.status == 'approved' and msg.item.owner == current_user %}
+                            <form method="POST" action="{{ url_for('main.complete_loan', loan_id=msg.loan_request.id) }}" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-info btn-sm">Mark as Returned</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% endif %}                    
                     <p>{{ msg.body }}</p>
                 </div>
             </div>
