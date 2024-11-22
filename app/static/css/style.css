@@ -294,3 +294,26 @@
     align-items: flex-start; /* Align items to the top */
     margin-bottom: 15px; /* Space below the row */
 }
+
+.message-card {
+    max-width: 80%;
+    margin-bottom: 1rem;
+    transition: transform 0.1s ease-in-out;
+}
+
+.message-mine {
+    margin-left: auto;
+    background-color: #e3f2fd;
+    border-left: 4px solid #1976d2;
+}
+
+.message-mine .card-header,
+.message-mine .card-body {
+    background-color: #e3f2fd;
+}
+
+.message-theirs {
+    margin-right: auto;
+    background-color: #f5f5f5;
+    border-left: 4px solid #757575;
+}
