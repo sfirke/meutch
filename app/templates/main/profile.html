@@ -35,30 +35,38 @@
         <div class="mt-5">
             <h2>Items I'm Borrowing</h2>
             {% if borrowing %}
-                <div class="row row-cols-1 row-cols-md-3 g-4">
-                    {% for item in borrowing %}
-                        <div class="col">
-                            <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="item-link">
-                                <div class="card item-card">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Thumbnail</th>
+                            <th>Item Name</th>
+                            <th>Owner</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Conversation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in borrowing %}
+                            <tr>
+                                <td>
                                     {% if item.image_url %}
-                                        <img src="{{ item.image_url }}" class="card-img-top" alt="{{ item.name }}">
+                                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
+                                    {% else %}
+                                        N/A
                                     {% endif %}
-                                    <div class="card-body">
-                                        <h5 class="card-title">{{ item.name }}</h5>
-                                        <p class="card-text">
-                                            <small class="text-muted">Owner: {{ item.owner.full_name }}</small>
-                                        </p>
-                                        <p class="card-text">
-                                            <small class="text-muted">
-                                                Duration: {{ item.current_loan.start_date.strftime('%Y-%m-%d') }} to {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
-                                            </small>
-                                        </p>
-                                    </div>
-                                </div>
-                            </a>
-                        </div>
-                    {% endfor %}
-                </div>
+                                </td>
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.owner.full_name }}</td>
+                                <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ item.current_loan.end_date.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             {% else %}
                 <p>You are not currently borrowing any items.</p>
             {% endif %}
@@ -68,30 +76,38 @@
         <div class="mt-5">
             <h2>Items I'm Lending</h2>
             {% if lending %}
-                <div class="row row-cols-1 row-cols-md-3 g-4">
-                    {% for item in lending %}
-                        <div class="col">
-                            <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="item-link">
-                                <div class="card item-card">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Thumbnail</th>
+                            <th>Item Name</th>
+                            <th>Borrower</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Conversation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in lending %}
+                            <tr>
+                                <td>
                                     {% if item.image_url %}
-                                        <img src="{{ item.image_url }}" class="card-img-top" alt="{{ item.name }}">
+                                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
+                                    {% else %}
+                                        N/A
                                     {% endif %}
-                                    <div class="card-body">
-                                        <h5 class="card-title">{{ item.name }}</h5>
-                                        <p class="card-text">
-                                            <small class="text-muted">Borrower: {{ item.current_loan.borrower.full_name }}</small>
-                                        </p>
-                                        <p class="card-text">
-                                            <small class="text-muted">
-                                                Duration: {{ item.current_loan.start_date.strftime('%Y-%m-%d') }} to {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
-                                            </small>
-                                        </p>
-                                    </div>
-                                </div>
-                            </a>
-                        </div>
-                    {% endfor %}
-                </div>
+                                </td>
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.current_loan.borrower.full_name }}</td>
+                                <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ item.current_loan.end_date.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             {% else %}
                 <p>You are not currently lending any items.</p>
             {% endif %}

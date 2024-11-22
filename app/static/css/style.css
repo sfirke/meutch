@@ -459,3 +459,53 @@ item-link {
 .message-card {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
 }
+
+/* Thumbnail styling */
+.thumbnail {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+/* Table styling */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+    color: #212529;
+}
+
+.table th,
+.table td {
+    padding: 0.75rem;
+    vertical-align: top;
+    border-top: 1px solid #dee2e6;
+    text-align: left;
+}
+
+.table th {
+    background-color: #f8f9fa;
+}
+
+.table tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Button adjustments */
+.btn-info {
+    background-color: #17a2b8;
+    color: white;
+    text-decoration: none;
+}
+
+.btn-info:hover {
+    background-color: #138496;
+    color: white;
+}
+
+/* Ensure buttons in tables align properly */
+.table .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
