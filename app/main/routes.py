@@ -5,7 +5,7 @@ from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload
 from app import db
 from app.models import Item, Category, LoanRequest, Tag, User, Message
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm
 from app.main import bp as main_bp
 from app.utils.storage import upload_file, delete_file
 from datetime import datetime
@@ -116,23 +116,56 @@ def item_detail(item_id):
     
     return render_template('main/item_detail.html', item=item, form=form, messages=messages)
 
-@main_bp.route('/item/<uuid:item_id>/request', methods=['GET', 'POST'])
+@main_bp.route('/items/<uuid:item_id>/request', methods=['GET', 'POST'])
 @login_required
-def request_loan(item_id):
+def request_item(item_id):
     item = Item.query.get_or_404(item_id)
-    if request.method == 'POST':
+    
+    if item.owner == current_user:
+        flash('You cannot request your own items.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    existing_request = LoanRequest.query.filter_by(
+        item_id=item.id,
+        borrower_id=current_user.id,
+        status='pending'
+    ).first()
+    
+    if existing_request:
+        flash('You already have a pending request for this item.', 'info')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+
+    form = LoanRequestForm()
+    if form.validate_on_submit():
+        # Create loan request
         loan_request = LoanRequest(
-            item=item,
+            item_id=item.id,
             borrower_id=current_user.id,
-            start_date=datetime.strptime(request.form['start_date'], '%Y-%m-%d'),
-            end_date=datetime.strptime(request.form['end_date'], '%Y-%m-%d')
+            start_date=form.start_date.data,
+            end_date=form.end_date.data,
+            status='pending'
         )
         db.session.add(loan_request)
-        db.session.commit()
-        flash('Loan request submitted')
-        return redirect(url_for('main.item_detail', item_id=item_id))
-    return render_template('main/request_loan.html', item=item)
-
+        
+        # Create associated message with loan request reference
+        message = Message(
+            sender_id=current_user.id,
+            recipient_id=item.owner_id,
+            item_id=item.id,
+            body=form.message.data,
+            loan_request=loan_request  # Associate message with loan request
+        )
+        db.session.add(message)
+        
+        try:
+            db.session.commit()
+            flash('Your loan request has been submitted.', 'success')
+            return redirect(url_for('main.view_conversation', message_id=message.id))
+        except:
+            db.session.rollback()
+            flash('An error occurred. Please try again.', 'danger')
+    
+    return render_template('main/request_loan.html', form=form, item=item)
 
 @main_bp.route('/item/<uuid:item_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -195,46 +228,198 @@ def delete_item(item_id):
     form = DeleteItemForm()
     if form.validate_on_submit():
         item = Item.query.get_or_404(item_id)
+        
+        # Verify ownership
         if item.owner != current_user:
             flash('You do not have permission to delete this item.', 'danger')
             return redirect(url_for('main.profile'))
-        if item.image_url:
-            delete_file(item.image_url)
         
+        # Check for active loan requests
+        active_loan_requests = LoanRequest.query.filter(
+            LoanRequest.item_id == item.id,
+            LoanRequest.status.in_(('pending', 'approved'))
+        ).count()
+        
+        if active_loan_requests > 0:
+            flash('Cannot delete this item because there are active loans or requests. Please resolve them first.', 'warning')
+            return redirect(url_for('main.item_detail', item_id=item.id))
+        
+        # Proceed with deletion
         db.session.delete(item)
-        db.session.commit()
-        flash('Item has been deleted.', 'success')
+        try:
+            db.session.commit()
+            flash('Item deleted successfully.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Error deleting item {item.id}: {e}')
+            flash('An error occurred while deleting the item. Please try again.', 'danger')
     else:
-        flash('Invalid request.', 'danger')
+        flash('Invalid deletion request.', 'danger')
+    
     return redirect(url_for('main.profile'))
 
-@main_bp.route('/loans/manage')
-@login_required
-def manage_loans():
-    pending_requests = LoanRequest.query.join(Item).filter(
-        Item.owner_id == current_user.id,
-        LoanRequest.status == 'pending'
-    ).all()
-    return render_template('main/manage_loans.html', requests=pending_requests)
-
-@main_bp.route('/loan/<uuid:loan_id>/<string:action>')
+@main_bp.route('/loan/<uuid:loan_id>/<string:action>', methods=['POST'])
 @login_required
 def process_loan(loan_id, action):
     loan = LoanRequest.query.get_or_404(loan_id)
-    if loan.item.owner_id != current_user.id:
-        flash('Unauthorized')
-        return redirect(url_for('main.index'))
     
-    if action == 'approve':
+    if loan.item.owner_id != current_user.id:
+        flash("You are not authorized to perform this action.", "danger")
+        return redirect(url_for('main.messages'))
+    
+    if action.lower() not in ['approve', 'deny']:
+        flash("Invalid action.", "danger")
+        return redirect(url_for('main.messages'))
+    
+    if loan.status != 'pending':
+        flash("This loan request has already been processed.", "warning")
+        return redirect(url_for('main.messages'))
+    
+    if action.lower() == 'approve':
         loan.status = 'approved'
         loan.item.available = False
-    elif action == 'deny':
+        message_body = f"The loan request for '{loan.item.name}' has been approved."
+    else:
         loan.status = 'denied'
+        message_body = f"The loan request for '{loan.item.name}' has been denied."
     
-    db.session.commit()
-    flash(f'Loan request {action}d')
-    return redirect(url_for('main.manage_loans'))
+    # Create notification message
+    message = Message(
+        sender_id=current_user.id,
+        recipient_id=loan.borrower_id,
+        item_id=loan.item_id,
+        body=message_body,
+        loan_request_id=loan.id
+    )
+    db.session.add(message)
     
+    try:
+        db.session.commit()
+        flash(f"Loan request has been {loan.status}.", "success")
+    except:
+        db.session.rollback()
+        flash("An error occurred processing the request.", "danger")
+    
+    # Redirect back to the conversation
+    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+    return redirect(url_for('main.view_conversation', message_id=original_message.id))
+
+@main_bp.route('/loan/<uuid:loan_id>/cancel', methods=['POST'])
+@login_required
+def cancel_loan_request(loan_id):
+    loan = LoanRequest.query.get_or_404(loan_id)
+    
+    if loan.borrower_id != current_user.id:
+        flash("You are not authorized to cancel this request.", "danger")
+        return redirect(url_for('main.messages'))
+    
+    if loan.status != 'pending':
+        flash("This loan request cannot be cancelled.", "warning")
+        return redirect(url_for('main.messages'))
+    
+    # Create cancellation message
+    message = Message(
+        sender_id=current_user.id,
+        recipient_id=loan.item.owner_id,
+        item_id=loan.item_id,
+        body="Loan request has been cancelled by the borrower.",
+        loan_request_id=loan.id
+    )
+    db.session.add(message)
+    
+    # Update loan request status
+    loan.status = 'cancelled'
+    
+    try:
+        db.session.commit()
+        flash("Loan request has been cancelled.", "success")
+    except:
+        db.session.rollback()
+        flash("An error occurred cancelling the request.", "danger")
+    
+    # Find original conversation
+    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+    return redirect(url_for('main.view_conversation', message_id=original_message.id))
+
+@main_bp.route('/loan/<uuid:loan_id>/complete', methods=['POST'])
+@login_required
+def complete_loan(loan_id):
+    loan = LoanRequest.query.get_or_404(loan_id)
+    
+    if loan.item.owner_id != current_user.id:
+        flash("You are not authorized to perform this action.", "danger")
+        return redirect(url_for('main.messages'))
+    
+    if loan.status != 'approved':
+        flash("This loan is not currently active.", "warning")
+        return redirect(url_for('main.messages'))
+    
+    # Update loan status and item availability
+    loan.status = 'completed'
+    loan.item.available = True
+    
+    # Create completion message
+    message = Message(
+        sender_id=current_user.id,
+        recipient_id=loan.borrower_id,
+        item_id=loan.item_id,
+        body="The item has been marked as returned. Thank you for borrowing!",
+        loan_request_id=loan.id
+    )
+    db.session.add(message)
+    
+    try:
+        db.session.commit()
+        flash("Loan has been marked as completed.", "success")
+    except:
+        db.session.rollback()
+        flash("An error occurred completing the loan.", "danger")
+    
+    # Find original conversation
+    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+    return redirect(url_for('main.view_conversation', message_id=original_message.id))
+
+@main_bp.route('/loan/<uuid:loan_id>/owner_cancel', methods=['POST'])
+@login_required
+def owner_cancel_loan(loan_id):
+    loan = LoanRequest.query.get_or_404(loan_id)
+    
+    # Check if the current user is the owner of the item
+    if loan.item.owner_id != current_user.id:
+        flash("You are not authorized to perform this action.", "danger")
+        return redirect(url_for('main.messages'))
+    
+    # Ensure the loan status is 'approved' before cancellation
+    if loan.status != 'approved':
+        flash("Only approved loans can be canceled.", "warning")
+        return redirect(url_for('main.view_conversation', message_id=loan.messages[0].id))
+    
+    # Update loan status and item availability
+    loan.status = 'canceled'
+    loan.item.available = True
+    
+    # Create a cancellation message to notify the borrower
+    message = Message(
+        sender_id=current_user.id,
+        recipient_id=loan.borrower_id,
+        item_id=loan.item_id,
+        body="The loan has been canceled by the owner. The item is now available.",
+        loan_request_id=loan.id
+    )
+    db.session.add(message)
+    
+    try:
+        db.session.commit()
+        flash("Loan has been canceled.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("An error occurred while canceling the loan.", "danger")
+        current_app.logger.error(f"Error canceling loan {loan_id}: {e}")
+    
+    # Redirect back to the original conversation
+    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+    return redirect(url_for('main.view_conversation', message_id=original_message.id))
+
 @main_bp.route('/tag/<uuid:tag_id>')
 def tag_items(tag_id):
     # Retrieve the tag or return 404 if not found
@@ -298,8 +483,16 @@ def profile():
     # Create a DeleteItemForm for each item
     delete_forms = {item.id: DeleteItemForm() for item in user_items}
     
-    return render_template('main/profile.html', form=form, user=current_user, items=user_items, delete_forms=delete_forms)
-
+    borrowing = current_user.get_active_loans_as_borrower()
+    lending = current_user.get_active_loans_as_owner()
+    
+    return render_template('main/profile.html', 
+                         form=form, 
+                         user=current_user, 
+                         items=user_items, 
+                         delete_forms=delete_forms,
+                         borrowing=borrowing,
+                         lending=lending)
 
 @main_bp.route('/user/<uuid:user_id>')
 def user_profile(user_id):
@@ -332,9 +525,9 @@ def about():
 
 # Messaging -----------------------------------------------------
 
-@main_bp.route('/inbox')
+@main_bp.route('/messages')
 @login_required
-def inbox():
+def messages():
     # Subquery to determine the latest message timestamp per conversation
     latest_messages_subquery = db.session.query(
         func.least(Message.sender_id, Message.recipient_id).label('user1_id'),
@@ -385,7 +578,7 @@ def inbox():
             'unread_count': unread_count
         })
 
-    return render_template('messaging/inbox.html', conversations=conversation_summaries)
+    return render_template('messaging/messages.html', conversations=conversation_summaries)
 
 @main_bp.route('/message/<uuid:message_id>', methods=['GET', 'POST'])
 @login_required
@@ -400,21 +593,54 @@ def view_conversation(message_id):
     # Ensure that only the recipient can view the message
     if message.recipient_id != current_user.id and message.sender_id != current_user.id:
         flash("You do not have permission to view this message.", "danger")
-        return redirect(url_for('main.inbox'))
+        return redirect(url_for('main.messages'))
     
-    # Fetch the entire thread (all messages related to the item between the two users)
+    # Fetch thread messages
     thread_messages = Message.query.filter(
         Message.item_id == message.item_id,
-        db.or_(
-            db.and_(Message.sender_id == message.sender_id, Message.recipient_id == message.recipient_id),
-            db.and_(Message.sender_id == message.recipient_id, Message.recipient_id == message.sender_id)
+        or_(
+            and_(Message.sender_id == message.sender_id, 
+                 Message.recipient_id == message.recipient_id),
+            and_(Message.sender_id == message.recipient_id, 
+                 Message.recipient_id == message.sender_id)
         )
-    ).order_by(Message.timestamp.asc()).all()
+    ).order_by(Message.timestamp).all()
 
-    if not message.is_read:
-        message.is_read = True
+    # Add other_user to each message
+    for msg in thread_messages:
+        msg.other_user = msg.recipient if msg.sender_id == current_user.id else msg.sender
+
+    # Mark messages as read, excluding pending loan requests that require action
+    unread_messages = Message.query.filter(
+        Message.item_id == message.item_id,
+        or_(
+            and_(
+                Message.sender_id == message.sender_id,
+                Message.recipient_id == message.recipient_id
+            ),
+            and_(
+                Message.sender_id == message.recipient_id,
+                Message.recipient_id == message.sender_id
+            )
+        ),
+        Message.recipient_id == current_user.id,
+        Message.is_read == False,
+        # Don't mark as read if it's a pending loan request message that needs action
+        or_(
+            Message.loan_request_id.is_(None),  # Regular messages
+            ~Message.loan_request.has(LoanRequest.status == 'pending')  # Non-pending loan requests
+        )
+    ).all()
+    
+    for msg in unread_messages:
+        msg.is_read = True
+    
+    try:
         db.session.commit()
+    except:
+        db.session.rollback()
 
+    # Handle reply form
     form = MessageForm()
     if form.validate_on_submit():
         reply = Message(

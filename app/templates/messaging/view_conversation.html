@@ -1,65 +1,137 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2>Message Thread</h2>
+    <div class="card mb-4 conversation-header">
+        <div class="card-header">
+            <h2>
+                Conversation with 
+                <a href="{{ url_for('main.user_profile', user_id=thread_messages[0].other_user.id) }}" class="text-decoration-none">
+                    <span class="other-user">{{ thread_messages[0].other_user.full_name }}</span>
+                </a>
+                about 
+                <a href="{{ url_for('main.item_detail', item_id=thread_messages[0].item.id) }}" class="text-decoration-none">
+                    <span class="item-name">{{ thread_messages[0].item.name }}</span>
+                </a>
+            </h2>
+        </div>
+    </div>
 
-    <!-- Display All Messages in the Thread -->
-    <div class="thread-container">
-        {% for msg in thread_messages %}
-            <div class="card mb-3 {% if msg.sender_id != current_user.id and not msg.is_read %}unread-message{% endif %}">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>From:</strong> 
-                        {% if msg.sender_id != current_user.id %}
-                            <a href="{{ url_for('main.user_profile', user_id=msg.sender.id) }}" class="text-decoration-none fw-semibold">
-                                {{ msg.sender.first_name }} {{ msg.sender.last_name }}
-                            </a>
-                        {% else %}
-                            <span class="fw-semibold">
-                                {{ msg.sender.first_name }} {{ msg.sender.last_name }}
-                            </span>
-                        {% endif %}
-                        <span class="text-muted">at {{ msg.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
-                    </div>
-                    {% if msg.sender_id != current_user.id and not msg.is_read %}
-                        <span class="badge bg-warning text-dark">New</span>
+    <!-- Item Details Card -->
+    <div class="card mb-4">
+        <div class="row g-0">
+            <div class="col-md-4">
+                {% if thread_messages[0].item.image %}
+                    <img src="{{ thread_messages[0].item.image }}" 
+                         class="img-fluid rounded-start item-thumbnail" 
+                         alt="{{ thread_messages[0].item.name }}">
+                {% endif %}
+            </div>
+            <div class="col-md-8">
+                <div class="card-body">
+                    <h5 class="card-title">{{ thread_messages[0].item.name }}</h5>
+                    <p class="card-text">{{ thread_messages[0].item.description }}</p>
+                    <p class="card-text">
+                        <strong>Owner:</strong> {{ thread_messages[0].item.owner.full_name }}
+                    </p>
+                    {% if thread_messages[0].item.current_loan and thread_messages[0].item.current_loan.borrower == current_user %}
+                        <span class="badge bg-info">You are currently borrowing this item</span>
+                    {% elif thread_messages[0].item.available %}
+                        <span class="badge bg-success">Available</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Currently Unavailable</span>
                     {% endif %}
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <h3>Messages</h3>
+    <div class="thread-container">
+        {% for msg in thread_messages %}
+            <div class="card message-card 
+                {% if msg.sender_id == current_user.id %}message-mine{% else %}message-theirs{% endif %} 
+                {% if msg.has_pending_action %}unread-message{% endif %}
+                {% if msg.is_loan_request_message and msg.loan_request.messages[0] == msg %} message-loan{% endif %}">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>From:</strong> 
+                            {% if msg.sender_id != current_user.id %}
+                                <a href="{{ url_for('main.user_profile', user_id=msg.sender.id) }}">
+                                    {{ msg.sender.full_name }}
+                                </a>
+                            {% else %}
+                                You
+                            {% endif %}
+                        </div>
+                        <span class="message-timestamp">{{ msg.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                </div>
                 <div class="card-body">
-                    <p><strong>About item:</strong> 
-                        <a href="{{ url_for('main.item_detail', item_id=msg.item.id) }}" class="text-decoration-none">
-                            {{ msg.item.name }}
-                        </a>
-                    </p>
+                    {% if msg.is_loan_request_message and msg.loan_request.messages[0] == msg %}
+                    <div class="loan-request-details mb-3">
+                        <h5>Loan Request Details</h5>
+                        <p><strong>Duration:</strong> {{ msg.loan_request.start_date.strftime('%Y-%m-%d') }} to {{ msg.loan_request.end_date.strftime('%Y-%m-%d') }}</p>
+                        <p><strong>Status:</strong> 
+                            <span class="badge bg-{{ 'warning' if msg.loan_request.status == 'pending' else 'success' if msg.loan_request.status == 'approved' else 'danger' }}">
+                                {{ msg.loan_request.status|title }}
+                            </span>
+                        </p>
+                        
+                        {% if msg.loan_request.status == 'pending' %}
+                            {% if msg.item.owner == current_user %}
+                                <div class="actions">
+                                    <form method="POST" action="{{ url_for('main.process_loan', loan_id=msg.loan_request.id, action='approve') }}" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-success btn-sm">Approve Request</button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('main.process_loan', loan_id=msg.loan_request.id, action='deny') }}" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-danger btn-sm">Deny Request</button>
+                                    </form>
+                                </div>
+                            {% elif msg.loan_request.borrower_id == current_user.id %}
+                                <form method="POST" action="{{ url_for('main.cancel_loan_request', loan_id=msg.loan_request.id) }}" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-warning btn-sm">Cancel Request</button>
+                                </form>
+                            {% endif %}
+                        {% elif msg.loan_request.status == 'approved' %}
+                            {% if msg.item.owner == current_user %}
+                                <div class="actions">
+                                    <form method="POST" action="{{ url_for('main.complete_loan', loan_id=msg.loan_request.id) }}" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-info btn-sm">Mark as Returned</button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('main.owner_cancel_loan', loan_id=msg.loan_request.id) }}" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-secondary btn-sm">Cancel Loan</button>
+                                    </form>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                {% endif %}                                        
                     <p>{{ msg.body }}</p>
                 </div>
             </div>
         {% endfor %}
         <div id="end-of-thread"></div>
     </div>
-
-    <div class="card">
-        <div class="card-header">
-            <h5>Reply to this message</h5>
-        </div>
+    <!-- Reply Form -->
+    <div class="card mt-3">
         <div class="card-body">
-            <form method="POST" action="{{ url_for('main.view_conversation', message_id=message.id) }}">
+            <form method="POST">
                 {{ form.hidden_tag() }}
                 <div class="mb-3">
-                    {{ form.body.label(class="form-label") }}
-                    {{ form.body(class="form-control", rows="5", placeholder="Type your reply here...") }}
-                    {% for error in form.body.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
+                    {{ form.body(class="form-control", rows="3", placeholder="Type your reply...") }}
                 </div>
-                <div>
-                    {{ form.submit(class="btn btn-primary") }}
-                </div>
+                <button type="submit" class="btn btn-primary">Send Reply</button>
             </form>
         </div>
     </div>
-    <a href="{{ url_for('main.inbox') }}" class="btn btn-secondary mt-3">Back to Inbox</a>
+
+    <a href="{{ url_for('main.messages') }}" class="btn btn-secondary mt-3">Back to Messages</a>
 </div>
 <!-- Scroll to the end of the thread -->
 <script>

@@ -1,18 +1,37 @@
 # app/context_processors.py
 
 from flask_login import current_user
+# Remove model imports from top level
 
 def inject_unread_messages_count():
+    # Import models at function level to avoid circular imports
+    from app.models import Message, LoanRequest, Item
+
     if current_user.is_authenticated:
-        from app.models import Message  # Local import to avoid circular dependency
-        unread_count = Message.query.filter_by(recipient_id=current_user.id, is_read=False).count()
-        return dict(unread_messages_count=unread_count)
+        # Count unread messages that are NOT loan request messages
+        unread_messages = Message.query.filter(
+            Message.recipient_id == current_user.id,
+            Message.is_read == False,
+            Message.sender_id != current_user.id,  # Exclude self-sent messages
+            Message.loan_request_id.is_(None)  # Only count non-loan-request messages
+        ).count()
+        
+        # Count pending loan requests for items user owns (these will have associated messages)
+        pending_requests = LoanRequest.query.join(Item).filter(
+            Item.owner_id == current_user.id,
+            LoanRequest.status == 'pending'
+        ).count()
+        
+        return dict(unread_messages_count=unread_messages + pending_requests)
     return dict(unread_messages_count=0)
 
 def inject_total_pending():
+    # Import models at function level
+    from app.models import Circle, CircleJoinRequest, db, circle_members
+
     if not current_user.is_authenticated:
         return {'total_pending': 0}
-    from app.models import Circle, CircleJoinRequest, db, circle_members
+        
     # Get user's admin circles with pending request counts
     user_admin_circles = db.session.query(
         Circle,

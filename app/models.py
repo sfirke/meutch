@@ -37,6 +37,24 @@ class User(UserMixin, db.Model):
     def profile_image(self):
         return self.profile_image_url or url_for('static', filename='img/generic_user_avatar.png')
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+
+    def get_active_loans_as_borrower(self):
+        """Returns items user is currently borrowing"""
+        return Item.query.join(LoanRequest).filter(
+            LoanRequest.borrower_id == self.id,
+            LoanRequest.status == 'approved'
+        ).all()
+
+    def get_active_loans_as_owner(self):
+        """Returns items user is currently lending"""
+        return Item.query.join(LoanRequest).filter(
+            Item.owner_id == self.id,
+            LoanRequest.status == 'approved'
+        ).all()
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -62,6 +80,13 @@ class Item(db.Model):
     def image(self):
         return self.image_url or url_for('static', filename='img/default_item_photo.png')
     
+    @property
+    def current_loan(self):
+        return LoanRequest.query.filter_by(
+            item_id=self.id,
+            status='approved'
+        ).order_by(LoanRequest.end_date.desc()).first()
+
     def __repr__(self):
         return f'<Item {self.name}>'
 
@@ -114,9 +139,14 @@ class LoanRequest(db.Model):
     borrower_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.String(20), default='pending')  # pending, approved, denied, completed
+    status = db.Column(db.String(20), default='pending')  # pending, approved, canceled, denied, completed
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    borrower = db.relationship('User', foreign_keys=[borrower_id], backref='loan_requests')
+
+    def __repr__(self):
+        return f'<LoanRequest {self.id} for Item {self.item_id} by User {self.borrower_id}>'
+    
 class Feedback(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     loan_request_id = db.Column(UUID(as_uuid=True), db.ForeignKey('loan_request.id'), nullable=False)
@@ -136,15 +166,39 @@ class Message(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     is_read = db.Column(db.Boolean, default=False)
     parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('messages.id'), nullable=True)
-    
+    loan_request_id = db.Column(UUID(as_uuid=True), db.ForeignKey('loan_request.id'), nullable=True)
+
+    loan_request = db.relationship('LoanRequest', backref='messages')
+
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
     recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
     item = db.relationship('Item', backref='messages')
     parent = db.relationship('Message', remote_side=[id], backref='replies')
 
-    def __repr__(self):
-        return f"<Message {self.id} from {self.sender.username} to {self.recipient.username}>"
+    @staticmethod
+    def create_message(sender_id, recipient_id, item_id, body, loan_request_id=None):
+        if sender_id == recipient_id:
+            raise ValueError("Sender and recipient cannot be the same user.")
+
+    @property
+    def is_loan_request_message(self):
+        """Returns True if this message is related to a loan request"""
+        return self.loan_request_id is not None
     
+    @property
+    def has_pending_action(self):
+        """Returns True if message needs action (pending request or unread)"""
+        if self.loan_request and self.loan_request.status == 'pending':
+            # For owner: show pending if they haven't responded
+            if self.recipient_id == self.item.owner_id:
+                return not self.is_read
+            # For borrower: show pending until request is processed
+            return True
+        return not self.is_read
+    
+    def __repr__(self):
+        return f"<Message from {self.sender_id} to {self.recipient_id} at {self.timestamp}>"
+        
 class CircleJoinRequest(db.Model):
     __tablename__ = 'circle_join_requests'
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

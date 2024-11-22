@@ -18,7 +18,7 @@
             <p>Status: {{ "Available" if item.available else "Currently Borrowed" }}</p>
             
             {% if current_user != item.owner and item.available %}
-                <a href="{{ url_for('main.request_loan', item_id=item.id) }}" 
+                <a href="{{ url_for('main.request_item', item_id=item.id) }}" 
                    class="btn btn-primary">Request to Borrow</a>
             {% endif %}
             

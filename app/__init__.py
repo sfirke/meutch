@@ -6,7 +6,11 @@ from flask_login import LoginManager
 from flask_wtf import CSRFProtect
 from config import Config
 from uuid import UUID
-from app.context_processors import inject_unread_messages_count, inject_total_pending
+from app.context_processors import (
+    inject_unread_messages_count, 
+    inject_total_pending
+)
+
 
 db = SQLAlchemy()
 migrate = Migrate()
