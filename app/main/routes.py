@@ -261,10 +261,10 @@ def process_loan(loan_id, action):
     if action.lower() == 'approve':
         loan.status = 'approved'
         loan.item.available = False
-        message_body = f"Your loan request for '{loan.item.name}' has been approved."
+        message_body = f"The loan request for '{loan.item.name}' has been approved."
     else:
         loan.status = 'denied'
-        message_body = f"Your loan request for '{loan.item.name}' has been denied."
+        message_body = f"The loan request for '{loan.item.name}' has been denied."
     
     # Create notification message
     message = Message(

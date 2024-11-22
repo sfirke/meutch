@@ -32,7 +32,10 @@
     <h3>Messages</h3>
     <div class="thread-container">
         {% for msg in thread_messages %}
-            <div class="card message-card {% if msg.sender_id == current_user.id %}message-mine{% else %}message-theirs{% endif %} {% if msg.has_pending_action %}unread-message{% endif %}">
+            <div class="card message-card 
+                {% if msg.sender_id == current_user.id %}message-mine{% else %}message-theirs{% endif %} 
+                {% if msg.has_pending_action %}unread-message{% endif %}
+                {% if msg.is_loan_request_message %} message-loan{% endif %}">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>

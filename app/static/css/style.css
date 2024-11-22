@@ -301,19 +301,112 @@
     transition: transform 0.1s ease-in-out;
 }
 
+.message-mine, .message-theirs {
+    /* Remove margin-left and margin-right */
+    margin-left: 0;
+    margin-right: 0;
+    max-width: 80%; /* Optional: Adjust the width as needed */
+    /* Ensure consistent padding */
+    padding: 10px;
+    border-radius: 5px; /* Rounded corners for better aesthetics */
+}
+
+/* Styles for messages sent by the current user */
 .message-mine {
-    margin-left: auto;
-    background-color: #e3f2fd;
-    border-left: 4px solid #1976d2;
+    background-color: #e3f2fd; /* Light blue */
+    border-left: 4px solid #1976d2; /* Blue border */
+    margin-left: 40px; /* Indent slightly from the left */
 }
 
-.message-mine .card-header,
-.message-mine .card-body {
-    background-color: #e3f2fd;
-}
-
+/* Styles for messages sent by others */
 .message-theirs {
-    margin-right: auto;
-    background-color: #f5f5f5;
-    border-left: 4px solid #757575;
+    background-color: #f5f5f5; /* Light grey */
+    border-left: 4px solid #757575; /* Grey border */
+    /* No indentation for others' messages */
+}
+
+/* Styles for loan-related messages */
+.message-loan {
+    border-left: 4px solid #ffc107; /* Amber border */
+    background-color: #fff8e1; /* Light amber background */
+}
+
+.message-loan .card-header {
+    background-color: #fff8e1;
+    border-bottom: 1px solid #ffe082;
+}
+
+.message-loan .loan-request-details {
+    background-color: #fff3cd; /* Light yellow background */
+    border: 1px solid #ffeeba;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+/* Optional: Add an icon to loan-related messages */
+.message-loan::before {
+    content: "📋"; /* Clipboard icon */
+    margin-right: 8px;
+    font-size: 1.2em;
+    /* Ensure the icon doesn't disrupt the layout */
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Optional: Different text color for loan-related messages */
+.message-loan p {
+    color: #856404; /* Dark yellow */
+}
+
+/* Timestamp styling */
+.message-timestamp {
+    font-size: 0.8em;
+    color: #666;
+}
+
+/* Thread container spacing */
+.thread-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem 0;
+}
+
+/* Unread message indicator */
+.unread-message {
+    border-bottom: 2px solid #dc3545; /* Red bottom border for unread messages */
+}
+
+/* Additional styles for better distinction */
+.message-loan.message-mine {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+    margin-left: 40px; /* Maintain indentation */
+}
+
+.message-loan.message-theirs {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+}
+
+/* Optional: Hover effects for loan-related messages */
+.message-loan:hover {
+    background-color: #ffeeba; /* Slightly darker amber on hover */
+}
+
+/* Ensure icons are properly aligned */
+.message-loan .card-header::before,
+.message-loan .card-body::before {
+    content: "";
+    display: none; /* Remove if not needed */
+}
+
+/* Optional: Improve readability by adding padding */
+.message-card .card-body p {
+    margin-bottom: 0;
+}
+
+/* Optional: Adjust overall message card styles for better appearance */
+.message-card {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
 }
