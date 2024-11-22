@@ -362,6 +362,47 @@ def complete_loan(loan_id):
     original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
     return redirect(url_for('main.view_conversation', message_id=original_message.id))
 
+@main_bp.route('/loan/<uuid:loan_id>/owner_cancel', methods=['POST'])
+@login_required
+def owner_cancel_loan(loan_id):
+    loan = LoanRequest.query.get_or_404(loan_id)
+    
+    # Check if the current user is the owner of the item
+    if loan.item.owner_id != current_user.id:
+        flash("You are not authorized to perform this action.", "danger")
+        return redirect(url_for('main.inbox'))
+    
+    # Ensure the loan status is 'approved' before cancellation
+    if loan.status != 'approved':
+        flash("Only approved loans can be canceled.", "warning")
+        return redirect(url_for('main.view_conversation', message_id=loan.messages[0].id))
+    
+    # Update loan status and item availability
+    loan.status = 'canceled'
+    loan.item.available = True
+    
+    # Create a cancellation message to notify the borrower
+    message = Message(
+        sender_id=current_user.id,
+        recipient_id=loan.borrower_id,
+        item_id=loan.item_id,
+        body="The loan has been canceled by the owner. The item is now available.",
+        loan_request_id=loan.id
+    )
+    db.session.add(message)
+    
+    try:
+        db.session.commit()
+        flash("Loan has been canceled.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("An error occurred while canceling the loan.", "danger")
+        current_app.logger.error(f"Error canceling loan {loan_id}: {e}")
+    
+    # Redirect back to the original conversation
+    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+    return redirect(url_for('main.view_conversation', message_id=original_message.id))
+
 @main_bp.route('/tag/<uuid:tag_id>')
 def tag_items(tag_id):
     # Retrieve the tag or return 404 if not found

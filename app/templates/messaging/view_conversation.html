@@ -51,7 +51,7 @@
             <div class="card message-card 
                 {% if msg.sender_id == current_user.id %}message-mine{% else %}message-theirs{% endif %} 
                 {% if msg.has_pending_action %}unread-message{% endif %}
-                {% if msg.is_loan_request_message %} message-loan{% endif %}">
+                {% if msg.is_loan_request_message and msg.loan_request.messages[0] == msg %} message-loan{% endif %}">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -68,7 +68,7 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    {% if msg.is_loan_request_message %}
+                    {% if msg.is_loan_request_message and msg.loan_request.messages[0] == msg %}
                     <div class="loan-request-details mb-3">
                         <h5>Loan Request Details</h5>
                         <p><strong>Duration:</strong> {{ msg.loan_request.start_date.strftime('%Y-%m-%d') }} to {{ msg.loan_request.end_date.strftime('%Y-%m-%d') }}</p>
@@ -96,14 +96,22 @@
                                     <button type="submit" class="btn btn-warning btn-sm">Cancel Request</button>
                                 </form>
                             {% endif %}
-                        {% elif msg.loan_request.status == 'approved' and msg.item.owner == current_user %}
-                            <form method="POST" action="{{ url_for('main.complete_loan', loan_id=msg.loan_request.id) }}" style="display: inline;">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-info btn-sm">Mark as Returned</button>
-                            </form>
+                        {% elif msg.loan_request.status == 'approved' %}
+                            {% if msg.item.owner == current_user %}
+                                <div class="actions">
+                                    <form method="POST" action="{{ url_for('main.complete_loan', loan_id=msg.loan_request.id) }}" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-info btn-sm">Mark as Returned</button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('main.owner_cancel_loan', loan_id=msg.loan_request.id) }}" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-secondary btn-sm">Cancel Loan</button>
+                                    </form>
+                                </div>
+                            {% endif %}
                         {% endif %}
                     </div>
-                {% endif %}                    
+                {% endif %}                                        
                     <p>{{ msg.body }}</p>
                 </div>
             </div>

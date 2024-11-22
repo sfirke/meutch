@@ -125,7 +125,7 @@ class LoanRequest(db.Model):
     borrower_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.String(20), default='pending')  # pending, approved, denied, completed
+    status = db.Column(db.String(20), default='pending')  # pending, approved, canceled, denied, completed
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     borrower = db.relationship('User', foreign_keys=[borrower_id], backref='loan_requests')
@@ -160,6 +160,11 @@ class Message(db.Model):
     recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
     item = db.relationship('Item', backref='messages')
     parent = db.relationship('Message', remote_side=[id], backref='replies')
+
+    @staticmethod
+    def create_message(sender_id, recipient_id, item_id, body, loan_request_id=None):
+        if sender_id == recipient_id:
+            raise ValueError("Sender and recipient cannot be the same user.")
 
     @property
     def is_loan_request_message(self):
