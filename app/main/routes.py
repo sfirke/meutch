@@ -466,8 +466,16 @@ def profile():
     # Create a DeleteItemForm for each item
     delete_forms = {item.id: DeleteItemForm() for item in user_items}
     
-    return render_template('main/profile.html', form=form, user=current_user, items=user_items, delete_forms=delete_forms)
-
+    borrowing = current_user.get_active_loans_as_borrower()
+    lending = current_user.get_active_loans_as_owner()
+    
+    return render_template('main/profile.html', 
+                         form=form, 
+                         user=current_user, 
+                         items=user_items, 
+                         delete_forms=delete_forms,
+                         borrowing=borrowing,
+                         lending=lending)
 
 @main_bp.route('/user/<uuid:user_id>')
 def user_profile(user_id):

@@ -41,6 +41,20 @@ class User(UserMixin, db.Model):
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
 
+    def get_active_loans_as_borrower(self):
+        """Returns items user is currently borrowing"""
+        return Item.query.join(LoanRequest).filter(
+            LoanRequest.borrower_id == self.id,
+            LoanRequest.status == 'approved'
+        ).all()
+
+    def get_active_loans_as_owner(self):
+        """Returns items user is currently lending"""
+        return Item.query.join(LoanRequest).filter(
+            Item.owner_id == self.id,
+            LoanRequest.status == 'approved'
+        ).all()
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
