@@ -8,8 +8,7 @@ from config import Config
 from uuid import UUID
 from app.context_processors import (
     inject_unread_messages_count, 
-    inject_total_pending,
-    inject_has_pending_loans
+    inject_total_pending
 )
 
 
@@ -56,7 +55,6 @@ def create_app(config_class=Config):
     # Register the context processor
     app.context_processor(inject_unread_messages_count)
     app.context_processor(inject_total_pending)
-    app.context_processor(inject_has_pending_loans)
 
     return app
 
