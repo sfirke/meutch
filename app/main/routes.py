@@ -248,15 +248,15 @@ def process_loan(loan_id, action):
     
     if loan.item.owner_id != current_user.id:
         flash("You are not authorized to perform this action.", "danger")
-        return redirect(url_for('main.inbox'))
+        return redirect(url_for('main.messages'))
     
     if action.lower() not in ['approve', 'deny']:
         flash("Invalid action.", "danger")
-        return redirect(url_for('main.inbox'))
+        return redirect(url_for('main.messages'))
     
     if loan.status != 'pending':
         flash("This loan request has already been processed.", "warning")
-        return redirect(url_for('main.inbox'))
+        return redirect(url_for('main.messages'))
     
     if action.lower() == 'approve':
         loan.status = 'approved'
@@ -294,11 +294,11 @@ def cancel_loan_request(loan_id):
     
     if loan.borrower_id != current_user.id:
         flash("You are not authorized to cancel this request.", "danger")
-        return redirect(url_for('main.inbox'))
+        return redirect(url_for('main.messages'))
     
     if loan.status != 'pending':
         flash("This loan request cannot be cancelled.", "warning")
-        return redirect(url_for('main.inbox'))
+        return redirect(url_for('main.messages'))
     
     # Create cancellation message
     message = Message(
@@ -331,11 +331,11 @@ def complete_loan(loan_id):
     
     if loan.item.owner_id != current_user.id:
         flash("You are not authorized to perform this action.", "danger")
-        return redirect(url_for('main.inbox'))
+        return redirect(url_for('main.messages'))
     
     if loan.status != 'approved':
         flash("This loan is not currently active.", "warning")
-        return redirect(url_for('main.inbox'))
+        return redirect(url_for('main.messages'))
     
     # Update loan status and item availability
     loan.status = 'completed'
@@ -370,7 +370,7 @@ def owner_cancel_loan(loan_id):
     # Check if the current user is the owner of the item
     if loan.item.owner_id != current_user.id:
         flash("You are not authorized to perform this action.", "danger")
-        return redirect(url_for('main.inbox'))
+        return redirect(url_for('main.messages'))
     
     # Ensure the loan status is 'approved' before cancellation
     if loan.status != 'approved':
@@ -500,9 +500,9 @@ def about():
 
 # Messaging -----------------------------------------------------
 
-@main_bp.route('/inbox')
+@main_bp.route('/messages')
 @login_required
-def inbox():
+def messages():
     # Subquery to determine the latest message timestamp per conversation
     latest_messages_subquery = db.session.query(
         func.least(Message.sender_id, Message.recipient_id).label('user1_id'),
@@ -553,7 +553,7 @@ def inbox():
             'unread_count': unread_count
         })
 
-    return render_template('messaging/inbox.html', conversations=conversation_summaries)
+    return render_template('messaging/messages.html', conversations=conversation_summaries)
 
 @main_bp.route('/message/<uuid:message_id>', methods=['GET', 'POST'])
 @login_required
@@ -568,9 +568,9 @@ def view_conversation(message_id):
     # Ensure that only the recipient can view the message
     if message.recipient_id != current_user.id and message.sender_id != current_user.id:
         flash("You do not have permission to view this message.", "danger")
-        return redirect(url_for('main.inbox'))
+        return redirect(url_for('main.messages'))
     
-    # Fetch the entire thread (all messages related to the item between the two users)
+    # Fetch thread messages
     thread_messages = Message.query.filter(
         Message.item_id == message.item_id,
         or_(
@@ -585,7 +585,7 @@ def view_conversation(message_id):
     for msg in thread_messages:
         msg.other_user = msg.recipient if msg.sender_id == current_user.id else msg.sender
 
-
+    # Mark messages as read, excluding pending loan requests that require action
     unread_messages = Message.query.filter(
         Message.item_id == message.item_id,
         or_(
@@ -599,12 +599,23 @@ def view_conversation(message_id):
             )
         ),
         Message.recipient_id == current_user.id,
-        Message.is_read == False
+        Message.is_read == False,
+        # Don't mark as read if it's a pending loan request message that needs action
+        or_(
+            Message.loan_request_id.is_(None),  # Regular messages
+            ~Message.loan_request.has(LoanRequest.status == 'pending')  # Non-pending loan requests
+        )
     ).all()
     
     for msg in unread_messages:
         msg.is_read = True
+    
+    try:
+        db.session.commit()
+    except:
+        db.session.rollback()
 
+    # Handle reply form
     form = MessageForm()
     if form.validate_on_submit():
         reply = Message(

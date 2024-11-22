@@ -8,14 +8,15 @@ def inject_unread_messages_count():
     from app.models import Message, LoanRequest, Item
 
     if current_user.is_authenticated:
-        # Count unread messages where recipient is the user and sender is not the user
+        # Count unread messages that are NOT loan request messages
         unread_messages = Message.query.filter(
             Message.recipient_id == current_user.id,
             Message.is_read == False,
-            Message.sender_id != current_user.id  # Exclude self-sent messages
+            Message.sender_id != current_user.id,  # Exclude self-sent messages
+            Message.loan_request_id.is_(None)  # Only count non-loan-request messages
         ).count()
         
-        # Count pending loan requests for items user owns
+        # Count pending loan requests for items user owns (these will have associated messages)
         pending_requests = LoanRequest.query.join(Item).filter(
             Item.owner_id == current_user.id,
             LoanRequest.status == 'pending'
