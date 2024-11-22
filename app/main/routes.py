@@ -121,12 +121,10 @@ def item_detail(item_id):
 def request_item(item_id):
     item = Item.query.get_or_404(item_id)
     
-    # Prevent requesting own items
     if item.owner == current_user:
         flash('You cannot request your own items.', 'warning')
         return redirect(url_for('main.item_detail', item_id=item.id))
     
-    # Check if already requested
     existing_request = LoanRequest.query.filter_by(
         item_id=item.id,
         borrower_id=current_user.id,
@@ -149,19 +147,20 @@ def request_item(item_id):
         )
         db.session.add(loan_request)
         
-        # Create associated message
+        # Create associated message with loan request reference
         message = Message(
             sender_id=current_user.id,
             recipient_id=item.owner_id,
             item_id=item.id,
-            body=form.message.data
+            body=form.message.data,
+            loan_request=loan_request  # Associate message with loan request
         )
         db.session.add(message)
         
         try:
             db.session.commit()
             flash('Your loan request has been submitted.', 'success')
-            return redirect(url_for('main.item_detail', item_id=item.id))
+            return redirect(url_for('main.view_conversation', message_id=message.id))
         except:
             db.session.rollback()
             flash('An error occurred. Please try again.', 'danger')
@@ -242,63 +241,89 @@ def delete_item(item_id):
         flash('Invalid request.', 'danger')
     return redirect(url_for('main.profile'))
 
-@main_bp.route('/loans/manage')
-@login_required
-def manage_loans():
-    pending_requests = LoanRequest.query.join(Item).filter(
-        Item.owner_id == current_user.id,
-        LoanRequest.status == 'pending'
-    ).all()
-    return render_template('main/manage_loans.html', requests=pending_requests)
-
 @main_bp.route('/loan/<uuid:loan_id>/<string:action>', methods=['POST'])
 @login_required
 def process_loan(loan_id, action):
     loan = LoanRequest.query.get_or_404(loan_id)
     
-    # Ensure the current user is the owner of the item
     if loan.item.owner_id != current_user.id:
         flash("You are not authorized to perform this action.", "danger")
-        return redirect(url_for('main.manage_loans'))
+        return redirect(url_for('main.inbox'))
     
-    # Validate the action
     if action.lower() not in ['approve', 'deny']:
         flash("Invalid action.", "danger")
-        return redirect(url_for('main.manage_loans'))
+        return redirect(url_for('main.inbox'))
     
-    # Check if the loan request is still pending
     if loan.status != 'pending':
         flash("This loan request has already been processed.", "warning")
-        return redirect(url_for('main.manage_loans'))
+        return redirect(url_for('main.inbox'))
     
-    # Process the action
     if action.lower() == 'approve':
         loan.status = 'approved'
-        flash(f"Loan request for '{loan.item.name}' has been approved.", "success")
-        # Optionally, mark the item as not available
         loan.item.available = False
-    elif action.lower() == 'deny':
+        message_body = f"Your loan request for '{loan.item.name}' has been approved."
+    else:
         loan.status = 'denied'
-        flash(f"Loan request for '{loan.item.name}' has been denied.", "info")
+        message_body = f"Your loan request for '{loan.item.name}' has been denied."
     
-    # Commit the changes to the database
-    db.session.commit()
-    
-    # Notify the borrower about the decision
-    message_body = f"Your loan request for '{loan.item.name}' has been {loan.status}."
+    # Create notification message
     message = Message(
         sender_id=current_user.id,
         recipient_id=loan.borrower_id,
-        body=message_body,
         item_id=loan.item_id,
-        timestamp=datetime.utcnow(),
-        is_read=False
+        body=message_body,
+        loan_request_id=loan.id
     )
     db.session.add(message)
-    db.session.commit()
     
-    return redirect(url_for('main.manage_loans'))
+    try:
+        db.session.commit()
+        flash(f"Loan request has been {loan.status}.", "success")
+    except:
+        db.session.rollback()
+        flash("An error occurred processing the request.", "danger")
     
+    # Redirect back to the conversation
+    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+    return redirect(url_for('main.view_conversation', message_id=original_message.id))
+
+@main_bp.route('/loan/<uuid:loan_id>/cancel', methods=['POST'])
+@login_required
+def cancel_loan_request(loan_id):
+    loan = LoanRequest.query.get_or_404(loan_id)
+    
+    if loan.borrower_id != current_user.id:
+        flash("You are not authorized to cancel this request.", "danger")
+        return redirect(url_for('main.inbox'))
+    
+    if loan.status != 'pending':
+        flash("This loan request cannot be cancelled.", "warning")
+        return redirect(url_for('main.inbox'))
+    
+    # Create cancellation message
+    message = Message(
+        sender_id=current_user.id,
+        recipient_id=loan.item.owner_id,
+        item_id=loan.item_id,
+        body="Loan request has been cancelled by the borrower.",
+        loan_request_id=loan.id
+    )
+    db.session.add(message)
+    
+    # Update loan request status
+    loan.status = 'cancelled'
+    
+    try:
+        db.session.commit()
+        flash("Loan request has been cancelled.", "success")
+    except:
+        db.session.rollback()
+        flash("An error occurred cancelling the request.", "danger")
+    
+    # Find original conversation
+    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+    return redirect(url_for('main.view_conversation', message_id=original_message.id))
+
 @main_bp.route('/tag/<uuid:tag_id>')
 def tag_items(tag_id):
     # Retrieve the tag or return 404 if not found
@@ -495,14 +520,3 @@ def view_conversation(message_id):
         return redirect(url_for('main.view_conversation', message_id=message_id))
 
     return render_template('messaging/view_conversation.html', message=message, thread_messages=thread_messages, form=form)
-
-@main_bp.context_processor
-def inject_pending_loans():
-    if current_user.is_authenticated:
-        # Check if the user owns any items with pending loan requests
-        pending_count = LoanRequest.query.join(Item).filter(
-            Item.owner_id == current_user.id,
-            LoanRequest.status == 'pending'
-        ).count()
-        return dict(has_pending_loans=pending_count > 0)
-    return dict(has_pending_loans=False)

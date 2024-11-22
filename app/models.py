@@ -145,12 +145,31 @@ class Message(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     is_read = db.Column(db.Boolean, default=False)
     parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('messages.id'), nullable=True)
-    
+    loan_request_id = db.Column(UUID(as_uuid=True), db.ForeignKey('loan_request.id'), nullable=True)
+
+    loan_request = db.relationship('LoanRequest', backref='messages')
+
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
     recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
     item = db.relationship('Item', backref='messages')
     parent = db.relationship('Message', remote_side=[id], backref='replies')
 
+    @property
+    def is_loan_request_message(self):
+        """Returns True if this message is related to a loan request"""
+        return self.loan_request_id is not None
+    
+    @property
+    def has_pending_action(self):
+        """Returns True if message needs action (pending request or unread)"""
+        if self.loan_request and self.loan_request.status == 'pending':
+            # For owner: show pending if they haven't responded
+            if self.recipient_id == self.item.owner_id:
+                return not self.is_read
+            # For borrower: show pending until request is processed
+            return True
+        return not self.is_read
+    
     def __repr__(self):
         return f"<Message from {self.sender_id} to {self.recipient_id} at {self.timestamp}>"
         
