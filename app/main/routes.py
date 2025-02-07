@@ -225,36 +225,34 @@ def edit_item(item_id):
 @main_bp.route('/item/<uuid:item_id>/delete', methods=['POST'])
 @login_required
 def delete_item(item_id):
-    form = DeleteItemForm()
-    if form.validate_on_submit():
-        item = Item.query.get_or_404(item_id)
+    item = Item.query.get_or_404(item_id)
+    
+    # Check if user owns the item
+    if item.owner != current_user:
+        flash('You can only delete your own items.', 'danger')
+        return redirect(url_for('main.profile'))
+    
+    try:
+        # Start by deleting messages associated with loan requests
+        Message.query.filter(
+            Message.item_id == item_id
+        ).delete()
+
+        # Delete all loan requests for this item
+        LoanRequest.query.filter_by(item_id=item_id).delete()
         
-        # Verify ownership
-        if item.owner != current_user:
-            flash('You do not have permission to delete this item.', 'danger')
-            return redirect(url_for('main.profile'))
+        # Clear item-tag associations
+        item.tags.clear()
         
-        # Check for active loan requests
-        active_loan_requests = LoanRequest.query.filter(
-            LoanRequest.item_id == item.id,
-            LoanRequest.status.in_(('pending', 'approved'))
-        ).count()
-        
-        if active_loan_requests > 0:
-            flash('Cannot delete this item because there are active loans or requests. Please resolve them first.', 'warning')
-            return redirect(url_for('main.item_detail', item_id=item.id))
-        
-        # Proceed with deletion
+        # Now delete the item
         db.session.delete(item)
-        try:
-            db.session.commit()
-            flash('Item deleted successfully.', 'success')
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f'Error deleting item {item.id}: {e}')
-            flash('An error occurred while deleting the item. Please try again.', 'danger')
-    else:
-        flash('Invalid deletion request.', 'danger')
+        db.session.commit()
+        
+        flash('Item deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting item {item_id}: {str(e)}")
+        flash('An error occurred while deleting the item.', 'danger')
     
     return redirect(url_for('main.profile'))
 
