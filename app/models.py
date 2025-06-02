@@ -4,6 +4,8 @@ from datetime import datetime
 from app import db
 from flask_login import UserMixin
 from flask import url_for
+from werkzeug.security import generate_password_hash, check_password_hash
+import secrets
 
 # Association table for many-to-many relationship between Users and Circles
 circle_members = db.Table('circle_members',
@@ -33,6 +35,9 @@ class User(UserMixin, db.Model):
     zip_code = db.Column(db.String(20), nullable=False)
     country = db.Column(db.String(100), nullable=False, default='USA')  # Default to 'USA'
     profile_image_url = db.Column(db.String(500), nullable=True)
+    email_confirmed = db.Column(db.Boolean, default=False, nullable=False)
+    email_confirmation_token = db.Column(db.String(128), nullable=True)
+    email_confirmation_sent_at = db.Column(db.DateTime, nullable=True)
     @property
     def profile_image(self):
         return self.profile_image_url or url_for('static', filename='img/generic_user_avatar.png')
@@ -55,6 +60,33 @@ class User(UserMixin, db.Model):
             LoanRequest.status == 'approved'
         ).all()
     
+    def generate_confirmation_token(self):
+        """Generate a secure token for email confirmation"""
+        self.email_confirmation_token = secrets.token_urlsafe(32)
+        self.email_confirmation_sent_at = datetime.utcnow()
+        return self.email_confirmation_token
+    
+    def confirm_email(self, token):
+        """Confirm email with the provided token"""
+        if self.email_confirmation_token == token:
+            self.email_confirmed = True
+            self.email_confirmation_token = None
+            self.email_confirmation_sent_at = None
+            return True
+        return False
+    
+    def is_confirmed(self):
+        """Check if email is confirmed"""
+        return self.email_confirmed
+
+    def set_password(self, password):
+        """Set password hash"""
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        """Check password against hash"""
+        return check_password_hash(self.password_hash, password)
+        
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships

@@ -2,7 +2,7 @@ from flask_wtf import FlaskForm
 from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField
 from flask_wtf.file import FileField, FileAllowed
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError
-from app.models import Category
+from app.models import Category, User
 from datetime import datetime
 
 class EmptyForm(FlaskForm):
@@ -63,6 +63,12 @@ class RegistrationForm(FlaskForm):
         EqualTo('password', message="Passwords must match.")
     ])
     submit = SubmitField('Register')
+
+    def validate_email(self, email):
+        """Check if email is already registered"""
+        user = User.query.filter_by(email=email.data).first()
+        if user:
+            raise ValidationError('This email is already registered. Please choose a different one.')
 
 class CircleCreateForm(FlaskForm):
         name = StringField('Circle Name', validators=[
