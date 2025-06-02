@@ -130,7 +130,6 @@ def forgot_password():
             else:
                 flash('Error sending password reset email. Please try again later.', 'error')
         else:
-            # Don't reveal if email exists or not for security
             flash('If an account with that email exists, password reset instructions have been sent.', 'info')
         
         return redirect(url_for('auth.login'))
