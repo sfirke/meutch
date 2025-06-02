@@ -4,8 +4,8 @@ from app.auth import bp as auth_bp
 from app.auth import bp as auth
 from app.models import User
 from app import db
-from app.forms import RegistrationForm, LoginForm
-from app.utils.email import send_confirmation_email
+from app.forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm
+from app.utils.email import send_confirmation_email, send_password_reset_email
 from datetime import datetime, timedelta
 import logging
 
@@ -113,3 +113,56 @@ def resend_confirmation():
         return render_template('auth/resend_confirmation.html')
     
     return render_template('auth/resend_confirmation.html')
+
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """Request password reset"""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+    
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        
+        if user:
+            if send_password_reset_email(user):
+                flash('Password reset instructions have been sent to your email.', 'info')
+            else:
+                flash('Error sending password reset email. Please try again later.', 'error')
+        else:
+            flash('If an account with that email exists, password reset instructions have been sent.', 'info')
+        
+        return redirect(url_for('auth.login'))
+    
+    return render_template('auth/forgot_password.html', form=form)
+
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """Reset password with token"""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+    
+    user = User.query.filter_by(password_reset_token=token).first()
+    
+    if not user:
+        flash('Invalid or expired reset link.', 'danger')
+        return redirect(url_for('auth.forgot_password'))
+    
+    # Check if token is not too old (1 hour)
+    if user.password_reset_sent_at:
+        token_age = datetime.utcnow() - user.password_reset_sent_at
+        if token_age > timedelta(hours=1):
+            flash('Reset link has expired. Please request a new one.', 'danger')
+            return redirect(url_for('auth.forgot_password'))
+    
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        if user.reset_password(token, form.password.data):
+            db.session.commit()
+            flash('Your password has been reset successfully. You can now log in.', 'success')
+            return redirect(url_for('auth.login'))
+        else:
+            flash('Invalid reset token. Please request a new password reset.', 'danger')
+            return redirect(url_for('auth.forgot_password'))
+    
+    return render_template('auth/reset_password.html', form=form)

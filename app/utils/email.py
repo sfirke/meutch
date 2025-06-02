@@ -73,3 +73,34 @@ The Meutch Team
     """.strip()
     
     return send_email(user.email, subject, text_content)
+
+def send_password_reset_email(user):
+    """Send password reset email to user"""
+    from app import db  # Import db here to avoid circular imports
+    
+    token = user.generate_password_reset_token()
+    
+    db.session.commit()
+    
+    reset_url = url_for('auth.reset_password', token=token, _external=True)
+    
+    subject = "Meutch - Reset Your Password"
+    
+    text_content = f"""
+Hello {user.first_name},
+
+You have requested to reset your password for your Meutch account.
+
+To reset your password, please click the link below:
+
+{reset_url}
+
+This link will expire in 1 hour. If you didn't request a password reset, please ignore this email.
+
+If you continue to have trouble accessing your account, please contact our support team.
+
+Best regards,
+The Meutch Team
+    """.strip()
+    
+    return send_email(user.email, subject, text_content)
