@@ -149,3 +149,22 @@ class LoanRequestForm(FlaskForm):
     def validate_start_date(self, field):
         if field.data < datetime.now().date():
             raise ValidationError('Start date cannot be in the past.')
+
+class ForgotPasswordForm(FlaskForm):
+    email = StringField('Email', validators=[
+        DataRequired(message="Email is required."),
+        Email(message="Invalid email format."),
+        Length(max=120, message="Email must be under 120 characters.")
+    ])
+    submit = SubmitField('Send Reset Link')
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField('New Password', validators=[
+        DataRequired(message="Password is required."),
+        Length(min=6, message="Password must be at least 6 characters long.")
+    ])
+    confirm_password = PasswordField('Confirm New Password', validators=[
+        DataRequired(message="Please confirm your password."),
+        EqualTo('password', message="Passwords must match.")
+    ])
+    submit = SubmitField('Reset Password')

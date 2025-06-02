@@ -38,6 +38,8 @@ class User(UserMixin, db.Model):
     email_confirmed = db.Column(db.Boolean, default=False, nullable=False)
     email_confirmation_token = db.Column(db.String(128), nullable=True)
     email_confirmation_sent_at = db.Column(db.DateTime, nullable=True)
+    password_reset_token = db.Column(db.String(128), nullable=True)
+    password_reset_sent_at = db.Column(db.DateTime, nullable=True)
     @property
     def profile_image(self):
         return self.profile_image_url or url_for('static', filename='img/generic_user_avatar.png')
@@ -78,6 +80,28 @@ class User(UserMixin, db.Model):
     def is_confirmed(self):
         """Check if email is confirmed"""
         return self.email_confirmed
+    
+    def generate_password_reset_token(self):
+        """Generate a secure token for password reset"""
+        self.password_reset_token = secrets.token_urlsafe(32)
+        self.password_reset_sent_at = datetime.utcnow()
+        return self.password_reset_token
+    
+    def reset_password(self, token, new_password):
+        """Reset password with the provided token"""
+        if self.password_reset_token == token:
+            # Check if token is not too old (1 hour)
+            if self.password_reset_sent_at:
+                from datetime import timedelta
+                token_age = datetime.utcnow() - self.password_reset_sent_at
+                if token_age > timedelta(hours=1):
+                    return False
+            
+            self.set_password(new_password)
+            self.password_reset_token = None
+            self.password_reset_sent_at = None
+            return True
+        return False
 
     def set_password(self, password):
         """Set password hash"""
