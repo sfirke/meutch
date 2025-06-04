@@ -4,12 +4,10 @@ from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload
 from app import db
-from app.models import Item, Category, LoanRequest, Tag, User, Message
+from app.models import Item, LoanRequest, Tag, User, Message
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm
 from app.main import bp as main_bp
-from app.utils.storage import upload_file, delete_file
-from datetime import datetime
-
+from app.utils.storage import delete_file, upload_item_image, upload_profile_image
 
 @main_bp.route('/')
 def index():
@@ -36,7 +34,7 @@ def list_item():
         )
         
         if form.image.data:
-            image_url = upload_file(form.image.data)
+            image_url = upload_item_image(form.image.data)
             if image_url:
                 new_item.image_url = image_url
 
@@ -208,7 +206,7 @@ def edit_item(item_id):
         if form.image.data:
             if item.image_url:
                 delete_file(item.image_url)
-            image_url = upload_file(form.image.data)
+            image_url = upload_item_image(form.image.data)
             if image_url:
                 item.image_url = image_url
 
@@ -464,7 +462,7 @@ def profile():
         if form.profile_image.data:
             if current_user.profile_image_url:
                 delete_file(current_user.profile_image_url)
-            image_url = upload_file(form.profile_image.data)
+            image_url = upload_profile_image(form.profile_image.data)
             if image_url:
                 current_user.profile_image_url = image_url
         
