@@ -37,6 +37,8 @@ def list_item():
             image_url = upload_item_image(form.image.data)
             if image_url:
                 new_item.image_url = image_url
+            else:
+                flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'warning')
 
         db.session.add(new_item)
         
@@ -209,6 +211,8 @@ def edit_item(item_id):
             image_url = upload_item_image(form.image.data)
             if image_url:
                 item.image_url = image_url
+            else:
+                flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'warning')
 
         db.session.commit()
         flash('Item has been updated.', 'success')
@@ -465,6 +469,8 @@ def profile():
             image_url = upload_profile_image(form.profile_image.data)
             if image_url:
                 current_user.profile_image_url = image_url
+            else:
+                flash('Profile image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'warning')
         
         current_user.about_me = form.about_me.data
         db.session.commit()

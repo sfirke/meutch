@@ -68,7 +68,7 @@ def process_image(file, max_width=800, max_height=600, quality=85):
         file.seek(0)
         return file
 
-def upload_file(file, folder='items', max_width=800, max_height=600, quality=85):
+def upload_file(file, folder='items', max_width=800, max_height=600, quality=85, require_image=True):
     """
     Upload a file to DigitalOcean Spaces with optional image processing
     
@@ -78,6 +78,7 @@ def upload_file(file, folder='items', max_width=800, max_height=600, quality=85)
         max_width: Maximum width for image processing (default: 800)
         max_height: Maximum height for image processing (default: 600)
         quality: JPEG quality for image processing (default: 85)
+        require_image: Whether to restrict uploads to image files only (default: True)
     
     Returns:
         URL of the uploaded file or None if upload failed
@@ -92,6 +93,11 @@ def upload_file(file, folder='items', max_width=800, max_height=600, quality=85)
         # Check if it's an image file
         image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
         is_image = file_ext in image_extensions
+        
+        # Reject non-image files if images are required
+        if require_image and not is_image:
+            current_app.logger.warning(f"Rejected non-image file upload: {filename}")
+            return None
         
         # Generate unique filename
         base_name = os.path.splitext(filename)[0]

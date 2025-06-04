@@ -95,7 +95,7 @@ class ListItemForm(FlaskForm):
     tags = StringField('Tags (comma-separated)', validators=[Length(max=200)])
     image = FileField('Image', validators=[
         Optional(),
-        FileAllowed(['jpg', 'jpeg', 'png'], 'Images only!')
+        FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], 'Images only! Allowed formats: JPG, PNG, GIF, BMP, WebP')
     ])
     delete_image = BooleanField('Delete current image')
     submit = SubmitField('List Item')
@@ -108,7 +108,7 @@ class EditProfileForm(FlaskForm):
     about_me = TextAreaField('About Me', validators=[Length(max=500)])
     profile_image = FileField('Profile Picture', validators=[
         Optional(),
-        FileAllowed(['jpg', 'jpeg', 'png'], 'Images only!')
+        FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], 'Images only! Allowed formats: JPG, PNG, GIF, BMP, WebP')
     ])
     delete_image = BooleanField('Delete current profile picture')
     submit = SubmitField('Update Profile')
