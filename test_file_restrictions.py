@@ -44,22 +44,14 @@ def create_test_files():
     return test_files
 
 def test_file_upload_restrictions(app):
-    """Test that non-image files are properly rejected"""
-    from app import create_app
     from app.utils.storage import upload_item_image, upload_profile_image
-    
-    app = create_app()
-    
     with app.app_context():
         print("🧪 Testing File Upload Restrictions")
         print("=" * 50)
-        
         test_files = create_test_files()
-        
         for file_type, test_file in test_files.items():
             print(f"\n📄 Testing {file_type.upper()} file: {test_file.filename}")
             test_file.seek(0)  # Reset file pointer
-            
             # Test with upload_item_image
             result = upload_item_image(test_file)
             if file_type == 'png':
@@ -70,7 +62,6 @@ def test_file_upload_restrictions(app):
                 print(f"   {'✅' if not result else '❌'} Non-image rejection: {'SUCCESS' if not result else 'FAILED'}")
                 if result:
                     print(f"      ❌ Unexpected upload URL: {result}")
-        
         print(f"\n📊 Test Summary:")
         print(f"   ✅ Valid images should be accepted")
         print(f"   ❌ Non-image files should be rejected")
