@@ -9,9 +9,8 @@ from app.forms import ListItemForm
 from werkzeug.datastructures import FileStorage
 from io import BytesIO
 
-def test_edit_form_validation():
+def test_edit_form_validation(app):
     """Test form validation for edit item scenario"""
-    app = create_app()
     
     with app.app_context():
         with app.test_request_context():

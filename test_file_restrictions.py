@@ -5,6 +5,7 @@ Test script to verify that non-image files are properly rejected
 import os
 import sys
 import io
+import pytest
 
 def create_test_files():
     """Create test files of different types"""
@@ -42,7 +43,7 @@ def create_test_files():
     
     return test_files
 
-def test_file_upload_restrictions():
+def test_file_upload_restrictions(app):
     """Test that non-image files are properly rejected"""
     from app import create_app
     from app.utils.storage import upload_item_image, upload_profile_image
