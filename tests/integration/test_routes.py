@@ -3,6 +3,8 @@ import pytest
 from app.models import Item, User, Category
 from tests.factories import UserFactory, ItemFactory, CategoryFactory
 from conftest import login_user, logout_user
+from unittest.mock import patch
+import io
 
 class TestMainRoutes:
     """Test main application routes."""
@@ -159,6 +161,27 @@ class TestItemRoutes:
             response = client.post(f'/item/{item.id}/delete', follow_redirects=True)
             assert response.status_code == 200
             assert b'You can only delete your own items.' in response.data
+    
+    def test_add_item_image_upload_failure(self, app, client, auth_user):
+        """Test adding item when image upload fails."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email, 'testpassword')
+
+            category = Category.query.first()
+
+            with patch('app.main.routes.upload_item_image', return_value=None):
+                response = client.post('/list-item', data={
+                    'name': 'Test Item',
+                    'description': 'Test Description',
+                    'category': category.id,
+                    'image': (io.BytesIO(b'fake image data'), 'test.jpg'),
+                    'tags': 'electronics, test'
+                }, follow_redirects=True, content_type='multipart/form-data')
+
+                assert response.status_code == 200
+                assert b'Image upload failed' in response.data
+                assert b'Image upload failed' in response.data
 
 class TestSearchRoutes:
     """Test search functionality."""

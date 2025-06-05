@@ -39,6 +39,27 @@ class TestUser:
         with app.app_context():
             user = UserFactory(first_name='John', last_name='Doe')
             assert user.full_name == 'John Doe'
+    
+    def test_user_email_token_methods(self, app):
+        """Test user email token generation and validation methods."""
+        with app.app_context():
+            user = UserFactory()
+            
+            # Test confirmation token generation
+            token = user.generate_confirmation_token()
+            assert token is not None
+            assert len(token) > 0
+            
+            # Test password reset token generation  
+            reset_token = user.generate_password_reset_token()
+            assert reset_token is not None
+            assert len(reset_token) > 0
+            
+            # Test reset password method
+            new_password = 'newpassword123'
+            result = user.reset_password(reset_token, new_password)
+            assert result is True
+            assert user.check_password(new_password) is True
 
 class TestItem:
     """Test Item model."""

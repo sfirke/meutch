@@ -3,6 +3,7 @@ import pytest
 from app.models import User
 from tests.factories import UserFactory, ItemFactory
 from conftest import login_user, logout_user
+from unittest.mock import patch, Mock
 
 class TestAuthenticationRoutes:
     """Test authentication routes."""
@@ -140,6 +141,26 @@ class TestAuthenticationRoutes:
         
         assert response.status_code == 200
         assert b'Passwords must match' in response.data
+    
+    def test_register_email_error(self, app, client):
+        """Test registration when email sending fails."""
+        with app.app_context():
+            with patch('app.auth.routes.send_confirmation_email', return_value=False):
+                response = client.post('/auth/register', data={
+                    'email': 'test@example.com',
+                    'first_name': 'Test',
+                    'last_name': 'User',
+                    'password': 'testpassword',
+                    'confirm_password': 'testpassword',
+                    'street': '123 Test St',
+                    'city': 'Test City',
+                    'state': 'TS',
+                    'zip_code': '12345',
+                    'country': 'USA'
+                }, follow_redirects=True)
+                
+                assert response.status_code == 200
+                assert b'Error sending confirmation email' in response.data
 
 class TestProtectedRoutes:
     """Test that protected routes require authentication."""

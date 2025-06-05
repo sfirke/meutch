@@ -207,21 +207,77 @@ class TestCircleCreateForm:
             assert 'Circle name is required.' in form.name.errors
 
 class TestLoanRequestForm:
-    """Test LoanRequestForm."""
+    """Test LoanRequestForm date validations."""
     
     def test_valid_loan_request_form(self, app):
         """Test valid loan request form."""
         with app.app_context():
-            tomorrow = date.today() + timedelta(days=1)
-            next_week = date.today() + timedelta(days=7)
-            
-            form_data = {
-                'start_date': tomorrow,
-                'end_date': next_week,
-                'message': 'I would like to borrow this item'
-            }
+            with app.test_request_context():
+                start_date = date.today() + timedelta(days=1)
+                end_date = date.today() + timedelta(days=7)
+
+                form_data = {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'message': 'I would like to borrow this item for a week.',
+                    'csrf_token': 'test_token'
+                }
+                form = LoanRequestForm(data=form_data)
+                assert form.validate() is True
+    
+    def test_start_date_in_past(self, app):
+        """Test start date in the past."""
+        with app.app_context():
+            with app.test_request_context():
+                start_date = date.today() - timedelta(days=1)
+                end_date = date.today() + timedelta(days=7)
+                
+                form_data = {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'message': 'Test message',
+                    'csrf_token': 'test_token'
+                }
+                form = LoanRequestForm(data=form_data)
+                assert form.validate() is False
+                assert any('Start date cannot be in the past' in str(error) for error in form.start_date.errors)
+    
+    def test_end_date_in_past(self, app):
+        """Test end date in the past."""
+        with app.app_context():
+            with app.test_request_context():
+                start_date = date.today() + timedelta(days=1)
+                end_date = date.today() - timedelta(days=1)
+
+                form_data = {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'message': 'Test message',
+                    'csrf_token': 'test_token'
+                }
+                form = LoanRequestForm(data=form_data)
+                assert form.validate() is False
+                assert any('End date must be after start date' in str(error) for error in form.end_date.errors)
+    
+    def test_end_date_before_start_date(self, app):
+        """Test end date before start date."""
+        with app.app_context():
+            with app.test_request_context():
+                start_date = date.today() + timedelta(days=7)
+                end_date = date.today() + timedelta(days=1)
+                
+                form_data = {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'message': 'Test message',
+                    'csrf_token': 'test_token'
+                }
+                form = LoanRequestForm(data=form_data)
+                assert form.validate() is False
+                assert any('End date must be after start date' in str(error) for error in form.end_date.errors)
             form = LoanRequestForm(data=form_data)
-            assert form.validate() is True
+            assert form.validate() is False
+            assert any('End date must be after start date' in str(error) for error in form.end_date.errors)
 
 class TestOptionalFileAllowed:
     """Test OptionalFileAllowed validator."""
