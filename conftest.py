@@ -5,6 +5,7 @@ import pytest
 from app import create_app, db
 from app.models import User, Item, Category, Circle, Tag
 from config import Config
+from unittest.mock import patch
 
 class TestConfig(Config):
     """Test configuration class."""
@@ -120,3 +121,10 @@ def login_user(client, email='test@example.com', password='testpassword'):
 def logout_user(client):
     """Helper function to log out a user."""
     return client.get('/auth/logout', follow_redirects=True)
+
+@pytest.fixture(autouse=True)
+def mock_email_sending():
+    with patch('app.utils.email.send_email', return_value=True), \
+         patch('app.utils.email.send_confirmation_email', return_value=True), \
+         patch('app.utils.email.send_password_reset_email', return_value=True):
+        yield
