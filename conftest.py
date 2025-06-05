@@ -33,18 +33,23 @@ def app():
     app = create_app(TestConfig)
     
     with app.app_context():
+        # Ensure clean state by dropping all tables first
+        db.drop_all()
         db.create_all()
         
-        # Create test categories
+        # Create test categories - check if they exist first to avoid duplicates
         categories = ['Tools', 'Electronics', 'Books', 'Sports Equipment']
         for cat_name in categories:
-            category = Category(name=cat_name)
-            db.session.add(category)
+            existing_cat = Category.query.filter_by(name=cat_name).first()
+            if not existing_cat:
+                category = Category(name=cat_name)
+                db.session.add(category)
         
         db.session.commit()
         
         yield app
         
+        # Clean up after test
         db.session.remove()
         db.drop_all()
 
@@ -59,11 +64,32 @@ def runner(app):
     return app.test_cli_runner()
 
 @pytest.fixture
+def db_session(app):
+    """Create a database session with automatic rollback for test isolation."""
+    with app.app_context():
+        # Start a transaction
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        
+        # Configure session to use this connection
+        db.session.configure(bind=connection)
+        
+        yield db.session
+        
+        # Rollback transaction and close connection
+        transaction.rollback()
+        connection.close()
+        db.session.remove()
+
+@pytest.fixture
 def auth_user(app):
     """Create a test user and return user ID for session-safe access."""
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    
     with app.app_context():
         user = User(
-            email='test@example.com',
+            email=f'test{unique_id}@example.com',
             first_name='Test',
             last_name='User',
             street='123 Test St',
@@ -87,9 +113,12 @@ def auth_user(app):
 @pytest.fixture
 def admin_user(app):
     """Create a test admin user and return user ID for session-safe access."""
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    
     with app.app_context():
         user = User(
-            email='admin@example.com',
+            email=f'admin{unique_id}@example.com',
             first_name='Admin',
             last_name='User',
             street='456 Admin Ave',

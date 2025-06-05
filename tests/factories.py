@@ -5,6 +5,7 @@ from faker import Faker
 from werkzeug.security import generate_password_hash
 from app import db
 from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message
+import uuid
 
 fake = Faker()
 
@@ -13,18 +14,18 @@ class CategoryFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Category
         sqlalchemy_session = db.session
-        sqlalchemy_session_persistence = "commit"
+        sqlalchemy_session_persistence = "flush"
     
-    name = factory.Sequence(lambda n: f"Category {n}")
+    name = factory.Sequence(lambda n: f"Category {n} {uuid.uuid4().hex[:8]}")
 
 class UserFactory(SQLAlchemyModelFactory):
     """Factory for User model."""
     class Meta:
         model = User
         sqlalchemy_session = db.session
-        sqlalchemy_session_persistence = "commit"
+        sqlalchemy_session_persistence = "flush"
     
-    email = factory.LazyAttribute(lambda obj: fake.email())
+    email = factory.LazyAttribute(lambda obj: f"{uuid.uuid4().hex[:8]}@example.com")
     first_name = factory.LazyAttribute(lambda obj: fake.first_name())
     last_name = factory.LazyAttribute(lambda obj: fake.last_name())
     street = factory.LazyAttribute(lambda obj: fake.street_address())
@@ -40,18 +41,18 @@ class TagFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Tag
         sqlalchemy_session = db.session
-        sqlalchemy_session_persistence = "commit"
+        sqlalchemy_session_persistence = "flush"
     
-    name = factory.Sequence(lambda n: f"tag-{n}")
+    name = factory.Sequence(lambda n: f"tag-{n}-{uuid.uuid4().hex[:8]}")
 
 class ItemFactory(SQLAlchemyModelFactory):
     """Factory for Item model."""
     class Meta:
         model = Item
         sqlalchemy_session = db.session
-        sqlalchemy_session_persistence = "commit"
+        sqlalchemy_session_persistence = "flush"
     
-    name = factory.LazyAttribute(lambda obj: fake.catch_phrase())
+    name = factory.LazyAttribute(lambda obj: f"{fake.catch_phrase()} {uuid.uuid4().hex[:8]}")
     description = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=200))
     owner = factory.SubFactory(UserFactory)
     category = factory.SubFactory(CategoryFactory)
@@ -62,9 +63,9 @@ class CircleFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Circle
         sqlalchemy_session = db.session
-        sqlalchemy_session_persistence = "commit"
+        sqlalchemy_session_persistence = "flush"
     
-    name = factory.LazyAttribute(lambda obj: fake.company())
+    name = factory.LazyAttribute(lambda obj: f"{fake.company()} {uuid.uuid4().hex[:8]}")
     description = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=200))
     requires_approval = False
 
@@ -73,7 +74,7 @@ class LoanRequestFactory(SQLAlchemyModelFactory):
     class Meta:
         model = LoanRequest
         sqlalchemy_session = db.session
-        sqlalchemy_session_persistence = "commit"
+        sqlalchemy_session_persistence = "flush"
     
     item = factory.SubFactory(ItemFactory)
     borrower = factory.SubFactory(UserFactory)
@@ -86,7 +87,7 @@ class MessageFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Message
         sqlalchemy_session = db.session
-        sqlalchemy_session_persistence = "commit"
+        sqlalchemy_session_persistence = "flush"
     
     sender = factory.SubFactory(UserFactory)
     recipient = factory.SubFactory(UserFactory)
