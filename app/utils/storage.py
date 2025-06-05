@@ -6,6 +6,37 @@ import io
 from PIL import Image, ImageOps
 import os
 
+def is_valid_file_upload(file):
+    """
+    Check if a file upload is valid and contains actual content
+    
+    Args:
+        file: File object from form upload
+        
+    Returns:
+        bool: True if file is valid and has content, False otherwise
+    """
+    if not file:
+        return False
+    
+    # Check if filename exists and is not empty
+    if not hasattr(file, 'filename') or not file.filename:
+        return False
+    
+    # Check if filename is not just whitespace
+    if not file.filename.strip():
+        return False
+    
+    # Check if file has content by trying to read and reset
+    try:
+        current_position = file.tell()
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(current_position)  # Reset to original position
+        return file_size > 0
+    except (AttributeError, OSError):
+        return False
+
 def get_s3_client():
     return boto3.client('s3',
         region_name=current_app.config['DO_SPACES_REGION'],
@@ -84,6 +115,10 @@ def upload_file(file, folder='items', max_width=800, max_height=600, quality=85,
         URL of the uploaded file or None if upload failed
     """
     if not file:
+        return None
+    
+    # Check if the file upload is valid and has content
+    if not is_valid_file_upload(file):
         return None
         
     try:

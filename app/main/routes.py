@@ -7,7 +7,7 @@ from app import db
 from app.models import Item, LoanRequest, Tag, User, Message
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm
 from app.main import bp as main_bp
-from app.utils.storage import delete_file, upload_item_image, upload_profile_image
+from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 
 @main_bp.route('/')
 def index():
@@ -197,6 +197,7 @@ def edit_item(item_id):
                     db.session.add(tag)
                 item.tags.append(tag)
 
+        # Handle image deletion
         if form.delete_image.data:
             if item.image_url:
                 current_app.logger.debug("Deleting existing image")
@@ -205,14 +206,20 @@ def edit_item(item_id):
                 current_app.logger.debug("Set item.image_url to None")
                 flash('Image has been removed.', 'success')
  
+        # Handle image upload - only process if a valid file is provided
         if form.image.data:
-            if item.image_url:
-                delete_file(item.image_url)
-            image_url = upload_item_image(form.image.data)
-            if image_url:
-                item.image_url = image_url
-            else:
-                flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'warning')
+            # Check if a file was actually selected (not just an empty FileStorage object)
+            if hasattr(form.image.data, 'filename') and form.image.data.filename and form.image.data.filename.strip():
+                if is_valid_file_upload(form.image.data):
+                    if item.image_url:
+                        delete_file(item.image_url)
+                    image_url = upload_item_image(form.image.data)
+                    if image_url:
+                        item.image_url = image_url
+                    else:
+                        flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'warning')
+                else:
+                    flash('Invalid file upload. Please select a valid image file.', 'warning')
 
         db.session.commit()
         flash('Item has been updated.', 'success')
