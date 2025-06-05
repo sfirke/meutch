@@ -5,6 +5,22 @@ from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, V
 from app.models import Category, User
 from datetime import datetime
 
+def OptionalFileAllowed(upload_set, message=None):
+    """
+    Custom validator that allows empty files and validates non-empty files with FileAllowed
+    """
+    def _validate(form, field):
+        if not field.data:
+            return
+        
+        # Check if file has a filename and content
+        if hasattr(field.data, 'filename') and field.data.filename and field.data.filename.strip():
+            # Only apply FileAllowed validation if there's actually a file
+            file_allowed = FileAllowed(upload_set, message)
+            file_allowed(form, field)
+    
+    return _validate
+
 class EmptyForm(FlaskForm):
     pass
 
@@ -94,8 +110,7 @@ class ListItemForm(FlaskForm):
     category = SelectField('Category', coerce=str, validators=[DataRequired()])
     tags = StringField('Tags (comma-separated)', validators=[Length(max=200)])
     image = FileField('Image', validators=[
-        Optional(),
-        FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], 'Images only! Allowed formats: JPG, PNG, GIF, BMP, WebP')
+        OptionalFileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], 'Images only! Allowed formats: JPG, PNG, GIF, BMP, WebP')
     ])
     delete_image = BooleanField('Delete current image')
     submit = SubmitField('List Item')
@@ -107,8 +122,7 @@ class ListItemForm(FlaskForm):
 class EditProfileForm(FlaskForm):
     about_me = TextAreaField('About Me', validators=[Length(max=500)])
     profile_image = FileField('Profile Picture', validators=[
-        Optional(),
-        FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], 'Images only! Allowed formats: JPG, PNG, GIF, BMP, WebP')
+        OptionalFileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], 'Images only! Allowed formats: JPG, PNG, GIF, BMP, WebP')
     ])
     delete_image = BooleanField('Delete current profile picture')
     submit = SubmitField('Update Profile')

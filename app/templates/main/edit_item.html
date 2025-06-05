@@ -9,22 +9,34 @@
         <div class="mb-3">
             {{ form.name.label }}
             {{ form.name(class="form-control") }}
+            {% for error in form.name.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
         </div>
         
         <div class="mb-3">
             {{ form.description.label }}
             {{ form.description(class="form-control") }}
+            {% for error in form.description.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
         </div>
         
         <div class="mb-3">
             {{ form.category.label }}
             {{ form.category(class="form-control") }}
+            {% for error in form.category.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
         </div>
         
         <div class="mb-3">
             {{ form.tags.label }}
             {{ form.tags(class="form-control") }}
             <small class="text-muted">Separate tags with commas</small>
+            {% for error in form.tags.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
         </div>
 
         {% if item.image_url %}
@@ -40,6 +52,9 @@
         <div class="mb-3">
             {{ form.image.label }}
             {{ form.image(class="form-control") }}
+            {% for error in form.image.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
         </div>
 
         {{ form.submit(class="btn btn-primary") }}
