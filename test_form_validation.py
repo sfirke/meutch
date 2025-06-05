@@ -11,11 +11,8 @@ from app.forms import ListItemForm
 from werkzeug.datastructures import FileStorage
 from io import BytesIO
 
-def test_empty_file_validation():
-    """Test how the form handles empty file uploads"""
-    app = create_app()
-    
-    with app.app_context():
+def test_empty_file_validation(app):
+    with app.test_request_context():
         # Create a form with empty file
         form = ListItemForm()
         
@@ -41,4 +38,6 @@ def test_empty_file_validation():
         print(f"Image field errors: {form.image.errors}")
 
 if __name__ == '__main__':
-    test_empty_file_validation()
+    app = create_app()
+    with app.app_context():
+        test_empty_file_validation(app)
