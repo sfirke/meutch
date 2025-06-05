@@ -1,0 +1,28 @@
+services:
+  test-postgres:
+    image: postgres:17-alpine
+    container_name: meutch-test-db
+    environment:
+      POSTGRES_DB: test_meutch
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"  # Use port 5433 to avoid conflict with local PostgreSQL
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_meutch"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test_network
+
+volumes:
+  test_postgres_data:
+
+networks:
+  test_network:
+    driver: bridge

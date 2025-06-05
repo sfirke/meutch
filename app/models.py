@@ -47,7 +47,7 @@ class User(UserMixin, db.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
-
+    
     def get_active_loans_as_borrower(self):
         """Returns items user is currently borrowing"""
         return Item.query.join(LoanRequest).filter(
