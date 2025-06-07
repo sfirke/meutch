@@ -316,8 +316,16 @@ class TestMessagingWorkflow:
             assert response.status_code == 200
             assert b'interested in this item' in response.data
             
-            # Check unread count in context
+            # Check unread count - recipient should have 1 unread message
             from app.models import Message
+            unread_count = Message.query.filter_by(
+                recipient_id=recipient.id,
+                is_read=False
+            ).count()
+            
+            assert unread_count == 1, f"Expected 1 unread message, but found {unread_count}"
+            
+            # Also verify the specific message exists and is unread
             message = Message.query.filter_by(
                 sender_id=sender.id,
                 recipient_id=recipient.id,
