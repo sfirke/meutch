@@ -6,6 +6,12 @@ __pycache__/
 # Documentation files (local development notes)
 TEST_DB_SETUP.md
 
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+
 # C extensions
 *.so
 
