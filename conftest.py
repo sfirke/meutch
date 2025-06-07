@@ -110,36 +110,6 @@ def auth_user(app):
     
     return get_user
 
-@pytest.fixture
-def admin_user(app):
-    """Create a test admin user and return user ID for session-safe access."""
-    import uuid
-    unique_id = str(uuid.uuid4())[:8]
-    
-    with app.app_context():
-        user = User(
-            email=f'admin{unique_id}@example.com',
-            first_name='Admin',
-            last_name='User',
-            street='456 Admin Ave',
-            city='Admin City',
-            state='AD',
-            zip_code='54321',
-            country='USA',
-            email_confirmed=True,
-            is_admin=True
-        )
-        user.set_password('adminpassword')
-        db.session.add(user)
-        db.session.commit()
-        user_id = user.id
-        
-    # Return a function that retrieves the user with fresh session
-    def get_user():
-        return User.query.get(user_id)
-    
-    return get_user
-
 def login_user(client, email='test@example.com', password='testpassword'):
     """Helper function to log in a user."""
     return client.post('/auth/login', data={
