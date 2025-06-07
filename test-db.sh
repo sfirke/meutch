@@ -34,17 +34,6 @@ start_db() {
     
     check_docker
     
-    # Stop local PostgreSQL if it's running on port 5432
-    if lsof -Pi :5432 -sTCP:LISTEN -t >/dev/null ; then
-        print_color $YELLOW "⚠️  Local PostgreSQL is running on port 5432."
-        read -p "Do you want to stop it? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            print_color $YELLOW "Stopping local PostgreSQL..."
-            sudo systemctl stop postgresql || true
-        fi
-    fi
-    
     # Start the Docker database
     docker compose -f $DOCKER_COMPOSE_FILE up -d
     
