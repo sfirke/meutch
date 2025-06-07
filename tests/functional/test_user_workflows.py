@@ -269,12 +269,12 @@ class TestSearchAndBrowsingWorkflow:
             assert b'Gaming Laptop' in response.data
             assert b'Office Monitor' not in response.data
             
-            # Search by tag
+            # Tag string shows up in search results
             response = client.get('/search?q=computer')
             assert response.status_code == 200
             assert b'Gaming Laptop' in response.data
             
-            # Browse by category
+            # Browse by tag
             response = client.get(f'/tag/{tag1.id}')
             assert response.status_code == 200
             assert b'Gaming Laptop' in response.data
