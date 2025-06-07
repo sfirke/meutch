@@ -1,5 +1,6 @@
 """End-to-end functional tests for user workflows."""
 import pytest
+from datetime import date, timedelta
 from flask import url_for
 from app.models import User, Item, Category, db
 from tests.factories import UserFactory, CategoryFactory
@@ -121,9 +122,13 @@ class TestLoanRequestWorkflow:
                 'password': 'testpassword123'
             }, follow_redirects=True)
             
+            # Generate dynamic dates - start date 3 days from now, end date 8 days from now
+            start_date = (date.today() + timedelta(days=3)).strftime('%Y-%m-%d')
+            end_date = (date.today() + timedelta(days=8)).strftime('%Y-%m-%d')
+            
             response = client.post(f'/items/{item.id}/request', data={
-                'start_date': '2025-06-10',
-                'end_date': '2025-06-15',
+                'start_date': start_date,
+                'end_date': end_date,
                 'message': 'I would like to borrow this item'
             }, follow_redirects=True)
             
