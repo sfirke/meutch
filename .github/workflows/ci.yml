@@ -18,8 +18,8 @@ jobs:
         image: postgres:17-alpine
         env:
           POSTGRES_DB: test_meutch
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: ${{ secrets.TEST_DB_USER || 'test_user' }}
+          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'test_password' }}
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
