@@ -26,19 +26,22 @@ def index():
 def list_item():
     form = ListItemForm()
     if form.validate_on_submit():
+        # Handle image upload first, if provided
+        image_url = None
+        if form.image.data:
+            image_url = upload_item_image(form.image.data)
+            if image_url is None:
+                flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'error')
+                return render_template('main/list_item.html', form=form)
+        
+        # Create the item only if image upload succeeded (or no image was provided)
         new_item = Item(
             name=form.name.data.strip(),
             description=form.description.data.strip(),
             owner=current_user,
-            category_id=form.category.data
+            category_id=form.category.data,
+            image_url=image_url
         )
-        
-        if form.image.data:
-            image_url = upload_item_image(form.image.data)
-            if image_url:
-                new_item.image_url = image_url
-            else:
-                flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'warning')
 
         db.session.add(new_item)
         

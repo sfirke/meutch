@@ -2,7 +2,7 @@
 import pytest
 from app.models import Item, User, Category
 from tests.factories import UserFactory, ItemFactory, CategoryFactory
-from conftest import login_user, logout_user
+from conftest import login_user
 from unittest.mock import patch
 import io
 
@@ -166,22 +166,24 @@ class TestItemRoutes:
         """Test adding item when image upload fails."""
         with app.app_context():
             user = auth_user()
-            login_user(client, user.email, 'testpassword')
-
-            category = Category.query.first()
+            category = CategoryFactory() 
+            login_user(client, user.email)
 
             with patch('app.main.routes.upload_item_image', return_value=None):
                 response = client.post('/list-item', data={
                     'name': 'Test Item',
                     'description': 'Test Description',
-                    'category': category.id,
+                    'category': str(category.id),
                     'image': (io.BytesIO(b'fake image data'), 'test.jpg'),
                     'tags': 'electronics, test'
                 }, follow_redirects=True, content_type='multipart/form-data')
 
                 assert response.status_code == 200
                 assert b'Image upload failed' in response.data
-                assert b'Image upload failed' in response.data
+                
+                # Verify item was not created due to upload failure
+                item = Item.query.filter_by(name='Test Item').first()
+                assert item is None, "Item should not be created when image upload fails"
 
 class TestSearchRoutes:
     """Test search functionality."""
