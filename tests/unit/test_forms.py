@@ -275,9 +275,6 @@ class TestLoanRequestForm:
                 form = LoanRequestForm(data=form_data)
                 assert form.validate() is False
                 assert any('End date must be after start date' in str(error) for error in form.end_date.errors)
-            form = LoanRequestForm(data=form_data)
-            assert form.validate() is False
-            assert any('End date must be after start date' in str(error) for error in form.end_date.errors)
 
 class TestOptionalFileAllowed:
     """Test OptionalFileAllowed validator."""
@@ -285,42 +282,72 @@ class TestOptionalFileAllowed:
     def test_empty_file_allowed(self, app):
         """Test that empty file is allowed."""
         with app.app_context():
-            validator = OptionalFileAllowed(['jpg', 'png'])
-            
-            class MockForm:
-                pass
-            
-            class MockField:
-                data = None
-            
-            form = MockForm()
-            field = MockField()
-            
-            # Should not raise any exception
-            validator(form, field)
+            with app.test_request_context():
+                validator = OptionalFileAllowed(['jpg', 'png'])
+                
+                class MockForm:
+                    pass
+                
+                class MockField:
+                    data = None
+                
+                form = MockForm()
+                field = MockField()
+                
+                # Should not raise any exception
+                validator(form, field)
     
     def test_valid_file_extension(self, app):
         """Test valid file extension."""
         with app.app_context():
-            validator = OptionalFileAllowed(['jpg', 'png'])
-            
-            class MockForm:
-                pass
-            
-            class MockField:
-                data = type('MockFile', (), {
-                    'filename': 'test.jpg'
-                })()
-            
-            form = MockForm()
-            field = MockField()
-            
-            # Should not raise any exception for valid extension
-            try:
+            with app.test_request_context():
+                validator = OptionalFileAllowed(['jpg', 'png'])
+                
+                # Create a proper mock file
+                mock_file = FileStorage(
+                    stream=BytesIO(b'fake image data'),
+                    filename='test.jpg',
+                    content_type='image/jpeg'
+                )
+                
+                class MockForm:
+                    pass
+                
+                class MockField:
+                    data = mock_file
+                
+                form = MockForm()
+                field = MockField()
+                
+                # Should not raise ValidationError for valid extension
                 validator(form, field)
-                # If we get here, no exception was raised (which is good)
-                assert True
-            except:
-                # If an exception is raised, it should be for file content validation
-                # not extension validation, since we're only testing the extension logic
-                pass
+    
+    def test_invalid_file_extension(self, app):
+        """Test invalid file extension."""
+        with app.app_context():
+            with app.test_request_context():
+                from wtforms.validators import StopValidation
+                validator = OptionalFileAllowed(['jpg', 'png'])
+                
+                # Create a mock file with invalid extension
+                mock_file = FileStorage(
+                    stream=BytesIO(b'fake data'),
+                    filename='test.txt',
+                    content_type='text/plain'
+                )
+                
+                class MockForm:
+                    pass
+                
+                class MockField:
+                    data = mock_file
+                    
+                    def gettext(self, text):
+                        return text
+                
+                form = MockForm()
+                field = MockField()
+                
+                # Should raise StopValidation for invalid extension
+                with pytest.raises(StopValidation):
+                    validator(form, field)
