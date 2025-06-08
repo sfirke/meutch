@@ -1,7 +1,7 @@
 """Unit tests for models."""
 import pytest
 from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message
-from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory
+from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory, LoanRequestFactory, MessageFactory
 
 class TestUser:
     """Test User model."""
@@ -157,7 +157,6 @@ class TestLoanRequest:
     def test_loan_request_creation(self, app):
         """Test loan request creation."""
         with app.app_context():
-            from tests.factories import LoanRequestFactory
             loan = LoanRequestFactory()
             assert loan.id is not None
             assert loan.item is not None
@@ -167,7 +166,6 @@ class TestLoanRequest:
     def test_loan_request_repr(self, app):
         """Test loan request string representation."""
         with app.app_context():
-            from tests.factories import LoanRequestFactory
             item = ItemFactory(name='Test Item')
             user = UserFactory(email='test@example.com')
             loan = LoanRequestFactory(item=item, borrower=user)
@@ -180,7 +178,6 @@ class TestMessage:
     def test_message_creation(self, app):
         """Test message creation."""
         with app.app_context():
-            from tests.factories import MessageFactory
             message = MessageFactory()
             assert message.id is not None
             assert message.sender is not None
@@ -191,7 +188,6 @@ class TestMessage:
     def test_message_repr(self, app):
         """Test message string representation."""
         with app.app_context():
-            from tests.factories import MessageFactory
             sender = UserFactory(email='sender@example.com')
             recipient = UserFactory(email='recipient@example.com')
             message = MessageFactory(sender=sender, recipient=recipient)
