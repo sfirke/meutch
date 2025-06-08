@@ -6,7 +6,13 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv()
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-key-change-this'
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    if not SECRET_KEY:
+        if os.environ.get('FLASK_ENV') == 'development':
+            SECRET_KEY = 'dev-key-change-this'
+        else:
+            raise ValueError("SECRET_KEY environment variable must be set for production")
+    
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DO_SPACES_REGION = os.environ.get('DO_SPACES_REGION')
@@ -20,7 +26,15 @@ class Config:
     MAILGUN_DOMAIN = os.environ.get('MAILGUN_DOMAIN')
     MAILGUN_API_URL = f"https://api.mailgun.net/v3/{os.environ.get('MAILGUN_DOMAIN')}/messages" if os.environ.get('MAILGUN_DOMAIN') else None
 
-    LOG_LEVEL = logging.DEBUG  # Set to DEBUG to see all logs
-    DEBUG = True
+    # Environment-based configuration
+    DEBUG = os.environ.get('FLASK_ENV') == 'development'
+    LOG_LEVEL = logging.DEBUG if DEBUG else logging.INFO
     LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     LOG_FILE = 'app.log'
+
+class TestingConfig(Config):
+    """Configuration for testing environment"""
+    TESTING = True
+    WTF_CSRF_ENABLED = False  # Disable CSRF for testing
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SECRET_KEY = 'test-secret-key'
