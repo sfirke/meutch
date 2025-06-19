@@ -11,7 +11,11 @@ class Config:
         if os.environ.get('FLASK_ENV') == 'development':
             SECRET_KEY = 'dev-key-change-this'
         else:
-            raise ValueError("SECRET_KEY environment variable must be set for production")
+            raise ValueError(
+                "SECRET_KEY environment variable must be set for production. "
+                "Please set it in your deployment platform's environment variables. "
+                "You can generate one with: python -c 'import secrets; print(secrets.token_hex(32))'"
+            )
     
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
