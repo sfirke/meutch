@@ -47,7 +47,7 @@ def upgrade():
     with op.batch_alter_table('tag', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_tag_name'), ['name'], unique=True)
 
-    op.create_table('user',
+    op.create_table('users',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('email', sa.String(length=120), nullable=False),
     sa.Column('password_hash', sa.String(length=128), nullable=False),
@@ -78,7 +78,7 @@ def upgrade():
     sa.Column('status', sa.String(length=20), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['circle_id'], ['circle.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('circle_members',
@@ -87,7 +87,7 @@ def upgrade():
     sa.Column('joined_at', sa.DateTime(), nullable=True),
     sa.Column('is_admin', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['circle_id'], ['circle.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('user_id', 'circle_id')
     )
     op.create_table('item',
@@ -100,7 +100,7 @@ def upgrade():
     sa.Column('category_id', sa.UUID(), nullable=False),
     sa.Column('image_url', sa.String(length=500), nullable=True),
     sa.ForeignKeyConstraint(['category_id'], ['category.id'], ),
-    sa.ForeignKeyConstraint(['owner_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('id')
     )
@@ -119,7 +119,7 @@ def upgrade():
     sa.Column('end_date', sa.Date(), nullable=False),
     sa.Column('status', sa.String(length=20), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['borrower_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['borrower_id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['item_id'], ['item.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('id')
@@ -132,7 +132,7 @@ def upgrade():
     sa.Column('comment', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['loan_request_id'], ['loan_request.id'], ),
-    sa.ForeignKeyConstraint(['reviewer_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['reviewer_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('id')
     )
@@ -149,8 +149,8 @@ def upgrade():
     sa.ForeignKeyConstraint(['item_id'], ['item.id'], ),
     sa.ForeignKeyConstraint(['loan_request_id'], ['loan_request.id'], ),
     sa.ForeignKeyConstraint(['parent_id'], ['messages.id'], ),
-    sa.ForeignKeyConstraint(['recipient_id'], ['user.id'], ),
-    sa.ForeignKeyConstraint(['sender_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['recipient_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['sender_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     # ### end Alembic commands ###
@@ -165,7 +165,7 @@ def downgrade():
     op.drop_table('item')
     op.drop_table('circle_members')
     op.drop_table('circle_join_requests')
-    op.drop_table('user')
+    op.drop_table('users')
     with op.batch_alter_table('tag', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_tag_name'))
 

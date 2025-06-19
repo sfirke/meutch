@@ -9,7 +9,7 @@ import secrets
 
 # Association table for many-to-many relationship between Users and Circles
 circle_members = db.Table('circle_members',
-    db.Column('user_id', UUID(as_uuid=True), db.ForeignKey('user.id'), primary_key=True),
+    db.Column('user_id', UUID(as_uuid=True), db.ForeignKey('users.id'), primary_key=True),
     db.Column('circle_id', UUID(as_uuid=True), db.ForeignKey('circle.id'), primary_key=True),
     db.Column('joined_at', db.DateTime, default=datetime.utcnow),
     db.Column('is_admin', db.Boolean, default=False)
@@ -21,7 +21,7 @@ item_tags = db.Table('item_tags',
 )
 
 class User(UserMixin, db.Model):
-    __tablename__ = 'user'
+    __tablename__ = 'users'
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
@@ -124,7 +124,7 @@ class Item(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    owner_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    owner_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     available = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('category.id'), nullable=False)
@@ -191,7 +191,7 @@ class Tag(db.Model):
 class LoanRequest(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id'), nullable=False)
-    borrower_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    borrower_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(20), default='pending')  # pending, approved, canceled, denied, completed
@@ -205,7 +205,7 @@ class LoanRequest(db.Model):
 class Feedback(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     loan_request_id = db.Column(UUID(as_uuid=True), db.ForeignKey('loan_request.id'), nullable=False)
-    reviewer_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    reviewer_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     rating = db.Column(db.String(10))  # good, neutral, bad
     comment = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -214,8 +214,8 @@ class Message(db.Model):
     __tablename__ = 'messages'
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    sender_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
-    recipient_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    sender_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    recipient_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id'), nullable=False)
     body = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
@@ -258,7 +258,7 @@ class CircleJoinRequest(db.Model):
     __tablename__ = 'circle_join_requests'
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     circle_id = db.Column(UUID(as_uuid=True), db.ForeignKey('circle.id'), nullable=False)
-    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     message = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
