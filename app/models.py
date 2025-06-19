@@ -40,6 +40,7 @@ class User(UserMixin, db.Model):
     email_confirmation_sent_at = db.Column(db.DateTime, nullable=True)
     password_reset_token = db.Column(db.String(128), nullable=True)
     password_reset_sent_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     @property
     def profile_image(self):
         return self.profile_image_url or url_for('static', filename='img/generic_user_avatar.png')
@@ -110,8 +111,6 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         """Check password against hash"""
         return check_password_hash(self.password_hash, password)
-        
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
     items = db.relationship('Item', backref='owner', lazy=True)
