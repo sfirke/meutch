@@ -28,10 +28,6 @@ def seed():
 def data(env):
     """Seed database with data for specified environment."""
     from app import db
-    from tests.factories import (
-        UserFactory, ItemFactory, CategoryFactory, 
-        CircleFactory, TagFactory, LoanRequestFactory, MessageFactory
-    )
     
     click.echo(f"🌱 Seeding {env} database...")
     
@@ -325,12 +321,21 @@ def _seed_development_data():
                     ).first()
                     
                     if not existing_request:
+                        from datetime import date, timedelta
+                        
+                        # Generate realistic loan dates
+                        start_date = date.today() + timedelta(days=random.randint(1, 14))
+                        end_date = start_date + timedelta(days=random.randint(1, 30))
+                        
                         loan_request = LoanRequest(
                             item=item,
                             borrower=borrower,
+                            start_date=start_date,
+                            end_date=end_date,
                             status=random.choice(['pending', 'approved', 'rejected'])
                         )
                         db.session.add(loan_request)
+                        db.session.flush()  # Ensure the loan request is persisted
                         click.echo(f"  ✓ Loan request: {borrower.email} wants {item.name}")
     else:
         click.echo(f"  ≈ Loan requests exist: {existing_loan_requests} records")
@@ -342,15 +347,18 @@ def _seed_development_data():
         for i in range(messages_to_create):
             sender = random.choice(all_users)
             recipient = random.choice([u for u in all_users if u != sender])
+            item = random.choice(all_items)  # Messages must be associated with an item
             
             message = Message(
                 sender=sender,
                 recipient=recipient,
-                body=f"Test message from {sender.first_name} to {recipient.first_name}",
+                item=item,  # Required field
+                body=f"Hi {recipient.first_name}, I'm interested in your {item.name}. Is it still available?",
                 is_read=random.choice([True, False])
             )
             db.session.add(message)
-            click.echo(f"  ✓ Message: {sender.email} -> {recipient.email}")
+            db.session.flush()  # Ensure the message is persisted
+            click.echo(f"  ✓ Message: {sender.email} -> {recipient.email} about {item.name}")
     else:
         click.echo(f"  ≈ Messages exist: {existing_messages} records")
 
