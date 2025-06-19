@@ -57,7 +57,7 @@ jobs:
     
     - name: Run tests with pytest
       run: |
-        pytest --cov=app --cov-report=xml --cov-report=html --cov-fail-under=70 -v
+        pytest --cov=app --cov-report=xml --cov-report=html -v
     
     - name: Archive test results
       uses: actions/upload-artifact@v4

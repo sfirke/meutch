@@ -35,13 +35,20 @@ def create_app(config_class=Config):
     # Register blueprints
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
-    
+
     from app.auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
-    
+
     from app.circles import bp as circles_bp
     app.register_blueprint(circles_bp, url_prefix='/circles')
-    
+
+    # Register CLI commands
+    try:
+        from app.cli import seed
+        app.cli.add_command(seed)
+    except ImportError as e:
+        print(f"Warning: Could not import CLI commands: {e}")
+
     # Define the user loader callback
     @login_manager.user_loader
     def load_user(user_id):
