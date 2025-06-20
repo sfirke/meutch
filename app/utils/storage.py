@@ -192,6 +192,18 @@ def upload_item_image(file):
     """
     return upload_file(file, folder='items', max_width=800, max_height=600, quality=85)
 
+def upload_circle_image(file):
+    """
+    Upload a circle image with optimized dimensions for circle avatars/banners
+    
+    Args:
+        file: Uploaded file object
+    
+    Returns:
+        URL of the uploaded circle image or None if upload failed
+    """
+    return upload_file(file, folder='circles', max_width=600, max_height=600, quality=85)
+
 def delete_file(url):
     if not url:
         return

@@ -11,6 +11,20 @@
     <p><strong>Members:</strong> {{ circle.members|length }}</p>
     <p><strong>Requires Approval:</strong> {{ 'Yes' if circle.requires_approval else 'No' }}</p>
 
+    {% if circle.image_url %}
+        <div class="mb-3">
+            <img src="{{ circle.image_url }}" alt="Circle Image" class="img-fluid mb-3" style="max-width: 300px;">
+        </div>
+    {% endif %}
+
+    {% if circle.is_admin(current_user) %}
+        <div class="mb-3">
+            <a href="{{ url_for('circles.edit_circle', circle_id=circle.id) }}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-edit me-1"></i>Edit Circle
+            </a>
+        </div>
+    {% endif %}
+
     {% if not circle.requires_approval or is_member %}
         <!-- Members section with Admin Controls -->
         <h3>Members ({{ circle.members|length }})</h3>

@@ -3,6 +3,7 @@ from flask_login import current_user, login_required
 from app.circles import bp as circles_bp
 from app.models import Circle, db, circle_members, CircleJoinRequest, User
 from app.forms import CircleCreateForm, EmptyForm, CircleSearchForm, CircleJoinRequestForm
+from app.utils.storage import upload_circle_image, delete_file, is_valid_file_upload
 import logging
 from sqlalchemy import and_
 from datetime import datetime
@@ -358,14 +359,21 @@ def create_circle():
             flash('A circle with that name already exists. Please choose a different name.', 'danger')
             return render_template('circles/create_circle.html', form=form)
         
+        image_url = None
+        if form.image.data and is_valid_file_upload(form.image.data):
+            image_url = upload_circle_image(form.image.data)
+            if image_url is None:
+                flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'error')
+                return render_template('circles/create_circle.html', form=form)
+
         new_circle = Circle(
             name=circle_name,
             description=form.description.data.strip(),
-            requires_approval=form.requires_approval.data
+            requires_approval=form.requires_approval.data,
+            image_url=image_url
         )
         db.session.add(new_circle)
         db.session.flush()
-        
         stmt = circle_members.insert().values(
             user_id=current_user.id,
             circle_id=new_circle.id,
@@ -426,3 +434,49 @@ def remove_member(circle_id, user_id):
     
     flash(f'{user_to_remove.first_name} {user_to_remove.last_name} has been removed from the circle.', 'success')
     return redirect(url_for('circles.view_circle', circle_id=circle_id))
+
+@circles_bp.route('/circles/<uuid:circle_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_circle(circle_id):
+    circle = Circle.query.get_or_404(circle_id)
+    if not circle.is_admin(current_user):
+        flash('Only circle admins can edit circle details.', 'danger')
+        return redirect(url_for('circles.view_circle', circle_id=circle.id))
+
+    from app.forms import CircleCreateForm
+    form = CircleCreateForm(obj=circle)
+    # Remove submit label confusion
+    form.submit.label.text = 'Update Circle'
+
+    if request.method == 'GET':
+        form.image.data = None
+        form.delete_image.data = False
+
+    if form.validate_on_submit():
+        circle.name = form.name.data.strip()
+        circle.description = form.description.data.strip()
+        circle.requires_approval = form.requires_approval.data
+
+        # Handle image deletion
+        if form.delete_image.data and circle.image_url:
+            delete_file(circle.image_url)
+            circle.image_url = None
+            flash('Circle image has been removed.', 'success')
+
+        # Handle image upload
+        if form.image.data and is_valid_file_upload(form.image.data):
+            if circle.image_url:
+                delete_file(circle.image_url)
+            image_url = upload_circle_image(form.image.data)
+            if image_url:
+                circle.image_url = image_url
+                flash('Circle image updated.', 'success')
+            else:
+                flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'error')
+                return render_template('circles/edit_circle.html', form=form, circle=circle)
+
+        db.session.commit()
+        flash('Circle details updated.', 'success')
+        return redirect(url_for('circles.view_circle', circle_id=circle.id))
+
+    return render_template('circles/edit_circle.html', form=form, circle=circle)
