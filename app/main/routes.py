@@ -4,19 +4,24 @@ from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload
 from app import db
-from app.models import Item, LoanRequest, Tag, User, Message
+from app.models import Item, LoanRequest, Tag, User, Message, Circle, circle_members
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 
 @main_bp.route('/')
 def index():
-    # Fetch all items (you can modify the query as needed)
-    items = Item.query.all()
-    
+    # Only show items whose owner is in at least one public circle
+    public_circle_ids = db.session.query(Circle.id).filter(Circle.requires_approval == False).subquery()
+    # Find user IDs who are in at least one public circle
+    public_user_ids = db.session.query(circle_members.c.user_id).filter(
+        circle_members.c.circle_id.in_(public_circle_ids)
+    ).distinct().subquery()
+    # Only show items whose owner is in a public circle
+    items = Item.query.filter(Item.owner_id.in_(public_user_ids)).all()
+
     circles = []
     if current_user.is_authenticated:
-        # Fetch the circles the current user is a member of
         circles = current_user.circles
         
     return render_template('main/index.html', items=items, circles=circles)
