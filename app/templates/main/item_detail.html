@@ -59,5 +59,8 @@
             <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
         </form>
     {% endif %}
+    {% if current_user.is_authenticated and current_user.id == item.owner.id %}
+        <a href="{{ url_for('main.edit_item', item_id=item.id) }}" class="btn btn-warning mb-3">Edit Item</a>
+    {% endif %}
 </div>
 {% endblock %}
