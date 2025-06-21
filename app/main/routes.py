@@ -261,6 +261,9 @@ def delete_item(item_id):
         # Clear item-tag associations
         item.tags.clear()
         
+        # Delete image from storage if it exists
+        if item.image_url:
+            delete_file(item.image_url)
         # Now delete the item
         db.session.delete(item)
         db.session.commit()
