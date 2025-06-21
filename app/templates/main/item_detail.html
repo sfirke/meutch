@@ -60,7 +60,13 @@
         </form>
     {% endif %}
     {% if current_user.is_authenticated and current_user.id == item.owner.id %}
-        <a href="{{ url_for('main.edit_item', item_id=item.id) }}" class="btn btn-warning mb-3">Edit Item</a>
+        <div class="mt-3 mb-2 d-flex align-items-center">
+            <a href="{{ url_for('main.edit_item', item_id=item.id) }}" class="btn btn-info me-2" style="min-width: 110px;">Edit Item</a>
+            <form action="{{ url_for('main.delete_item', item_id=item.id) }}" method="post" style="display:inline;">
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="btn btn-danger" style="min-width: 110px;" onclick="return confirm('Are you sure you want to delete this item?');">Delete Item</button>
+            </form>
+        </div>
     {% endif %}
 </div>
 {% endblock %}
