@@ -1,17 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Create Circle{% endblock %}
+{% block title %}Edit Circle{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-6">
-            <h1 class="mb-4">Create a New Circle</h1>
-            
-            <form method="post" action="{{ url_for('circles.create_circle') }}">
+            <h1 class="mb-4">Edit Circle</h1>
+            <form method="post" enctype="multipart/form-data">
                 {{ form.csrf_token }}
-
-                <!-- Circle Name -->
+                <!-- Name -->
                 <div class="mb-3">
                     {{ form.name.label(class="form-label") }}
                     {{ form.name(class="form-control") }}
@@ -19,29 +17,32 @@
                         <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
-                
                 <!-- Description -->
                 <div class="mb-3">
                     {{ form.description.label(class="form-label") }}
-                    {{ form.description(class="form-control", rows="4", placeholder="Describe what this circle is about (optional)") }}
+                    {{ form.description(class="form-control", rows="4") }}
                     {% for error in form.description.errors %}
                         <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
-                
                 <!-- Requires Approval -->
                 <div class="mb-3 form-check">
                     {{ form.requires_approval(class="form-check-input") }}
                     {{ form.requires_approval.label(class="form-check-label") }}
-                    <small class="form-text text-muted d-block">
-                        If checked, you will need to approve new members before they can join your circle.
-                    </small>
-                    {% for error in form.requires_approval.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
                 </div>
-                
-                <!-- Circle Image -->
+                <!-- Current Image -->
+                {% if circle.image_url %}
+                <div class="mb-3">
+                    <label class="form-label">Current Image</label><br>
+                    <img src="{{ circle.image_url }}" alt="Circle Image" class="img-fluid mb-2" style="max-width: 300px;">
+                </div>
+                <!-- Delete Image -->
+                <div class="mb-3 form-check">
+                    {{ form.delete_image(class="form-check-input") }}
+                    {{ form.delete_image.label(class="form-check-label") }}
+                </div>
+                {% endif %}
+                <!-- Image Upload -->
                 <div class="mb-3">
                     {{ form.image.label(class="form-label") }}
                     {{ form.image(class="form-control") }}
@@ -49,18 +50,15 @@
                         <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
-                
-                <!-- Submit Button -->
+                <!-- Submit -->
                 <div class="d-grid gap-2">
                     {{ form.submit(class="btn btn-primary") }}
                 </div>
             </form>
-            
-            <!-- Back to Circles -->
             <div class="mt-3 text-center">
-                <a href="{{ url_for('circles.manage_circles') }}" class="btn btn-secondary">
+                <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left me-1"></i>
-                    Back to Circles
+                    Back to Circle
                 </a>
             </div>
         </div>

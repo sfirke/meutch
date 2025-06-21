@@ -153,6 +153,7 @@ class Circle(db.Model):
     visibility = db.Column(db.String(20))  # public-open, public-approval, private
     requires_approval = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    image_url = db.Column(db.String(500), nullable=True)
 
     members = db.relationship('User', secondary=circle_members, back_populates='circles')
     
@@ -166,6 +167,9 @@ class Circle(db.Model):
         ).first()
         return member and member.is_admin if member else False
 
+    @property
+    def image(self):
+        return self.image_url or url_for('static', filename='img/default_item_photo.png')
     
 class Category(db.Model):
     __tablename__ = 'category'

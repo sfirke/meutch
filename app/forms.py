@@ -95,6 +95,10 @@ class CircleCreateForm(FlaskForm):
             Length(max=500, message="Description must be under 500 characters.")
         ])
         requires_approval = BooleanField('Require Approval to Join')
+        image = FileField('Circle Image', validators=[
+            OptionalFileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], 'Images only! Allowed formats: JPG, PNG, GIF, BMP, WebP')
+        ])
+        delete_image = BooleanField('Delete current image')
         submit = SubmitField('Create Circle')
 
 class CircleSearchForm(FlaskForm):
