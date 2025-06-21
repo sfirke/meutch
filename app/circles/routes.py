@@ -209,6 +209,8 @@ def leave_circle(circle_id):
     
     # If this was the last member, delete the circle
     if len(circle.members) == 0:
+        if circle.image_url:
+            delete_file(circle.image_url)
         db.session.delete(circle)
         db.session.commit()
         flash('Circle has been deleted as it has no remaining members.', 'info')
