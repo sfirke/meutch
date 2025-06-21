@@ -55,7 +55,7 @@ def login():
             else:
                 flash('Please confirm your email address before logging in. Check your email for the confirmation link.', 'warning')
                 return render_template('auth/login.html', form=form)
-        flash('Invalid email or password')
+        flash('Invalid email or password', 'danger')
     return render_template('auth/login.html', form=form)
 
 @auth_bp.route('/logout')

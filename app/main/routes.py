@@ -122,7 +122,9 @@ def item_detail(item_id):
     # Retrieve messages related to this item (optional)
     messages = Message.query.filter_by(item_id=item.id, recipient_id=current_user.id).order_by(Message.timestamp.desc()).all()
     
-    return render_template('main/item_detail.html', item=item, form=form, messages=messages)
+    from app.forms import DeleteItemForm
+    delete_form = DeleteItemForm()
+    return render_template('main/item_detail.html', item=item, form=form, messages=messages, delete_form=delete_form)
 
 @main_bp.route('/items/<uuid:item_id>/request', methods=['GET', 'POST'])
 @login_required
