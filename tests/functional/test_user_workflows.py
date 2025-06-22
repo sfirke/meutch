@@ -352,6 +352,12 @@ class TestUserProfileWorkflow:
         with app.app_context():
             user = auth_user()
             
+            # Login for authenticated test
+            client.post('/auth/login', data={
+                'email': user.email,
+                'password': 'testpassword'
+            }, follow_redirects=True)
+            
             # Test authenticated access works
             response = client.get(f'/user/{user.id}')
             assert response.status_code == 200
