@@ -518,6 +518,9 @@ def profile():
 
 @main_bp.route('/user/<uuid:user_id>')
 def user_profile(user_id):
+    if not current_user.is_authenticated:
+        flash('You must be logged in to view user profiles.', 'warning')
+        return redirect(url_for('auth.login', next=request.url))
     user = User.query.get_or_404(user_id)
     
     # Pagination parameters

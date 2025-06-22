@@ -343,3 +343,23 @@ class TestMessagingWorkflow:
             # Message should be marked as read
             db.session.refresh(message)
             assert message.is_read is True
+
+class TestUserProfileWorkflow:
+    """Test user profile functionality."""
+    
+    def test_user_profile_access_control(self, client, app, auth_user):
+        """Test user profile access control - requires authentication."""
+        with app.app_context():
+            user = auth_user()
+            
+            # Test authenticated access works
+            response = client.get(f'/user/{user.id}')
+            assert response.status_code == 200
+            assert bytes(user.first_name, encoding='utf-8') in response.data
+            
+            # Test unauthenticated access is blocked
+            client.get('/auth/logout', follow_redirects=True)
+            response = client.get(f'/user/{user.id}', follow_redirects=True)
+            assert response.status_code == 200
+            assert b'You must be logged in to view user profiles.' in response.data
+            assert b'Login' in response.data

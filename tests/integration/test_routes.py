@@ -241,13 +241,3 @@ class TestProfileRoutes:
             # Verify profile was updated
             updated_user = User.query.get(user.id)
             assert updated_user.about_me == 'Updated bio information'
-    
-    def test_user_profile_public(self, client, app, auth_user):
-        """Test viewing another user's profile."""
-        with app.app_context():
-            other_user = UserFactory()
-            ItemFactory(owner=other_user)  # Give them an item
-            
-            response = client.get(f'/user/{other_user.id}')
-            assert response.status_code == 200
-            assert other_user.full_name.encode() in response.data
