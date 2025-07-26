@@ -42,3 +42,36 @@ class TestingConfig(Config):
     WTF_CSRF_ENABLED = False  # Disable CSRF for testing
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     SECRET_KEY = 'test-secret-key'
+
+class StagingConfig(Config):
+    """Configuration for staging environment"""
+    DEBUG = False
+    SQLALCHEMY_DATABASE_URI = os.environ.get('STAGING_DATABASE_URL') or os.environ.get('DATABASE_URL')
+    LOG_LEVEL = logging.INFO
+    
+    # Use staging-specific DigitalOcean Spaces bucket if provided
+    DO_SPACES_BUCKET = os.environ.get('STAGING_DO_SPACES_BUCKET') or os.environ.get('DO_SPACES_BUCKET')
+    
+    # Use staging-specific Mailgun domain if provided  
+    MAILGUN_DOMAIN = os.environ.get('STAGING_MAILGUN_DOMAIN') or os.environ.get('MAILGUN_DOMAIN')
+    MAILGUN_API_URL = f"https://api.mailgun.net/v3/{os.environ.get('STAGING_MAILGUN_DOMAIN') or os.environ.get('MAILGUN_DOMAIN')}/messages" if (os.environ.get('STAGING_MAILGUN_DOMAIN') or os.environ.get('MAILGUN_DOMAIN')) else None
+
+class ProductionConfig(Config):
+    """Configuration for production environment"""
+    DEBUG = False
+    LOG_LEVEL = logging.WARNING
+    
+    # Production should always use specific environment variables
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    if not SQLALCHEMY_DATABASE_URI:
+        raise ValueError("DATABASE_URL must be set for production")
+
+
+# Configuration mapping
+config = {
+    'development': Config,
+    'testing': TestingConfig,
+    'staging': StagingConfig,
+    'production': ProductionConfig,
+    'default': Config
+}

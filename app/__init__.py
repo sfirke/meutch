@@ -1,10 +1,11 @@
 import logging
+import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
-from config import Config
+from config import config
 from uuid import UUID
 from app.context_processors import (
     inject_unread_messages_count, 
@@ -17,8 +18,14 @@ migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
 
-def create_app(config_class=Config):
+def create_app(config_class=None):
     app = Flask(__name__)
+    
+    # Auto-detect environment if no config provided
+    if config_class is None:
+        flask_env = os.environ.get('FLASK_ENV', 'development')
+        config_class = config.get(flask_env, config['default'])
+    
     app.config.from_object(config_class)
 
     # Initialize extensions

@@ -23,7 +23,7 @@ def seed():
 
 
 @seed.command()
-@click.option('--env', default='development', help='Environment: development, production')
+@click.option('--env', default='development', help='Environment: development, staging, production')
 @with_appcontext
 def data(env):
     """Seed database with data for specified environment."""
@@ -37,11 +37,20 @@ def data(env):
             return
         # Only create basic categories for production
         _seed_basic_data()
+    elif env == 'staging':
+        click.echo('⚠️  Staging environment should use production data copy!')
+        click.echo('   Staging seeding is not recommended - use production data sync instead.')
+        click.echo('   To sync production data: python sync_staging_db.py')
+        if not click.confirm('Continue with basic staging seeding anyway?'):
+            click.echo('Aborted. Use production data sync for authentic testing.')
+            return
+        # Create minimal staging setup only
+        _seed_staging_data()
     elif env == 'development':
         _seed_development_data()
     else:
         click.echo(f"❌ Unknown environment: {env}")
-        click.echo("Available environments: development, production")
+        click.echo("Available environments: development, staging, production")
         return
     
     db.session.commit()
@@ -361,6 +370,21 @@ def _seed_development_data():
             click.echo(f"  ✓ Message: {sender.email} -> {recipient.email} about {item.name}")
     else:
         click.echo(f"  ≈ Messages exist: {existing_messages} records")
+
+
+def _seed_staging_data():
+    """Minimal staging setup - not recommended. Use production data sync instead."""
+    from app import db
+    from app.models import Category
+    
+    click.echo('⚠️  Creating minimal staging data (not recommended)...')
+    click.echo('   For authentic testing, use: python sync_staging_db.py')
+    
+    # Only create basic categories - no users or complex data
+    _seed_basic_data()
+    
+    click.echo('   💡 Staging should typically use production data copy for authentic testing')
+    click.echo('   💡 Run "python sync_staging_db.py" to sync real production data')
 
 
 def _get_database_info():
