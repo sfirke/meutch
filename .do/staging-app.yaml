@@ -1,0 +1,42 @@
+name: meutch-staging
+services:
+- name: web
+  source_dir: /
+  github:
+    repo: sfirke/meutch
+    branch: staging
+    deploy_on_push: true
+  run_command: ./startup-staging.sh
+  environment_slug: python
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 8080
+  health_check:
+    http_path: /health
+  envs:
+  - key: FLASK_ENV
+    value: staging
+  - key: SECRET_KEY
+    scope: RUN_TIME
+    type: SECRET
+  - key: DATABASE_URL
+    scope: RUN_TIME
+    type: SECRET
+  - key: DO_SPACES_REGION
+    scope: RUN_TIME
+    type: SECRET
+  - key: DO_SPACES_KEY
+    scope: RUN_TIME
+    type: SECRET
+  - key: DO_SPACES_SECRET
+    scope: RUN_TIME
+    type: SECRET
+  - key: STAGING_DO_SPACES_BUCKET
+    scope: RUN_TIME
+    type: SECRET
+  - key: MAILGUN_API_KEY
+    scope: RUN_TIME
+    type: SECRET
+  - key: STAGING_MAILGUN_DOMAIN
+    scope: RUN_TIME
+    type: SECRET

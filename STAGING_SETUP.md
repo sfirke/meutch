@@ -32,8 +32,8 @@ Set these in DigitalOcean App Platform for your staging app:
 FLASK_ENV=staging
 SECRET_KEY=<generate-with-secrets.token_hex(32)>
 
-# Database (separate staging database)
-STAGING_DATABASE_URL=postgresql://user:pass@staging-db.ondigitalocean.com:25060/meutch_staging
+# Database (staging database)
+DATABASE_URL=postgresql://user:pass@staging-db.ondigitalocean.com:25060/meutch_staging
 
 # File Storage (optional separate bucket)
 DO_SPACES_REGION=nyc3
@@ -57,7 +57,7 @@ STAGING_APP_ID=<your-staging-app-id>
 STAGING_APP_URL=meutch-staging.ondigitalocean.app
 
 # Database URLs
-DATABASE_URL=<production-database-url>
+PRODUCTION_DATABASE_URL=<production-database-url>
 STAGING_DATABASE_URL=<staging-database-url>
 ```
 
@@ -83,7 +83,7 @@ This is the industry standard for companies like Facebook, Google, Netflix, etc.
    # Size: Same as production (for performance testing)
    ```
 
-2. **Get the connection string** and set as `STAGING_DATABASE_URL`
+2. **Get the connection string** and set as `DATABASE_URL` in the staging app
 
 ### Syncing Production Data to Staging
 
@@ -112,7 +112,6 @@ The sync script:
 psql $STAGING_DATABASE_URL
 
 # Run migrations on staging
-export DATABASE_URL=$STAGING_DATABASE_URL
 export FLASK_ENV=staging
 flask db upgrade
 
@@ -234,7 +233,7 @@ Trigger manual deployment via GitHub Actions:
 
 1. **Staging app won't start**:
    - Check environment variables are set
-   - Verify `STAGING_DATABASE_URL` is correct
+   - Verify `DATABASE_URL` is correct
    - Check app logs in DigitalOcean dashboard
 
 2. **Database connection issues**:

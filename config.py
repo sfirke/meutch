@@ -46,7 +46,7 @@ class TestingConfig(Config):
 class StagingConfig(Config):
     """Configuration for staging environment"""
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = os.environ.get('STAGING_DATABASE_URL') or os.environ.get('DATABASE_URL')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     LOG_LEVEL = logging.INFO
     
     # Use staging-specific DigitalOcean Spaces bucket if provided
