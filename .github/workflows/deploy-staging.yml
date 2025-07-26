@@ -1,0 +1,119 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [ staging ]
+  workflow_dispatch:  # Allow manual deployment
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.12]
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: test_meutch
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Set up environment variables
+      run: |
+        echo "FLASK_ENV=testing" >> $GITHUB_ENV
+        echo "TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5432/test_meutch" >> $GITHUB_ENV
+        echo "SECRET_KEY=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> $GITHUB_ENV
+    
+    - name: Run tests with pytest
+      run: |
+        pytest --cov=app --cov-report=xml --cov-report=html -v
+
+  deploy-staging:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/staging'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup DigitalOcean CLI
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+    
+    - name: Deploy to DigitalOcean App Platform (Staging)
+      run: |
+        # Update the staging app
+        doctl apps update ${{ secrets.STAGING_APP_ID }} --spec .do/staging-app.yaml
+        
+        # Wait for deployment to complete
+        doctl apps wait ${{ secrets.STAGING_APP_ID }}
+        
+        echo "🚀 Staging deployment completed!"
+        echo "🌐 Staging URL: https://${{ secrets.STAGING_APP_URL }}"
+    
+    - name: Run staging database migrations
+      env:
+        STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+      run: |
+        # Install dependencies for migration
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+        # Run migrations on staging database
+        export DATABASE_URL="${STAGING_DATABASE_URL}"
+        export FLASK_ENV=staging
+        flask db upgrade
+        
+        echo "✅ Staging database migrations completed"
+    
+    - name: Sync production data to staging (optional)
+      if: github.event_name == 'workflow_dispatch'  # Only on manual trigger
+      env:
+        PROD_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+      run: |
+        echo "🔄 Starting production to staging data sync..."
+        
+        # Install pg_dump and psql for data sync
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client
+        
+        # Run the production data sync
+        export DATABASE_URL="${PROD_DATABASE_URL}"
+        export STAGING_DATABASE_URL="${STAGING_DATABASE_URL}"
+        
+        python sync_staging_db.py
+        
+        echo "✅ Production data synced to staging"
+        echo "⚠️  Staging now contains real production data - handle with care"
