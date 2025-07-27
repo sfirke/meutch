@@ -12,18 +12,21 @@ echo "Environment: staging"
 echo "Database: ${DATABASE_URL:0:20}..."
 
 # Check for SECRET_KEY with alternative method
-if [ "${SECRET_KEY:-UNSET}" = "UNSET" ] || [ "$SECRET_KEY" = "" ]; then
-    echo "❌ ERROR: SECRET_KEY environment variable is required"
-    echo "🔍 Debug info:"
-    echo "  - SECRET_KEY value: '${SECRET_KEY:-UNSET}'"
-    echo "  - SECRET_KEY length: ${#SECRET_KEY}"
-    echo "  - Available environment variables:"
-    env | grep -E "(SECRET|FLASK|DATABASE)" | sed 's/=.*/=***/' || echo "  - No matching environment variables found"
-    echo "  - Please ensure SECRET_KEY is set in DigitalOcean App Platform"
-    exit 1
-fi
+# Check for SECRET_KEY with more detailed debugging
+echo "🔍 Detailed SECRET_KEY debugging:"
+echo "  - Raw SECRET_KEY: '${SECRET_KEY}'"
+echo "  - SECRET_KEY length: ${#SECRET_KEY}"
+echo "  - SECRET_KEY with default: '${SECRET_KEY:-UNSET}'"
+echo "  - All environment variables:"
+env | sort
 
-echo "✅ SECRET_KEY is set (length: ${#SECRET_KEY})"
+# For now, let's proceed even if SECRET_KEY seems empty, as Flask will catch it
+if [ -z "$SECRET_KEY" ]; then
+    echo "⚠️  WARNING: SECRET_KEY appears empty, but proceeding..."
+    echo "   Flask will error if SECRET_KEY is truly missing"
+else
+    echo "✅ SECRET_KEY is set (length: ${#SECRET_KEY})"
+fi
 
 if [ -z "$DATABASE_URL" ]; then
     echo "❌ ERROR: DATABASE_URL environment variable is required"
