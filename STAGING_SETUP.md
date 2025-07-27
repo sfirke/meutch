@@ -1,6 +1,27 @@
-# Meutch Staging Environment Setup
+# Meutch Staging Environmen### Environment Variables Setup
 
-This document outlines the staging environment setup for the Meutch application, including database management, deployment pipeline, and development workflow.
+**Important**: Environment variables must be set in the DigitalOcean Web UI, not in the app spec file. The app spec should only define the service structure.
+
+Set these in DigitalOcean App Platform for your staging app:
+
+```bash
+# Core Configuration
+FLASK_ENV=staging
+SECRET_KEY=<generate-with-secrets.token_hex(32)>
+
+# Database (staging database)
+DATABASE_URL=postgresql://user:pass@staging-db.ondigitalocean.com:25060/meutch_staging
+
+# File Storage
+DO_SPACES_REGION=nyc3
+DO_SPACES_KEY=<same-as-prod>
+DO_SPACES_SECRET=<same-as-prod>
+DO_SPACES_BUCKET=<same-as-prod-or-separate-staging-bucket>
+
+# Email
+MAILGUN_API_KEY=<same-as-prod>
+MAILGUN_DOMAIN=<same-as-prod-or-staging-domain>
+```nt outlines the staging environment setup for the Meutch application, including database management, deployment pipeline, and development workflow.
 
 ## Overview
 
@@ -278,6 +299,15 @@ python sync_staging_db.py
 - **Consider pausing** staging app during off-hours if supported
 - **Share DigitalOcean Spaces bucket** with production (different prefixes)
 - **Use staging-specific email domain** to avoid deliverability issues
+
+## Deployment Status
+
+✅ **Staging Environment Successfully Deployed!**
+
+- **URL**: https://meutch-staging.ondigitalocean.app
+- **Status**: Active and running
+- **Database**: Connected and migrated
+- **Environment**: Staging configuration active
 
 ## Next Steps
 

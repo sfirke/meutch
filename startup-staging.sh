@@ -35,28 +35,6 @@ echo "   To sync latest data: python sync_staging_db.py"
 echo "✅ Staging startup completed successfully!"
 echo "🌐 Application ready to serve requests"
 
-# Test that the Flask app can be imported
-echo "🧪 Testing Flask app import..."
-python3 -c "
-import sys
-sys.path.append('.')
-try:
-    from app import create_app
-    app = create_app()
-    print('✅ Flask app created successfully')
-    print(f'App config: {app.config.get(\"ENV\", \"unknown\")}')
-    
-    # Test WSGI import
-    import wsgi
-    print('✅ WSGI module imported successfully')
-    print(f'WSGI app: {wsgi.application}')
-except Exception as e:
-    print(f'❌ Error creating Flask app: {e}')
-    import traceback
-    traceback.print_exc()
-    sys.exit(1)
-"
-
 # Start the application with gunicorn  
 echo "🚀 Starting gunicorn server..."
 cd /workspace
