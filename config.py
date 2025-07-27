@@ -42,3 +42,35 @@ class TestingConfig(Config):
     WTF_CSRF_ENABLED = False  # Disable CSRF for testing
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     SECRET_KEY = 'test-secret-key'
+
+class StagingConfig(Config):
+    """Configuration for staging environment"""
+    DEBUG = False
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    LOG_LEVEL = logging.INFO
+    DO_SPACES_BUCKET = os.environ.get('DO_SPACES_BUCKET')
+
+
+class ProductionConfig(Config):
+    """Configuration for production environment"""
+    DEBUG = False
+    LOG_LEVEL = logging.WARNING
+    
+    # Production should always use specific environment variables
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    
+    def init_app(self, app):
+        super().init_app(app)
+        # Validate required environment variables when app is initialized
+        if not os.environ.get('DATABASE_URL'):
+            raise ValueError("DATABASE_URL must be set for production")
+
+
+# Configuration mapping
+config = {
+    'development': Config,
+    'testing': TestingConfig,
+    'staging': StagingConfig,
+    'production': ProductionConfig,
+    'default': Config
+}

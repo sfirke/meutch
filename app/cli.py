@@ -42,6 +42,7 @@ def data(env):
     else:
         click.echo(f"❌ Unknown environment: {env}")
         click.echo("Available environments: development, production")
+        click.echo("💡 For staging: use production data sync with sync_staging_db.py")
         return
     
     db.session.commit()

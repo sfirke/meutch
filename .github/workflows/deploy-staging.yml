@@ -1,10 +1,9 @@
-name: CI/CD Pipeline
+name: Test Staging Branch
 
 on:
   push:
-    branches: [ main, staging ]
-  pull_request:
-    branches: [ main, staging ]
+    branches: [ staging ]
+  workflow_dispatch:  # Allow manual testing
 
 jobs:
   test:
@@ -18,8 +17,8 @@ jobs:
         image: postgres:17-alpine
         env:
           POSTGRES_DB: test_meutch
-          POSTGRES_USER: ${{ secrets.TEST_DB_USER || 'test_user' }}
-          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD || 'test_password' }}
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -58,35 +57,8 @@ jobs:
     - name: Run tests with pytest
       run: |
         pytest --cov=app --cov-report=xml --cov-report=html -v
-    
-    - name: Archive test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-results-${{ matrix.python-version }}
-        path: |
-          htmlcov/
-          coverage.xml
-          pytest-report.xml
 
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.11
-    
-    - name: Install dependencies
+    - name: Tests completed successfully
       run: |
-        python -m pip install --upgrade pip
-        pip install safety bandit
-        pip install -r requirements.txt
-    
-    - name: Run safety check
-      run: safety check --json || true
-    
-    - name: Run bandit security scan
-      run: bandit -r app/ -f json || true
+        echo "✅ All tests passed!"
+        echo "🚀 DigitalOcean will auto-deploy staging branch"

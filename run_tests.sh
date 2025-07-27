@@ -106,14 +106,41 @@ export TEST_DATABASE_URL="postgresql://test_user:test_password@localhost:5433/te
 print_color $BLUE "🧪 Running Meutch Test Suite"
 print_color $BLUE "================================"
 
-# Check if test database is running
-if ! docker ps --filter "name=meutch-test-db" --format "{{.Names}}" | grep -q "meutch-test-db"; then
-    print_color $YELLOW "⚠️  Test database is not running. Starting it now..."
+# Check if test database is running and healthy
+check_test_db() {
+    # Check if container exists and is running
+    if ! docker ps --filter "name=meutch-test-db" --format "{{.Names}}" | grep -q "meutch-test-db"; then
+        return 1
+    fi
+    
+    # Check if database is actually ready to accept connections
+    if ! docker compose -f docker-compose.test.yml exec -T test-postgres pg_isready -U test_user -d test_meutch > /dev/null 2>&1; then
+        return 1
+    fi
+    
+    return 0
+}
+
+if ! check_test_db; then
+    print_color $YELLOW "⚠️  Test database is not running or not ready. Starting it now..."
+    
+    # Stop any potentially problematic containers first
+    docker compose -f docker-compose.test.yml down > /dev/null 2>&1 || true
+    
+    # Start the test database
     ./test-db.sh start
     if [ $? -ne 0 ]; then
         print_color $RED "❌ Failed to start test database. Please run './test-db.sh start' manually."
         exit 1
     fi
+    
+    # Double-check that it's ready
+    if ! check_test_db; then
+        print_color $RED "❌ Test database started but is not ready. Please check './test-db.sh status'."
+        exit 1
+    fi
+    
+    print_color $GREEN "✅ Test database is now ready!"
 fi
 
 # Build pytest command

@@ -2,10 +2,62 @@
 import os
 import tempfile
 import pytest
+import subprocess
+import time
+import socket
 from app import create_app, db
 from app.models import User, Item, Category, Circle, Tag
 from config import Config
 from unittest.mock import patch
+
+def is_port_open(host, port):
+    """Check if a port is open."""
+    try:
+        with socket.create_connection((host, port), timeout=1):
+            return True
+    except (socket.error, OSError):
+        return False
+
+def ensure_test_database():
+    """Ensure the test database is running."""
+    # Check if the test database is already running
+    if is_port_open('localhost', 5433):
+        print("✅ Test database is already running")
+        return
+    
+    print("🚀 Starting test database...")
+    try:
+        # Start the Docker container using docker-compose
+        subprocess.run(
+            ['docker', 'compose', '-f', 'docker-compose.test.yml', 'up', '-d'],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        
+        # Wait for database to be ready
+        max_attempts = 30
+        for attempt in range(max_attempts):
+            if is_port_open('localhost', 5433):
+                # Give it an extra second to fully initialize
+                time.sleep(1)
+                print("✅ Test database is ready!")
+                return
+            time.sleep(1)
+        
+        raise Exception("Timeout waiting for test database to start")
+        
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Failed to start test database: {e}")
+        print(f"stdout: {e.stdout}")
+        print(f"stderr: {e.stderr}")
+        raise
+    except Exception as e:
+        print(f"❌ Error starting test database: {e}")
+        raise
+
+# Ensure test database is running before any tests
+ensure_test_database()
 
 class TestConfig(Config):
     """Test configuration class."""
