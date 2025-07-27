@@ -51,10 +51,6 @@ class StagingConfig(Config):
     
     # Use staging-specific DigitalOcean Spaces bucket if provided
     DO_SPACES_BUCKET = os.environ.get('STAGING_DO_SPACES_BUCKET') or os.environ.get('DO_SPACES_BUCKET')
-    
-    # Use staging-specific Mailgun domain if provided  
-    MAILGUN_DOMAIN = os.environ.get('STAGING_MAILGUN_DOMAIN') or os.environ.get('MAILGUN_DOMAIN')
-    MAILGUN_API_URL = f"https://api.mailgun.net/v3/{os.environ.get('STAGING_MAILGUN_DOMAIN') or os.environ.get('MAILGUN_DOMAIN')}/messages" if (os.environ.get('STAGING_MAILGUN_DOMAIN') or os.environ.get('MAILGUN_DOMAIN')) else None
 
 class ProductionConfig(Config):
     """Configuration for production environment"""

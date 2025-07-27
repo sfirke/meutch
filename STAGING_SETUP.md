@@ -20,7 +20,7 @@ DO_SPACES_BUCKET=<same-as-prod-or-separate-staging-bucket>
 
 # Email
 MAILGUN_API_KEY=<same-as-prod>
-MAILGUN_DOMAIN=<same-as-prod-or-staging-domain>
+MAILGUN_DOMAIN=<same-as-prod>
 ```nt outlines the staging environment setup for the Meutch application, including database management, deployment pipeline, and development workflow.
 
 ## Overview
