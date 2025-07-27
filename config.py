@@ -48,9 +48,8 @@ class StagingConfig(Config):
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     LOG_LEVEL = logging.INFO
-    
-    # Use staging-specific DigitalOcean Spaces bucket if provided
-    DO_SPACES_BUCKET = os.environ.get('STAGING_DO_SPACES_BUCKET') or os.environ.get('DO_SPACES_BUCKET')
+    DO_SPACES_BUCKET = os.environ.get('DO_SPACES_BUCKET')
+
 
 class ProductionConfig(Config):
     """Configuration for production environment"""
@@ -58,7 +57,7 @@ class ProductionConfig(Config):
     LOG_LEVEL = logging.WARNING
     
     # Production should always use specific environment variables
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://placeholder'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     
     def init_app(self, app):
         super().init_app(app)
