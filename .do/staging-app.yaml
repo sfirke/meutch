@@ -17,8 +17,7 @@ services:
   - key: FLASK_ENV
     value: staging
   - key: SECRET_KEY
-    scope: RUN_TIME
-    type: SECRET
+    value: "7dee70e2146c6124350d10845e4ef46e00c0b28242b75b19fd5645c1af5086c5"
   - key: DATABASE_URL
     scope: RUN_TIME
     type: SECRET

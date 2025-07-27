@@ -11,9 +11,13 @@ export FLASK_ENV=staging
 echo "Environment: staging"
 echo "Database: ${DATABASE_URL:0:20}..."
 
-# Ensure we have required environment variables
+# Check for SECRET_KEY and provide helpful debugging info
 if [ -z "$SECRET_KEY" ]; then
     echo "❌ ERROR: SECRET_KEY environment variable is required"
+    echo "🔍 Debug info:"
+    echo "  - Available environment variables:"
+    env | grep -E "(SECRET|FLASK|DATABASE)" | sed 's/=.*/=***/' || echo "  - No matching environment variables found"
+    echo "  - Please ensure SECRET_KEY is set in DigitalOcean App Platform"
     exit 1
 fi
 
