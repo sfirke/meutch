@@ -29,8 +29,19 @@ flask db upgrade
 
 echo "✅ Database migrations completed successfully"
 
-echo "💡 Staging uses production data copy for authentic testing"
-echo "   To sync latest data: python sync_staging_db.py"
+# Sync production data to staging if both database URLs are available
+if [ -n "$PROD_DATABASE_URL" ] && [ -n "$STAGING_DATABASE_URL" ]; then
+    echo "📊 Syncing production data to staging..."
+    python sync_staging_db.py
+    if [ $? -eq 0 ]; then
+        echo "✅ Production data sync completed successfully"
+    else
+        echo "⚠️  Production data sync failed, continuing with empty database"
+    fi
+else
+    echo "⚠️  PROD_DATABASE_URL or STAGING_DATABASE_URL not set, skipping production data sync"
+    echo "   Staging will use empty database"
+fi
 
 echo "✅ Staging startup completed successfully!"
 echo "🌐 Application ready to serve requests"

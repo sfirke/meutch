@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
-Database sync utility for staging environment.
+Database sync utility fo    click.echo("🔄 Syncing production data to staging...") staging environment.
 
-Creates an exact copy of production data in staging for authentic testing.
+Create            # Restore to staging using Docker
+            click.echo("📥 Restoring to staging using Docker...")an exact             # Fallback to local tools with compatibility flag
+            click.echo("📦 Creating production dump (local tools)...")py of production data in staging for authentic testing.
 Run with: python sync_staging_db.py
 
 SECURITY NOTE: Staging will contain real production data and should be treated
@@ -21,15 +23,17 @@ def sync_staging_db():
     """Create exact copy of production database in staging for authentic testing."""
     
     # Get database URLs
-    prod_db_url = os.environ.get('DATABASE_URL')
+    prod_db_url = os.environ.get('PROD_DATABASE_URL')
     staging_db_url = os.environ.get('STAGING_DATABASE_URL')
     
     if not prod_db_url:
-        click.echo("❌ ERROR: DATABASE_URL environment variable not set")
+        click.echo("❌ ERROR: PROD_DATABASE_URL environment variable not set")
+        click.echo("   This should be the production database connection string")
         sys.exit(1)
     
     if not staging_db_url:
         click.echo("❌ ERROR: STAGING_DATABASE_URL environment variable not set")
+        click.echo("   This should be the staging database connection string")
         sys.exit(1)
     
     # Parse URLs for basic validation
@@ -52,24 +56,62 @@ def sync_staging_db():
     dump_file = f"/tmp/prod_dump_{timestamp}.sql"
     
     try:
-        # Create production dump
-        click.echo("📦 Creating production dump...")
-        dump_cmd = [
-            'pg_dump', prod_db_url,
-            '--no-owner', '--no-privileges', '--clean', '--if-exists',
-            '--file', dump_file
-        ]
+        # Check if docker is available
+        docker_available = subprocess.run(['which', 'docker'], capture_output=True).returncode == 0
         
-        result = subprocess.run(dump_cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            click.echo(f"❌ ERROR creating dump: {result.stderr}")
-            sys.exit(1)
+        if docker_available:
+            # Use Docker with PostgreSQL 17 for compatibility
+            click.echo("📦 Creating production dump using Docker...")
+            dump_cmd = [
+                'docker', 'run', '--rm',
+                '--network', 'host',  # Allow access to host network for DB connections
+                'postgres:17',
+                'pg_dump', prod_db_url,
+                '--no-owner', '--no-privileges', '--clean', '--if-exists'
+            ]
+            
+            # Run dump and capture output
+            result = subprocess.run(dump_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                click.echo(f"❌ ERROR creating dump: {result.stderr}")
+                sys.exit(1)
+            
+            # Write dump to file
+            with open(dump_file, 'w') as f:
+                f.write(result.stdout)
+            
+            # Restore to staging using Docker
+            click.echo("� Restoring to staging using Docker...")
+            with open(dump_file, 'r') as f:
+                restore_cmd = [
+                    'docker', 'run', '--rm', '-i',
+                    '--network', 'host',
+                    'postgres:17',
+                    'psql', staging_db_url, '--quiet'
+                ]
+                
+                result = subprocess.run(restore_cmd, input=f.read(), capture_output=True, text=True)
+        else:
+            # Fallback to local tools with compatibility flag
+            click.echo("�📦 Creating production dump (local tools)...")
+            dump_cmd = [
+                'pg_dump', prod_db_url,
+                '--no-owner', '--no-privileges', '--clean', '--if-exists',
+                '--file', dump_file
+            ]
+            
+            result = subprocess.run(dump_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                click.echo(f"❌ ERROR creating dump: {result.stderr}")
+                click.echo("💡 Try: sudo apt update && sudo apt install postgresql-client-17")
+                sys.exit(1)
+            
+            # Restore to staging
+            click.echo("📥 Restoring to staging...")
+            restore_cmd = ['psql', staging_db_url, '--file', dump_file, '--quiet']
+            
+            result = subprocess.run(restore_cmd, capture_output=True, text=True)
         
-        # Restore to staging
-        click.echo("📥 Restoring to staging...")
-        restore_cmd = ['psql', staging_db_url, '--file', dump_file, '--quiet']
-        
-        result = subprocess.run(restore_cmd, capture_output=True, text=True)
         if result.returncode != 0:
             click.echo(f"❌ ERROR restoring: {result.stderr}")
             sys.exit(1)
