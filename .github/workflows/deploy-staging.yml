@@ -1,9 +1,9 @@
-name: Deploy to Staging
+name: Test Staging Branch
 
 on:
   push:
     branches: [ staging ]
-  workflow_dispatch:  # Allow manual deployment
+  workflow_dispatch:  # Allow manual testing
 
 jobs:
   test:
@@ -58,62 +58,8 @@ jobs:
       run: |
         pytest --cov=app --cov-report=xml --cov-report=html -v
 
-  deploy-staging:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/staging'
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup DigitalOcean CLI
-      uses: digitalocean/action-doctl@v2
-      with:
-        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-    
-    - name: Deploy to DigitalOcean App Platform (Staging)
+    - name: Tests completed successfully
       run: |
-        # Update the staging app
-        doctl apps update ${{ secrets.STAGING_APP_ID }} --spec .do/staging-app.yaml
-        
-        # Wait for deployment to complete
-        doctl apps wait ${{ secrets.STAGING_APP_ID }}
-        
-        echo "🚀 Staging deployment completed!"
-        echo "🌐 Staging URL: https://${{ secrets.STAGING_APP_URL }}"
-    
-    - name: Run staging database migrations
-      env:
-        STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-      run: |
-        # Install dependencies for migration
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        
-        # Run migrations on staging database
-        export DATABASE_URL="${STAGING_DATABASE_URL}"
-        export FLASK_ENV=staging
-        flask db upgrade
-        
-        echo "✅ Staging database migrations completed"
-    
-    - name: Sync production data to staging (optional)
-      if: github.event_name == 'workflow_dispatch'  # Only on manual trigger
-      env:
-        PROD_DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-      run: |
-        echo "🔄 Starting production to staging data sync..."
-        
-        # Install pg_dump and psql for data sync
-        sudo apt-get update
-        sudo apt-get install -y postgresql-client
-        
-        # Run the production data sync
-        export DATABASE_URL="${PROD_DATABASE_URL}"
-        export STAGING_DATABASE_URL="${STAGING_DATABASE_URL}"
-        
-        python sync_staging_db.py
-        
-        echo "✅ Production data synced to staging"
-        echo "⚠️  Staging now contains real production data - handle with care"
+        echo "✅ All tests passed!"
+        echo "🚀 DigitalOcean will auto-deploy staging branch"
+        echo "🌐 Staging URL: https://meutch-staging-pn4za.ondigitalocean.app"
