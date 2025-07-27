@@ -35,13 +35,11 @@ echo "   PROD_DATABASE_URL: ${PROD_DATABASE_URL:+SET}${PROD_DATABASE_URL:-NOT_SE
 echo "   STAGING_DATABASE_URL: ${STAGING_DATABASE_URL:+SET}${STAGING_DATABASE_URL:-NOT_SET}"
 
 if [ -n "$PROD_DATABASE_URL" ] && [ -n "$STAGING_DATABASE_URL" ]; then
-    echo "📊 Syncing production data to staging..."
-    python sync_staging_db.py
-    if [ $? -eq 0 ]; then
-        echo "✅ Production data sync completed successfully"
-    else
-        echo "⚠️  Production data sync failed, continuing with empty database"
-    fi
+    echo "📊 Starting production data sync in background..."
+    nohup python sync_staging_db.py > /tmp/sync.log 2>&1 &
+    SYNC_PID=$!
+    echo "💡 Sync running in background (PID: $SYNC_PID) - check /tmp/sync.log for status"
+    echo "   App will start immediately and sync will complete shortly"
 else
     echo "⚠️  Required environment variables not set, skipping production data sync"
     echo "   Staging will use empty database"
