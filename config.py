@@ -58,9 +58,13 @@ class ProductionConfig(Config):
     LOG_LEVEL = logging.WARNING
     
     # Production should always use specific environment variables
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    if not SQLALCHEMY_DATABASE_URI:
-        raise ValueError("DATABASE_URL must be set for production")
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://placeholder'
+    
+    def init_app(self, app):
+        super().init_app(app)
+        # Validate required environment variables when app is initialized
+        if not os.environ.get('DATABASE_URL'):
+            raise ValueError("DATABASE_URL must be set for production")
 
 
 # Configuration mapping
