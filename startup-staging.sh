@@ -45,6 +45,11 @@ try:
     app = create_app()
     print('✅ Flask app created successfully')
     print(f'App config: {app.config.get(\"ENV\", \"unknown\")}')
+    
+    # Test WSGI import
+    import wsgi
+    print('✅ WSGI module imported successfully')
+    print(f'WSGI app: {wsgi.application}')
 except Exception as e:
     print(f'❌ Error creating Flask app: {e}')
     import traceback
@@ -54,4 +59,6 @@ except Exception as e:
 
 # Start the application with gunicorn  
 echo "🚀 Starting gunicorn server..."
-exec gunicorn --bind 0.0.0.0:8080 --workers 2 --timeout 120 --access-logfile - app:app
+cd /workspace
+export PYTHONPATH="/workspace:$PYTHONPATH"
+exec gunicorn --bind 0.0.0.0:8080 --workers 2 --timeout 120 --access-logfile - --chdir /workspace wsgi:application
