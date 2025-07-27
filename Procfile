@@ -1,1 +1,1 @@
-web: ./startup-staging.sh
+web: ./startup-wrapper.sh
