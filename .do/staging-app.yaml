@@ -16,24 +16,3 @@ services:
   envs:
   - key: FLASK_ENV
     value: staging
-  - key: DATABASE_URL
-    scope: RUN_TIME
-    type: SECRET
-  - key: DO_SPACES_REGION
-    scope: RUN_TIME
-    type: SECRET
-  - key: DO_SPACES_KEY
-    scope: RUN_TIME
-    type: SECRET
-  - key: DO_SPACES_SECRET
-    scope: RUN_TIME
-    type: SECRET
-  - key: STAGING_DO_SPACES_BUCKET
-    scope: RUN_TIME
-    type: SECRET
-  - key: MAILGUN_API_KEY
-    scope: RUN_TIME
-    type: SECRET
-  - key: STAGING_MAILGUN_DOMAIN
-    scope: RUN_TIME
-    type: SECRET
