@@ -12,20 +12,10 @@ echo "Environment: staging"
 echo "Database: ${DATABASE_URL:0:20}..."
 
 # Check for SECRET_KEY with alternative method
-# Check for SECRET_KEY with more detailed debugging
-echo "🔍 Detailed SECRET_KEY debugging:"
-echo "  - Raw SECRET_KEY: '${SECRET_KEY}'"
-echo "  - SECRET_KEY length: ${#SECRET_KEY}"
-echo "  - SECRET_KEY with default: '${SECRET_KEY:-UNSET}'"
-echo "  - All environment variables:"
-env | sort
-
-# For now, let's proceed even if SECRET_KEY seems empty, as Flask will catch it
+# Ensure we have required environment variables
 if [ -z "$SECRET_KEY" ]; then
-    echo "⚠️  WARNING: SECRET_KEY appears empty, but proceeding..."
-    echo "   Flask will error if SECRET_KEY is truly missing"
-else
-    echo "✅ SECRET_KEY is set (length: ${#SECRET_KEY})"
+    echo "❌ ERROR: SECRET_KEY environment variable is required"
+    exit 1
 fi
 
 if [ -z "$DATABASE_URL" ]; then
@@ -45,5 +35,23 @@ echo "   To sync latest data: python sync_staging_db.py"
 echo "✅ Staging startup completed successfully!"
 echo "🌐 Application ready to serve requests"
 
+# Test that the Flask app can be imported
+echo "🧪 Testing Flask app import..."
+python3 -c "
+import sys
+sys.path.append('.')
+try:
+    from app import create_app
+    app = create_app()
+    print('✅ Flask app created successfully')
+    print(f'App config: {app.config.get(\"ENV\", \"unknown\")}')
+except Exception as e:
+    print(f'❌ Error creating Flask app: {e}')
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+"
+
 # Start the application with gunicorn  
-exec gunicorn --bind 0.0.0.0:8080 --workers 2 --timeout 120 app:app
+echo "🚀 Starting gunicorn server..."
+exec gunicorn --bind 0.0.0.0:8080 --workers 2 --timeout 120 --access-logfile - app:app
