@@ -62,4 +62,3 @@ jobs:
       run: |
         echo "✅ All tests passed!"
         echo "🚀 DigitalOcean will auto-deploy staging branch"
-        echo "🌐 Staging URL: https://meutch-staging-pn4za.ondigitalocean.app"
