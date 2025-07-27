@@ -30,10 +30,6 @@ flask db upgrade
 echo "✅ Database migrations completed successfully"
 
 # Sync production data to staging if both database URLs are available
-echo "🔍 Checking environment variables for sync:"
-echo "   PROD_DATABASE_URL: ${PROD_DATABASE_URL:+SET}${PROD_DATABASE_URL:-NOT_SET}"
-echo "   STAGING_DATABASE_URL: ${STAGING_DATABASE_URL:+SET}${STAGING_DATABASE_URL:-NOT_SET}"
-
 if [ -n "$PROD_DATABASE_URL" ] && [ -n "$STAGING_DATABASE_URL" ]; then
     echo "📊 Starting production data sync in background..."
     nohup python sync_staging_db.py > /tmp/sync.log 2>&1 &
