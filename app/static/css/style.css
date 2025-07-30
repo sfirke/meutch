@@ -1,152 +1,532 @@
-/* app/static/css/style.css */
+/* Modern Meutch Styling */
 
-.flashes {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    width: 300px;
-    z-index: 1000;
+/* Root Variables for easy theming */
+:root {
+    --primary-color: #2563eb;
+    --primary-dark: #1d4ed8;
+    --secondary-color: #64748b;
+    --success-color: #059669;
+    --warning-color: #d97706;
+    --danger-color: #dc2626;
+    --light-bg: #f8fafc;
+    --dark-text: #1e293b;
+    --muted-text: #64748b;
+    --border-color: #e2e8f0;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --border-radius: 0.5rem;
+    --border-radius-sm: 0.25rem;
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.flash {
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 4px;
-    color: #fff;
+/* Base Styles */
+body {
+    font-family: var(--font-family);
+    background-color: var(--light-bg);
+    color: var(--dark-text);
+    line-height: 1.6;
+    padding-top: 70px; /* Account for fixed navbar */
 }
 
-.flash.success {
-    background-color: #28a745;
+/* Custom Bootstrap Variables Override */
+.text-primary {
+    color: var(--primary-color) !important;
 }
 
-.flash.danger {
-    background-color: #dc3545;
-}
-
-.flash.warning {
-    background-color: #ffc107;
-}
-
-.flash.info {
-    background-color: #17a2b8;
-}
-
-.button {
-    display: inline-block;
-    padding: 8px 16px;
-    border-radius: 4px;
-    text-decoration: none;
-    margin: 5px;
-}
-
-.button.request {
-    background: #4CAF50;
-    color: white;
-}
-
-.category, .tag {
-    display: inline-block;
-    padding: 4px 8px;
-    margin: 2px;
-    border-radius: 12px;
-    background: #eee;
-}
-
-.circles-grid, .items-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-}
-
-.circle-card, .item-card {
-    border: 1px solid #ccc;
-    padding: 15px;
-    border-radius: 5px;
-    width: 200px;
-}
-
-.btn {
-    padding: 5px 10px;
-    border: none;
-    border-radius: 3px;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.btn-info {
-    background-color: #17a2b8;
-    color: white;
+.bg-primary {
+    background-color: var(--primary-color) !important;
 }
 
 .btn-primary {
-    background-color: #007bff;
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: white !important;
+    font-weight: 500;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark) !important;
+    border-color: var(--primary-dark) !important;
+    color: white !important;
+}
+
+/* Navigation Enhancements */
+.navbar {
+    backdrop-filter: blur(10px);
+    background-color: rgba(248, 250, 252, 0.95) !important;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--dark-text) !important;
+}
+
+.logo-placeholder {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    border-radius: var(--border-radius-sm);
     color: white;
 }
 
-.btn-danger {
-    background-color: #dc3545;
-    color: white;
+.nav-link {
+    font-weight: 500;
+    color: var(--dark-text) !important;
+    transition: color 0.2s ease;
 }
 
-.btn-sm {
-    padding: 3px 6px;
-    font-size: 0.875rem;
+.nav-link:hover {
+    color: var(--primary-color) !important;
 }
 
-.badge.bg-success {
-    background-color: #28a745;
-    color: white;
+/* Main Content */
+.main-content {
+    padding: 1rem 0;
 }
 
-/* Card image constraints */
-.card-img-top {
-    height: 200px;
-    object-fit: cover;
-    width: 100%;
+/* Ensure proper navbar spacing */
+.navbar.fixed-top {
+    height: auto;
+    min-height: 60px;
 }
 
-/* Search results and profile page thumbnails */
-.item-thumbnail {
-    height: 150px;
-    object-fit: cover;
-    width: 100%;
+/* Fix about page layout issues */
+.main-content .container {
+    max-width: 100%;
+    padding-left: 15px;
+    padding-right: 15px;
 }
 
-.search-card {
-    max-width: 350px;
-    margin: 0 auto;
+@media (min-width: 768px) {
+    .main-content .container {
+        max-width: 1140px;
+        margin: 0 auto;
+    }
 }
 
+/* Fix About page excessive whitespace */
+.main-content .row:first-child {
+    margin-top: 0 !important;
+}
+
+.main-content .row:first-child.mb-5 {
+    margin-bottom: 2rem !important; /* Reduce from default 3rem */
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    color: var(--dark-text);
+    margin-bottom: 1rem;
+}
+
+h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 2rem;
+}
+
+/* Cards */
 .card {
-    max-width: 350px;
-    border: 2px solid #ddd;
-    border-radius: 5px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    display: flex; /* Enable Flexbox */
-    flex-direction: column; /* Arrange children vertically */
-    height: 100%; /* Ensure cards have equal height */
-}
-
-.card-body {
-    flex: 1; /* Allow card body to expand and fill space */
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    background: white;
     display: flex;
     flex-direction: column;
 }
 
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.card:hover .card-img-top {
+    transform: scale(1.05);
+}
+
+.card-body {
+    flex: 1;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-title {
+    font-weight: 600;
+    color: var(--dark-text);
+    margin-bottom: 0.75rem;
+}
+
+.card-text {
+    color: var(--muted-text);
+    flex: 1;
+    margin-bottom: 1rem;
+}
+
 .card-footer {
-    margin-top: auto; /* Push footer to the bottom */
+    background: transparent;
+    border: none;
+    padding: 0 1.25rem 1.25rem;
+    margin-top: auto;
 }
 
-/* Optional: Style the "View Details" button */
-.view-details-btn {
-    align-self: flex-start; /* Align button to the start */
-    margin-top: 10px; /* Add spacing above the button */
+/* Item Cards Grid */
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
 }
 
-item-link {
-    text-decoration: none; /* Remove underlines */
-    color: inherit;        /* Inherit text color */
-    display: block;        /* Ensure the link wraps the entire card */
+.item-card {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.item-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Circle Cards */
+.circles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.circle-card {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    border-left: 4px solid var(--primary-color);
+}
+
+.circle-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    border-left-color: var(--primary-dark);
+}
+
+.circle-card h3 {
+    color: var(--primary-color);
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.circle-card p {
+    color: var(--muted-text);
+    margin-bottom: 1rem;
+}
+
+.circle-card a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.circle-card a:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+}
+
+/* Buttons */
+.btn {
+    font-weight: 500;
+    border-radius: var(--border-radius-sm);
+    transition: all 0.2s ease;
+    border: none;
+    padding: 0.5rem 1rem;
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
+    color: white !important;
+    border: none !important;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-dark), #1e40af) !important;
+    transform: translateY(-1px);
+    color: white !important;
+}
+
+.btn-outline-primary {
+    border: 2px solid var(--primary-color) !important;
+    color: var(--primary-color) !important;
+    background: transparent !important;
+}
+
+.btn-outline-primary:hover {
+    background: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+/* Badges */
+.badge {
+    font-weight: 500;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--border-radius-sm);
+}
+
+.badge.bg-success {
+    background-color: var(--success-color) !important;
+}
+
+.badge.bg-warning {
+    background-color: var(--warning-color) !important;
+}
+
+.badge.bg-danger {
+    background-color: var(--danger-color) !important;
+}
+
+/* Tags and Categories */
+.category, .tag {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    margin: 0.125rem;
+    border-radius: 2rem;
+    background: var(--light-bg);
+    color: var(--muted-text);
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.category:hover, .tag:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* Forms */
+.form-control {
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    padding: 0.75rem 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: var(--font-family);
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--dark-text);
+    margin-bottom: 0.5rem;
+}
+
+/* Alerts */
+.alert {
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 1rem 1.25rem;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+}
+
+.alert-success {
+    background-color: #f0fdf4;
+    color: #166534;
+    border-left: 4px solid var(--success-color);
+}
+
+.alert-danger {
+    background-color: #fef2f2;
+    color: #991b1b;
+    border-left: 4px solid var(--danger-color);
+}
+
+.alert-warning {
+    background-color: #fffbeb;
+    color: #92400e;
+    border-left: 4px solid var(--warning-color);
+}
+
+.alert-info {
+    background-color: #eff6ff;
+    color: #1e40af;
+    border-left: 4px solid var(--primary-color);
+}
+
+/* Search Results */
+.search-card {
+    max-width: none;
+    margin: 0;
+}
+
+.item-thumbnail {
+    height: 180px;
+    object-fit: cover;
+    width: 100%;
+    border-radius: var(--border-radius-sm);
+}
+
+/* Profile Images */
+.profile-picture-small {
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Sections */
+.user-circles, .items-section {
+    margin-bottom: 3rem;
+}
+
+.user-circles h2, .items-section h2 {
+    color: var(--dark-text);
+    font-weight: 600;
+    font-size: 1.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+/* Footer */
+footer {
+    background: white !important;
+    border-top: 1px solid var(--border-color) !important;
+    margin-top: auto;
+}
+
+footer h6 {
+    color: var(--primary-color) !important;
+}
+
+/* Empty States */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--muted-text);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    color: var(--border-color);
+    margin-bottom: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 1rem 0;
+    }
+    
+    h1 {
+        font-size: 2rem;
+    }
+    
+    .items-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .circles-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .circle-card {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    body {
+        padding-top: 70px;
+    }
+    
+    .navbar-brand {
+        font-size: 1.25rem;
+    }
+    
+    .container {
+        padding: 0 1rem;
+    }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Focus indicators for keyboard navigation */
+.btn:focus,
+.nav-link:focus,
+.form-control:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --border-color: #000;
+        --muted-text: #000;
+    }
+}
+
+/* Print styles */
+@media print {
+    .navbar,
+    footer,
+    .btn {
+        display: none !important;
+    }
+    
+    .main-content {
+        padding-top: 0;
+    }
+    
+    .card {
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
 }
 
 /* Optional: Change cursor to pointer for clickable cards */
@@ -504,8 +884,7 @@ item-link {
     color: white;
 }
 
-/* Ensure buttons in tables align properly */
-.table .btn {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
+/* Main Content */
+.main-content {
+    padding: 2rem 0;
 }

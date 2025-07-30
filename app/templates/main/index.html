@@ -5,37 +5,103 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-    <h1>Welcome to Meutch</h1>
+    <!-- Hero Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="text-center">
+                <h1 class="display-4 mb-3">Welcome to Meutch</h1>
+                <p class="lead text-muted mb-4">Building stronger communities through mutual aid and resource sharing</p>
+                {% if not current_user.is_authenticated %}
+                    <div class="d-flex gap-3 justify-content-center">
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-user-plus me-2"></i>Get Started
+                        </a>
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
     
     {% if current_user.is_authenticated %}
-        <section class="user-circles">
-            <h2>Your Circles</h2>
+        <!-- User Circles Section -->
+        <section class="user-circles mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-users me-2 text-primary"></i>Your Circles</h2>
+                <a href="{{ url_for('circles.create_circle') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-plus me-1"></i>Create Circle
+                </a>
+            </div>
+            
             {% if circles %}
                 <div class="circles-grid">
                     {% for circle in circles %}
                         <div class="circle-card">
                             <h3>{{ circle.name }}</h3>
-                            <p>{{ circle.description }}</p>
-                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}">View Circle</a>
+                            <p>{{ circle.description[:100] }}{% if circle.description|length > 100 %}...{% endif %}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-users me-1"></i>{{ circle.members|length if circle.members else 0 }} members
+                                </small>
+                                <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye me-1"></i>View Circle
+                                </a>
+                            </div>
                         </div>
                     {% endfor %}
                 </div>
             {% else %}
-                <p>You are not a member of any circles yet. <a href="{{ url_for('circles.create_circle') }}">Create one now!</a></p>
+                <div class="empty-state">
+                    <i class="fas fa-users-slash"></i>
+                    <h4>No circles yet</h4>
+                    <p>You're not a member of any circles yet. Create one to start sharing resources with your community!</p>
+                    <a href="{{ url_for('circles.create_circle') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Create Your First Circle
+                    </a>
+                </div>
             {% endif %}
         </section>
     {% endif %}
     
+    <!-- Available Items Section -->
     <section class="items-section">
-        <h2>Available Items</h2>
-        <div class="items-grid">
-            {% for item in items %}
-            <div class="col-md-4 mb-4">
-                {% include 'main/_item_card.html' %}
-            </div>
-            {% else %}
-                <p>No items available at the moment.</p>
-            {% endfor %}
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-box-open me-2 text-primary"></i>Available Items</h2>
+            {% if current_user.is_authenticated %}
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('main.search') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-search me-1"></i>Search
+                    </a>
+                    <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>List Item
+                    </a>
+                </div>
+            {% endif %}
         </div>
+        
+        {% if items %}
+            <div class="items-grid">
+                {% for item in items %}
+                    {% include 'main/_item_card.html' %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-box"></i>
+                <h4>No items available</h4>
+                <p>No items are currently available for sharing. {% if current_user.is_authenticated %}Be the first to list something!{% else %}Join our community to start sharing.{% endif %}</p>
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>List Your First Item
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
+                        <i class="fas fa-user-plus me-1"></i>Join Meutch
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
     </section>
 {% endblock %}
