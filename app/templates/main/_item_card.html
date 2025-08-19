@@ -22,7 +22,7 @@
         {% if item.category %}
             <div class="mb-2">
                 <span class="category">
-                    <i class="fas fa-tag me-1"></i>{{ item.category }}
+                    <i class="fas fa-tag me-1"></i>{{ item.category.name }}
                 </span>
             </div>
         {% endif %}
@@ -30,7 +30,7 @@
         {% if item.tags %}
             <div class="mb-3">
                 {% for tag in item.tags[:3] %}
-                    <span class="tag">{{ tag }}</span>
+                    <span class="tag">{{ tag.name }}</span>
                 {% endfor %}
                 {% if item.tags|length > 3 %}
                     <span class="tag">+{{ item.tags|length - 3 }} more</span>
@@ -39,15 +39,6 @@
         {% endif %}
         
         <div class="mt-auto">
-            {% if item.owner %}
-                <div class="d-flex align-items-center mb-2">
-                    <small class="text-muted">
-                        <i class="fas fa-user me-1"></i>
-                        Shared by {{ item.owner.name if item.owner.name else item.owner.username }}
-                    </small>
-                </div>
-            {% endif %}
-            
             <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="btn btn-primary w-100">
                 <i class="fas fa-eye me-1"></i>View Details
             </a>
