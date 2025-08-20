@@ -22,7 +22,7 @@
         {% if item.category %}
             <div class="mb-2">
                 <span class="category">
-                    <i class="fas fa-tag me-1"></i>{{ item.category.name }}
+                    <i class="fas fa-folder me-1"></i>{{ item.category.name }}
                 </span>
             </div>
         {% endif %}
@@ -30,10 +30,14 @@
         {% if item.tags %}
             <div class="mb-3">
                 {% for tag in item.tags[:3] %}
-                    <span class="tag">{{ tag.name }}</span>
+                    <span class="tag">
+                        <i class="fas fa-tag me-1"></i>{{ tag.name }}
+                    </span>
                 {% endfor %}
                 {% if item.tags|length > 3 %}
-                    <span class="tag">+{{ item.tags|length - 3 }} more</span>
+                    <span class="tag">
+                        <i class="fas fa-tag me-1"></i>+{{ item.tags|length - 3 }} more
+                    </span>
                 {% endif %}
             </div>
         {% endif %}

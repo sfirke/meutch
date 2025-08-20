@@ -326,7 +326,27 @@ h1 {
     transition: all 0.2s ease;
 }
 
-.category:hover, .tag:hover {
+/* Category-specific styling */
+.category {
+    background: var(--light-bg);
+    color: var(--muted-text);
+    border-color: var(--border-color);
+}
+
+.category:hover {
+    background: var(--secondary-color);
+    color: white;
+    border-color: var(--secondary-color);
+}
+
+/* Tag-specific styling */
+.tag {
+    background: rgba(79, 209, 199, 0.1); /* Light teal background using primary color */
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+}
+
+.tag:hover {
     background: var(--primary-color);
     color: white;
     border-color: var(--primary-color);
