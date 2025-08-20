@@ -208,6 +208,168 @@ class TestSearchRoutes:
             response = client.get('/search?q=nonexistentitem')
             assert response.status_code == 200
 
+class TestTagAndCategoryBrowsing:
+    """Test tag and category browsing functionality."""
+    
+    def test_tag_items_page_valid_tag(self, client, app):
+        """Test tag items page with valid tag."""
+        with app.app_context():
+            from app.models import Tag, Category
+            from tests.factories import TagFactory
+            
+            # Create a tag and some items with that tag
+            tag = TagFactory(name='electronics')
+            
+            # Get or create categories - use existing Electronics category
+            electronics_category = Category.query.filter_by(name='Electronics').first()
+            if not electronics_category:
+                electronics_category = CategoryFactory(name='Electronics')
+            
+            books_category = Category.query.filter_by(name='Books & Media').first()
+            if not books_category:
+                books_category = CategoryFactory(name='Books & Media')
+            
+            # Create items with this tag
+            item1 = ItemFactory(name='Laptop', category=electronics_category)
+            item2 = ItemFactory(name='Phone', category=electronics_category)
+            item3 = ItemFactory(name='Book', category=books_category)  # Different category, no tag
+            
+            item1.tags.append(tag)
+            item2.tags.append(tag)
+            # item3 has no tags
+            
+            from app import db
+            db.session.commit()
+            
+            response = client.get(f'/tag/{tag.id}')
+            assert response.status_code == 200
+            assert b'Items Tagged "electronics"' in response.data
+            assert b'Laptop' in response.data
+            assert b'Phone' in response.data
+            assert b'Book' not in response.data  # Should not appear since it doesn't have the tag
+    
+    def test_tag_items_page_invalid_tag(self, client, app):
+        """Test tag items page with invalid tag ID."""
+        import uuid
+        fake_tag_id = str(uuid.uuid4())
+        response = client.get(f'/tag/{fake_tag_id}')
+        assert response.status_code == 404
+    
+    def test_tag_items_page_no_items(self, client, app):
+        """Test tag items page with tag that has no items."""
+        with app.app_context():
+            from tests.factories import TagFactory
+            tag = TagFactory(name='unused-tag')
+            
+            response = client.get(f'/tag/{tag.id}')
+            assert response.status_code == 200
+            assert b'Items Tagged "unused-tag"' in response.data
+            assert b'No items found with the tag "unused-tag"' in response.data
+    
+    def test_tag_items_pagination(self, client, app):
+        """Test tag items page pagination."""
+        with app.app_context():
+            from app.models import Tag, Category
+            from tests.factories import TagFactory
+            
+            tag = TagFactory(name='test-pagination')
+            
+            # Get or create category
+            category = Category.query.filter_by(name='Electronics').first()
+            if not category:
+                category = CategoryFactory(name='Test Pagination Category')
+            
+            # Create more than 10 items (default per_page) with this tag
+            items = []
+            for i in range(15):
+                item = ItemFactory(name=f'Item {i}', category=category)
+                item.tags.append(tag)
+                items.append(item)
+            
+            from app import db
+            db.session.commit()
+            
+            # Test first page
+            response = client.get(f'/tag/{tag.id}')
+            assert response.status_code == 200
+            assert b'Item 0' in response.data
+            assert b'Item 9' in response.data
+            assert b'Item 14' not in response.data  # Should be on page 2
+            
+            # Test second page
+            response = client.get(f'/tag/{tag.id}?page=2')
+            assert response.status_code == 200
+            assert b'Item 14' in response.data
+            assert b'Item 0' not in response.data  # Should be on page 1
+    
+    def test_category_items_page_valid_category(self, client, app):
+        """Test category items page with valid category."""
+        with app.app_context():
+            from app.models import Category
+            
+            # Get or create Electronics category
+            category = Category.query.filter_by(name='Electronics').first()
+            if not category:
+                category = CategoryFactory(name='Test Electronics Category')
+                
+            # Get or create Books category
+            books_category = Category.query.filter_by(name='Books & Media').first()
+            if not books_category:
+                books_category = CategoryFactory(name='Test Books Category')
+            
+            # Create items in this category
+            item1 = ItemFactory(name='Laptop', category=category)
+            item2 = ItemFactory(name='Phone', category=category)
+            item3 = ItemFactory(name='Book', category=books_category)  # Different category
+            
+            response = client.get(f'/category/{category.id}')
+            assert response.status_code == 200
+            assert b'Items in' in response.data
+            assert b'Laptop' in response.data
+            assert b'Phone' in response.data
+            assert b'Book' not in response.data  # Should not appear since it's in a different category
+    
+    def test_category_items_page_invalid_category(self, client, app):
+        """Test category items page with invalid category ID."""
+        import uuid
+        fake_category_id = str(uuid.uuid4())
+        response = client.get(f'/category/{fake_category_id}')
+        assert response.status_code == 404
+    
+    def test_category_items_page_no_items(self, client, app):
+        """Test category items page with category that has no items."""
+        with app.app_context():
+            category = CategoryFactory(name='Unique Empty Category')
+            
+            response = client.get(f'/category/{category.id}')
+            assert response.status_code == 200
+            assert b'Items in "Unique Empty Category"' in response.data
+            assert b'No items found in the "Unique Empty Category" category' in response.data
+    
+    def test_category_items_pagination(self, client, app):
+        """Test category items page pagination."""
+        with app.app_context():
+            category = CategoryFactory(name='Unique Test Category for Pagination')
+            
+            # Create more than 10 items (default per_page) in this category
+            items = []
+            for i in range(15):
+                item = ItemFactory(name=f'Item {i}', category=category)
+                items.append(item)
+            
+            # Test first page
+            response = client.get(f'/category/{category.id}')
+            assert response.status_code == 200
+            assert b'Item 0' in response.data
+            assert b'Item 9' in response.data
+            assert b'Item 14' not in response.data  # Should be on page 2
+            
+            # Test second page
+            response = client.get(f'/category/{category.id}?page=2')
+            assert response.status_code == 200
+            assert b'Item 14' in response.data
+            assert b'Item 0' not in response.data  # Should be on page 1
+
 class TestProfileRoutes:
     """Test profile-related routes."""
     
