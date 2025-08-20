@@ -24,7 +24,7 @@
             
             <div class="mt-4">
                 <h3><i class="fas fa-folder me-2"></i>Category:</h3>
-                <span class="badge bg-secondary">{{ item.category.name }}</span>
+                <span class="category">{{ item.category.name }}</span>
             </div>
             
             {% if item.tags %}
@@ -32,7 +32,7 @@
                     <h3><i class="fas fa-tags me-2"></i>Tags:</h3>
                     {% for tag in item.tags %}
                         <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}"
-                           class="badge bg-info text-dark text-decoration-none">
+                           class="tag text-decoration-none">
                            <i class="fas fa-tag me-1"></i>{{ tag.name }}
                         </a>
                     {% endfor %}

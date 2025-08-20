@@ -328,22 +328,22 @@ h1 {
 
 /* Category-specific styling */
 .category {
-    background: #f8f9fa;
-    color: #6c757d;
-    border-color: #dee2e6;
+    background: var(--light-bg);
+    color: var(--muted-text);
+    border-color: var(--border-color);
 }
 
 .category:hover {
-    background: #6f42c1;
+    background: var(--secondary-color);
     color: white;
-    border-color: #6f42c1;
+    border-color: var(--secondary-color);
 }
 
 /* Tag-specific styling */
 .tag {
-    background: #e7f3ff;
-    color: #0056b3;
-    border-color: #b3d9ff;
+    background: rgba(79, 209, 199, 0.1); /* Light teal background using primary color */
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
 }
 
 .tag:hover {

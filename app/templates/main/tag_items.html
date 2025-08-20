@@ -13,10 +13,12 @@
                 <li class="list-group-item">
                     <h4><a href="{{ url_for('main.item_detail', item_id=item.id) }}">{{ item.name }}</a></h4>
                     <p>{{ item.description }}</p>
-                    <p><strong><i class="fas fa-folder me-1"></i>Category:</strong> {{ item.category.name }}</p>
+                    <p><strong><i class="fas fa-folder me-1"></i>Category:</strong>
+                        <span class="category">{{ item.category.name }}</span>
+                    </p>
                     <p><strong><i class="fas fa-tags me-1"></i>Tags:</strong>
                         {% for tag in item.tags %}
-                            <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" class="badge bg-info text-dark text-decoration-none">
+                            <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" class="tag text-decoration-none">
                                 <i class="fas fa-tag me-1"></i>{{ tag.name }}
                             </a>
                         {% endfor %}
