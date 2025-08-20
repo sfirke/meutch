@@ -1,5 +1,5 @@
 from app import create_app, db
-from app.models import ItemCategory
+from app.models import Category
 
 def init_db():
     app = create_app()
@@ -13,8 +13,8 @@ def init_db():
         ]
         
         for cat_name in categories:
-            if not ItemCategory.query.filter_by(name=cat_name).first():
-                cat = ItemCategory(name=cat_name)
+            if not Category.query.filter_by(name=cat_name).first():
+                cat = Category(name=cat_name)
                 db.session.add(cat)
         
         db.session.commit()
