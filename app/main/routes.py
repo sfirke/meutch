@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload
 from app import db
-from app.models import Item, LoanRequest, Tag, User, Message, Circle, circle_members
+from app.models import Item, LoanRequest, Tag, User, Message, Circle, circle_members, Category
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
@@ -468,6 +468,37 @@ def tag_items(tag_id):
     return render_template(
         'main/tag_items.html',
         tag=tag,
+        items=items,
+        pagination=items_pagination
+    )
+
+@main_bp.route('/category/<uuid:category_id>')
+def category_items(category_id):
+    # Retrieve the category or return 404 if not found
+    category = Category.query.get_or_404(category_id)
+
+    # Get pagination parameters from the request
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Number of items per page
+
+    # Perform a paginated query to retrieve items associated with the category
+    items_pagination = (
+        Item.query
+        .filter(Item.category_id == category_id)  # Filter by the specific category
+        .options(
+            joinedload(Item.owner),
+            joinedload(Item.category),
+            joinedload(Item.tags)
+        )
+        .paginate(page=page, per_page=per_page, error_out=False)
+    )
+
+    # Extract items from the pagination object
+    items = items_pagination.items
+
+    return render_template(
+        'main/category_items.html',
+        category=category,
         items=items,
         pagination=items_pagination
     )

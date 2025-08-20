@@ -1,11 +1,11 @@
-<!-- app/templates/main/tag_items.html -->
+<!-- app/templates/main/category_items.html -->
 {% extends "base.html" %}
 
-{% block title %}Items Tagged "{{ tag.name }}"{% endblock %}
+{% block title %}Items in "{{ category.name }}"{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-    <h2>Items Tagged "{{ tag.name }}"</h2>
+    <h2>Items in "{{ category.name }}"</h2>
     
     {% if items %}
         <ul class="list-group">
@@ -18,13 +18,15 @@
                             {{ item.category.name }}
                         </a>
                     </p>
-                    <p><strong><i class="fas fa-tags me-1"></i>Tags:</strong>
-                        {% for tag in item.tags %}
-                            <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" class="tag text-decoration-none">
-                                <i class="fas fa-tag me-1"></i>{{ tag.name }}
-                            </a>
-                        {% endfor %}
-                    </p>
+                    {% if item.tags %}
+                        <p><strong><i class="fas fa-tags me-1"></i>Tags:</strong>
+                            {% for tag in item.tags %}
+                                <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" class="tag text-decoration-none">
+                                    <i class="fas fa-tag me-1"></i>{{ tag.name }}
+                                </a>
+                            {% endfor %}
+                        </p>
+                    {% endif %}
                     <p><strong>Status:</strong> {{ "Available" if item.available else "Currently Borrowed" }}</p>
                 </li>
             {% endfor %}
@@ -32,11 +34,11 @@
         
         <!-- Pagination Controls -->
         {% if pagination.pages > 1 %}
-            <nav aria-label="Tag items pages">
+            <nav aria-label="Category items pages">
                 <ul class="pagination justify-content-center mt-4">
                     {% if pagination.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('main.tag_items', tag_id=tag.id, page=pagination.prev_num) }}" aria-label="Previous">
+                            <a class="page-link" href="{{ url_for('main.category_items', category_id=category.id, page=pagination.prev_num) }}" aria-label="Previous">
                                 <span aria-hidden="true">&laquo;</span>
                             </a>
                         </li>
@@ -51,7 +53,7 @@
                             {% if p == pagination.page %}
                                 <li class="page-item active"><span class="page-link">{{ p }}</span></li>
                             {% else %}
-                                <li class="page-item"><a class="page-link" href="{{ url_for('main.tag_items', tag_id=tag.id, page=p) }}">{{ p }}</a></li>
+                                <li class="page-item"><a class="page-link" href="{{ url_for('main.category_items', category_id=category.id, page=p) }}">{{ p }}</a></li>
                             {% endif %}
                         {% else %}
                             <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -60,7 +62,7 @@
                     
                     {% if pagination.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('main.tag_items', tag_id=tag.id, page=pagination.next_num) }}" aria-label="Next">
+                            <a class="page-link" href="{{ url_for('main.category_items', category_id=category.id, page=pagination.next_num) }}" aria-label="Next">
                                 <span aria-hidden="true">&raquo;</span>
                             </a>
                         </li>
@@ -73,7 +75,7 @@
             </nav>
         {% endif %}
     {% else %}
-        <p>No items found with the tag "{{ tag.name }}".</p>
+        <p>No items found in the "{{ category.name }}" category.</p>
     {% endif %}
 </div>
 {% endblock %}

@@ -21,18 +21,18 @@
         
         {% if item.category %}
             <div class="mb-2">
-                <span class="category">
+                <a href="{{ url_for('main.category_items', category_id=item.category.id) }}" class="category text-decoration-none">
                     <i class="fas fa-folder me-1"></i>{{ item.category.name }}
-                </span>
+                </a>
             </div>
         {% endif %}
         
         {% if item.tags %}
             <div class="mb-3">
                 {% for tag in item.tags[:3] %}
-                    <span class="tag">
+                    <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" class="tag text-decoration-none">
                         <i class="fas fa-tag me-1"></i>{{ tag.name }}
-                    </span>
+                    </a>
                 {% endfor %}
                 {% if item.tags|length > 3 %}
                     <span class="tag">

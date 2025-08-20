@@ -24,7 +24,9 @@
             
             <div class="mt-4">
                 <h3><i class="fas fa-folder me-2"></i>Category:</h3>
-                <span class="category">{{ item.category.name }}</span>
+                <a href="{{ url_for('main.category_items', category_id=item.category.id) }}" class="category text-decoration-none">
+                    {{ item.category.name }}
+                </a>
             </div>
             
             {% if item.tags %}
