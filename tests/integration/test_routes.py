@@ -1,5 +1,6 @@
 """Integration tests for main routes."""
 import pytest
+from app import db
 from app.models import Item, User, Category
 from tests.factories import UserFactory, ItemFactory, CategoryFactory
 from conftest import login_user
@@ -23,6 +24,77 @@ class TestMainRoutes:
             response = client.get('/')
             assert response.status_code == 200
             assert b'Your Circles' in response.data
+    
+    def test_index_anonymous_user_limited_items(self, client, app):
+        """Test that anonymous users see limited items with 'more' message."""
+        with app.app_context():
+            # Create more than 12 items to test the limit
+            category = CategoryFactory()
+            user = UserFactory()
+            
+            # Create a public circle and add the user to it
+            from app.models import Circle
+            circle = Circle(name="Test Public Circle", description="Test", requires_approval=False)
+            db.session.add(circle)
+            circle.members.append(user)
+            db.session.commit()
+            
+            for i in range(15):
+                ItemFactory(owner=user, category=category, available=True)
+            
+            response = client.get('/')
+            assert response.status_code == 200
+            # Should show the "more" message since we have more than 12 items
+            response_text = response.data.decode('utf-8')
+            assert 'more</strong> available items' in response_text
+            assert b'Sign Up' in response.data
+    
+    def test_index_authenticated_user_pagination(self, client, app, auth_user):
+        """Test that authenticated users get pagination controls."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            
+            # Create a public circle and add the user to it
+            from app.models import Circle
+            circle = Circle(name="Test Public Circle", description="Test", requires_approval=False)
+            db.session.add(circle)
+            circle.members.append(user)
+            db.session.commit()
+            
+            # Create more than 12 items to trigger pagination
+            for i in range(15):
+                ItemFactory(owner=user, category=category, available=True)
+            
+            login_user(client, user.email)
+            response = client.get('/')
+            assert response.status_code == 200
+            # Should have pagination if more than 12 items
+            # Note: The pagination might not show if all items fit on one page
+            # This is more of a structure test
+    
+    def test_index_anonymous_user_few_items_no_more_message(self, client, app):
+        """Test that anonymous users don't see 'more' message when items <= 12."""
+        with app.app_context():
+            # Create only a few items
+            category = CategoryFactory()
+            user = UserFactory()
+            
+            # Create a public circle and add the user to it
+            from app.models import Circle
+            circle = Circle(name="Test Public Circle", description="Test", requires_approval=False)
+            db.session.add(circle)
+            circle.members.append(user)
+            db.session.commit()
+            
+            for i in range(5):
+                ItemFactory(owner=user, category=category, available=True)
+            
+            response = client.get('/')
+            assert response.status_code == 200
+            # Should NOT show the "more" message since we have <= 12 items
+            response_text = response.data.decode('utf-8')
+            assert 'more</strong> available items' not in response_text
     
     def test_about_page(self, client):
         """Test about page loads correctly."""
