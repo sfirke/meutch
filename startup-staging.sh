@@ -31,11 +31,10 @@ echo "✅ Database migrations completed successfully"
 
 # Sync production data to staging if both database URLs are available
 if [ -n "$PROD_DATABASE_URL" ] && [ -n "$STAGING_DATABASE_URL" ]; then
-    echo "📊 Starting production data sync in background..."
-    nohup python sync_staging_db.py > /tmp/sync.log 2>&1 &
-    SYNC_PID=$!
-    echo "💡 Sync running in background (PID: $SYNC_PID) - check /tmp/sync.log for status"
-    echo "   App will start immediately and sync will complete shortly"
+    echo "📊 Starting production data sync..."
+    echo "💡 This will run synchronously to ensure visibility in deployment logs"
+    python sync_staging_db.py
+    echo "✅ Production data sync completed"
 else
     echo "⚠️  Required environment variables not set, skipping production data sync"
     echo "   Staging will use empty database"
