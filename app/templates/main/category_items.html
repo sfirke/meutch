@@ -7,6 +7,7 @@
 <div class="container mt-5">
     <h2>Items in "{{ category.name }}"</h2>
     
+    <div id="items-section">
     {% if items %}
         <ul class="list-group">
             {% for item in items %}
@@ -77,5 +78,6 @@
     {% else %}
         <p>No items found in the "{{ category.name }}" category.</p>
     {% endif %}
+    </div>
 </div>
 {% endblock %}

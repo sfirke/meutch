@@ -3,6 +3,7 @@
 {% block content %}
 <div class="container mt-5">
     <h2 class="mb-4">Search Results for "{{ query }}"</h2>
+    <div id="items-section">
     {% if items %}
         <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for item in items %}
@@ -57,5 +58,6 @@
                 </ul>
             </nav>
         {% endif %}
+    </div>
 </div>
 {% endblock %}
