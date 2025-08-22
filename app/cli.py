@@ -258,7 +258,7 @@ def _seed_development_data():
             circles.append(existing)
             click.echo(f"  ≈ Circle exists: {existing.name} ({len(existing.members)} members)")
     
-    # Items (idempotent) - Expanded for pagination testing
+    # Items (idempotent)
     items = []
     item_examples = [
         # Original items
