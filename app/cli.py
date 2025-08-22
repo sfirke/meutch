@@ -261,6 +261,7 @@ def _seed_development_data():
     # Items (idempotent)
     items = []
     item_examples = [
+        # Original items
         {'name': 'Power Drill', 'description': 'Cordless power drill with bits included', 'category': 'Tools'},
         {'name': 'Bread Maker', 'description': 'Automatic bread making machine, barely used', 'category': 'Kitchen'},
         {'name': 'Python Programming Book', 'description': 'Learn Python the Hard Way - excellent condition', 'category': 'Books'},
@@ -269,6 +270,63 @@ def _seed_development_data():
         {'name': 'Garden Hose', 'description': '50ft expandable garden hose with nozzle', 'category': 'Home & Garden'},
         {'name': 'Board Game Collection', 'description': 'Various board games for family fun', 'category': 'Toys'},
         {'name': 'Winter Jacket', 'description': 'Large size winter jacket, barely used', 'category': 'Clothing'},
+        
+        # Additional Electronics
+        {'name': 'Bluetooth Speaker', 'description': 'Portable wireless speaker with great sound', 'category': 'Electronics'},
+        {'name': 'iPad Mini', 'description': '2021 iPad Mini, excellent condition with case', 'category': 'Electronics'},
+        {'name': 'Digital Camera', 'description': 'Canon DSLR camera with lens kit', 'category': 'Electronics'},
+        {'name': 'Gaming Headset', 'description': 'Wireless gaming headset with noise cancellation', 'category': 'Electronics'},
+        {'name': 'Tablet Stand', 'description': 'Adjustable tablet stand for desk use', 'category': 'Electronics'},
+        {'name': 'Phone Charger', 'description': 'Fast charging cable and wall adapter', 'category': 'Electronics'},
+        
+        # Additional Books
+        {'name': 'JavaScript Guide', 'description': 'Complete guide to modern JavaScript', 'category': 'Books'},
+        {'name': 'Cooking for Beginners', 'description': 'Learn basic cooking techniques', 'category': 'Books'},
+        {'name': 'The Great Gatsby', 'description': 'Classic American literature', 'category': 'Books'},
+        {'name': 'Yoga for Everyone', 'description': 'Beginner-friendly yoga instruction book', 'category': 'Books'},
+        {'name': 'Home Repair Manual', 'description': 'DIY guide for common home repairs', 'category': 'Books'},
+        
+        # Additional Tools
+        {'name': 'Hammer Set', 'description': 'Set of 3 hammers for different tasks', 'category': 'Tools'},
+        {'name': 'Screwdriver Kit', 'description': 'Complete set of screwdrivers', 'category': 'Tools'},
+        {'name': 'Measuring Tape', 'description': '25ft measuring tape with magnetic tip', 'category': 'Tools'},
+        {'name': 'Level', 'description': '24-inch bubble level for precise measurements', 'category': 'Tools'},
+        {'name': 'Socket Wrench Set', 'description': 'Comprehensive socket wrench set', 'category': 'Tools'},
+        
+        # Additional Kitchen
+        {'name': 'Stand Mixer', 'description': 'KitchenAid stand mixer, red color', 'category': 'Kitchen'},
+        {'name': 'Food Processor', 'description': 'Large capacity food processor', 'category': 'Kitchen'},
+        {'name': 'Cast Iron Skillet', 'description': '12-inch seasoned cast iron skillet', 'category': 'Kitchen'},
+        {'name': 'Pressure Cooker', 'description': 'Electric pressure cooker, 6-quart', 'category': 'Kitchen'},
+        {'name': 'Knife Set', 'description': 'Professional chef knife set with block', 'category': 'Kitchen'},
+        
+        # Additional Sports
+        {'name': 'Basketball', 'description': 'Official size basketball, good condition', 'category': 'Sports'},
+        {'name': 'Yoga Mat', 'description': 'Non-slip yoga mat with carrying strap', 'category': 'Sports'},
+        {'name': 'Bicycle Helmet', 'description': 'Safety helmet for cycling, medium size', 'category': 'Sports'},
+        {'name': 'Swimming Goggles', 'description': 'Anti-fog swimming goggles', 'category': 'Sports'},
+        {'name': 'Dumbbells', 'description': 'Set of adjustable dumbbells, 5-50 lbs', 'category': 'Sports'},
+        
+        # Additional Home & Garden
+        {'name': 'Lawn Mower', 'description': 'Electric lawn mower, works perfectly', 'category': 'Home & Garden'},
+        {'name': 'Plant Pots', 'description': 'Set of ceramic plant pots, various sizes', 'category': 'Home & Garden'},
+        {'name': 'Watering Can', 'description': '2-gallon watering can with sprinkler head', 'category': 'Home & Garden'},
+        {'name': 'Garden Tools', 'description': 'Set of basic gardening tools', 'category': 'Home & Garden'},
+        {'name': 'Outdoor Table', 'description': 'Weather-resistant patio table', 'category': 'Home & Garden'},
+        
+        # Additional Toys
+        {'name': 'LEGO Set', 'description': 'Large LEGO building set, complete', 'category': 'Toys'},
+        {'name': 'Puzzle Collection', 'description': '1000-piece jigsaw puzzles, various themes', 'category': 'Toys'},
+        {'name': 'Action Figures', 'description': 'Collection of superhero action figures', 'category': 'Toys'},
+        {'name': 'Art Supplies', 'description': 'Complete art kit with paints and brushes', 'category': 'Toys'},
+        {'name': 'Remote Control Car', 'description': 'Fast RC car with rechargeable battery', 'category': 'Toys'},
+        
+        # Additional Clothing
+        {'name': 'Running Shoes', 'description': 'Nike running shoes, size 10, barely used', 'category': 'Clothing'},
+        {'name': 'Formal Dress', 'description': 'Black evening dress, size medium', 'category': 'Clothing'},
+        {'name': 'Leather Jacket', 'description': 'Genuine leather jacket, classic style', 'category': 'Clothing'},
+        {'name': 'Hiking Boots', 'description': 'Waterproof hiking boots, size 9', 'category': 'Clothing'},
+        {'name': 'Summer Hat', 'description': 'Sun protection hat for outdoor activities', 'category': 'Clothing'},
     ]
     
     category_map = {cat.name: cat for cat in categories}

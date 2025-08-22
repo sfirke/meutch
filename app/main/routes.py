@@ -17,14 +17,36 @@ def index():
     public_user_ids = db.session.query(circle_members.c.user_id).filter(
         circle_members.c.circle_id.in_(public_circle_ids)
     ).distinct().subquery()
-    # Only show items whose owner is in a public circle
-    items = Item.query.filter(Item.owner_id.in_(public_user_ids)).all()
-
+    
+    # Base query for items in public circles
+    base_query = Item.query.filter(Item.owner_id.in_(public_user_ids))
+    
     circles = []
+    items = []
+    pagination = None
+    total_items = 0
+    remaining_items = 0
+    
     if current_user.is_authenticated:
         circles = current_user.circles
+        # For logged-in users: show paginated results
+        page = request.args.get('page', 1, type=int)
+        per_page = 12  # Items per page for logged-in users
+        pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
+        items = pagination.items
+    else:
+        # For anonymous users: show limited items with count
+        preview_limit = 12  # Items to show for preview
+        total_items = base_query.count()
+        items = base_query.limit(preview_limit).all()
+        remaining_items = max(0, total_items - preview_limit)
         
-    return render_template('main/index.html', items=items, circles=circles)
+    return render_template('main/index.html', 
+                         items=items,
+                         circles=circles, 
+                         pagination=pagination,
+                         total_items=total_items,
+                         remaining_items=remaining_items)
 
 @main_bp.route('/list-item', methods=['GET', 'POST'])
 @login_required
