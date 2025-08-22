@@ -69,9 +69,17 @@ class TestMainRoutes:
             login_user(client, user.email)
             response = client.get('/')
             assert response.status_code == 200
-            # Should have pagination if more than 12 items
-            # Note: The pagination might not show if all items fit on one page
-            # This is more of a structure test
+            
+            # Should have pagination controls since we have 15 items (> 12 per page)
+            response_text = response.data.decode('utf-8')
+            assert 'aria-label="Items pages"' in response_text  # Pagination nav element
+            assert 'Page 1 of 2' in response_text or 'page-item' in response_text  # Pagination indicators
+            
+            # Test that page 2 exists and works
+            page2_response = client.get('/?page=2')
+            assert page2_response.status_code == 200
+            page2_text = page2_response.data.decode('utf-8')
+            assert 'aria-label="Items pages"' in page2_text
     
     def test_index_anonymous_user_few_items_no_more_message(self, client, app):
         """Test that anonymous users don't see 'more' message when items <= 12."""

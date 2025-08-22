@@ -38,11 +38,11 @@ def index():
         # For anonymous users: show limited items with count
         preview_limit = 12  # Items to show for preview
         total_items = base_query.count()
-        preview_items = base_query.limit(preview_limit).all()
+        items = base_query.limit(preview_limit).all()
         remaining_items = max(0, total_items - preview_limit)
         
     return render_template('main/index.html', 
-                         items=preview_items,
+                         items=items,
                          circles=circles, 
                          pagination=pagination,
                          total_items=total_items,
