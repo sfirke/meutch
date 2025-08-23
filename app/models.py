@@ -41,6 +41,8 @@ class User(UserMixin, db.Model):
     password_reset_token = db.Column(db.String(128), nullable=True)
     password_reset_sent_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
     @property
     def profile_image(self):
         return self.profile_image_url or url_for('static', filename='img/generic_user_avatar.png')
@@ -111,6 +113,148 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         """Check password against hash"""
         return check_password_hash(self.password_hash, password)
+    
+    def get_outstanding_loans_summary(self):
+        """Get summary of outstanding loans for account deletion warning"""
+        from datetime import date
+        
+        # Active loans as borrower
+        borrowing = LoanRequest.query.filter_by(
+            borrower_id=self.id,
+            status='approved'
+        ).filter(LoanRequest.end_date >= date.today()).count()
+        
+        # Active loans as owner
+        lending = LoanRequest.query.join(Item).filter(
+            Item.owner_id == self.id,
+            LoanRequest.status == 'approved'
+        ).filter(LoanRequest.end_date >= date.today()).count()
+        
+        # Pending requests as borrower
+        pending_borrowing = LoanRequest.query.filter_by(
+            borrower_id=self.id,
+            status='pending'
+        ).count()
+        
+        # Pending requests as owner
+        pending_lending = LoanRequest.query.join(Item).filter(
+            Item.owner_id == self.id,
+            LoanRequest.status == 'pending'
+        ).count()
+        
+        return {
+            'active_borrowing': borrowing,
+            'active_lending': lending,
+            'pending_borrowing': pending_borrowing,
+            'pending_lending': pending_lending,
+            'has_outstanding': borrowing + lending + pending_borrowing + pending_lending > 0
+        }
+
+    def delete_account(self):
+        """Perform cascading deletion of user account"""
+        from app.utils.storage import delete_file
+        from app.utils.email import send_account_deletion_email
+        
+        # Store user info for email before deletion
+        user_email = self.email
+        user_first_name = self.first_name
+        
+        # 1. Auto-deny all pending loan requests (but keep the user references)
+        # Deny requests FROM this user
+        LoanRequest.query.filter_by(
+            borrower_id=self.id,
+            status='pending'
+        ).update({'status': 'canceled'})
+        
+        # Deny requests TO this user's items
+        item_ids = [item.id for item in self.items]
+        if item_ids:
+            LoanRequest.query.filter(
+                LoanRequest.item_id.in_(item_ids),
+                LoanRequest.status == 'pending'
+            ).update({'status': 'denied'}, synchronize_session=False)
+        
+        # 2. Handle circles - transfer admin rights if needed
+        for circle in self.circles:
+            if circle.is_admin(self):
+                # Count total admins
+                admin_count = db.session.query(circle_members).filter_by(
+                    circle_id=circle.id,
+                    is_admin=True
+                ).count()
+                
+                if admin_count == 1 and len(circle.members) > 1:
+                    # Find earliest non-admin member to promote
+                    next_admin_assoc = db.session.query(circle_members).filter(
+                        circle_members.c.circle_id == circle.id,
+                        circle_members.c.user_id != self.id,
+                        circle_members.c.is_admin == False
+                    ).order_by(circle_members.c.joined_at).first()
+                    
+                    if next_admin_assoc:
+                        from sqlalchemy import and_
+                        stmt = circle_members.update().where(
+                            and_(
+                                circle_members.c.circle_id == circle.id,
+                                circle_members.c.user_id == next_admin_assoc.user_id
+                            )
+                        ).values(is_admin=True)
+                        db.session.execute(stmt)
+        
+        # Remove from all circles
+        self.circles.clear()
+        
+        # 3. Delete circle join requests
+        CircleJoinRequest.query.filter_by(user_id=self.id).delete()
+        
+        # 4. Delete feedback given by user
+        Feedback.query.filter_by(reviewer_id=self.id).delete()
+        
+        # 5. Handle user's items - check for active loans
+        from datetime import date
+        for item in self.items[:]:  # Use slice to avoid modifying list during iteration
+            # Check if item has active loans
+            has_active_loans = LoanRequest.query.filter_by(
+                item_id=item.id,
+                status='approved'
+            ).filter(LoanRequest.end_date >= date.today()).first() is not None
+            
+            if has_active_loans:
+                # Keep item but set owner_id to None (anonymize)
+                item.owner_id = None
+                # Don't delete image for items with active loans
+                # Mark as unavailable for new loans
+                item.available = False
+            else:
+                # Delete item image if exists and no active loans
+                if item.image_url:
+                    delete_file(item.image_url)
+                
+                # Delete associated loan requests
+                LoanRequest.query.filter_by(item_id=item.id).delete()
+                
+                # Delete associated messages
+                Message.query.filter_by(item_id=item.id).delete()
+                
+                # Delete the item itself
+                db.session.delete(item)
+        
+        # 6. Delete user's profile image
+        if self.profile_image_url:
+            delete_file(self.profile_image_url)
+        
+        # 7. Send deletion confirmation email before deleting user
+        try:
+            send_account_deletion_email(user_email, user_first_name)
+        except Exception as e:
+            # Log error but don't fail the deletion if email fails
+            print(f"Failed to send deletion confirmation email: {e}")
+        
+        # 8. Soft delete the user (preserve for message/loan history)
+        self.is_deleted = True
+        self.deleted_at = datetime.utcnow()
+        self.email = f"deleted_{self.id}@deleted.meutch"  # Anonymize email to allow re-registration
+        db.session.commit()
 
     # Relationships
     items = db.relationship('Item', backref='owner', lazy=True)
@@ -141,6 +285,11 @@ class Item(db.Model):
             item_id=self.id,
             status='approved'
         ).order_by(LoanRequest.end_date.desc()).first()
+
+    @property
+    def owner_name(self):
+        """Returns owner name or 'Deleted User' if owner is None"""
+        return self.owner.full_name if self.owner else "Deleted User"
 
     def __repr__(self):
         return f'<Item {self.name}>'
@@ -195,13 +344,18 @@ class Tag(db.Model):
 class LoanRequest(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id'), nullable=False)
-    borrower_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    borrower_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=True)
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(20), default='pending')  # pending, approved, canceled, denied, completed
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     borrower = db.relationship('User', foreign_keys=[borrower_id], backref='loan_requests')
+
+    @property
+    def borrower_name(self):
+        """Returns borrower name or 'Deleted User' if borrower is None"""
+        return self.borrower.full_name if self.borrower else "Deleted User"
 
     def __repr__(self):
         return f'<LoanRequest {self.id} for Item {self.item_id} by User {self.borrower_id}>'

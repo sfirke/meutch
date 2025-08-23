@@ -5,20 +5,25 @@ from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload
 from app import db
 from app.models import Item, LoanRequest, Tag, User, Message, Circle, circle_members, Category
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, DeleteAccountForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 
 @main_bp.route('/')
 def index():
-    # Only show items whose owner is in at least one public circle
+    # Only show items whose owner is in at least one public circle and not deleted
     public_circle_ids = db.session.query(Circle.id).filter(Circle.requires_approval == False).subquery()
-    # Find user IDs who are in at least one public circle
-    public_user_ids = db.session.query(circle_members.c.user_id).filter(
-        circle_members.c.circle_id.in_(public_circle_ids)
+    # Find user IDs who are in at least one public circle and not deleted
+    public_user_ids = db.session.query(circle_members.c.user_id).join(
+        User, circle_members.c.user_id == User.id
+    ).filter(
+        and_(
+            circle_members.c.circle_id.in_(public_circle_ids),
+            User.is_deleted == False
+        )
     ).distinct().subquery()
     
-    # Base query for items in public circles
+    # Base query for items in public circles from non-deleted users
     base_query = Item.query.filter(Item.owner_id.in_(public_user_ids))
     
     circles = []
@@ -735,3 +740,26 @@ def view_conversation(message_id):
         return redirect(url_for('main.view_conversation', message_id=message_id))
 
     return render_template('messaging/view_conversation.html', message=message, thread_messages=thread_messages, form=form)
+
+
+@main_bp.route('/delete_account', methods=['GET', 'POST'])
+@login_required
+def delete_account():
+    """Handle user account deletion with confirmation"""
+    form = DeleteAccountForm()
+    
+    # Get outstanding loans summary for warning
+    loans_summary = current_user.get_outstanding_loans_summary()
+    
+    if form.validate_on_submit():
+        try:
+            # Perform the cascading deletion
+            current_user.delete_account()
+            flash('Your account has been successfully deleted.', 'info')
+            return redirect(url_for('main.index'))  # Redirect to home page
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while deleting your account. Please try again or contact support.', 'danger')
+            return redirect(url_for('main.delete_account'))
+    
+    return render_template('main/delete_account.html', form=form, loans_summary=loans_summary)
