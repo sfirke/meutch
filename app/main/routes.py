@@ -93,7 +93,7 @@ def list_item():
 def search():
     query = request.args.get('q', '').strip()
     page = request.args.get('page', 1, type=int)
-    per_page = 10  # Number of items per page
+    per_page = 12  # Number of items per page (consistent with other pages)
 
     if request.method == 'GET' and not query:
         # Display the search form
@@ -469,7 +469,7 @@ def tag_items(tag_id):
 
     # Get pagination parameters from the request
     page = request.args.get('page', 1, type=int)
-    per_page = 10  # Number of items per page
+    per_page = 12  # Number of items per page (consistent with other pages)
 
     # Perform a paginated query to retrieve items associated with the tag
     items_pagination = (
@@ -502,7 +502,7 @@ def category_items(category_id):
 
     # Get pagination parameters from the request
     page = request.args.get('page', 1, type=int)
-    per_page = 10  # Number of items per page
+    per_page = 12  # Number of items per page (consistent with other pages)
 
     # Perform a paginated query to retrieve items associated with the category
     items_pagination = (
@@ -554,8 +554,13 @@ def profile():
     elif request.method == 'GET':
         form.about_me.data = current_user.about_me
  
-    # Fetch user's items (newest first)
-    user_items = Item.query.filter_by(owner_id=current_user.id).order_by(Item.created_at.desc()).all()
+    # Pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = 12  # Items per page for logged-in users (same as index page)
+    
+    # Fetch user's items with pagination (newest first)
+    items_pagination = Item.query.filter_by(owner_id=current_user.id).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    user_items = items_pagination.items
     
     # Create a DeleteItemForm for each item
     delete_forms = {item.id: DeleteItemForm() for item in user_items}
@@ -569,7 +574,8 @@ def profile():
                          items=user_items, 
                          delete_forms=delete_forms,
                          borrowing=borrowing,
-                         lending=lending)
+                         lending=lending,
+                         pagination=items_pagination)
 
 @main_bp.route('/user/<uuid:user_id>')
 def user_profile(user_id):
@@ -580,7 +586,7 @@ def user_profile(user_id):
     
     # Pagination parameters
     page = request.args.get('page', 1, type=int)
-    per_page = 10
+    per_page = 12  # Items per page (consistent with profile and index pages)
     
     # Fetch user's items with pagination (newest first)
     items_pagination = Item.query.filter_by(owner_id=user.id).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
