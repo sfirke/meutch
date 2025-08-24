@@ -23,12 +23,6 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
-# Run database migrations
-echo "🔄 Running database migrations..."
-flask db upgrade
-
-echo "✅ Database migrations completed successfully"
-
 # Sync production data to staging if both database URLs are available
 if [ -n "$PROD_DATABASE_URL" ] && [ -n "$STAGING_DATABASE_URL" ]; then
     echo "📊 Starting production data sync..."
@@ -39,6 +33,12 @@ else
     echo "⚠️  Required environment variables not set, skipping production data sync"
     echo "   Staging will use empty database"
 fi
+
+# Run database migrations AFTER data sync to apply schema changes to synced data
+echo "🔄 Running database migrations..."
+flask db upgrade
+
+echo "✅ Database migrations completed successfully"
 
 echo "✅ Staging startup completed successfully!"
 echo "🌐 Application ready to serve requests"
