@@ -753,7 +753,6 @@ def delete_account():
             
             # Log the user out since their account is now deleted
             logout_user()
-            
             flash('Your account has been successfully deleted.', 'info')
             return redirect(url_for('main.index'))  # Redirect to home page
         except Exception as e:
