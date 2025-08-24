@@ -502,20 +502,16 @@ class TestAccountDeletion:
             
             login_user(client, user.email)
             
-            # Mock the email sending function
-            with patch('app.utils.email.send_email') as mock_send_email:
-                mock_send_email.return_value = True
-                
-                response = client.post('/delete_account', data={
-                    'confirmation': 'DELETE MY ACCOUNT'
-                }, follow_redirects=True)
-                
-                assert response.status_code == 200
-                
-                # Verify user was soft deleted (not hard deleted)
-                soft_deleted_user = db.session.get(User, user_id)
-                assert soft_deleted_user is not None
-                assert soft_deleted_user.is_deleted is True
-                assert soft_deleted_user.deleted_at is not None
-                assert "deleted_" in soft_deleted_user.email  # Email should be anonymized
-                assert soft_deleted_user.email != user_email  # Email changed
+            response = client.post('/delete_account', data={
+                'confirmation': 'DELETE MY ACCOUNT'
+            }, follow_redirects=True)
+            
+            assert response.status_code == 200
+            
+            # Verify user was soft deleted (not hard deleted)
+            soft_deleted_user = db.session.get(User, user_id)
+            assert soft_deleted_user is not None
+            assert soft_deleted_user.is_deleted is True
+            assert soft_deleted_user.deleted_at is not None
+            assert "deleted_" in soft_deleted_user.email  # Email should be anonymized
+            assert soft_deleted_user.email != user_email  # Email changed
