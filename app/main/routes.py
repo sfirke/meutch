@@ -1,6 +1,6 @@
 from uuid import UUID
 from flask import render_template, current_app, request, flash, redirect, url_for
-from flask_login import login_required, current_user
+from flask_login import login_required, current_user, logout_user
 from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload
 from app import db
@@ -750,6 +750,9 @@ def delete_account():
         try:
             # Perform the cascading deletion
             current_user.delete_account()
+            
+            # Log the user out since their account is now deleted
+            logout_user()
             flash('Your account has been successfully deleted.', 'info')
             return redirect(url_for('main.index'))  # Redirect to home page
         except Exception as e:
