@@ -359,7 +359,7 @@ class TestTagAndCategoryBrowsing:
             if not category:
                 category = CategoryFactory(name='Test Pagination Category')
             
-            # Create more than 10 items (default per_page) with this tag
+            # Create more than 12 items (current per_page) with this tag
             items = []
             for i in range(15):
                 item = ItemFactory(name=f'Item {i}', category=category)
@@ -373,13 +373,13 @@ class TestTagAndCategoryBrowsing:
             response = client.get(f'/tag/{tag.id}')
             assert response.status_code == 200
             assert b'Item 14' in response.data  # Newest item should be on page 1
-            assert b'Item 5' in response.data   # Last item on page 1 (10 items per page)
-            assert b'Item 4' not in response.data  # Should be on page 2
+            assert b'Item 3' in response.data   # Last item on page 1 (12 items per page)
+            assert b'Item 2' not in response.data  # Should be on page 2
             
             # Test second page
             response = client.get(f'/tag/{tag.id}?page=2')
             assert response.status_code == 200
-            assert b'Item 4' in response.data   # First item on page 2
+            assert b'Item 2' in response.data   # First item on page 2
             assert b'Item 0' in response.data   # Oldest item should be on page 2
             assert b'Item 14' not in response.data  # Should be on page 1
     
@@ -432,7 +432,7 @@ class TestTagAndCategoryBrowsing:
         with app.app_context():
             category = CategoryFactory(name='Unique Test Category for Pagination')
             
-            # Create more than 10 items (default per_page) in this category
+            # Create more than 12 items (current per_page) in this category
             items = []
             for i in range(15):
                 item = ItemFactory(name=f'Item {i}', category=category)
@@ -442,13 +442,13 @@ class TestTagAndCategoryBrowsing:
             response = client.get(f'/category/{category.id}')
             assert response.status_code == 200
             assert b'Item 14' in response.data  # Newest item should be on page 1
-            assert b'Item 5' in response.data   # Last item on page 1 (10 items per page)
-            assert b'Item 4' not in response.data  # Should be on page 2
+            assert b'Item 3' in response.data   # Last item on page 1 (12 items per page)
+            assert b'Item 2' not in response.data  # Should be on page 2
             
             # Test second page
             response = client.get(f'/category/{category.id}?page=2')
             assert response.status_code == 200
-            assert b'Item 4' in response.data   # First item on page 2
+            assert b'Item 2' in response.data   # First item on page 2
             assert b'Item 0' in response.data   # Oldest item should be on page 2
             assert b'Item 14' not in response.data  # Should be on page 1
 
