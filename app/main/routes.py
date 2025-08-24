@@ -11,19 +11,14 @@ from app.utils.storage import delete_file, upload_item_image, upload_profile_ima
 
 @main_bp.route('/')
 def index():
-    # Only show items whose owner is in at least one public circle and not deleted
+    # Only show items whose owner is in at least one public circle
     public_circle_ids = db.session.query(Circle.id).filter(Circle.requires_approval == False).subquery()
-    # Find user IDs who are in at least one public circle and not deleted
-    public_user_ids = db.session.query(circle_members.c.user_id).join(
-        User, circle_members.c.user_id == User.id
-    ).filter(
-        and_(
-            circle_members.c.circle_id.in_(public_circle_ids),
-            User.is_deleted == False
-        )
+    # Find user IDs who are in at least one public circle
+    public_user_ids = db.session.query(circle_members.c.user_id).filter(
+        circle_members.c.circle_id.in_(public_circle_ids)
     ).distinct().subquery()
     
-    # Base query for items in public circles from non-deleted users
+    # Base query for items in public circles
     base_query = Item.query.filter(Item.owner_id.in_(public_user_ids))
     
     circles = []
