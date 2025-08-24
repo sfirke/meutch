@@ -369,18 +369,19 @@ class TestTagAndCategoryBrowsing:
             from app import db
             db.session.commit()
             
-            # Test first page
+            # Test first page (newest items first)
             response = client.get(f'/tag/{tag.id}')
             assert response.status_code == 200
-            assert b'Item 0' in response.data
-            assert b'Item 9' in response.data
-            assert b'Item 14' not in response.data  # Should be on page 2
+            assert b'Item 14' in response.data  # Newest item should be on page 1
+            assert b'Item 5' in response.data   # Last item on page 1 (10 items per page)
+            assert b'Item 4' not in response.data  # Should be on page 2
             
             # Test second page
             response = client.get(f'/tag/{tag.id}?page=2')
             assert response.status_code == 200
-            assert b'Item 14' in response.data
-            assert b'Item 0' not in response.data  # Should be on page 1
+            assert b'Item 4' in response.data   # First item on page 2
+            assert b'Item 0' in response.data   # Oldest item should be on page 2
+            assert b'Item 14' not in response.data  # Should be on page 1
     
     def test_category_items_page_valid_category(self, client, app):
         """Test category items page with valid category."""
@@ -437,18 +438,19 @@ class TestTagAndCategoryBrowsing:
                 item = ItemFactory(name=f'Item {i}', category=category)
                 items.append(item)
             
-            # Test first page
+            # Test first page (newest items first)
             response = client.get(f'/category/{category.id}')
             assert response.status_code == 200
-            assert b'Item 0' in response.data
-            assert b'Item 9' in response.data
-            assert b'Item 14' not in response.data  # Should be on page 2
+            assert b'Item 14' in response.data  # Newest item should be on page 1
+            assert b'Item 5' in response.data   # Last item on page 1 (10 items per page)
+            assert b'Item 4' not in response.data  # Should be on page 2
             
             # Test second page
             response = client.get(f'/category/{category.id}?page=2')
             assert response.status_code == 200
-            assert b'Item 14' in response.data
-            assert b'Item 0' not in response.data  # Should be on page 1
+            assert b'Item 4' in response.data   # First item on page 2
+            assert b'Item 0' in response.data   # Oldest item should be on page 2
+            assert b'Item 14' not in response.data  # Should be on page 1
 
 class TestProfileRoutes:
     """Test profile-related routes."""

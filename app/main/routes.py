@@ -18,8 +18,8 @@ def index():
         circle_members.c.circle_id.in_(public_circle_ids)
     ).distinct().subquery()
     
-    # Base query for items in public circles
-    base_query = Item.query.filter(Item.owner_id.in_(public_user_ids))
+    # Base query for items in public circles, ordered by newest first
+    base_query = Item.query.filter(Item.owner_id.in_(public_user_ids)).order_by(Item.created_at.desc())
     
     circles = []
     items = []
@@ -111,7 +111,7 @@ def search():
             Item.description.ilike(f'%{query}%'),
             Tag.name.ilike(f'%{query}%')
         )
-    ).distinct().paginate(page=page, per_page=per_page, error_out=False)
+    ).distinct().order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
 
     items = items_pagination.items
 
@@ -481,6 +481,7 @@ def tag_items(tag_id):
             joinedload(Item.category),
             joinedload(Item.tags)
         )
+        .order_by(Item.created_at.desc())
         .paginate(page=page, per_page=per_page, error_out=False)
     )
 
@@ -512,6 +513,7 @@ def category_items(category_id):
             joinedload(Item.category),
             joinedload(Item.tags)
         )
+        .order_by(Item.created_at.desc())
         .paginate(page=page, per_page=per_page, error_out=False)
     )
 
@@ -552,8 +554,8 @@ def profile():
     elif request.method == 'GET':
         form.about_me.data = current_user.about_me
  
-    # Fetch user's items
-    user_items = Item.query.filter_by(owner_id=current_user.id).all()
+    # Fetch user's items (newest first)
+    user_items = Item.query.filter_by(owner_id=current_user.id).order_by(Item.created_at.desc()).all()
     
     # Create a DeleteItemForm for each item
     delete_forms = {item.id: DeleteItemForm() for item in user_items}
@@ -580,8 +582,8 @@ def user_profile(user_id):
     page = request.args.get('page', 1, type=int)
     per_page = 10
     
-    # Fetch user's items with pagination
-    items_pagination = Item.query.filter_by(owner_id=user.id).paginate(page=page, per_page=per_page, error_out=False)
+    # Fetch user's items with pagination (newest first)
+    items_pagination = Item.query.filter_by(owner_id=user.id).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     items = items_pagination.items
     
     # Create DeleteItemForm for each item if the current user is the owner
