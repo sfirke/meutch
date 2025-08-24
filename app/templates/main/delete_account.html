@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Account{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h2 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Delete Account</h2>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-warning"></i> This action cannot be undone!</h5>
+                        <p>Deleting your account will:</p>
+                        <ul>
+                            <li>Permanently delete all your items</li>
+                            <li>Remove you from all circles</li>
+                            <li>Cancel all pending loan requests</li>
+                            <li>Remove your profile and personal information</li>
+                            <li>Preserve your name in messages and loan history for other users</li>
+                        </ul>
+                    </div>
+
+                    {% if loans_summary.has_outstanding %}
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-info-circle"></i> Outstanding Loans Notice</h5>
+                        <p><strong>We strongly recommend resolving your outstanding loans before deleting your account:</strong></p>
+                        <ul>
+                            {% if loans_summary.active_borrowing > 0 %}
+                            <li>You are currently borrowing {{ loans_summary.active_borrowing }} item(s) - please return them first</li>
+                            {% endif %}
+                            {% if loans_summary.active_lending > 0 %}
+                            <li>You are currently lending {{ loans_summary.active_lending }} item(s) - these loans will continue until their end date</li>
+                            {% endif %}
+                            {% if loans_summary.pending_borrowing > 0 %}
+                            <li>You have {{ loans_summary.pending_borrowing }} pending request(s) to borrow items - these will be automatically canceled</li>
+                            {% endif %}
+                            {% if loans_summary.pending_lending > 0 %}
+                            <li>You have {{ loans_summary.pending_lending }} pending request(s) for your items - these will be automatically denied</li>
+                            {% endif %}
+                        </ul>
+                        <p>Active loans will continue with your real name visible to the other party.</p>
+                    </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-4">
+                            {{ form.confirmation.label(class="form-label fw-bold") }}
+                            {{ form.confirmation(class="form-control", placeholder="Type exactly: DELETE MY ACCOUNT") }}
+                            {% if form.confirmation.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.confirmation.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                You must type "DELETE MY ACCOUNT" exactly (in all caps) to confirm.
+                            </small>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('main.profile') }}" class="btn btn-secondary me-md-2">Cancel</a>
+                            {{ form.submit(class="btn btn-danger", onclick="return confirm('Are you absolutely sure you want to delete your account? This cannot be undone.');") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

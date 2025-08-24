@@ -25,6 +25,13 @@
                 {% endif %}
                 {{ form.submit(class="btn btn-primary") }}
             </form>
+            
+            <!-- Account Deletion -->
+            <div class="mt-4 pt-4 border-top">
+                <a href="{{ url_for('main.delete_account') }}" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-trash"></i> Delete Account
+                </a>
+            </div>
         </div>
     </div>
 

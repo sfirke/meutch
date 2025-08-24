@@ -104,3 +104,27 @@ The Meutch Team
     """.strip()
     
     return send_email(user.email, subject, text_content)
+
+
+def send_account_deletion_email(user_email, user_first_name):
+    """Send account deletion confirmation email"""
+    subject = "Meutch - Account Successfully Deleted"
+    
+    text_content = f"""
+Hello {user_first_name},
+
+This email confirms that your Meutch account has been successfully deleted as requested.
+
+Your personal information and profile have been removed from our system. Your name will continue to appear in message history and loan records to preserve context for other users, but your account can no longer be used to log in.
+
+Any active loans will continue normally until their end date. Your items without active loans have been permanently removed.
+
+If you deleted your account by mistake or have any questions, please contact our support team as soon as possible.
+
+Thank you for being part of the Meutch community. We're sorry to see you go!
+
+Best regards,
+The Meutch Team
+    """.strip()
+    
+    return send_email(user_email, subject, text_content)
