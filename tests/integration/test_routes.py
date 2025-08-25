@@ -20,7 +20,7 @@ class TestMainRoutes:
         """Test index page with authenticated user."""
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             response = client.get('/')
             assert response.status_code == 200
             assert b'Your Circles' in response.data
@@ -66,7 +66,7 @@ class TestMainRoutes:
             for i in range(15):
                 ItemFactory(owner=user, category=category, available=True)
             
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             response = client.get('/')
             assert response.status_code == 200
             
@@ -121,7 +121,7 @@ class TestItemRoutes:
         """Test list item page for authenticated user."""
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             response = client.get('/list-item')
             assert response.status_code == 200
             assert b'List a New Item' in response.data
@@ -131,7 +131,7 @@ class TestItemRoutes:
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
             category = CategoryFactory()
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             
             response = client.post('/list-item', data={
                 'name': 'Test Item',
@@ -161,7 +161,7 @@ class TestItemRoutes:
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
             item = ItemFactory()
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             
             response = client.get(f'/item/{item.id}')
             assert response.status_code == 200
@@ -173,7 +173,7 @@ class TestItemRoutes:
             user = auth_user()  # Call the function to get fresh user
             category = CategoryFactory()
             item = ItemFactory(owner=user, category=category)
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             
             response = client.get(f'/item/{item.id}/edit')
             assert response.status_code == 200
@@ -185,7 +185,7 @@ class TestItemRoutes:
             user = auth_user()  # Call the function to get fresh user
             other_user = UserFactory()
             item = ItemFactory(owner=other_user)
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             
             response = client.get(f'/item/{item.id}/edit', follow_redirects=True)
             assert response.status_code == 200
@@ -197,7 +197,7 @@ class TestItemRoutes:
             user = auth_user()  # Call the function to get fresh user
             category = CategoryFactory()
             item = ItemFactory(owner=user, category=category)
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             
             response = client.post(f'/item/{item.id}/edit', data={
                 'name': 'Updated Item Name',
@@ -220,7 +220,7 @@ class TestItemRoutes:
             user = auth_user()  # Call the function to get fresh user
             item = ItemFactory(owner=user)
             item_id = item.id
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             
             response = client.post(f'/item/{item.id}/delete', follow_redirects=True)
             assert response.status_code == 200
@@ -236,7 +236,7 @@ class TestItemRoutes:
             user = auth_user()  # Call the function to get fresh user
             other_user = UserFactory()
             item = ItemFactory(owner=other_user)
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             
             response = client.post(f'/item/{item.id}/delete', follow_redirects=True)
             assert response.status_code == 200
@@ -247,7 +247,7 @@ class TestItemRoutes:
         with app.app_context():
             user = auth_user()
             category = CategoryFactory() 
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
 
             with patch('app.main.routes.upload_item_image', return_value=None):
                 response = client.post('/list-item', data={
@@ -297,6 +297,12 @@ class TestTagAndCategoryBrowsing:
             from app.models import Tag, Category
             from tests.factories import TagFactory
             
+            # Create a user and login
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email, 'testpassword123')
+            
             # Create a tag and some items with that tag
             tag = TagFactory(name='electronics')
             
@@ -330,14 +336,25 @@ class TestTagAndCategoryBrowsing:
     
     def test_tag_items_page_invalid_tag(self, client, app):
         """Test tag items page with invalid tag ID."""
-        import uuid
-        fake_tag_id = str(uuid.uuid4())
-        response = client.get(f'/tag/{fake_tag_id}')
-        assert response.status_code == 404
+        with app.app_context():
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email, 'testpassword123')
+            
+            import uuid
+            fake_tag_id = str(uuid.uuid4())
+            response = client.get(f'/tag/{fake_tag_id}')
+            assert response.status_code == 404
     
     def test_tag_items_page_no_items(self, client, app):
         """Test tag items page with tag that has no items."""
         with app.app_context():
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email, 'testpassword123')
+            
             from tests.factories import TagFactory
             tag = TagFactory(name='unused-tag')
             
@@ -349,6 +366,11 @@ class TestTagAndCategoryBrowsing:
     def test_tag_items_pagination(self, client, app):
         """Test tag items page pagination."""
         with app.app_context():
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email, 'testpassword123')
+            
             from app.models import Tag, Category
             from tests.factories import TagFactory
             
@@ -386,6 +408,12 @@ class TestTagAndCategoryBrowsing:
     def test_category_items_page_valid_category(self, client, app):
         """Test category items page with valid category."""
         with app.app_context():
+            # Login first since category pages now require authentication
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email, 'testpassword123')
+            
             from app.models import Category
             
             # Get or create Electronics category
@@ -412,14 +440,27 @@ class TestTagAndCategoryBrowsing:
     
     def test_category_items_page_invalid_category(self, client, app):
         """Test category items page with invalid category ID."""
-        import uuid
-        fake_category_id = str(uuid.uuid4())
-        response = client.get(f'/category/{fake_category_id}')
-        assert response.status_code == 404
+        with app.app_context():
+            # Login first since category pages now require authentication
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email, 'testpassword123')
+            
+            import uuid
+            fake_category_id = str(uuid.uuid4())
+            response = client.get(f'/category/{fake_category_id}')
+            assert response.status_code == 404
     
     def test_category_items_page_no_items(self, client, app):
         """Test category items page with category that has no items."""
         with app.app_context():
+            # Login first since category pages now require authentication
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email, 'testpassword123')
+            
             category = CategoryFactory(name='Unique Empty Category')
             
             response = client.get(f'/category/{category.id}')
@@ -430,6 +471,12 @@ class TestTagAndCategoryBrowsing:
     def test_category_items_pagination(self, client, app):
         """Test category items page pagination."""
         with app.app_context():
+            # Login first since category pages now require authentication
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email, 'testpassword123')
+            
             category = CategoryFactory(name='Unique Test Category for Pagination')
             
             # Create more than 12 items (current per_page) in this category
@@ -464,7 +511,7 @@ class TestProfileRoutes:
         """Test profile page for authenticated user."""
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             response = client.get('/profile')
             assert response.status_code == 200
             assert b'About Me' in response.data
@@ -473,7 +520,7 @@ class TestProfileRoutes:
         """Test updating profile."""
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             
             response = client.post('/profile', data={
                 'about_me': 'Updated bio information'
@@ -502,7 +549,7 @@ class TestAccountDeletion:
             user_id = user.id
             user_email = user.email
             
-            login_user(client, user.email)
+            login_user(client, user.email, 'testpassword123')
             
             response = client.post('/delete_account', data={
                 'confirmation': 'DELETE MY ACCOUNT'

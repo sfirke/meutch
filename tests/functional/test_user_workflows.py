@@ -274,6 +274,10 @@ class TestSearchAndBrowsingWorkflow:
             assert response.status_code == 200
             assert b'Gaming Laptop' in response.data
             
+            # Login to browse by tag (now requires authentication)
+            from conftest import login_user
+            login_user(client, user.email, 'testpassword123')
+            
             # Browse by tag
             response = client.get(f'/tag/{tag1.id}')
             assert response.status_code == 200
