@@ -2,7 +2,7 @@
 import pytest
 from app.models import User
 from tests.factories import UserFactory, ItemFactory
-from conftest import login_user, logout_user
+from conftest import login_user, logout_user, TEST_PASSWORD
 from unittest.mock import patch, Mock
 
 class TestAuthenticationRoutes:
@@ -55,7 +55,7 @@ class TestAuthenticationRoutes:
             
             response = client.post('/auth/login', data={
                 'email': user.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             })
             
             assert response.status_code == 200

@@ -10,6 +10,9 @@ from app.models import User, Item, Category, Circle, Tag
 from config import Config
 from unittest.mock import patch
 
+# Test constants
+TEST_PASSWORD = 'testpassword123'  # Must match UserFactory password
+
 def is_port_open(host, port):
     """Check if a port is open."""
     try:
@@ -162,8 +165,11 @@ def auth_user(app):
     
     return get_user
 
-def login_user(client, email='test@example.com', password='testpassword'):
+def login_user(client, email='test@example.com', password=None):
     """Helper function to log in a user."""
+    if password is None:
+        password = TEST_PASSWORD  # Use constant instead of hardcoded string
+    
     return client.post('/auth/login', data={
         'email': email,
         'password': password
