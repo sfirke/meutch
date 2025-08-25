@@ -7,6 +7,7 @@
 <div class="container mt-5">
     <h2>Items Tagged "{{ tag.name }}"</h2>
     
+    <div id="items-section">
     {% if items %}
         <ul class="list-group">
             {% for item in items %}
@@ -75,5 +76,6 @@
     {% else %}
         <p>No items found with the tag "{{ tag.name }}".</p>
     {% endif %}
+    </div>
 </div>
 {% endblock %}
