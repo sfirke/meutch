@@ -191,6 +191,24 @@ class TestProtectedRoutes:
             assert response.status_code == 302
             assert '/auth/login' in response.location
 
+    def test_tag_items_requires_auth(self, client, app):
+        """Test that tag items page requires authentication."""
+        with app.app_context():
+            from tests.factories import TagFactory
+            tag = TagFactory()
+            response = client.get(f'/tag/{tag.id}')
+            assert response.status_code == 302
+            assert '/auth/login' in response.location
+
+    def test_category_items_requires_auth(self, client, app):
+        """Test that category items page requires authentication."""
+        with app.app_context():
+            from tests.factories import CategoryFactory
+            category = CategoryFactory()
+            response = client.get(f'/category/{category.id}')
+            assert response.status_code == 302
+            assert '/auth/login' in response.location
+
 class TestEmailConfirmation:
     """Test email confirmation functionality."""
     
