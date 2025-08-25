@@ -297,6 +297,12 @@ class TestTagAndCategoryBrowsing:
             from app.models import Tag, Category
             from tests.factories import TagFactory
             
+            # Create a user and login
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email)
+            
             # Create a tag and some items with that tag
             tag = TagFactory(name='electronics')
             
@@ -330,14 +336,25 @@ class TestTagAndCategoryBrowsing:
     
     def test_tag_items_page_invalid_tag(self, client, app):
         """Test tag items page with invalid tag ID."""
-        import uuid
-        fake_tag_id = str(uuid.uuid4())
-        response = client.get(f'/tag/{fake_tag_id}')
-        assert response.status_code == 404
+        with app.app_context():
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email)
+            
+            import uuid
+            fake_tag_id = str(uuid.uuid4())
+            response = client.get(f'/tag/{fake_tag_id}')
+            assert response.status_code == 404
     
     def test_tag_items_page_no_items(self, client, app):
         """Test tag items page with tag that has no items."""
         with app.app_context():
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email)
+            
             from tests.factories import TagFactory
             tag = TagFactory(name='unused-tag')
             
@@ -349,6 +366,11 @@ class TestTagAndCategoryBrowsing:
     def test_tag_items_pagination(self, client, app):
         """Test tag items page pagination."""
         with app.app_context():
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email)
+            
             from app.models import Tag, Category
             from tests.factories import TagFactory
             
@@ -386,6 +408,11 @@ class TestTagAndCategoryBrowsing:
     def test_category_items_page_valid_category(self, client, app):
         """Test category items page with valid category."""
         with app.app_context():
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email)
+            
             from app.models import Category
             
             # Get or create Electronics category
@@ -412,14 +439,25 @@ class TestTagAndCategoryBrowsing:
     
     def test_category_items_page_invalid_category(self, client, app):
         """Test category items page with invalid category ID."""
-        import uuid
-        fake_category_id = str(uuid.uuid4())
-        response = client.get(f'/category/{fake_category_id}')
-        assert response.status_code == 404
+        with app.app_context():
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email)
+            
+            import uuid
+            fake_category_id = str(uuid.uuid4())
+            response = client.get(f'/category/{fake_category_id}')
+            assert response.status_code == 404
     
     def test_category_items_page_no_items(self, client, app):
         """Test category items page with category that has no items."""
         with app.app_context():
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email)
+            
             category = CategoryFactory(name='Unique Empty Category')
             
             response = client.get(f'/category/{category.id}')
@@ -430,6 +468,11 @@ class TestTagAndCategoryBrowsing:
     def test_category_items_pagination(self, client, app):
         """Test category items page pagination."""
         with app.app_context():
+            from tests.factories import UserFactory
+            from conftest import login_user
+            user = UserFactory()
+            login_user(client, user.email)
+            
             category = CategoryFactory(name='Unique Test Category for Pagination')
             
             # Create more than 12 items (current per_page) in this category

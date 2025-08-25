@@ -2,7 +2,7 @@
 import pytest
 from app.models import User
 from tests.factories import UserFactory, ItemFactory
-from conftest import login_user, logout_user
+from conftest import login_user, logout_user, TEST_PASSWORD
 from unittest.mock import patch, Mock
 
 class TestAuthenticationRoutes:
@@ -20,7 +20,7 @@ class TestAuthenticationRoutes:
             user = auth_user()  # Call the function to get fresh user
             response = client.post('/auth/login', data={
                 'email': user.email,
-                'password': 'testpassword'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             assert response.status_code == 200
@@ -55,7 +55,7 @@ class TestAuthenticationRoutes:
             
             response = client.post('/auth/login', data={
                 'email': user.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             })
             
             assert response.status_code == 200
@@ -150,8 +150,8 @@ class TestAuthenticationRoutes:
                     'email': 'test@example.com',
                     'first_name': 'Test',
                     'last_name': 'User',
-                    'password': 'testpassword',
-                    'confirm_password': 'testpassword',
+                    'password': TEST_PASSWORD,
+                    'confirm_password': TEST_PASSWORD,
                     'street': '123 Test St',
                     'city': 'Test City',
                     'state': 'TS',
@@ -188,6 +188,24 @@ class TestProtectedRoutes:
         with app.app_context():
             item = ItemFactory()
             response = client.get(f'/item/{item.id}')
+            assert response.status_code == 302
+            assert '/auth/login' in response.location
+
+    def test_tag_items_requires_auth(self, client, app):
+        """Test that tag items page requires authentication."""
+        with app.app_context():
+            from tests.factories import TagFactory
+            tag = TagFactory()
+            response = client.get(f'/tag/{tag.id}')
+            assert response.status_code == 302
+            assert '/auth/login' in response.location
+
+    def test_category_items_requires_auth(self, client, app):
+        """Test that category items page requires authentication."""
+        with app.app_context():
+            from tests.factories import CategoryFactory
+            category = CategoryFactory()
+            response = client.get(f'/category/{category.id}')
             assert response.status_code == 302
             assert '/auth/login' in response.location
 

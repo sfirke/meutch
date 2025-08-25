@@ -1,7 +1,9 @@
 """Unit tests for models."""
 import pytest
-from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message
-from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory, LoanRequestFactory, MessageFactory
+from datetime import datetime
+from app.models import User, Item, Circle, Tag, Category
+from tests.factories import UserFactory, ItemFactory, TagFactory, CircleFactory, CategoryFactory, LoanRequestFactory, MessageFactory
+from conftest import TEST_PASSWORD
 
 class TestUser:
     """Test User model."""
@@ -20,7 +22,7 @@ class TestUser:
         """Test password hashing and verification."""
         with app.app_context():
             user = UserFactory()
-            password = 'testpassword123'
+            password = TEST_PASSWORD
             user.set_password(password)
             
             assert user.password_hash is not None

@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from flask import url_for
 from app.models import User, Item, Category, db
 from tests.factories import UserFactory, CategoryFactory
+from conftest import TEST_PASSWORD
 
 class TestUserRegistrationWorkflow:
     """Test complete user registration workflow."""
@@ -56,7 +57,7 @@ class TestItemManagementWorkflow:
             # Login
             client.post('/auth/login', data={
                 'email': user.email,
-                'password': 'testpassword'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             # Create an item
@@ -119,7 +120,7 @@ class TestLoanRequestWorkflow:
             # Borrower logs in and requests item
             client.post('/auth/login', data={
                 'email': borrower.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             # Generate dynamic dates - start date 3 days from now, end date 8 days from now
@@ -138,7 +139,7 @@ class TestLoanRequestWorkflow:
             client.get('/auth/logout', follow_redirects=True)
             client.post('/auth/login', data={
                 'email': lender.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             # Lender checks messages and approves loan
@@ -176,7 +177,7 @@ class TestCircleWorkflow:
             # Admin creates circle
             client.post('/auth/login', data={
                 'email': admin_user.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             response = client.post('/circles/circles', data={
@@ -199,7 +200,7 @@ class TestCircleWorkflow:
             client.get('/auth/logout', follow_redirects=True)
             client.post('/auth/login', data={
                 'email': member_user.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             response = client.post(f'/circles/circles/join/{circle.id}', data={
@@ -212,7 +213,7 @@ class TestCircleWorkflow:
             client.get('/auth/logout', follow_redirects=True)
             client.post('/auth/login', data={
                 'email': admin_user.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             # Find join request
@@ -274,6 +275,10 @@ class TestSearchAndBrowsingWorkflow:
             assert response.status_code == 200
             assert b'Gaming Laptop' in response.data
             
+            # Login to browse by tag (now requires authentication)
+            from conftest import login_user
+            login_user(client, user.email)
+            
             # Browse by tag
             response = client.get(f'/tag/{tag1.id}')
             assert response.status_code == 200
@@ -295,7 +300,7 @@ class TestMessagingWorkflow:
             # Sender logs in and sends message
             client.post('/auth/login', data={
                 'email': sender.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             response = client.post(f'/item/{item.id}', data={
@@ -309,7 +314,7 @@ class TestMessagingWorkflow:
             client.get('/auth/logout', follow_redirects=True)
             client.post('/auth/login', data={
                 'email': recipient.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             response = client.get('/messages')
@@ -355,7 +360,7 @@ class TestUserProfileWorkflow:
             # Login for authenticated test
             client.post('/auth/login', data={
                 'email': user.email,
-                'password': 'testpassword'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             # Test authenticated access works

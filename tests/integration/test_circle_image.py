@@ -5,9 +5,10 @@ from app.models import Circle, db
 from tests.factories import UserFactory, CircleFactory
 from sqlalchemy import text
 from flask import url_for
+from conftest import TEST_PASSWORD
 
 def login_user(client, user):
-    client.post('/auth/login', data={'email': user.email, 'password': 'testpassword123'}, follow_redirects=True)
+    client.post('/auth/login', data={'email': user.email, 'password': TEST_PASSWORD}, follow_redirects=True)
 
 def login_admin(client, user, circle):
     db.session.execute(
@@ -19,7 +20,7 @@ def login_admin(client, user, circle):
         )
     )
     db.session.commit()
-    client.post('/auth/login', data={'email': user.email, 'password': 'testpassword123'}, follow_redirects=True)
+    client.post('/auth/login', data={'email': user.email, 'password': TEST_PASSWORD}, follow_redirects=True)
 
 
 @patch('app.circles.routes.upload_circle_image', return_value='https://example.com/circle.jpg')

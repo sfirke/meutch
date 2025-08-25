@@ -463,6 +463,7 @@ def owner_cancel_loan(loan_id):
     return redirect(url_for('main.view_conversation', message_id=original_message.id))
 
 @main_bp.route('/tag/<uuid:tag_id>')
+@login_required
 def tag_items(tag_id):
     # Retrieve the tag or return 404 if not found
     tag = Tag.query.get_or_404(tag_id)
@@ -496,6 +497,7 @@ def tag_items(tag_id):
     )
 
 @main_bp.route('/category/<uuid:category_id>')
+@login_required
 def category_items(category_id):
     # Retrieve the category or return 404 if not found
     category = Category.query.get_or_404(category_id)
