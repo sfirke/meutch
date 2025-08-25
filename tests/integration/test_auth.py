@@ -20,7 +20,7 @@ class TestAuthenticationRoutes:
             user = auth_user()  # Call the function to get fresh user
             response = client.post('/auth/login', data={
                 'email': user.email,
-                'password': 'testpassword'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             assert response.status_code == 200
@@ -150,8 +150,8 @@ class TestAuthenticationRoutes:
                     'email': 'test@example.com',
                     'first_name': 'Test',
                     'last_name': 'User',
-                    'password': 'testpassword',
-                    'confirm_password': 'testpassword',
+                    'password': TEST_PASSWORD,
+                    'confirm_password': TEST_PASSWORD,
                     'street': '123 Test St',
                     'city': 'Test City',
                     'state': 'TS',

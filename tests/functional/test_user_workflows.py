@@ -57,7 +57,7 @@ class TestItemManagementWorkflow:
             # Login
             client.post('/auth/login', data={
                 'email': user.email,
-                'password': 'testpassword'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             # Create an item
@@ -360,7 +360,7 @@ class TestUserProfileWorkflow:
             # Login for authenticated test
             client.post('/auth/login', data={
                 'email': user.email,
-                'password': 'testpassword'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             # Test authenticated access works
