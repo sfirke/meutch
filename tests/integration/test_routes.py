@@ -408,7 +408,6 @@ class TestTagAndCategoryBrowsing:
     def test_category_items_page_valid_category(self, client, app):
         """Test category items page with valid category."""
         with app.app_context():
-            # Login first since category pages now require authentication
             from tests.factories import UserFactory
             from conftest import login_user
             user = UserFactory()
@@ -441,7 +440,6 @@ class TestTagAndCategoryBrowsing:
     def test_category_items_page_invalid_category(self, client, app):
         """Test category items page with invalid category ID."""
         with app.app_context():
-            # Login first since category pages now require authentication
             from tests.factories import UserFactory
             from conftest import login_user
             user = UserFactory()
@@ -455,7 +453,6 @@ class TestTagAndCategoryBrowsing:
     def test_category_items_page_no_items(self, client, app):
         """Test category items page with category that has no items."""
         with app.app_context():
-            # Login first since category pages now require authentication
             from tests.factories import UserFactory
             from conftest import login_user
             user = UserFactory()
@@ -471,7 +468,6 @@ class TestTagAndCategoryBrowsing:
     def test_category_items_pagination(self, client, app):
         """Test category items page pagination."""
         with app.app_context():
-            # Login first since category pages now require authentication
             from tests.factories import UserFactory
             from conftest import login_user
             user = UserFactory()
