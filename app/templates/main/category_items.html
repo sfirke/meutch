@@ -9,34 +9,16 @@
     
     <div id="items-section">
     {% if items %}
-        <ul class="list-group">
+        <div class="items-grid">
             {% for item in items %}
-                <li class="list-group-item">
-                    <h4><a href="{{ url_for('main.item_detail', item_id=item.id) }}">{{ item.name }}</a></h4>
-                    <p>{{ item.description }}</p>
-                    <p><strong><i class="fas fa-folder me-1"></i>Category:</strong>
-                        <a href="{{ url_for('main.category_items', category_id=item.category.id) }}" class="category text-decoration-none">
-                            {{ item.category.name }}
-                        </a>
-                    </p>
-                    {% if item.tags %}
-                        <p><strong><i class="fas fa-tags me-1"></i>Tags:</strong>
-                            {% for tag in item.tags %}
-                                <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" class="tag text-decoration-none">
-                                    <i class="fas fa-tag me-1"></i>{{ tag.name }}
-                                </a>
-                            {% endfor %}
-                        </p>
-                    {% endif %}
-                    <p><strong>Status:</strong> {{ "Available" if item.available else "Currently Borrowed" }}</p>
-                </li>
+                {% include 'main/_item_card.html' %}
             {% endfor %}
-        </ul>
+        </div>
         
         <!-- Pagination Controls -->
         {% if pagination.pages > 1 %}
-            <nav aria-label="Category items pages">
-                <ul class="pagination justify-content-center mt-4">
+            <nav aria-label="Category items pages" class="mt-4">
+                <ul class="pagination justify-content-center">
                     {% if pagination.has_prev %}
                         <li class="page-item">
                             <a class="page-link" href="{{ url_for('main.category_items', category_id=category.id, page=pagination.prev_num) }}" aria-label="Previous">
