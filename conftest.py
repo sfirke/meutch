@@ -154,7 +154,7 @@ def auth_user(app):
             country='USA',
             email_confirmed=True
         )
-        user.set_password('testpassword')
+        user.set_password(TEST_PASSWORD)
         db.session.add(user)
         db.session.commit()
         user_id = user.id
