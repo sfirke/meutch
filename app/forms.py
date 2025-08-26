@@ -118,6 +118,7 @@ class ListItemForm(FlaskForm):
     ])
     delete_image = BooleanField('Delete current image')
     submit = SubmitField('List Item')
+    submit_and_create_another = SubmitField('List Item & Create Another')
     
     def __init__(self, *args, **kwargs):
         super(ListItemForm, self).__init__(*args, **kwargs)

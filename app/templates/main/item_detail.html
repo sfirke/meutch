@@ -2,75 +2,144 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-4">
-    <h1>{{ item.name }}</h1>
-    {% if item.image_url %}
-        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-image">
-    {% endif %}
-    
     <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <p class="lead">{{ item.description }}</p>
-            
-            <p>Owner: <a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}">
-                {{ item.owner.first_name }} {{ item.owner.last_name }}</a>
-            </p>
-            
-            <p>Status: {{ "Available" if item.available else "Currently Borrowed" }}</p>
-            
-            {% if current_user != item.owner and item.available %}
-                <a href="{{ url_for('main.request_item', item_id=item.id) }}" 
-                   class="btn btn-primary">Request to Borrow</a>
-            {% endif %}
-            
-            <div class="mt-4">
-                <h3><i class="fas fa-folder me-2"></i>Category:</h3>
-                <a href="{{ url_for('main.category_items', category_id=item.category.id) }}" class="category text-decoration-none">
-                    {{ item.category.name }}
-                </a>
-            </div>
-            
-            {% if item.tags %}
-                <div class="mt-3">
-                    <h3><i class="fas fa-tags me-2"></i>Tags:</h3>
-                    {% for tag in item.tags %}
-                        <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}"
-                           class="tag text-decoration-none">
-                           <i class="fas fa-tag me-1"></i>{{ tag.name }}
-                        </a>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </div>
-        <!-- Message Owner Button - only show if viewer is not owner -->
-    {% if current_user.is_authenticated and current_user.id != item.owner.id %}
-        <hr>
-        <h4>Message the owner about this item</h4>
-        <form method="POST" action="{{ url_for('main.item_detail', item_id=item.id) }}">
-            {{ form.hidden_tag() }}
-            
-            <div class="mb-3">
-                {{ form.body.label(class="form-label") }}
-                {{ form.body(class="form-control", rows="4", placeholder="Type your message here...") }}
-                {% if form.body.errors %}
-                    <div class="text-danger">
-                        {% for error in form.body.errors %}
-                            {{ error }}
-                        {% endfor %}
+        <!-- Image Column -->
+        <div class="col-lg-5 mb-4">
+            <div class="item-detail-image-container">
+                {% if item.image_url %}
+                    <img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-detail-image">
+                {% else %}
+                    <div class="item-detail-image-placeholder d-flex flex-column align-items-center justify-content-center">
+                        <i class="fas fa-image text-muted mb-3" style="font-size: 4rem;"></i>
+                        <p class="text-muted mb-0">No image available</p>
                     </div>
                 {% endif %}
             </div>
-
-            <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
-        </form>
-    {% endif %}
-    {% if current_user.is_authenticated and current_user.id == item.owner.id %}
-        <div class="mt-3 mb-2 d-flex align-items-center">
-            <a href="{{ url_for('main.edit_item', item_id=item.id) }}" class="btn btn-info me-2" style="min-width: 110px;">Edit Item</a>
-            <form action="{{ url_for('main.delete_item', item_id=item.id) }}" method="post" style="display:inline;">
-                {{ delete_form.hidden_tag() }}
-                <button type="submit" class="btn btn-danger" style="min-width: 110px;" onclick="return confirm('Are you sure you want to delete this item?');">Delete Item</button>
-            </form>
         </div>
-    {% endif %}
+        
+        <!-- Details Column -->
+        <div class="col-lg-7">
+            <div class="item-detail-content">
+                <!-- Header Card -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h1 class="card-title h2 mb-3">{{ item.name }}</h1>
+                        
+                        {% if item.description %}
+                            <p class="card-text lead text-muted mb-4">{{ item.description }}</p>
+                        {% endif %}
+                        
+                        <!-- Status and Availability -->
+                        <div class="row mb-4">
+                            <div class="col-sm-6">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-circle me-2 text-{{ 'success' if item.available else 'warning' }}"></i>
+                                    <span class="fw-bold">Status:</span>
+                                    <span class="ms-2 badge bg-{{ 'success' if item.available else 'warning' }}">
+                                        {{ "Available" if item.available else "Currently Borrowed" }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-user me-2 text-primary"></i>
+                                    <span class="fw-bold">Owner:</span>
+                                    <a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}" 
+                                       class="ms-2 text-decoration-none">
+                                        {{ item.owner.first_name }} {{ item.owner.last_name }}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Category and Tags -->
+                        <div class="mb-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="fas fa-folder me-2 text-primary"></i>
+                                <span class="fw-bold me-2">Category:</span>
+                                <a href="{{ url_for('main.category_items', category_id=item.category.id) }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    {{ item.category.name }}
+                                </a>
+                            </div>
+                            
+                            {% if item.tags %}
+                                <div class="d-flex align-items-start">
+                                    <i class="fas fa-tags me-2 text-primary mt-1"></i>
+                                    <div>
+                                        <span class="fw-bold me-2">Tags:</span>
+                                        <div class="d-flex flex-wrap gap-2 mt-1">
+                                            {% for tag in item.tags %}
+                                                <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}"
+                                                   class="badge bg-secondary text-decoration-none">
+                                                   <i class="fas fa-tag me-1"></i>{{ tag.name }}
+                                                </a>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2 d-md-flex">
+                            {% if current_user.is_authenticated and current_user.id != item.owner.id and item.available %}
+                                <a href="{{ url_for('main.request_item', item_id=item.id) }}" 
+                                   class="btn btn-primary btn-lg">
+                                    <i class="fas fa-hand-holding me-2"></i>Request to Borrow
+                                </a>
+                            {% endif %}
+                            
+                            {% if current_user.is_authenticated and current_user.id == item.owner.id %}
+                                <a href="{{ url_for('main.edit_item', item_id=item.id) }}" 
+                                   class="btn btn-outline-primary">
+                                    <i class="fas fa-edit me-2"></i>Edit Item
+                                </a>
+                                <form action="{{ url_for('main.delete_item', item_id=item.id) }}" method="post" class="d-inline">
+                                    {{ delete_form.hidden_tag() }}
+                                    <button type="submit" class="btn btn-outline-danger" 
+                                            onclick="return confirm('Are you sure you want to delete this item?');">
+                                        <i class="fas fa-trash me-2"></i>Delete Item
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Message Owner Card -->
+                {% if current_user.is_authenticated and current_user.id != item.owner.id %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-envelope me-2"></i>Message the Owner
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" action="{{ url_for('main.item_detail', item_id=item.id) }}">
+                                {{ form.hidden_tag() }}
+                                
+                                <div class="mb-3">
+                                    {{ form.body.label(class="form-label") }}
+                                    {{ form.body(class="form-control", rows="4", placeholder="Type your message here...") }}
+                                    {% if form.body.errors %}
+                                        <div class="text-danger mt-2">
+                                            {% for error in form.body.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane me-2"></i>{{ form.submit.label.text }}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
