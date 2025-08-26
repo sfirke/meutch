@@ -778,17 +778,6 @@ footer h6 {
     margin-bottom: 0;
 }
 
-.badge.bg-secondary {
-    background-color: var(--secondary-color) !important;
-    color: white;
-    transition: all 0.2s ease;
-}
-
-.badge.bg-secondary:hover {
-    background-color: var(--primary-color) !important;
-    transform: scale(1.05);
-}
-
 /* Responsive adjustments */
 @media (max-width: 992px) {
     .item-detail-image-container {
