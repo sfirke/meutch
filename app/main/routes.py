@@ -148,6 +148,13 @@ def item_detail(item_id):
         db.session.add(message)
         db.session.commit()
         
+        # Send email notification to recipient
+        try:
+            from app.utils.email import send_message_notification_email
+            send_message_notification_email(message)
+        except Exception as e:
+            current_app.logger.error(f"Failed to send email notification for message {message.id}: {str(e)}")
+        
         flash("Your message has been sent.", "success")
         return redirect(url_for('main.item_detail', item_id=item.id))
     
@@ -201,6 +208,14 @@ def request_item(item_id):
         
         try:
             db.session.commit()
+            
+            # Send email notification to recipient
+            try:
+                from app.utils.email import send_message_notification_email
+                send_message_notification_email(message)
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email notification for loan request message {message.id}: {str(e)}")
+            
             flash('Your loan request has been submitted.', 'success')
             return redirect(url_for('main.view_conversation', message_id=message.id))
         except:
@@ -347,6 +362,14 @@ def process_loan(loan_id, action):
     
     try:
         db.session.commit()
+        
+        # Send email notification to recipient
+        try:
+            from app.utils.email import send_message_notification_email
+            send_message_notification_email(message)
+        except Exception as e:
+            current_app.logger.error(f"Failed to send email notification for loan decision message {message.id}: {str(e)}")
+        
         flash(f"Loan request has been {loan.status}.", "success")
     except:
         db.session.rollback()
@@ -384,6 +407,14 @@ def cancel_loan_request(loan_id):
     
     try:
         db.session.commit()
+        
+        # Send email notification to recipient
+        try:
+            from app.utils.email import send_message_notification_email
+            send_message_notification_email(message)
+        except Exception as e:
+            current_app.logger.error(f"Failed to send email notification for loan cancellation message {message.id}: {str(e)}")
+        
         flash("Loan request has been cancelled.", "success")
     except:
         db.session.rollback()
@@ -422,6 +453,14 @@ def complete_loan(loan_id):
     
     try:
         db.session.commit()
+        
+        # Send email notification to recipient
+        try:
+            from app.utils.email import send_message_notification_email
+            send_message_notification_email(message)
+        except Exception as e:
+            current_app.logger.error(f"Failed to send email notification for loan completion message {message.id}: {str(e)}")
+        
         flash("Loan has been marked as completed.", "success")
     except:
         db.session.rollback()
@@ -462,6 +501,14 @@ def owner_cancel_loan(loan_id):
     
     try:
         db.session.commit()
+        
+        # Send email notification to recipient
+        try:
+            from app.utils.email import send_message_notification_email
+            send_message_notification_email(message)
+        except Exception as e:
+            current_app.logger.error(f"Failed to send email notification for owner loan cancellation message {message.id}: {str(e)}")
+        
         flash("Loan has been canceled.", "success")
     except Exception as e:
         db.session.rollback()
@@ -560,11 +607,13 @@ def profile():
                 flash('Profile image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'warning')
         
         current_user.about_me = form.about_me.data
+        current_user.email_notifications_enabled = form.email_notifications_enabled.data
         db.session.commit()
         flash('Your profile has been updated.', 'success')
         return redirect(url_for('main.profile'))
     elif request.method == 'GET':
         form.about_me.data = current_user.about_me
+        form.email_notifications_enabled.data = current_user.email_notifications_enabled
  
     # Pagination parameters
     page = request.args.get('page', 1, type=int)
@@ -751,6 +800,14 @@ def view_conversation(message_id):
         )
         db.session.add(reply)
         db.session.commit()
+        
+        # Send email notification to recipient
+        try:
+            from app.utils.email import send_message_notification_email
+            send_message_notification_email(reply)
+        except Exception as e:
+            current_app.logger.error(f"Failed to send email notification for reply message {reply.id}: {str(e)}")
+        
         flash("Your reply has been sent.", "success")
         return redirect(url_for('main.view_conversation', message_id=message_id))
 

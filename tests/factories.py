@@ -34,6 +34,7 @@ class UserFactory(SQLAlchemyModelFactory):
     zip_code = factory.LazyAttribute(lambda obj: fake.zipcode())
     country = "USA"
     email_confirmed = True
+    email_notifications_enabled = True
     password_hash = factory.LazyFunction(lambda: generate_password_hash('testpassword123'))
 
 class TagFactory(SQLAlchemyModelFactory):
