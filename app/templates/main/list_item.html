@@ -29,9 +29,21 @@
         </div>
         
         <!-- Image -->
-        <div class="form-group">
-            {{ form.image.label }}
-            {{ form.image(class="form-control") }}
+        <div class="mb-3">
+            {{ form.image.label(class="form-label") }}
+            {{ form.image(class="form-control", accept="image/*", capture="environment") }}
+            <div class="form-text">
+                <i class="fas fa-camera me-1"></i>
+                <strong>Mobile users:</strong> Tap to take a photo with your camera or choose from your gallery.
+                <br>
+                <i class="fas fa-upload me-1"></i>
+                <strong>On computer:</strong> Click to upload an image file.
+                <br>
+                <small class="text-muted">Supported formats: JPG, PNG, GIF, BMP, WebP</small>
+            </div>
+            {% for error in form.image.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
         </div>
 
         <!-- Category -->
@@ -52,9 +64,10 @@
             {% endfor %}
         </div>
         
-        <!-- Submit Button -->
-        <div class="mb-3">
+        <!-- Submit Buttons -->
+        <div class="mb-3 d-grid gap-2 d-md-flex justify-content-md-start">
             {{ form.submit(class="btn btn-primary") }}
+            {{ form.submit_and_create_another(class="btn btn-outline-primary") }}
         </div>
     </form>
 </div>
