@@ -4,8 +4,7 @@ from flask import url_for
 
 from app import db
 from tests.factories import UserFactory, ItemFactory
-
-TEST_PASSWORD = 'testpassword123'
+from conftest import TEST_PASSWORD
 
 
 class TestEmailNotificationIntegration:
