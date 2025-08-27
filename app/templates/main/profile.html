@@ -23,6 +23,13 @@
                         {{ form.delete_image() }}
                     </div>
                 {% endif %}
+                <div class="mb-3">
+                    <div class="form-check">
+                        {{ form.email_notifications_enabled(class="form-check-input") }}
+                        {{ form.email_notifications_enabled.label(class="form-check-label") }}
+                    </div>
+                    <small class="text-muted">Uncheck to stop receiving email notifications for new messages</small>
+                </div>
                 {{ form.submit(class="btn btn-primary") }}
             </form>
             

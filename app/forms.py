@@ -130,6 +130,7 @@ class EditProfileForm(FlaskForm):
         OptionalFileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], 'Images only! Allowed formats: JPG, PNG, GIF, BMP, WebP')
     ])
     delete_image = BooleanField('Delete current profile picture')
+    email_notifications_enabled = BooleanField('Receive email notifications for new messages')
     submit = SubmitField('Update Profile')
 
 class DeleteItemForm(FlaskForm):
