@@ -190,3 +190,36 @@ class TestMessageNotifications:
                 assert 'loan cancellation' in text_content.lower()
                 assert 'canceled by the borrower' in text_content
                 assert 'loan cancellation' in html_content.lower()
+
+    def test_send_message_notification_email_invalid_status(self, app):
+        """Test that invalid loan request status raises ValueError."""
+        with app.app_context():
+            from tests.factories import LoanRequestFactory
+            
+            # Create test users and item
+            sender = UserFactory(email='borrower@test.com', first_name='John', last_name='Doe')
+            recipient = UserFactory(email='owner@test.com', first_name='Jane', last_name='Smith')
+            item = ItemFactory(name='Test Item', owner=recipient)
+            
+            # Create a loan request with invalid status
+            loan_request = LoanRequestFactory(
+                item=item,
+                borrower=sender,
+                status='invalid_status'  # This should trigger the ValueError
+            )
+            
+            # Create a loan request message
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient, 
+                item=item,
+                body='Test message with invalid status.',
+                loan_request=loan_request
+            )
+            
+            # Should raise ValueError for unknown status
+            with pytest.raises(ValueError) as exc_info:
+                send_message_notification_email(message)
+            
+            assert "Unknown loan request status 'invalid_status'" in str(exc_info.value)
+            assert "Valid statuses are: pending, approved, denied, completed, canceled" in str(exc_info.value)

@@ -144,8 +144,9 @@ def send_message_notification_email(message):
             subject = f"Meutch - Loan Request Canceled for {message.item.name}"
             email_type = "loan cancellation"
         else:
-            subject = f"Meutch - Update on {message.item.name}"
-            email_type = "loan update"
+            # Strict validation: raise exception for unknown statuses
+            raise ValueError(f"Unknown loan request status '{message.loan_request.status}' for message {message.id}. "
+                           f"Valid statuses are: pending, approved, denied, completed, canceled")
     else:
         subject = f"Meutch - New Message about {message.item.name}"
         email_type = "message"
