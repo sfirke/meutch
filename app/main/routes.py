@@ -389,7 +389,7 @@ def cancel_loan_request(loan_id):
         return redirect(url_for('main.messages'))
     
     if loan.status != 'pending':
-        flash("This loan request cannot be cancelled.", "warning")
+        flash("This loan request cannot be canceled.", "warning")
         return redirect(url_for('main.messages'))
     
     # Create cancellation message
@@ -397,13 +397,13 @@ def cancel_loan_request(loan_id):
         sender_id=current_user.id,
         recipient_id=loan.item.owner_id,
         item_id=loan.item_id,
-        body="Loan request has been cancelled by the borrower.",
+        body="Loan request has been canceled by the borrower.",
         loan_request_id=loan.id
     )
     db.session.add(message)
     
     # Update loan request status
-    loan.status = 'cancelled'
+    loan.status = 'canceled'
     
     try:
         db.session.commit()
@@ -415,10 +415,10 @@ def cancel_loan_request(loan_id):
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for loan cancellation message {message.id}: {str(e)}")
         
-        flash("Loan request has been cancelled.", "success")
+        flash("Loan request has been canceled.", "success")
     except:
         db.session.rollback()
-        flash("An error occurred cancelling the request.", "danger")
+        flash("An error occurred canceling the request.", "danger")
     
     # Find original conversation
     original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()

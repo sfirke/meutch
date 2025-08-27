@@ -140,8 +140,8 @@ def send_message_notification_email(message):
         elif message.loan_request.status == 'completed':
             subject = f"Meutch - Loan Completed for {message.item.name}"
             email_type = "loan completion"
-        elif message.loan_request.status in ['cancelled', 'canceled']:
-            subject = f"Meutch - Loan Request Cancelled for {message.item.name}"
+        elif message.loan_request.status == 'canceled':
+            subject = f"Meutch - Loan Request Canceled for {message.item.name}"
             email_type = "loan cancellation"
         else:
             subject = f"Meutch - Update on {message.item.name}"

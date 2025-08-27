@@ -145,3 +145,48 @@ class TestMessageNotifications:
                 
                 assert result is False
                 mock_send_email.assert_called_once()
+
+    def test_send_message_notification_email_canceled_loan(self, app):
+        """Test sending email notification for a canceled loan request."""
+        with app.app_context():
+            from tests.factories import LoanRequestFactory
+            
+            # Create test users and item
+            sender = UserFactory(email='borrower@test.com', first_name='John', last_name='Doe')
+            recipient = UserFactory(email='owner@test.com', first_name='Jane', last_name='Smith')
+            item = ItemFactory(name='Test Item', owner=recipient)
+            
+            # Create a canceled loan request
+            loan_request = LoanRequestFactory(
+                item=item,
+                borrower=sender,
+                status='canceled'
+            )
+            
+            # Create a loan cancellation message
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient, 
+                item=item,
+                body='Loan request has been canceled by the borrower.',
+                loan_request=loan_request
+            )
+            
+            with patch('app.utils.email.send_email') as mock_send_email:
+                mock_send_email.return_value = True
+                
+                result = send_message_notification_email(message)
+                
+                assert result is True
+                mock_send_email.assert_called_once()
+                
+                # Verify the email content
+                args, kwargs = mock_send_email.call_args
+                to_email, subject, text_content, html_content = args
+                
+                assert to_email == 'owner@test.com'
+                assert 'Loan Request Canceled' in subject
+                assert 'Test Item' in subject
+                assert 'loan cancellation' in text_content.lower()
+                assert 'canceled by the borrower' in text_content
+                assert 'loan cancellation' in html_content.lower()
