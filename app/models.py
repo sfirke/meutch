@@ -89,13 +89,19 @@ class User(UserMixin, db.Model):
         return r * c
     
     def can_update_address(self):
-        """Check if user can update their address (limited to once per day)"""
+        """Check if user can update their address (limited to one successful geolocation per day)"""
+        # If no previous geocoding attempt, allow update
         if not self.geocoded_at:
-            return True  # No previous update, allow first update
+            return True
         
+        # If last geocoding failed, allow retry regardless of timing
+        if self.geocoding_failed:
+            return True
+            
+        # If last geocoding succeeded, enforce daily limit
         from datetime import datetime, timedelta
-        time_since_last_update = datetime.utcnow() - self.geocoded_at
-        return time_since_last_update >= timedelta(days=1)
+        time_since_last_successful_update = datetime.utcnow() - self.geocoded_at
+        return time_since_last_successful_update >= timedelta(days=1)
     
     def get_active_loans_as_borrower(self):
         """Returns items user is currently borrowing"""

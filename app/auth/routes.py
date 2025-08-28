@@ -41,15 +41,12 @@ def register():
                 user.geocoding_failed = False
                 logger.info(f"Successfully geocoded address for user {user.email}")
             else:
-                user.geocoded_at = datetime.utcnow()  # Record attempt even if failed
                 user.geocoding_failed = True
                 logger.warning(f"Failed to geocode address for user {user.email}: {user.full_address}")
         except GeocodingError as e:
-            user.geocoded_at = datetime.utcnow()  # Record attempt even if failed
             user.geocoding_failed = True
             logger.error(f"Geocoding error for user {user.email}: {e}")
         except Exception as e:
-            user.geocoded_at = datetime.utcnow()  # Record attempt even if failed
             user.geocoding_failed = True
             logger.error(f"Unexpected error during geocoding for user {user.email}: {e}")
         

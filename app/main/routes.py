@@ -671,25 +671,22 @@ def update_address():
                 flash('Your address has been updated and location determined successfully!', 'success')
                 return redirect(url_for('main.profile'))
             else:
-                current_user.geocoded_at = datetime.utcnow()  # Record attempt even if failed
                 current_user.geocoding_failed = True
                 db.session.commit()
                 flash('Address updated, but we still couldn\'t determine your location. '
                       'Please try a different address format or contact support.', 'warning')
         except GeocodingError as e:
-            current_user.geocoded_at = datetime.utcnow()  # Record attempt even if failed
             current_user.geocoding_failed = True
             db.session.commit()
             current_app.logger.error(f"Geocoding error for user {current_user.email}: {e}")
             flash('Address updated, but there was an error determining your location. '
-                  'Please try again tomorrow.', 'warning')
+                  'Please try again with a different address format.', 'warning')
         except Exception as e:
-            current_user.geocoded_at = datetime.utcnow()  # Record attempt even if failed
             current_user.geocoding_failed = True
             db.session.commit()
             current_app.logger.error(f"Unexpected error during geocoding for user {current_user.email}: {e}")
             flash('Address updated, but there was an error determining your location. '
-                  'Please try again tomorrow.', 'error')
+                  'Please try again with a different address format.', 'error')
     elif request.method == 'GET':
         # Don't pre-populate form with current address - leave blank for fresh input
         pass
