@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Update Address{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-map-marker-alt me-2"></i>Update Your Address</h3>
+                </div>
+                <div class="card-body">
+                    {% if current_user.geocoding_failed %}
+                        <div class="alert alert-warning">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Location Update Needed</h6>
+                            <p class="mb-0">
+                                We couldn't determine your location from your current address. 
+                                Please update your address below so we can show you distances to nearby items.
+                            </p>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>How we use your address</h6>
+                        <p class="mb-2">
+                            We use your address to calculate distances to items you might want to borrow. 
+                            This helps you find items near you and helps others see how close they are to your items.
+                        </p>
+                        <p class="mb-2">
+                            <strong>Privacy note:</strong> Your exact address will never be shown to other users. 
+                            It's fine to use an address down the block or around the corner if you prefer. 
+                            You can always share your exact address privately when arranging to lend items.
+                        </p>
+                        <p class="mb-0">
+                            <strong>Note:</strong> You can update your address once per day to prevent abuse of the geocoding service.
+                        </p>
+                    </div>
+
+                    <form method="post">
+                        {{ form.csrf_token }}
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                {{ form.street.label(class="form-label") }}
+                                {{ form.street(class="form-control") }}
+                                {% for error in form.street.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.city.label(class="form-label") }}
+                                {{ form.city(class="form-control") }}
+                                {% for error in form.city.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                {{ form.state.label(class="form-label") }}
+                                {{ form.state(class="form-control") }}
+                                {% for error in form.state.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                {{ form.zip_code.label(class="form-label") }}
+                                {{ form.zip_code(class="form-control") }}
+                                {% for error in form.zip_code.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.country.label(class="form-label") }}
+                                {{ form.country(class="form-control", readonly=True) }}
+                                {% for error in form.country.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            {{ form.submit(class="btn btn-primary") }}
+                            <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -34,6 +34,10 @@ class User(UserMixin, db.Model):
     state = db.Column(db.String(100), nullable=False)
     zip_code = db.Column(db.String(20), nullable=False)
     country = db.Column(db.String(100), nullable=False, default='USA')  # Default to 'USA'
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    geocoded_at = db.Column(db.DateTime, nullable=True)
+    geocoding_failed = db.Column(db.Boolean, default=False, nullable=False)
     profile_image_url = db.Column(db.String(500), nullable=True)
     email_confirmed = db.Column(db.Boolean, default=False, nullable=False)
     email_confirmation_token = db.Column(db.String(128), nullable=True)
@@ -52,6 +56,46 @@ class User(UserMixin, db.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+    
+    @property
+    def full_address(self):
+        """Returns the full formatted address"""
+        return f"{self.street}, {self.city}, {self.state} {self.zip_code}, {self.country}"
+    
+    @property
+    def is_geocoded(self):
+        """Returns True if user has valid latitude and longitude"""
+        return self.latitude is not None and self.longitude is not None
+    
+    def distance_to(self, other_user):
+        """Calculate distance in miles to another user using Haversine formula"""
+        if not (self.is_geocoded and other_user.is_geocoded):
+            return None
+        
+        import math
+        
+        # Convert latitude and longitude to radians
+        lat1, lon1 = math.radians(self.latitude), math.radians(self.longitude)
+        lat2, lon2 = math.radians(other_user.latitude), math.radians(other_user.longitude)
+        
+        # Haversine formula
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+        c = 2 * math.asin(math.sqrt(a))
+        
+        # Radius of earth in miles
+        r = 3956
+        return r * c
+    
+    def can_update_address(self):
+        """Check if user can update their address (limited to once per day)"""
+        if not self.geocoded_at:
+            return True  # No previous update, allow first update
+        
+        from datetime import datetime, timedelta
+        time_since_last_update = datetime.utcnow() - self.geocoded_at
+        return time_since_last_update >= timedelta(days=1)
     
     def get_active_loans_as_borrower(self):
         """Returns items user is currently borrowing"""

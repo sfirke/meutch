@@ -6,6 +6,7 @@ from app.models import User
 from app import db
 from app.forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm
 from app.utils.email import send_confirmation_email, send_password_reset_email
+from app.utils.geocoding import geocode_address, GeocodingError
 from datetime import datetime, timedelta
 import logging
 
@@ -31,8 +32,34 @@ def register():
         )
         user.set_password(form.password.data)
         
+        # Attempt to geocode the address
+        try:
+            coordinates = geocode_address(user.full_address)
+            if coordinates:
+                user.latitude, user.longitude = coordinates
+                user.geocoded_at = datetime.utcnow()
+                user.geocoding_failed = False
+                logger.info(f"Successfully geocoded address for user {user.email}")
+            else:
+                user.geocoded_at = datetime.utcnow()  # Record attempt even if failed
+                user.geocoding_failed = True
+                logger.warning(f"Failed to geocode address for user {user.email}: {user.full_address}")
+        except GeocodingError as e:
+            user.geocoded_at = datetime.utcnow()  # Record attempt even if failed
+            user.geocoding_failed = True
+            logger.error(f"Geocoding error for user {user.email}: {e}")
+        except Exception as e:
+            user.geocoded_at = datetime.utcnow()  # Record attempt even if failed
+            user.geocoding_failed = True
+            logger.error(f"Unexpected error during geocoding for user {user.email}: {e}")
+        
         db.session.add(user)
         db.session.commit()
+        
+        # If geocoding failed, inform the user
+        if user.geocoding_failed:
+            flash('Your account has been created, but we couldn\'t determine your location from the address provided. '
+                  'You may need to update your address later to see distances to items.', 'warning')
         
         if send_confirmation_email(user):
             flash('A confirmation email has been sent to you by email.', 'info')

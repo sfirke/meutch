@@ -33,6 +33,40 @@
                 {{ form.submit(class="btn btn-primary") }}
             </form>
             
+            <!-- Address Information -->
+            <div class="mt-4 pt-4 border-top">
+                <h6><i class="fas fa-map-marker-alt me-2"></i>Location Status</h6>
+                {% if current_user.is_geocoded %}
+                    <div class="alert alert-success alert-sm">
+                        <i class="fas fa-check-circle me-1"></i>
+                        <small>Your location is set and distances will be shown to other users.</small>
+                    </div>
+                {% elif current_user.geocoding_failed %}
+                    <div class="alert alert-warning alert-sm">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <small>We couldn't determine your location. Update your address to see distances.</small>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info alert-sm">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <small>Your location hasn't been processed yet. You won't be able to see distances to items until this is resolved.</small>
+                    </div>
+                {% endif %}
+                
+                {% if current_user.can_update_address() %}
+                    <a href="{{ url_for('main.update_address') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-edit me-1"></i>Update Address
+                    </a>
+                {% else %}
+                    <div class="text-muted small mb-2">
+                        <i class="fas fa-clock me-1"></i>You can update your address once per day.
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" disabled>
+                        <i class="fas fa-edit me-1"></i>Update Address (Available Tomorrow)
+                    </button>
+                {% endif %}
+            </div>
+            
             <!-- Account Deletion -->
             <div class="mt-4 pt-4 border-top">
                 <a href="{{ url_for('main.delete_account') }}" class="btn btn-outline-danger btn-sm">
