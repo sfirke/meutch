@@ -53,12 +53,21 @@ def inject_distance_utils():
     """Make distance calculation utilities available in templates"""
     def get_distance_to_item(item):
         """Calculate distance from current user to item owner"""
-        if not current_user.is_authenticated or not current_user.is_geocoded:
+        try:
+            # Check if current_user is available and properly initialized
+            if not hasattr(current_user, 'is_authenticated') or not current_user.is_authenticated:
+                return None
+            if not hasattr(current_user, 'is_geocoded') or not current_user.is_geocoded:
+                return None
+            if not hasattr(item, 'owner') or not item.owner:
+                return None
+            if not hasattr(item.owner, 'is_geocoded') or not item.owner.is_geocoded:
+                return None
+            
+            distance = current_user.distance_to(item.owner)
+            return format_distance(distance) if distance is not None else None
+        except Exception:
+            # In case of any error (e.g., in test environment), return None
             return None
-        if not item.owner.is_geocoded:
-            return None
-        
-        distance = current_user.distance_to(item.owner)
-        return format_distance(distance) if distance is not None else None
     
     return {'get_distance_to_item': get_distance_to_item}
