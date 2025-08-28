@@ -5,24 +5,18 @@ from flask_login import current_user
 
 def inject_unread_messages_count():
     # Import models at function level to avoid circular imports
-    from app.models import Message, LoanRequest, Item
+    from app.models import Message
 
     if current_user.is_authenticated:
-        # Count unread messages that are NOT loan request messages
+        # Count all unread messages where the current user is the recipient
+        # This includes both regular messages and loan request messages (approvals, denials, etc.)
         unread_messages = Message.query.filter(
             Message.recipient_id == current_user.id,
             Message.is_read == False,
-            Message.sender_id != current_user.id,  # Exclude self-sent messages
-            Message.loan_request_id.is_(None)  # Only count non-loan-request messages
+            Message.sender_id != current_user.id  # Exclude self-sent messages
         ).count()
         
-        # Count pending loan requests for items user owns (these will have associated messages)
-        pending_requests = LoanRequest.query.join(Item).filter(
-            Item.owner_id == current_user.id,
-            LoanRequest.status == 'pending'
-        ).count()
-        
-        return dict(unread_messages_count=unread_messages + pending_requests)
+        return dict(unread_messages_count=unread_messages)
     return dict(unread_messages_count=0)
 
 def inject_total_pending():
