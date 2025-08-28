@@ -9,7 +9,8 @@ from config import config
 from uuid import UUID
 from app.context_processors import (
     inject_unread_messages_count, 
-    inject_total_pending
+    inject_total_pending,
+    inject_distance_utils
 )
 
 
@@ -69,6 +70,25 @@ def create_app(config_class=None):
     # Register the context processor
     app.context_processor(inject_unread_messages_count)
     app.context_processor(inject_total_pending)
+    app.context_processor(inject_distance_utils)
+    
+    # Auto-seed development database if empty
+    with app.app_context():
+        if app.config.get('FLASK_ENV') == 'development':
+            try:
+                from app.models import User
+                # First check if tables exist by trying a simple query
+                try:
+                    user_count = User.query.count()
+                    if user_count == 0:
+                        print("🌱 Development database is empty, auto-seeding...")
+                        from app.utils.data_seeding import check_and_seed_if_empty
+                        check_and_seed_if_empty()
+                except Exception as table_error:
+                    print(f"Note: Database tables not ready for auto-seeding: {table_error}")
+                    print("💡 Run 'flask db upgrade' to create tables, then restart the app.")
+            except Exception as e:
+                print(f"Note: Could not check/seed database: {e}")
 
     return app
 
