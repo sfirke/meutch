@@ -107,7 +107,11 @@
                                 <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
                                 <td>{{ item.current_loan.end_date.strftime('%Y-%m-%d') }}</td>
                                 <td>
-                                    <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
+                                    {% if item.messages %}
+                                        <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
+                                    {% else %}
+                                        <span class="text-muted">No messages</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
@@ -148,7 +152,11 @@
                                 <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
                                 <td>{{ item.current_loan.end_date.strftime('%Y-%m-%d') }}</td>
                                 <td>
-                                    <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
+                                    {% if item.messages %}
+                                        <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
+                                    {% else %}
+                                        <span class="text-muted">No messages</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
