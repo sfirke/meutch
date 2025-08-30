@@ -40,7 +40,7 @@ def geocode_address(address: str, max_retries: int = 3, delay: float = 1.0) -> O
     
     # Headers to identify our application (Nominatim policy compliance)
     headers = {
-        'User-Agent': 'Meutch-ItemLending/1.0 (https://github.com/sfirke/meutch; item-lending-platform)'
+        'User-Agent': 'Meutch-ItemLending/1.0 (https://meutch.com; item-lending-platform)'
     }
     
     for attempt in range(max_retries):
