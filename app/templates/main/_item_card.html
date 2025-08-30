@@ -25,18 +25,7 @@
         <h5 class="card-title">{{ item.name }}</h5>
         <p class="card-text text-muted">{{ item.description|truncate(100) }}</p>
         
-        <!-- Availability status indicator -->
-        <div class="mb-2">
-            {% if item.available %}
-                <span class="badge bg-success">
-                    <i class="fas fa-check me-1"></i>Available
-                </span>
-            {% else %}
-                <span class="badge bg-warning">
-                    <i class="fas fa-clock me-1"></i>Currently Borrowed
-                </span>
-            {% endif %}
-        </div>
+
         
         {% if item.category %}
             <div class="mb-2">

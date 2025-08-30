@@ -35,10 +35,10 @@
                     </p>
                     {% if thread_messages[0].item.current_loan and thread_messages[0].item.current_loan.borrower == current_user %}
                         <span class="badge bg-info">You are currently borrowing this item</span>
-                    {% elif thread_messages[0].item.available %}
-                        <span class="badge bg-success">Available</span>
-                    {% else %}
-                        <span class="badge bg-secondary">Currently Unavailable</span>
+                    {% elif not thread_messages[0].item.available %}
+                        <span class="badge bg-warning">
+                            <i class="fas fa-clock me-1"></i>Borrowed
+                        </span>
                     {% endif %}
                 </div>
             </div>
