@@ -86,6 +86,29 @@ class RegistrationForm(FlaskForm):
         if user:
             raise ValidationError('This email is already registered. Please choose a different one.')
 
+class UpdateAddressForm(FlaskForm):
+    street = StringField('Street Address', validators=[
+        DataRequired(message="Street address is required."),
+        Length(max=200, message="Street address must be under 200 characters.")
+    ])
+    city = StringField('City', validators=[
+        DataRequired(message="City is required."),
+        Length(max=100, message="City must be under 100 characters.")
+    ])
+    state = StringField('State', validators=[
+        DataRequired(message="State is required."),
+        Length(max=100, message="State must be under 100 characters.")
+    ])
+    zip_code = StringField('ZIP Code', validators=[
+        DataRequired(message="ZIP Code is required."),
+        Length(max=20, message="ZIP Code must be under 20 characters.")
+    ])
+    country = StringField('Country', validators=[
+        DataRequired(message="Country is required."),
+        Length(max=100, message="Country must be under 100 characters.")
+    ], default='USA')
+    submit = SubmitField('Update Address')
+
 class CircleCreateForm(FlaskForm):
         name = StringField('Circle Name', validators=[
             DataRequired(message="Circle name is required."),

@@ -5,7 +5,7 @@ from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload
 from app import db
 from app.models import Item, LoanRequest, Tag, User, Message, Circle, circle_members, Category
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, DeleteAccountForm
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, DeleteAccountForm, UpdateAddressForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 
@@ -637,6 +637,61 @@ def profile():
                          borrowing=borrowing,
                          lending=lending,
                          pagination=items_pagination)
+
+@main_bp.route('/update-address', methods=['GET', 'POST'])
+@login_required
+def update_address():
+    """Allow users to update their address and retry geocoding"""
+    from app.utils.geocoding import geocode_address, GeocodingError
+    from datetime import datetime
+    
+    # Check if user can update address (daily limit)
+    if not current_user.can_update_address():
+        flash('You can only update your address once per day. Please try again tomorrow.', 'warning')
+        return redirect(url_for('main.profile'))
+    
+    form = UpdateAddressForm()
+    
+    if form.validate_on_submit():
+        # Update address fields
+        current_user.street = form.street.data
+        current_user.city = form.city.data
+        current_user.state = form.state.data
+        current_user.zip_code = form.zip_code.data
+        current_user.country = form.country.data
+        
+        # Attempt to geocode the new address
+        try:
+            coordinates = geocode_address(current_user.full_address)
+            if coordinates:
+                current_user.latitude, current_user.longitude = coordinates
+                current_user.geocoded_at = datetime.utcnow()
+                current_user.geocoding_failed = False
+                db.session.commit()
+                flash('Your address has been updated and location determined successfully!', 'success')
+                return redirect(url_for('main.profile'))
+            else:
+                current_user.geocoding_failed = True
+                db.session.commit()
+                flash('Address updated, but we still couldn\'t determine your location. '
+                      'Please try a different address format or contact support.', 'warning')
+        except GeocodingError as e:
+            current_user.geocoding_failed = True
+            db.session.commit()
+            current_app.logger.error(f"Geocoding error for user {current_user.email}: {e}")
+            flash('Address updated, but there was an error determining your location. '
+                  'Please try again with a different address format.', 'warning')
+        except Exception as e:
+            current_user.geocoding_failed = True
+            db.session.commit()
+            current_app.logger.error(f"Unexpected error during geocoding for user {current_user.email}: {e}")
+            flash('Address updated, but there was an error determining your location. '
+                  'Please try again with a different address format.', 'error')
+    elif request.method == 'GET':
+        # Don't pre-populate form with current address - leave blank for fresh input
+        pass
+    
+    return render_template('main/update_address.html', form=form)
 
 @main_bp.route('/user/<uuid:user_id>')
 def user_profile(user_id):
