@@ -4,7 +4,7 @@ from factory.alchemy import SQLAlchemyModelFactory
 from faker import Faker
 from werkzeug.security import generate_password_hash
 from app import db
-from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message
+from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, CircleJoinRequest
 import uuid
 
 fake = Faker()
@@ -96,3 +96,16 @@ class MessageFactory(SQLAlchemyModelFactory):
     item = factory.SubFactory(ItemFactory)
     body = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=500))
     is_read = False
+
+
+class CircleJoinRequestFactory(SQLAlchemyModelFactory):
+    """Factory for CircleJoinRequest model."""
+    class Meta:
+        model = CircleJoinRequest
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+    
+    circle = factory.SubFactory(CircleFactory)
+    user = factory.SubFactory(UserFactory)
+    message = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=200))
+    status = 'pending'

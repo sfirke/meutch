@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash, request
+from flask import render_template, redirect, url_for, flash, request, current_app
 from flask_login import current_user, login_required
 from app.circles import bp as circles_bp
 from app.models import Circle, db, circle_members, CircleJoinRequest, User
@@ -154,6 +154,14 @@ def join_circle(circle_id):
             )
             db.session.add(join_request)
             db.session.commit()
+            
+            # Send email notification to circle admins
+            try:
+                from app.utils.email import send_circle_join_request_notification_email
+                send_circle_join_request_notification_email(join_request)
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email notification for circle join request {join_request.id}: {str(e)}")
+            
             flash('Your request to join has been submitted.', 'success')
             return redirect(url_for('circles.view_circle', circle_id=circle.id))
         else:
@@ -221,34 +229,6 @@ def leave_circle(circle_id):
     return redirect(url_for('circles.manage_circles'))
 
 
-@circles_bp.route('/circles/request/<uuid:circle_id>', methods=['POST'])
-@login_required
-def request_to_join(circle_id):
-    circle = Circle.query.get_or_404(circle_id)
-    form = CircleJoinRequestForm()
-    
-    if form.validate_on_submit():
-        existing_request = CircleJoinRequest.query.filter_by(
-            circle_id=circle.id,
-            user_id=current_user.id,
-            status='pending'
-        ).first()
-        if existing_request:
-            flash('You already have a pending request to join this circle.', 'info')
-        else:
-            request_entry = CircleJoinRequest(
-                circle_id=circle.id,
-                user_id=current_user.id,
-                message=form.message.data
-            )
-            db.session.add(request_entry)
-            db.session.commit()
-            flash('Your request to join has been submitted.', 'success')
-    else:
-        flash('There was an error with your join request.', 'danger')
-    return redirect(url_for('circles.view_circle', circle_id=circle_id))
-
-
 @circles_bp.route('/circles/<uuid:circle_id>/request/<uuid:request_id>/<action>', methods=['POST'])
 @login_required
 def handle_join_request(circle_id, request_id, action):
@@ -283,6 +263,14 @@ def handle_join_request(circle_id, request_id, action):
         return redirect(url_for('circles.view_circle', circle_id=circle_id))
     
     db.session.commit()
+    
+    # Send email notification to the requesting user
+    try:
+        from app.utils.email import send_circle_join_request_decision_email
+        send_circle_join_request_decision_email(join_request)
+    except Exception as e:
+        current_app.logger.error(f"Failed to send email notification for circle join request decision {join_request.id}: {str(e)}")
+    
     return redirect(url_for('circles.view_circle', circle_id=circle_id))
 
 @circles_bp.route('/circles/<uuid:circle_id>/cancel-request', methods=['POST'])
