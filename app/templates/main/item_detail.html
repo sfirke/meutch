@@ -48,6 +48,20 @@
                                     </a>
                                 </div>
                             </div>
+                            
+                            <!-- Distance (only for other users' items) -->
+                            {% if current_user.is_authenticated and current_user.id != item.owner.id %}
+                                {% set distance = get_distance_to_item(item) %}
+                                {% if distance %}
+                                    <div class="col-sm-6">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="fas fa-map-marker-alt me-2 text-info"></i>
+                                            <span class="fw-bold">Distance:</span>
+                                            <span class="ms-2 badge bg-info">{{ distance }}</span>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endif %}
                         </div>
                         
                         <!-- Category and Tags -->

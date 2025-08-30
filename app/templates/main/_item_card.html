@@ -25,7 +25,28 @@
         <h5 class="card-title">{{ item.name }}</h5>
         <p class="card-text text-muted">{{ item.description|truncate(100) }}</p>
         
-
+        <!-- Availability status indicator -->
+        <div class="mb-2">
+            {% if item.available %}
+                <span class="badge bg-success">
+                    <i class="fas fa-check me-1"></i>Available
+                </span>
+            {% else %}
+                <span class="badge bg-warning">
+                    <i class="fas fa-clock me-1"></i>Currently Borrowed
+                </span>
+            {% endif %}
+          
+            <!-- Distance indicator (only for other users' items) -->
+            {% if current_user.is_authenticated and current_user.id != item.owner_id %}
+                {% set distance = get_distance_to_item(item) %}
+                {% if distance %}
+                    <span class="badge bg-info ms-1">
+                        <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
+                    </span>
+                {% endif %}
+            {% endif %}
+        </div>
         
         {% if item.category %}
             <div class="mb-2">
