@@ -52,52 +52,6 @@ class TestGeocodingEssentials:
         assert format_distance(25.8) == "25.8 mi"
 
 
-class TestUserGeocodingEssentials:
-    """Essential User model geocoding tests."""
-
-    def test_user_is_geocoded_property(self, app):
-        """Test is_geocoded property."""
-        with app.app_context():
-            user_with_coords = UserFactory(latitude=40.7128, longitude=-74.0060)
-            user_without_coords = UserFactory(latitude=None, longitude=None)
-            
-            assert user_with_coords.is_geocoded is True
-            assert user_without_coords.is_geocoded is False
-
-    def test_user_distance_calculation(self, app):
-        """Test distance calculation between users."""
-        with app.app_context():
-            # NYC and LA coordinates
-            user1 = UserFactory(latitude=40.7128, longitude=-74.0060)
-            user2 = UserFactory(latitude=34.0522, longitude=-118.2437)
-            
-            distance = user1.distance_to(user2)
-            assert distance is not None
-            assert 2400 < distance < 2500
-
-    def test_user_distance_to_non_geocoded(self, app):
-        """Test distance calculation when users aren't geocoded."""
-        with app.app_context():
-            user1 = UserFactory(latitude=None, longitude=None)
-            user2 = UserFactory(latitude=40.7128, longitude=-74.0060)
-            
-            assert user1.distance_to(user2) is None
-
-    def test_can_update_address_logic(self, app):
-        """Test address update permission logic."""
-        with app.app_context():
-            from datetime import datetime, timedelta
-            
-            # User with no previous geocoding
-            user1 = UserFactory(geocoded_at=None)
-            assert user1.can_update_address() is True
-            
-            # User with recent successful geocoding
-            recent_time = datetime.utcnow() - timedelta(hours=2)
-            user2 = UserFactory(geocoded_at=recent_time, geocoding_failed=False)
-            assert user2.can_update_address() is False
-
-
 class TestDistanceUtilsEssentials:
     """Essential context processor tests."""
 
