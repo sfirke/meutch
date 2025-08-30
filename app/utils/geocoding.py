@@ -100,7 +100,4 @@ def format_distance(distance_miles: float) -> str:
     """
     if distance_miles < 0.1:
         return "< 0.1 mi"
-    elif distance_miles < 1.0:
-        return f"{distance_miles:.1f} mi"
-    else:
-        return f"{distance_miles:.1f} mi"
+    return f"{distance_miles:.1f} mi"
