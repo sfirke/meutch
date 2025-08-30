@@ -41,6 +41,147 @@ class TestUser:
         with app.app_context():
             user = UserFactory(first_name='John', last_name='Doe')
             assert user.full_name == 'John Doe'
+    
+    def test_user_full_address(self, app):
+        """Test user full address property."""
+        with app.app_context():
+            user = UserFactory(
+                street='123 Main St',
+                city='New York',
+                state='NY',
+                zip_code='10001',
+                country='USA'
+            )
+            expected = '123 Main St, New York, NY 10001, USA'
+            assert user.full_address == expected
+    
+    def test_user_is_geocoded_true(self, app):
+        """Test is_geocoded property when user has coordinates."""
+        with app.app_context():
+            user = UserFactory(latitude=40.7128, longitude=-74.0060)
+            assert user.is_geocoded is True
+    
+    def test_user_is_geocoded_false_no_coordinates(self, app):
+        """Test is_geocoded property when user has no coordinates."""
+        with app.app_context():
+            user = UserFactory(latitude=None, longitude=None)
+            assert user.is_geocoded is False
+    
+    def test_user_is_geocoded_false_partial_coordinates(self, app):
+        """Test is_geocoded property when user has only one coordinate."""
+        with app.app_context():
+            user1 = UserFactory(latitude=40.7128, longitude=None)
+            user2 = UserFactory(latitude=None, longitude=-74.0060)
+            assert user1.is_geocoded is False
+            assert user2.is_geocoded is False
+    
+    def test_user_distance_to_success(self, app):
+        """Test distance calculation between two geocoded users."""
+        with app.app_context():
+            # New York City coordinates
+            user1 = UserFactory(latitude=40.7128, longitude=-74.0060)
+            # Los Angeles coordinates
+            user2 = UserFactory(latitude=34.0522, longitude=-118.2437)
+            
+            distance = user1.distance_to(user2)
+            
+            # Distance between NYC and LA is approximately 2445 miles
+            assert distance is not None
+            assert 2400 < distance < 2500
+    
+    def test_user_distance_to_same_location(self, app):
+        """Test distance calculation between users at same location."""
+        with app.app_context():
+            # Same coordinates for both users
+            coords = (40.7128, -74.0060)
+            user1 = UserFactory(latitude=coords[0], longitude=coords[1])
+            user2 = UserFactory(latitude=coords[0], longitude=coords[1])
+            
+            distance = user1.distance_to(user2)
+            
+            # Distance should be very close to 0
+            assert distance is not None
+            assert distance < 0.01  # Less than 0.01 miles
+    
+    def test_user_distance_to_nearby_locations(self, app):
+        """Test distance calculation between nearby users."""
+        with app.app_context():
+            # Times Square, NYC
+            user1 = UserFactory(latitude=40.7580, longitude=-73.9855)
+            # Central Park, NYC (about 0.5 miles away)
+            user2 = UserFactory(latitude=40.7829, longitude=-73.9654)
+            
+            distance = user1.distance_to(user2)
+            
+            # Distance should be roughly 0.5-2 miles
+            assert distance is not None
+            assert 0.3 < distance < 3.0
+    
+    def test_user_distance_to_not_geocoded_self(self, app):
+        """Test distance calculation when self is not geocoded."""
+        with app.app_context():
+            user1 = UserFactory(latitude=None, longitude=None)
+            user2 = UserFactory(latitude=40.7128, longitude=-74.0060)
+            
+            distance = user1.distance_to(user2)
+            assert distance is None
+    
+    def test_user_distance_to_not_geocoded_other(self, app):
+        """Test distance calculation when other user is not geocoded."""
+        with app.app_context():
+            user1 = UserFactory(latitude=40.7128, longitude=-74.0060)
+            user2 = UserFactory(latitude=None, longitude=None)
+            
+            distance = user1.distance_to(user2)
+            assert distance is None
+    
+    def test_user_distance_to_neither_geocoded(self, app):
+        """Test distance calculation when neither user is geocoded."""
+        with app.app_context():
+            user1 = UserFactory(latitude=None, longitude=None)
+            user2 = UserFactory(latitude=None, longitude=None)
+            
+            distance = user1.distance_to(user2)
+            assert distance is None
+    
+    def test_user_can_update_address_no_previous_geocoding(self, app):
+        """Test can_update_address when user has never been geocoded."""
+        with app.app_context():
+            user = UserFactory(geocoded_at=None, geocoding_failed=False)
+            assert user.can_update_address() is True
+    
+    def test_user_can_update_address_previous_failure(self, app):
+        """Test can_update_address when previous geocoding failed."""
+        with app.app_context():
+            from datetime import datetime, timedelta
+            yesterday = datetime.utcnow() - timedelta(days=1)
+            user = UserFactory(
+                geocoded_at=yesterday,
+                geocoding_failed=True
+            )
+            assert user.can_update_address() is True
+    
+    def test_user_can_update_address_recent_success(self, app):
+        """Test can_update_address when recent geocoding was successful."""
+        with app.app_context():
+            from datetime import datetime, timedelta
+            two_hours_ago = datetime.utcnow() - timedelta(hours=2)
+            user = UserFactory(
+                geocoded_at=two_hours_ago,
+                geocoding_failed=False
+            )
+            assert user.can_update_address() is False
+    
+    def test_user_can_update_address_old_success(self, app):
+        """Test can_update_address when old geocoding was successful."""
+        with app.app_context():
+            from datetime import datetime, timedelta
+            two_days_ago = datetime.utcnow() - timedelta(days=2)
+            user = UserFactory(
+                geocoded_at=two_days_ago,
+                geocoding_failed=False
+            )
+            assert user.can_update_address() is True
 
 class TestItem:
     """Test Item model."""

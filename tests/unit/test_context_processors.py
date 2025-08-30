@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import patch, MagicMock
-from app.context_processors import inject_unread_messages_count
+from app.context_processors import inject_unread_messages_count, inject_distance_utils
 from tests.factories import UserFactory, MessageFactory, ItemFactory, LoanRequestFactory
 
 
@@ -185,3 +185,205 @@ class TestUnreadMessagesCount:
             
             # Both counts should be identical
             assert context_count == conversation_count == 2
+
+
+class TestDistanceUtils:
+    """Test distance utilities context processor."""
+
+    def test_inject_distance_utils_returns_function(self, app):
+        """Test that inject_distance_utils returns the expected function."""
+        with app.app_context():
+            result = inject_distance_utils()
+            
+            assert 'get_distance_to_item' in result
+            assert callable(result['get_distance_to_item'])
+
+    def test_get_distance_to_item_success(self, app):
+        """Test successful distance calculation between user and item owner."""
+        with app.app_context():
+            # Create users with known coordinates
+            owner = UserFactory(latitude=40.7128, longitude=-74.0060)  # NYC
+            borrower = UserFactory(latitude=34.0522, longitude=-118.2437)  # LA
+            item = ItemFactory(owner=owner)
+            
+            with patch('app.context_processors.current_user', borrower):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_item']
+                
+                result = get_distance(item)
+                
+                # Should return formatted distance string
+                assert result is not None
+                assert 'mi' in result
+                # Distance between NYC and LA should be ~2400-2500 miles
+                # Extract numeric value to check range
+                distance_str = result.replace(' mi', '')
+                distance_num = float(distance_str)
+                assert 2400 <= distance_num <= 2500
+
+    def test_get_distance_to_item_no_current_user(self, app):
+        """Test distance calculation when current_user is not available."""
+        with app.app_context():
+            owner = UserFactory(latitude=40.7128, longitude=-74.0060)
+            item = ItemFactory(owner=owner)
+            
+            # Mock current_user without is_authenticated attribute
+            mock_user = MagicMock()
+            delattr(mock_user, 'is_authenticated')
+            
+            with patch('app.context_processors.current_user', mock_user):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_item']
+                
+                result = get_distance(item)
+                assert result is None
+
+    def test_get_distance_to_item_user_not_authenticated(self, app):
+        """Test distance calculation when user is not authenticated."""
+        with app.app_context():
+            owner = UserFactory(latitude=40.7128, longitude=-74.0060)
+            item = ItemFactory(owner=owner)
+            
+            mock_user = MagicMock()
+            mock_user.is_authenticated = False
+            
+            with patch('app.context_processors.current_user', mock_user):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_item']
+                
+                result = get_distance(item)
+                assert result is None
+
+    def test_get_distance_to_item_user_not_geocoded(self, app):
+        """Test distance calculation when current user is not geocoded."""
+        with app.app_context():
+            owner = UserFactory(latitude=40.7128, longitude=-74.0060)
+            borrower = UserFactory(latitude=None, longitude=None)
+            item = ItemFactory(owner=owner)
+            
+            with patch('app.context_processors.current_user', borrower):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_item']
+                
+                result = get_distance(item)
+                assert result is None
+
+    def test_get_distance_to_item_no_owner(self, app):
+        """Test distance calculation when item has no owner."""
+        with app.app_context():
+            borrower = UserFactory(latitude=40.7128, longitude=-74.0060)
+            
+            # Create a mock item without owner to test the context processor logic
+            from unittest.mock import MagicMock
+            item = MagicMock()
+            item.owner = None
+            
+            with patch('app.context_processors.current_user', borrower):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_item']
+                
+                result = get_distance(item)
+                assert result is None
+
+    def test_get_distance_to_item_owner_not_geocoded(self, app):
+        """Test distance calculation when item owner is not geocoded."""
+        with app.app_context():
+            owner = UserFactory(latitude=None, longitude=None)
+            borrower = UserFactory(latitude=40.7128, longitude=-74.0060)
+            item = ItemFactory(owner=owner)
+            
+            with patch('app.context_processors.current_user', borrower):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_item']
+                
+                result = get_distance(item)
+                assert result is None
+
+    def test_get_distance_to_item_same_location(self, app):
+        """Test distance calculation when users are at same location."""
+        with app.app_context():
+            coords = (40.7128, -74.0060)
+            owner = UserFactory(latitude=coords[0], longitude=coords[1])
+            borrower = UserFactory(latitude=coords[0], longitude=coords[1])
+            item = ItemFactory(owner=owner)
+            
+            with patch('app.context_processors.current_user', borrower):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_item']
+                
+                result = get_distance(item)
+                
+                # Should return very small distance
+                assert result is not None
+                assert '< 0.1 mi' == result
+
+    def test_get_distance_to_item_nearby_location(self, app):
+        """Test distance calculation for nearby locations."""
+        with app.app_context():
+            # Times Square and Central Park (close locations in NYC)
+            owner = UserFactory(latitude=40.7580, longitude=-73.9855)
+            borrower = UserFactory(latitude=40.7829, longitude=-73.9654)
+            item = ItemFactory(owner=owner)
+            
+            with patch('app.context_processors.current_user', borrower):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_item']
+                
+                result = get_distance(item)
+                
+                # Should return small distance (under 3 miles)
+                assert result is not None
+                assert 'mi' in result
+                # Extract numeric part and verify it's reasonable
+                distance_num = float(result.replace(' mi', ''))
+                assert 0.1 <= distance_num <= 3.0
+
+    def test_get_distance_to_item_exception_handling(self, app):
+        """Test that exceptions are handled gracefully."""
+        with app.app_context():
+            owner = UserFactory(latitude=40.7128, longitude=-74.0060)
+            item = ItemFactory(owner=owner)
+            
+            # Create a user that will cause an exception in distance_to method
+            mock_user = MagicMock()
+            mock_user.is_authenticated = True
+            mock_user.is_geocoded = True
+            mock_user.distance_to.side_effect = Exception("Calculation error")
+            
+            with patch('app.context_processors.current_user', mock_user):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_item']
+                
+                result = get_distance(item)
+                assert result is None
+
+    def test_get_distance_to_item_format_distance_none(self, app):
+        """Test when distance_to returns None."""
+        with app.app_context():
+            owner = UserFactory(latitude=40.7128, longitude=-74.0060)
+            borrower = UserFactory(latitude=34.0522, longitude=-118.2437)
+            item = ItemFactory(owner=owner)
+            
+            with patch('app.context_processors.current_user', borrower):
+                with patch.object(borrower, 'distance_to', return_value=None):
+                    context = inject_distance_utils()
+                    get_distance = context['get_distance_to_item']
+                    
+                    result = get_distance(item)
+                    assert result is None
+
+    def test_get_distance_to_item_missing_attributes(self, app):
+        """Test handling of missing attributes on objects."""
+        with app.app_context():
+            borrower = UserFactory(latitude=40.7128, longitude=-74.0060)
+            
+            # Create item without proper owner attribute
+            item = MagicMock()
+            delattr(item, 'owner')
+            
+            with patch('app.context_processors.current_user', borrower):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_item']
+                
+                result = get_distance(item)
+                assert result is None
