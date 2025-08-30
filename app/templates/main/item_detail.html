@@ -5,7 +5,7 @@
     <div class="row">
         <!-- Image Column -->
         <div class="col-lg-5 mb-4">
-            <div class="item-detail-image-container">
+            <div class="item-detail-image-container position-relative">
                 {% if item.image_url %}
                     <img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-detail-image">
                 {% else %}
@@ -13,6 +13,13 @@
                         <i class="fas fa-image text-muted mb-3" style="font-size: 4rem;"></i>
                         <p class="text-muted mb-0">No image available</p>
                     </div>
+                {% endif %}
+                
+                <!-- Borrowed indicator -->
+                {% if not item.available %}
+                    <span class="position-absolute top-0 end-0 m-3 badge bg-warning">
+                        <i class="fas fa-clock me-1"></i>Borrowed
+                    </span>
                 {% endif %}
             </div>
         </div>
@@ -29,17 +36,8 @@
                             <p class="card-text lead text-muted mb-4">{{ item.description }}</p>
                         {% endif %}
                         
-                        <!-- Status and Availability -->
+                        <!-- Owner -->
                         <div class="row mb-4">
-                            <div class="col-sm-6">
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="fas fa-circle me-2 text-{{ 'success' if item.available else 'warning' }}"></i>
-                                    <span class="fw-bold">Status:</span>
-                                    <span class="ms-2 badge bg-{{ 'success' if item.available else 'warning' }}">
-                                        {{ "Available" if item.available else "Currently Borrowed" }}
-                                    </span>
-                                </div>
-                            </div>
                             <div class="col-sm-6">
                                 <div class="d-flex align-items-center mb-2">
                                     <i class="fas fa-user me-2 text-primary"></i>
