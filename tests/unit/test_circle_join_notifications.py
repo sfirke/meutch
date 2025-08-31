@@ -12,8 +12,6 @@ from datetime import datetime
 class TestCircleJoinRequestNotifications:
     """Test circle join request email notification functionality."""
 
-    
-
     def test_send_circle_join_request_notification_email_no_message(self, app):
         """Test sending email notification when join request has no message."""
         with app.app_context():
@@ -57,8 +55,6 @@ class TestCircleJoinRequestNotifications:
                 assert 'Bob User' in text_content
                 # Should not contain message section when no message
                 assert 'Request Message:' not in text_content
-
-    
 
     def test_send_circle_join_request_notification_email_no_admins(self, app):
         """Test handling when circle has no admins."""
@@ -116,11 +112,6 @@ class TestCircleJoinRequestNotifications:
                 assert result is False
                 mock_send_email.assert_called_once()
 
-    
-
-    
-
-    
 
     def test_send_circle_join_request_decision_email_invalid_status(self, app):
         """Test handling of invalid join request status."""
