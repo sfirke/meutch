@@ -1,13 +1,24 @@
+
 # Meutch - Item Sharing & Lending Platform
 
-Meutch is a Flask-based Python web application that enables community-based item sharing and lending. Users can list items for others to borrow, join lending circles, and communicate through the platform.
+Meutch is a nonprofit, open-source web application built with **Flask** (Python), **PostgreSQL**, and **Bootstrap** for the frontend. It enables community-based item sharing and lending. Users can list items for others to borrow, join lending circles, and communicate through the platform.
+
+**Development Principles:**
+- **Keep it simple and DRY:** Code should be easy to read and maintain, so that newer programmers can contribute confidently. Avoid unnecessary complexity and duplication.
+- **Prioritize user privacy:** User data should be handled with care and only what is necessary should be stored or exposed.
+- **Nonprofit & open-source:** All work should align with the mission to serve communities, not profit, and contributions are welcome from all.
+
+**Tech Stack:**
+- **Flask** (Python web framework)
+- **PostgreSQL** (database; required for UUID columns)
+- **Bootstrap** (CSS framework for UI)
 
 **ALWAYS reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.**
 
 ## Working Effectively
 
 ### Initial Setup (First Time)
-Run these commands in exact order - NEVER CANCEL any of these operations:
+Only if the user is setting up for the first time, run these commands in exact order - NEVER CANCEL any of these operations:
 
 ```bash
 # Install Python dependencies
