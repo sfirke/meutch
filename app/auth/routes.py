@@ -69,7 +69,7 @@ def register():
                   'to see distances to items and help others find items near you.', 'info')
         elif user.geocoding_failed:
             flash('Your account has been created, but we couldn\'t determine your location from the address provided. '
-                  'You can update your location later on your profile page to see distances to items.', 'warning')
+                  'You can try the option to enter coordinates directly, or update your location later on your profile page to see distances to items.', 'warning')
         
         if send_confirmation_email(user):
             flash('A confirmation email has been sent to you by email.', 'info')
