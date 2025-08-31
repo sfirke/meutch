@@ -250,12 +250,16 @@ def send_circle_join_request_notification_email(join_request):
             success_count += 1  # Count as success since this is not an error
             continue
         
+        # Link to the requesting user's profile for quick review context
+        profile_url = url_for('main.user_profile', user_id=requesting_user.id, _external=True)
+
         text_content = f"""
 Hello {admin.first_name},
 
 You have received a new request to join your circle "{circle.name}" on Meutch.
 
 Requesting User: {requesting_user.first_name} {requesting_user.last_name}
+Profile: {profile_url}
 Circle: {circle.name}
 """ + (f"""
 Request Message:
@@ -277,7 +281,7 @@ The Meutch Team
             <h2 style="color: #333;">New Join Request for Your Circle</h2>
             
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p><strong>Requesting User:</strong> {requesting_user.first_name} {requesting_user.last_name}</p>
+                <p><strong>Requesting User:</strong> <a href="{profile_url}" style="color: #007bff; text-decoration: none;">{requesting_user.first_name} {requesting_user.last_name}</a></p>
                 <p><strong>Circle:</strong> {circle.name}</p>
             </div>
             """ + (f"""
