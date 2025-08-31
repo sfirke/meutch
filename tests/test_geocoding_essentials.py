@@ -90,11 +90,11 @@ class TestDistanceUtilsEssentials:
                 assert result is None
 
 
-class TestAddressUpdateEssentials:
-    """Essential address update integration tests."""
+class TestLocationUpdateEssentials:
+    """Essential location update integration tests."""
 
-    def test_address_update_success(self, app, client):
-        """Test successful address update with geocoding."""
+    def test_location_update_with_address_success(self, app, client):
+        """Test successful location update using address input with geocoding."""
         with app.app_context():
             user = UserFactory(latitude=None, longitude=None)
             db.session.commit()
@@ -106,7 +106,8 @@ class TestAddressUpdateEssentials:
                     sess['_user_id'] = str(user.id)
                     sess['_fresh'] = True
                 
-                response = client.post(url_for('main.update_address'), data={
+                response = client.post(url_for('main.update_location'), data={
+                    'location_method': 'address',
                     'street': '123 Main St',
                     'city': 'New York',
                     'state': 'NY',
@@ -121,7 +122,30 @@ class TestAddressUpdateEssentials:
                 assert updated_user.latitude == 40.7128
                 assert updated_user.longitude == -74.0060
 
-    def test_address_update_daily_limit(self, app, client):
+    def test_location_update_with_coordinates_success(self, app, client):
+        """Test successful location update using direct coordinate input."""
+        with app.app_context():
+            user = UserFactory(latitude=None, longitude=None)
+            db.session.commit()
+                
+            with client.session_transaction() as sess:
+                sess['_user_id'] = str(user.id)
+                sess['_fresh'] = True
+            
+            response = client.post(url_for('main.update_location'), data={
+                'location_method': 'coordinates',
+                'latitude': '40.7128',
+                'longitude': '-74.0060',
+                'csrf_token': 'test'
+            }, follow_redirects=True)
+            
+            assert response.status_code == 200
+            
+            updated_user = User.query.get(user.id)
+            assert updated_user.latitude == 40.7128
+            assert updated_user.longitude == -74.0060
+
+    def test_location_update_daily_limit(self, app, client):
         """Test that daily update limit is enforced."""
         with app.app_context():
             from datetime import datetime, timedelta
@@ -134,22 +158,20 @@ class TestAddressUpdateEssentials:
                 sess['_user_id'] = str(user.id)
                 sess['_fresh'] = True
             
-            response = client.post(url_for('main.update_address'), data={
-                'street': '456 New St',
-                'city': 'New City',
-                'state': 'NC',
-                'zip_code': '54321',
-                'country': 'USA',
+            response = client.post(url_for('main.update_location'), data={
+                'location_method': 'coordinates',
+                'latitude': '34.0522',
+                'longitude': '-118.2437',
                 'csrf_token': 'test'
             }, follow_redirects=True)
             
             assert response.status_code == 200
-            # Address should not have been updated due to daily limit
+            # Location should not have been updated due to daily limit
             unchanged_user = User.query.get(user.id)
-            assert unchanged_user.street != '456 New St'
+            assert unchanged_user.latitude != 34.0522
 
-    def test_address_update_geocoding_failure(self, app, client):
-        """Test address update when geocoding fails."""
+    def test_location_update_geocoding_failure(self, app, client):
+        """Test location update when geocoding fails."""
         with app.app_context():
             user = UserFactory(latitude=None, longitude=None)
             db.session.commit()
@@ -161,7 +183,8 @@ class TestAddressUpdateEssentials:
                     sess['_user_id'] = str(user.id)
                     sess['_fresh'] = True
                 
-                response = client.post(url_for('main.update_address'), data={
+                response = client.post(url_for('main.update_location'), data={
+                    'location_method': 'address',
                     'street': 'Invalid Address',
                     'city': 'Nowhere',
                     'state': 'XX',
@@ -173,27 +196,27 @@ class TestAddressUpdateEssentials:
                 assert response.status_code == 200
                 
                 updated_user = User.query.get(user.id)
-                assert updated_user.street == 'Invalid Address'  # Address updated
-                assert updated_user.latitude is None  # But no coordinates
+                assert updated_user.latitude is None  # No coordinates stored
                 assert updated_user.geocoding_failed is True
 
 
 class TestWorkflowEssentials:
     """Essential end-to-end workflow tests."""
 
-    def test_complete_geocoding_workflow(self, app, client):
-        """Test registration -> geocoding -> distance calculation workflow."""
+    def test_complete_geocoding_workflow_with_address(self, app, client):
+        """Test registration -> geocoding -> distance calculation workflow with address input."""
         with app.app_context():
             with patch('app.auth.routes.geocode_address') as mock_geocode:
                 mock_geocode.return_value = (40.7128, -74.0060)
                 
-                # Register user with geocoding
+                # Register user with geocoding via address
                 client.post(url_for('auth.register'), data={
                     'email': 'test@test.com',
                     'first_name': 'Test',
                     'last_name': 'User',
                     'password': 'testpassword123',
                     'confirm_password': 'testpassword123',
+                    'location_method': 'address',
                     'street': '123 Test St',
                     'city': 'New York',
                     'state': 'NY',
@@ -207,3 +230,45 @@ class TestWorkflowEssentials:
                 assert user.latitude == 40.7128
                 assert user.longitude == -74.0060
                 assert user.is_geocoded is True
+
+    def test_complete_geocoding_workflow_with_coordinates(self, app, client):
+        """Test registration -> coordinates -> distance calculation workflow with direct coordinates."""
+        with app.app_context():
+            # Register user with direct coordinates
+            client.post(url_for('auth.register'), data={
+                'email': 'test2@test.com',
+                'first_name': 'Test',
+                'last_name': 'User',
+                'password': 'testpassword123',
+                'confirm_password': 'testpassword123',
+                'location_method': 'coordinates',
+                'latitude': '34.0522',
+                'longitude': '-118.2437',
+                'csrf_token': 'test'
+            })
+            
+            user = User.query.filter_by(email='test2@test.com').first()
+            assert user is not None
+            assert user.latitude == 34.0522
+            assert user.longitude == -118.2437
+            assert user.is_geocoded is True
+
+    def test_registration_workflow_skip_location(self, app, client):
+        """Test registration workflow when user skips location entry."""
+        with app.app_context():
+            # Register user without location
+            client.post(url_for('auth.register'), data={
+                'email': 'test3@test.com',
+                'first_name': 'Test',
+                'last_name': 'User',
+                'password': 'testpassword123',
+                'confirm_password': 'testpassword123',
+                'location_method': 'skip',
+                'csrf_token': 'test'
+            })
+            
+            user = User.query.filter_by(email='test3@test.com').first()
+            assert user is not None
+            assert user.latitude is None
+            assert user.longitude is None
+            assert user.is_geocoded is False

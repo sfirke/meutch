@@ -17,11 +17,7 @@ class TestUserRegistrationWorkflow:
                 'email': 'newuser@example.com',
                 'first_name': 'New',
                 'last_name': 'User',
-                'street': '123 New St',
-                'city': 'New City',
-                'state': 'NY',
-                'zip_code': '12345',
-                'country': 'USA',
+                'location_method': 'skip',
                 'password': 'newpassword123',
                 'confirm_password': 'newpassword123'
             }, follow_redirects=True)
