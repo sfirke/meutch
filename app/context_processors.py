@@ -6,7 +6,8 @@ from app.utils.geocoding import format_distance
 
 def inject_unread_messages_count():
     # Import models at function level to avoid circular imports
-    from app.models import Message
+    from app import db
+    from app.models import Message, CircleJoinRequest, circle_members
 
     if current_user.is_authenticated:
         # Count all unread messages where the current user is the recipient
@@ -16,8 +17,30 @@ def inject_unread_messages_count():
             Message.is_read == False,
             Message.sender_id != current_user.id  # Exclude self-sent messages
         ).count()
-        
-        return dict(unread_messages_count=unread_messages)
+
+        # Also include pending circle join requests for circles where the user is an admin
+        # Find circles current_user administers
+        admin_circle_ids_sq = (
+            db.session.query(circle_members.c.circle_id)
+            .filter(
+                circle_members.c.user_id == current_user.id,
+                circle_members.c.is_admin == True,
+            )
+            .subquery()
+        )
+
+        # Use explicit SELECT to avoid SAWarning about coercing Subquery into select()
+        from sqlalchemy import select as sa_select
+        pending_join_requests = (
+            db.session.query(CircleJoinRequest)
+            .filter(
+                CircleJoinRequest.circle_id.in_(sa_select(admin_circle_ids_sq.c.circle_id)),
+                CircleJoinRequest.status == 'pending',
+            )
+            .count()
+        )
+
+        return dict(unread_messages_count=unread_messages + pending_join_requests)
     return dict(unread_messages_count=0)
 
 def inject_total_pending():
