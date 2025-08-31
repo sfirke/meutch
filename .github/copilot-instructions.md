@@ -197,30 +197,11 @@ docker compose -f docker-compose.test.yml up -d
 - `staging` - Staging environment with production data sync
 - `production` - Production deployment
 
-## Time Expectations & Timeouts
-
-**CRITICAL TIMING INFORMATION:**
-- **Python dependency installation:** 30 seconds
-- **Database startup:** 10 seconds  
-- **Unit tests:** 18 seconds
-- **Integration tests:** 30 seconds
-- **Functional tests:** 7 seconds
-- **Full test suite:** 56 seconds
-- **Database migrations:** 1 second
-
-**ALWAYS set these minimum timeouts:**
-- Test commands: 120 seconds minimum
-- Database operations: 60 seconds minimum
-- **NEVER CANCEL** any test or build operations
-
 ## Troubleshooting
 
 ### Common Issues
-- **SQLite UUID errors:** Ensure using PostgreSQL with TEST_DATABASE_URL or DATABASE_URL
+- **Python not found:** Activate the venv at `./venv/bin/activate`
 - **Database connection refused:** Start Docker database with `docker compose -f docker-compose.test.yml up -d`
-- **Tests fail to find database:** Verify TEST_DATABASE_URL environment variable is set
-- **Import errors:** Ensure dependencies installed with `pip install -r requirements.txt`
-- **Migration errors:** Check database is running and URL is correct
 
 ### Production Deployment
 - Uses `startup.sh` for basic production startup
