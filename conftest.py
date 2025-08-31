@@ -147,11 +147,8 @@ def auth_user(app):
             email=f'test{unique_id}@example.com',
             first_name='Test',
             last_name='User',
-            street='123 Test St',
-            city='Test City',
-            state='TS',
-            zip_code='12345',
-            country='USA',
+            latitude=40.7128,
+            longitude=-74.0060,
             email_confirmed=True
         )
         user.set_password(TEST_PASSWORD)

@@ -41,20 +41,7 @@ class TestUser:
         with app.app_context():
             user = UserFactory(first_name='John', last_name='Doe')
             assert user.full_name == 'John Doe'
-    
-    def test_user_full_address(self, app):
-        """Test user full address property."""
-        with app.app_context():
-            user = UserFactory(
-                street='123 Main St',
-                city='New York',
-                state='NY',
-                zip_code='10001',
-                country='USA'
-            )
-            expected = '123 Main St, New York, NY 10001, USA'
-            assert user.full_address == expected
-    
+
     def test_user_is_geocoded_true(self, app):
         """Test is_geocoded property when user has coordinates."""
         with app.app_context():
@@ -144,14 +131,14 @@ class TestUser:
             distance = user1.distance_to(user2)
             assert distance is None
     
-    def test_user_can_update_address_no_previous_geocoding(self, app):
-        """Test can_update_address when user has never been geocoded."""
+    def test_user_can_update_location_no_previous_geocoding(self, app):
+        """Test can_update_location when user has never been geocoded."""
         with app.app_context():
             user = UserFactory(geocoded_at=None, geocoding_failed=False)
-            assert user.can_update_address() is True
-    
-    def test_user_can_update_address_previous_failure(self, app):
-        """Test can_update_address when previous geocoding failed."""
+            assert user.can_update_location() is True
+
+    def test_user_can_update_location_previous_failure(self, app):
+        """Test can_update_location when previous geocoding failed."""
         with app.app_context():
             from datetime import datetime, timedelta
             yesterday = datetime.utcnow() - timedelta(days=1)
@@ -159,10 +146,10 @@ class TestUser:
                 geocoded_at=yesterday,
                 geocoding_failed=True
             )
-            assert user.can_update_address() is True
-    
-    def test_user_can_update_address_recent_success(self, app):
-        """Test can_update_address when recent geocoding was successful."""
+            assert user.can_update_location() is True
+
+    def test_user_can_update_location_recent_success(self, app):
+        """Test can_update_location when recent geocoding was successful."""
         with app.app_context():
             from datetime import datetime, timedelta
             two_hours_ago = datetime.utcnow() - timedelta(hours=2)
@@ -170,10 +157,10 @@ class TestUser:
                 geocoded_at=two_hours_ago,
                 geocoding_failed=False
             )
-            assert user.can_update_address() is False
-    
-    def test_user_can_update_address_old_success(self, app):
-        """Test can_update_address when old geocoding was successful."""
+            assert user.can_update_location() is False
+
+    def test_user_can_update_location_old_success(self, app):
+        """Test can_update_location when old geocoding was successful."""
         with app.app_context():
             from datetime import datetime, timedelta
             two_days_ago = datetime.utcnow() - timedelta(days=2)
@@ -181,7 +168,8 @@ class TestUser:
                 geocoded_at=two_days_ago,
                 geocoding_failed=False
             )
-            assert user.can_update_address() is True
+            assert user.can_update_location() is True
+
 
 class TestItem:
     """Test Item model."""

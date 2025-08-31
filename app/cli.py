@@ -210,10 +210,8 @@ def _seed_development_data():
                 email=email,
                 first_name=f"User{i+1}",
                 last_name="Test",
-                street=f"{100 + i} Test Street",
-                city="Testville",
-                state="NY", 
-                zip_code=f"1000{i}",
+                latitude=40.7128 + (i * 0.01),  # Spread users around NYC area
+                longitude=-74.0060 + (i * 0.01),
                 email_confirmed=True
             )
             user.set_password("password123")

@@ -6,7 +6,7 @@ from app.models import User
 from app import db
 from app.forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm
 from app.utils.email import send_confirmation_email, send_password_reset_email
-from app.utils.geocoding import geocode_address, GeocodingError
+from app.utils.geocoding import geocode_address, build_address_string, GeocodingError
 from datetime import datetime, timedelta
 import logging
 
@@ -23,40 +23,53 @@ def register():
         user = User(
             email=form.email.data,
             first_name=form.first_name.data,
-            last_name=form.last_name.data,
-            street=form.street.data,
-            city=form.city.data,
-            state=form.state.data,
-            zip_code=form.zip_code.data,
-            country=form.country.data
+            last_name=form.last_name.data
         )
         user.set_password(form.password.data)
         
-        # Attempt to geocode the address
-        try:
-            coordinates = geocode_address(user.full_address)
-            if coordinates:
-                user.latitude, user.longitude = coordinates
-                user.geocoded_at = datetime.utcnow()
-                user.geocoding_failed = False
-                logger.info(f"Successfully geocoded address for user {user.email}")
-            else:
+        # Handle location based on input method
+        if form.location_method.data == 'coordinates':
+            # Direct coordinate input
+            user.latitude = form.latitude.data
+            user.longitude = form.longitude.data
+            user.geocoded_at = datetime.utcnow()
+            user.geocoding_failed = False
+            logger.info(f"User {user.email} provided coordinates directly: ({user.latitude}, {user.longitude})")
+        elif form.location_method.data == 'address':
+            # Address geocoding
+            address = build_address_string(
+                form.street.data, form.city.data, form.state.data, 
+                form.zip_code.data, form.country.data
+            )
+            
+            try:
+                coordinates = geocode_address(address)
+                if coordinates:
+                    user.latitude, user.longitude = coordinates
+                    user.geocoded_at = datetime.utcnow()
+                    user.geocoding_failed = False
+                    logger.info(f"Successfully geocoded address for user {user.email}")
+                else:
+                    user.geocoding_failed = True
+                    logger.warning(f"Failed to geocode address for user {user.email}: {address}")
+            except GeocodingError as e:
                 user.geocoding_failed = True
-                logger.warning(f"Failed to geocode address for user {user.email}: {user.full_address}")
-        except GeocodingError as e:
-            user.geocoding_failed = True
-            logger.error(f"Geocoding error for user {user.email}: {e}")
-        except Exception as e:
-            user.geocoding_failed = True
-            logger.error(f"Unexpected error during geocoding for user {user.email}: {e}")
+                logger.error(f"Geocoding error for user {user.email}: {e}")
+            except Exception as e:
+                user.geocoding_failed = True
+                logger.error(f"Unexpected error during geocoding for user {user.email}: {e}")
+        # If location_method is 'skip', don't set any location data
         
         db.session.add(user)
         db.session.commit()
         
-        # If geocoding failed, inform the user
-        if user.geocoding_failed:
+        # Provide appropriate feedback based on location choice
+        if form.location_method.data == 'skip':
+            flash('Your account has been created! You can add your location later on your profile page '
+                  'to see distances to items and help others find items near you.', 'info')
+        elif user.geocoding_failed:
             flash('Your account has been created, but we couldn\'t determine your location from the address provided. '
-                  'You may need to update your address later to see distances to items.', 'warning')
+                  'You can try the option to enter coordinates directly, or update your location later on your profile page to see distances to items.', 'warning')
         
         if send_confirmation_email(user):
             flash('A confirmation email has been sent to you by email.', 'info')

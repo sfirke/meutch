@@ -80,29 +80,79 @@ class TestAuthenticationRoutes:
         assert response.status_code == 200
         assert b'Register' in response.data
     
-    def test_register_valid_data(self, client, app):
-        """Test registration with valid data."""
+    def test_register_valid_data_with_address(self, client, app):
+        """Test registration with valid data using address input."""
+        with app.app_context():
+            with patch('app.auth.routes.geocode_address', return_value=(40.7128, -74.0060)):
+                response = client.post('/auth/register', data={
+                    'email': 'newuser@example.com',
+                    'first_name': 'New',
+                    'last_name': 'User',
+                    'location_method': 'address',
+                    'street': '123 New St',
+                    'city': 'New City',
+                    'state': 'NC',
+                    'zip_code': '12345',
+                    'country': 'USA',
+                    'password': 'newpassword123',
+                    'confirm_password': 'newpassword123'
+                }, follow_redirects=True)
+                
+                assert response.status_code == 200
+                assert b'A confirmation email has been sent to you by email.' in response.data
+                
+                # Verify user was created with coordinates
+                user = User.query.filter_by(email='newuser@example.com').first()
+                assert user is not None
+                assert user.email_confirmed is False  # Should require confirmation
+                assert user.latitude == 40.7128
+                assert user.longitude == -74.0060
+
+    def test_register_valid_data_with_coordinates(self, client, app):
+        """Test registration with valid data using direct coordinates."""
         with app.app_context():
             response = client.post('/auth/register', data={
-                'email': 'newuser@example.com',
-                'first_name': 'New',
+                'email': 'coorduser@example.com',
+                'first_name': 'Coord',
                 'last_name': 'User',
-                'street': '123 New St',
-                'city': 'New City',
-                'state': 'NC',
-                'zip_code': '12345',
-                'country': 'USA',
-                'password': 'newpassword123',
-                'confirm_password': 'newpassword123'
+                'location_method': 'coordinates',
+                'latitude': '34.0522',
+                'longitude': '-118.2437',
+                'password': 'coordpassword123',
+                'confirm_password': 'coordpassword123'
             }, follow_redirects=True)
             
             assert response.status_code == 200
             assert b'A confirmation email has been sent to you by email.' in response.data
             
-            # Verify user was created
-            user = User.query.filter_by(email='newuser@example.com').first()
+            # Verify user was created with coordinates
+            user = User.query.filter_by(email='coorduser@example.com').first()
             assert user is not None
             assert user.email_confirmed is False  # Should require confirmation
+            assert user.latitude == 34.0522
+            assert user.longitude == -118.2437
+
+    def test_register_valid_data_skip_location(self, client, app):
+        """Test registration with valid data skipping location."""
+        with app.app_context():
+            response = client.post('/auth/register', data={
+                'email': 'skipuser@example.com',
+                'first_name': 'Skip',
+                'last_name': 'User',
+                'location_method': 'skip',
+                'password': 'skippassword123',
+                'confirm_password': 'skippassword123'
+            }, follow_redirects=True)
+            
+            assert response.status_code == 200
+            assert b'A confirmation email has been sent to you by email.' in response.data
+            
+            # Verify user was created without coordinates
+            user = User.query.filter_by(email='skipuser@example.com').first()
+            assert user is not None
+            assert user.email_confirmed is False  # Should require confirmation
+            assert user.latitude is None
+            assert user.longitude is None
     
     def test_register_duplicate_email(self, client, app, auth_user):
         """Test registration with duplicate email."""
@@ -112,11 +162,7 @@ class TestAuthenticationRoutes:
                 'email': user.email,  # Use existing email
                 'first_name': 'Duplicate',
                 'last_name': 'User',
-                'street': '123 Duplicate St',
-                'city': 'Duplicate City',
-                'state': 'DC',
-                'zip_code': '12345',
-                'country': 'USA',
+                'location_method': 'skip',
                 'password': 'duplicatepassword123',
                 'confirm_password': 'duplicatepassword123'
             })
@@ -130,11 +176,7 @@ class TestAuthenticationRoutes:
             'email': 'mismatch@example.com',
             'first_name': 'Mismatch',
             'last_name': 'User',
-            'street': '123 Mismatch St',
-            'city': 'Mismatch City',
-            'state': 'MC',
-            'zip_code': '12345',
-            'country': 'USA',
+            'location_method': 'skip',
             'password': 'password123',
             'confirm_password': 'differentpassword123'
         })
@@ -152,11 +194,7 @@ class TestAuthenticationRoutes:
                     'last_name': 'User',
                     'password': TEST_PASSWORD,
                     'confirm_password': TEST_PASSWORD,
-                    'street': '123 Test St',
-                    'city': 'Test City',
-                    'state': 'TS',
-                    'zip_code': '12345',
-                    'country': 'USA'
+                    'location_method': 'skip'
                 }, follow_redirects=True)
                 
                 assert response.status_code == 200

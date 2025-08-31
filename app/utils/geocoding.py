@@ -12,6 +12,22 @@ class GeocodingError(Exception):
     """Custom exception for geocoding errors"""
     pass
 
+def build_address_string(street: str, city: str, state: str, zip_code: str, country: str) -> str:
+    """
+    Build a complete address string from individual components
+    
+    Args:
+        street: Street address
+        city: City name
+        state: State or province
+        zip_code: ZIP or postal code
+        country: Country name
+        
+    Returns:
+        Formatted address string
+    """
+    return f"{street}, {city}, {state} {zip_code}, {country}"
+
 def geocode_address(address: str, max_retries: int = 3, delay: float = 1.0) -> Optional[Tuple[float, float]]:
     """
     Geocode an address using Nominatim API
