@@ -3,7 +3,15 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from app.context_processors import inject_unread_messages_count, inject_distance_utils
-from tests.factories import UserFactory, MessageFactory, ItemFactory, LoanRequestFactory
+from tests.factories import (
+    UserFactory,
+    MessageFactory,
+    ItemFactory,
+    LoanRequestFactory,
+    CircleFactory,
+    CircleJoinRequestFactory,
+)
+from app.models import circle_members, db
 
 
 class TestUnreadMessagesCount:
@@ -185,6 +193,65 @@ class TestUnreadMessagesCount:
             
             # Both counts should be identical
             assert context_count == conversation_count == 2
+
+    def test_inject_unread_messages_count_includes_pending_circle_requests_for_admin(self, app):
+        """Admins should see pending circle join requests counted."""
+        with app.app_context():
+            admin = UserFactory()
+            requester1 = UserFactory()
+            requester2 = UserFactory()
+            circle = CircleFactory(requires_approval=True)
+
+            # Make admin an admin member of the circle
+            db.session.execute(
+                circle_members.insert().values(
+                    user_id=admin.id, circle_id=circle.id, is_admin=True
+                )
+            )
+            db.session.commit()
+
+            # Two pending join requests to that circle
+            CircleJoinRequestFactory(circle=circle, user=requester1, status='pending')
+            CircleJoinRequestFactory(circle=circle, user=requester2, status='pending')
+
+            # One non-pending should not count
+            CircleJoinRequestFactory(circle=circle, user=UserFactory(), status='approved')
+
+            with patch('app.context_processors.current_user', admin):
+                result = inject_unread_messages_count()
+                assert result == {'unread_messages_count': 2}
+
+    def test_inject_unread_messages_count_excludes_circle_requests_for_non_admin(self, app):
+        """Non-admin members should not see pending join requests counted."""
+        with app.app_context():
+            member = UserFactory()
+            requester = UserFactory()
+            circle = CircleFactory(requires_approval=True)
+
+            # Add as non-admin member
+            db.session.execute(
+                circle_members.insert().values(
+                    user_id=member.id, circle_id=circle.id, is_admin=False
+                )
+            )
+            db.session.commit()
+
+            CircleJoinRequestFactory(circle=circle, user=requester, status='pending')
+
+            with patch('app.context_processors.current_user', member):
+                result = inject_unread_messages_count()
+                assert result == {'unread_messages_count': 0}
+
+    def test_inject_unread_messages_count_no_membership(self, app):
+        """Users with no admin circle membership should not have pending join count."""
+        with app.app_context():
+            user = UserFactory()
+            circle = CircleFactory(requires_approval=True)
+            CircleJoinRequestFactory(circle=circle, user=UserFactory(), status='pending')
+
+            with patch('app.context_processors.current_user', user):
+                result = inject_unread_messages_count()
+                assert result == {'unread_messages_count': 0}
 
 
 class TestDistanceUtils:

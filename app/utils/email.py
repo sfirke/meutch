@@ -210,6 +210,206 @@ The Meutch Team
     return send_email(recipient.email, subject, text_content, html_content)
 
 
+def send_circle_join_request_notification_email(join_request):
+    """Send email notification to circle admins when a user requests to join"""
+    from app.models import User, circle_members  # Import here to avoid circular imports
+    from sqlalchemy import and_
+    
+    # Get the circle and requesting user
+    circle = join_request.circle
+    requesting_user = join_request.user
+    
+    if not circle or not requesting_user:
+        current_app.logger.error(f"Circle or user not found for join request notification: circle={join_request.circle_id}, user={join_request.user_id}")
+        return False
+    
+    # Get all admins of the circle
+    admin_users = User.query.join(
+        circle_members,
+        and_(
+            User.id == circle_members.c.user_id,
+            circle_members.c.circle_id == circle.id,
+            circle_members.c.is_admin == True
+        )
+    ).all()
+    
+    if not admin_users:
+        current_app.logger.error(f"No admins found for circle {circle.id}")
+        return False
+    
+    # Generate the circle details URL
+    circle_url = url_for('circles.view_circle', circle_id=circle.id, _external=True)
+    
+    subject = f"Meutch - New Join Request for {circle.name}"
+    
+    success_count = 0
+    for admin in admin_users:
+        # Check if admin has email notifications enabled
+        if not admin.email_notifications_enabled:
+            current_app.logger.info(f"Email notifications disabled for admin {admin.id}, skipping notification")
+            success_count += 1  # Count as success since this is not an error
+            continue
+        
+        # Link to the requesting user's profile for quick review context
+        profile_url = url_for('main.user_profile', user_id=requesting_user.id, _external=True)
+
+        text_content = f"""
+Hello {admin.first_name},
+
+You have received a new request to join your circle "{circle.name}" on Meutch.
+
+Requesting User: {requesting_user.first_name} {requesting_user.last_name}
+Profile: {profile_url}
+Circle: {circle.name}
+""" + (f"""
+Request Message:
+{join_request.message}
+""" if join_request.message else "") + f"""
+To review this request and take action, visit your circle:
+{circle_url}
+
+You can approve or reject the request from your circle's management page.
+
+Best regards,
+The Meutch Team
+        """.strip()
+        
+        # Create HTML content for better presentation
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #333;">New Join Request for Your Circle</h2>
+            
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p><strong>Requesting User:</strong> <a href="{profile_url}" style="color: #007bff; text-decoration: none;">{requesting_user.first_name} {requesting_user.last_name}</a></p>
+                <p><strong>Circle:</strong> {circle.name}</p>
+            </div>
+            """ + (f"""
+            <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">
+                <h3>Request Message:</h3>
+                <p style="white-space: pre-line;">{join_request.message}</p>
+            </div>
+            """ if join_request.message else "") + f"""
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{circle_url}" 
+                   style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                    Review Join Request
+                </a>
+            </div>
+            
+            <p style="color: #666; font-size: 14px;">
+                You can approve or reject the request from your circle's management page.
+            </p>
+            
+            <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
+            <p style="color: #999; font-size: 12px;">
+                Best regards,<br>
+                The Meutch Team
+            </p>
+        </body>
+        </html>
+        """
+        
+        if send_email(admin.email, subject, text_content, html_content):
+            success_count += 1
+        else:
+            current_app.logger.error(f"Failed to send circle join request notification to admin {admin.id}")
+    
+    return success_count > 0
+
+
+def send_circle_join_request_decision_email(join_request):
+    """Send email notification to user when their join request is acted upon"""
+    from app.models import User  # Import here to avoid circular imports
+    
+    # Get the circle and requesting user
+    circle = join_request.circle
+    requesting_user = join_request.user
+    
+    if not circle or not requesting_user:
+        current_app.logger.error(f"Circle or user not found for join request decision notification: circle={join_request.circle_id}, user={join_request.user_id}")
+        return False
+    
+    # Check if user has email notifications enabled
+    if not requesting_user.email_notifications_enabled:
+        current_app.logger.info(f"Email notifications disabled for user {requesting_user.id}, skipping notification")
+        return True  # Return True since this is not an error
+    
+    # Generate the circle details URL
+    circle_url = url_for('circles.view_circle', circle_id=circle.id, _external=True)
+    
+    # Determine the subject and email content based on status
+    if join_request.status == 'approved':
+        subject = f"Meutch - Join Request Approved for {circle.name}"
+        decision_text = "approved"
+        button_text = "View Circle"
+        html_color = "#28a745"
+    elif join_request.status == 'rejected':
+        subject = f"Meutch - Join Request Denied for {circle.name}"
+        decision_text = "denied"
+        button_text = "Browse Other Circles"
+        html_color = "#dc3545"
+    else:
+        current_app.logger.error(f"Unknown join request status '{join_request.status}' for request {join_request.id}")
+        return False
+    
+    text_content = f"""
+Hello {requesting_user.first_name},
+
+Your request to join the circle "{circle.name}" has been {decision_text}.
+
+Circle: {circle.name}
+Status: {decision_text.title()}
+""" + (f"""
+To view the circle, visit:
+{circle_url}
+""" if join_request.status == 'approved' else f"""
+You can search for other circles to join by visiting your Meutch account.
+""") + f"""
+Thank you for using Meutch!
+
+Best regards,
+The Meutch Team
+    """.strip()
+    
+    # Create HTML content for better presentation
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #333;">Circle Join Request {decision_text.title()}</h2>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Circle:</strong> {circle.name}</p>
+            <p><strong>Status:</strong> <span style="color: {html_color}; font-weight: bold;">{decision_text.title()}</span></p>
+        </div>
+        """ + (f"""
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{circle_url}" 
+               style="background-color: {html_color}; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                {button_text}
+            </a>
+        </div>
+        """ if join_request.status == 'approved' else f"""
+        <p style="color: #666; font-size: 14px;">
+            You can search for other circles to join by visiting your Meutch account.
+        </p>
+        """) + f"""
+        <p style="color: #666; font-size: 14px;">
+            Thank you for using Meutch!
+        </p>
+        
+        <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #999; font-size: 12px;">
+            Best regards,<br>
+            The Meutch Team
+        </p>
+    </body>
+    </html>
+    """
+    
+    return send_email(requesting_user.email, subject, text_content, html_content)
+
+
 def send_account_deletion_email(user_email, user_first_name):
     """Send account deletion confirmation email"""
     subject = "Meutch - Account Successfully Deleted"
