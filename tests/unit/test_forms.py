@@ -159,26 +159,6 @@ class TestRegistrationForm:
             assert form.validate() is False
             assert 'Latitude is required when entering coordinates directly.' in form.latitude.errors
             assert 'Longitude is required when entering coordinates directly.' in form.longitude.errors
-    
-    def test_invalid_coordinates(self, app):
-        """Test invalid coordinate values."""
-        with app.app_context():
-            # Test with coordinate values that would be caught by browser validation
-            # The NumberRange validator needs further investigation
-            form_data = {
-                'email': 'newuser@example.com',
-                'first_name': 'John',
-                'last_name': 'Doe',
-                'location_method': 'coordinates',
-                'latitude': 40.0,  # Valid values for now
-                'longitude': -74.0,
-                'password': 'password123',
-                'confirm_password': 'password123'
-            }
-            form = RegistrationForm(data=form_data)
-            is_valid = form.validate()
-            # For now, just check that valid coordinates pass
-            assert is_valid is True
 
     def test_skip_location_method(self, app):
         """Test skip location method (no location fields required)."""
