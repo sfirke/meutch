@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField
+from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField, FloatField, RadioField
 from flask_wtf.file import FileField, FileAllowed
-from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError, NumberRange
 from app.models import Category, User
 from datetime import datetime
 
@@ -50,26 +50,50 @@ class RegistrationForm(FlaskForm):
         DataRequired(message="Last name is required."),
         Length(max=50, message="Last name must be under 50 characters.")
     ])
+    
+    # Location input method choice
+    location_method = RadioField('How would you like to set your location?', 
+        choices=[
+            ('address', 'Enter an address (we\'ll look up coordinates)'),
+            ('coordinates', 'Enter latitude and longitude directly'),
+            ('skip', 'Skip for now (you can add this later on your profile)')
+        ], 
+        default='address',
+        validators=[DataRequired()]
+    )
+    
+    # Address fields (used when location_method is 'address')
     street = StringField('Street Address', validators=[
-        DataRequired(message="Street address is required."),
+        Optional(),
         Length(max=200, message="Street address must be under 200 characters.")
     ])
     city = StringField('City', validators=[
-        DataRequired(message="City is required."),
+        Optional(),
         Length(max=100, message="City must be under 100 characters.")
     ])
     state = StringField('State', validators=[
-        DataRequired(message="State is required."),
+        Optional(),
         Length(max=100, message="State must be under 100 characters.")
     ])
     zip_code = StringField('ZIP Code', validators=[
-        DataRequired(message="ZIP Code is required."),
+        Optional(),
         Length(max=20, message="ZIP Code must be under 20 characters.")
     ])
     country = StringField('Country', validators=[
-        DataRequired(message="Country is required."),
+        Optional(),
         Length(max=100, message="Country must be under 100 characters.")
     ], default='USA')
+    
+    # Coordinate fields (used when location_method is 'coordinates')
+    latitude = FloatField('Latitude', validators=[
+        Optional(),
+        NumberRange(min=-90, max=90, message="Latitude must be between -90 and 90 degrees.")
+    ])
+    longitude = FloatField('Longitude', validators=[
+        Optional(),
+        NumberRange(min=-180, max=180, message="Longitude must be between -180 and 180 degrees.")
+    ])
+    
     password = PasswordField('Password', validators=[
         DataRequired(message="Password is required."),
         Length(min=6, message="Password must be at least 6 characters long.")
@@ -85,29 +109,100 @@ class RegistrationForm(FlaskForm):
         user = User.query.filter_by(email=email.data).first()
         if user:
             raise ValidationError('This email is already registered. Please choose a different one.')
+    
+    def validate(self, extra_validators=None):
+        """Custom validation to ensure required fields are filled based on location method"""
+        rv = FlaskForm.validate(self, extra_validators)
+        if not rv:
+            return False
 
-class UpdateAddressForm(FlaskForm):
+        if self.location_method.data == 'address':
+            # All address fields are required when using address method
+            required_fields = [self.street, self.city, self.state, self.zip_code, self.country]
+            for field in required_fields:
+                if not field.data or not field.data.strip():
+                    field.errors.append(f'{field.label.text} is required when entering an address.')
+                    rv = False
+        elif self.location_method.data == 'coordinates':
+            # Both coordinates are required when using coordinate method
+            if self.latitude.data is None:
+                self.latitude.errors.append('Latitude is required when entering coordinates directly.')
+                rv = False
+            if self.longitude.data is None:
+                self.longitude.errors.append('Longitude is required when entering coordinates directly.')
+                rv = False
+        # If location_method is 'skip', no validation is needed for location fields
+
+        return rv
+
+class UpdateLocationForm(FlaskForm):
+    # Location input method choice
+    location_method = RadioField('How would you like to set your location?', 
+        choices=[
+            ('address', 'Enter an address (we\'ll look up coordinates)'),
+            ('coordinates', 'Enter latitude and longitude directly')
+        ], 
+        default='address',
+        validators=[DataRequired()]
+    )
+    
+    # Address fields (used when location_method is 'address')
     street = StringField('Street Address', validators=[
-        DataRequired(message="Street address is required."),
+        Optional(),
         Length(max=200, message="Street address must be under 200 characters.")
     ])
     city = StringField('City', validators=[
-        DataRequired(message="City is required."),
+        Optional(),
         Length(max=100, message="City must be under 100 characters.")
     ])
     state = StringField('State', validators=[
-        DataRequired(message="State is required."),
+        Optional(),
         Length(max=100, message="State must be under 100 characters.")
     ])
     zip_code = StringField('ZIP Code', validators=[
-        DataRequired(message="ZIP Code is required."),
+        Optional(),
         Length(max=20, message="ZIP Code must be under 20 characters.")
     ])
     country = StringField('Country', validators=[
-        DataRequired(message="Country is required."),
+        Optional(),
         Length(max=100, message="Country must be under 100 characters.")
     ], default='USA')
-    submit = SubmitField('Update Address')
+    
+    # Coordinate fields (used when location_method is 'coordinates')
+    latitude = FloatField('Latitude', validators=[
+        Optional(),
+        NumberRange(min=-90, max=90, message="Latitude must be between -90 and 90 degrees.")
+    ])
+    longitude = FloatField('Longitude', validators=[
+        Optional(),
+        NumberRange(min=-180, max=180, message="Longitude must be between -180 and 180 degrees.")
+    ])
+    
+    submit = SubmitField('Update Location')
+    
+    def validate(self, extra_validators=None):
+        """Custom validation to ensure required fields are filled based on location method"""
+        rv = FlaskForm.validate(self, extra_validators)
+        if not rv:
+            return False
+
+        if self.location_method.data == 'address':
+            # All address fields are required when using address method
+            required_fields = [self.street, self.city, self.state, self.zip_code, self.country]
+            for field in required_fields:
+                if not field.data or not field.data.strip():
+                    field.errors.append(f'{field.label.text} is required when entering an address.')
+                    rv = False
+        elif self.location_method.data == 'coordinates':
+            # Both coordinates are required when using coordinate method
+            if self.latitude.data is None:
+                self.latitude.errors.append('Latitude is required when entering coordinates directly.')
+                rv = False
+            if self.longitude.data is None:
+                self.longitude.errors.append('Longitude is required when entering coordinates directly.')
+                rv = False
+
+        return rv
 
 class CircleCreateForm(FlaskForm):
         name = StringField('Circle Name', validators=[

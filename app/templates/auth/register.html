@@ -34,62 +34,144 @@
             {% endfor %}
         </p>
         
-        <!-- Street Address -->
-        <p>
-            {{ form.street.label }}<br>
-            {{ form.street(size=64) }}<br>
-            {% for error in form.street.errors %}
+        <!-- Location Method Choice -->
+        <div class="mb-4">
+            <h5>{{ form.location_method.label }}</h5>
+            <div class="alert alert-info mb-3">
+                <h6><i class="fas fa-shield-alt me-2"></i>Your Privacy is Protected</h6>
+                <p class="mb-2">
+                    <strong>We never share your location with anyone.</strong> We only use your coordinates to:
+                </p>
+                <ul class="mb-2">
+                    <li>Show you approximate distances to items you might want to borrow</li>
+                    <li>Help others see how far they'd need to travel to your items</li>
+                </ul>
+                <p class="mb-0">
+                    <strong>We only store latitude and longitude coordinates, never your actual address.</strong> 
+                    Other users will only see approximate distances like "2.3 miles away" - never your exact location.
+                </p>
+            </div>
+            {% for subfield in form.location_method %}
+                <div class="form-check">
+                    {{ subfield(class="form-check-input") }}
+                    {{ subfield.label(class="form-check-label") }}
+                </div>
+            {% endfor %}
+            {% for error in form.location_method.errors %}
                 <span style="color: red;">{{ error }}</span>
             {% endfor %}
-        </p>
+        </div>
         
-        <!-- City -->
-        <p>
-            {{ form.city.label }}<br>
-            {{ form.city(size=32) }}<br>
-            {% for error in form.city.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-        </p>
+        <!-- Address Fields (shown when address method is selected) -->
+        <div id="address-fields" class="mb-4">
+            <h6 class="mb-3">Enter Address</h6>
+            
+            <!-- Street Address -->
+            <p>
+                {{ form.street.label }}<br>
+                {{ form.street(size=64) }}<br>
+                {% for error in form.street.errors %}
+                    <span style="color: red;">{{ error }}</span>
+                {% endfor %}
+            </p>
+            
+            <!-- City -->
+            <p>
+                {{ form.city.label }}<br>
+                {{ form.city(size=32) }}<br>
+                {% for error in form.city.errors %}
+                    <span style="color: red;">{{ error }}</span>
+                {% endfor %}
+            </p>
+            
+            <!-- State -->
+            <p>
+                {{ form.state.label }}<br>
+                {{ form.state(size=32) }}<br>
+                {% for error in form.state.errors %}
+                    <span style="color: red;">{{ error }}</span>
+                {% endfor %}
+            </p>
+            
+            <!-- ZIP Code -->
+            <p>
+                {{ form.zip_code.label }}<br>
+                {{ form.zip_code(size=10) }}<br>
+                {% for error in form.zip_code.errors %}
+                    <span style="color: red;">{{ error }}</span>
+                {% endfor %}
+            </p>
+            
+            <!-- Country -->
+            <p>
+                {{ form.country.label }}<br>
+                {{ form.country(size=32) }}<br>
+                {% for error in form.country.errors %}
+                    <span style="color: red;">{{ error }}</span>
+                {% endfor %}
+            </p>
+        </div>
         
-        <!-- State -->
-        <p>
-            {{ form.state.label }}<br>
-            {{ form.state(size=32) }}<br>
-            {% for error in form.state.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-        </p>
+        <!-- Coordinate Fields (shown when coordinate method is selected) -->
+        <div id="coordinate-fields" class="mb-4" style="display: none;">
+            <h6 class="mb-3">Enter Coordinates</h6>
+            <div class="alert alert-secondary">
+                <small>
+                    <strong>Tip:</strong> You can find your coordinates by:
+                    <ul class="mb-0 mt-2">
+                        <li>Using Google Maps: right-click on your location and copy the coordinates</li>
+                        <li>Using your phone's GPS coordinates in the camera or maps app</li>
+                        <li>Using online coordinate lookup tools</li>
+                    </ul>
+                </small>
+            </div>
+            
+            <!-- Latitude -->
+            <p>
+                {{ form.latitude.label }}<br>
+                {{ form.latitude(size=32, step="any", placeholder="e.g., 40.7128") }}<br>
+                <small class="text-muted">Between -90 and 90 degrees</small><br>
+                {% for error in form.latitude.errors %}
+                    <span style="color: red;">{{ error }}</span>
+                {% endfor %}
+            </p>
+            
+            <!-- Longitude -->
+            <p>
+                {{ form.longitude.label }}<br>
+                {{ form.longitude(size=32, step="any", placeholder="e.g., -74.0060") }}<br>
+                <small class="text-muted">Between -180 and 180 degrees</small><br>
+                {% for error in form.longitude.errors %}
+                    <span style="color: red;">{{ error }}</span>
+                {% endfor %}
+            </p>
+        </div>
         
-        <!-- ZIP Code -->
-        <p>
-            {{ form.zip_code.label }}<br>
-            {{ form.zip_code(size=10) }}<br>
-            {% for error in form.zip_code.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-        </p>
-        
-        <!-- Country -->
-        <p>
-            {{ form.country.label }}<br>
-            {{ form.country(size=32, readonly=True) }}<br>
-            {% for error in form.country.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-        </p>
-        
-        <!-- Address Usage Information -->
-        <div class="alert alert-info mt-3 mb-3">
-            <h6><i class="fas fa-info-circle me-2"></i>How we use your address</h6>
+        <!-- Warning for Skip Option -->
+        <div id="skip-warning" class="alert alert-warning" style="display: none;">
+            <h6><i class="fas fa-exclamation-triangle me-2"></i>Important Note</h6>
             <p class="mb-2">
-                We use your address to calculate distances to items you might want to borrow. 
+                If you skip location setup now:
+            </p>
+            <ul class="mb-2">
+                <li>You won't be able to see how far away items are from you</li>
+                <li>Others won't be able to see distances to your items</li>
+            </ul>
+            <p class="mb-0">
+                <strong>Note:</strong> You can always add your location later from your profile page.
+            </p>
+        </div>
+        
+        <!-- Location Usage Information -->
+        <div class="alert alert-info mt-3 mb-3" id="location-info" style="display: none;">
+            <h6><i class="fas fa-info-circle me-2"></i>How location coordinates work</h6>
+            <p class="mb-2">
+                We use your coordinates to calculate distances to items you might want to borrow. 
                 This helps you find items near you and helps others see how close they are to your items.
             </p>
             <p class="mb-0">
-                <strong>Privacy note:</strong> Your exact address will never be shown to other users. 
-                It's fine to use an address down the block or around the corner if you prefer. 
-                You can always share your exact address privately when arranging to lend items.
+                <strong>Technical note:</strong> We only store your latitude and longitude coordinates - no street addresses. 
+                Your exact location is never shown to other users, only approximate distances.
             </p>
         </div>
         
@@ -114,4 +196,44 @@
         <!-- Submit Button -->
         <p>{{ form.submit() }}</p>
     </form>
+    
+    <script>
+    // Show/hide fields based on location method selection
+    document.addEventListener('DOMContentLoaded', function() {
+        const addressRadio = document.querySelector('input[value="address"]');
+        const coordinateRadio = document.querySelector('input[value="coordinates"]');
+        const skipRadio = document.querySelector('input[value="skip"]');
+        const addressFields = document.getElementById('address-fields');
+        const coordinateFields = document.getElementById('coordinate-fields');
+        const skipWarning = document.getElementById('skip-warning');
+        const locationInfo = document.getElementById('location-info');
+        
+        function toggleFields() {
+            if (coordinateRadio.checked) {
+                addressFields.style.display = 'none';
+                coordinateFields.style.display = 'block';
+                skipWarning.style.display = 'none';
+                locationInfo.style.display = 'block';
+            } else if (skipRadio.checked) {
+                addressFields.style.display = 'none';
+                coordinateFields.style.display = 'none';
+                skipWarning.style.display = 'block';
+                locationInfo.style.display = 'none';
+            } else { // address selected
+                addressFields.style.display = 'block';
+                coordinateFields.style.display = 'none';
+                skipWarning.style.display = 'none';
+                locationInfo.style.display = 'block';
+            }
+        }
+        
+        // Initial state
+        toggleFields();
+        
+        // Listen for changes
+        addressRadio.addEventListener('change', toggleFields);
+        coordinateRadio.addEventListener('change', toggleFields);
+        skipRadio.addEventListener('change', toggleFields);
+    });
+    </script>
 {% endblock %}

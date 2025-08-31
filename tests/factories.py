@@ -28,11 +28,6 @@ class UserFactory(SQLAlchemyModelFactory):
     email = factory.LazyAttribute(lambda obj: f"{uuid.uuid4().hex[:8]}@example.com")
     first_name = factory.LazyAttribute(lambda obj: fake.first_name())
     last_name = factory.LazyAttribute(lambda obj: fake.last_name())
-    street = factory.LazyAttribute(lambda obj: fake.street_address())
-    city = factory.LazyAttribute(lambda obj: fake.city())
-    state = factory.LazyAttribute(lambda obj: fake.state_abbr())
-    zip_code = factory.LazyAttribute(lambda obj: fake.zipcode())
-    country = "USA"
     email_confirmed = True
     email_notifications_enabled = True
     # Password must match TEST_PASSWORD in conftest.py for login tests to work

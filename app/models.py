@@ -29,11 +29,6 @@ class User(UserMixin, db.Model):
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     about_me = db.Column(db.Text, default='')
-    street = db.Column(db.String(200), nullable=False)
-    city = db.Column(db.String(100), nullable=False)
-    state = db.Column(db.String(100), nullable=False)
-    zip_code = db.Column(db.String(20), nullable=False)
-    country = db.Column(db.String(100), nullable=False, default='USA')  # Default to 'USA'
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
     geocoded_at = db.Column(db.DateTime, nullable=True)
@@ -56,11 +51,6 @@ class User(UserMixin, db.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
-    
-    @property
-    def full_address(self):
-        """Returns the full formatted address"""
-        return f"{self.street}, {self.city}, {self.state} {self.zip_code}, {self.country}"
     
     @property
     def is_geocoded(self):
@@ -88,8 +78,8 @@ class User(UserMixin, db.Model):
         r = 3956
         return r * c
     
-    def can_update_address(self):
-        """Check if user can update their address (limited to one successful geolocation per day)"""
+    def can_update_location(self):
+        """Check if user can update their location (limited to one successful geolocation per day)"""
         # If no previous geocoding attempt, allow update
         if not self.geocoded_at:
             return True
