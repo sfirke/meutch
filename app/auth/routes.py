@@ -84,7 +84,8 @@ def register():
 def login():
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
+        # Use case-insensitive email lookup
+        user = User.query.filter(db.func.lower(User.email) == db.func.lower(form.email.data)).first()
         if user and user.check_password(form.password.data):  # Use the model method
             if user.is_confirmed():
                 login_user(user)
@@ -131,7 +132,7 @@ def resend_confirmation():
     """Resend confirmation email"""
     if request.method == 'POST':
         email = request.form.get('email')
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter(db.func.lower(User.email) == db.func.lower(email)).first()
         
         if not user:
             flash('No account found with that email address.', 'danger')
@@ -159,7 +160,7 @@ def forgot_password():
     
     form = ForgotPasswordForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
+        user = User.query.filter(db.func.lower(User.email) == db.func.lower(form.email.data)).first()
         
         if user:
             if send_password_reset_email(user):
