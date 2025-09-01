@@ -13,6 +13,13 @@ fi
 echo "📦 Activating virtual environment..."
 source venv/bin/activate
 
+# Simple CLI flags
+# Usage: ./dev-start.sh [seed|--seed]
+SEED=false
+if [ "$1" = "seed" ] || [ "$1" = "--seed" ]; then
+    SEED=true
+fi
+
 # Check if PostgreSQL container is running
 if ! docker ps | grep -q "meutch.*db"; then
     echo "🐳 Starting PostgreSQL container..."
@@ -32,6 +39,11 @@ fi
 # Run database migrations
 echo "📊 Applying database migrations..."
 flask db upgrade
+
+if [ "$SEED" = true ]; then
+    echo "🌱 Running development seed (idempotent)..."
+    flask seed data --env development
+fi
 
 echo "✅ Environment ready!"
 echo "🌐 Starting Flask development server..."
