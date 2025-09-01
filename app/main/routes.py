@@ -731,6 +731,12 @@ def user_profile(user_id):
 def about():
     return render_template('main/about.html')
 
+
+@main_bp.route('/how-it-works')
+def how_it_works():
+    """Public page that explains how Meutch works for new users."""
+    return render_template('main/how_it_works.html')
+
 # Messaging -----------------------------------------------------
 
 @main_bp.route('/messages')
