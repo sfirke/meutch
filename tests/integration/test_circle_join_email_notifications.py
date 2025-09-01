@@ -49,7 +49,7 @@ class TestCircleJoinRequestEmailIntegration:
                 mock_send_email.return_value = True
                 
                 # Send a circle join request
-                response = client.post(f'/circles/circles/join/{circle.id}', data={
+                response = client.post(f'/circles/join/{circle.id}', data={
                     'message': 'I would like to join this circle please!'
                 }, follow_redirects=True)
                 
@@ -109,7 +109,7 @@ class TestCircleJoinRequestEmailIntegration:
                 mock_send_email.return_value = True
                 
                 # Approve the join request
-                response = client.post(f'/circles/circles/{circle.id}/request/{join_request.id}/approve',
+                response = client.post(f'/circles/{circle.id}/request/{join_request.id}/approve',
                                      follow_redirects=True)
                 
                 assert response.status_code == 200
@@ -163,7 +163,7 @@ class TestCircleJoinRequestEmailIntegration:
                 mock_send_email.return_value = True
                 
                 # Reject the join request
-                response = client.post(f'/circles/circles/{circle.id}/request/{join_request.id}/reject',
+                response = client.post(f'/circles/{circle.id}/request/{join_request.id}/reject',
                                      follow_redirects=True)
                 
                 assert response.status_code == 200
@@ -207,7 +207,7 @@ class TestCircleJoinRequestEmailIntegration:
             # Patch the email sending function
             with patch('app.utils.email.send_email') as mock_send_email:
                 # Send a circle join request
-                response = client.post(f'/circles/circles/join/{circle.id}', data={
+                response = client.post(f'/circles/join/{circle.id}', data={
                     'message': 'I would like to join this circle please!'
                 }, follow_redirects=True)
                 
@@ -253,7 +253,7 @@ class TestCircleJoinRequestEmailIntegration:
             # Patch the email sending function
             with patch('app.utils.email.send_email') as mock_send_email:
                 # Approve the join request
-                response = client.post(f'/circles/circles/{circle.id}/request/{join_request.id}/approve',
+                response = client.post(f'/circles/{circle.id}/request/{join_request.id}/approve',
                                      follow_redirects=True)
                 
                 assert response.status_code == 200
@@ -290,7 +290,7 @@ class TestCircleJoinRequestEmailIntegration:
             # Patch the email sending function
             with patch('app.utils.email.send_email') as mock_send_email:
                 # Join the circle directly (no approval needed)
-                response = client.post(f'/circles/circles/join/{circle.id}', follow_redirects=True)
+                response = client.post(f'/circles/join/{circle.id}', follow_redirects=True)
                 
                 assert response.status_code == 200
                 

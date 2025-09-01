@@ -176,7 +176,7 @@ class TestCircleWorkflow:
                 'password': TEST_PASSWORD
             }, follow_redirects=True)
             
-            response = client.post('/circles/circles', data={
+            response = client.post('/circles', data={
                 'create_circle': True,
                 'name': 'Test Circle',
                 'description': 'A test circle',
@@ -199,7 +199,7 @@ class TestCircleWorkflow:
                 'password': TEST_PASSWORD
             }, follow_redirects=True)
             
-            response = client.post(f'/circles/circles/join/{circle.id}', data={
+            response = client.post(f'/circles/join/{circle.id}', data={
                 'message': 'I would like to join this circle'
             }, follow_redirects=True)
             
@@ -221,7 +221,7 @@ class TestCircleWorkflow:
             
             assert join_request is not None
             
-            response = client.post(f'/circles/circles/{circle.id}/request/{join_request.id}/approve', 
+            response = client.post(f'/circles/{circle.id}/request/{join_request.id}/approve', 
                                    follow_redirects=True)
             assert response.status_code == 200
             
