@@ -280,7 +280,8 @@ def edit_item(item_id):
 
         db.session.commit()
         flash('Item has been updated.', 'success')
-        return redirect(url_for('main.profile'))
+        # After editing an item, redirect the user back to the item's detail page
+        return redirect(url_for('main.item_detail', item_id=item.id))
     
     # Prepopulate tags field
     form.tags.data = ', '.join([tag.name for tag in item.tags])
