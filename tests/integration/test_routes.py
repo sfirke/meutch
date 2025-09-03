@@ -213,6 +213,31 @@ class TestItemRoutes:
             updated_item = Item.query.get(item.id)
             assert updated_item.name == 'Updated Item Name'
             assert updated_item.description == 'Updated description'
+
+    def test_edit_item_redirects_to_item_detail(self, client, app, auth_user):
+        """After editing an item, the user should be redirected to the item's detail page."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            item = ItemFactory(owner=user, category=category)
+            login_user(client, user.email)
+
+            # Don't follow redirects so we can inspect the Location header
+            response = client.post(f'/item/{item.id}/edit', data={
+                'name': 'Redirected Name',
+                'description': 'Redirect description',
+                'category': str(category.id),
+                'tags': 'redirect, test'
+            }, follow_redirects=False)
+
+            # Expect a redirect (302) to the item detail page
+            assert response.status_code in (301, 302)
+            location = response.headers.get('Location', '')
+            assert f'/item/{item.id}' in location
+
+            # Confirm the database was updated
+            updated = Item.query.get(item.id)
+            assert updated.name == 'Redirected Name'
     
     def test_delete_item_own_item(self, client, app, auth_user):
         """Test deleting own item."""
