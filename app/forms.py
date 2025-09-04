@@ -213,7 +213,15 @@ class CircleCreateForm(FlaskForm):
         description = TextAreaField('Description', validators=[
             Length(max=500, message="Description must be under 500 characters.")
         ])
-        requires_approval = BooleanField('Require Approval to Join')
+        visibility = SelectField('Circle Visibility', 
+            choices=[
+                ('public', 'Public - Anyone can find and join'),
+                ('private', 'Private - Anyone can find it, but requires approval to join.'),
+                ('unlisted', 'Unlisted - Cannot be found by search, requires UUID and approval to join.')
+            ],
+            default='public',
+            validators=[DataRequired()]
+        )
         image = FileField('Circle Image', validators=[
             OptionalFileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], 'Images only! Allowed formats: JPG, PNG, GIF, BMP, WebP')
         ])
@@ -226,6 +234,13 @@ class CircleSearchForm(FlaskForm):
         Length(max=100, message="Search term must be under 100 characters.")
     ])
     submit = SubmitField('Search')
+
+class CircleUuidSearchForm(FlaskForm):
+    circle_uuid = StringField('Circle UUID', validators=[
+        DataRequired(message="Please enter a circle UUID."),
+        Length(min=36, max=36, message="UUID must be exactly 36 characters.")
+    ])
+    submit = SubmitField('Find Circle')
 
 class ListItemForm(FlaskForm):
     name = StringField('Item Name', validators=[DataRequired(), Length(max=100)])
