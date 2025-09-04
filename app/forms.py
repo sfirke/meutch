@@ -216,8 +216,8 @@ class CircleCreateForm(FlaskForm):
         visibility = SelectField('Circle Visibility', 
             choices=[
                 ('public', 'Public - Anyone can find and join'),
-                ('private', 'Private - Anyone can find, requires approval to join'),
-                ('unlisted', 'Unlisted - Can only be found by UUID, requires approval to join')
+                ('private', 'Private - Anyone can find it, but requires approval to join.'),
+                ('unlisted', 'Unlisted - Cannot be found by search, requires UUID and approval to join.')
             ],
             default='public',
             validators=[DataRequired()]
