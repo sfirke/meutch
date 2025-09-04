@@ -237,10 +237,15 @@ def _seed_development_data():
     for circle_info in circle_data:
         existing = Circle.query.filter_by(name=circle_info['name']).first()
         if not existing:
+            # Choose a visibility explicitly to avoid leaving the field blank in seeded data
+            visibility = random.choice(['public', 'private', 'unlisted'])
+            requires_approval = visibility in ['private', 'unlisted']
+
             circle = Circle(
                 name=circle_info['name'],
                 description=circle_info['desc'],
-                requires_approval=random.choice([True, False])
+                visibility=visibility,
+                requires_approval=requires_approval
             )
             db.session.add(circle)
             db.session.flush()  # Get the ID
@@ -251,7 +256,7 @@ def _seed_development_data():
                 circle.members.append(user)
             
             circles.append(circle)
-            click.echo(f"  ✓ Circle: {circle.name} ({len(circle_users)} members)")
+            click.echo(f"  ✓ Circle: {circle.name} ({len(circle_users)} members) [visibility={visibility}]")
         else:
             circles.append(existing)
             click.echo(f"  ≈ Circle exists: {existing.name} ({len(existing.members)} members)")
