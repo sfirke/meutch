@@ -49,8 +49,10 @@
                     {% for circle in circles %}
                         <div class="circle-card">
                             <h3>
-                                {% if circle.requires_approval %}
-                                    <i class="fas fa-lock text-muted me-2"></i>
+                                {% if circle.visibility == 'private' %}
+                                    <i class="fas fa-lock text-muted me-2" title="Private Circle"></i>
+                                {% elif circle.visibility == 'unlisted' %}
+                                    <i class="fas fa-eye-slash text-muted me-2" title="Unlisted Circle"></i>
                                 {% endif %}
                                 {{ circle.name }}
                             </h3>
