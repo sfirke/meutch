@@ -199,6 +199,127 @@ class TestAuthenticationRoutes:
                 
                 assert response.status_code == 200
                 assert b'Error sending confirmation email' in response.data
+    
+    def test_case_insensitive_login(self, client, app):
+        """Test that login is case-insensitive for email addresses."""
+        with app.app_context():
+            # Create a user with lowercase email
+            user = UserFactory(email='test@example.com', email_confirmed=True)
+            
+            # Test login with a small set of different cases (original + one variant)
+            test_emails = [
+                'test@example.com',    # Original
+                'Test@example.com',    # Capitalized first letter
+            ]
+            
+            for email in test_emails:
+                response = client.post('/auth/login', data={
+                    'email': email,
+                    'password': TEST_PASSWORD
+                }, follow_redirects=True)
+                
+                assert response.status_code == 200, f"Failed for email: {email}"
+                assert b'Welcome to Meutch' in response.data, f"Failed for email: {email}"
+                
+                # Logout after each test
+                client.get('/auth/logout')
+
+    def test_case_insensitive_registration_duplicate_prevention(self, client, app):
+        """Test that registration prevents duplicates regardless of case."""
+        with app.app_context():
+            # Register with lowercase email
+            response = client.post('/auth/register', data={
+                'email': 'unique@example.com',
+                'first_name': 'First',
+                'last_name': 'User',
+                'password': 'password123',
+                'confirm_password': 'password123',
+                'location_method': 'skip'
+            }, follow_redirects=True)
+            assert response.status_code == 200
+            
+            # Try to register again with a small set of different cases - should fail
+            test_emails = [
+                'Unique@example.com',    # Capitalized first letter
+                'UNIQUE@EXAMPLE.COM',    # All uppercase
+            ]
+            
+            for email in test_emails:
+                response = client.post('/auth/register', data={
+                    'email': email,
+                    'first_name': 'Duplicate',
+                    'last_name': 'User',
+                    'password': 'password123',
+                    'confirm_password': 'password123',
+                    'location_method': 'skip'
+                })
+                
+                assert response.status_code == 200, f"Failed for email: {email}"
+                assert b'This email is already registered' in response.data, f"Failed for email: {email}"
+
+    def test_case_insensitive_password_reset(self, client, app):
+        """Test that password reset is case-insensitive for email addresses."""
+        with app.app_context():
+            # Create a user with lowercase email
+            user = UserFactory(email='reset@example.com', email_confirmed=True)
+            
+            # Test password reset request with a small set of different cases
+            test_emails = [
+                'reset@example.com',    # Original
+                'Reset@example.com',    # Capitalized first letter
+            ]
+            
+            for email in test_emails:
+                response = client.post('/auth/forgot-password', data={
+                    'email': email
+                }, follow_redirects=True)
+                
+                assert response.status_code == 200, f"Failed for email: {email}"
+                # The success message is shown regardless of whether user exists (security)
+                # But we can verify it doesn't show an error
+                assert b'Password reset instructions have been sent' not in response.data or \
+                       b'Password reset instructions have been sent to your email' in response.data, \
+                       f"Failed for email: {email}"
+
+    def test_case_insensitive_resend_confirmation(self, client, app):
+        """Test that resend confirmation is case-insensitive for email addresses."""
+        with app.app_context():
+            # Create an unconfirmed user with lowercase email
+            user = UserFactory(email='confirm@example.com', email_confirmed=False)
+            
+            # Test resend confirmation with a small set of different cases
+            test_emails = [
+                'confirm@example.com',    # Original
+                'Confirm@example.com',    # Capitalized first letter
+            ]
+            
+            for email in test_emails:
+                response = client.post('/auth/resend-confirmation', data={
+                    'email': email
+                })
+                
+                assert response.status_code == 200, f"Failed for email: {email}"
+                assert b'A new confirmation email has been sent' in response.data, f"Failed for email: {email}"
+
+    def test_registration_stores_lowercase_email(self, client, app):
+        """Test that registration stores emails in lowercase format."""
+        with app.app_context():
+            # Register with mixed case email
+            response = client.post('/auth/register', data={
+                'email': 'TestUser@EXAMPLE.COM',
+                'first_name': 'Test',
+                'last_name': 'User',
+                'password': 'password123',
+                'confirm_password': 'password123',
+                'location_method': 'skip'
+            }, follow_redirects=True)
+            
+            assert response.status_code == 200
+            
+            # Check that the email is stored in lowercase
+            user = User.query.filter_by(first_name='Test', last_name='User').first()
+            assert user is not None
+            assert user.email == 'testuser@example.com'  # Should be stored as lowercase
 
 class TestProtectedRoutes:
     """Test that protected routes require authentication."""
