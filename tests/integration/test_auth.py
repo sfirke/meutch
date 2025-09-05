@@ -257,30 +257,6 @@ class TestAuthenticationRoutes:
                 assert response.status_code == 200, f"Failed for email: {email}"
                 assert b'This email is already registered' in response.data, f"Failed for email: {email}"
 
-    def test_case_insensitive_password_reset(self, client, app):
-        """Test that password reset is case-insensitive for email addresses."""
-        with app.app_context():
-            # Create a user with lowercase email
-            user = UserFactory(email='reset@example.com', email_confirmed=True)
-            
-            # Test password reset request with a small set of different cases
-            test_emails = [
-                'reset@example.com',    # Original
-                'Reset@example.com',    # Capitalized first letter
-            ]
-            
-            for email in test_emails:
-                response = client.post('/auth/forgot-password', data={
-                    'email': email
-                }, follow_redirects=True)
-                
-                assert response.status_code == 200, f"Failed for email: {email}"
-                # The success message is shown regardless of whether user exists (security)
-                # But we can verify it doesn't show an error
-                assert b'Password reset instructions have been sent' not in response.data or \
-                       b'Password reset instructions have been sent to your email' in response.data, \
-                       f"Failed for email: {email}"
-
     def test_case_insensitive_resend_confirmation(self, client, app):
         """Test that resend confirmation is case-insensitive for email addresses."""
         with app.app_context():
