@@ -131,7 +131,7 @@
         </form>
         {% else %}
             <form method="post" action="{{ url_for('circles.join_circle', circle_id=circle.id) }}">
-                {{ form.hidden_tag() }}
+                {{ join_form.hidden_tag() if join_form else form.hidden_tag() }}
                 {% if circle.requires_approval %}
                     <div class="form-group">
                         {{ join_form.message.label }} {{ join_form.message(class="form-control") }}
