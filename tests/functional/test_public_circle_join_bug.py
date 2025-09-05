@@ -1,6 +1,7 @@
 """Functional test to ensure public circles can be joined by other users."""
 from flask import url_for
 from app.models import Circle
+from app import db
 from tests.factories import UserFactory
 from conftest import TEST_PASSWORD
 
@@ -40,11 +41,17 @@ def test_public_circle_join_flow(client, app):
             'password': TEST_PASSWORD
         }, follow_redirects=True)
 
+        # Joiner should be able to view the circle details page before joining
+        response = client.get(f'/circles/{circle.id}', follow_redirects=True)
+        assert response.status_code == 200
+        assert b'Public Circle Test' in response.data
+        # Page should show a join button for public circles
+        assert b'Join Circle' in response.data
+
         # For public circles, POST to join should immediately add the member
         response = client.post(f'/circles/join/{circle.id}', follow_redirects=True)
         assert response.status_code == 200
 
         # Reload circle from DB and confirm membership
-        from app import db
         db.session.refresh(circle)
         assert joiner in circle.members
