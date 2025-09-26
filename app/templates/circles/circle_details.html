@@ -6,10 +6,61 @@
 
 {% block content %}
 <div class="container mt-5">
-    <h2>{{ circle.name }}</h2>
+    <h2>
+        {% if circle.visibility == 'private' %}
+            <i class="fas fa-lock text-muted me-2" title="Private Circle"></i>
+        {% elif circle.visibility == 'unlisted' %}
+            <i class="fas fa-eye-slash text-muted me-2" title="Unlisted Circle"></i>
+        {% endif %}
+        {{ circle.name }}
+    </h2>
     <p>{{ circle.description }}</p>
     <p><strong>Members:</strong> {{ circle.members|length }}</p>
-    <p><strong>Requires Approval:</strong> {{ 'Yes' if circle.requires_approval else 'No' }}</p>
+    <p><strong>Visibility:</strong> 
+        {% if circle.visibility == 'public' %}
+            Public
+        {% elif circle.visibility == 'private' %}
+            Private (requires approval)
+        {% elif circle.visibility == 'unlisted' %}
+            Unlisted (requires approval)
+        {% endif %}
+    </p>
+    
+    {% if circle.visibility == 'unlisted' and is_member %}
+        <div class="alert alert-info">
+            <h5><i class="fas fa-info-circle me-2"></i>Share this circle</h5>
+            <p class="mb-2">This is an unlisted circle. To invite others, share this UUID with them:</p>
+            <div class="input-group">
+                <input type="text" class="form-control" value="{{ circle.id }}" readonly id="circle-uuid">
+                <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard()">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+            </div>
+            <small class="text-muted">They can use this UUID on the circles page to find and request to join this circle.</small>
+        </div>
+        
+        <script>
+        function copyToClipboard() {
+            const uuidInput = document.getElementById('circle-uuid');
+            uuidInput.select();
+            uuidInput.setSelectionRange(0, 99999); // For mobile devices
+            navigator.clipboard.writeText(uuidInput.value);
+            
+            // Show feedback
+            const button = event.target.closest('button');
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            button.classList.add('btn-success');
+            button.classList.remove('btn-outline-secondary');
+            
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-outline-secondary');
+            }, 2000);
+        }
+        </script>
+    {% endif %}
 
     {% if circle.image_url %}
         <div class="mb-3">

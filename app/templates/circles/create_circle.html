@@ -29,16 +29,18 @@
                     {% endfor %}
                 </div>
                 
-                <!-- Requires Approval -->
-                <div class="mb-3 form-check">
-                    {{ form.requires_approval(class="form-check-input") }}
-                    {{ form.requires_approval.label(class="form-check-label") }}
-                    <small class="form-text text-muted d-block">
-                        If checked, you will need to approve new members before they can join your circle.
-                    </small>
-                    {% for error in form.requires_approval.errors %}
+                <!-- Visibility -->
+                <div class="mb-3">
+                    {{ form.visibility.label(class="form-label") }}
+                    {{ form.visibility(class="form-select") }}
+                    {% for error in form.visibility.errors %}
                         <div class="text-danger">{{ error }}</div>
                     {% endfor %}
+                    <small class="form-text text-muted">
+                        <strong>Public:</strong> Anyone can find and join.<br>
+                        <strong>Private:</strong> Anyone can find it, but requires approval to join.<br>
+                        <strong>Unlisted:</strong> Cannot be found by search, requires UUID and approval to join.
+                    </small>
                 </div>
                 
                 <!-- Circle Image -->

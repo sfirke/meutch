@@ -2,9 +2,10 @@ from flask import render_template, redirect, url_for, flash, request, current_ap
 from flask_login import current_user, login_required
 from app.circles import bp as circles_bp
 from app.models import Circle, db, circle_members, CircleJoinRequest, User
-from app.forms import CircleCreateForm, EmptyForm, CircleSearchForm, CircleJoinRequestForm
+from app.forms import CircleCreateForm, EmptyForm, CircleSearchForm, CircleJoinRequestForm, CircleUuidSearchForm
 from app.utils.storage import upload_circle_image, delete_file, is_valid_file_upload
 import logging
+import uuid
 from sqlalchemy import and_
 from datetime import datetime
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 def manage_circles():
     circle_form = CircleCreateForm()
     search_form = CircleSearchForm()
+    uuid_search_form = CircleUuidSearchForm()
     searched_circles = None
 
     # Get user's admin circles with pending request counts
@@ -48,10 +50,14 @@ def manage_circles():
             if existing_circle:
                 flash('A circle with this name already exists.', 'danger')
             else:
+                # Set requires_approval based on visibility
+                requires_approval = circle_form.visibility.data in ['private', 'unlisted']
+                
                 new_circle = Circle(
                     name=circle_form.name.data,
                     description=circle_form.description.data,
-                    requires_approval=circle_form.requires_approval.data
+                    visibility=circle_form.visibility.data,
+                    requires_approval=requires_approval
                 )
                 db.session.add(new_circle)
                 db.session.flush()  # Ensure circle has an ID
@@ -70,18 +76,36 @@ def manage_circles():
                 return redirect(url_for('circles.manage_circles'))
             
         elif 'search_circles' in request.form and search_form.validate_on_submit():
-            # Handle Circle Search
+            # Handle Circle Search (only public and private circles, not unlisted)
             query = search_form.search_query.data
-            searched_circles = Circle.query.filter(Circle.name.ilike(f'%{query}%')).all()
+            searched_circles = Circle.query.filter(
+                db.and_(
+                    Circle.name.ilike(f'%{query}%'),
+                    Circle.visibility != 'unlisted'  # Exclude unlisted circles from search
+                )
+            ).all()
             if not searched_circles:
                 flash('No circles found matching your search.', 'info')
+                
+        elif 'find_by_uuid' in request.form and uuid_search_form.validate_on_submit():
+            # Handle UUID Search for unlisted circles
+            try:
+                circle_uuid = uuid_search_form.circle_uuid.data.strip()
+                found_circle = Circle.query.filter_by(id=circle_uuid).first()
+                if found_circle:
+                    searched_circles = [found_circle]
+                else:
+                    flash('No circle found with that UUID.', 'warning')
+            except Exception:
+                flash('Invalid UUID format.', 'danger')
 
     # Fetch user's circles
     user_circles = current_user.circles  # Assuming 'circles' relationship exists in User model
 
     return render_template('circles/circles.html', 
                            circle_form=circle_form, 
-                           search_form=search_form, 
+                           search_form=search_form,
+                           uuid_search_form=uuid_search_form,
                            user_circles=user_circles,
                            user_admin_circles=user_admin_circles,
                            searched_circles=searched_circles)
@@ -356,10 +380,14 @@ def create_circle():
                 flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'error')
                 return render_template('circles/create_circle.html', form=form)
 
+        # Set requires_approval based on visibility
+        requires_approval = form.visibility.data in ['private', 'unlisted']
+        
         new_circle = Circle(
             name=circle_name,
             description=form.description.data.strip(),
-            requires_approval=form.requires_approval.data,
+            visibility=form.visibility.data,
+            requires_approval=requires_approval,
             image_url=image_url
         )
         db.session.add(new_circle)
@@ -445,7 +473,8 @@ def edit_circle(circle_id):
     if form.validate_on_submit():
         circle.name = form.name.data.strip()
         circle.description = form.description.data.strip()
-        circle.requires_approval = form.requires_approval.data
+        circle.visibility = form.visibility.data
+        circle.requires_approval = form.visibility.data in ['private', 'unlisted']
 
         # Handle image deletion
         if form.delete_image.data and circle.image_url:
