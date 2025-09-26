@@ -213,7 +213,8 @@ class CircleCreateForm(FlaskForm):
         description = TextAreaField('Description', validators=[
             Length(max=500, message="Description must be under 500 characters.")
         ])
-        visibility = SelectField('Circle Visibility', 
+        # Visibility replaces older requires_approval boolean to allow three states
+        visibility = SelectField('Circle Visibility',
             choices=[
                 ('public', 'Public - Anyone can find and join'),
                 ('private', 'Private - Anyone can find it, but requires approval to join.'),
