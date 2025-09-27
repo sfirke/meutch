@@ -47,10 +47,6 @@
                 <div class="mb-3">
                     {{ form.image.label(class="form-label") }}
                     {{ form.image(class="form-control", accept="image/*") }}
-                    <div class="form-text">
-                        <i class="fas fa-images me-1"></i>
-                        <small>Mobile: Choose from gallery or camera. Desktop: Upload file.</small>
-                    </div>
                     {% for error in form.image.errors %}
                         <div class="text-danger">{{ error }}</div>
                     {% endfor %}
