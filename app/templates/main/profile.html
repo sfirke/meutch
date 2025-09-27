@@ -15,7 +15,11 @@
                 </div>
                 <div class="mb-3">
                     {{ form.profile_image.label }}
-                    {{ form.profile_image(class="form-control") }}
+                    {{ form.profile_image(class="form-control", accept="image/*") }}
+                    <div class="form-text">
+                        <i class="fas fa-images me-1"></i>
+                        <small>Mobile: Choose from gallery or camera. Desktop: Upload file.</small>
+                    </div>
                 </div>
                 {% if current_user.profile_image_url %}
                     <div class="mb-3">
