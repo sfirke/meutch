@@ -85,7 +85,7 @@
             <li class="list-group-item d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center">
                     {% if is_admin %}
-                        <span class="badge bg-primary me-2">
+                        <span class="badge bg-primary me-2" title="Circle Admin">
                             <i class="fas fa-shield-alt"></i>
                         </span>
                     {% endif %}
@@ -95,9 +95,6 @@
                         <a href="{{ url_for('main.user_profile', user_id=member.id) }}" class="text-decoration-none">
                             {{ member.first_name }} {{ member.last_name }}
                         </a>
-                        {% if is_admin %}
-                            <span class="ms-2 text-muted"> [Admin]</span>
-                        {% endif %}
                     </div>
                 </div>
                 {% if circle.is_admin(current_user) and member != current_user %}
