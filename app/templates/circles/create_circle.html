@@ -46,7 +46,7 @@
                 <!-- Circle Image -->
                 <div class="mb-3">
                     {{ form.image.label(class="form-label") }}
-                    {{ form.image(class="form-control") }}
+                    {{ form.image(class="form-control", accept="image/*") }}
                     {% for error in form.image.errors %}
                         <div class="text-danger">{{ error }}</div>
                     {% endfor %}
