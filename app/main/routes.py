@@ -741,7 +741,6 @@ def user_profile(user_id):
         flash('You must be logged in to view user profiles.', 'warning')
         return redirect(url_for('auth.login', next=request.url))
     
-    from app.models import UserWebLink
     user = User.query.get_or_404(user_id)
     
     # Pagination parameters
