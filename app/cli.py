@@ -434,7 +434,7 @@ def _seed_development_data():
             {'email': 'user2@example.com', 'platform': 'facebook', 'url': 'https://facebook.com/user2.meutch'},
             {'email': 'user2@example.com', 'platform': 'blog', 'url': 'https://user2blog.wordpress.com'},
             {'email': 'user3@example.com', 'platform': 'x', 'url': 'https://x.com/user3_meutch'},
-            {'email': 'user3@example.com', 'platform': 'bookwyrm', 'url': 'https://bookwyrm.social/user/user3'},
+            {'email': 'user3@example.com', 'platform': 'website', 'url': 'https://user3.dev'},
             {'email': 'user4@example.com', 'platform': 'mastodon', 'url': 'https://mastodon.social/@user4'},
             {'email': 'user4@example.com', 'platform': 'threads', 'url': 'https://threads.net/@user4_meutch'},
             {'email': 'user5@example.com', 'platform': 'tiktok', 'url': 'https://tiktok.com/@user5_meutch'},

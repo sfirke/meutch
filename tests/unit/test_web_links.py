@@ -48,7 +48,6 @@ class TestUserWebLink:
         assert 'facebook' in platform_values
         assert 'instagram' in platform_values
         assert 'bluesky' in platform_values
-        assert 'bookwyrm' in platform_values
         assert 'other' in platform_values
 
 class TestWebLinksForm:
