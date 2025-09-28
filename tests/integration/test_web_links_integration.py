@@ -2,6 +2,7 @@
 
 import pytest
 from app.models import User, UserWebLink
+from conftest import login_user
 
 
 class TestWebLinksIntegration:
@@ -13,11 +14,7 @@ class TestWebLinksIntegration:
             user = auth_user()
             
             # Login
-            response = client.post('/auth/login', data={
-                'email': user.email,
-                'password': 'testpassword123'
-            })
-            assert response.status_code == 302
+            login_user(client, user.email)
             
             # Access profile page
             response = client.get('/profile')
@@ -36,10 +33,7 @@ class TestWebLinksIntegration:
             user = auth_user()
             
             # Login
-            client.post('/auth/login', data={
-                'email': user.email,
-                'password': 'testpassword123'
-            })
+            login_user(client, user.email)
             
             # Submit profile with web links
             response = client.post('/profile', data={
@@ -104,10 +98,7 @@ class TestWebLinksIntegration:
             db.session.commit()
             
             # Login as user1
-            client.post('/auth/login', data={
-                'email': user1.email,
-                'password': 'testpassword123'
-            })
+            login_user(client, user1.email)
             
             # View user2's profile
             response = client.get(f'/user/{user2.id}')
@@ -135,10 +126,7 @@ class TestWebLinksIntegration:
             db.session.commit()
             
             # Login
-            client.post('/auth/login', data={
-                'email': user.email,
-                'password': 'testpassword123'
-            })
+            login_user(client, user.email)
             
             # Update the web link
             response = client.post('/profile', data={
@@ -161,10 +149,7 @@ class TestWebLinksIntegration:
             user = auth_user()
             
             # Login
-            client.post('/auth/login', data={
-                'email': user.email,
-                'password': 'testpassword123'
-            })
+            login_user(client, user.email)
             
             # Submit invalid data (URL without platform)
             response = client.post('/profile', data={
