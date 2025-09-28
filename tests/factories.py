@@ -4,7 +4,7 @@ from factory.alchemy import SQLAlchemyModelFactory
 from faker import Faker
 from werkzeug.security import generate_password_hash
 from app import db
-from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, CircleJoinRequest
+from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, CircleJoinRequest, UserWebLink
 import uuid
 
 fake = Faker()
@@ -104,3 +104,16 @@ class CircleJoinRequestFactory(SQLAlchemyModelFactory):
     user = factory.SubFactory(UserFactory)
     message = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=200))
     status = 'pending'
+
+
+class UserWebLinkFactory(SQLAlchemyModelFactory):
+    """Factory for UserWebLink model."""
+    class Meta:
+        model = UserWebLink
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+    
+    user = factory.SubFactory(UserFactory)
+    platform_type = factory.Iterator(['facebook', 'instagram', 'linkedin', 'x', 'mastodon', 'bluesky'])
+    url = factory.LazyAttribute(lambda obj: f"https://{obj.platform_type}.com/testuser")
+    display_order = factory.Sequence(lambda n: (n % 5) + 1)  # 1-5

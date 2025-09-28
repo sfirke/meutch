@@ -1,9 +1,20 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField, FloatField, RadioField
+from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField, FloatField, RadioField, FieldList, FormField
 from flask_wtf.file import FileField, FileAllowed
-from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError, NumberRange
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError, NumberRange, URL
 from app.models import Category, User
 from datetime import datetime
+
+def OptionalURL(message=None):
+    """
+    Custom validator for optional URLs - only validates if field has data
+    """
+    def _validate(form, field):
+        if field.data and field.data.strip():
+            # Only validate if there's actual data
+            url_validator = URL(message=message or 'Please enter a valid URL (starting with http:// or https://)')
+            url_validator(form, field)
+    return _validate
 
 def OptionalFileAllowed(upload_set, message=None):
     """
@@ -266,7 +277,69 @@ class EditProfileForm(FlaskForm):
     ])
     delete_image = BooleanField('Delete current profile picture')
     email_notifications_enabled = BooleanField('Receive email notifications for new messages')
+    
+    # Web Links - 5 sets of fields for dynamic web link management
+    link_1_platform = SelectField('Platform 1', choices=[], validators=[Optional()])
+    link_1_custom_name = StringField('Custom Name 1', validators=[Optional(), Length(max=50)])
+    link_1_url = StringField('URL 1', validators=[OptionalURL()])
+    
+    link_2_platform = SelectField('Platform 2', choices=[], validators=[Optional()])
+    link_2_custom_name = StringField('Custom Name 2', validators=[Optional(), Length(max=50)])
+    link_2_url = StringField('URL 2', validators=[OptionalURL()])
+    
+    link_3_platform = SelectField('Platform 3', choices=[], validators=[Optional()])
+    link_3_custom_name = StringField('Custom Name 3', validators=[Optional(), Length(max=50)])
+    link_3_url = StringField('URL 3', validators=[OptionalURL()])
+    
+    link_4_platform = SelectField('Platform 4', choices=[], validators=[Optional()])
+    link_4_custom_name = StringField('Custom Name 4', validators=[Optional(), Length(max=50)])
+    link_4_url = StringField('URL 4', validators=[OptionalURL()])
+    
+    link_5_platform = SelectField('Platform 5', choices=[], validators=[Optional()])
+    link_5_custom_name = StringField('Custom Name 5', validators=[Optional(), Length(max=50)])
+    link_5_url = StringField('URL 5', validators=[OptionalURL()])
+    
     submit = SubmitField('Update Profile')
+    
+    def __init__(self, *args, **kwargs):
+        super(EditProfileForm, self).__init__(*args, **kwargs)
+        # Import here to avoid circular imports
+        from app.models import UserWebLink
+        
+        # Set platform choices for all link fields
+        platform_choices = [('', 'Select a platform...')] + UserWebLink.PLATFORM_CHOICES
+        self.link_1_platform.choices = platform_choices
+        self.link_2_platform.choices = platform_choices
+        self.link_3_platform.choices = platform_choices
+        self.link_4_platform.choices = platform_choices
+        self.link_5_platform.choices = platform_choices
+    
+    def validate(self, **kwargs):
+        rv = FlaskForm.validate(self, **kwargs)
+        if not rv:
+            return False
+        
+        # Custom validation for web links
+        for i in range(1, 6):
+            platform_field = getattr(self, f'link_{i}_platform')
+            custom_name_field = getattr(self, f'link_{i}_custom_name')
+            url_field = getattr(self, f'link_{i}_url')
+            
+            # If URL is provided, platform must be selected
+            if url_field.data and url_field.data.strip() and not platform_field.data:
+                platform_field.errors.append('Please select a platform when providing a URL.')
+                rv = False
+            
+            # If platform is "other", both custom name and URL are required
+            if platform_field.data == 'other':
+                if not custom_name_field.data or not custom_name_field.data.strip():
+                    custom_name_field.errors.append('Please provide a custom name when selecting "Other".')
+                    rv = False
+                if not url_field.data or not url_field.data.strip():
+                    url_field.errors.append('Please provide a URL when selecting "Other".')
+                    rv = False
+        
+        return rv
 
 class DeleteItemForm(FlaskForm):
     submit = SubmitField('Delete')

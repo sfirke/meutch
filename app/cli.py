@@ -163,7 +163,7 @@ def _seed_basic_data():
 def _seed_development_data():
     """Seed rich development data (idempotent)."""
     from app import db
-    from app.models import User, Category, Tag, Circle, Item, LoanRequest, Message
+    from app.models import User, Category, Tag, Circle, Item, LoanRequest, Message, UserWebLink
     import random
     
     click.echo('Creating development data...')
@@ -423,6 +423,57 @@ def _seed_development_data():
             click.echo(f"  ✓ Message: {sender.email} -> {recipient.email} about {item.name}")
     else:
         click.echo(f"  ≈ Messages exist: {existing_messages} records")
+
+    # Web Links (add some sample social links for development users)
+    existing_web_links = UserWebLink.query.count()
+    if existing_web_links < 10:
+        # Sample web links for some users
+        web_link_examples = [
+            {'email': 'user1@example.com', 'platform': 'instagram', 'url': 'https://instagram.com/user1_meutch'},
+            {'email': 'user1@example.com', 'platform': 'linkedin', 'url': 'https://linkedin.com/in/user1-meutch'},
+            {'email': 'user2@example.com', 'platform': 'facebook', 'url': 'https://facebook.com/user2.meutch'},
+            {'email': 'user2@example.com', 'platform': 'blog', 'url': 'https://user2blog.wordpress.com'},
+            {'email': 'user3@example.com', 'platform': 'x', 'url': 'https://x.com/user3_meutch'},
+            {'email': 'user3@example.com', 'platform': 'bookwyrm', 'url': 'https://bookwyrm.social/user/user3'},
+            {'email': 'user4@example.com', 'platform': 'mastodon', 'url': 'https://mastodon.social/@user4'},
+            {'email': 'user4@example.com', 'platform': 'threads', 'url': 'https://threads.net/@user4_meutch'},
+            {'email': 'user5@example.com', 'platform': 'tiktok', 'url': 'https://tiktok.com/@user5_meutch'},
+            {'email': 'user5@example.com', 'platform': 'bluesky', 'url': 'https://bsky.app/profile/user5.bsky.social'},
+            {'email': 'user6@example.com', 'platform': 'website', 'url': 'https://user6portfolio.dev'},
+            {'email': 'user6@example.com', 'platform': 'other', 'url': 'https://dribbble.com/user6', 'custom_name': 'Dribbble'},
+        ]
+        
+        user_emails_map = {user.email: user for user in all_users}
+        display_order_counters = {}
+        
+        for link_data in web_link_examples:
+            user = user_emails_map.get(link_data['email'])
+            if user:
+                # Track display order per user
+                if user.id not in display_order_counters:
+                    display_order_counters[user.id] = 1
+                else:
+                    display_order_counters[user.id] += 1
+                
+                # Check if this link already exists
+                existing_link = UserWebLink.query.filter_by(
+                    user_id=user.id,
+                    display_order=display_order_counters[user.id]
+                ).first()
+                
+                if not existing_link and display_order_counters[user.id] <= 5:
+                    web_link = UserWebLink(
+                        user_id=user.id,
+                        platform_type=link_data['platform'],
+                        platform_name=link_data.get('custom_name'),
+                        url=link_data['url'],
+                        display_order=display_order_counters[user.id]
+                    )
+                    db.session.add(web_link)
+                    db.session.flush()
+                    click.echo(f"  ✓ Web link: {user.email} -> {link_data['platform']} ({link_data['url']})")
+    else:
+        click.echo(f"  ≈ Web links exist: {existing_web_links} records")
 
 
 def _get_database_info():
