@@ -98,7 +98,4 @@ class TestWebLinksForm:
                 'about_me': 'Test bio'
             }
             form = EditProfileForm(data=form_data)
-            # Note: This might fail due to CSRF token, but the web link validation should pass
-            if not form.validate():
-                # Check that web link specific errors are not present
-                assert 'Please select a platform when providing a URL.' not in (form.link_1_platform.errors or [])
+            assert form.validate() is True
