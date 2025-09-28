@@ -47,7 +47,9 @@
                     <div class="row g-2">
                         <div class="col-5">
                             {% set platform_field = form['link_' + i|string + '_platform'] %}
-                            <label class="form-label small">Platform {{ i }}</label>
+                            <label class="form-label small">
+                                <i class="platform-icon me-1" id="icon_{{ i }}"></i>Platform {{ i }}
+                            </label>
                             {{ platform_field(class="form-select form-select-sm") }}
                             {% if platform_field.errors %}
                                 <div class="text-danger small">
@@ -298,30 +300,53 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Handle "other" platform selection for each web link
+    // Platform icon mapping
+    const platformIcons = {
+        'facebook': 'fab fa-facebook',
+        'instagram': 'fab fa-instagram',
+        'linkedin': 'fab fa-linkedin',
+        'tiktok': 'fab fa-tiktok',
+        'x': 'fab fa-x-twitter',
+        'mastodon': 'fab fa-mastodon',
+        'bluesky': 'fas fa-cloud',
+        'threads': 'fas fa-comments',
+        'blog': 'fas fa-blog',
+        'website': 'fas fa-globe',
+        'other': 'fas fa-link',
+        '': '' // Empty selection
+    };
+
+    // Handle platform selection and icon updates for each web link
     for (let i = 1; i <= 5; i++) {
         const platformSelect = document.getElementById('link_' + i + '_platform');
+        const iconElement = document.getElementById('icon_' + i);
         
         if (platformSelect) {
             // Find the parent web-link-group and then the custom-name-row within it
             const webLinkGroup = platformSelect.closest('.web-link-group');
             const customNameRow = webLinkGroup ? webLinkGroup.querySelector('.custom-name-row') : null;
             
-            if (customNameRow) {
-                function toggleCustomName() {
+            function updatePlatform() {
+                // Update icon
+                if (iconElement) {
+                    iconElement.className = 'platform-icon me-1 text-primary ' + (platformIcons[platformSelect.value] || '');
+                }
+                
+                // Toggle custom name field for "other"
+                if (customNameRow) {
                     if (platformSelect.value === 'other') {
                         customNameRow.style.display = 'block';
                     } else {
                         customNameRow.style.display = 'none';
                     }
                 }
-                
-                // Check initial state
-                toggleCustomName();
-                
-                // Listen for changes
-                platformSelect.addEventListener('change', toggleCustomName);
             }
+            
+            // Check initial state
+            updatePlatform();
+            
+            // Listen for changes
+            platformSelect.addEventListener('change', updatePlatform);
         }
     }
 });
