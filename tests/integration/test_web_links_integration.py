@@ -118,8 +118,8 @@ class TestWebLinksIntegration:
             from app import db
             link = UserWebLink(
                 user_id=user.id,
-                platform_type='twitter',  # Old platform name
-                url='https://twitter.com/test',
+                platform_type='x',
+                url='https://x.com/test',
                 display_order=1
             )
             db.session.add(link)
@@ -131,8 +131,8 @@ class TestWebLinksIntegration:
             # Update the web link
             response = client.post('/profile', data={
                 'about_me': 'Updated bio',
-                'link_1_platform': 'x',  # Updated platform name
-                'link_1_url': 'https://x.com/test',
+                'link_1_platform': 'instagram',
+                'link_1_url': 'https://instagram.com/test',
             }, follow_redirects=True)
             
             assert response.status_code == 200
@@ -140,8 +140,8 @@ class TestWebLinksIntegration:
             # Check that old link was replaced
             links = UserWebLink.query.filter_by(user_id=user.id).all()
             assert len(links) == 1
-            assert links[0].platform_type == 'x'
-            assert links[0].url == 'https://x.com/test'
+            assert links[0].platform_type == 'instagram'
+            assert links[0].url == 'https://instagram.com/test'
     
     def test_form_validation_errors(self, client, app, auth_user):
         """Test form validation for web links."""
