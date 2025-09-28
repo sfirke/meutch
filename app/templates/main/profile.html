@@ -15,7 +15,8 @@
                 
                 <div class="mb-3">
                     {{ form.about_me.label(class="form-label") }}
-                    {{ form.about_me(class="form-control") }}
+                    <small class="text-muted d-block mb-2">A bio with specific details will help make connections to others in the community.</small>
+                    {{ form.about_me(class="form-control", rows="5") }}
                 </div>
                 
                 <div class="mb-3">
