@@ -3,6 +3,7 @@
 import pytest
 from app.models import User, UserWebLink
 from conftest import login_user
+from tests.factories import UserFactory, UserWebLinkFactory
 
 
 class TestWebLinksIntegration:
@@ -69,33 +70,21 @@ class TestWebLinksIntegration:
         """Test that user profiles display web links correctly."""
         with app.app_context():
             user1 = auth_user()
-            user2 = User(
-                email='user2@example.com',
-                first_name='User',
-                last_name='Two',
-                email_confirmed=True
-            )
-            user2.set_password('password')
-            from app import db
-            db.session.add(user2)
-            db.session.flush()
+            user2 = UserFactory(email='user2@example.com', first_name='TestUser')
             
             # Create web links for user2
-            link1 = UserWebLink(
-                user_id=user2.id,
+            UserWebLinkFactory(
+                user=user2,
                 platform_type='facebook',
                 url='https://facebook.com/user2',
                 display_order=1
             )
-            link2 = UserWebLink(
-                user_id=user2.id,
+            UserWebLinkFactory(
+                user=user2,
                 platform_type='blog',
                 url='https://user2blog.com',
                 display_order=2
             )
-            db.session.add(link1)
-            db.session.add(link2)
-            db.session.commit()
             
             # Login as user1
             login_user(client, user1.email)
@@ -105,7 +94,7 @@ class TestWebLinksIntegration:
             assert response.status_code == 200
             
             data = response.data.decode()
-            assert 'Find User on the web' in data
+            assert 'Find TestUser on the web' in data
             assert 'Facebook' in data
             assert 'Blog' in data
     
