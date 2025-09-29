@@ -465,3 +465,74 @@ class CircleJoinRequest(db.Model):
     
     circle = db.relationship('Circle', backref='join_requests')
     user = db.relationship('User', backref='circle_join_requests')
+
+
+class UserWebLink(db.Model):
+    __tablename__ = 'user_web_links'
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    platform_type = db.Column(db.String(50), nullable=False)
+    platform_name = db.Column(db.String(50), nullable=True)  # For custom "other" platforms
+    url = db.Column(db.String(500), nullable=False)
+    display_order = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='web_links')
+    
+    __table_args__ = (
+        db.CheckConstraint('display_order >= 1 AND display_order <= 5'),
+        db.UniqueConstraint('user_id', 'display_order'),
+    )
+    
+    # Platform choices - organized by category
+    PLATFORM_CHOICES = [
+        # Major social media platforms (alphabetical)
+        ('bluesky', 'Bluesky'),
+        ('facebook', 'Facebook'),
+        ('instagram', 'Instagram'),
+        ('linkedin', 'LinkedIn'),
+        ('mastodon', 'Mastodon'),
+        ('threads', 'Threads'),
+        ('tiktok', 'TikTok'),
+        ('x', 'X (Twitter)'),
+        # Content/publishing platforms
+        ('blog', 'Blog'),
+        ('website', 'Website'),
+        # Custom option
+        ('other', 'Other'),
+    ]
+    
+    @property
+    def display_name(self):
+        """Returns the display name for the platform"""
+        if self.platform_type == 'other' and self.platform_name:
+            return self.platform_name
+        
+        # Find the display name from PLATFORM_CHOICES
+        for value, label in self.PLATFORM_CHOICES:
+            if value == self.platform_type:
+                return label
+        
+        # This should never happen if platform_type is properly validated
+        raise ValueError(f"Unknown platform type: {self.platform_type}")
+    
+    @property
+    def icon_class(self):
+        """Returns the Font Awesome icon class for the platform"""
+        platform_icons = {
+            'facebook': 'fab fa-facebook',
+            'instagram': 'fab fa-instagram', 
+            'linkedin': 'fab fa-linkedin',
+            'tiktok': 'fab fa-tiktok',
+            'x': 'fab fa-x-twitter',  # Updated X/Twitter icon (available in 6.4.2+)
+            'mastodon': 'fab fa-mastodon',
+            'bluesky': 'fas fa-cloud',  # No specific Bluesky icon, using cloud
+            'threads': 'fas fa-comments',  # Use comments icon for Threads (threading concept)
+            'blog': 'fas fa-blog',
+            'website': 'fas fa-globe',
+            'other': 'fas fa-link',  # Generic link icon for other
+        }
+        return platform_icons.get(self.platform_type, 'fas fa-link')
+    
+    def __repr__(self):
+        return f'<UserWebLink {self.user_id}: {self.platform_type} - {self.url}>'

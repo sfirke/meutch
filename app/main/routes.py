@@ -590,6 +590,8 @@ def category_items(category_id):
 @main_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
+    from app.models import UserWebLink
+    
     form = EditProfileForm()
     if form.validate_on_submit():
         # Handle profile image deletion
@@ -609,12 +611,45 @@ def profile():
         
         current_user.about_me = form.about_me.data
         current_user.email_notifications_enabled = form.email_notifications_enabled.data
+        
+        # Handle web links - delete all existing and recreate
+        UserWebLink.query.filter_by(user_id=current_user.id).delete()
+        
+        # Process each link field
+        for i in range(1, 6):
+            platform = getattr(form, f'link_{i}_platform').data
+            custom_name = getattr(form, f'link_{i}_custom_name').data
+            url = getattr(form, f'link_{i}_url').data
+            
+            # Only create link if we have both platform and URL
+            if platform and url and url.strip():
+                web_link = UserWebLink(
+                    user_id=current_user.id,
+                    platform_type=platform,
+                    platform_name=custom_name.strip() if custom_name else None,
+                    url=url.strip(),
+                    display_order=i
+                )
+                db.session.add(web_link)
+        
         db.session.commit()
         flash('Your profile has been updated.', 'success')
         return redirect(url_for('main.profile'))
     elif request.method == 'GET':
         form.about_me.data = current_user.about_me
         form.email_notifications_enabled.data = current_user.email_notifications_enabled
+        
+        # Populate web links in form
+        existing_links = UserWebLink.query.filter_by(user_id=current_user.id).order_by(UserWebLink.display_order).all()
+        for link in existing_links:
+            if 1 <= link.display_order <= 5:
+                platform_field = getattr(form, f'link_{link.display_order}_platform')
+                custom_name_field = getattr(form, f'link_{link.display_order}_custom_name')
+                url_field = getattr(form, f'link_{link.display_order}_url')
+                
+                platform_field.data = link.platform_type
+                custom_name_field.data = link.platform_name or ''
+                url_field.data = link.url
  
     # Pagination parameters
     page = request.args.get('page', 1, type=int)
@@ -705,6 +740,7 @@ def user_profile(user_id):
     if not current_user.is_authenticated:
         flash('You must be logged in to view user profiles.', 'warning')
         return redirect(url_for('auth.login', next=request.url))
+    
     user = User.query.get_or_404(user_id)
     
     # Pagination parameters

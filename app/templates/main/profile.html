@@ -4,77 +4,88 @@
 
 {% block content %}
 <div class="container mt-5">
-    <div class="row">
-        <div class="col-md-4 text-center">
-            <img src="{{ current_user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
-            <form method="post" enctype="multipart/form-data">
-                {{ form.csrf_token }}
-                <div class="mb-3">
-                    {{ form.about_me.label }}
-                    {{ form.about_me(class="form-control") }}
+    <form method="post" enctype="multipart/form-data">
+        {{ form.csrf_token }}
+        <div class="row">
+            <!-- Left Column -->
+            <div class="col-md-6">
+                <div class="text-center mb-4">
+                    <img src="{{ current_user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
                 </div>
+                
                 <div class="mb-3">
-                    {{ form.profile_image.label }}
+                    {{ form.about_me.label(class="form-label") }}
+                    <small class="text-muted d-block mb-2">A bio with specific details will help make connections to others in the community.</small>
+                    {{ form.about_me(class="form-control", rows="5") }}
+                </div>
+                
+                <div class="mb-3">
+                    {{ form.profile_image.label(class="form-label") }}
                     {{ form.profile_image(class="form-control", accept="image/*") }}
                 </div>
-                {% if current_user.profile_image_url %}
-                    <div class="mb-3">
-                        {{ form.delete_image.label }}
-                        {{ form.delete_image() }}
-                    </div>
-                {% endif %}
-                <div class="mb-3">
-                    <div class="form-check">
-                        {{ form.email_notifications_enabled(class="form-check-input") }}
-                        {{ form.email_notifications_enabled.label(class="form-check-label") }}
-                    </div>
-                    <small class="text-muted">Uncheck to stop receiving email notifications for new messages</small>
-                </div>
-                {{ form.submit(class="btn btn-primary") }}
-            </form>
-            
-            <!-- Address Information -->
-            <div class="mt-4 pt-4 border-top">
-                <h6><i class="fas fa-map-marker-alt me-2"></i>Location Status</h6>
-                {% if current_user.is_geocoded %}
-                    <div class="alert alert-success alert-sm">
-                        <i class="fas fa-check-circle me-1"></i>
-                        <small>Your location is set and distances will be shown to other users.</small>
-                    </div>
-                {% elif current_user.geocoding_failed %}
-                    <div class="alert alert-warning alert-sm">
-                        <i class="fas fa-exclamation-triangle me-1"></i>
-                        <small>We couldn't determine your location. Update your address to see distances.</small>
-                    </div>
-                {% else %}
-                    <div class="alert alert-info alert-sm">
-                        <i class="fas fa-info-circle me-1"></i>
-                        <small>Your location hasn't been processed yet. You won't be able to see distances to items until this is resolved.</small>
-                    </div>
-                {% endif %}
                 
-                {% if current_user.can_update_location() %}
-                    <a href="{{ url_for('main.update_location') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-edit me-1"></i>Update Location
-                    </a>
-                {% else %}
-                    <div class="text-muted small mb-2">
-                        <i class="fas fa-clock me-1"></i>You can update your location once per successful update per day.
+                {% if current_user.profile_image_url %}
+                    <div class="mb-3 form-check">
+                        {{ form.delete_image(class="form-check-input") }}
+                        {{ form.delete_image.label(class="form-check-label") }}
                     </div>
-                    <button class="btn btn-outline-secondary btn-sm" disabled>
-                        <i class="fas fa-edit me-1"></i>Update Location (Available Tomorrow)
-                    </button>
                 {% endif %}
             </div>
             
-            <!-- Account Deletion -->
-            <div class="mt-4 pt-4 border-top">
-                <a href="{{ url_for('main.delete_account') }}" class="btn btn-outline-danger btn-sm">
-                    <i class="fas fa-trash"></i> Delete Account
-                </a>
+            <!-- Right Column - Web Links -->
+            <div class="col-md-6">
+                <h5 class="mb-3">Where else can you be found on the web?</h5>
+                <small class="text-muted mb-3 d-block">Add up to 5 links to help establish your identity.</small>
+
+                {% for i in range(1, 6) %}
+                <div class="web-link-group mb-3 p-3 border rounded" data-link-index="{{ i }}">
+                    <div class="row g-2">
+                        <div class="col-5">
+                            {% set platform_field = form['link_' + i|string + '_platform'] %}
+                            <label class="form-label small">
+                                <i class="platform-icon me-1" id="icon_{{ i }}"></i>Platform {{ i }}
+                            </label>
+                            {{ platform_field(class="form-select form-select-sm") }}
+                            {% if platform_field.errors %}
+                                <div class="text-danger small">
+                                    {% for error in platform_field.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-7">
+                            {% set url_field = form['link_' + i|string + '_url'] %}
+                            <label class="form-label small">URL {{ i }}</label>
+                            {{ url_field(class="form-control form-control-sm", placeholder="https://") }}
+                            {% if url_field.errors %}
+                                <div class="text-danger small">
+                                    {% for error in url_field.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Custom name field for "other" platform -->
+                    <div class="custom-name-row mt-2" style="display: none;">
+                        <div class="col-12">
+                            {% set custom_name_field = form['link_' + i|string + '_custom_name'] %}
+                            <label class="form-label small">Name of other site</label>
+                            {{ custom_name_field(class="form-control form-control-sm", placeholder="e.g., My Portfolio, Company Website") }}
+                            {% if custom_name_field.errors %}
+                                <div class="text-danger small">
+                                    {% for error in custom_name_field.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
-    </div>
+        
+        <div class="text-center mt-4 mb-5">
+            {{ form.submit(class="btn btn-primary") }}
+        </div>
+    </form>
 
     {% if current_user == user %}
         <!-- Currently Borrowing -->
@@ -225,5 +236,128 @@
             </nav>
         {% endif %}
     </div>
+    
+    <!-- Admin options - Email Notifications, Location Status, Danger Zone - at the very bottom -->
+    <div class="row mt-5 pt-4 border-top">
+        <div class="col-md-4">
+            <!-- Email Notifications -->
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title"><i class="fas fa-envelope me-2"></i>Email Notifications</h6>
+                    <div class="form-check">
+                        {{ form.email_notifications_enabled(class="form-check-input") }}
+                        {{ form.email_notifications_enabled.label(class="form-check-label") }}
+                    </div>
+                    <small class="text-muted">Uncheck to stop receiving email notifications for new messages</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Address Information -->
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title"><i class="fas fa-map-marker-alt me-2"></i>Location Status</h6>
+                    {% if current_user.is_geocoded %}
+                        <div class="alert alert-success alert-sm">
+                            <i class="fas fa-check-circle me-1"></i>
+                            <small>Your location is set and distances will be shown to other users.</small>
+                        </div>
+                    {% elif current_user.geocoding_failed %}
+                        <div class="alert alert-warning alert-sm">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            <small>We couldn't determine your location. Update your address to see distances.</small>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info alert-sm">
+                            <i class="fas fa-info-circle me-1"></i>
+                            <small>Your location hasn't been processed yet. You won't be able to see distances to items until this is resolved.</small>
+                        </div>
+                    {% endif %}
+                    
+                    {% if current_user.can_update_location() %}
+                        <a href="{{ url_for('main.update_location') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-edit me-1"></i>Update Location
+                        </a>
+                    {% else %}
+                        <div class="text-muted small mb-2">
+                            <i class="fas fa-clock me-1"></i>You can update your location once per successful update per day.
+                        </div>
+                        <button class="btn btn-outline-secondary btn-sm" disabled>
+                            <i class="fas fa-edit me-1"></i>Update Location (Available Tomorrow)
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Account Deletion -->
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title text-danger">Danger Zone</h6>
+                    <a href="{{ url_for('main.delete_account') }}" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-trash"></i> Delete Account
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Platform icon mapping
+    const platformIcons = {
+        'facebook': 'fab fa-facebook',
+        'instagram': 'fab fa-instagram',
+        'linkedin': 'fab fa-linkedin',
+        'tiktok': 'fab fa-tiktok',
+        'x': 'fab fa-x-twitter',
+        'mastodon': 'fab fa-mastodon',
+        'bluesky': 'fas fa-cloud',
+        'threads': 'fas fa-comments',
+        'blog': 'fas fa-blog',
+        'website': 'fas fa-globe',
+        'other': 'fas fa-link',
+        '': '' // Empty selection
+    };
+
+    // Handle platform selection and icon updates for each web link
+    for (let i = 1; i <= 5; i++) {
+        const platformSelect = document.getElementById('link_' + i + '_platform');
+        const iconElement = document.getElementById('icon_' + i);
+        
+        if (platformSelect) {
+            // Find the parent web-link-group and then the custom-name-row within it
+            const webLinkGroup = platformSelect.closest('.web-link-group');
+            const customNameRow = webLinkGroup ? webLinkGroup.querySelector('.custom-name-row') : null;
+            
+            function updatePlatform() {
+                // Update icon
+                if (iconElement) {
+                    iconElement.className = 'platform-icon me-1 text-primary ' + (platformIcons[platformSelect.value] || '');
+                }
+                
+                // Toggle custom name field for "other"
+                if (customNameRow) {
+                    if (platformSelect.value === 'other') {
+                        customNameRow.style.display = 'block';
+                    } else {
+                        customNameRow.style.display = 'none';
+                    }
+                }
+            }
+            
+            // Check initial state
+            updatePlatform();
+            
+            // Listen for changes
+            platformSelect.addEventListener('change', updatePlatform);
+        }
+    }
+});
+</script>
 {% endblock %}

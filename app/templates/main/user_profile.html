@@ -12,6 +12,31 @@
                 <p class="mt-3">{{ user.about_me }}</p>
             {% endif %}
         </div>
+        
+        <!-- Web Links Section - Upper Right -->
+        <div class="col-md-8">
+            {% if user.web_links %}
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="fas fa-external-link-alt me-2"></i>Find {{ user.first_name }} on the web
+                        </h6>
+                        <div class="row">
+                            {% for link in user.web_links %}
+                                <div class="col-md-6 mb-2">
+                                    <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
+                                        <div class="d-flex align-items-center p-2 bg-light rounded hover-bg-secondary">
+                                            <i class="{{ link.icon_class }} me-2 text-primary" style="width: 20px;"></i>
+                                            <span class="small">{{ link.display_name }}</span>
+                                        </div>
+                                    </a>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
     </div>
 </div>
     
