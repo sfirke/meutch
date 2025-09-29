@@ -23,7 +23,7 @@ class TestWebLinksIntegration:
             
             # Check that web link fields are present
             data = response.data.decode()
-            assert 'Where to find me on the web' in data
+            assert 'Where else can you be found on the web?' in data
             assert 'link_1_platform' in data
             assert 'link_1_url' in data
             assert 'link_5_platform' in data  # Check all 5 fields are there
