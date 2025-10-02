@@ -251,4 +251,40 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Determine which tab should be active
+    let activeTab = 'your-circles-tab';  // Default tab
+    
+    // Check if we should show a specific tab based on form submissions or search results
+    {% if searched_circles or show_browse %}
+        // If there are search results, show the Find Circles tab
+        activeTab = 'find-circles-tab';
+    {% elif circle_form.errors %}
+        // If there are form errors in circle creation, show Create Circle tab
+        activeTab = 'create-circle-tab';
+    {% else %}
+        // Otherwise, check localStorage for the last active tab
+        const savedTab = localStorage.getItem('activeCirclesTab');
+        if (savedTab) {
+            activeTab = savedTab;
+        }
+    {% endif %}
+    
+    // Activate the determined tab
+    const tabTrigger = document.getElementById(activeTab);
+    if (tabTrigger) {
+        const tab = new bootstrap.Tab(tabTrigger);
+        tab.show();
+    }
+    
+    // Save the active tab to localStorage when user clicks a tab
+    document.querySelectorAll('#circlesTabs button[data-bs-toggle="tab"]').forEach(function(tabButton) {
+        tabButton.addEventListener('shown.bs.tab', function(event) {
+            localStorage.setItem('activeCirclesTab', event.target.id);
+        });
+    });
+});
+</script>
 {% endblock %}
