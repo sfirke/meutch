@@ -454,3 +454,83 @@ class TestDistanceUtils:
                 
                 result = get_distance(item)
                 assert result is None
+
+    def test_get_distance_to_circle_success(self, app):
+        """Test successful distance calculation between user and circle center."""
+        with app.app_context():
+            # Create circle with known coordinates (Boston)
+            circle = CircleFactory(latitude=42.3601, longitude=-71.0589)
+            # Create user with known coordinates (NYC)
+            user = UserFactory(latitude=40.7128, longitude=-74.0060)
+            
+            with patch('app.context_processors.current_user', user):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_circle']
+                
+                result = get_distance(circle)
+                
+                # Should return formatted distance string
+                assert result is not None
+                assert 'mi' in result
+                # Distance between Boston and NYC should be ~185-195 miles
+                distance_num = float(result.replace(' mi', ''))
+                assert 185 <= distance_num <= 195
+
+    def test_get_distance_to_circle_anonymous_user(self, app):
+        """Test that anonymous users get None distance."""
+        with app.app_context():
+            circle = CircleFactory(latitude=42.3601, longitude=-71.0589)
+            
+            mock_user = MagicMock()
+            mock_user.is_authenticated = False
+            
+            with patch('app.context_processors.current_user', mock_user):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_circle']
+                
+                result = get_distance(circle)
+                assert result is None
+
+    def test_get_distance_to_circle_user_not_geocoded(self, app):
+        """Test that users without location get None distance."""
+        with app.app_context():
+            circle = CircleFactory(latitude=42.3601, longitude=-71.0589)
+            user = UserFactory(latitude=None, longitude=None)
+            
+            with patch('app.context_processors.current_user', user):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_circle']
+                
+                result = get_distance(circle)
+                assert result is None
+
+    def test_get_distance_to_circle_circle_not_geocoded(self, app):
+        """Test that circles without location get None distance."""
+        with app.app_context():
+            circle = CircleFactory(latitude=None, longitude=None)
+            user = UserFactory(latitude=40.7128, longitude=-74.0060)
+            
+            with patch('app.context_processors.current_user', user):
+                context = inject_distance_utils()
+                get_distance = context['get_distance_to_circle']
+                
+                result = get_distance(circle)
+                assert result is None
+
+    def test_get_distance_to_circle_exception_handling(self, app):
+        """Test that exceptions are handled gracefully for circles."""
+        with app.app_context():
+            circle = CircleFactory(latitude=42.3601, longitude=-71.0589)
+            
+            # Create a user that will cause an exception
+            mock_user = MagicMock()
+            mock_user.is_authenticated = True
+            mock_user.is_geocoded = True
+            
+            with patch('app.context_processors.current_user', mock_user):
+                with patch.object(circle, 'distance_to_user', side_effect=Exception("Calculation error")):
+                    context = inject_distance_utils()
+                    get_distance = context['get_distance_to_circle']
+                    
+                    result = get_distance(circle)
+                    assert result is None
