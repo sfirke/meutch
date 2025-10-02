@@ -58,6 +58,105 @@
                         <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
+                
+                <!-- Location Section -->
+                <div class="mb-4">
+                    <h5 class="mb-3"><i class="fas fa-map-marker-alt me-2"></i>Circle Location</h5>
+                    {% if circle.is_geocoded %}
+                        <div class="alert alert-info">
+                            <small><i class="fas fa-check-circle me-1"></i>Current location: <strong>{{ circle.latitude }}, {{ circle.longitude }}</strong></small>
+                        </div>
+                    {% else %}
+                        <p class="text-muted small mb-3">No location set yet. Adding a location helps members find circles near them.</p>
+                    {% endif %}
+                    
+                    <!-- Location Method Choice -->
+                    {{ form.location_method.label(class="form-label") }}
+                    {% for subfield in form.location_method %}
+                        <div class="form-check">
+                            {{ subfield(class="form-check-input edit-location-method-radio") }}
+                            {{ subfield.label(class="form-check-label") }}
+                        </div>
+                    {% endfor %}
+                    {% for error in form.location_method.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Address Fields -->
+                <div id="edit-address-fields" class="mb-4" style="display: none;">
+                    <h6 class="mb-3">Enter Address</h6>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            {{ form.street.label(class="form-label") }}
+                            {{ form.street(class="form-control", placeholder="123 Main Street") }}
+                            {% for error in form.street.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.city.label(class="form-label") }}
+                            {{ form.city(class="form-control", placeholder="Boston") }}
+                            {% for error in form.city.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            {{ form.state.label(class="form-label") }}
+                            {{ form.state(class="form-control", placeholder="MA") }}
+                            {% for error in form.state.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            {{ form.zip_code.label(class="form-label") }}
+                            {{ form.zip_code(class="form-control", placeholder="02101") }}
+                            {% for error in form.zip_code.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.country.label(class="form-label") }}
+                            {{ form.country(class="form-control") }}
+                            {% for error in form.country.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Coordinate Fields -->
+                <div id="edit-coordinate-fields" class="mb-4" style="display: none;">
+                    <h6 class="mb-3">Enter Coordinates</h6>
+                    <div class="alert alert-secondary">
+                        <small>
+                            <strong>Tip:</strong> Find coordinates using Google Maps (right-click → copy coordinates) or your phone's GPS.
+                        </small>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.latitude.label(class="form-label") }}
+                            {{ form.latitude(class="form-control", step="any", placeholder="e.g., 42.3601") }}
+                            <div class="form-text">Between -90 and 90</div>
+                            {% for error in form.latitude.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.longitude.label(class="form-label") }}
+                            {{ form.longitude(class="form-control", step="any", placeholder="e.g., -71.0589") }}
+                            <div class="form-text">Between -180 and 180</div>
+                            {% for error in form.longitude.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Submit -->
                 <div class="d-grid gap-2">
                     {{ form.submit(class="btn btn-primary") }}
@@ -72,4 +171,38 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show/hide location fields based on location method selection
+    const locationMethodRadios = document.querySelectorAll('.edit-location-method-radio');
+    const addressFields = document.getElementById('edit-address-fields');
+    const coordinateFields = document.getElementById('edit-coordinate-fields');
+    
+    function toggleLocationFields() {
+        const selectedMethod = document.querySelector('.edit-location-method-radio:checked');
+        if (selectedMethod) {
+            if (selectedMethod.value === 'address') {
+                addressFields.style.display = 'block';
+                coordinateFields.style.display = 'none';
+            } else if (selectedMethod.value === 'coordinates') {
+                addressFields.style.display = 'none';
+                coordinateFields.style.display = 'block';
+            } else {
+                // 'skip' option
+                addressFields.style.display = 'none';
+                coordinateFields.style.display = 'none';
+            }
+        }
+    }
+    
+    // Initialize on page load
+    toggleLocationFields();
+    
+    // Update when radio selection changes
+    locationMethodRadios.forEach(function(radio) {
+        radio.addEventListener('change', toggleLocationFields);
+    });
+});
+</script>
 {% endblock %}

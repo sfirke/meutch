@@ -2,7 +2,7 @@ from flask import render_template, redirect, url_for, flash, request, current_ap
 from flask_login import current_user, login_required
 from app.circles import bp as circles_bp
 from app.models import Circle, db, circle_members, CircleJoinRequest, User
-from app.forms import CircleCreateForm, EmptyForm, CircleSearchForm, CircleJoinRequestForm, CircleUuidSearchForm, UpdateCircleLocationForm
+from app.forms import CircleCreateForm, EmptyForm, CircleSearchForm, CircleJoinRequestForm, CircleUuidSearchForm
 from app.utils.storage import upload_circle_image, delete_file, is_valid_file_upload
 from app.utils.geocoding import geocode_address, build_address_string, GeocodingError
 import logging
@@ -588,12 +588,47 @@ def edit_circle(circle_id):
     if request.method == 'GET':
         form.image.data = None
         form.delete_image.data = False
+        # Populate location fields with existing data
+        if circle.is_geocoded:
+            form.latitude.data = circle.latitude
+            form.longitude.data = circle.longitude
+            form.location_method.data = 'skip'  # Default to skip, user can change if they want to update
 
     if form.validate_on_submit():
         circle.name = form.name.data.strip()
         circle.description = form.description.data.strip()
         circle.visibility = form.visibility.data
         circle.requires_approval = form.visibility.data in ['private', 'unlisted']
+
+        # Handle location based on input method
+        geocoding_failed = False
+        if form.location_method.data == 'coordinates':
+            # Direct coordinate input
+            circle.latitude = form.latitude.data
+            circle.longitude = form.longitude.data
+            logger.info(f"Circle {circle.name} location updated with coordinates: ({circle.latitude}, {circle.longitude})")
+        elif form.location_method.data == 'address':
+            # Address geocoding
+            address = build_address_string(
+                form.street.data, form.city.data, form.state.data, 
+                form.zip_code.data, form.country.data
+            )
+            
+            try:
+                coordinates = geocode_address(address)
+                if coordinates:
+                    circle.latitude, circle.longitude = coordinates
+                    logger.info(f"Successfully geocoded address for circle {circle.name}")
+                else:
+                    geocoding_failed = True
+                    logger.warning(f"Failed to geocode address for circle {circle.name}: {address}")
+            except GeocodingError as e:
+                geocoding_failed = True
+                logger.error(f"Geocoding error for circle {circle.name}: {e}")
+            except Exception as e:
+                geocoding_failed = True
+                logger.error(f"Unexpected error during geocoding for circle {circle.name}: {e}")
+        # If location_method is 'skip', don't change location data
 
         # Handle image deletion
         if form.delete_image.data and circle.image_url:
@@ -614,61 +649,14 @@ def edit_circle(circle_id):
                 return render_template('circles/edit_circle.html', form=form, circle=circle)
 
         db.session.commit()
-        flash('Circle details updated.', 'success')
+        
+        # Provide appropriate feedback based on location update
+        if geocoding_failed:
+            flash('Circle updated, but we couldn\'t determine the location from the address provided. '
+                  'You can try entering coordinates directly.', 'warning')
+        else:
+            flash('Circle updated successfully.', 'success')
+        
         return redirect(url_for('circles.view_circle', circle_id=circle.id))
 
     return render_template('circles/edit_circle.html', form=form, circle=circle)
-
-
-@circles_bp.route('/<uuid:circle_id>/update-location', methods=['GET', 'POST'])
-@login_required
-def update_circle_location(circle_id):
-    """Update the location of a circle (admins only)"""
-    circle = Circle.query.get_or_404(circle_id)
-    
-    if not circle.is_admin(current_user):
-        flash('Only circle admins can update the circle location.', 'danger')
-        return redirect(url_for('circles.view_circle', circle_id=circle.id))
-    
-    form = UpdateCircleLocationForm()
-    
-    if form.validate_on_submit():
-        # Handle location based on input method
-        if form.location_method.data == 'coordinates':
-            # Direct coordinate input
-            circle.latitude = form.latitude.data
-            circle.longitude = form.longitude.data
-            logger.info(f"Circle {circle.name} location updated with coordinates: ({circle.latitude}, {circle.longitude})")
-            
-            db.session.commit()
-            flash('Circle location updated successfully!', 'success')
-            return redirect(url_for('circles.view_circle', circle_id=circle.id))
-            
-        elif form.location_method.data == 'address':
-            # Address geocoding
-            address = build_address_string(
-                form.street.data, form.city.data, form.state.data, 
-                form.zip_code.data, form.country.data
-            )
-            
-            try:
-                coordinates = geocode_address(address)
-                if coordinates:
-                    circle.latitude, circle.longitude = coordinates
-                    logger.info(f"Successfully geocoded address for circle {circle.name}")
-                    
-                    db.session.commit()
-                    flash('Circle location updated successfully!', 'success')
-                    return redirect(url_for('circles.view_circle', circle_id=circle.id))
-                else:
-                    flash('Could not find coordinates for that address. Please try entering coordinates directly or use a different address.', 'warning')
-                    logger.warning(f"Failed to geocode address for circle {circle.name}: {address}")
-                    
-            except GeocodingError as e:
-                flash(f'Error looking up address: {str(e)}. Please try again or enter coordinates directly.', 'danger')
-                logger.error(f"Geocoding error for circle {circle.name}: {e}")
-            except Exception as e:
-                flash('An unexpected error occurred. Please try again.', 'danger')
-                logger.error(f"Unexpected error during geocoding for circle {circle.name}: {e}")
-    
-    return render_template('circles/update_circle_location.html', form=form, circle=circle)
