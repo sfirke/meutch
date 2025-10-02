@@ -108,14 +108,15 @@ def manage_circles():
                 
                 # Provide appropriate feedback based on location choice
                 if circle_form.location_method.data == 'skip':
-                    flash('Circle created successfully! Admins can add a location later to help members find circles nearby.', 'success')
+                    flash('Circle created successfully! You can add a location later to help members find circles nearby.', 'success')
                 elif geocoding_failed:
                     flash('Circle created successfully, but we couldn\'t determine the location from the address provided. '
-                          'Admins can try entering coordinates directly, or update the location later.', 'warning')
+                          'You can try entering coordinates directly, or update the location later.', 'warning')
                 else:
-                    flash('Circle created successfully.', 'success')
+                    flash('Circle created successfully!', 'success')
                 
-                return redirect(url_for('circles.manage_circles'))
+                # Redirect to the newly created circle's detail page
+                return redirect(url_for('circles.view_circle', circle_id=new_circle.id))
             
         elif 'search_circles' in request.form and search_form.validate_on_submit():
             # Handle Circle Search or Browse (only public and private circles, not unlisted)
