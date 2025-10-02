@@ -6,11 +6,37 @@
 
 {% block content %}
 <div class="container mt-5">
-    <!-- User's Joined Circles -->
-    <h2>Your Circles</h2>
-    {% if user_circles %}
-        <ul class="list-group mb-4">
-            {% for circle in user_circles %}
+    <h1 class="mb-4">Circles</h1>
+    
+    <!-- Tabbed Navigation -->
+    <ul class="nav nav-tabs mb-4" id="circlesTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="your-circles-tab" data-bs-toggle="tab" data-bs-target="#your-circles" type="button" role="tab" aria-controls="your-circles" aria-selected="true">
+                <i class="fas fa-users me-2"></i>Your Circles
+                {% if user_circles|length > 0 %}
+                    <span class="badge bg-primary ms-1">{{ user_circles|length }}</span>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="find-circles-tab" data-bs-toggle="tab" data-bs-target="#find-circles" type="button" role="tab" aria-controls="find-circles" aria-selected="false">
+                <i class="fas fa-search me-2"></i>Find Circles
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="create-circle-tab" data-bs-toggle="tab" data-bs-target="#create-circle" type="button" role="tab" aria-controls="create-circle" aria-selected="false">
+                <i class="fas fa-plus-circle me-2"></i>Create Circle
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="circlesTabContent">
+        <!-- Your Circles Tab -->
+        <div class="tab-pane fade show active" id="your-circles" role="tabpanel" aria-labelledby="your-circles-tab">
+            {% if user_circles %}
+                <ul class="list-group mb-4">
+                    {% for circle in user_circles %}
             <li class="list-group-item d-flex justify-content-between align-items-center 
                 {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}bg-light border-warning{% endif %}">
                 <div>
@@ -50,14 +76,20 @@
                     </form>
                 </div>
             </li>
-            {% endfor %}
-    {% else %}
-        <p>You are not part of any circles yet.</p>
-    {% endif %}
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>You are not part of any circles yet. Try the <strong>Find Circles</strong> tab to discover communities!
+                </div>
+            {% endif %}
+        </div>
 
-    <!-- Search/Browse Circles -->
-    <h2>Find Circles</h2>
-    <form method="post" class="mb-4">
+        <!-- Find Circles Tab -->
+        <div class="tab-pane fade" id="find-circles" role="tabpanel" aria-labelledby="find-circles-tab">
+            <!-- Search/Browse Circles -->
+            <h3 class="mb-3"><i class="fas fa-search me-2"></i>Search Public Circles</h3>
+            <form method="post" class="mb-4">
         {{ search_form.csrf_token }}
         <div class="row g-2">
             <div class="col-md-6">
@@ -82,11 +114,11 @@
                 <a href="{{ url_for('main.update_location') }}">Set your location</a> to filter circles by distance.
             </small>
         {% endif %}
-    </form>
+            </form>
 
-    <!-- Find Unlisted Circle by UUID -->
-    <h3>Find Unlisted Circle</h3>
-    <form method="post" class="mb-4">
+            <!-- Find Unlisted Circle by UUID -->
+            <h3 class="mb-3 mt-4"><i class="fas fa-key me-2"></i>Find Unlisted Circle</h3>
+            <form method="post" class="mb-4">
         {{ uuid_search_form.csrf_token }}
         <div class="input-group">
             {{ uuid_search_form.circle_uuid(class="form-control", placeholder="Enter circle UUID (e.g., a6549a7e-f9b4-47b7-98fb-483f21b04a55)") }}
@@ -97,11 +129,11 @@
         {% endfor %}
         <small class="form-text text-muted">
             To find an unlisted circle, you need its exact UUID. Ask a circle member for this information.
-        </small>
-    </form>
+            </small>
+            </form>
 
-    <!-- Display Search Results or Browse Results -->
-        {% if searched_circles %}
+            <!-- Display Search Results or Browse Results -->
+            {% if searched_circles %}
             <h3>Search Results</h3>
             <ul class="list-group mb-4">
                 {% for circle in searched_circles %}
@@ -170,14 +202,18 @@
                 </li>
                 {% endfor %}
             </ul>
-        {% elif show_browse %}
-            <div class="alert alert-info">
-                <p class="mb-0">No public circles available. Be the first to create one!</p>
-            </div>
-        {% endif %}
-    <!-- Create New Circle -->
-    <h2>Create a New Circle</h2>
-    <form method="post">
+            {% elif show_browse %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>No public circles available. Create one using the <strong>Create Circle</strong> tab!
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Create Circle Tab -->
+        <div class="tab-pane fade" id="create-circle" role="tabpanel" aria-labelledby="create-circle-tab">
+            <h3 class="mb-3"><i class="fas fa-plus-circle me-2"></i>Start a New Circle</h3>
+            <p class="text-muted mb-4">Create a community for sharing items with friends, neighbors, or colleagues.</p>
+            <form method="post">
         {{ circle_form.csrf_token }}
         
         <!-- Circle Name -->
@@ -207,10 +243,12 @@
             {% endfor %}
         </div>
         
-        <!-- Submit Button -->
-        <div class="mb-3">
-            <button type="submit" class="btn btn-primary" name="create_circle">{{ circle_form.submit.label.text }}</button>
+                <!-- Submit Button -->
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary" name="create_circle"><i class="fas fa-check me-2"></i>{{ circle_form.submit.label.text }}</button>
+                </div>
+            </form>
         </div>
-    </form>
+    </div>
 </div>
 {% endblock %}
