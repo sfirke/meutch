@@ -13,6 +13,7 @@ Production environment only creates basic categories and tags.
 import click
 import os
 import random
+from datetime import datetime
 from flask.cli import with_appcontext
 
 
@@ -227,25 +228,35 @@ def _seed_development_data():
     # Circles (idempotent)
     circles = []
     circle_data = [
-        {'name': 'Neighborhood Share', 'desc': 'Share with your neighbors'},
-        {'name': 'Tech Enthusiasts', 'desc': 'For tech lovers and gadget sharers'},
-        {'name': 'Book Club', 'desc': 'Share and discuss books'},
-        {'name': 'Outdoor Adventures', 'desc': 'Outdoor gear sharing community'},
-        {'name': 'Cooking Circle', 'desc': 'Kitchen tools and recipe sharing'},
+        # Public circles for browsing
+        {'name': 'Neighborhood Share', 'desc': 'Share with your neighbors', 'lat': 40.7128, 'lon': -74.0060, 'visibility': 'public'},  # Manhattan
+        {'name': 'Tech Enthusiasts', 'desc': 'For tech lovers and gadget sharers', 'lat': 40.7589, 'lon': -73.9851, 'visibility': 'public'},  # Upper West Side
+        {'name': 'Book Club', 'desc': 'Share and discuss books', 'lat': 40.7282, 'lon': -73.7949, 'visibility': 'public'},  # Queens
+        {'name': 'Outdoor Adventures', 'desc': 'Outdoor gear sharing community', 'lat': 40.6782, 'lon': -73.9442, 'visibility': 'public'},  # Brooklyn
+        {'name': 'Cooking Circle', 'desc': 'Kitchen tools and recipe sharing', 'lat': 40.7489, 'lon': -73.9680, 'visibility': 'public'},  # Midtown East
+        {'name': 'Gardening Friends', 'desc': 'Share gardening tools and tips', 'lat': 40.7280, 'lon': -74.0020, 'visibility': 'public'},  # Lower Manhattan
+        {'name': 'DIY Workshop', 'desc': 'Tools and knowledge for DIY projects', 'lat': 40.7050, 'lon': -73.9970, 'visibility': 'public'},  # Lower East Side
+        {'name': 'Sports Equipment Share', 'desc': 'Share sports gear and equipment', 'lat': 40.7580, 'lon': -73.9680, 'visibility': 'public'},  # Upper East Side
+        # Public circle with no location set
+        {'name': 'Unlocated Public Circle', 'desc': 'A public circle with no location set yet', 'lat': None, 'lon': None, 'visibility': 'public'},
+        # Private/unlisted circles
+        {'name': 'Family Circle', 'desc': 'Private family lending circle', 'lat': 40.7420, 'lon': -73.9890, 'visibility': 'private'},  # Midtown
+        {'name': 'Office Supplies', 'desc': 'Unlisted circle for office equipment', 'lat': 40.7510, 'lon': -73.9930, 'visibility': 'unlisted'},  # Midtown West
     ]
     
-    for circle_info in circle_data:
+    for idx, circle_info in enumerate(circle_data):
         existing = Circle.query.filter_by(name=circle_info['name']).first()
         if not existing:
-            # Choose a visibility explicitly to avoid leaving the field blank in seeded data
-            visibility = random.choice(['public', 'private', 'unlisted'])
+            visibility = circle_info['visibility']
             requires_approval = visibility in ['private', 'unlisted']
 
             circle = Circle(
                 name=circle_info['name'],
                 description=circle_info['desc'],
                 visibility=visibility,
-                requires_approval=requires_approval
+                requires_approval=requires_approval,
+                latitude=circle_info['lat'],
+                longitude=circle_info['lon']
             )
             db.session.add(circle)
             db.session.flush()  # Get the ID
@@ -256,10 +267,17 @@ def _seed_development_data():
                 circle.members.append(user)
             
             circles.append(circle)
-            click.echo(f"  ✓ Circle: {circle.name} ({len(circle_users)} members) [visibility={visibility}]")
+            location_status = "location set" if circle.is_geocoded else "no location"
+            click.echo(f"  ✓ Circle: {circle.name} ({len(circle_users)} members) [visibility={visibility}, {location_status}]")
         else:
+            # Update location for existing circles if they don't have one
+            if not existing.is_geocoded:
+                existing.latitude = circle_info['lat']
+                existing.longitude = circle_info['lon']
+                click.echo(f"  ≈ Circle exists: {existing.name} ({len(existing.members)} members) [location updated]")
+            else:
+                click.echo(f"  ≈ Circle exists: {existing.name} ({len(existing.members)} members)")
             circles.append(existing)
-            click.echo(f"  ≈ Circle exists: {existing.name} ({len(existing.members)} members)")
     
     # Items (idempotent)
     items = []

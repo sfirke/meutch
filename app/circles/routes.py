@@ -2,8 +2,9 @@ from flask import render_template, redirect, url_for, flash, request, current_ap
 from flask_login import current_user, login_required
 from app.circles import bp as circles_bp
 from app.models import Circle, db, circle_members, CircleJoinRequest, User
-from app.forms import CircleCreateForm, EmptyForm, CircleSearchForm, CircleJoinRequestForm, CircleUuidSearchForm
+from app.forms import CircleCreateForm, EmptyForm, CircleSearchForm, CircleJoinRequestForm, CircleUuidSearchForm, UpdateCircleLocationForm
 from app.utils.storage import upload_circle_image, delete_file, is_valid_file_upload
+from app.utils.geocoding import geocode_address, build_address_string, GeocodingError
 import logging
 import uuid
 from sqlalchemy import and_
@@ -20,6 +21,8 @@ def manage_circles():
     search_form = CircleSearchForm()
     uuid_search_form = CircleUuidSearchForm()
     searched_circles = None
+    browse_circles = None
+    show_browse = False
 
     # Get user's admin circles with pending request counts
     admin_circle_counts = db.session.query(
@@ -59,6 +62,37 @@ def manage_circles():
                     visibility=circle_form.visibility.data,
                     requires_approval=requires_approval
                 )
+                
+                # Handle location based on input method
+                geocoding_failed = False
+                if circle_form.location_method.data == 'coordinates':
+                    # Direct coordinate input
+                    new_circle.latitude = circle_form.latitude.data
+                    new_circle.longitude = circle_form.longitude.data
+                    logger.info(f"Circle {new_circle.name} provided coordinates directly: ({new_circle.latitude}, {new_circle.longitude})")
+                elif circle_form.location_method.data == 'address':
+                    # Address geocoding
+                    address = build_address_string(
+                        circle_form.street.data, circle_form.city.data, circle_form.state.data, 
+                        circle_form.zip_code.data, circle_form.country.data
+                    )
+                    
+                    try:
+                        coordinates = geocode_address(address)
+                        if coordinates:
+                            new_circle.latitude, new_circle.longitude = coordinates
+                            logger.info(f"Successfully geocoded address for circle {new_circle.name}")
+                        else:
+                            geocoding_failed = True
+                            logger.warning(f"Failed to geocode address for circle {new_circle.name}: {address}")
+                    except GeocodingError as e:
+                        geocoding_failed = True
+                        logger.error(f"Geocoding error for circle {new_circle.name}: {e}")
+                    except Exception as e:
+                        geocoding_failed = True
+                        logger.error(f"Unexpected error during geocoding for circle {new_circle.name}: {e}")
+                # If location_method is 'skip', don't set any location data
+                
                 db.session.add(new_circle)
                 db.session.flush()  # Ensure circle has an ID
                 
@@ -72,20 +106,75 @@ def manage_circles():
                 db.session.execute(stmt)
                 db.session.commit()
                 
-                flash('Circle created successfully.', 'success')
+                # Provide appropriate feedback based on location choice
+                if circle_form.location_method.data == 'skip':
+                    flash('Circle created successfully! Admins can add a location later to help members find circles nearby.', 'success')
+                elif geocoding_failed:
+                    flash('Circle created successfully, but we couldn\'t determine the location from the address provided. '
+                          'Admins can try entering coordinates directly, or update the location later.', 'warning')
+                else:
+                    flash('Circle created successfully.', 'success')
+                
                 return redirect(url_for('circles.manage_circles'))
             
         elif 'search_circles' in request.form and search_form.validate_on_submit():
-            # Handle Circle Search (only public and private circles, not unlisted)
-            query = search_form.search_query.data
-            searched_circles = Circle.query.filter(
-                db.and_(
-                    Circle.name.ilike(f'%{query}%'),
-                    Circle.visibility != 'unlisted'  # Exclude unlisted circles from search
+            # Handle Circle Search or Browse (only public and private circles, not unlisted)
+            query = search_form.search_query.data.strip() if search_form.search_query.data else ''
+            radius = search_form.radius.data
+            
+            # Get user's circle IDs for membership indicator
+            user_circle_ids = [circle.id for circle in current_user.circles]
+            
+            # Base query - if no search term, get all public circles (browsing mode)
+            if query:
+                circles_query = Circle.query.filter(
+                    db.and_(
+                        Circle.name.ilike(f'%{query}%'),
+                        Circle.visibility != 'unlisted'  # Exclude unlisted circles from search
+                    )
                 )
-            ).all()
+            else:
+                # Browse all public circles that don't require approval
+                circles_query = Circle.query.filter(
+                    db.and_(
+                        Circle.visibility == 'public',
+                        Circle.requires_approval == False
+                    )
+                )
+                show_browse = True
+            
+            searched_circles = circles_query.all()
+            
+            # Calculate distances and filter by radius if user has location
+            if current_user.is_geocoded and searched_circles:
+                circles_with_distance = []
+                for circle in searched_circles:
+                    distance = circle.distance_to_user(current_user)
+                    circles_with_distance.append((circle, distance))
+                
+                # Filter by radius if specified
+                if radius:
+                    radius_miles = float(radius)
+                    circles_with_distance = [
+                        (circle, dist) for circle, dist in circles_with_distance
+                        if dist is not None and dist <= radius_miles
+                    ]
+                
+                # Sort by distance (None values at end)
+                circles_with_distance.sort(key=lambda x: (x[1] is None, x[1] if x[1] is not None else float('inf')))
+                searched_circles = [circle for circle, _ in circles_with_distance]
+            
             if not searched_circles:
-                flash('No circles found matching your search.', 'info')
+                if radius and current_user.is_geocoded:
+                    if query:
+                        flash(f'No circles found matching "{query}" within {radius} miles.', 'info')
+                    else:
+                        flash(f'No public circles found within {radius} miles.', 'info')
+                else:
+                    if query:
+                        flash(f'No circles found matching "{query}".', 'info')
+                    else:
+                        flash('No public circles available to browse.', 'info')
                 
         elif 'find_by_uuid' in request.form and uuid_search_form.validate_on_submit():
             # Handle UUID Search for unlisted circles
@@ -99,16 +188,45 @@ def manage_circles():
             except Exception:
                 flash('Invalid UUID format.', 'danger')
 
-    # Fetch user's circles
-    user_circles = current_user.circles  # Assuming 'circles' relationship exists in User model
+    # Fetch user's circles and sort alphabetically
+    user_circles = sorted(current_user.circles, key=lambda x: x.name.lower())
+    
+    # If no search was performed on GET request, show browse results (all public circles)
+    if request.method == 'GET':
+        # Get all public circles (including those user is a member of)
+        browse_query = Circle.query.filter(
+            db.and_(
+                Circle.visibility == 'public',
+                Circle.requires_approval == False
+            )
+        )
+        browse_circles = browse_query.all()
+        
+        # Sort by distance if user has location
+        if current_user.is_geocoded and browse_circles:
+            circles_with_distance = []
+            for circle in browse_circles:
+                distance = circle.distance_to_user(current_user)
+                circles_with_distance.append((circle, distance))
+            
+            circles_with_distance.sort(key=lambda x: (x[1] is None, x[1] if x[1] is not None else float('inf')))
+            browse_circles = [circle for circle, _ in circles_with_distance]
+        
+        show_browse = True
 
+    # Get user's circle IDs for membership indicators in templates
+    user_circle_ids = [circle.id for circle in user_circles]
+    
     return render_template('circles/circles.html', 
                            circle_form=circle_form, 
                            search_form=search_form,
                            uuid_search_form=uuid_search_form,
                            user_circles=user_circles,
                            user_admin_circles=user_admin_circles,
-                           searched_circles=searched_circles)
+                           searched_circles=searched_circles,
+                           browse_circles=browse_circles,
+                           show_browse=show_browse,
+                           user_circle_ids=user_circle_ids)
 
 
 @circles_bp.route('/<uuid:circle_id>', methods=['GET'])
@@ -499,3 +617,57 @@ def edit_circle(circle_id):
         return redirect(url_for('circles.view_circle', circle_id=circle.id))
 
     return render_template('circles/edit_circle.html', form=form, circle=circle)
+
+
+@circles_bp.route('/<uuid:circle_id>/update-location', methods=['GET', 'POST'])
+@login_required
+def update_circle_location(circle_id):
+    """Update the location of a circle (admins only)"""
+    circle = Circle.query.get_or_404(circle_id)
+    
+    if not circle.is_admin(current_user):
+        flash('Only circle admins can update the circle location.', 'danger')
+        return redirect(url_for('circles.view_circle', circle_id=circle.id))
+    
+    form = UpdateCircleLocationForm()
+    
+    if form.validate_on_submit():
+        # Handle location based on input method
+        if form.location_method.data == 'coordinates':
+            # Direct coordinate input
+            circle.latitude = form.latitude.data
+            circle.longitude = form.longitude.data
+            logger.info(f"Circle {circle.name} location updated with coordinates: ({circle.latitude}, {circle.longitude})")
+            
+            db.session.commit()
+            flash('Circle location updated successfully!', 'success')
+            return redirect(url_for('circles.view_circle', circle_id=circle.id))
+            
+        elif form.location_method.data == 'address':
+            # Address geocoding
+            address = build_address_string(
+                form.street.data, form.city.data, form.state.data, 
+                form.zip_code.data, form.country.data
+            )
+            
+            try:
+                coordinates = geocode_address(address)
+                if coordinates:
+                    circle.latitude, circle.longitude = coordinates
+                    logger.info(f"Successfully geocoded address for circle {circle.name}")
+                    
+                    db.session.commit()
+                    flash('Circle location updated successfully!', 'success')
+                    return redirect(url_for('circles.view_circle', circle_id=circle.id))
+                else:
+                    flash('Could not find coordinates for that address. Please try entering coordinates directly or use a different address.', 'warning')
+                    logger.warning(f"Failed to geocode address for circle {circle.name}: {address}")
+                    
+            except GeocodingError as e:
+                flash(f'Error looking up address: {str(e)}. Please try again or enter coordinates directly.', 'danger')
+                logger.error(f"Geocoding error for circle {circle.name}: {e}")
+            except Exception as e:
+                flash('An unexpected error occurred. Please try again.', 'danger')
+                logger.error(f"Unexpected error during geocoding for circle {circle.name}: {e}")
+    
+    return render_template('circles/update_circle_location.html', form=form, circle=circle)

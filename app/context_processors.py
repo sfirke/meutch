@@ -93,4 +93,24 @@ def inject_distance_utils():
             # In case of any error (e.g., in test environment), return None
             return None
     
-    return {'get_distance_to_item': get_distance_to_item}
+    def get_distance_to_circle(circle):
+        """Calculate distance from current user to circle center"""
+        try:
+            # Check if current_user is available and properly initialized
+            if not hasattr(current_user, 'is_authenticated') or not current_user.is_authenticated:
+                return None
+            if not hasattr(current_user, 'is_geocoded') or not current_user.is_geocoded:
+                return None
+            if not hasattr(circle, 'is_geocoded') or not circle.is_geocoded:
+                return None
+            
+            distance = circle.distance_to_user(current_user)
+            return format_distance(distance) if distance is not None else None
+        except Exception:
+            # In case of any error (e.g., in test environment), return None
+            return None
+    
+    return {
+        'get_distance_to_item': get_distance_to_item,
+        'get_distance_to_circle': get_distance_to_circle
+    }

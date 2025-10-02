@@ -238,13 +238,163 @@ class CircleCreateForm(FlaskForm):
             OptionalFileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], 'Images only! Allowed formats: JPG, PNG, GIF, BMP, WebP')
         ])
         delete_image = BooleanField('Delete current image')
+        
+        # Location input method choice
+        location_method = RadioField('How would you like to set the circle location?', 
+            choices=[
+                ('address', 'Enter an address (we\'ll look up coordinates)'),
+                ('coordinates', 'Enter latitude and longitude directly'),
+                ('skip', 'Skip for now (admins can add this later)')
+            ], 
+            default='skip',
+            validators=[DataRequired()]
+        )
+        
+        # Address fields (used when location_method is 'address')
+        street = StringField('Street Address', validators=[
+            Optional(),
+            Length(max=200, message="Street address must be under 200 characters.")
+        ])
+        city = StringField('City', validators=[
+            Optional(),
+            Length(max=100, message="City must be under 100 characters.")
+        ])
+        state = StringField('State', validators=[
+            Optional(),
+            Length(max=100, message="State must be under 100 characters.")
+        ])
+        zip_code = StringField('ZIP Code', validators=[
+            Optional(),
+            Length(max=20, message="ZIP Code must be under 20 characters.")
+        ])
+        country = StringField('Country', validators=[
+            Optional(),
+            Length(max=100, message="Country must be under 100 characters.")
+        ], default='USA')
+        
+        # Coordinate fields (used when location_method is 'coordinates')
+        latitude = FloatField('Latitude', validators=[
+            Optional(),
+            NumberRange(min=-90, max=90, message="Latitude must be between -90 and 90 degrees.")
+        ])
+        longitude = FloatField('Longitude', validators=[
+            Optional(),
+            NumberRange(min=-180, max=180, message="Longitude must be between -180 and 180 degrees.")
+        ])
+        
         submit = SubmitField('Create Circle')
+        
+        def validate(self, extra_validators=None):
+            """Custom validation to ensure required fields are filled based on location method"""
+            rv = FlaskForm.validate(self, extra_validators)
+            if not rv:
+                return False
+
+            if self.location_method.data == 'address':
+                # All address fields are required when using address method
+                required_fields = [self.street, self.city, self.state, self.zip_code, self.country]
+                for field in required_fields:
+                    if not field.data or not field.data.strip():
+                        field.errors.append(f'{field.label.text} is required when entering an address.')
+                        rv = False
+            elif self.location_method.data == 'coordinates':
+                # Both coordinates are required when using coordinate method
+                if self.latitude.data is None:
+                    self.latitude.errors.append('Latitude is required when entering coordinates directly.')
+                    rv = False
+                if self.longitude.data is None:
+                    self.longitude.errors.append('Longitude is required when entering coordinates directly.')
+                    rv = False
+            # If location_method is 'skip', no validation is needed for location fields
+
+            return rv
+
+class UpdateCircleLocationForm(FlaskForm):
+    # Location input method choice
+    location_method = RadioField('How would you like to set the circle location?', 
+        choices=[
+            ('address', 'Enter an address (we\'ll look up coordinates)'),
+            ('coordinates', 'Enter latitude and longitude directly')
+        ], 
+        default='address',
+        validators=[DataRequired()]
+    )
+    
+    # Address fields (used when location_method is 'address')
+    street = StringField('Street Address', validators=[
+        Optional(),
+        Length(max=200, message="Street address must be under 200 characters.")
+    ])
+    city = StringField('City', validators=[
+        Optional(),
+        Length(max=100, message="City must be under 100 characters.")
+    ])
+    state = StringField('State', validators=[
+        Optional(),
+        Length(max=100, message="State must be under 100 characters.")
+    ])
+    zip_code = StringField('ZIP Code', validators=[
+        Optional(),
+        Length(max=20, message="ZIP Code must be under 20 characters.")
+    ])
+    country = StringField('Country', validators=[
+        Optional(),
+        Length(max=100, message="Country must be under 100 characters.")
+    ], default='USA')
+    
+    # Coordinate fields (used when location_method is 'coordinates')
+    latitude = FloatField('Latitude', validators=[
+        Optional(),
+        NumberRange(min=-90, max=90, message="Latitude must be between -90 and 90 degrees.")
+    ])
+    longitude = FloatField('Longitude', validators=[
+        Optional(),
+        NumberRange(min=-180, max=180, message="Longitude must be between -180 and 180 degrees.")
+    ])
+    
+    submit = SubmitField('Update Location')
+    
+    def validate(self, extra_validators=None):
+        """Custom validation to ensure required fields are filled based on location method"""
+        rv = FlaskForm.validate(self, extra_validators)
+        if not rv:
+            return False
+
+        if self.location_method.data == 'address':
+            # All address fields are required when using address method
+            required_fields = [self.street, self.city, self.state, self.zip_code, self.country]
+            for field in required_fields:
+                if not field.data or not field.data.strip():
+                    field.errors.append(f'{field.label.text} is required when entering an address.')
+                    rv = False
+        elif self.location_method.data == 'coordinates':
+            # Both coordinates are required when using coordinate method
+            if self.latitude.data is None:
+                self.latitude.errors.append('Latitude is required when entering coordinates directly.')
+                rv = False
+            if self.longitude.data is None:
+                self.longitude.errors.append('Longitude is required when entering coordinates directly.')
+                rv = False
+
+        return rv
 
 class CircleSearchForm(FlaskForm):
     search_query = StringField('Search Circles', validators=[
-        DataRequired(message="Please enter a search term."),
+        Optional(),
         Length(max=100, message="Search term must be under 100 characters.")
     ])
+    radius = SelectField('Within',
+        choices=[
+            ('', 'Any distance'),
+            ('5', 'Within 5 miles'),
+            ('10', 'Within 10 miles'),
+            ('25', 'Within 25 miles'),
+            ('50', 'Within 50 miles'),
+            ('100', 'Within 100 miles')
+        ],
+        default='',
+        validators=[Optional()]
+    )
     submit = SubmitField('Search')
 
 class CircleUuidSearchForm(FlaskForm):
