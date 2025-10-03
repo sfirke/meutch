@@ -189,8 +189,8 @@ def manage_circles():
             except Exception:
                 flash('Invalid UUID format.', 'danger')
 
-    # Fetch user's circles and sort alphabetically
-    user_circles = sorted(current_user.circles, key=lambda x: x.name.lower())
+    # Fetch user's circles and sort by member count (descending)
+    user_circles = sorted(current_user.circles, key=lambda x: len(x.members), reverse=True)
     
     # If no search was performed on GET request, show browse results (all public circles)
     if request.method == 'GET':

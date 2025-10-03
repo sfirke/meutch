@@ -14,7 +14,7 @@
             <button class="nav-link active" id="your-circles-tab" data-bs-toggle="tab" data-bs-target="#your-circles" type="button" role="tab" aria-controls="your-circles" aria-selected="true">
                 <i class="fas fa-users me-2"></i>Your Circles
                 {% if user_circles|length > 0 %}
-                    <span class="badge bg-primary ms-1">{{ user_circles|length }}</span>
+                    <span class="badge bg-secondary ms-1">{{ user_circles|length }}</span>
                 {% endif %}
             </button>
         </li>
