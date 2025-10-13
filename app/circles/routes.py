@@ -14,6 +14,38 @@ logger = logging.getLogger(__name__)
 
 # Circles -----------------------------------------------------
 
+def sort_circles_by_distance(circles, user, radius=None):
+    """
+    Sort circles by distance from user's location.
+    
+    Args:
+        circles: List of Circle objects to sort
+        user: User object with location
+        radius: Optional radius in miles to filter by
+        
+    Returns:
+        List of circles sorted by distance (closest first, circles without location at end)
+    """
+    if not user.is_geocoded or not circles:
+        return circles
+    
+    circles_with_distance = []
+    for circle in circles:
+        distance = circle.distance_to_user(user)
+        circles_with_distance.append((circle, distance))
+    
+    # Filter by radius if specified
+    if radius:
+        radius_miles = float(radius)
+        circles_with_distance = [
+            (circle, dist) for circle, dist in circles_with_distance
+            if dist is not None and dist <= radius_miles
+        ]
+    
+    # Sort by distance (None values at end)
+    circles_with_distance.sort(key=lambda x: (x[1] is None, x[1] if x[1] is not None else float('inf')))
+    return [circle for circle, _ in circles_with_distance]
+
 @circles_bp.route('/', methods=['GET', 'POST'])
 @login_required
 def manage_circles():
@@ -147,23 +179,7 @@ def manage_circles():
             searched_circles = circles_query.all()
             
             # Calculate distances and filter by radius if user has location
-            if current_user.is_geocoded and searched_circles:
-                circles_with_distance = []
-                for circle in searched_circles:
-                    distance = circle.distance_to_user(current_user)
-                    circles_with_distance.append((circle, distance))
-                
-                # Filter by radius if specified
-                if radius:
-                    radius_miles = float(radius)
-                    circles_with_distance = [
-                        (circle, dist) for circle, dist in circles_with_distance
-                        if dist is not None and dist <= radius_miles
-                    ]
-                
-                # Sort by distance (None values at end)
-                circles_with_distance.sort(key=lambda x: (x[1] is None, x[1] if x[1] is not None else float('inf')))
-                searched_circles = [circle for circle, _ in circles_with_distance]
+            searched_circles = sort_circles_by_distance(searched_circles, current_user, radius)
             
             if not searched_circles:
                 if radius and current_user.is_geocoded:
@@ -204,14 +220,7 @@ def manage_circles():
         browse_circles = browse_query.all()
         
         # Sort by distance if user has location
-        if current_user.is_geocoded and browse_circles:
-            circles_with_distance = []
-            for circle in browse_circles:
-                distance = circle.distance_to_user(current_user)
-                circles_with_distance.append((circle, distance))
-            
-            circles_with_distance.sort(key=lambda x: (x[1] is None, x[1] if x[1] is not None else float('inf')))
-            browse_circles = [circle for circle, _ in circles_with_distance]
+        browse_circles = sort_circles_by_distance(browse_circles, current_user)
         
         show_browse = True
 
