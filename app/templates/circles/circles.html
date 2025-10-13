@@ -93,7 +93,7 @@
         {{ search_form.csrf_token }}
         <div class="row g-2">
             <div class="col-md-6">
-                {{ search_form.search_query(class="form-control", placeholder="Enter circle name (optional - leave blank to browse all)") }}
+                {{ search_form.search_query(class="form-control", placeholder="Enter circle name (optional - leave blank to browse all public circles)") }}
                 {% for error in search_form.search_query.errors %}
                     <div class="text-danger">{{ error }}</div>
                 {% endfor %}
