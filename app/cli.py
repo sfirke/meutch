@@ -244,7 +244,7 @@ def _seed_development_data():
         {'name': 'Office Supplies', 'desc': 'Unlisted circle for office equipment', 'lat': 40.7510, 'lon': -73.9930, 'visibility': 'unlisted'},  # Midtown West
     ]
     
-    for idx, circle_info in enumerate(circle_data):
+    for circle_info in circle_data:
         existing = Circle.query.filter_by(name=circle_info['name']).first()
         if not existing:
             visibility = circle_info['visibility']
@@ -270,13 +270,8 @@ def _seed_development_data():
             location_status = "location set" if circle.is_geocoded else "no location"
             click.echo(f"  ✓ Circle: {circle.name} ({len(circle_users)} members) [visibility={visibility}, {location_status}]")
         else:
-            # Update location for existing circles if they don't have one
-            if not existing.is_geocoded:
-                existing.latitude = circle_info['lat']
-                existing.longitude = circle_info['lon']
-                click.echo(f"  ≈ Circle exists: {existing.name} ({len(existing.members)} members) [location updated]")
-            else:
-                click.echo(f"  ≈ Circle exists: {existing.name} ({len(existing.members)} members)")
+            # Circle already exists, skip it
+            click.echo(f"  ≈ Circle exists: {existing.name} ({len(existing.members)} members)")
             circles.append(existing)
     
     # Items (idempotent)
