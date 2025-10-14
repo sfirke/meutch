@@ -16,6 +16,16 @@
     </h2>
     <p>{{ circle.description }}</p>
     <p><strong>Members:</strong> {{ circle.members|length }}</p>
+    
+    {% set distance = get_distance_to_circle(circle) %}
+    {% if distance %}
+        <p><strong>Distance:</strong> {{ distance }} from you</p>
+    {% elif circle.is_geocoded %}
+        <p><strong>Location:</strong> Set (distance not available - please update your location in your profile)</p>
+    {% else %}
+        <p><strong>Location:</strong> Not set</p>
+    {% endif %}
+    
     <p><strong>Visibility:</strong> 
         {% if circle.visibility == 'public' %}
             Public

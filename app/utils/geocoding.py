@@ -104,6 +104,35 @@ def geocode_address(address: str, max_retries: int = 3, delay: float = 1.0) -> O
     
     return None
 
+def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Calculate distance between two points using Haversine formula
+    
+    Args:
+        lat1: Latitude of first point
+        lon1: Longitude of first point
+        lat2: Latitude of second point
+        lon2: Longitude of second point
+        
+    Returns:
+        Distance in miles
+    """
+    import math
+    
+    # Convert latitude and longitude to radians
+    lat1_rad, lon1_rad = math.radians(lat1), math.radians(lon1)
+    lat2_rad, lon2_rad = math.radians(lat2), math.radians(lon2)
+    
+    # Haversine formula
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+    a = math.sin(dlat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    
+    # Radius of earth in miles
+    r = 3956
+    return r * c
+
 def format_distance(distance_miles: float) -> str:
     """
     Format distance for display

@@ -62,21 +62,8 @@ class User(UserMixin, db.Model):
         if not (self.is_geocoded and other_user.is_geocoded):
             return None
         
-        import math
-        
-        # Convert latitude and longitude to radians
-        lat1, lon1 = math.radians(self.latitude), math.radians(self.longitude)
-        lat2, lon2 = math.radians(other_user.latitude), math.radians(other_user.longitude)
-        
-        # Haversine formula
-        dlat = lat2 - lat1
-        dlon = lon2 - lon1
-        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-        c = 2 * math.asin(math.sqrt(a))
-        
-        # Radius of earth in miles
-        r = 3956
-        return r * c
+        from app.utils.geocoding import calculate_distance
+        return calculate_distance(self.latitude, self.longitude, other_user.latitude, other_user.longitude)
     
     def can_update_location(self):
         """Check if user can update their location (limited to one successful geolocation per day)"""
@@ -345,6 +332,8 @@ class Circle(db.Model):
     requires_approval = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     image_url = db.Column(db.String(500), nullable=True)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
 
     members = db.relationship('User', secondary=circle_members, back_populates='circles')
     
@@ -361,6 +350,19 @@ class Circle(db.Model):
     @property
     def image(self):
         return self.image_url or url_for('static', filename='img/default_item_photo.png')
+    
+    @property
+    def is_geocoded(self):
+        """Returns True if circle has valid latitude and longitude"""
+        return self.latitude is not None and self.longitude is not None
+    
+    def distance_to_user(self, user):
+        """Calculate distance in miles from circle center to a user using Haversine formula"""
+        if not (self.is_geocoded and user.is_geocoded):
+            return None
+        
+        from app.utils.geocoding import calculate_distance
+        return calculate_distance(self.latitude, self.longitude, user.latitude, user.longitude)
     
 class Category(db.Model):
     __tablename__ = 'category'

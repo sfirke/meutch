@@ -6,11 +6,37 @@
 
 {% block content %}
 <div class="container mt-5">
-    <!-- User's Joined Circles -->
-    <h2>Your Circles</h2>
-    {% if user_circles %}
-        <ul class="list-group mb-4">
-            {% for circle in user_circles %}
+    <h1 class="mb-4">Circles</h1>
+    
+    <!-- Tabbed Navigation -->
+    <ul class="nav nav-tabs mb-4" id="circlesTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="your-circles-tab" data-bs-toggle="tab" data-bs-target="#your-circles" type="button" role="tab" aria-controls="your-circles" aria-selected="true">
+                <i class="fas fa-users me-2"></i>Your Circles
+                {% if user_circles|length > 0 %}
+                    <span class="badge bg-secondary ms-1">{{ user_circles|length }}</span>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="find-circles-tab" data-bs-toggle="tab" data-bs-target="#find-circles" type="button" role="tab" aria-controls="find-circles" aria-selected="false">
+                <i class="fas fa-search me-2"></i>Find Circles
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="create-circle-tab" data-bs-toggle="tab" data-bs-target="#create-circle" type="button" role="tab" aria-controls="create-circle" aria-selected="false">
+                <i class="fas fa-plus-circle me-2"></i>Create Circle
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="circlesTabContent">
+        <!-- Your Circles Tab -->
+        <div class="tab-pane fade show active" id="your-circles" role="tabpanel" aria-labelledby="your-circles-tab">
+            {% if user_circles %}
+                <ul class="list-group mb-4">
+                    {% for circle in user_circles %}
             <li class="list-group-item d-flex justify-content-between align-items-center 
                 {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}bg-light border-warning{% endif %}">
                 <div>
@@ -32,7 +58,12 @@
                         {% endif %}
                     </h5>
                     <p>{{ circle.description }}</p>
-                    <small>Members: {{ circle.members|length }}</small>
+                    <small>Members: {{ circle.members|length }}
+                    {% set distance = get_distance_to_circle(circle) %}
+                    {% if distance %}
+                        | <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
+                    {% endif %}
+                    </small>
                 </div>
                 <div>
                     <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" 
@@ -45,27 +76,49 @@
                     </form>
                 </div>
             </li>
-            {% endfor %}
-    {% else %}
-        <p>You are not part of any circles yet.</p>
-    {% endif %}
-
-    <!-- Search Circles -->
-    <h2>Search Circles</h2>
-    <form method="post" class="mb-4">
-        {{ search_form.csrf_token }}
-        <div class="input-group">
-            {{ search_form.search_query(class="form-control", placeholder="Enter circle name") }}
-            <button class="btn btn-outline-secondary" type="submit" name="search_circles">{{ search_form.submit.label.text }}</button>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>You are not part of any circles yet. Try the <strong>Find Circles</strong> tab to discover communities!
+                </div>
+            {% endif %}
         </div>
-        {% for error in search_form.search_query.errors %}
-            <div class="text-danger">{{ error }}</div>
-        {% endfor %}
-    </form>
 
-    <!-- Find Unlisted Circle by UUID -->
-    <h3>Find Unlisted Circle</h3>
-    <form method="post" class="mb-4">
+        <!-- Find Circles Tab -->
+        <div class="tab-pane fade" id="find-circles" role="tabpanel" aria-labelledby="find-circles-tab">
+            <!-- Search/Browse Circles -->
+            <h3 class="mb-3"><i class="fas fa-search me-2"></i>Search Public Circles</h3>
+            <form method="post" class="mb-4">
+        {{ search_form.csrf_token }}
+        <div class="row g-2">
+            <div class="col-md-6">
+                {{ search_form.search_query(class="form-control", placeholder="Enter circle name (optional - leave blank to browse all public circles)") }}
+                {% for error in search_form.search_query.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="col-md-4">
+                {{ search_form.radius(class="form-select") }}
+                {% for error in search_form.radius.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100" type="submit" name="search_circles">{{ search_form.submit.label.text }}</button>
+            </div>
+        </div>
+        {% if not current_user.is_geocoded %}
+            <small class="form-text text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                <a href="{{ url_for('main.update_location') }}">Set your location</a> to filter circles by distance.
+            </small>
+        {% endif %}
+            </form>
+
+            <!-- Find Unlisted Circle by UUID -->
+            <h3 class="mb-3 mt-4"><i class="fas fa-key me-2"></i>Find Unlisted Circle</h3>
+            <form method="post" class="mb-4">
         {{ uuid_search_form.csrf_token }}
         <div class="input-group">
             {{ uuid_search_form.circle_uuid(class="form-control", placeholder="Enter circle UUID (e.g., a6549a7e-f9b4-47b7-98fb-483f21b04a55)") }}
@@ -76,36 +129,91 @@
         {% endfor %}
         <small class="form-text text-muted">
             To find an unlisted circle, you need its exact UUID. Ask a circle member for this information.
-        </small>
-    </form>
+            </small>
+            </form>
 
-    <!-- Display Search Results if Any -->
-        {% if searched_circles %}
+            <!-- Display Search Results or Browse Results -->
+            {% if searched_circles %}
             <h3>Search Results</h3>
             <ul class="list-group mb-4">
                 {% for circle in searched_circles %}
-                <li class="list-group-item">
+                <li class="list-group-item{% if circle.id in user_circle_ids %} bg-light border-success{% endif %}">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5>
-                            {% if circle.visibility == 'private' %}
-                                <i class="fas fa-lock text-muted me-2" title="Private Circle"></i>
-                            {% elif circle.visibility == 'unlisted' %}
-                                <i class="fas fa-eye-slash text-muted me-2" title="Unlisted Circle"></i>
+                        <div>
+                            <h5>
+                                {% if circle.visibility == 'private' %}
+                                    <i class="fas fa-lock text-muted me-2" title="Private Circle"></i>
+                                {% elif circle.visibility == 'unlisted' %}
+                                    <i class="fas fa-eye-slash text-muted me-2" title="Unlisted Circle"></i>
+                                {% endif %}
+                                <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
+                                    {{ circle.name }}
+                                </a>
+                                {% if circle.id in user_circle_ids %}
+                                    <span class="badge bg-success ms-2">
+                                        <i class="fas fa-check-circle me-1"></i>Member
+                                    </span>
+                                {% endif %}
+                            </h5>
+                            <p class="mb-1">{{ circle.description }}</p>
+                            <small>{{ circle.members|length }} members
+                            {% set distance = get_distance_to_circle(circle) %}
+                            {% if distance %}
+                                | <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
                             {% endif %}
-                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
-                                {{ circle.name }}
-                            </a>
-                        </h5>
-                        <small>{{ circle.members|length }} members</small>
+                            </small>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-info btn-sm">View</a>
+                        </div>
                     </div>
-                    <p class="mb-0">{{ circle.description }}</p>
                 </li>
                 {% endfor %}
             </ul>
-        {% endif %}
-    <!-- Create New Circle -->
-    <h2>Create a New Circle</h2>
-    <form method="post">
+        {% elif show_browse and browse_circles %}
+            <h3>Available Public Circles{% if current_user.is_geocoded %} (Sorted by Distance){% endif %}</h3>
+            <ul class="list-group mb-4">
+                {% for circle in browse_circles %}
+                <li class="list-group-item{% if circle.id in user_circle_ids %} bg-light border-success{% endif %}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5>
+                                <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
+                                    {{ circle.name }}
+                                </a>
+                                {% if circle.id in user_circle_ids %}
+                                    <span class="badge bg-success ms-2">
+                                        <i class="fas fa-check-circle me-1"></i>Member
+                                    </span>
+                                {% endif %}
+                            </h5>
+                            <p class="mb-1">{{ circle.description }}</p>
+                            <small>{{ circle.members|length }} members
+                            {% set distance = get_distance_to_circle(circle) %}
+                            {% if distance %}
+                                | <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
+                            {% endif %}
+                            </small>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-info btn-sm">View</a>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% elif show_browse %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>No public circles available. Create one using the <strong>Create Circle</strong> tab!
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Create Circle Tab -->
+        <div class="tab-pane fade" id="create-circle" role="tabpanel" aria-labelledby="create-circle-tab">
+            <h3 class="mb-3"><i class="fas fa-plus-circle me-2"></i>Start a New Circle</h3>
+            <p class="text-muted mb-4">Create a community for sharing items with friends, neighbors, or colleagues.</p>
+            <form method="post">
         {{ circle_form.csrf_token }}
         
         <!-- Circle Name -->
@@ -135,10 +243,170 @@
             {% endfor %}
         </div>
         
-        <!-- Submit Button -->
-        <div class="mb-3">
-            <button type="submit" class="btn btn-primary" name="create_circle">{{ circle_form.submit.label.text }}</button>
+        <!-- Location Section -->
+        <div class="mb-4">
+            <h5 class="mb-3"><i class="fas fa-map-marker-alt me-2"></i>Circle Location (Optional)</h5>
+            <p class="text-muted small mb-3">Setting a location helps members find circles near them. This is optional and can be added or updated later.</p>
+            
+            <!-- Location Method Choice -->
+            {{ circle_form.location_method.label(class="form-label") }}
+            {% for subfield in circle_form.location_method %}
+                <div class="form-check">
+                    {{ subfield(class="form-check-input location-method-radio") }}
+                    {{ subfield.label(class="form-check-label") }}
+                </div>
+            {% endfor %}
+            {% for error in circle_form.location_method.errors %}
+                <div class="text-danger small">{{ error }}</div>
+            {% endfor %}
         </div>
-    </form>
+        
+        <!-- Address Fields -->
+        <div id="create-address-fields" class="mb-4" style="display: none;">
+            <h6 class="mb-3">Enter Address</h6>
+            <div class="row">
+                <div class="col-12 mb-3">
+                    {{ circle_form.street.label(class="form-label") }}
+                    {{ circle_form.street(class="form-control", placeholder="123 Main Street") }}
+                    {% for error in circle_form.street.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    {{ circle_form.city.label(class="form-label") }}
+                    {{ circle_form.city(class="form-control", placeholder="Boston") }}
+                    {% for error in circle_form.city.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-3 mb-3">
+                    {{ circle_form.state.label(class="form-label") }}
+                    {{ circle_form.state(class="form-control", placeholder="MA") }}
+                    {% for error in circle_form.state.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-3 mb-3">
+                    {{ circle_form.zip_code.label(class="form-label") }}
+                    {{ circle_form.zip_code(class="form-control", placeholder="02101") }}
+                    {% for error in circle_form.zip_code.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    {{ circle_form.country.label(class="form-label") }}
+                    {{ circle_form.country(class="form-control") }}
+                    {% for error in circle_form.country.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Coordinate Fields -->
+        <div id="create-coordinate-fields" class="mb-4" style="display: none;">
+            <h6 class="mb-3">Enter Coordinates</h6>
+            <div class="alert alert-secondary">
+                <small>
+                    <strong>Tip:</strong> Find coordinates using Google Maps (right-click → copy coordinates) or your phone's GPS.
+                </small>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    {{ circle_form.latitude.label(class="form-label") }}
+                    {{ circle_form.latitude(class="form-control", step="any", placeholder="e.g., 42.3601") }}
+                    <div class="form-text">Between -90 and 90</div>
+                    {% for error in circle_form.latitude.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-6 mb-3">
+                    {{ circle_form.longitude.label(class="form-label") }}
+                    {{ circle_form.longitude(class="form-control", step="any", placeholder="e.g., -71.0589") }}
+                    <div class="form-text">Between -180 and 180</div>
+                    {% for error in circle_form.longitude.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+                <!-- Submit Button -->
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary" name="create_circle"><i class="fas fa-check me-2"></i>{{ circle_form.submit.label.text }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Determine which tab should be active
+    let activeTab = 'your-circles-tab';  // Default tab
+    
+    // Check if we should show a specific tab based on form submissions or search results
+    {% if searched_circles or show_browse %}
+        // If there are search results, show the Find Circles tab
+        activeTab = 'find-circles-tab';
+    {% elif circle_form.errors %}
+        // If there are form errors in circle creation, show Create Circle tab
+        activeTab = 'create-circle-tab';
+    {% else %}
+        // Otherwise, check localStorage for the last active tab
+        const savedTab = localStorage.getItem('activeCirclesTab');
+        if (savedTab) {
+            activeTab = savedTab;
+        }
+    {% endif %}
+    
+    // Activate the determined tab
+    const tabTrigger = document.getElementById(activeTab);
+    if (tabTrigger) {
+        const tab = new bootstrap.Tab(tabTrigger);
+        tab.show();
+    }
+    
+    // Save the active tab to localStorage when user clicks a tab
+    document.querySelectorAll('#circlesTabs button[data-bs-toggle="tab"]').forEach(function(tabButton) {
+        tabButton.addEventListener('shown.bs.tab', function(event) {
+            localStorage.setItem('activeCirclesTab', event.target.id);
+        });
+    });
+    
+    // Show/hide location fields based on location method selection for circle creation
+    const locationMethodRadios = document.querySelectorAll('.location-method-radio');
+    const addressFields = document.getElementById('create-address-fields');
+    const coordinateFields = document.getElementById('create-coordinate-fields');
+    
+    function toggleLocationFields() {
+        const selectedMethod = document.querySelector('.location-method-radio:checked');
+        if (selectedMethod) {
+            if (selectedMethod.value === 'address') {
+                addressFields.style.display = 'block';
+                coordinateFields.style.display = 'none';
+            } else if (selectedMethod.value === 'coordinates') {
+                addressFields.style.display = 'none';
+                coordinateFields.style.display = 'block';
+            } else {
+                // 'skip' option
+                addressFields.style.display = 'none';
+                coordinateFields.style.display = 'none';
+            }
+        }
+    }
+    
+    // Initialize on page load
+    toggleLocationFields();
+    
+    // Update when radio selection changes
+    locationMethodRadios.forEach(function(radio) {
+        radio.addEventListener('change', toggleLocationFields);
+    });
+});
+</script>
 {% endblock %}
