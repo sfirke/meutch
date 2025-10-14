@@ -89,7 +89,7 @@
                     <div class="row">
                         <div class="col-12 mb-3">
                             {{ form.street.label(class="form-label") }}
-                            {{ form.street(class="form-control", placeholder="123 Main Street") }}
+                            {{ form.street(class="form-control", placeholder="123 N Main Street") }}
                             {% for error in form.street.errors %}
                                 <div class="text-danger small">{{ error }}</div>
                             {% endfor %}
@@ -98,21 +98,21 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             {{ form.city.label(class="form-label") }}
-                            {{ form.city(class="form-control", placeholder="Boston") }}
+                            {{ form.city(class="form-control", placeholder="Ann Arbor") }}
                             {% for error in form.city.errors %}
                                 <div class="text-danger small">{{ error }}</div>
                             {% endfor %}
                         </div>
                         <div class="col-md-3 mb-3">
                             {{ form.state.label(class="form-label") }}
-                            {{ form.state(class="form-control", placeholder="MA") }}
+                            {{ form.state(class="form-control", placeholder="MI") }}
                             {% for error in form.state.errors %}
                                 <div class="text-danger small">{{ error }}</div>
                             {% endfor %}
                         </div>
                         <div class="col-md-3 mb-3">
                             {{ form.zip_code.label(class="form-label") }}
-                            {{ form.zip_code(class="form-control", placeholder="02101") }}
+                            {{ form.zip_code(class="form-control", placeholder="48104") }}
                             {% for error in form.zip_code.errors %}
                                 <div class="text-danger small">{{ error }}</div>
                             {% endfor %}
