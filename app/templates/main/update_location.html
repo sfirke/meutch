@@ -14,8 +14,8 @@
                     <div class="alert alert-info">
                         <h6><i class="fas fa-info-circle me-2"></i>How we use your location</h6>
                         <p class="mb-2">
-                            We use your coordinates to calculate distances to items you might want to borrow. 
-                            This helps you find items near you and helps others see how close they are to your items.
+                            Your coordinates are used to calculate distances to circles and items you might want to join or borrow. 
+                            This helps you find circles and items near you and helps others see how close they are to your items.
                         </p>
                         <p class="mb-2">
                             <strong>Privacy note:</strong> We only store your latitude and longitude coordinates, not your address. 
@@ -123,6 +123,20 @@
                             </div>
                         </div>
                         
+                        <!-- Remove Location Section (shown when remove method is selected) -->
+                        <div id="remove-fields" class="mb-4" style="display: none;">
+                            <div class="alert alert-warning">
+                                <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Warning</h5>
+                                <p class="mb-2">If you remove your location, you will:</p>
+                                <ul class="mb-2">
+                                    <li><strong>No longer see circles near you</strong> - distance sorting for circles will not be available</li>
+                                    <li><strong>No longer see distances to items</strong> - you won't be able to tell how far away items are from you</li>
+                                    <li><strong>No longer appear in distance-based searches</strong> - other users won't see how close your items are to them</li>
+                                </ul>
+                                <p class="mb-0">You can always add your location back later.</p>
+                            </div>
+                        </div>
+                        
                         <div class="d-flex gap-2">
                             {{ form.submit(class="btn btn-primary") }}
                             <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Cancel</a>
@@ -139,16 +153,24 @@
 document.addEventListener('DOMContentLoaded', function() {
     const addressRadio = document.querySelector('input[value="address"]');
     const coordinateRadio = document.querySelector('input[value="coordinates"]');
+    const removeRadio = document.querySelector('input[value="remove"]');
     const addressFields = document.getElementById('address-fields');
     const coordinateFields = document.getElementById('coordinate-fields');
+    const removeFields = document.getElementById('remove-fields');
     
     function toggleFields() {
         if (coordinateRadio.checked) {
             addressFields.style.display = 'none';
             coordinateFields.style.display = 'block';
+            removeFields.style.display = 'none';
+        } else if (removeRadio.checked) {
+            addressFields.style.display = 'none';
+            coordinateFields.style.display = 'none';
+            removeFields.style.display = 'block';
         } else {
             addressFields.style.display = 'block';
             coordinateFields.style.display = 'none';
+            removeFields.style.display = 'none';
         }
     }
     
@@ -158,6 +180,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Listen for changes
     addressRadio.addEventListener('change', toggleFields);
     coordinateRadio.addEventListener('change', toggleFields);
+    removeRadio.addEventListener('change', toggleFields);
 });
 </script>
 {% endblock %}

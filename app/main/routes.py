@@ -690,7 +690,14 @@ def update_location():
     
     if form.validate_on_submit():
         # Handle location based on input method
-        if form.location_method.data == 'coordinates':
+        if form.location_method.data == 'remove':
+            # Remove location (don't update geocoded_at so user can re-add location immediately)
+            current_user.latitude = None
+            current_user.longitude = None
+            db.session.commit()
+            flash('Your location has been removed successfully.', 'success')
+            return redirect(url_for('main.profile'))
+        elif form.location_method.data == 'coordinates':
             # Direct coordinate input
             current_user.latitude = form.latitude.data
             current_user.longitude = form.longitude.data
