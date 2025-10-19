@@ -152,7 +152,8 @@ class UpdateLocationForm(FlaskForm):
     location_method = RadioField('How would you like to set your location?', 
         choices=[
             ('address', 'Enter an address (we\'ll look up coordinates)'),
-            ('coordinates', 'Enter latitude and longitude directly')
+            ('coordinates', 'Enter latitude and longitude directly'),
+            ('remove', 'Remove my location')
         ], 
         default='address',
         validators=[DataRequired()]
