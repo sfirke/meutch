@@ -46,3 +46,17 @@ flask run
 
 The dummy users seeded by the development data all have the same password. Login looks like:
 Username: `user1@example.com` Password: `password123`.
+
+### Development Workflow
+
+To ensure code quality, you can install a pre-commit hook that automatically runs unit tests before each commit:
+
+```bash
+./install-pre-commit-hook.sh
+```
+
+This helps catch issues early. If you need to bypass the hook for a specific commit (use sparingly):
+
+```bash
+git commit --no-verify
+```

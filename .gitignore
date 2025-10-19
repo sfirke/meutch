@@ -65,7 +65,6 @@ cover/
 *.pot
 
 # Django stuff:
-*.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -169,3 +168,15 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# VS Code workspace files (keep tasks.json if needed, but ignore other workspace settings)
+.vscode/*
+!.vscode/tasks.json
+
+# Local development files
+*.log
+app.log
+server.log
+
+# Empty test env file
+.env.test
