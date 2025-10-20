@@ -1,0 +1,94 @@
+#!/bin/bash
+
+# Pre-commit hook that ensures tests pass before allowing commits
+# To install this hook, run: cp pre-commit-hook .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+print_color() {
+    printf "${1}${2}${NC}\n"
+}
+
+print_color $BLUE "🔍 Running pre-commit checks..."
+
+# Check if we have any staged files
+if git diff --cached --quiet; then
+    print_color $YELLOW "⚠️  No staged changes found. Skipping pre-commit tests."
+    exit 0
+fi
+
+# Function to check if test database is running and healthy
+check_test_db() {
+    # Check if Docker is running
+    if ! docker info > /dev/null 2>&1; then
+        print_color $RED "❌ Docker is not running. Please start Docker first."
+        return 1
+    fi
+    
+    # Check if container exists and is running
+    if ! docker ps --filter "name=meutch-test-db" --format "{{.Names}}" | grep -q "meutch-test-db"; then
+        return 1
+    fi
+    
+    # Check if database is actually ready to accept connections
+    if ! docker compose -f docker-compose.test.yml exec -T test-postgres pg_isready -U test_user -d test_meutch > /dev/null 2>&1; then
+        return 1
+    fi
+    
+    return 0
+}
+
+# Ensure test database is running
+if ! check_test_db; then
+    print_color $YELLOW "⚠️  Test database is not running or not ready. Starting it now..."
+    
+    # Stop any potentially problematic containers first
+    docker compose -f docker-compose.test.yml down > /dev/null 2>&1 || true
+    
+    # Start the test database
+    print_color $BLUE "🚀 Starting test database..."
+    if ! docker compose -f docker-compose.test.yml up -d; then
+        print_color $RED "❌ Failed to start test database."
+        exit 1
+    fi
+    
+    # Wait for database to be ready
+    print_color $BLUE "⏳ Waiting for database to be ready..."
+    timeout=30
+    while [ $timeout -gt 0 ]; do
+        if docker compose -f docker-compose.test.yml exec -T test-postgres pg_isready -U test_user -d test_meutch > /dev/null 2>&1; then
+            print_color $GREEN "✅ Test database is ready!"
+            break
+        fi
+        sleep 1
+        ((timeout--))
+    done
+    
+    if [ $timeout -eq 0 ]; then
+        print_color $RED "❌ Timeout waiting for database to be ready"
+        exit 1
+    fi
+fi
+
+# Run a quick subset of tests (unit tests only for speed)
+print_color $BLUE "🧪 Running unit tests..."
+export FLASK_ENV=testing
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+export TEST_DATABASE_URL="postgresql://test_user:test_password@localhost:5433/test_meutch"
+
+if pytest tests/unit/ -q --tb=short; then
+    print_color $GREEN "✅ Pre-commit tests passed!"
+else
+    print_color $RED "❌ Pre-commit tests failed. Please fix the issues before committing."
+    print_color $YELLOW "💡 Run './run_tests.sh -u -v' for more detailed output."
+    exit 1
+fi
+
+print_color $GREEN "🎉 Pre-commit checks completed successfully!"
