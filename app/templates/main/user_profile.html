@@ -27,7 +27,7 @@
                                     <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
                                         <div class="d-flex align-items-center p-2 bg-light rounded hover-bg-secondary">
                                             <i class="{{ link.icon_class }} me-2 text-primary" style="width: 20px;"></i>
-                                            <span class="small">{{ link.display_name }}</span>
+                                            <span class="small">{{ link.url|replace('https://', '')|replace('http://', '')|replace('www.', '') }}</span>
                                         </div>
                                     </a>
                                 </div>
