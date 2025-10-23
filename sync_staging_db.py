@@ -49,6 +49,19 @@ def sync_staging_db():
     
     click.echo("🔄 Syncing production data to staging...")
     
+    # Verify production database has data before dumping
+    click.echo("🔍 Verifying production database...")
+    verify_cmd = ['psql', prod_db_url, '-t', '-c',
+                  "SELECT COUNT(*) FROM users, COUNT(*) FROM item, COUNT(*) FROM user_web_links;"]
+    verify_result = subprocess.run(verify_cmd, capture_output=True, text=True)
+    
+    if verify_result.returncode == 0:
+        counts = verify_result.stdout.strip().split()
+        if len(counts) >= 3:
+            click.echo(f"   Found {counts[0]} users, {counts[1]} items, {counts[2]} web links")
+    else:
+        click.echo(f"   ⚠️  Could not verify: {verify_result.stderr.splitlines()[0] if verify_result.stderr else 'Unknown error'}")
+    
     # Create dump file
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     dump_file = f"/tmp/prod_dump_{timestamp}.sql"
@@ -67,6 +80,9 @@ def sync_staging_db():
             click.echo(f"❌ ERROR creating dump: {result.stderr}")
             sys.exit(1)
         
+        dump_size = os.path.getsize(dump_file)
+        click.echo(f"📊 Created dump: {dump_size / 1024:.1f} KB")
+        
         click.echo("📥 Restoring to staging...")
         restore_cmd = ['psql', staging_db_url, '--file', dump_file, '--quiet']
         
@@ -75,6 +91,16 @@ def sync_staging_db():
         if result.returncode != 0:
             click.echo(f"❌ ERROR restoring: {result.stderr}")
             sys.exit(1)
+        
+        # Verify restore succeeded
+        count_cmd = ['psql', staging_db_url, '-t', '-c',
+                    "SELECT COUNT(*) FROM users, COUNT(*) FROM item;"]
+        count_result = subprocess.run(count_cmd, capture_output=True, text=True)
+        
+        if count_result.returncode == 0:
+            counts = count_result.stdout.strip().split()
+            if len(counts) >= 2:
+                click.echo(f"📊 Staging now has {counts[0]} users, {counts[1]} items")
         
         # Staging sync complete - no data modifications needed
         # Staging maintains exact replica of production data
