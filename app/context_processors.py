@@ -1,6 +1,7 @@
 # app/context_processors.py
 
 from flask_login import current_user
+from sqlalchemy import select
 from app.utils.geocoding import format_distance
 # Remove model imports from top level
 
@@ -20,21 +21,15 @@ def inject_unread_messages_count():
 
         # Also include pending circle join requests for circles where the user is an admin
         # Find circles current_user administers
-        admin_circle_ids_sq = (
-            db.session.query(circle_members.c.circle_id)
-            .filter(
-                circle_members.c.user_id == current_user.id,
-                circle_members.c.is_admin == True,
-            )
-            .subquery()
+        admin_circle_ids_sq = select(circle_members.c.circle_id).where(
+            circle_members.c.user_id == current_user.id,
+            circle_members.c.is_admin == True,
         )
 
-        # Use explicit SELECT to avoid SAWarning about coercing Subquery into select()
-        from sqlalchemy import select as sa_select
         pending_join_requests = (
             db.session.query(CircleJoinRequest)
             .filter(
-                CircleJoinRequest.circle_id.in_(sa_select(admin_circle_ids_sq.c.circle_id)),
+                CircleJoinRequest.circle_id.in_(admin_circle_ids_sq),
                 CircleJoinRequest.status == 'pending',
             )
             .count()
