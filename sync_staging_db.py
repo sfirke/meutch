@@ -49,6 +49,19 @@ def sync_staging_db():
     
     click.echo("🔄 Syncing production data to staging...")
     
+    # Verify production database has data before dumping
+    click.echo("🔍 Verifying production database...")
+    verify_cmd = ['psql', prod_db_url, '-t', '-c',
+                  "SELECT COUNT(*) FROM users; SELECT COUNT(*) FROM item; SELECT COUNT(*) FROM user_web_links;"]
+    verify_result = subprocess.run(verify_cmd, capture_output=True, text=True)
+    
+    if verify_result.returncode == 0:
+        counts = [c.strip() for c in verify_result.stdout.strip().split('\n') if c.strip()]
+        if len(counts) >= 3:
+            click.echo(f"   Found {counts[0]} users, {counts[1]} items, {counts[2]} web links")
+    else:
+        click.echo(f"   ⚠️  Could not verify: {verify_result.stderr.splitlines()[0] if verify_result.stderr else 'Unknown error'}")
+    
     # Create dump file
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     dump_file = f"/tmp/prod_dump_{timestamp}.sql"
@@ -67,6 +80,9 @@ def sync_staging_db():
             click.echo(f"❌ ERROR creating dump: {result.stderr}")
             sys.exit(1)
         
+        dump_size = os.path.getsize(dump_file)
+        click.echo(f"📊 Created dump: {dump_size / 1024:.1f} KB")
+        
         click.echo("📥 Restoring to staging...")
         restore_cmd = ['psql', staging_db_url, '--file', dump_file, '--quiet']
         
@@ -75,6 +91,37 @@ def sync_staging_db():
         if result.returncode != 0:
             click.echo(f"❌ ERROR restoring: {result.stderr}")
             sys.exit(1)
+        
+        # Verify restore succeeded
+        count_cmd = ['psql', staging_db_url, '-t', '-c',
+                    "SELECT COUNT(*) FROM users, COUNT(*) FROM item;"]
+        count_result = subprocess.run(count_cmd, capture_output=True, text=True)
+        
+        if count_result.returncode == 0:
+            counts = count_result.stdout.strip().split()
+            if len(counts) >= 2:
+                click.echo(f"📊 Staging now has {counts[0]} users, {counts[1]} items")
+        
+        # Show most recent data for verification
+        click.echo("📊 Most recent user in staging:")
+        recent_user_cmd = ['psql', staging_db_url, '-t', '-c',
+                          "SELECT first_name, last_name, email, created_at FROM users ORDER BY created_at DESC LIMIT 1;"]
+        recent_user_result = subprocess.run(recent_user_cmd, capture_output=True, text=True)
+        
+        if recent_user_result.returncode == 0 and recent_user_result.stdout.strip():
+            click.echo(f"   {recent_user_result.stdout.strip()}")
+        else:
+            click.echo("   (unable to retrieve)")
+        
+        click.echo("📊 Most recent item in staging:")
+        recent_item_cmd = ['psql', staging_db_url, '-t', '-c',
+                          "SELECT name, created_at FROM item ORDER BY created_at DESC LIMIT 1;"]
+        recent_item_result = subprocess.run(recent_item_cmd, capture_output=True, text=True)
+        
+        if recent_item_result.returncode == 0 and recent_item_result.stdout.strip():
+            click.echo(f"   {recent_item_result.stdout.strip()}")
+        else:
+            click.echo("   (unable to retrieve)")
         
         # Staging sync complete - no data modifications needed
         # Staging maintains exact replica of production data

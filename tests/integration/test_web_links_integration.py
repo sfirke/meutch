@@ -95,8 +95,9 @@ class TestWebLinksIntegration:
             
             data = response.data.decode()
             assert 'Find TestUser on the web' in data
-            assert 'Facebook' in data
-            assert 'Blog' in data
+            # Check that the URLs are displayed (with protocols stripped)
+            assert 'facebook.com/user2' in data
+            assert 'user2blog.com' in data
     
     def test_update_existing_web_links(self, client, app, auth_user):
         """Test updating existing web links."""
