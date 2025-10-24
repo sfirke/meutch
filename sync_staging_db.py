@@ -102,6 +102,27 @@ def sync_staging_db():
             if len(counts) >= 2:
                 click.echo(f"📊 Staging now has {counts[0]} users, {counts[1]} items")
         
+        # Show most recent data for verification
+        click.echo("📊 Most recent user in staging:")
+        recent_user_cmd = ['psql', staging_db_url, '-t', '-c',
+                          "SELECT first_name, last_name, email, created_at FROM users ORDER BY created_at DESC LIMIT 1;"]
+        recent_user_result = subprocess.run(recent_user_cmd, capture_output=True, text=True)
+        
+        if recent_user_result.returncode == 0 and recent_user_result.stdout.strip():
+            click.echo(f"   {recent_user_result.stdout.strip()}")
+        else:
+            click.echo("   (unable to retrieve)")
+        
+        click.echo("📊 Most recent item in staging:")
+        recent_item_cmd = ['psql', staging_db_url, '-t', '-c',
+                          "SELECT name, created_at FROM item ORDER BY created_at DESC LIMIT 1;"]
+        recent_item_result = subprocess.run(recent_item_cmd, capture_output=True, text=True)
+        
+        if recent_item_result.returncode == 0 and recent_item_result.stdout.strip():
+            click.echo(f"   {recent_item_result.stdout.strip()}")
+        else:
+            click.echo("   (unable to retrieve)")
+        
         # Staging sync complete - no data modifications needed
         # Staging maintains exact replica of production data
         
