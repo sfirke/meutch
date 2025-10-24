@@ -1,7 +1,7 @@
 from uuid import UUID
 from flask import render_template, current_app, request, flash, redirect, url_for
 from flask_login import login_required, current_user, logout_user
-from sqlalchemy import or_, and_, func
+from sqlalchemy import or_, and_, func, select
 from sqlalchemy.orm import joinedload
 from app import db
 from app.models import Item, LoanRequest, Tag, User, Message, Circle, circle_members, Category
@@ -12,11 +12,11 @@ from app.utils.storage import delete_file, upload_item_image, upload_profile_ima
 @main_bp.route('/')
 def index():
     # Only show items whose owner is in at least one public circle
-    public_circle_ids = db.session.query(Circle.id).filter(Circle.requires_approval == False).subquery()
+    public_circle_ids = select(Circle.id).where(Circle.requires_approval == False)
     # Find user IDs who are in at least one public circle
-    public_user_ids = db.session.query(circle_members.c.user_id).filter(
+    public_user_ids = select(circle_members.c.user_id).where(
         circle_members.c.circle_id.in_(public_circle_ids)
-    ).distinct().subquery()
+    ).distinct()
     
     # Base query for items in public circles, ordered by newest first
     base_query = Item.query.filter(Item.owner_id.in_(public_user_ids)).order_by(Item.created_at.desc())
