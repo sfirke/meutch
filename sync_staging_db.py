@@ -52,11 +52,11 @@ def sync_staging_db():
     # Verify production database has data before dumping
     click.echo("🔍 Verifying production database...")
     verify_cmd = ['psql', prod_db_url, '-t', '-c',
-                  "SELECT COUNT(*) FROM users, COUNT(*) FROM item, COUNT(*) FROM user_web_links;"]
+                  "SELECT COUNT(*) FROM users; SELECT COUNT(*) FROM item; SELECT COUNT(*) FROM user_web_links;"]
     verify_result = subprocess.run(verify_cmd, capture_output=True, text=True)
     
     if verify_result.returncode == 0:
-        counts = verify_result.stdout.strip().split()
+        counts = [c.strip() for c in verify_result.stdout.strip().split('\n') if c.strip()]
         if len(counts) >= 3:
             click.echo(f"   Found {counts[0]} users, {counts[1]} items, {counts[2]} web links")
     else:
