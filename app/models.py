@@ -39,7 +39,7 @@ class User(UserMixin, db.Model):
     email_confirmation_sent_at = db.Column(db.DateTime, nullable=True)
     password_reset_token = db.Column(db.String(128), nullable=True)
     password_reset_sent_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
     email_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
@@ -299,7 +299,7 @@ class Item(db.Model):
     description = db.Column(db.Text)
     owner_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     available = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('category.id'), nullable=False)
     loan_requests = db.relationship('LoanRequest', backref='item')
     image_url = db.Column(db.String(500), nullable=True)
@@ -330,7 +330,7 @@ class Circle(db.Model):
     description = db.Column(db.Text, nullable=True)
     visibility = db.Column(db.String(20), default='public')  # public, private, unlisted
     requires_approval = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     image_url = db.Column(db.String(500), nullable=True)
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
@@ -392,7 +392,7 @@ class LoanRequest(db.Model):
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(20), default='pending')  # pending, approved, canceled, denied, completed
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
 
     borrower = db.relationship('User', foreign_keys=[borrower_id], backref='loan_requests')
 
@@ -410,7 +410,7 @@ class Feedback(db.Model):
     reviewer_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     rating = db.Column(db.String(10))  # good, neutral, bad
     comment = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
 
 class Message(db.Model):
     __tablename__ = 'messages'
@@ -420,7 +420,7 @@ class Message(db.Model):
     recipient_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id'), nullable=False)
     body = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     is_read = db.Column(db.Boolean, default=False)
     parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('messages.id'), nullable=True)
     loan_request_id = db.Column(UUID(as_uuid=True), db.ForeignKey('loan_request.id'), nullable=True)
@@ -463,7 +463,7 @@ class CircleJoinRequest(db.Model):
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     message = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     
     circle = db.relationship('Circle', backref='join_requests')
     user = db.relationship('User', backref='circle_join_requests')
@@ -477,7 +477,7 @@ class UserWebLink(db.Model):
     platform_name = db.Column(db.String(50), nullable=True)  # For custom "other" platforms
     url = db.Column(db.String(500), nullable=False)
     display_order = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     
     user = db.relationship('User', backref='web_links')
     
