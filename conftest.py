@@ -158,7 +158,7 @@ def auth_user(app):
         
     # Return a function that retrieves the user with fresh session
     def get_user():
-        return User.query.get(user_id)
+        return db.session.get(User, user_id)
     
     return get_user
 

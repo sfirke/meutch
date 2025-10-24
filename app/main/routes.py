@@ -816,9 +816,9 @@ def messages():
     for convo in latest_conversations:
         # Identify the other participant
         if convo.sender_id == current_user.id:
-            other_user = User.query.get(convo.recipient_id)
+            other_user = db.session.get(User, convo.recipient_id)
         else:
-            other_user = User.query.get(convo.sender_id)
+            other_user = db.session.get(User, convo.sender_id)
         
         # Calculate unread messages where current_user is the recipient
         unread_count = Message.query.filter(
@@ -831,7 +831,7 @@ def messages():
         conversation_summaries.append({
             'conversation_id': f"{min(convo.sender_id, convo.recipient_id)}_{max(convo.sender_id, convo.recipient_id)}_{convo.item_id}",
             'other_user': other_user,
-            'item': Item.query.get(convo.item_id),
+            'item': db.session.get(Item, convo.item_id),
             'latest_message': convo,
             'unread_count': unread_count
         })
@@ -844,9 +844,9 @@ def view_conversation(message_id):
     message = Message.query.get_or_404(message_id)
 
     if message.sender_id == current_user.id:
-        other_user = User.query.get(message.recipient_id)
+        other_user = db.session.get(User, message.recipient_id)
     else:
-        other_user = User.query.get(message.sender_id)
+        other_user = db.session.get(User, message.sender_id)
 
     # Ensure that only the recipient can view the message
     if message.recipient_id != current_user.id and message.sender_id != current_user.id:
