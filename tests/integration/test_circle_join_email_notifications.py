@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import patch
 from tests.factories import UserFactory, CircleFactory
 from app.models import db, circle_members, CircleJoinRequest
-from datetime import datetime
+from datetime import datetime, UTC
 
 
 class TestCircleJoinRequestEmailIntegration:
@@ -25,13 +25,13 @@ class TestCircleJoinRequestEmailIntegration:
             stmt1 = circle_members.insert().values(
                 user_id=admin1.id,
                 circle_id=circle.id,
-                joined_at=datetime.utcnow(),
+                joined_at=datetime.now(UTC),
                 is_admin=True
             )
             stmt2 = circle_members.insert().values(
                 user_id=admin2.id,
                 circle_id=circle.id,
-                joined_at=datetime.utcnow(),
+                joined_at=datetime.now(UTC),
                 is_admin=True
             )
             db.session.execute(stmt1)
@@ -83,7 +83,7 @@ class TestCircleJoinRequestEmailIntegration:
             stmt = circle_members.insert().values(
                 user_id=admin.id,
                 circle_id=circle.id,
-                joined_at=datetime.utcnow(),
+                joined_at=datetime.now(UTC),
                 is_admin=True
             )
             db.session.execute(stmt)
@@ -137,7 +137,7 @@ class TestCircleJoinRequestEmailIntegration:
             stmt = circle_members.insert().values(
                 user_id=admin.id,
                 circle_id=circle.id,
-                joined_at=datetime.utcnow(),
+                joined_at=datetime.now(UTC),
                 is_admin=True
             )
             db.session.execute(stmt)
@@ -192,7 +192,7 @@ class TestCircleJoinRequestEmailIntegration:
             stmt = circle_members.insert().values(
                 user_id=admin.id,
                 circle_id=circle.id,
-                joined_at=datetime.utcnow(),
+                joined_at=datetime.now(UTC),
                 is_admin=True
             )
             db.session.execute(stmt)
@@ -229,7 +229,7 @@ class TestCircleJoinRequestEmailIntegration:
             stmt = circle_members.insert().values(
                 user_id=admin.id,
                 circle_id=circle.id,
-                joined_at=datetime.utcnow(),
+                joined_at=datetime.now(UTC),
                 is_admin=True
             )
             db.session.execute(stmt)
@@ -275,7 +275,7 @@ class TestCircleJoinRequestEmailIntegration:
             stmt = circle_members.insert().values(
                 user_id=admin.id,
                 circle_id=circle.id,
-                joined_at=datetime.utcnow(),
+                joined_at=datetime.now(UTC),
                 is_admin=True
             )
             db.session.execute(stmt)

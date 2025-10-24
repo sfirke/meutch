@@ -1,6 +1,6 @@
 """Unit tests for models."""
 import pytest
-from datetime import datetime
+from datetime import datetime, UTC
 from app.models import User, Item, Circle, Tag, Category
 from tests.factories import UserFactory, ItemFactory, TagFactory, CircleFactory, CategoryFactory, LoanRequestFactory, MessageFactory
 from conftest import TEST_PASSWORD
@@ -140,8 +140,8 @@ class TestUser:
     def test_user_can_update_location_previous_failure(self, app):
         """Test can_update_location when previous geocoding failed."""
         with app.app_context():
-            from datetime import datetime, timedelta
-            yesterday = datetime.utcnow() - timedelta(days=1)
+            from datetime import timedelta
+            yesterday = datetime.now(UTC) - timedelta(days=1)
             user = UserFactory(
                 geocoded_at=yesterday,
                 geocoding_failed=True
@@ -151,8 +151,8 @@ class TestUser:
     def test_user_can_update_location_recent_success(self, app):
         """Test can_update_location when recent geocoding was successful."""
         with app.app_context():
-            from datetime import datetime, timedelta
-            two_hours_ago = datetime.utcnow() - timedelta(hours=2)
+            from datetime import timedelta
+            two_hours_ago = datetime.now(UTC) - timedelta(hours=2)
             user = UserFactory(
                 geocoded_at=two_hours_ago,
                 geocoding_failed=False
@@ -162,8 +162,8 @@ class TestUser:
     def test_user_can_update_location_old_success(self, app):
         """Test can_update_location when old geocoding was successful."""
         with app.app_context():
-            from datetime import datetime, timedelta
-            two_days_ago = datetime.utcnow() - timedelta(days=2)
+            from datetime import timedelta
+            two_days_ago = datetime.now(UTC) - timedelta(days=2)
             user = UserFactory(
                 geocoded_at=two_days_ago,
                 geocoding_failed=False

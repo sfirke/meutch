@@ -6,7 +6,7 @@ from tests.factories import UserFactory, CircleFactory, CircleJoinRequestFactory
 from app.utils.email import send_circle_join_request_notification_email, send_circle_join_request_decision_email
 from app.models import db, circle_members
 from sqlalchemy import and_
-from datetime import datetime
+from datetime import datetime, UTC
 
 
 class TestCircleJoinRequestNotifications:
@@ -24,7 +24,7 @@ class TestCircleJoinRequestNotifications:
             stmt = circle_members.insert().values(
                 user_id=admin.id,
                 circle_id=circle.id,
-                joined_at=datetime.utcnow(),
+                joined_at=datetime.now(UTC),
                 is_admin=True
             )
             db.session.execute(stmt)
@@ -90,7 +90,7 @@ class TestCircleJoinRequestNotifications:
             stmt = circle_members.insert().values(
                 user_id=admin.id,
                 circle_id=circle.id,
-                joined_at=datetime.utcnow(),
+                joined_at=datetime.now(UTC),
                 is_admin=True
             )
             db.session.execute(stmt)

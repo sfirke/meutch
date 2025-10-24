@@ -5,6 +5,7 @@ designed to provide maximum coverage with minimal runtime impact.
 """
 import pytest
 from unittest.mock import patch, Mock
+from datetime import datetime, UTC
 from app.utils.geocoding import geocode_address, GeocodingError, format_distance
 from tests.factories import UserFactory, ItemFactory
 from app import db
@@ -148,9 +149,9 @@ class TestLocationUpdateEssentials:
     def test_location_update_daily_limit(self, app, client):
         """Test that daily update limit is enforced."""
         with app.app_context():
-            from datetime import datetime, timedelta
+            from datetime import timedelta
             
-            recent_time = datetime.utcnow() - timedelta(hours=2)
+            recent_time = datetime.now(UTC) - timedelta(hours=2)
             user = UserFactory(geocoded_at=recent_time, geocoding_failed=False)
             db.session.commit()
             

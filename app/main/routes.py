@@ -3,6 +3,7 @@ from flask import render_template, current_app, request, flash, redirect, url_fo
 from flask_login import login_required, current_user, logout_user
 from sqlalchemy import or_, and_, func, select
 from sqlalchemy.orm import joinedload
+from datetime import datetime, UTC
 from app import db
 from app.models import Item, LoanRequest, Tag, User, Message, Circle, circle_members, Category
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, DeleteAccountForm, UpdateLocationForm
@@ -701,7 +702,7 @@ def update_location():
             # Direct coordinate input
             current_user.latitude = form.latitude.data
             current_user.longitude = form.longitude.data
-            current_user.geocoded_at = datetime.utcnow()
+            current_user.geocoded_at = datetime.now(UTC)
             current_user.geocoding_failed = False
             db.session.commit()
             flash('Your location has been updated successfully!', 'success')
@@ -717,7 +718,7 @@ def update_location():
                 coordinates = geocode_address(address)
                 if coordinates:
                     current_user.latitude, current_user.longitude = coordinates
-                    current_user.geocoded_at = datetime.utcnow()
+                    current_user.geocoded_at = datetime.now(UTC)
                     current_user.geocoding_failed = False
                     db.session.commit()
                     flash('Your location has been updated successfully!', 'success')

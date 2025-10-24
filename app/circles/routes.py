@@ -8,7 +8,7 @@ from app.utils.geocoding import geocode_address, build_address_string, Geocoding
 import logging
 import uuid
 from sqlalchemy import and_
-from datetime import datetime
+from datetime import datetime, UTC
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +132,7 @@ def manage_circles():
                 stmt = circle_members.insert().values(
                     user_id=current_user.id,
                     circle_id=new_circle.id,
-                    joined_at=datetime.utcnow(),
+                    joined_at=datetime.now(UTC),
                     is_admin=True
                 )
                 db.session.execute(stmt)
@@ -324,7 +324,7 @@ def join_circle(circle_id):
         stmt = circle_members.insert().values(
             user_id=current_user.id,
             circle_id=circle.id,
-            joined_at=datetime.utcnow(),
+            joined_at=datetime.now(UTC),
             is_admin=False
         )
         db.session.execute(stmt)
@@ -400,7 +400,7 @@ def handle_join_request(circle_id, request_id, action):
         stmt = circle_members.insert().values(
             user_id=join_request.user_id,
             circle_id=circle.id,
-            joined_at=datetime.utcnow(),
+            joined_at=datetime.now(UTC),
             is_admin=False
         )
         db.session.execute(stmt)
@@ -523,7 +523,7 @@ def create_circle():
         stmt = circle_members.insert().values(
             user_id=current_user.id,
             circle_id=new_circle.id,
-            joined_at=datetime.utcnow(),
+            joined_at=datetime.now(UTC),
             is_admin=True
         )
         db.session.execute(stmt)

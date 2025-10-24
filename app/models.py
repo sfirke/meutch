@@ -1,6 +1,6 @@
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
-from datetime import datetime
+from datetime import datetime, UTC
 from app import db
 from flask_login import UserMixin
 from flask import url_for
@@ -11,7 +11,7 @@ import secrets
 circle_members = db.Table('circle_members',
     db.Column('user_id', UUID(as_uuid=True), db.ForeignKey('users.id'), primary_key=True),
     db.Column('circle_id', UUID(as_uuid=True), db.ForeignKey('circle.id'), primary_key=True),
-    db.Column('joined_at', db.DateTime, default=datetime.utcnow),
+    db.Column('joined_at', db.DateTime, default=lambda: datetime.now(UTC)),
     db.Column('is_admin', db.Boolean, default=False)
 )
 
@@ -76,8 +76,8 @@ class User(UserMixin, db.Model):
             return True
             
         # If last geocoding succeeded, enforce daily limit
-        from datetime import datetime, timedelta
-        time_since_last_successful_update = datetime.utcnow() - self.geocoded_at
+        from datetime import timedelta
+        time_since_last_successful_update = datetime.now(UTC) - self.geocoded_at
         return time_since_last_successful_update >= timedelta(days=1)
     
     def get_active_loans_as_borrower(self):
@@ -97,7 +97,7 @@ class User(UserMixin, db.Model):
     def generate_confirmation_token(self):
         """Generate a secure token for email confirmation"""
         self.email_confirmation_token = secrets.token_urlsafe(32)
-        self.email_confirmation_sent_at = datetime.utcnow()
+        self.email_confirmation_sent_at = datetime.now(UTC)
         return self.email_confirmation_token
     
     def confirm_email(self, token):
@@ -116,7 +116,7 @@ class User(UserMixin, db.Model):
     def generate_password_reset_token(self):
         """Generate a secure token for password reset"""
         self.password_reset_token = secrets.token_urlsafe(32)
-        self.password_reset_sent_at = datetime.utcnow()
+        self.password_reset_sent_at = datetime.now(UTC)
         return self.password_reset_token
     
     def reset_password(self, token, new_password):
@@ -125,7 +125,7 @@ class User(UserMixin, db.Model):
             # Check if token is not too old (1 hour)
             if self.password_reset_sent_at:
                 from datetime import timedelta
-                token_age = datetime.utcnow() - self.password_reset_sent_at
+                token_age = datetime.now(UTC) - self.password_reset_sent_at
                 if token_age > timedelta(hours=1):
                     return False
             
@@ -281,7 +281,7 @@ class User(UserMixin, db.Model):
         
         # 8. Soft delete the user (preserve for message/loan history)
         self.is_deleted = True
-        self.deleted_at = datetime.utcnow()
+        self.deleted_at = datetime.now(UTC)
         self.email = f"deleted_{self.id}@deleted.meutch"  # Anonymize email to allow re-registration
         db.session.commit()
 
