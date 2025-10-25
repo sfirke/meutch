@@ -131,7 +131,7 @@ def search():
 @main_bp.route('/item/<uuid:item_id>', methods=['GET', 'POST'])
 @login_required
 def item_detail(item_id):
-    item = Item.query.get_or_404(item_id)
+    item = db.get_or_404(Item, item_id)
     
     # Initialize the MessageForm
     form = MessageForm()
@@ -169,7 +169,7 @@ def item_detail(item_id):
 @main_bp.route('/items/<uuid:item_id>/request', methods=['GET', 'POST'])
 @login_required
 def request_item(item_id):
-    item = Item.query.get_or_404(item_id)
+    item = db.get_or_404(Item, item_id)
     
     if item.owner == current_user:
         flash('You cannot request your own items.', 'warning')
@@ -228,7 +228,7 @@ def request_item(item_id):
 @main_bp.route('/item/<uuid:item_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_item(item_id):
-    item = Item.query.get_or_404(item_id)
+    item = db.get_or_404(Item, item_id)
     if item.owner != current_user:
         flash('You do not have permission to edit this item.', 'danger')
         return redirect(url_for('main.profile'))
@@ -293,7 +293,7 @@ def edit_item(item_id):
 @main_bp.route('/item/<uuid:item_id>/delete', methods=['POST'])
 @login_required
 def delete_item(item_id):
-    item = Item.query.get_or_404(item_id)
+    item = db.get_or_404(Item, item_id)
     
     # Check if user owns the item
     if item.owner != current_user:
@@ -330,7 +330,7 @@ def delete_item(item_id):
 @main_bp.route('/loan/<uuid:loan_id>/<string:action>', methods=['POST'])
 @login_required
 def process_loan(loan_id, action):
-    loan = LoanRequest.query.get_or_404(loan_id)
+    loan = db.get_or_404(LoanRequest, loan_id)
     
     if loan.item.owner_id != current_user.id:
         flash("You are not authorized to perform this action.", "danger")
@@ -384,7 +384,7 @@ def process_loan(loan_id, action):
 @main_bp.route('/loan/<uuid:loan_id>/cancel', methods=['POST'])
 @login_required
 def cancel_loan_request(loan_id):
-    loan = LoanRequest.query.get_or_404(loan_id)
+    loan = db.get_or_404(LoanRequest, loan_id)
     
     if loan.borrower_id != current_user.id:
         flash("You are not authorized to cancel this request.", "danger")
@@ -429,7 +429,7 @@ def cancel_loan_request(loan_id):
 @main_bp.route('/loan/<uuid:loan_id>/complete', methods=['POST'])
 @login_required
 def complete_loan(loan_id):
-    loan = LoanRequest.query.get_or_404(loan_id)
+    loan = db.get_or_404(LoanRequest, loan_id)
     
     if loan.item.owner_id != current_user.id:
         flash("You are not authorized to perform this action.", "danger")
@@ -475,7 +475,7 @@ def complete_loan(loan_id):
 @main_bp.route('/loan/<uuid:loan_id>/owner_cancel', methods=['POST'])
 @login_required
 def owner_cancel_loan(loan_id):
-    loan = LoanRequest.query.get_or_404(loan_id)
+    loan = db.get_or_404(LoanRequest, loan_id)
     
     # Check if the current user is the owner of the item
     if loan.item.owner_id != current_user.id:
@@ -525,7 +525,7 @@ def owner_cancel_loan(loan_id):
 @login_required
 def tag_items(tag_id):
     # Retrieve the tag or return 404 if not found
-    tag = Tag.query.get_or_404(tag_id)
+    tag = db.get_or_404(Tag, tag_id)
 
     # Get pagination parameters from the request
     page = request.args.get('page', 1, type=int)
@@ -559,7 +559,7 @@ def tag_items(tag_id):
 @login_required
 def category_items(category_id):
     # Retrieve the category or return 404 if not found
-    category = Category.query.get_or_404(category_id)
+    category = db.get_or_404(Category, category_id)
 
     # Get pagination parameters from the request
     page = request.args.get('page', 1, type=int)
@@ -749,7 +749,7 @@ def user_profile(user_id):
         flash('You must be logged in to view user profiles.', 'warning')
         return redirect(url_for('auth.login', next=request.url))
     
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     
     # Pagination parameters
     page = request.args.get('page', 1, type=int)
@@ -842,7 +842,7 @@ def messages():
 @main_bp.route('/message/<uuid:message_id>', methods=['GET', 'POST'])
 @login_required
 def view_conversation(message_id):
-    message = Message.query.get_or_404(message_id)
+    message = db.get_or_404(Message, message_id)
 
     if message.sender_id == current_user.id:
         other_user = db.session.get(User, message.recipient_id)

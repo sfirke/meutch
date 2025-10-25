@@ -96,7 +96,7 @@ class TestItemManagementWorkflow:
             assert b'deleted successfully' in response.data
             
             # Verify item is deleted
-            deleted_item = Item.query.get(item.id)
+            deleted_item = db.session.get(Item, item.id)
             assert deleted_item is None
 
 class TestLoanRequestWorkflow:

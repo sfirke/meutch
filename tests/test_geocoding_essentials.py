@@ -119,7 +119,7 @@ class TestLocationUpdateEssentials:
                 
                 assert response.status_code == 200
                 
-                updated_user = User.query.get(user.id)
+                updated_user = db.session.get(User, user.id)
                 assert updated_user.latitude == 40.7128
                 assert updated_user.longitude == -74.0060
 
@@ -142,7 +142,7 @@ class TestLocationUpdateEssentials:
             
             assert response.status_code == 200
             
-            updated_user = User.query.get(user.id)
+            updated_user = db.session.get(User, user.id)
             assert updated_user.latitude == 40.7128
             assert updated_user.longitude == -74.0060
 
@@ -168,7 +168,7 @@ class TestLocationUpdateEssentials:
             
             assert response.status_code == 200
             # Location should not have been updated due to daily limit
-            unchanged_user = User.query.get(user.id)
+            unchanged_user = db.session.get(User, user.id)
             assert unchanged_user.latitude != 34.0522
 
     def test_location_update_geocoding_failure(self, app, client):
@@ -196,7 +196,7 @@ class TestLocationUpdateEssentials:
                 
                 assert response.status_code == 200
                 
-                updated_user = User.query.get(user.id)
+                updated_user = db.session.get(User, user.id)
                 assert updated_user.latitude is None  # No coordinates stored
                 assert updated_user.geocoding_failed is True
 

@@ -114,7 +114,9 @@ def confirm_email(token):
     
     # Check if token is not too old (24 hours)
     if user.email_confirmation_sent_at:
-        token_age = datetime.now(UTC) - user.email_confirmation_sent_at
+        # Ensure email_confirmation_sent_at is timezone-aware for comparison
+        confirmation_sent_at_utc = user.email_confirmation_sent_at.replace(tzinfo=UTC) if user.email_confirmation_sent_at.tzinfo is None else user.email_confirmation_sent_at
+        token_age = datetime.now(UTC) - confirmation_sent_at_utc
         if token_age > timedelta(hours=24):
             flash('Confirmation link has expired. Please request a new one.', 'danger')
             return redirect(url_for('auth.resend_confirmation'))
@@ -188,7 +190,9 @@ def reset_password(token):
     
     # Check if token is not too old (1 hour)
     if user.password_reset_sent_at:
-        token_age = datetime.now(UTC) - user.password_reset_sent_at
+        # Ensure password_reset_sent_at is timezone-aware for comparison
+        reset_sent_at_utc = user.password_reset_sent_at.replace(tzinfo=UTC) if user.password_reset_sent_at.tzinfo is None else user.password_reset_sent_at
+        token_age = datetime.now(UTC) - reset_sent_at_utc
         if token_age > timedelta(hours=1):
             flash('Reset link has expired. Please request a new one.', 'danger')
             return redirect(url_for('auth.forgot_password'))
