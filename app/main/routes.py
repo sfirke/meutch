@@ -1,8 +1,9 @@
 from uuid import UUID
 from flask import render_template, current_app, request, flash, redirect, url_for
 from flask_login import login_required, current_user, logout_user
-from sqlalchemy import or_, and_, func
+from sqlalchemy import or_, and_, func, select
 from sqlalchemy.orm import joinedload
+from datetime import datetime, UTC
 from app import db
 from app.models import Item, LoanRequest, Tag, User, Message, Circle, circle_members, Category
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, DeleteAccountForm, UpdateLocationForm
@@ -12,11 +13,11 @@ from app.utils.storage import delete_file, upload_item_image, upload_profile_ima
 @main_bp.route('/')
 def index():
     # Only show items whose owner is in at least one public circle
-    public_circle_ids = db.session.query(Circle.id).filter(Circle.requires_approval == False).subquery()
+    public_circle_ids = select(Circle.id).where(Circle.requires_approval == False)
     # Find user IDs who are in at least one public circle
-    public_user_ids = db.session.query(circle_members.c.user_id).filter(
+    public_user_ids = select(circle_members.c.user_id).where(
         circle_members.c.circle_id.in_(public_circle_ids)
-    ).distinct().subquery()
+    ).distinct()
     
     # Base query for items in public circles, ordered by newest first
     base_query = Item.query.filter(Item.owner_id.in_(public_user_ids)).order_by(Item.created_at.desc())
@@ -130,7 +131,7 @@ def search():
 @main_bp.route('/item/<uuid:item_id>', methods=['GET', 'POST'])
 @login_required
 def item_detail(item_id):
-    item = Item.query.get_or_404(item_id)
+    item = db.get_or_404(Item, item_id)
     
     # Initialize the MessageForm
     form = MessageForm()
@@ -168,7 +169,7 @@ def item_detail(item_id):
 @main_bp.route('/items/<uuid:item_id>/request', methods=['GET', 'POST'])
 @login_required
 def request_item(item_id):
-    item = Item.query.get_or_404(item_id)
+    item = db.get_or_404(Item, item_id)
     
     if item.owner == current_user:
         flash('You cannot request your own items.', 'warning')
@@ -227,7 +228,7 @@ def request_item(item_id):
 @main_bp.route('/item/<uuid:item_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_item(item_id):
-    item = Item.query.get_or_404(item_id)
+    item = db.get_or_404(Item, item_id)
     if item.owner != current_user:
         flash('You do not have permission to edit this item.', 'danger')
         return redirect(url_for('main.profile'))
@@ -292,7 +293,7 @@ def edit_item(item_id):
 @main_bp.route('/item/<uuid:item_id>/delete', methods=['POST'])
 @login_required
 def delete_item(item_id):
-    item = Item.query.get_or_404(item_id)
+    item = db.get_or_404(Item, item_id)
     
     # Check if user owns the item
     if item.owner != current_user:
@@ -329,7 +330,7 @@ def delete_item(item_id):
 @main_bp.route('/loan/<uuid:loan_id>/<string:action>', methods=['POST'])
 @login_required
 def process_loan(loan_id, action):
-    loan = LoanRequest.query.get_or_404(loan_id)
+    loan = db.get_or_404(LoanRequest, loan_id)
     
     if loan.item.owner_id != current_user.id:
         flash("You are not authorized to perform this action.", "danger")
@@ -383,7 +384,7 @@ def process_loan(loan_id, action):
 @main_bp.route('/loan/<uuid:loan_id>/cancel', methods=['POST'])
 @login_required
 def cancel_loan_request(loan_id):
-    loan = LoanRequest.query.get_or_404(loan_id)
+    loan = db.get_or_404(LoanRequest, loan_id)
     
     if loan.borrower_id != current_user.id:
         flash("You are not authorized to cancel this request.", "danger")
@@ -428,7 +429,7 @@ def cancel_loan_request(loan_id):
 @main_bp.route('/loan/<uuid:loan_id>/complete', methods=['POST'])
 @login_required
 def complete_loan(loan_id):
-    loan = LoanRequest.query.get_or_404(loan_id)
+    loan = db.get_or_404(LoanRequest, loan_id)
     
     if loan.item.owner_id != current_user.id:
         flash("You are not authorized to perform this action.", "danger")
@@ -474,7 +475,7 @@ def complete_loan(loan_id):
 @main_bp.route('/loan/<uuid:loan_id>/owner_cancel', methods=['POST'])
 @login_required
 def owner_cancel_loan(loan_id):
-    loan = LoanRequest.query.get_or_404(loan_id)
+    loan = db.get_or_404(LoanRequest, loan_id)
     
     # Check if the current user is the owner of the item
     if loan.item.owner_id != current_user.id:
@@ -524,7 +525,7 @@ def owner_cancel_loan(loan_id):
 @login_required
 def tag_items(tag_id):
     # Retrieve the tag or return 404 if not found
-    tag = Tag.query.get_or_404(tag_id)
+    tag = db.get_or_404(Tag, tag_id)
 
     # Get pagination parameters from the request
     page = request.args.get('page', 1, type=int)
@@ -558,7 +559,7 @@ def tag_items(tag_id):
 @login_required
 def category_items(category_id):
     # Retrieve the category or return 404 if not found
-    category = Category.query.get_or_404(category_id)
+    category = db.get_or_404(Category, category_id)
 
     # Get pagination parameters from the request
     page = request.args.get('page', 1, type=int)
@@ -701,7 +702,7 @@ def update_location():
             # Direct coordinate input
             current_user.latitude = form.latitude.data
             current_user.longitude = form.longitude.data
-            current_user.geocoded_at = datetime.utcnow()
+            current_user.geocoded_at = datetime.now(UTC)
             current_user.geocoding_failed = False
             db.session.commit()
             flash('Your location has been updated successfully!', 'success')
@@ -717,7 +718,7 @@ def update_location():
                 coordinates = geocode_address(address)
                 if coordinates:
                     current_user.latitude, current_user.longitude = coordinates
-                    current_user.geocoded_at = datetime.utcnow()
+                    current_user.geocoded_at = datetime.now(UTC)
                     current_user.geocoding_failed = False
                     db.session.commit()
                     flash('Your location has been updated successfully!', 'success')
@@ -748,7 +749,7 @@ def user_profile(user_id):
         flash('You must be logged in to view user profiles.', 'warning')
         return redirect(url_for('auth.login', next=request.url))
     
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     
     # Pagination parameters
     page = request.args.get('page', 1, type=int)
@@ -816,9 +817,9 @@ def messages():
     for convo in latest_conversations:
         # Identify the other participant
         if convo.sender_id == current_user.id:
-            other_user = User.query.get(convo.recipient_id)
+            other_user = db.session.get(User, convo.recipient_id)
         else:
-            other_user = User.query.get(convo.sender_id)
+            other_user = db.session.get(User, convo.sender_id)
         
         # Calculate unread messages where current_user is the recipient
         unread_count = Message.query.filter(
@@ -831,7 +832,7 @@ def messages():
         conversation_summaries.append({
             'conversation_id': f"{min(convo.sender_id, convo.recipient_id)}_{max(convo.sender_id, convo.recipient_id)}_{convo.item_id}",
             'other_user': other_user,
-            'item': Item.query.get(convo.item_id),
+            'item': db.session.get(Item, convo.item_id),
             'latest_message': convo,
             'unread_count': unread_count
         })
@@ -841,12 +842,12 @@ def messages():
 @main_bp.route('/message/<uuid:message_id>', methods=['GET', 'POST'])
 @login_required
 def view_conversation(message_id):
-    message = Message.query.get_or_404(message_id)
+    message = db.get_or_404(Message, message_id)
 
     if message.sender_id == current_user.id:
-        other_user = User.query.get(message.recipient_id)
+        other_user = db.session.get(User, message.recipient_id)
     else:
-        other_user = User.query.get(message.sender_id)
+        other_user = db.session.get(User, message.sender_id)
 
     # Ensure that only the recipient can view the message
     if message.recipient_id != current_user.id and message.sender_id != current_user.id:

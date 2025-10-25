@@ -210,7 +210,7 @@ class TestItemRoutes:
             assert b'Item has been updated.' in response.data
             
             # Verify item was updated
-            updated_item = Item.query.get(item.id)
+            updated_item = db.session.get(Item, item.id)
             assert updated_item.name == 'Updated Item Name'
             assert updated_item.description == 'Updated description'
 
@@ -236,7 +236,7 @@ class TestItemRoutes:
             assert f'/item/{item.id}' in location
 
             # Confirm the database was updated
-            updated = Item.query.get(item.id)
+            updated = db.session.get(Item, item.id)
             assert updated.name == 'Redirected Name'
     
     def test_delete_item_own_item(self, client, app, auth_user):
@@ -252,7 +252,7 @@ class TestItemRoutes:
             assert b'Item deleted successfully.' in response.data
             
             # Verify item was deleted
-            deleted_item = Item.query.get(item_id)
+            deleted_item = db.session.get(Item, item_id)
             assert deleted_item is None
     
     def test_delete_item_not_owner(self, client, app, auth_user):
@@ -408,8 +408,13 @@ class TestTagAndCategoryBrowsing:
             
             # Create more than 12 items (current per_page) with this tag
             items = []
+            from datetime import timedelta, UTC
+            import datetime as dt
+            base_time = dt.datetime.now(UTC)
             for i in range(15):
                 item = ItemFactory(name=f'Item {i}', category=category)
+                # Set created_at explicitly to ensure proper ordering (older items get older timestamps)
+                item.created_at = base_time - timedelta(minutes=15-i)
                 item.tags.append(tag)
                 items.append(item)
             
@@ -502,8 +507,13 @@ class TestTagAndCategoryBrowsing:
             
             # Create more than 12 items (current per_page) in this category
             items = []
+            from datetime import timedelta, UTC
+            import datetime as dt
+            base_time = dt.datetime.now(UTC)
             for i in range(15):
                 item = ItemFactory(name=f'Item {i}', category=category)
+                # Set created_at explicitly to ensure proper ordering (older items get older timestamps)
+                item.created_at = base_time - timedelta(minutes=15-i)
                 items.append(item)
             
             # Test first page (newest items first)
@@ -551,7 +561,7 @@ class TestProfileRoutes:
             assert b'Your profile has been updated.' in response.data
             
             # Verify profile was updated
-            updated_user = User.query.get(user.id)
+            updated_user = db.session.get(User, user.id)
             assert updated_user.about_me == 'Updated bio information'
 
 

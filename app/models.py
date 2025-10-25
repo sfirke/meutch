@@ -1,6 +1,7 @@
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
-from datetime import datetime
+from sqlalchemy import func
+from datetime import datetime, UTC
 from app import db
 from flask_login import UserMixin
 from flask import url_for
@@ -11,7 +12,7 @@ import secrets
 circle_members = db.Table('circle_members',
     db.Column('user_id', UUID(as_uuid=True), db.ForeignKey('users.id'), primary_key=True),
     db.Column('circle_id', UUID(as_uuid=True), db.ForeignKey('circle.id'), primary_key=True),
-    db.Column('joined_at', db.DateTime, default=datetime.utcnow),
+    db.Column('joined_at', db.DateTime, default=func.now()),
     db.Column('is_admin', db.Boolean, default=False)
 )
 
@@ -39,7 +40,7 @@ class User(UserMixin, db.Model):
     email_confirmation_sent_at = db.Column(db.DateTime, nullable=True)
     password_reset_token = db.Column(db.String(128), nullable=True)
     password_reset_sent_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=func.now())
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
     email_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
@@ -76,8 +77,10 @@ class User(UserMixin, db.Model):
             return True
             
         # If last geocoding succeeded, enforce daily limit
-        from datetime import datetime, timedelta
-        time_since_last_successful_update = datetime.utcnow() - self.geocoded_at
+        from datetime import timedelta
+        # Ensure geocoded_at is timezone-aware for comparison
+        geocoded_at_utc = self.geocoded_at.replace(tzinfo=UTC) if self.geocoded_at.tzinfo is None else self.geocoded_at
+        time_since_last_successful_update = datetime.now(UTC) - geocoded_at_utc
         return time_since_last_successful_update >= timedelta(days=1)
     
     def get_active_loans_as_borrower(self):
@@ -97,7 +100,7 @@ class User(UserMixin, db.Model):
     def generate_confirmation_token(self):
         """Generate a secure token for email confirmation"""
         self.email_confirmation_token = secrets.token_urlsafe(32)
-        self.email_confirmation_sent_at = datetime.utcnow()
+        self.email_confirmation_sent_at = datetime.now(UTC)
         return self.email_confirmation_token
     
     def confirm_email(self, token):
@@ -116,7 +119,7 @@ class User(UserMixin, db.Model):
     def generate_password_reset_token(self):
         """Generate a secure token for password reset"""
         self.password_reset_token = secrets.token_urlsafe(32)
-        self.password_reset_sent_at = datetime.utcnow()
+        self.password_reset_sent_at = datetime.now(UTC)
         return self.password_reset_token
     
     def reset_password(self, token, new_password):
@@ -125,7 +128,9 @@ class User(UserMixin, db.Model):
             # Check if token is not too old (1 hour)
             if self.password_reset_sent_at:
                 from datetime import timedelta
-                token_age = datetime.utcnow() - self.password_reset_sent_at
+                # Ensure password_reset_sent_at is timezone-aware for comparison
+                reset_sent_at_utc = self.password_reset_sent_at.replace(tzinfo=UTC) if self.password_reset_sent_at.tzinfo is None else self.password_reset_sent_at
+                token_age = datetime.now(UTC) - reset_sent_at_utc
                 if token_age > timedelta(hours=1):
                     return False
             
@@ -281,7 +286,7 @@ class User(UserMixin, db.Model):
         
         # 8. Soft delete the user (preserve for message/loan history)
         self.is_deleted = True
-        self.deleted_at = datetime.utcnow()
+        self.deleted_at = datetime.now(UTC)
         self.email = f"deleted_{self.id}@deleted.meutch"  # Anonymize email to allow re-registration
         db.session.commit()
 
@@ -299,7 +304,7 @@ class Item(db.Model):
     description = db.Column(db.Text)
     owner_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     available = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=func.now())
     category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('category.id'), nullable=False)
     loan_requests = db.relationship('LoanRequest', backref='item')
     image_url = db.Column(db.String(500), nullable=True)
@@ -330,7 +335,7 @@ class Circle(db.Model):
     description = db.Column(db.Text, nullable=True)
     visibility = db.Column(db.String(20), default='public')  # public, private, unlisted
     requires_approval = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=func.now())
     image_url = db.Column(db.String(500), nullable=True)
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
@@ -392,7 +397,7 @@ class LoanRequest(db.Model):
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(20), default='pending')  # pending, approved, canceled, denied, completed
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=func.now())
 
     borrower = db.relationship('User', foreign_keys=[borrower_id], backref='loan_requests')
 
@@ -410,7 +415,7 @@ class Feedback(db.Model):
     reviewer_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     rating = db.Column(db.String(10))  # good, neutral, bad
     comment = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=func.now())
 
 class Message(db.Model):
     __tablename__ = 'messages'
@@ -420,7 +425,7 @@ class Message(db.Model):
     recipient_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id'), nullable=False)
     body = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=func.now())
     is_read = db.Column(db.Boolean, default=False)
     parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('messages.id'), nullable=True)
     loan_request_id = db.Column(UUID(as_uuid=True), db.ForeignKey('loan_request.id'), nullable=True)
@@ -463,7 +468,7 @@ class CircleJoinRequest(db.Model):
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     message = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=func.now())
     
     circle = db.relationship('Circle', backref='join_requests')
     user = db.relationship('User', backref='circle_join_requests')
@@ -477,7 +482,7 @@ class UserWebLink(db.Model):
     platform_name = db.Column(db.String(50), nullable=True)  # For custom "other" platforms
     url = db.Column(db.String(500), nullable=False)
     display_order = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=func.now())
     
     user = db.relationship('User', backref='web_links')
     

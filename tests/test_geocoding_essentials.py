@@ -5,6 +5,7 @@ designed to provide maximum coverage with minimal runtime impact.
 """
 import pytest
 from unittest.mock import patch, Mock
+from datetime import datetime, UTC
 from app.utils.geocoding import geocode_address, GeocodingError, format_distance
 from tests.factories import UserFactory, ItemFactory
 from app import db
@@ -118,7 +119,7 @@ class TestLocationUpdateEssentials:
                 
                 assert response.status_code == 200
                 
-                updated_user = User.query.get(user.id)
+                updated_user = db.session.get(User, user.id)
                 assert updated_user.latitude == 40.7128
                 assert updated_user.longitude == -74.0060
 
@@ -141,16 +142,16 @@ class TestLocationUpdateEssentials:
             
             assert response.status_code == 200
             
-            updated_user = User.query.get(user.id)
+            updated_user = db.session.get(User, user.id)
             assert updated_user.latitude == 40.7128
             assert updated_user.longitude == -74.0060
 
     def test_location_update_daily_limit(self, app, client):
         """Test that daily update limit is enforced."""
         with app.app_context():
-            from datetime import datetime, timedelta
+            from datetime import timedelta
             
-            recent_time = datetime.utcnow() - timedelta(hours=2)
+            recent_time = datetime.now(UTC) - timedelta(hours=2)
             user = UserFactory(geocoded_at=recent_time, geocoding_failed=False)
             db.session.commit()
             
@@ -167,7 +168,7 @@ class TestLocationUpdateEssentials:
             
             assert response.status_code == 200
             # Location should not have been updated due to daily limit
-            unchanged_user = User.query.get(user.id)
+            unchanged_user = db.session.get(User, user.id)
             assert unchanged_user.latitude != 34.0522
 
     def test_location_update_geocoding_failure(self, app, client):
@@ -195,7 +196,7 @@ class TestLocationUpdateEssentials:
                 
                 assert response.status_code == 200
                 
-                updated_user = User.query.get(user.id)
+                updated_user = db.session.get(User, user.id)
                 assert updated_user.latitude is None  # No coordinates stored
                 assert updated_user.geocoding_failed is True
 

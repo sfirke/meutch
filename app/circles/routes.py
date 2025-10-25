@@ -8,7 +8,7 @@ from app.utils.geocoding import geocode_address, build_address_string, Geocoding
 import logging
 import uuid
 from sqlalchemy import and_
-from datetime import datetime
+from datetime import datetime, UTC
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +132,7 @@ def manage_circles():
                 stmt = circle_members.insert().values(
                     user_id=current_user.id,
                     circle_id=new_circle.id,
-                    joined_at=datetime.utcnow(),
+                    joined_at=datetime.now(UTC),
                     is_admin=True
                 )
                 db.session.execute(stmt)
@@ -242,7 +242,7 @@ def manage_circles():
 @circles_bp.route('/<uuid:circle_id>', methods=['GET'])
 @login_required
 def view_circle(circle_id):
-    circle = Circle.query.get_or_404(circle_id)
+    circle = db.get_or_404(Circle, circle_id)
     is_member = current_user in circle.members
 
     # Create form instance for CSRF protection
@@ -290,7 +290,7 @@ def view_circle(circle_id):
 @circles_bp.route('/join/<uuid:circle_id>', methods=['POST'])
 @login_required
 def join_circle(circle_id):
-    circle = Circle.query.get_or_404(circle_id)
+    circle = db.get_or_404(Circle, circle_id)
     form = CircleJoinRequestForm() if circle.requires_approval else EmptyForm()
 
     if current_user in circle.members:
@@ -324,7 +324,7 @@ def join_circle(circle_id):
         stmt = circle_members.insert().values(
             user_id=current_user.id,
             circle_id=circle.id,
-            joined_at=datetime.utcnow(),
+            joined_at=datetime.now(UTC),
             is_admin=False
         )
         db.session.execute(stmt)
@@ -336,7 +336,7 @@ def join_circle(circle_id):
 @circles_bp.route('/leave/<uuid:circle_id>', methods=['POST'])
 @login_required
 def leave_circle(circle_id):
-    circle = Circle.query.get_or_404(circle_id)
+    circle = db.get_or_404(Circle, circle_id)
     if current_user not in circle.members:
         flash('You are not a member of this circle.', 'info')
         return redirect(url_for('circles.view_circle', circle_id=circle_id))
@@ -384,12 +384,12 @@ def leave_circle(circle_id):
 @circles_bp.route('/<uuid:circle_id>/request/<uuid:request_id>/<action>', methods=['POST'])
 @login_required
 def handle_join_request(circle_id, request_id, action):
-    circle = Circle.query.get_or_404(circle_id)
+    circle = db.get_or_404(Circle, circle_id)
     if not circle.is_admin(current_user):
         flash('You must be an admin to perform this action.', 'danger')
         return redirect(url_for('circles.view_circle', circle_id=circle_id))
         
-    join_request = CircleJoinRequest.query.get_or_404(request_id)
+    join_request = db.get_or_404(CircleJoinRequest, request_id)
     
     if join_request.circle_id != circle.id:
         flash('Invalid join request.', 'danger')
@@ -400,7 +400,7 @@ def handle_join_request(circle_id, request_id, action):
         stmt = circle_members.insert().values(
             user_id=join_request.user_id,
             circle_id=circle.id,
-            joined_at=datetime.utcnow(),
+            joined_at=datetime.now(UTC),
             is_admin=False
         )
         db.session.execute(stmt)
@@ -428,7 +428,7 @@ def handle_join_request(circle_id, request_id, action):
 @circles_bp.route('/<uuid:circle_id>/cancel-request', methods=['POST'])
 @login_required
 def cancel_join_request(circle_id):
-    circle = Circle.query.get_or_404(circle_id)
+    circle = db.get_or_404(Circle, circle_id)
     
     # Find and delete pending request
     pending_request = CircleJoinRequest.query.filter_by(
@@ -452,7 +452,7 @@ def cancel_join_request(circle_id):
 @circles_bp.route('/<uuid:circle_id>/admin/<uuid:user_id>/<action>', methods=['POST'])
 @login_required
 def toggle_admin(circle_id, user_id, action):
-    circle = Circle.query.get_or_404(circle_id)
+    circle = db.get_or_404(Circle, circle_id)
     if not circle.is_admin(current_user):
         flash('You must be an admin to perform this action.', 'danger')
         return redirect(url_for('circles.view_circle', circle_id=circle_id))
@@ -523,7 +523,7 @@ def create_circle():
         stmt = circle_members.insert().values(
             user_id=current_user.id,
             circle_id=new_circle.id,
-            joined_at=datetime.utcnow(),
+            joined_at=datetime.now(UTC),
             is_admin=True
         )
         db.session.execute(stmt)
@@ -550,12 +550,12 @@ def search_circles():
 @circles_bp.route('/<uuid:circle_id>/remove/<uuid:user_id>', methods=['POST'])
 @login_required
 def remove_member(circle_id, user_id):
-    circle = Circle.query.get_or_404(circle_id)
+    circle = db.get_or_404(Circle, circle_id)
     if not circle.is_admin(current_user):
         flash('You must be an admin to remove members.', 'danger')
         return redirect(url_for('circles.view_circle', circle_id=circle_id))
     
-    user_to_remove = User.query.get_or_404(user_id)
+    user_to_remove = db.get_or_404(User, user_id)
     if user_to_remove not in circle.members:
         flash('User is not a member of this circle.', 'warning')
         return redirect(url_for('circles.view_circle', circle_id=circle_id))
@@ -584,7 +584,7 @@ def remove_member(circle_id, user_id):
 @circles_bp.route('/<uuid:circle_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_circle(circle_id):
-    circle = Circle.query.get_or_404(circle_id)
+    circle = db.get_or_404(Circle, circle_id)
     if not circle.is_admin(current_user):
         flash('Only circle admins can edit circle details.', 'danger')
         return redirect(url_for('circles.view_circle', circle_id=circle.id))

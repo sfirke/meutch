@@ -109,10 +109,11 @@ The Meutch Team
 def send_message_notification_email(message):
     """Send email notification for new messages"""
     from app.models import User  # Import here to avoid circular imports
+    from app import db
     
     # Get the recipient user
-    recipient = User.query.get(message.recipient_id)
-    sender = User.query.get(message.sender_id)
+    recipient = db.session.get(User, message.recipient_id)
+    sender = db.session.get(User, message.sender_id)
     
     if not recipient or not sender:
         current_app.logger.error(f"User not found for message notification: recipient={message.recipient_id}, sender={message.sender_id}")

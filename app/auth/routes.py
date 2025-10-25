@@ -7,7 +7,7 @@ from app import db
 from app.forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm
 from app.utils.email import send_confirmation_email, send_password_reset_email
 from app.utils.geocoding import geocode_address, build_address_string, GeocodingError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def register():
             # Direct coordinate input
             user.latitude = form.latitude.data
             user.longitude = form.longitude.data
-            user.geocoded_at = datetime.utcnow()
+            user.geocoded_at = datetime.now(UTC)
             user.geocoding_failed = False
             logger.info(f"User {user.email} provided coordinates directly: ({user.latitude}, {user.longitude})")
         elif form.location_method.data == 'address':
@@ -46,7 +46,7 @@ def register():
                 coordinates = geocode_address(address)
                 if coordinates:
                     user.latitude, user.longitude = coordinates
-                    user.geocoded_at = datetime.utcnow()
+                    user.geocoded_at = datetime.now(UTC)
                     user.geocoding_failed = False
                     logger.info(f"Successfully geocoded address for user {user.email}")
                 else:
@@ -114,7 +114,9 @@ def confirm_email(token):
     
     # Check if token is not too old (24 hours)
     if user.email_confirmation_sent_at:
-        token_age = datetime.utcnow() - user.email_confirmation_sent_at
+        # Ensure email_confirmation_sent_at is timezone-aware for comparison
+        confirmation_sent_at_utc = user.email_confirmation_sent_at.replace(tzinfo=UTC) if user.email_confirmation_sent_at.tzinfo is None else user.email_confirmation_sent_at
+        token_age = datetime.now(UTC) - confirmation_sent_at_utc
         if token_age > timedelta(hours=24):
             flash('Confirmation link has expired. Please request a new one.', 'danger')
             return redirect(url_for('auth.resend_confirmation'))
@@ -188,7 +190,9 @@ def reset_password(token):
     
     # Check if token is not too old (1 hour)
     if user.password_reset_sent_at:
-        token_age = datetime.utcnow() - user.password_reset_sent_at
+        # Ensure password_reset_sent_at is timezone-aware for comparison
+        reset_sent_at_utc = user.password_reset_sent_at.replace(tzinfo=UTC) if user.password_reset_sent_at.tzinfo is None else user.password_reset_sent_at
+        token_age = datetime.now(UTC) - reset_sent_at_utc
         if token_age > timedelta(hours=1):
             flash('Reset link has expired. Please request a new one.', 'danger')
             return redirect(url_for('auth.forgot_password'))

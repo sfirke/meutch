@@ -65,7 +65,7 @@ def create_app(config_class=None):
             uuid_obj = UUID(user_id, version=4)
         except ValueError:
             return None
-        return User.query.get(uuid_obj)
+        return db.session.get(User, uuid_obj)
     
     # Register the context processor
     app.context_processor(inject_unread_messages_count)
