@@ -245,9 +245,9 @@ def process_image(file, max_width=800, max_height=600, quality=85):
         file.seek(0)
         return file
 
-def upload_file(file, folder='items', max_width=800, max_height=600, quality=85, require_image=True):
+def upload_file(file, folder='items', max_width=800, max_height=600, quality=85):
     """
-    Upload a file to storage with optional image processing
+    Upload an image file to storage with processing
     
     Args:
         file: Uploaded file object
@@ -255,10 +255,9 @@ def upload_file(file, folder='items', max_width=800, max_height=600, quality=85,
         max_width: Maximum width for image processing (default: 800)
         max_height: Maximum height for image processing (default: 600)
         quality: JPEG quality for image processing (default: 85)
-        require_image: Whether to restrict uploads to image files only (default: True)
     
     Returns:
-        URL of the uploaded file or None if upload failed
+        URL of the uploaded image or None if upload failed
     """
     if not file:
         return None
@@ -273,27 +272,17 @@ def upload_file(file, folder='items', max_width=800, max_height=600, quality=85,
         
         # Check if it's an image file
         image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
-        is_image = file_ext in image_extensions
-        
-        # Reject non-image files if images are required
-        if require_image and not is_image:
+        if file_ext not in image_extensions:
+            # Reject non-image files (app only supports image uploads)
             current_app.logger.warning(f"Rejected non-image file upload: {filename}")
             return None
         
-        # Generate unique filename
+        # Generate unique filename (always JPEG since we process all uploads as images)
         base_name = os.path.splitext(filename)[0]
-        if is_image:
-            # Always use .jpg for processed images to ensure consistency
-            unique_filename = f"{uuid.uuid4()}-{base_name}.jpg"
-        else:
-            unique_filename = f"{uuid.uuid4()}-{filename}"
+        unique_filename = f"{uuid.uuid4()}-{base_name}.jpg"
         
-        # Process the file
-        if is_image:
-            processed_file = process_image(file, max_width, max_height, quality)
-        else:
-            file.seek(0)
-            processed_file = file
+        # Process the image
+        processed_file = process_image(file, max_width, max_height, quality)
         
         # Get storage backend and upload
         storage = get_storage_backend()

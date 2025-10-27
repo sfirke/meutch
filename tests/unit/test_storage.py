@@ -165,7 +165,7 @@ class TestUploadFunctions:
                 mock_processed_file = BytesIO(b'processed image data')
                 mock_process.return_value = mock_processed_file
                 
-                result = upload_file(mock_file, folder='test', require_image=True)
+                result = upload_file(mock_file, folder='test')
                 
                 # Verify backend upload was called
                 mock_backend.upload.assert_called_once()
@@ -193,7 +193,7 @@ class TestUploadFunctions:
                 mock_processed_file = BytesIO(b'processed image data')
                 mock_process.return_value = mock_processed_file
                 
-                result = upload_file(mock_file, folder='test', require_image=True)
+                result = upload_file(mock_file, folder='test')
                 
                 # Verify upload failed
                 assert result is None
