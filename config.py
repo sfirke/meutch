@@ -26,7 +26,6 @@ class Config:
     
     # DigitalOcean Spaces configuration (optional for local development)
     DO_SPACES_REGION = os.environ.get('DO_SPACES_REGION')
-    DO_SPACES_ENDPOINT = f'https://{DO_SPACES_REGION}.digitaloceanspaces.com' if DO_SPACES_REGION else None
     DO_SPACES_KEY = os.environ.get('DO_SPACES_KEY')
     DO_SPACES_SECRET = os.environ.get('DO_SPACES_SECRET')
     DO_SPACES_BUCKET = os.environ.get('DO_SPACES_BUCKET')

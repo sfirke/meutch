@@ -83,9 +83,9 @@ class LocalFileStorage(StorageBackend):
 class DOSpacesStorage(StorageBackend):
     """DigitalOcean Spaces storage backend for production."""
     
-    def __init__(self, region, endpoint, key, secret, bucket):
+    def __init__(self, region, key, secret, bucket):
         self.region = region
-        self.endpoint = endpoint
+        self.endpoint = f'https://{region}.cdn.digitaloceanspaces.com'
         self.key = key
         self.secret = secret
         self.bucket = bucket
@@ -109,6 +109,7 @@ class DOSpacesStorage(StorageBackend):
                 f'{folder}/{filename}',
                 ExtraArgs={
                     'ACL': 'public-read',
+                    # All uploads are images converted to JPEG by process_image()
                     'ContentType': 'image/jpeg'
                 }
             )
@@ -152,8 +153,7 @@ def get_storage_backend():
         
         # Use DO Spaces if all credentials are present
         if all([region, key, secret, bucket]):
-            endpoint = current_app.config['DO_SPACES_ENDPOINT']
-            return DOSpacesStorage(region, endpoint, key, secret, bucket)
+            return DOSpacesStorage(region, key, secret, bucket)
     
     # Default to local storage
     return LocalFileStorage()

@@ -256,12 +256,13 @@ class TestStorageBackends:
         with app.app_context():
             app.config['USE_LOCAL_STORAGE'] = False
             app.config['DO_SPACES_REGION'] = 'nyc3'
-            app.config['DO_SPACES_ENDPOINT'] = 'https://nyc3.digitaloceanspaces.com'
             app.config['DO_SPACES_KEY'] = 'test-key'
             app.config['DO_SPACES_SECRET'] = 'test-secret'
             app.config['DO_SPACES_BUCKET'] = 'test-bucket'
             backend = get_storage_backend()
             assert isinstance(backend, DOSpacesStorage)
+            # Verify CDN endpoint is used
+            assert backend.endpoint == 'https://nyc3.cdn.digitaloceanspaces.com'
     
     def test_local_storage_upload(self, app):
         """Test LocalFileStorage upload functionality."""
@@ -320,7 +321,6 @@ class TestStorageBackends:
             
             storage = DOSpacesStorage(
                 region='nyc3',
-                endpoint='https://nyc3.digitaloceanspaces.com',
                 key='test-key',
                 secret='test-secret',
                 bucket='test-bucket'
@@ -333,8 +333,8 @@ class TestStorageBackends:
             # Verify S3 upload was called
             mock_s3.upload_fileobj.assert_called_once()
             
-            # Verify URL format
-            assert url == 'https://nyc3.digitaloceanspaces.com/test-bucket/test-folder/test-file.jpg'
+            # Verify URL format uses CDN endpoint
+            assert url == 'https://nyc3.cdn.digitaloceanspaces.com/test-bucket/test-folder/test-file.jpg'
     
     @patch('app.utils.storage.boto3.client')
     def test_do_spaces_delete(self, mock_boto_client, app):
@@ -346,14 +346,13 @@ class TestStorageBackends:
             
             storage = DOSpacesStorage(
                 region='nyc3',
-                endpoint='https://nyc3.digitaloceanspaces.com',
                 key='test-key',
                 secret='test-secret',
                 bucket='test-bucket'
             )
             
             # Delete a file
-            url = 'https://nyc3.digitaloceanspaces.com/test-bucket/test-folder/test-file.jpg'
+            url = 'https://nyc3.cdn.digitaloceanspaces.com/test-bucket/test-folder/test-file.jpg'
             storage.delete(url)
             
             # Verify S3 delete was called
