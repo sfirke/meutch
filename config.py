@@ -19,8 +19,14 @@ class Config:
     
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
+    # Storage configuration
+    # Use local file storage if explicitly enabled or if DO Spaces credentials are missing
+    USE_LOCAL_STORAGE = os.environ.get('USE_LOCAL_STORAGE', 'False').lower() == 'true'
+    
+    # DigitalOcean Spaces configuration (optional for local development)
     DO_SPACES_REGION = os.environ.get('DO_SPACES_REGION')
-    DO_SPACES_ENDPOINT = f'https://{DO_SPACES_REGION}.digitaloceanspaces.com'
+    DO_SPACES_ENDPOINT = f'https://{DO_SPACES_REGION}.digitaloceanspaces.com' if DO_SPACES_REGION else None
     DO_SPACES_KEY = os.environ.get('DO_SPACES_KEY')
     DO_SPACES_SECRET = os.environ.get('DO_SPACES_SECRET')
     DO_SPACES_BUCKET = os.environ.get('DO_SPACES_BUCKET')
@@ -42,6 +48,7 @@ class TestingConfig(Config):
     WTF_CSRF_ENABLED = False  # Disable CSRF for testing
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     SECRET_KEY = 'test-secret-key'
+    USE_LOCAL_STORAGE = True  # Always use local storage for tests
 
 class StagingConfig(Config):
     """Configuration for staging environment"""

@@ -172,3 +172,11 @@ server.log
 
 # Empty test env file
 .env.test
+
+# Local file uploads (keep directories but not uploaded files)
+app/static/uploads/items/*
+app/static/uploads/profiles/*
+app/static/uploads/circles/*
+!app/static/uploads/items/.gitkeep
+!app/static/uploads/profiles/.gitkeep
+!app/static/uploads/circles/.gitkeep

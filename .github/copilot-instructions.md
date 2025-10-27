@@ -164,6 +164,8 @@ docker compose -f docker-compose.test.yml up -d
   - `app/circles/` - Lending circles functionality
   - `app/models.py` - Database models
   - `app/forms.py` - WTForms form definitions
+  - `app/utils/storage.py` - File storage abstraction (local files or DO Spaces)
+  - `app/static/uploads/` - Local file storage directory (git-ignored, except .gitkeep files)
 - `tests/` - Test suite
   - `tests/unit/` - Unit tests (forms, models, storage)
   - `tests/integration/` - Integration tests (routes, auth)
@@ -176,6 +178,14 @@ docker compose -f docker-compose.test.yml up -d
 - `conftest.py` - Pytest configuration and fixtures
 - `run_tests.sh` - Test runner script with multiple options
 - `requirements.txt` - Python dependencies
+
+### File Storage
+The application supports two storage backends:
+- **Local File Storage** (default for development): Files stored in `app/static/uploads/`
+- **DigitalOcean Spaces** (production): S3-compatible object storage
+
+Files are stored in DigitalOcean Spaces if all credentials (`DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_REGION`, `DO_SPACES_BUCKET`) are configured, otherwise local file storage is used if `USE_LOCAL_STORAGE=true` or DO Spaces credentials are missing.
+
 
 ### Database Models
 - `User` - User accounts with UUID primary keys

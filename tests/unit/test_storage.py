@@ -5,8 +5,11 @@ from io import BytesIO
 from PIL import Image
 from app.utils.storage import (
     is_valid_file_upload, process_image, upload_file,
-    upload_item_image, upload_profile_image
+    upload_item_image, upload_profile_image,
+    get_storage_backend, LocalFileStorage, DOSpacesStorage
 )
+import os
+import tempfile
 
 class TestFileValidation:
     """Test file validation utilities."""
@@ -142,13 +145,14 @@ class TestImageProcessing:
 class TestUploadFunctions:
     """Test upload functions."""
     
-    @patch('app.utils.storage.get_s3_client')
-    def test_upload_file_success(self, mock_s3_client, app):
+    @patch('app.utils.storage.get_storage_backend')
+    def test_upload_file_success(self, mock_get_backend, app):
         """Test successful file upload."""
         with app.app_context():
-            # Setup mocks
-            mock_s3 = Mock()
-            mock_s3_client.return_value = mock_s3
+            # Setup mock backend
+            mock_backend = Mock()
+            mock_backend.upload.return_value = 'http://example.com/test/file.jpg'
+            mock_get_backend.return_value = mock_backend
             
             # Create test file with proper mock behavior
             mock_file = Mock()
@@ -163,21 +167,20 @@ class TestUploadFunctions:
                 
                 result = upload_file(mock_file, folder='test', require_image=True)
                 
-                # Verify S3 upload was called
-                mock_s3.upload_fileobj.assert_called_once()
+                # Verify backend upload was called
+                mock_backend.upload.assert_called_once()
                 
-                # Verify return URL format
-                assert result is not None
-                assert '/test/' in result
+                # Verify return URL
+                assert result == 'http://example.com/test/file.jpg'
     
-    @patch('app.utils.storage.get_s3_client')
-    def test_upload_file_failure(self, mock_s3_client, app):
+    @patch('app.utils.storage.get_storage_backend')
+    def test_upload_file_failure(self, mock_get_backend, app):
         """Test file upload failure."""
         with app.app_context():
-            # Setup mocks
-            mock_s3 = Mock()
-            mock_s3.upload_fileobj.side_effect = Exception("Upload failed")
-            mock_s3_client.return_value = mock_s3
+            # Setup mock backend that fails
+            mock_backend = Mock()
+            mock_backend.upload.return_value = None
+            mock_get_backend.return_value = mock_backend
             
             # Create test file with proper mock behavior
             mock_file = Mock()
@@ -228,3 +231,133 @@ class TestUploadFunctions:
             quality=90
         )
         assert result == 'https://example.com/profile.jpg'
+
+
+class TestStorageBackends:
+    """Test storage backend implementations."""
+    
+    def test_get_storage_backend_local_when_configured(self, app):
+        """Test get_storage_backend returns LocalFileStorage when USE_LOCAL_STORAGE is True."""
+        with app.app_context():
+            app.config['USE_LOCAL_STORAGE'] = True
+            backend = get_storage_backend()
+            assert isinstance(backend, LocalFileStorage)
+    
+    def test_get_storage_backend_local_when_no_credentials(self, app):
+        """Test get_storage_backend returns LocalFileStorage when DO Spaces credentials missing."""
+        with app.app_context():
+            app.config['USE_LOCAL_STORAGE'] = False
+            app.config['DO_SPACES_KEY'] = None
+            backend = get_storage_backend()
+            assert isinstance(backend, LocalFileStorage)
+    
+    def test_get_storage_backend_do_spaces_when_configured(self, app):
+        """Test get_storage_backend returns DOSpacesStorage when properly configured."""
+        with app.app_context():
+            app.config['USE_LOCAL_STORAGE'] = False
+            app.config['DO_SPACES_REGION'] = 'nyc3'
+            app.config['DO_SPACES_ENDPOINT'] = 'https://nyc3.digitaloceanspaces.com'
+            app.config['DO_SPACES_KEY'] = 'test-key'
+            app.config['DO_SPACES_SECRET'] = 'test-secret'
+            app.config['DO_SPACES_BUCKET'] = 'test-bucket'
+            backend = get_storage_backend()
+            assert isinstance(backend, DOSpacesStorage)
+    
+    def test_local_storage_upload(self, app):
+        """Test LocalFileStorage upload functionality."""
+        with app.app_context():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                storage = LocalFileStorage(upload_folder=tmpdir)
+                
+                # Create a test file
+                test_data = b'test image data'
+                file_obj = BytesIO(test_data)
+                
+                # Upload the file
+                url = storage.upload(file_obj, 'test-folder', 'test-file.jpg')
+                
+                # Verify file was created
+                file_path = os.path.join(tmpdir, 'test-folder', 'test-file.jpg')
+                assert os.path.exists(file_path)
+                
+                # Verify content
+                with open(file_path, 'rb') as f:
+                    assert f.read() == test_data
+                
+                # Verify URL contains the expected path
+                assert 'uploads/test-folder/test-file.jpg' in url
+    
+    def test_local_storage_delete(self, app):
+        """Test LocalFileStorage delete functionality."""
+        with app.app_context():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                storage = LocalFileStorage(upload_folder=tmpdir)
+                
+                # Create a test file
+                test_folder = os.path.join(tmpdir, 'test-folder')
+                os.makedirs(test_folder, exist_ok=True)
+                test_file = os.path.join(test_folder, 'test-file.jpg')
+                with open(test_file, 'wb') as f:
+                    f.write(b'test data')
+                
+                # Verify file exists
+                assert os.path.exists(test_file)
+                
+                # Delete the file
+                url = 'http://localhost:5000/static/uploads/test-folder/test-file.jpg'
+                storage.delete(url)
+                
+                # Verify file was deleted
+                assert not os.path.exists(test_file)
+    
+    @patch('app.utils.storage.boto3.client')
+    def test_do_spaces_upload(self, mock_boto_client, app):
+        """Test DOSpacesStorage upload functionality."""
+        with app.app_context():
+            # Setup mock S3 client
+            mock_s3 = Mock()
+            mock_boto_client.return_value = mock_s3
+            
+            storage = DOSpacesStorage(
+                region='nyc3',
+                endpoint='https://nyc3.digitaloceanspaces.com',
+                key='test-key',
+                secret='test-secret',
+                bucket='test-bucket'
+            )
+            
+            # Upload a file
+            file_obj = BytesIO(b'test data')
+            url = storage.upload(file_obj, 'test-folder', 'test-file.jpg')
+            
+            # Verify S3 upload was called
+            mock_s3.upload_fileobj.assert_called_once()
+            
+            # Verify URL format
+            assert url == 'https://nyc3.digitaloceanspaces.com/test-bucket/test-folder/test-file.jpg'
+    
+    @patch('app.utils.storage.boto3.client')
+    def test_do_spaces_delete(self, mock_boto_client, app):
+        """Test DOSpacesStorage delete functionality."""
+        with app.app_context():
+            # Setup mock S3 client
+            mock_s3 = Mock()
+            mock_boto_client.return_value = mock_s3
+            
+            storage = DOSpacesStorage(
+                region='nyc3',
+                endpoint='https://nyc3.digitaloceanspaces.com',
+                key='test-key',
+                secret='test-secret',
+                bucket='test-bucket'
+            )
+            
+            # Delete a file
+            url = 'https://nyc3.digitaloceanspaces.com/test-bucket/test-folder/test-file.jpg'
+            storage.delete(url)
+            
+            # Verify S3 delete was called
+            mock_s3.delete_object.assert_called_once_with(
+                Bucket='test-bucket',
+                Key='test-folder/test-file.jpg'
+            )

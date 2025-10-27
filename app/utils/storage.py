@@ -1,10 +1,163 @@
 import boto3
-from flask import current_app
+from flask import current_app, url_for
 from werkzeug.utils import secure_filename
 import uuid
 import io
 from PIL import Image, ImageOps
 import os
+from abc import ABC, abstractmethod
+
+
+class StorageBackend(ABC):
+    """Abstract base class for file storage backends."""
+    
+    @abstractmethod
+    def upload(self, file_obj, folder, filename):
+        """
+        Upload a file to storage.
+        
+        Args:
+            file_obj: File-like object to upload
+            folder: Folder/prefix to store the file in
+            filename: Name of the file
+            
+        Returns:
+            URL of the uploaded file or None on failure
+        """
+        pass
+    
+    @abstractmethod
+    def delete(self, url):
+        """
+        Delete a file from storage.
+        
+        Args:
+            url: URL of the file to delete
+        """
+        pass
+
+
+class LocalFileStorage(StorageBackend):
+    """Local file storage backend for development."""
+    
+    def __init__(self, upload_folder='app/static/uploads'):
+        self.upload_folder = upload_folder
+        # Ensure the base upload folder exists
+        os.makedirs(upload_folder, exist_ok=True)
+    
+    def upload(self, file_obj, folder, filename):
+        """Upload a file to local storage."""
+        try:
+            # Create folder if it doesn't exist
+            folder_path = os.path.join(self.upload_folder, folder)
+            os.makedirs(folder_path, exist_ok=True)
+            
+            # Save the file
+            file_path = os.path.join(folder_path, filename)
+            file_obj.seek(0)
+            with open(file_path, 'wb') as f:
+                f.write(file_obj.read())
+            
+            # Return URL path (relative to static folder)
+            return url_for('static', filename=f'uploads/{folder}/{filename}', _external=True)
+        except Exception as e:
+            current_app.logger.error(f"Local storage upload error: {str(e)}")
+            return None
+    
+    def delete(self, url):
+        """Delete a file from local storage."""
+        try:
+            # Extract the path from the URL
+            # URL format: http://localhost:5000/static/uploads/folder/filename.jpg
+            if '/static/uploads/' in url:
+                rel_path = url.split('/static/uploads/')[-1]
+                file_path = os.path.join(self.upload_folder, rel_path)
+                
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    current_app.logger.info(f"Deleted file: {file_path}")
+        except Exception as e:
+            current_app.logger.error(f"Local storage delete error: {str(e)}")
+
+
+class DOSpacesStorage(StorageBackend):
+    """DigitalOcean Spaces storage backend for production."""
+    
+    def __init__(self, region, endpoint, key, secret, bucket):
+        self.region = region
+        self.endpoint = endpoint
+        self.key = key
+        self.secret = secret
+        self.bucket = bucket
+    
+    def _get_client(self):
+        """Get boto3 S3 client configured for DigitalOcean Spaces."""
+        return boto3.client('s3',
+            region_name=self.region,
+            endpoint_url=self.endpoint,
+            aws_access_key_id=self.key,
+            aws_secret_access_key=self.secret
+        )
+    
+    def upload(self, file_obj, folder, filename):
+        """Upload a file to DigitalOcean Spaces."""
+        try:
+            s3_client = self._get_client()
+            s3_client.upload_fileobj(
+                file_obj,
+                self.bucket,
+                f'{folder}/{filename}',
+                ExtraArgs={
+                    'ACL': 'public-read',
+                    'ContentType': 'image/jpeg'
+                }
+            )
+            return f"{self.endpoint}/{self.bucket}/{folder}/{filename}"
+        except Exception as e:
+            current_app.logger.error(f"DO Spaces upload error: {str(e)}")
+            return None
+    
+    def delete(self, url):
+        """Delete a file from DigitalOcean Spaces."""
+        if not url:
+            return
+        
+        try:
+            key = url.split('/')[-2] + '/' + url.split('/')[-1]
+            s3_client = self._get_client()
+            s3_client.delete_object(
+                Bucket=self.bucket,
+                Key=key
+            )
+        except Exception as e:
+            current_app.logger.error(f"DO Spaces delete error: {str(e)}")
+
+
+def get_storage_backend():
+    """
+    Get the appropriate storage backend based on configuration.
+    
+    Returns LocalFileStorage for development or when DO Spaces credentials
+    are not configured. Returns DOSpacesStorage for production.
+    """
+    # Check if we should use local storage
+    use_local = current_app.config.get('USE_LOCAL_STORAGE', False)
+    
+    # If not explicitly set to use local storage, check if DO Spaces is configured
+    if not use_local:
+        region = current_app.config.get('DO_SPACES_REGION')
+        key = current_app.config.get('DO_SPACES_KEY')
+        secret = current_app.config.get('DO_SPACES_SECRET')
+        bucket = current_app.config.get('DO_SPACES_BUCKET')
+        
+        # Use DO Spaces if all credentials are present
+        if all([region, key, secret, bucket]):
+            endpoint = current_app.config['DO_SPACES_ENDPOINT']
+            return DOSpacesStorage(region, endpoint, key, secret, bucket)
+    
+    # Default to local storage
+    return LocalFileStorage()
+
 
 def is_valid_file_upload(file):
     """
@@ -37,13 +190,6 @@ def is_valid_file_upload(file):
     except (AttributeError, OSError):
         return False
 
-def get_s3_client():
-    return boto3.client('s3',
-        region_name=current_app.config['DO_SPACES_REGION'],
-        endpoint_url=current_app.config['DO_SPACES_ENDPOINT'],
-        aws_access_key_id=current_app.config['DO_SPACES_KEY'],
-        aws_secret_access_key=current_app.config['DO_SPACES_SECRET']
-    )
 
 def process_image(file, max_width=800, max_height=600, quality=85):
     """
@@ -101,11 +247,11 @@ def process_image(file, max_width=800, max_height=600, quality=85):
 
 def upload_file(file, folder='items', max_width=800, max_height=600, quality=85, require_image=True):
     """
-    Upload a file to DigitalOcean Spaces with optional image processing
+    Upload a file to storage with optional image processing
     
     Args:
         file: Uploaded file object
-        folder: Folder in the bucket to upload to (default: 'items')
+        folder: Folder in storage to upload to (default: 'items')
         max_width: Maximum width for image processing (default: 800)
         max_height: Maximum height for image processing (default: 600)
         quality: JPEG quality for image processing (default: 85)
@@ -145,25 +291,14 @@ def upload_file(file, folder='items', max_width=800, max_height=600, quality=85,
         # Process the file
         if is_image:
             processed_file = process_image(file, max_width, max_height, quality)
-            content_type = 'image/jpeg'
         else:
             file.seek(0)
             processed_file = file
-            content_type = 'application/octet-stream'
         
-        # Upload to DigitalOcean Spaces
-        s3_client = get_s3_client()
-        s3_client.upload_fileobj(
-            processed_file,
-            current_app.config['DO_SPACES_BUCKET'],
-            f'{folder}/{unique_filename}',
-            ExtraArgs={
-                'ACL': 'public-read',
-                'ContentType': content_type
-            }
-        )
+        # Get storage backend and upload
+        storage = get_storage_backend()
+        return storage.upload(processed_file, folder, unique_filename)
         
-        return f"{current_app.config['DO_SPACES_ENDPOINT']}/{current_app.config['DO_SPACES_BUCKET']}/{folder}/{unique_filename}"
     except Exception as e:
         current_app.logger.error(f"Upload error: {str(e)}")
         return None
@@ -205,15 +340,17 @@ def upload_circle_image(file):
     return upload_file(file, folder='circles', max_width=600, max_height=600, quality=85)
 
 def delete_file(url):
+    """
+    Delete a file from storage.
+    
+    Args:
+        url: URL of the file to delete
+    """
     if not url:
         return
-        
+    
     try:
-        key = url.split('/')[-2] + '/' + url.split('/')[-1]
-        s3_client = get_s3_client()
-        s3_client.delete_object(
-            Bucket=current_app.config['DO_SPACES_BUCKET'],
-            Key=key
-        )
+        storage = get_storage_backend()
+        storage.delete(url)
     except Exception as e:
         current_app.logger.error(f"Delete error: {str(e)}")
