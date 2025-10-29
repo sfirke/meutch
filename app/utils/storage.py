@@ -124,7 +124,13 @@ class DOSpacesStorage(StorageBackend):
             return
         
         try:
-            key = url.split('/')[-2] + '/' + url.split('/')[-1]
+            # Extract key from URL: https://region.cdn.digitaloceanspaces.com/bucket/folder/filename.jpg
+            # We want: folder/filename.jpg
+            # Split by / and skip protocol, empty string, domain, and bucket
+            parts = url.split('/')
+            # parts = ['https:', '', 'region.cdn.digitaloceanspaces.com', 'bucket', 'folder', 'filename.jpg']
+            key = '/'.join(parts[4:])  # Everything after bucket name
+            
             s3_client = self._get_client()
             s3_client.delete_object(
                 Bucket=self.bucket,
