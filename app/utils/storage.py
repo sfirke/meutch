@@ -144,24 +144,20 @@ def get_storage_backend():
     """
     Get the appropriate storage backend based on configuration.
     
-    Returns LocalFileStorage for development or when DO Spaces credentials
-    are not configured. Returns DOSpacesStorage for production.
+    Automatically uses DO Spaces if all credentials are configured,
+    otherwise defaults to local file storage for development.
     """
-    # Check if we should use local storage
-    use_local = current_app.config.get('USE_LOCAL_STORAGE', False)
+    # Check if DO Spaces is fully configured
+    region = current_app.config.get('DO_SPACES_REGION')
+    key = current_app.config.get('DO_SPACES_KEY')
+    secret = current_app.config.get('DO_SPACES_SECRET')
+    bucket = current_app.config.get('DO_SPACES_BUCKET')
     
-    # If not explicitly set to use local storage, check if DO Spaces is configured
-    if not use_local:
-        region = current_app.config.get('DO_SPACES_REGION')
-        key = current_app.config.get('DO_SPACES_KEY')
-        secret = current_app.config.get('DO_SPACES_SECRET')
-        bucket = current_app.config.get('DO_SPACES_BUCKET')
-        
-        # Use DO Spaces if all credentials are present
-        if all([region, key, secret, bucket]):
-            return DOSpacesStorage(region, key, secret, bucket)
+    # Use DO Spaces if all credentials are present
+    if all([region, key, secret, bucket]):
+        return DOSpacesStorage(region, key, secret, bucket)
     
-    # Default to local storage
+    # Default to local storage for development
     return LocalFileStorage()
 
 

@@ -236,25 +236,23 @@ class TestUploadFunctions:
 class TestStorageBackends:
     """Test storage backend implementations."""
     
-    def test_get_storage_backend_local_when_configured(self, app):
-        """Test get_storage_backend returns LocalFileStorage when USE_LOCAL_STORAGE is True."""
+    def test_get_storage_backend_local_by_default(self, app):
+        """Test get_storage_backend returns LocalFileStorage by default (no DO Spaces config)."""
         with app.app_context():
-            app.config['USE_LOCAL_STORAGE'] = True
+            # Don't configure any DO Spaces credentials
             backend = get_storage_backend()
             assert isinstance(backend, LocalFileStorage)
     
     def test_get_storage_backend_local_when_no_credentials(self, app):
         """Test get_storage_backend returns LocalFileStorage when DO Spaces credentials missing."""
         with app.app_context():
-            app.config['USE_LOCAL_STORAGE'] = False
             app.config['DO_SPACES_KEY'] = None
             backend = get_storage_backend()
             assert isinstance(backend, LocalFileStorage)
     
     def test_get_storage_backend_do_spaces_when_configured(self, app):
-        """Test get_storage_backend returns DOSpacesStorage when properly configured."""
+        """Test get_storage_backend returns DOSpacesStorage when all credentials provided."""
         with app.app_context():
-            app.config['USE_LOCAL_STORAGE'] = False
             app.config['DO_SPACES_REGION'] = 'nyc3'
             app.config['DO_SPACES_KEY'] = 'test-key'
             app.config['DO_SPACES_SECRET'] = 'test-secret'

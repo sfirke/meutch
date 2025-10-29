@@ -184,8 +184,9 @@ The application supports two storage backends:
 - **Local File Storage** (default for development): Files stored in `app/static/uploads/`
 - **DigitalOcean Spaces** (production): S3-compatible object storage
 
-Files are stored in DigitalOcean Spaces if all credentials (`DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_REGION`, `DO_SPACES_BUCKET`) are configured, otherwise local file storage is used if `USE_LOCAL_STORAGE=true` or DO Spaces credentials are missing.
-
+Storage backend is automatically selected:
+- Uses **DO Spaces** if all four credentials are configured (`DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_REGION`, `DO_SPACES_BUCKET`)
+- Uses **local file storage** otherwise (safe default for development)
 
 ### Database Models
 - `User` - User accounts with UUID primary keys
