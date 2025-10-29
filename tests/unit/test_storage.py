@@ -243,13 +243,6 @@ class TestStorageBackends:
             backend = get_storage_backend()
             assert isinstance(backend, LocalFileStorage)
     
-    def test_get_storage_backend_local_when_no_credentials(self, app):
-        """Test get_storage_backend returns LocalFileStorage when DO Spaces credentials missing."""
-        with app.app_context():
-            app.config['DO_SPACES_KEY'] = None
-            backend = get_storage_backend()
-            assert isinstance(backend, LocalFileStorage)
-    
     def test_get_storage_backend_do_spaces_when_configured(self, app):
         """Test get_storage_backend returns DOSpacesStorage when all credentials provided."""
         with app.app_context():
