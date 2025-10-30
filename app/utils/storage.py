@@ -119,9 +119,7 @@ class DOSpacesStorage(StorageBackend):
             )
             # Return CDN URL for fast retrieval
             # CDN format: https://{bucket}.{region}.cdn.digitaloceanspaces.com/{folder}/{filename}
-            url = f"{self.cdn_endpoint}/{folder}/{filename}"
-            current_app.logger.info(f"File uploaded: {url}")
-            return url
+            return f"{self.cdn_endpoint}/{folder}/{filename}"
         except Exception as e:
             current_app.logger.error(f"DO Spaces upload error: {str(e)}")
             return None
@@ -139,17 +137,13 @@ class DOSpacesStorage(StorageBackend):
             # parts = ['https:', '', '{bucket}.{region}.cdn.digitaloceanspaces.com', 'folder', 'filename.jpg']
             key = '/'.join(parts[3:])  # Everything after domain
             
-            current_app.logger.info(f"Deleting from DO Spaces: bucket={self.bucket}, key={key}")
             s3_client = self._get_client()
             s3_client.delete_object(
                 Bucket=self.bucket,
                 Key=key
             )
-            current_app.logger.info(f"Successfully deleted: {url}")
         except Exception as e:
             current_app.logger.error(f"DO Spaces delete error: {str(e)}")
-            import traceback
-            current_app.logger.error(f"Traceback: {traceback.format_exc()}")
 
 
 def get_storage_backend():
