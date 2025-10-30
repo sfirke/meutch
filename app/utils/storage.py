@@ -106,6 +106,7 @@ class DOSpacesStorage(StorageBackend):
         """Upload a file to DigitalOcean Spaces."""
         try:
             s3_client = self._get_client()
+            current_app.logger.info(f"Uploading to DO Spaces: {folder}/{filename} in bucket {self.bucket} via {self.api_endpoint}")
             s3_client.upload_fileobj(
                 file_obj,
                 self.bucket,
@@ -116,10 +117,14 @@ class DOSpacesStorage(StorageBackend):
                     'ContentType': 'image/jpeg'
                 }
             )
+            url = f"{self.cdn_endpoint}/{self.bucket}/{folder}/{filename}"
+            current_app.logger.info(f"Upload successful: {url}")
             # Return CDN URL for fast retrieval
-            return f"{self.cdn_endpoint}/{self.bucket}/{folder}/{filename}"
+            return url
         except Exception as e:
             current_app.logger.error(f"DO Spaces upload error: {str(e)}")
+            import traceback
+            current_app.logger.error(f"Traceback: {traceback.format_exc()}")
             return None
     
     def delete(self, url):
