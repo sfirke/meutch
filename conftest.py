@@ -70,6 +70,9 @@ class TestConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or 'postgresql://test_user:test_password@localhost:5433/test_meutch'
     SECRET_KEY = 'test-secret-key'
     
+    # File storage - always use local for tests
+    STORAGE_BACKEND = 'local'
+    
     # Disable file uploads for testing
     DO_SPACES_ENDPOINT = None
     DO_SPACES_BUCKET = None
