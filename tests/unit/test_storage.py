@@ -350,11 +350,11 @@ class TestStorageBackends:
                 bucket='test-bucket'
             )
             
-            # Delete a file
-            url = 'https://nyc3.cdn.digitaloceanspaces.com/test-bucket/test-folder/test-file.jpg'
+            # Delete a file with new CDN URL format
+            url = 'https://test-bucket.nyc3.cdn.digitaloceanspaces.com/test-folder/test-file.jpg'
             storage.delete(url)
             
-            # Verify S3 delete was called
+            # Verify S3 delete was called with correct key
             mock_s3.delete_object.assert_called_once_with(
                 Bucket='test-bucket',
                 Key='test-folder/test-file.jpg'

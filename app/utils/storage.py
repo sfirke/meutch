@@ -107,7 +107,6 @@ class DOSpacesStorage(StorageBackend):
         """Upload a file to DigitalOcean Spaces."""
         try:
             s3_client = self._get_client()
-            current_app.logger.info(f"Uploading to DO Spaces: {folder}/{filename} in bucket {self.bucket} via {self.api_endpoint}")
             s3_client.upload_fileobj(
                 file_obj,
                 self.bucket,
@@ -121,12 +120,10 @@ class DOSpacesStorage(StorageBackend):
             # Return CDN URL for fast retrieval
             # CDN format: https://{bucket}.{region}.cdn.digitaloceanspaces.com/{folder}/{filename}
             url = f"{self.cdn_endpoint}/{folder}/{filename}"
-            current_app.logger.info(f"Upload successful: {url}")
+            current_app.logger.info(f"File uploaded: {url}")
             return url
         except Exception as e:
             current_app.logger.error(f"DO Spaces upload error: {str(e)}")
-            import traceback
-            current_app.logger.error(f"Traceback: {traceback.format_exc()}")
             return None
     
     def delete(self, url):
@@ -135,20 +132,24 @@ class DOSpacesStorage(StorageBackend):
             return
         
         try:
-            # Extract key from URL: https://region.cdn.digitaloceanspaces.com/bucket/folder/filename.jpg
-            # We want: folder/filename.jpg
-            # Split by / and skip protocol, empty string, domain, and bucket
+            # Extract key from CDN URL: https://{bucket}.{region}.cdn.digitaloceanspaces.com/{folder}/{filename}
+            # We want: {folder}/{filename}
+            # Split by / and skip protocol, empty string, and domain
             parts = url.split('/')
-            # parts = ['https:', '', 'region.cdn.digitaloceanspaces.com', 'bucket', 'folder', 'filename.jpg']
-            key = '/'.join(parts[4:])  # Everything after bucket name
+            # parts = ['https:', '', '{bucket}.{region}.cdn.digitaloceanspaces.com', 'folder', 'filename.jpg']
+            key = '/'.join(parts[3:])  # Everything after domain
             
+            current_app.logger.info(f"Deleting from DO Spaces: bucket={self.bucket}, key={key}")
             s3_client = self._get_client()
             s3_client.delete_object(
                 Bucket=self.bucket,
                 Key=key
             )
+            current_app.logger.info(f"Successfully deleted: {url}")
         except Exception as e:
             current_app.logger.error(f"DO Spaces delete error: {str(e)}")
+            import traceback
+            current_app.logger.error(f"Traceback: {traceback.format_exc()}")
 
 
 def get_storage_backend():
