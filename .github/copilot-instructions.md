@@ -74,6 +74,7 @@ export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/tes
 export FLASK_ENV=development
 export SECRET_KEY=dev-secret-key
 export DATABASE_URL=postgresql://test_user:test_password@localhost:5433/test_meutch
+export STORAGE_BACKEND=local  # Use local file storage for development
 export FLASK_APP=app.py
 
 # Ensure database is migrated first
@@ -180,13 +181,16 @@ docker compose -f docker-compose.test.yml up -d
 - `requirements.txt` - Python dependencies
 
 ### File Storage
-The application supports two storage backends:
-- **Local File Storage** (default for development): Files stored in `app/static/uploads/`
+The application supports two storage backends that must be explicitly configured:
+- **Local File Storage** (development): Files stored in `app/static/uploads/`
 - **DigitalOcean Spaces** (production): S3-compatible object storage
 
-Storage backend is automatically selected:
-- Uses **DO Spaces** if all four credentials are configured (`DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_REGION`, `DO_SPACES_BUCKET`)
-- Uses **local file storage** otherwise (safe default for development)
+**Storage Backend Configuration:**
+- Set `STORAGE_BACKEND` environment variable to either `"local"` or `"digitalocean"`
+- If `FLASK_ENV=development`: Defaults to `"local"` if not specified
+- If `FLASK_ENV=production` or `FLASK_ENV=staging`: **Must be explicitly set** - app will fail at startup if missing
+- When `STORAGE_BACKEND="digitalocean"`: All four DO credentials are required (`DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_REGION`, `DO_SPACES_BUCKET`)
+- App validates configuration at startup and fails with clear error messages if misconfigured
 
 ### Database Models
 - `User` - User accounts with UUID primary keys
