@@ -237,9 +237,15 @@ class TestStorageBackends:
     """Test storage backend implementations."""
     
     def test_get_storage_backend_local_by_default(self, app):
-        """Test get_storage_backend returns LocalFileStorage by default (no DO Spaces config)."""
+        """Test get_storage_backend returns LocalFileStorage when STORAGE_BACKEND is not set or is 'local'."""
         with app.app_context():
-            # Don't configure any DO Spaces credentials
+            # Test with STORAGE_BACKEND explicitly set to 'local'
+            app.config['STORAGE_BACKEND'] = 'local'
+            backend = get_storage_backend()
+            assert isinstance(backend, LocalFileStorage)
+            
+            # Test with STORAGE_BACKEND empty (defaults to local)
+            app.config['STORAGE_BACKEND'] = ''
             backend = get_storage_backend()
             assert isinstance(backend, LocalFileStorage)
     
