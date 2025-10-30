@@ -142,23 +142,28 @@ class DOSpacesStorage(StorageBackend):
 
 def get_storage_backend():
     """
-    Get the appropriate storage backend based on configuration.
+    Get the appropriate storage backend based on STORAGE_BACKEND configuration.
     
-    Automatically uses DO Spaces if all credentials are configured,
-    otherwise defaults to local file storage for development.
+    The STORAGE_BACKEND config variable determines which backend to use:
+    - "local": Uses LocalFileStorage (files stored in app/static/uploads/)
+    - "digitalocean": Uses DOSpacesStorage (requires all DO_SPACES_* credentials)
+    
+    Configuration is validated at app startup to ensure the selected backend
+    can be properly initialized.
     """
-    # Check if DO Spaces is fully configured
-    region = current_app.config.get('DO_SPACES_REGION')
-    key = current_app.config.get('DO_SPACES_KEY')
-    secret = current_app.config.get('DO_SPACES_SECRET')
-    bucket = current_app.config.get('DO_SPACES_BUCKET')
+    storage_backend = current_app.config.get('STORAGE_BACKEND', 'local').lower()
     
-    # Use DO Spaces if all credentials are present
-    if all([region, key, secret, bucket]):
-        return DOSpacesStorage(region, key, secret, bucket)
-    
-    # Default to local storage for development
-    return LocalFileStorage()
+    if storage_backend == 'digitalocean':
+        # Credentials were validated at startup, safe to use
+        return DOSpacesStorage(
+            region=current_app.config['DO_SPACES_REGION'],
+            key=current_app.config['DO_SPACES_KEY'],
+            secret=current_app.config['DO_SPACES_SECRET'],
+            bucket=current_app.config['DO_SPACES_BUCKET']
+        )
+    else:
+        # Default to local storage
+        return LocalFileStorage()
 
 
 def is_valid_file_upload(file):

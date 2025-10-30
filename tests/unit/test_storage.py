@@ -246,6 +246,7 @@ class TestStorageBackends:
     def test_get_storage_backend_do_spaces_when_configured(self, app):
         """Test get_storage_backend returns DOSpacesStorage when all credentials provided."""
         with app.app_context():
+            app.config['STORAGE_BACKEND'] = 'digitalocean'
             app.config['DO_SPACES_REGION'] = 'nyc3'
             app.config['DO_SPACES_KEY'] = 'test-key'
             app.config['DO_SPACES_SECRET'] = 'test-secret'
