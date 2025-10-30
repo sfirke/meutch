@@ -261,7 +261,7 @@ class TestStorageBackends:
             assert isinstance(backend, DOSpacesStorage)
             # Verify both endpoints are correctly set
             assert backend.api_endpoint == 'https://nyc3.digitaloceanspaces.com'
-            assert backend.cdn_endpoint == 'https://nyc3.cdn.digitaloceanspaces.com'
+            assert backend.cdn_endpoint == 'https://test-bucket.nyc3.cdn.digitaloceanspaces.com'
     
     def test_local_storage_upload(self, app):
         """Test LocalFileStorage upload functionality."""
@@ -333,7 +333,7 @@ class TestStorageBackends:
             mock_s3.upload_fileobj.assert_called_once()
             
             # Verify URL format uses CDN endpoint
-            assert url == 'https://nyc3.cdn.digitaloceanspaces.com/test-bucket/test-folder/test-file.jpg'
+            assert url == 'https://test-bucket.nyc3.cdn.digitaloceanspaces.com/test-folder/test-file.jpg'
     
     @patch('app.utils.storage.boto3.client')
     def test_do_spaces_delete(self, mock_boto_client, app):

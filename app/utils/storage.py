@@ -88,7 +88,8 @@ class DOSpacesStorage(StorageBackend):
         # API endpoint for uploads (S3-compatible API)
         self.api_endpoint = f'https://{region}.digitaloceanspaces.com'
         # CDN endpoint for file URLs (faster retrieval)
-        self.cdn_endpoint = f'https://{region}.cdn.digitaloceanspaces.com'
+        # Format: https://{bucket}.{region}.cdn.digitaloceanspaces.com
+        self.cdn_endpoint = f'https://{bucket}.{region}.cdn.digitaloceanspaces.com'
         self.key = key
         self.secret = secret
         self.bucket = bucket
@@ -117,9 +118,10 @@ class DOSpacesStorage(StorageBackend):
                     'ContentType': 'image/jpeg'
                 }
             )
-            url = f"{self.cdn_endpoint}/{self.bucket}/{folder}/{filename}"
-            current_app.logger.info(f"Upload successful: {url}")
             # Return CDN URL for fast retrieval
+            # CDN format: https://{bucket}.{region}.cdn.digitaloceanspaces.com/{folder}/{filename}
+            url = f"{self.cdn_endpoint}/{folder}/{filename}"
+            current_app.logger.info(f"Upload successful: {url}")
             return url
         except Exception as e:
             current_app.logger.error(f"DO Spaces upload error: {str(e)}")
