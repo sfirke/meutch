@@ -85,7 +85,10 @@ class DOSpacesStorage(StorageBackend):
     
     def __init__(self, region, key, secret, bucket):
         self.region = region
-        self.endpoint = f'https://{region}.cdn.digitaloceanspaces.com'
+        # API endpoint for uploads (S3-compatible API)
+        self.api_endpoint = f'https://{region}.digitaloceanspaces.com'
+        # CDN endpoint for file URLs (faster retrieval)
+        self.cdn_endpoint = f'https://{region}.cdn.digitaloceanspaces.com'
         self.key = key
         self.secret = secret
         self.bucket = bucket
@@ -94,7 +97,7 @@ class DOSpacesStorage(StorageBackend):
         """Get boto3 S3 client configured for DigitalOcean Spaces."""
         return boto3.client('s3',
             region_name=self.region,
-            endpoint_url=self.endpoint,
+            endpoint_url=self.api_endpoint,  # Use API endpoint for uploads
             aws_access_key_id=self.key,
             aws_secret_access_key=self.secret
         )
@@ -113,7 +116,8 @@ class DOSpacesStorage(StorageBackend):
                     'ContentType': 'image/jpeg'
                 }
             )
-            return f"{self.endpoint}/{self.bucket}/{folder}/{filename}"
+            # Return CDN URL for fast retrieval
+            return f"{self.cdn_endpoint}/{self.bucket}/{folder}/{filename}"
         except Exception as e:
             current_app.logger.error(f"DO Spaces upload error: {str(e)}")
             return None

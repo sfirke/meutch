@@ -259,8 +259,9 @@ class TestStorageBackends:
             app.config['DO_SPACES_BUCKET'] = 'test-bucket'
             backend = get_storage_backend()
             assert isinstance(backend, DOSpacesStorage)
-            # Verify CDN endpoint is used
-            assert backend.endpoint == 'https://nyc3.cdn.digitaloceanspaces.com'
+            # Verify both endpoints are correctly set
+            assert backend.api_endpoint == 'https://nyc3.digitaloceanspaces.com'
+            assert backend.cdn_endpoint == 'https://nyc3.cdn.digitaloceanspaces.com'
     
     def test_local_storage_upload(self, app):
         """Test LocalFileStorage upload functionality."""
