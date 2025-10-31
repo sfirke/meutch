@@ -181,16 +181,8 @@ docker compose -f docker-compose.test.yml up -d
 - `requirements.txt` - Python dependencies
 
 ### File Storage
-The application supports two storage backends that must be explicitly configured:
-- **Local File Storage** (development): Files stored in `app/static/uploads/`
-- **DigitalOcean Spaces** (production): S3-compatible object storage
-
-**Storage Backend Configuration:**
-- Set `STORAGE_BACKEND` environment variable to either `"local"` or `"digitalocean"`
-- If `FLASK_ENV=development`: Defaults to `"local"` if not specified
-- If `FLASK_ENV=production` or `FLASK_ENV=staging`: **Must be explicitly set** - app will fail at startup if missing
-- When `STORAGE_BACKEND="digitalocean"`: All four DO credentials are required (`DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_REGION`, `DO_SPACES_BUCKET`)
-- App validates configuration at startup and fails with clear error messages if misconfigured
+- Set `STORAGE_BACKEND` to `"local"` (dev, uses `app/static/uploads/`) or `"digitalocean"` (prod, requires `DO_SPACES_*` vars)
+- Defaults to `"local"` in development; must be explicit in production/staging
 
 ### Database Models
 - `User` - User accounts with UUID primary keys
