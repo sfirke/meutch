@@ -28,6 +28,11 @@ def create_app(config_class=None):
         config_class = config.get(flask_env, config['default'])
     
     app.config.from_object(config_class)
+    
+    # Validate storage configuration at startup
+    if hasattr(config_class, 'validate_storage_config'):
+        config_instance = config_class()
+        config_instance.validate_storage_config()
 
     # Initialize extensions
     db.init_app(app)

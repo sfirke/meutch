@@ -74,6 +74,7 @@ export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/tes
 export FLASK_ENV=development
 export SECRET_KEY=dev-secret-key
 export DATABASE_URL=postgresql://test_user:test_password@localhost:5433/test_meutch
+export STORAGE_BACKEND=local  # Use local file storage for development
 export FLASK_APP=app.py
 
 # Ensure database is migrated first
@@ -164,6 +165,8 @@ docker compose -f docker-compose.test.yml up -d
   - `app/circles/` - Lending circles functionality
   - `app/models.py` - Database models
   - `app/forms.py` - WTForms form definitions
+  - `app/utils/storage.py` - File storage abstraction (local files or DO Spaces)
+  - `app/static/uploads/` - Local file storage directory (git-ignored, except .gitkeep files)
 - `tests/` - Test suite
   - `tests/unit/` - Unit tests (forms, models, storage)
   - `tests/integration/` - Integration tests (routes, auth)
@@ -176,6 +179,10 @@ docker compose -f docker-compose.test.yml up -d
 - `conftest.py` - Pytest configuration and fixtures
 - `run_tests.sh` - Test runner script with multiple options
 - `requirements.txt` - Python dependencies
+
+### File Storage
+- Set `STORAGE_BACKEND` to `"local"` (dev, uses `app/static/uploads/`) or `"digitalocean"` (prod, requires `DO_SPACES_*` vars)
+- Defaults to `"local"` in development; must be explicit in production/staging
 
 ### Database Models
 - `User` - User accounts with UUID primary keys
