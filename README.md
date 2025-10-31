@@ -16,6 +16,20 @@ Computer-savvy folks can pull this repo and deploy their own instances of Meutch
 
 Start by cloning and pulling the repo to your machine. Set up a Python virtual environment in the `venv/` directory.
 
+### Environment Setup
+
+Copy the example environment file and customize it for your local setup:
+
+```bash
+cp .env.example .env
+```
+
+The default values in `.env.example` are configured for local development with the Docker PostgreSQL database. You can use them as-is or customize as needed. The file includes:
+- Flask configuration (`FLASK_ENV`, `FLASK_APP`)
+- Database connection string for the local Docker database
+- Storage backend configuration (defaults to `local` for development)
+- Optional email and cloud storage settings (commented out by default)
+
 Run the development environment, database migrations, and (optionally) the development data seeder:
 
 - Start the local Postgres container (if you use the test compose file):
@@ -32,17 +46,16 @@ docker compose -f docker-compose.test.yml up -d
 
 The `seed` argument is optional. Without it `./dev-start.sh` will prepare the environment and start the Flask server but will not run the data seeder.
 
-- You can also run the steps manually:
+- You can also run the steps manually (make sure you've set up your `.env` file first):
 
 ```bash
-export DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
-export FLASK_APP=app.py
-export FLASK_ENV=development
 source venv/bin/activate
 flask db upgrade
 flask seed data --env development
 flask run
 ```
+
+**Note:** Flask automatically loads environment variables from the `.env` file (via `python-dotenv`), so you don't need to export them manually if you've created your `.env` file.
 
 The dummy users seeded by the development data all have the same password. Login looks like:
 Username: `user1@example.com` Password: `password123`.
