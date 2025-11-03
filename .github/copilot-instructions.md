@@ -46,6 +46,9 @@ flask db upgrade  # Takes 1 second
 ```
 
 ### Running Tests
+
+When you write a test, use factories from `tests/factories.py` to create test data.
+
 ```bash
 # CRITICAL: Always set TEST_DATABASE_URL before running tests
 export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/test_meutch
