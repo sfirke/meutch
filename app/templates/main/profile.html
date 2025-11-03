@@ -116,7 +116,14 @@
                                 <td>{{ item.name }}</td>
                                 <td>{{ item.owner.full_name }}</td>
                                 <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
-                                <td>{{ item.current_loan.end_date.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
+                                    {% if item.current_loan.is_overdue() %}
+                                        <span class="badge bg-danger ms-2">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
+                                    {% elif item.current_loan.is_due_soon() %}
+                                        <span class="badge bg-warning text-dark ms-2">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if item.messages %}
                                         <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
@@ -161,7 +168,14 @@
                                 <td>{{ item.name }}</td>
                                 <td>{{ item.current_loan.borrower.full_name }}</td>
                                 <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
-                                <td>{{ item.current_loan.end_date.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
+                                    {% if item.current_loan.is_overdue() %}
+                                        <span class="badge bg-danger ms-2">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
+                                    {% elif item.current_loan.is_due_soon() %}
+                                        <span class="badge bg-warning text-dark ms-2">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if item.messages %}
                                         <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>

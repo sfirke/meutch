@@ -71,7 +71,16 @@
                     {% if msg.is_loan_request_message and msg.loan_request.messages[0] == msg %}
                     <div class="loan-request-details mb-3">
                         <h5>Loan Request Details</h5>
-                        <p><strong>Duration:</strong> {{ msg.loan_request.start_date.strftime('%Y-%m-%d') }} to {{ msg.loan_request.end_date.strftime('%Y-%m-%d') }}</p>
+                        <p>
+                            <strong>Duration:</strong> {{ msg.loan_request.start_date.strftime('%Y-%m-%d') }} to {{ msg.loan_request.end_date.strftime('%Y-%m-%d') }}
+                            {% if msg.loan_request.status == 'approved' %}
+                                {% if msg.loan_request.is_overdue() %}
+                                    <span class="badge bg-danger ms-2">Overdue by {{ msg.loan_request.days_overdue() }} day{{ 's' if msg.loan_request.days_overdue() != 1 else '' }}</span>
+                                {% elif msg.loan_request.is_due_soon() %}
+                                    <span class="badge bg-warning text-dark ms-2">Due in {{ msg.loan_request.days_until_due() }} day{{ 's' if msg.loan_request.days_until_due() != 1 else '' }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </p>
                         <p><strong>Status:</strong> 
                             <span class="badge bg-{{ 'warning' if msg.loan_request.status == 'pending' else 'success' if msg.loan_request.status == 'approved' else 'danger' }}">
                                 {{ msg.loan_request.status|title }}
@@ -89,6 +98,7 @@
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-danger btn-sm">Deny Request</button>
                                     </form>
+                                    <a href="{{ url_for('main.extend_loan', loan_id=msg.loan_request.id) }}" class="btn btn-outline-primary btn-sm">Extend Loan Period</a>
                                 </div>
                             {% elif msg.loan_request.borrower_id == current_user.id %}
                                 <form method="POST" action="{{ url_for('main.cancel_loan_request', loan_id=msg.loan_request.id) }}" style="display: inline;">
@@ -99,6 +109,7 @@
                         {% elif msg.loan_request.status == 'approved' %}
                             {% if msg.item.owner == current_user %}
                                 <div class="actions">
+                                    <a href="{{ url_for('main.extend_loan', loan_id=msg.loan_request.id) }}" class="btn btn-outline-primary btn-sm">Extend Loan Period</a>
                                     <form method="POST" action="{{ url_for('main.complete_loan', loan_id=msg.loan_request.id) }}" style="display: inline;">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-info btn-sm">Mark as Returned</button>

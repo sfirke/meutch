@@ -398,6 +398,12 @@ class LoanRequest(db.Model):
     end_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(20), default='pending')  # pending, approved, canceled, denied, completed
     created_at = db.Column(db.DateTime, default=func.now())
+    
+    # Email reminder tracking fields
+    due_soon_reminder_sent = db.Column(db.DateTime, nullable=True)
+    due_date_reminder_sent = db.Column(db.DateTime, nullable=True)
+    last_overdue_reminder_sent = db.Column(db.DateTime, nullable=True)
+    overdue_reminder_count = db.Column(db.Integer, default=0, nullable=False)
 
     borrower = db.relationship('User', foreign_keys=[borrower_id], backref='loan_requests')
 
@@ -405,6 +411,26 @@ class LoanRequest(db.Model):
     def borrower_name(self):
         """Returns borrower name or 'Deleted User' if borrower is None"""
         return self.borrower.full_name if self.borrower else "Deleted User"
+    
+    def days_until_due(self):
+        """Returns number of days until due date (negative if overdue)"""
+        from datetime import date
+        today = date.today()
+        return (self.end_date - today).days
+    
+    def is_due_soon(self):
+        """Returns True if loan is due within 3 days (and not yet due)"""
+        days = self.days_until_due()
+        return 0 < days <= 3
+    
+    def is_overdue(self):
+        """Returns True if loan is past due date"""
+        return self.days_until_due() < 0
+    
+    def days_overdue(self):
+        """Returns number of days overdue (0 if not overdue)"""
+        days = self.days_until_due()
+        return abs(days) if days < 0 else 0
 
     def __repr__(self):
         return f'<LoanRequest {self.id} for Item {self.item_id} by User {self.borrower_id}>'

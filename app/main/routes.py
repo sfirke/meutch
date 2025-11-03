@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload
 from datetime import datetime, UTC
 from app import db
 from app.models import Item, LoanRequest, Tag, User, Message, Circle, circle_members, Category
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, DeleteAccountForm, UpdateLocationForm
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 
@@ -520,6 +520,71 @@ def owner_cancel_loan(loan_id):
     # Redirect back to the original conversation
     original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
     return redirect(url_for('main.view_conversation', message_id=original_message.id))
+
+@main_bp.route('/loan/<uuid:loan_id>/extend', methods=['GET', 'POST'])
+@login_required
+def extend_loan(loan_id):
+    """Allow item owner to extend the loan due date"""
+    loan = db.get_or_404(LoanRequest, loan_id)
+    
+    # Check if the current user is the owner of the item
+    if loan.item.owner_id != current_user.id:
+        flash("You are not authorized to extend this loan.", "danger")
+        return redirect(url_for('main.messages'))
+    
+    # Can extend pending or approved loans only
+    if loan.status not in ['pending', 'approved']:
+        flash("Only pending or approved loans can be extended.", "warning")
+        return redirect(url_for('main.messages'))
+    
+    form = ExtendLoanForm(current_end_date=loan.end_date)
+    
+    if form.validate_on_submit():
+        old_end_date = loan.end_date
+        loan.end_date = form.new_end_date.data
+        
+        # Reset reminder flags since the due date has changed
+        loan.due_soon_reminder_sent = None
+        loan.due_date_reminder_sent = None
+        loan.last_overdue_reminder_sent = None
+        loan.overdue_reminder_count = 0
+        
+        # Create notification message to borrower
+        if form.message.data and form.message.data.strip():
+            message_body = f"The loan of '{loan.item.name}' has been extended until {form.new_end_date.data.strftime('%B %d, %Y')}.\n\nMessage from owner: {form.message.data}"
+        else:
+            message_body = f"Good news! The loan of '{loan.item.name}' has been extended. The new due date is {form.new_end_date.data.strftime('%B %d, %Y')} (previously {old_end_date.strftime('%B %d, %Y')})."
+        
+        message = Message(
+            sender_id=current_user.id,
+            recipient_id=loan.borrower_id,
+            item_id=loan.item_id,
+            body=message_body,
+            loan_request_id=loan.id
+        )
+        db.session.add(message)
+        
+        try:
+            db.session.commit()
+            
+            # Send email notification to borrower
+            try:
+                from app.utils.email import send_message_notification_email
+                send_message_notification_email(message)
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email notification for loan extension message {message.id}: {str(e)}")
+            
+            flash(f"Loan has been extended until {form.new_end_date.data.strftime('%B %d, %Y')}.", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash("An error occurred while extending the loan.", "danger")
+            current_app.logger.error(f"Error extending loan {loan_id}: {e}")
+        
+        # Redirect back to the original conversation
+        original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+        return redirect(url_for('main.view_conversation', message_id=original_message.id))
+    
+    return render_template('main/extend_loan.html', form=form, loan=loan)
 
 @main_bp.route('/tag/<uuid:tag_id>')
 @login_required

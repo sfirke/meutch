@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Extend Loan - Meutch{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Extend Loan</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h5>{{ loan.item.name }}</h5>
+                        <p class="text-muted mb-2">
+                            <strong>Borrower:</strong> {{ loan.borrower_name }}<br>
+                            <strong>Current Due Date:</strong> {{ loan.end_date.strftime('%B %d, %Y') }}
+                        </p>
+                        <p class="small">
+                            Extend the loan period by selecting a new end date. The borrower will be notified of the change.
+                        </p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('main.extend_loan', loan_id=loan.id) }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.new_end_date.label(class="form-label") }}
+                            {{ form.new_end_date(class="form-control" + (" is-invalid" if form.new_end_date.errors else ""), type="date") }}
+                            {% if form.new_end_date.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.new_end_date.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.message.label(class="form-label") }}
+                            {{ form.message(class="form-control" + (" is-invalid" if form.message.errors else ""), rows="4", placeholder="Add an optional message to explain the extension...") }}
+                            {% if form.message.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.message.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            {{ form.submit(class="btn btn-primary") }}
+                            <a href="{{ url_for('main.messages') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

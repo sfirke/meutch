@@ -461,6 +461,26 @@ class LoanRequestForm(FlaskForm):
         if field.data < datetime.now().date():
             raise ValidationError('Start date cannot be in the past.')
 
+class ExtendLoanForm(FlaskForm):
+    new_end_date = DateField('New End Date', 
+        validators=[DataRequired(message="Please select a new end date.")])
+    message = TextAreaField('Include a message to borrower (optional)', 
+        validators=[
+            Optional(),
+            Length(max=1000, message="Message must be under 1000 characters.")
+        ])
+    submit = SubmitField('Extend Loan')
+
+    def __init__(self, current_end_date=None, *args, **kwargs):
+        super(ExtendLoanForm, self).__init__(*args, **kwargs)
+        self.current_end_date = current_end_date
+
+    def validate_new_end_date(self, field):
+        if field.data < datetime.now().date():
+            raise ValidationError('New end date cannot be in the past.')
+        if self.current_end_date and field.data <= self.current_end_date:
+            raise ValidationError('New end date must be after the current end date.')
+
 class ForgotPasswordForm(FlaskForm):
     email = StringField('Email', validators=[
         DataRequired(message="Email is required."),

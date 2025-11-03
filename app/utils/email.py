@@ -433,3 +433,446 @@ The Meutch Team
     """.strip()
     
     return send_email(user_email, subject, text_content)
+
+
+def send_loan_due_soon_email(loan):
+    """Send 3-day reminder email to borrower that loan is due soon"""
+    from app.models import User  # Import here to avoid circular imports
+    from app import db
+    
+    borrower = db.session.get(User, loan.borrower_id)
+    owner = db.session.get(User, loan.item.owner_id)
+    
+    if not borrower or not owner:
+        current_app.logger.error(f"User not found for loan due soon email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
+        return False
+    
+    # Check if borrower has email notifications enabled
+    if not borrower.email_notifications_enabled:
+        current_app.logger.info(f"Email notifications disabled for borrower {borrower.id}, skipping reminder")
+        return True  # Return True since this is not an error
+    
+    # Generate the item URL
+    item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
+    
+    subject = f"Meutch - Reminder: {loan.item.name} is due in 3 days"
+    
+    text_content = f"""
+Hello {borrower.first_name},
+
+This is a friendly reminder that the item you borrowed is due back soon.
+
+Item: {loan.item.name}
+Owner: {owner.first_name} {owner.last_name}
+Due Date: {loan.end_date.strftime('%B %d, %Y')} (in 3 days)
+
+Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
+
+You can view the item details here:
+{item_url}
+
+Thank you for being a responsible borrower!
+
+Best regards,
+The Meutch Team
+    """.strip()
+    
+    # Create HTML content
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #333;">Loan Due Soon Reminder</h2>
+        
+        <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
+            <p style="margin: 0;"><strong>⏰ Your borrowed item is due back in 3 days</strong></p>
+        </div>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Item:</strong> {loan.item.name}</p>
+            <p><strong>Owner:</strong> {owner.first_name} {owner.last_name}</p>
+            <p><strong>Due Date:</strong> {loan.end_date.strftime('%B %d, %Y')}</p>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
+        </p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{item_url}" 
+               style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                View Item Details
+            </a>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            Thank you for being a responsible borrower!
+        </p>
+        
+        <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #999; font-size: 12px;">
+            Best regards,<br>
+            The Meutch Team
+        </p>
+    </body>
+    </html>
+    """
+    
+    return send_email(borrower.email, subject, text_content, html_content)
+
+
+def send_loan_due_today_borrower_email(loan):
+    """Send due date reminder email to borrower"""
+    from app.models import User  # Import here to avoid circular imports
+    from app import db
+    
+    borrower = db.session.get(User, loan.borrower_id)
+    owner = db.session.get(User, loan.item.owner_id)
+    
+    if not borrower or not owner:
+        current_app.logger.error(f"User not found for loan due today email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
+        return False
+    
+    # Check if borrower has email notifications enabled
+    if not borrower.email_notifications_enabled:
+        current_app.logger.info(f"Email notifications disabled for borrower {borrower.id}, skipping reminder")
+        return True  # Return True since this is not an error
+    
+    # Generate the item URL
+    item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
+    
+    subject = f"Meutch - {loan.item.name} is due back today"
+    
+    text_content = f"""
+Hello {borrower.first_name},
+
+This is a reminder that the item you borrowed is due back today.
+
+Item: {loan.item.name}
+Owner: {owner.first_name} {owner.last_name}
+Due Date: Today, {loan.end_date.strftime('%B %d, %Y')}
+
+Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
+
+You can view the item details here:
+{item_url}
+
+Thank you for your prompt attention!
+
+Best regards,
+The Meutch Team
+    """.strip()
+    
+    # Create HTML content
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #333;">Item Due Today</h2>
+        
+        <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
+            <p style="margin: 0;"><strong>📅 Your borrowed item is due back today</strong></p>
+        </div>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Item:</strong> {loan.item.name}</p>
+            <p><strong>Owner:</strong> {owner.first_name} {owner.last_name}</p>
+            <p><strong>Due Date:</strong> Today, {loan.end_date.strftime('%B %d, %Y')}</p>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
+        </p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{item_url}" 
+               style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                View Item Details
+            </a>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            Thank you for your prompt attention!
+        </p>
+        
+        <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #999; font-size: 12px;">
+            Best regards,<br>
+            The Meutch Team
+        </p>
+    </body>
+    </html>
+    """
+    
+    return send_email(borrower.email, subject, text_content, html_content)
+
+
+def send_loan_due_today_owner_email(loan):
+    """Send due date notification email to owner"""
+    from app.models import User  # Import here to avoid circular imports
+    from app import db
+    
+    borrower = db.session.get(User, loan.borrower_id)
+    owner = db.session.get(User, loan.item.owner_id)
+    
+    if not borrower or not owner:
+        current_app.logger.error(f"User not found for loan due today owner email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
+        return False
+    
+    # Check if owner has email notifications enabled
+    if not owner.email_notifications_enabled:
+        current_app.logger.info(f"Email notifications disabled for owner {owner.id}, skipping reminder")
+        return True  # Return True since this is not an error
+    
+    # Generate the item URL
+    item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
+    # Generate the extend loan URL for owners to extend the loan
+    extend_url = url_for('main.extend_loan', loan_id=loan.id, _external=True)
+    
+    subject = f"Meutch - Your item {loan.item.name} is due back today"
+    
+    text_content = f"""
+Hello {owner.first_name},
+
+This is a notification that your item is due to be returned today.
+
+Item: {loan.item.name}
+Borrower: {borrower.first_name} {borrower.last_name}
+Due Date: Today, {loan.end_date.strftime('%B %d, %Y')}
+
+If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time:
+{extend_url}
+
+You can view the item details here:
+{item_url}
+
+Thank you for sharing with your community!
+
+Best regards,
+The Meutch Team
+    """.strip()
+    
+    # Create HTML content
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #333;">Item Due Back Today</h2>
+        
+        <div style="background-color: #d1ecf1; padding: 20px; border-radius: 8px; border-left: 4px solid #17a2b8; margin: 20px 0;">
+            <p style="margin: 0;"><strong>📅 Your loaned item is due back today</strong></p>
+        </div>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Item:</strong> {loan.item.name}</p>
+            <p><strong>Borrower:</strong> {borrower.first_name} {borrower.last_name}</p>
+            <p><strong>Due Date:</strong> Today, {loan.end_date.strftime('%B %d, %Y')}</p>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time.
+        </p>
+
+        <div style="text-align: center; margin: 20px 0; display:flex; gap:12px; justify-content:center;">
+            <a href="{item_url}" 
+               style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                View Item Details
+            </a>
+            <a href="{extend_url}" 
+               style="background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Extend Loan
+            </a>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            Thank you for sharing with your community!
+        </p>
+        
+        <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #999; font-size: 12px;">
+            Best regards,<br>
+            The Meutch Team
+        </p>
+    </body>
+    </html>
+    """
+    
+    return send_email(owner.email, subject, text_content, html_content)
+
+
+def send_loan_overdue_borrower_email(loan, days_overdue):
+    """Send overdue reminder email to borrower"""
+    from app.models import User  # Import here to avoid circular imports
+    from app import db
+    
+    borrower = db.session.get(User, loan.borrower_id)
+    owner = db.session.get(User, loan.item.owner_id)
+    
+    if not borrower or not owner:
+        current_app.logger.error(f"User not found for loan overdue email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
+        return False
+    
+    # Check if borrower has email notifications enabled
+    if not borrower.email_notifications_enabled:
+        current_app.logger.info(f"Email notifications disabled for borrower {borrower.id}, skipping reminder")
+        return True  # Return True since this is not an error
+    
+    # Generate the item URL
+    item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
+    
+    subject = f"Meutch - Reminder: {loan.item.name} is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue"
+    
+    text_content = f"""
+Hello {borrower.first_name},
+
+This is a reminder that the item you borrowed is now overdue.
+
+Item: {loan.item.name}
+Owner: {owner.first_name} {owner.last_name}
+Due Date: {loan.end_date.strftime('%B %d, %Y')}
+Days Overdue: {days_overdue}
+
+Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
+
+You can view the item details here:
+{item_url}
+
+Thank you for your prompt attention to this matter.
+
+Best regards,
+The Meutch Team
+    """.strip()
+    
+    # Create HTML content
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #333;">Overdue Item Reminder</h2>
+        
+        <div style="background-color: #f8d7da; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545; margin: 20px 0;">
+            <p style="margin: 0;"><strong>⚠️ Your borrowed item is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue</strong></p>
+        </div>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Item:</strong> {loan.item.name}</p>
+            <p><strong>Owner:</strong> {owner.first_name} {owner.last_name}</p>
+            <p><strong>Due Date:</strong> {loan.end_date.strftime('%B %d, %Y')}</p>
+            <p><strong>Days Overdue:</strong> <span style="color: #dc3545; font-weight: bold;">{days_overdue}</span></p>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
+        </p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{item_url}" 
+               style="background-color: #dc3545; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                View Item Details
+            </a>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            Thank you for your prompt attention to this matter.
+        </p>
+        
+        <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #999; font-size: 12px;">
+            Best regards,<br>
+            The Meutch Team
+        </p>
+    </body>
+    </html>
+    """
+    
+    return send_email(borrower.email, subject, text_content, html_content)
+
+
+def send_loan_overdue_owner_email(loan, days_overdue):
+    """Send overdue notification email to owner"""
+    from app.models import User  # Import here to avoid circular imports
+    from app import db
+    
+    borrower = db.session.get(User, loan.borrower_id)
+    owner = db.session.get(User, loan.item.owner_id)
+    
+    if not borrower or not owner:
+        current_app.logger.error(f"User not found for loan overdue owner email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
+        return False
+    
+    # Check if owner has email notifications enabled
+    if not owner.email_notifications_enabled:
+        current_app.logger.info(f"Email notifications disabled for owner {owner.id}, skipping reminder")
+        return True  # Return True since this is not an error
+    
+    # Generate the item URL
+    item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
+    # Generate the extend loan URL for owners to extend the loan
+    extend_url = url_for('main.extend_loan', loan_id=loan.id, _external=True)
+    
+    subject = f"Meutch - Your item {loan.item.name} is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue"
+    
+    text_content = f"""
+Hello {owner.first_name},
+
+This is a notification that your loaned item is now overdue.
+
+Item: {loan.item.name}
+Borrower: {borrower.first_name} {borrower.last_name}
+Due Date: {loan.end_date.strftime('%B %d, %Y')}
+Days Overdue: {days_overdue}
+
+If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time:
+{extend_url}
+
+You can view the item details here:
+{item_url}
+
+Thank you for your patience.
+
+Best regards,
+The Meutch Team
+    """.strip()
+    
+    # Create HTML content
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #333;">Loaned Item Overdue</h2>
+        
+        <div style="background-color: #f8d7da; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545; margin: 20px 0;">
+            <p style="margin: 0;"><strong>⚠️ Your loaned item is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue</strong></p>
+        </div>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Item:</strong> {loan.item.name}</p>
+            <p><strong>Borrower:</strong> {borrower.first_name} {borrower.last_name}</p>
+            <p><strong>Due Date:</strong> {loan.end_date.strftime('%B %d, %Y')}</p>
+            <p><strong>Days Overdue:</strong> <span style="color: #dc3545; font-weight: bold;">{days_overdue}</span></p>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time.
+        </p>
+        
+        <div style="text-align: center; margin: 20px 0; display:flex; gap:12px; justify-content:center;">
+            <a href="{item_url}" 
+               style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                View Item Details
+            </a>
+            <a href="{extend_url}" 
+               style="background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Extend Loan
+            </a>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            Thank you for your patience.
+        </p>
+        
+        <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #999; font-size: 12px;">
+            Best regards,<br>
+            The Meutch Team
+        </p>
+    </body>
+    </html>
+    """
+    
+    return send_email(owner.email, subject, text_content, html_content)
