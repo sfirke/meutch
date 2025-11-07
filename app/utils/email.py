@@ -129,7 +129,11 @@ def send_message_notification_email(message):
     
     # Determine the subject and email content based on message type
     if message.is_loan_request_message:
-        if message.loan_request.status == 'pending':
+        # Check if this is a loan extension message (owner extending the due date)
+        if message.loan_request.status == 'approved' and 'has been extended' in message.body:
+            subject = f"Meutch - Loan Extended for {message.item.name}"
+            email_type = "loan extension"
+        elif message.loan_request.status == 'pending':
             subject = f"Meutch - New Loan Request for {message.item.name}"
             email_type = "loan request"
         elif message.loan_request.status == 'approved':

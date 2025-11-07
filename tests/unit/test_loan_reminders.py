@@ -2,8 +2,8 @@
 import pytest
 from datetime import date, timedelta
 from app.forms import ExtendLoanForm
-from app.models import LoanRequest, User, Item, Category
-from app import db
+from app.models import LoanRequest
+from tests.factories import UserFactory, ItemFactory, LoanRequestFactory
 
 
 class TestExtendLoanForm:
@@ -99,19 +99,9 @@ class TestLoanRequestHelperMethods:
     def test_days_until_due_future(self, app):
         """Test days_until_due returns positive number for future due dates."""
         with app.app_context():
-            user = User(email='test@example.com', first_name='Test', last_name='User')
-            user.set_password('password')
-            db.session.add(user)
-            
-            category = Category(name='Test Category')
-            db.session.add(category)
-            db.session.flush()
-            
-            item = Item(name='Test Item', owner=user, category=category)
-            db.session.add(item)
-            db.session.flush()
-            
-            loan = LoanRequest(
+            user = UserFactory()
+            item = ItemFactory(owner=user)
+            loan = LoanRequestFactory(
                 item=item,
                 borrower=user,
                 start_date=date.today(),
@@ -124,19 +114,9 @@ class TestLoanRequestHelperMethods:
     def test_days_until_due_today(self, app):
         """Test days_until_due returns 0 for today's due date."""
         with app.app_context():
-            user = User(email='test2@example.com', first_name='Test', last_name='User')
-            user.set_password('password')
-            db.session.add(user)
-            
-            category = Category(name='Test Category 2')
-            db.session.add(category)
-            db.session.flush()
-            
-            item = Item(name='Test Item 2', owner=user, category=category)
-            db.session.add(item)
-            db.session.flush()
-            
-            loan = LoanRequest(
+            user = UserFactory()
+            item = ItemFactory(owner=user)
+            loan = LoanRequestFactory(
                 item=item,
                 borrower=user,
                 start_date=date.today() - timedelta(days=5),
@@ -149,19 +129,9 @@ class TestLoanRequestHelperMethods:
     def test_days_until_due_past(self, app):
         """Test days_until_due returns negative number for past due dates."""
         with app.app_context():
-            user = User(email='test3@example.com', first_name='Test', last_name='User')
-            user.set_password('password')
-            db.session.add(user)
-            
-            category = Category(name='Test Category 3')
-            db.session.add(category)
-            db.session.flush()
-            
-            item = Item(name='Test Item 3', owner=user, category=category)
-            db.session.add(item)
-            db.session.flush()
-            
-            loan = LoanRequest(
+            user = UserFactory()
+            item = ItemFactory(owner=user)
+            loan = LoanRequestFactory(
                 item=item,
                 borrower=user,
                 start_date=date.today() - timedelta(days=10),
@@ -174,20 +144,11 @@ class TestLoanRequestHelperMethods:
     def test_is_due_soon_returns_true_within_3_days(self, app):
         """Test is_due_soon returns True for loans due in 1-3 days."""
         with app.app_context():
-            user = User(email='test4@example.com', first_name='Test', last_name='User')
-            user.set_password('password')
-            db.session.add(user)
-            
-            category = Category(name='Test Category 4')
-            db.session.add(category)
-            db.session.flush()
-            
-            item = Item(name='Test Item 4', owner=user, category=category)
-            db.session.add(item)
-            db.session.flush()
+            user = UserFactory()
+            item = ItemFactory(owner=user)
             
             # Test 1 day
-            loan1 = LoanRequest(
+            loan1 = LoanRequestFactory(
                 item=item,
                 borrower=user,
                 start_date=date.today(),
@@ -197,7 +158,7 @@ class TestLoanRequestHelperMethods:
             assert loan1.is_due_soon() is True
             
             # Test 3 days
-            loan2 = LoanRequest(
+            loan2 = LoanRequestFactory(
                 item=item,
                 borrower=user,
                 start_date=date.today(),
@@ -209,19 +170,9 @@ class TestLoanRequestHelperMethods:
     def test_is_due_soon_returns_false_more_than_3_days(self, app):
         """Test is_due_soon returns False for loans due in more than 3 days."""
         with app.app_context():
-            user = User(email='test5@example.com', first_name='Test', last_name='User')
-            user.set_password('password')
-            db.session.add(user)
-            
-            category = Category(name='Test Category 5')
-            db.session.add(category)
-            db.session.flush()
-            
-            item = Item(name='Test Item 5', owner=user, category=category)
-            db.session.add(item)
-            db.session.flush()
-            
-            loan = LoanRequest(
+            user = UserFactory()
+            item = ItemFactory(owner=user)
+            loan = LoanRequestFactory(
                 item=item,
                 borrower=user,
                 start_date=date.today(),
@@ -234,19 +185,9 @@ class TestLoanRequestHelperMethods:
     def test_is_due_soon_returns_false_for_overdue(self, app):
         """Test is_due_soon returns False for overdue loans."""
         with app.app_context():
-            user = User(email='test6@example.com', first_name='Test', last_name='User')
-            user.set_password('password')
-            db.session.add(user)
-            
-            category = Category(name='Test Category 6')
-            db.session.add(category)
-            db.session.flush()
-            
-            item = Item(name='Test Item 6', owner=user, category=category)
-            db.session.add(item)
-            db.session.flush()
-            
-            loan = LoanRequest(
+            user = UserFactory()
+            item = ItemFactory(owner=user)
+            loan = LoanRequestFactory(
                 item=item,
                 borrower=user,
                 start_date=date.today() - timedelta(days=10),
@@ -259,19 +200,9 @@ class TestLoanRequestHelperMethods:
     def test_is_overdue_returns_true_for_past_due(self, app):
         """Test is_overdue returns True for loans past due date."""
         with app.app_context():
-            user = User(email='test7@example.com', first_name='Test', last_name='User')
-            user.set_password('password')
-            db.session.add(user)
-            
-            category = Category(name='Test Category 7')
-            db.session.add(category)
-            db.session.flush()
-            
-            item = Item(name='Test Item 7', owner=user, category=category)
-            db.session.add(item)
-            db.session.flush()
-            
-            loan = LoanRequest(
+            user = UserFactory()
+            item = ItemFactory(owner=user)
+            loan = LoanRequestFactory(
                 item=item,
                 borrower=user,
                 start_date=date.today() - timedelta(days=10),
@@ -284,19 +215,9 @@ class TestLoanRequestHelperMethods:
     def test_is_overdue_returns_false_for_future_due(self, app):
         """Test is_overdue returns False for loans not yet due."""
         with app.app_context():
-            user = User(email='test8@example.com', first_name='Test', last_name='User')
-            user.set_password('password')
-            db.session.add(user)
-            
-            category = Category(name='Test Category 8')
-            db.session.add(category)
-            db.session.flush()
-            
-            item = Item(name='Test Item 8', owner=user, category=category)
-            db.session.add(item)
-            db.session.flush()
-            
-            loan = LoanRequest(
+            user = UserFactory()
+            item = ItemFactory(owner=user)
+            loan = LoanRequestFactory(
                 item=item,
                 borrower=user,
                 start_date=date.today(),
@@ -309,19 +230,9 @@ class TestLoanRequestHelperMethods:
     def test_days_overdue_returns_correct_count(self, app):
         """Test days_overdue returns correct number of overdue days."""
         with app.app_context():
-            user = User(email='test9@example.com', first_name='Test', last_name='User')
-            user.set_password('password')
-            db.session.add(user)
-            
-            category = Category(name='Test Category 9')
-            db.session.add(category)
-            db.session.flush()
-            
-            item = Item(name='Test Item 9', owner=user, category=category)
-            db.session.add(item)
-            db.session.flush()
-            
-            loan = LoanRequest(
+            user = UserFactory()
+            item = ItemFactory(owner=user)
+            loan = LoanRequestFactory(
                 item=item,
                 borrower=user,
                 start_date=date.today() - timedelta(days=10),
@@ -334,19 +245,9 @@ class TestLoanRequestHelperMethods:
     def test_days_overdue_returns_zero_when_not_overdue(self, app):
         """Test days_overdue returns 0 for loans not yet overdue."""
         with app.app_context():
-            user = User(email='test10@example.com', first_name='Test', last_name='User')
-            user.set_password('password')
-            db.session.add(user)
-            
-            category = Category(name='Test Category 10')
-            db.session.add(category)
-            db.session.flush()
-            
-            item = Item(name='Test Item 10', owner=user, category=category)
-            db.session.add(item)
-            db.session.flush()
-            
-            loan = LoanRequest(
+            user = UserFactory()
+            item = ItemFactory(owner=user)
+            loan = LoanRequestFactory(
                 item=item,
                 borrower=user,
                 start_date=date.today(),

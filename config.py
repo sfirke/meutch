@@ -78,6 +78,25 @@ class Config:
     MAILGUN_DOMAIN = os.environ.get('MAILGUN_DOMAIN')
     MAILGUN_API_URL = f"https://api.mailgun.net/v3/{os.environ.get('MAILGUN_DOMAIN')}/messages" if os.environ.get('MAILGUN_DOMAIN') else None
 
+    # URL building configuration for url_for() outside request context (CLI, scheduled jobs)
+    # SERVER_NAME should include the scheme (http:// or https://) and domain
+    # Examples: https://meutch.com or http://localhost:5000
+    _server_name_raw = os.environ.get('SERVER_NAME', '')
+    if _server_name_raw:
+        if _server_name_raw.startswith('http://'):
+            SERVER_NAME = _server_name_raw.replace('http://', '')
+            PREFERRED_URL_SCHEME = 'http'
+        elif _server_name_raw.startswith('https://'):
+            SERVER_NAME = _server_name_raw.replace('https://', '')
+            PREFERRED_URL_SCHEME = 'https'
+        else:
+            # No scheme provided, assume https for safety
+            SERVER_NAME = _server_name_raw
+            PREFERRED_URL_SCHEME = 'https'
+    else:
+        SERVER_NAME = None
+        PREFERRED_URL_SCHEME = 'https'
+
     # Environment-based configuration
     DEBUG = os.environ.get('FLASK_ENV') == 'development'
     LOG_LEVEL = logging.DEBUG if DEBUG else logging.INFO
@@ -91,13 +110,15 @@ class TestingConfig(Config):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     SECRET_KEY = 'test-secret-key'
     STORAGE_BACKEND = 'local'  # Tests always use local storage
+    SERVER_NAME = 'localhost:5000'
+    PREFERRED_URL_SCHEME = 'http'
 
 class StagingConfig(Config):
     """Configuration for staging environment"""
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     LOG_LEVEL = logging.INFO
-    DO_SPACES_BUCKET = os.environ.get('DO_SPACES_BUCKET')
+    # SERVER_NAME and PREFERRED_URL_SCHEME inherited from base Config (parsed from SERVER_NAME env var)
 
 
 class ProductionConfig(Config):
@@ -107,6 +128,8 @@ class ProductionConfig(Config):
     
     # Production should always use specific environment variables
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    
+    # SERVER_NAME and PREFERRED_URL_SCHEME inherited from base Config (parsed from SERVER_NAME env var)
     
     def init_app(self, app):
         super().init_app(app)
