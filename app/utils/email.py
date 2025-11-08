@@ -12,7 +12,14 @@ def send_email(to_email, subject, text_content, html_content=None):
         if not api_key or not domain:
             current_app.logger.error("Mailgun configuration missing")
             return False
-            
+        
+        # Check email allowlist (for staging/testing environments)
+        allowlist = current_app.config.get('EMAIL_ALLOWLIST')
+        if allowlist is not None:  # Allowlist is configured
+            if to_email not in allowlist:
+                current_app.logger.info(f"Email to {to_email} blocked by allowlist. Subject: {subject}")
+                return True  # Return True since this is not an error - just filtered
+        
         from_email = f"Meutch <postmaster@{domain}>"
         
         data = {

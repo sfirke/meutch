@@ -42,6 +42,23 @@ MAILGUN_API_KEY=<your-mailgun-api-key>
 MAILGUN_DOMAIN=<your-mailgun-domain>
 ```
 
+### Optional: Email Allowlist (Staging/Testing)
+
+To prevent staging environments from sending emails to real users, configure an allowlist:
+
+```bash
+# Comma-separated list of allowed email addresses
+EMAIL_ALLOWLIST=test1@example.com,test2@example.com
+```
+
+When `EMAIL_ALLOWLIST` is set:
+- ✅ Only listed addresses will receive emails
+- ✅ All other email attempts are logged but blocked
+- ✅ Scheduled jobs (loan reminders) run normally but respect the allowlist
+- ✅ Perfect for staging with production data copies
+
+**Important:** Leave `EMAIL_ALLOWLIST` unset or empty in production to send emails to all users.
+
 ## Loan Reminder System
 
 Meutch includes an automated system to send email reminders for loans:

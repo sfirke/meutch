@@ -8,7 +8,7 @@ This GitHub repo contains Meutch's source code. It's shared here for two reasons
 
 The theory of action is that Meutch is most effective when run as a single instance at https://www.meutch.com. Sam considered a decentralized, federated model but felt like the downsides outweighed the advantages. Ultimately, the most sharing would happen when everyone is on a single instance, and features are in place there (e.g., hidden circles) to make things safe for privacy-focused users.
 
-Computer-savvy folks can pull this repo and deploy their own instances of Meutch for their communities. But this repo is focused on how to develop and contribute to this codebase.
+This README is focused on developing and contributing to the codebase. But computer-savvy folks can deploy their own instances of Meutch for their communities; for more info one deploying Meutch in production, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Development
 

@@ -5,6 +5,54 @@ import logging
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv()
 
+
+def parse_email_allowlist(raw_string):
+    """Parse EMAIL_ALLOWLIST from comma-separated string.
+    
+    Args:
+        raw_string: Raw string from environment variable (may contain leading/trailing whitespace)
+    
+    Returns:
+        List of email addresses if raw_string is non-empty after stripping, otherwise None.
+        Empty entries (from extra commas or whitespace-only tokens) are filtered out.
+    """
+    stripped = raw_string.strip() if raw_string else ''
+    if not stripped:
+        return None
+    return [email.strip() for email in stripped.split(',') if email.strip()]
+
+
+def parse_server_name(raw_string):
+    """Parse SERVER_NAME to extract domain and URL scheme.
+    
+    Args:
+        raw_string: Raw SERVER_NAME from environment variable (may include scheme)
+    
+    Returns:
+        Tuple of (server_name, scheme) where:
+        - server_name is the domain/host part (or None if empty)
+        - scheme is 'http' or 'https' (defaults to 'https' if not specified)
+    
+    Examples:
+        >>> parse_server_name('https://example.com')
+        ('example.com', 'https')
+        >>> parse_server_name('http://localhost:5000')
+        ('localhost:5000', 'http')
+        >>> parse_server_name('example.com')
+        ('example.com', 'https')
+    """
+    if not raw_string:
+        return None, 'https'
+    
+    if raw_string.startswith('http://'):
+        return raw_string.replace('http://', ''), 'http'
+    elif raw_string.startswith('https://'):
+        return raw_string.replace('https://', ''), 'https'
+    else:
+        # No scheme provided, assume https for safety
+        return raw_string, 'https'
+
+
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY')
     if not SECRET_KEY:
@@ -78,24 +126,17 @@ class Config:
     MAILGUN_DOMAIN = os.environ.get('MAILGUN_DOMAIN')
     MAILGUN_API_URL = f"https://api.mailgun.net/v3/{os.environ.get('MAILGUN_DOMAIN')}/messages" if os.environ.get('MAILGUN_DOMAIN') else None
 
+    # Email allowlist (for staging/testing - restricts who can receive emails)
+    # Comma-separated list of email addresses. If set, only these addresses receive emails.
+    # Leave empty or unset in production to send to all users.
+    _email_allowlist_raw = os.environ.get('EMAIL_ALLOWLIST', '').strip()
+    EMAIL_ALLOWLIST = parse_email_allowlist(_email_allowlist_raw)
+
     # URL building configuration for url_for() outside request context (CLI, scheduled jobs)
     # SERVER_NAME should include the scheme (http:// or https://) and domain
     # Examples: https://meutch.com or http://localhost:5000
     _server_name_raw = os.environ.get('SERVER_NAME', '')
-    if _server_name_raw:
-        if _server_name_raw.startswith('http://'):
-            SERVER_NAME = _server_name_raw.replace('http://', '')
-            PREFERRED_URL_SCHEME = 'http'
-        elif _server_name_raw.startswith('https://'):
-            SERVER_NAME = _server_name_raw.replace('https://', '')
-            PREFERRED_URL_SCHEME = 'https'
-        else:
-            # No scheme provided, assume https for safety
-            SERVER_NAME = _server_name_raw
-            PREFERRED_URL_SCHEME = 'https'
-    else:
-        SERVER_NAME = None
-        PREFERRED_URL_SCHEME = 'https'
+    SERVER_NAME, PREFERRED_URL_SCHEME = parse_server_name(_server_name_raw)
 
     # Environment-based configuration
     DEBUG = os.environ.get('FLASK_ENV') == 'development'
