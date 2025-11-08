@@ -544,5 +544,139 @@ def _get_database_info():
             return "Remote database"
 
 
+def check_loan_reminders_logic():
+    """
+    Core logic for checking and sending loan reminder emails.
+    Extracted as a separate function so it can be called from both
+    CLI and HTTP endpoint (the latter doesn't currently exist).
+    
+    Returns a dict with statistics about emails sent.
+    """
+    from app import db
+    from app.models import LoanRequest
+    from app.utils.email import (
+        send_loan_due_soon_email,
+        send_loan_due_today_borrower_email,
+        send_loan_due_today_owner_email,
+        send_loan_overdue_borrower_email,
+        send_loan_overdue_owner_email
+    )
+    from datetime import date, datetime, UTC
+    
+    today = date.today()
+    
+    # Get all approved loans
+    approved_loans = LoanRequest.query.filter_by(status='approved').all()
+    
+    stats = {
+        'total_loans': len(approved_loans),
+        'due_soon': 0,
+        'due_today': 0,
+        'overdue': 0,
+        'skipped': 0,
+        'errors': []
+    }
+    
+    if not approved_loans:
+        return stats
+    
+    for loan in approved_loans:
+        days_until = (loan.end_date - today).days
+        
+        # 1. Check for 3-day reminders
+        if days_until == 3 and not loan.due_soon_reminder_sent:
+            try:
+                if send_loan_due_soon_email(loan):
+                    loan.due_soon_reminder_sent = datetime.now(UTC)
+                    db.session.commit()
+                    stats['due_soon'] += 1
+                else:
+                    stats['errors'].append(f'Failed to send 3-day reminder for loan {loan.id}')
+            except Exception as e:
+                stats['errors'].append(f'Error sending 3-day reminder for loan {loan.id}: {str(e)}')
+                db.session.rollback()
+        
+        # 2. Check for due date reminders
+        elif days_until == 0 and not loan.due_date_reminder_sent:
+            try:
+                borrower_sent = send_loan_due_today_borrower_email(loan)
+                owner_sent = send_loan_due_today_owner_email(loan)
+                
+                if borrower_sent or owner_sent:
+                    loan.due_date_reminder_sent = datetime.now(UTC)
+                    db.session.commit()
+                    stats['due_today'] += 1
+                else:
+                    stats['errors'].append(f'Failed to send due date reminders for loan {loan.id}')
+            except Exception as e:
+                stats['errors'].append(f'Error sending due date reminders for loan {loan.id}: {str(e)}')
+                db.session.rollback()
+        
+        # 3. Check for overdue reminders
+        elif days_until < 0:
+            days_overdue = abs(days_until)
+            
+            # Only send on specific days: 1, 3, 7, 14
+            if days_overdue not in [1, 3, 7, 14]:
+                continue
+            
+            # Check if we've already sent a reminder today
+            if loan.last_overdue_reminder_sent:
+                # Ensure last_overdue_reminder_sent is timezone-aware for comparison
+                last_sent_utc = loan.last_overdue_reminder_sent.replace(tzinfo=UTC) if loan.last_overdue_reminder_sent.tzinfo is None else loan.last_overdue_reminder_sent
+                if last_sent_utc.date() == today:
+                    stats['skipped'] += 1
+                    continue
+            
+            # Don't send more than 4 overdue reminders
+            if loan.overdue_reminder_count >= 4:
+                stats['skipped'] += 1
+                continue
+            
+            try:
+                borrower_sent = send_loan_overdue_borrower_email(loan, days_overdue)
+                owner_sent = send_loan_overdue_owner_email(loan, days_overdue)
+                
+                if borrower_sent or owner_sent:
+                    loan.last_overdue_reminder_sent = datetime.now(UTC)
+                    loan.overdue_reminder_count += 1
+                    db.session.commit()
+                    stats['overdue'] += 1
+                else:
+                    stats['errors'].append(f'Failed to send overdue reminders for loan {loan.id}')
+            except Exception as e:
+                stats['errors'].append(f'Error sending overdue reminders for loan {loan.id}: {str(e)}')
+                db.session.rollback()
+    
+    return stats
+
+
+@click.command()
+@with_appcontext
+def check_loan_reminders():
+    """Check and send loan reminder emails (3-day, due date, overdue)."""
+    click.echo('🔔 Checking loan reminders...')
+    
+    stats = check_loan_reminders_logic()
+    
+    if stats['total_loans'] == 0:
+        click.echo('  No approved loans found.')
+    else:
+        click.echo(f'  Found {stats["total_loans"]} approved loan(s)')
+        
+        # Print any errors
+        for error in stats['errors']:
+            click.echo(f'    ⚠ {error}')
+    
+    click.echo('\n📊 Summary:')
+    click.echo(f'  • 3-day reminders sent: {stats["due_soon"]}')
+    click.echo(f'  • Due date reminders sent: {stats["due_today"]}')
+    click.echo(f'  • Overdue reminders sent: {stats["overdue"]}')
+    click.echo(f'  • Skipped (already sent): {stats["skipped"]}')
+    if stats['errors']:
+        click.echo(f'  • Errors: {len(stats["errors"])}')
+    click.echo('✅ Done!')
+
+
 if __name__ == '__main__':
     seed()
