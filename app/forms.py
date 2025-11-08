@@ -478,8 +478,6 @@ class ExtendLoanForm(FlaskForm):
     def validate_new_end_date(self, field):
         if field.data < datetime.now().date():
             raise ValidationError('New end date cannot be in the past.')
-        if self.current_end_date and field.data <= self.current_end_date:
-            raise ValidationError('New end date must be after the current end date.')
 
 class ForgotPasswordForm(FlaskForm):
     email = StringField('Email', validators=[

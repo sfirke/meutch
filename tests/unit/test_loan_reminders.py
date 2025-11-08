@@ -37,35 +37,6 @@ class TestExtendLoanForm:
             assert 'new_end_date' in form.errors
             assert any('past' in error.lower() for error in form.errors['new_end_date'])
     
-    def test_form_fails_when_new_date_before_current(self, app):
-        """Test that form fails when new_end_date is not after current_end_date."""
-        with app.app_context():
-            current_end_date = date.today() + timedelta(days=10)
-            form = ExtendLoanForm(
-                current_end_date=current_end_date,
-                data={
-                    'new_end_date': date.today() + timedelta(days=5),  # Before current
-                    'message': ''
-                }
-            )
-            assert form.validate() is False
-            assert 'new_end_date' in form.errors
-            assert any('after' in error.lower() for error in form.errors['new_end_date'])
-    
-    def test_form_fails_when_new_date_equals_current(self, app):
-        """Test that form fails when new_end_date equals current_end_date."""
-        with app.app_context():
-            current_end_date = date.today() + timedelta(days=10)
-            form = ExtendLoanForm(
-                current_end_date=current_end_date,
-                data={
-                    'new_end_date': current_end_date,
-                    'message': ''
-                }
-            )
-            assert form.validate() is False
-            assert 'new_end_date' in form.errors
-    
     def test_form_message_is_optional(self, app):
         """Test that message field is optional."""
         with app.app_context():
