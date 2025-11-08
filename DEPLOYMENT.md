@@ -51,11 +51,7 @@ To prevent staging environments from sending emails to real users, configure an 
 EMAIL_ALLOWLIST=test1@example.com,test2@example.com
 ```
 
-When `EMAIL_ALLOWLIST` is set:
-- ✅ Only listed addresses will receive emails
-- ✅ All other email attempts are logged but blocked
-- ✅ Scheduled jobs (loan reminders) run normally but respect the allowlist
-- ✅ Perfect for staging with production data copies
+When `EMAIL_ALLOWLIST` is set, only listed addresses will receive emails. All other email attempts are logged but blocked. This allows for selected testing while not spamming users with duplicated overdue notices, etc. that are already being sent from the production environment. 
 
 **Important:** Leave `EMAIL_ALLOWLIST` unset or empty in production to send emails to all users.
 
@@ -66,13 +62,6 @@ Meutch includes an automated system to send email reminders for loans:
 - **Due date reminder**: Sent to borrower and owner on the due date
 - **Overdue reminders**: Sent on days 1, 3, 7, and 14 after the due date
 
-### Configuration Requirements
-
-The loan reminder system requires `SERVER_NAME` and `PREFERRED_URL_SCHEME` to be set. Without these, `url_for(_external=True)` cannot build URLs outside of a request context (CLI execution, scheduled jobs), and the command will fail with:
-
-```
-Unable to build URLs outside an active request without 'SERVER_NAME' configured.
-```
 
 ### Running Manually
 
