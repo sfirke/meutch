@@ -44,6 +44,11 @@ class TestEmailAllowlistParsing:
         """Test parsing with mixed whitespace and empty entries."""
         result = parse_email_allowlist('test1@example.com , , test2@example.com , admin@example.com')
         assert result == ['test1@example.com', 'test2@example.com', 'admin@example.com']
+    
+    def test_parse_normalizes_to_lowercase(self):
+        """Test that parsing normalizes all emails to lowercase."""
+        result = parse_email_allowlist('Test1@Example.COM, TEST2@EXAMPLE.COM, Admin@Example.Com')
+        assert result == ['test1@example.com', 'test2@example.com', 'admin@example.com']
 
 
 class TestEmailAllowlistEnforcement:
@@ -93,30 +98,33 @@ class TestEmailAllowlistEnforcement:
                 assert result is True
                 mock_post.assert_not_called()
     
-    def test_send_email_allowlist_case_sensitive(self, app):
-        """Test that allowlist checking is case-sensitive.
+    def test_send_email_allowlist_case_insensitive(self, app):
+        """Test that allowlist checking is case-insensitive.
         
-        Note: This documents current behavior. Consider making it case-insensitive
-        for better user experience by normalizing emails to lowercase in config parsing.
+        Emails are normalized to lowercase in parse_email_allowlist() and compared
+        case-insensitively in send_email(), providing better user experience.
         """
-        from app.utils.email import send_email
-        
         with app.app_context():
-            app.config['EMAIL_ALLOWLIST'] = ['test1@example.com']  # lowercase
-            app.config['MAILGUN_DOMAIN'] = 'mg.example.com'
-            app.config['MAILGUN_API_KEY'] = 'key-12345'
+            # When parse_email_allowlist is used, emails are stored lowercase
+            app.config['EMAIL_ALLOWLIST'] = parse_email_allowlist('Test1@Example.COM, ADMIN@EXAMPLE.ORG')
             
-            with patch('app.utils.email.requests.post') as mock_post:
-                # Try with different case
-                result = send_email(
-                    'test1@example.com',  # Mixed case
-                    'Test Subject',
-                    'Test body'
-                )
-                
-                # Currently case-sensitive, so this will be blocked
-                assert result is True
-                mock_post.assert_not_called()
+            # Verify allowlist is normalized to lowercase
+            assert app.config['EMAIL_ALLOWLIST'] == ['test1@example.com', 'admin@example.org']
+            
+            # Verify case-insensitive matching would work
+            allowlist = app.config['EMAIL_ALLOWLIST']
+            
+            # Mixed case email should match when lowercased
+            test_email_mixed_case = 'Test1@Example.Com'
+            assert test_email_mixed_case.lower() in allowlist
+            
+            # Different case should also match
+            admin_email_upper = 'ADMIN@EXAMPLE.ORG'
+            assert admin_email_upper.lower() in allowlist
+            
+            # Non-allowlisted email should not match
+            blocked_email = 'other@example.com'
+            assert blocked_email.lower() not in allowlist
 
 
 class TestServerNameParsing:

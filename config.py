@@ -13,13 +13,14 @@ def parse_email_allowlist(raw_string):
         raw_string: Raw string from environment variable (may contain leading/trailing whitespace)
     
     Returns:
-        List of email addresses if raw_string is non-empty after stripping, otherwise None.
+        List of lowercase email addresses if raw_string is non-empty after stripping, otherwise None.
         Empty entries (from extra commas or whitespace-only tokens) are filtered out.
+        Emails are normalized to lowercase for case-insensitive comparison.
     """
     stripped = raw_string.strip() if raw_string else ''
     if not stripped:
         return None
-    return [email.strip() for email in stripped.split(',') if email.strip()]
+    return [email.strip().lower() for email in stripped.split(',') if email.strip()]
 
 
 def parse_server_name(raw_string):
