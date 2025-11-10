@@ -8,10 +8,20 @@ from app.forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPass
 from app.utils.email import send_confirmation_email, send_password_reset_email
 from app.utils.geocoding import geocode_address, build_address_string, GeocodingError
 from datetime import datetime, timedelta, UTC
+from urllib.parse import urlparse, urljoin
 import logging
 
 logger = logging.getLogger(__name__)
 logger.debug("Loading app.auth.routes")
+
+def _is_safe_url(target):
+    """
+    Check if a URL is safe for redirects (prevents open redirect vulnerabilities).
+    A URL is safe if it's relative or points to the same host as the application.
+    """
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 @auth.route('/register', methods=['GET', 'POST'])
 def register():
@@ -89,6 +99,10 @@ def login():
         if user and user.check_password(form.password.data):  # Use the model method
             if user.is_confirmed():
                 login_user(user)
+                # Handle redirect to 'next' page if provided
+                next_page = request.args.get('next')
+                if next_page and _is_safe_url(next_page):
+                    return redirect(next_page)
                 return redirect(url_for('main.index'))
             else:
                 flash('Please confirm your email address before logging in. Check your email for the confirmation link.', 'warning')

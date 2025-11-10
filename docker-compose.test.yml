@@ -3,7 +3,7 @@ services:
     image: postgres:17-alpine
     container_name: meutch-test-db
     environment:
-      POSTGRES_DB: test_meutch
+      POSTGRES_DB: meutch_dev
       POSTGRES_USER: test_user
       POSTGRES_PASSWORD: test_password
       POSTGRES_HOST_AUTH_METHOD: trust
@@ -13,7 +13,7 @@ services:
       - test_postgres_data:/var/lib/postgresql/data
       - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U test_user -d test_meutch"]
+      test: ["CMD-SHELL", "pg_isready -U test_user -d meutch_dev"]
       interval: 5s
       timeout: 5s
       retries: 5
