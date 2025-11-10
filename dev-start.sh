@@ -20,21 +20,23 @@ if [ "$1" = "seed" ] || [ "$1" = "--seed" ]; then
     SEED=true
 fi
 
+# Check if .env file exists (Flask will load it via python-dotenv)
+if [ ! -f ".env" ]; then
+    echo "❌ .env file not found. Please copy .env.example to .env and configure it."
+    exit 1
+fi
+
 # Check if PostgreSQL container is running
-if ! docker ps | grep -q "meutch.*db"; then
-    echo "🐳 Starting PostgreSQL container..."
-    docker-compose up -d
+if ! docker ps | grep -q "meutch-test-db"; then
+    echo "🐳 Starting PostgreSQL container (docker-compose.test.yml)..."
+    docker compose -f docker-compose.test.yml up -d
     
     # Wait for database to be ready
     echo "⏳ Waiting for database to be ready..."
     sleep 5
 fi
 
-# Check if development database exists
-if ! docker exec meutch-test-db psql -U test_user -lqt | cut -d \| -f 1 | grep -qw meutch_dev; then
-    echo "🗄️  Creating development database..."
-    docker exec meutch-test-db createdb -U test_user meutch_dev
-fi
+echo "🔧 Environment configured from .env"
 
 # Run database migrations
 echo "📊 Applying database migrations..."

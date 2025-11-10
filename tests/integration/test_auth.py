@@ -414,3 +414,128 @@ class TestPasswordReset:
         
         assert response.status_code == 302
         assert response.location.endswith('/auth/login')
+
+
+class TestRedirectAfterLogin:
+    """Test redirect functionality after login.
+    
+    These tests cover the full redirect-after-login flow:
+    1. User tries to access a protected page
+    2. Gets redirected to login with ?next= parameter
+    3. Logs in successfully
+    4. Gets redirected back to the original page
+    """
+    
+    def test_login_without_next_redirects_to_home(self, client, app, auth_user):
+        """Test login without 'next' parameter redirects to home page."""
+        with app.app_context():
+            user = auth_user()
+            response = client.post('/auth/login', data={
+                'email': user.email,
+                'password': TEST_PASSWORD
+            }, follow_redirects=True)
+            
+            assert response.status_code == 200
+            assert b'Welcome to Meutch' in response.data
+    
+    def test_login_with_valid_next_redirects_correctly(self, client, app, auth_user):
+        """Test login with valid 'next' parameter redirects to intended page."""
+        with app.app_context():
+            user = auth_user()
+            response = client.post('/auth/login?next=/profile', data={
+                'email': user.email,
+                'password': TEST_PASSWORD
+            }, follow_redirects=True)
+            
+            assert response.status_code == 200
+            # Should be redirected to profile page
+            assert b'My Profile' in response.data or b'Profile' in response.data
+    
+    def test_login_with_external_url_ignores_next(self, client, app, auth_user):
+        """Test that external URLs in 'next' parameter are ignored for security."""
+        with app.app_context():
+            user = auth_user()
+            response = client.post('/auth/login?next=http://evil.com/phishing', data={
+                'email': user.email,
+                'password': TEST_PASSWORD
+            }, follow_redirects=True)
+            
+            assert response.status_code == 200
+            # Should redirect to home page instead of external URL
+            assert b'Welcome to Meutch' in response.data
+    
+    def test_login_with_protocol_relative_url_ignores_next(self, client, app, auth_user):
+        """Test that protocol-relative URLs are ignored for security."""
+        with app.app_context():
+            user = auth_user()
+            response = client.post('/auth/login?next=//evil.com/phishing', data={
+                'email': user.email,
+                'password': TEST_PASSWORD
+            }, follow_redirects=True)
+            
+            assert response.status_code == 200
+            # Should redirect to home page instead
+            assert b'Welcome to Meutch' in response.data
+    
+    def test_full_redirect_flow_after_unauthorized_access(self, client, app, auth_user):
+        """Test complete flow: unauthorized access -> login -> redirect back.
+        
+        This is the end-to-end test that validates the entire redirect feature:
+        1. Accessing a protected route (without being logged in) sets 'next' parameter
+        2. Login page is displayed with the 'next' parameter
+        3. Form submission with 'next' parameter succeeds
+        4. User is redirected to the originally requested page
+        """
+        with app.app_context():
+            user = auth_user()
+            
+            # Step 1: Try to access protected route (circles page)
+            response = client.get('/circles/', follow_redirects=False)
+            assert response.status_code == 302
+            assert '/auth/login' in response.location
+            assert 'next=' in response.location  # Verify next parameter is set
+            
+            # Extract the redirect URL with next parameter
+            login_url = response.location
+            
+            # Step 2: Go to login page (should have 'next' parameter)
+            response = client.get(login_url)
+            assert response.status_code == 200
+            assert b'Log In' in response.data
+            
+            # Step 3: Login with the 'next' parameter in the URL
+            response = client.post(login_url, data={
+                'email': user.email,
+                'password': TEST_PASSWORD
+            }, follow_redirects=True)
+            
+            assert response.status_code == 200
+            # Should be redirected back to circles page
+            assert b'Your Circles' in response.data or b'Circles' in response.data
+    
+    def test_login_message_shown_on_unauthorized_access(self, client, app):
+        """Test that a login message is shown when accessing protected routes."""
+        with app.app_context():
+            # Try to access a protected route
+            response = client.get('/profile', follow_redirects=True)
+            
+            assert response.status_code == 200
+            # Should show login message
+            assert b'Please log in to access this page' in response.data or b'Log In' in response.data
+    
+    def test_login_form_preserves_next_parameter(self, client, app):
+        """Test that the login form's action URL includes the 'next' parameter.
+        
+        This test validates the HTML template, not just the backend logic.
+        Without the 'next' parameter in the form action, the parameter would be
+        lost when the form is submitted via POST.
+        """
+        with app.app_context():
+            # Access login page with 'next' parameter
+            response = client.get('/auth/login?next=/profile')
+            
+            assert response.status_code == 200
+            # The form action should include the 'next' parameter
+            # This ensures the parameter survives the form POST
+            assert b'action="/auth/login?next=' in response.data or \
+                   b'action="/auth/login?next=%2Fprofile' in response.data

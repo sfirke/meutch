@@ -67,7 +67,7 @@ class TestConfig(Config):
     TESTING = True
     WTF_CSRF_ENABLED = False
     # Use separate test database to avoid wiping development data
-    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or 'postgresql://test_user:test_password@localhost:5433/test_meutch'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or 'postgresql://test_user:test_password@localhost:5433/meutch_dev'
     SECRET_KEY = 'test-secret-key'
     
     # File storage - always use local for tests

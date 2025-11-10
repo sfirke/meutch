@@ -101,7 +101,7 @@ fi
 # Set up environment
 export FLASK_ENV=testing
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-export TEST_DATABASE_URL="postgresql://test_user:test_password@localhost:5433/test_meutch"
+export TEST_DATABASE_URL="postgresql://test_user:test_password@localhost:5433/meutch_dev"
 
 print_color $BLUE "🧪 Running Meutch Test Suite"
 print_color $BLUE "================================"
@@ -114,7 +114,7 @@ check_test_db() {
     fi
     
     # Check if database is actually ready to accept connections
-    if ! docker compose -f docker-compose.test.yml exec -T test-postgres pg_isready -U test_user -d test_meutch > /dev/null 2>&1; then
+    if ! docker compose -f docker-compose.test.yml exec -T test-postgres pg_isready -U test_user -d meutch_dev > /dev/null 2>&1; then
         return 1
     fi
     

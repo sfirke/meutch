@@ -29,7 +29,7 @@ docker start meutch-test-db || docker compose -f docker-compose.test.yml up -d  
 # NEVER CANCEL: Wait for database to fully start
 
 # Set environment variables for testing
-export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/test_meutch
+export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
 export SECRET_KEY=test-secret-key
 export FLASK_APP=app.py
 ```
@@ -39,7 +39,7 @@ export FLASK_APP=app.py
 # For development with Docker PostgreSQL
 export FLASK_ENV=development
 export SECRET_KEY=dev-secret-key 
-export DATABASE_URL=postgresql://test_user:test_password@localhost:5433/test_meutch
+export DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
 
 # Run migrations
 flask db upgrade  # Takes 1 second
@@ -51,7 +51,7 @@ When you write a test, use factories from `tests/factories.py` to create test da
 
 ```bash
 # CRITICAL: Always set TEST_DATABASE_URL before running tests
-export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/test_meutch
+export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
 
 # Unit tests (fastest)
 ./run_tests.sh -u -c  # Takes 18 seconds - NEVER CANCEL
@@ -76,7 +76,7 @@ export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/tes
 # Start web server for testing changes
 export FLASK_ENV=development
 export SECRET_KEY=dev-secret-key
-export DATABASE_URL=postgresql://test_user:test_password@localhost:5433/test_meutch
+export DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
 export STORAGE_BACKEND=local  # Use local file storage for development
 export FLASK_APP=app.py
 
@@ -95,7 +95,7 @@ After making ANY code changes, ALWAYS run these validation steps:
 
 1. **Test Suite Validation:**
    ```bash
-   export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/test_meutch
+   export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
    ./run_tests.sh -c  # NEVER CANCEL - takes 56 seconds
    ```
 
@@ -127,7 +127,7 @@ After making ANY code changes, ALWAYS run these validation steps:
 ### Build and Test Pipeline
 ```bash
 # Complete validation pipeline (run this before every commit)
-export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/test_meutch
+export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
 
 # 1. Start database if needed
 docker ps | grep meutch-test-db || docker compose -f docker-compose.test.yml up -d
@@ -136,7 +136,7 @@ docker ps | grep meutch-test-db || docker compose -f docker-compose.test.yml up 
 ./run_tests.sh -c
 
 # 3. Start app and validate endpoints
-export DATABASE_URL=postgresql://test_user:test_password@localhost:5433/test_meutch
+export DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
 export SECRET_KEY=dev-secret-key
 export FLASK_ENV=development
 flask db upgrade

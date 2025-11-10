@@ -41,7 +41,7 @@ start_db() {
     print_color $BLUE "⏳ Waiting for database to be ready..."
     timeout=30
     while [ $timeout -gt 0 ]; do
-        if docker compose -f $DOCKER_COMPOSE_FILE exec -T test-postgres pg_isready -U test_user -d test_meutch > /dev/null 2>&1; then
+        if docker compose -f $DOCKER_COMPOSE_FILE exec -T test-postgres pg_isready -U test_user -d meutch_dev > /dev/null 2>&1; then
             print_color $GREEN "✅ Test database is ready!"
             break
         fi
@@ -55,7 +55,7 @@ start_db() {
     fi
     
     print_color $GREEN "🎉 Test database started successfully!"
-    print_color $BLUE "Database URL: postgresql://test_user:test_password@localhost:5433/test_meutch"
+    print_color $BLUE "Database URL: postgresql://test_user:test_password@localhost:5433/meutch_dev"
 }
 
 # Function to stop the test database
@@ -94,7 +94,7 @@ status_db() {
 # Function to connect to database with psql
 connect_db() {
     print_color $BLUE "🔗 Connecting to test database..."
-    docker compose -f $DOCKER_COMPOSE_FILE exec test-postgres psql -U test_user -d test_meutch
+    docker compose -f $DOCKER_COMPOSE_FILE exec test-postgres psql -U test_user -d meutch_dev
 }
 
 # Function to run database migrations
@@ -103,7 +103,7 @@ migrate_db() {
     
     # Set the test database URL
     export FLASK_APP=app.py
-    export DATABASE_URL="postgresql://test_user:test_password@localhost:5433/test_meutch"
+    export DATABASE_URL="postgresql://test_user:test_password@localhost:5433/meutch_dev"
     
     # Run migrations
     flask db upgrade
