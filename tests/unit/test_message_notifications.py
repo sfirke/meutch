@@ -42,28 +42,6 @@ class TestMessageNotifications:
                 assert 'Hi, I am interested in this item!' in call_args[0][2]  # text content includes message body
                 assert call_args[0][3] is not None  # HTML content provided as 4th positional argument
 
-    def test_send_message_notification_email_disabled_preference(self, app):
-        """Test that email notification is skipped when user has disabled preferences."""
-        with app.app_context():
-            # Create test users and item
-            sender = UserFactory(email='sender@test.com')
-            recipient = UserFactory(email='recipient@test.com', email_notifications_enabled=False)
-            item = ItemFactory(name='Test Item', owner=recipient)
-            
-            # Create a regular message
-            message = MessageFactory(
-                sender=sender,
-                recipient=recipient, 
-                item=item,
-                body='Hi, I am interested in this item!'
-            )
-            
-            with patch('app.utils.email.send_email') as mock_send_email:
-                result = send_message_notification_email(message)
-                
-                assert result is True  # Should return True (not an error)
-                mock_send_email.assert_not_called()  # Email should not be sent
-
     def test_send_message_notification_email_loan_request(self, app):
         """Test sending email notification for a loan request message."""
         with app.app_context():

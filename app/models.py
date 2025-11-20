@@ -43,7 +43,6 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=func.now())
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
-    email_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
     
     @property
     def profile_image(self):

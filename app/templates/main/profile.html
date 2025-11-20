@@ -251,23 +251,9 @@
         {% endif %}
     </div>
     
-    <!-- Admin options - Email Notifications, Location Status, Danger Zone - at the very bottom -->
+    <!-- Admin options - Location Status, Danger Zone - at the very bottom -->
     <div class="row mt-5 pt-4 border-top">
-        <div class="col-md-4">
-            <!-- Email Notifications -->
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title"><i class="fas fa-envelope me-2"></i>Email Notifications</h6>
-                    <div class="form-check">
-                        {{ form.email_notifications_enabled(class="form-check-input") }}
-                        {{ form.email_notifications_enabled.label(class="form-check-label") }}
-                    </div>
-                    <small class="text-muted">Uncheck to stop receiving email notifications for new messages</small>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
+        <div class="col-md-6">
             <!-- Address Information -->
             <div class="card">
                 <div class="card-body">
@@ -305,7 +291,7 @@
             </div>
         </div>
         
-        <div class="col-md-4">
+        <div class="col-md-6">
             <!-- Account Deletion -->
             <div class="card">
                 <div class="card-body">
