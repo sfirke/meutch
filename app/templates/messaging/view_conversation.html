@@ -142,10 +142,22 @@
                                 </form>
                             </div>
                         {% elif active_loan.borrower_id == current_user.id %}
-                            <div class="alert alert-info mb-0">
-                                <i class="fas fa-info-circle me-2"></i>
-                                <strong>Enjoy the item!</strong> Please return it by {{ active_loan.end_date.strftime('%B %d, %Y') }}.
-                            </div>
+                            {% if active_loan.is_overdue() %}
+                                <div class="alert alert-danger mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>This item is overdue!</strong> Please return it as soon as possible. It was due {{ active_loan.end_date.strftime('%B %d, %Y') }}.
+                                </div>
+                            {% elif active_loan.is_due_soon() %}
+                                <div class="alert alert-warning mb-0">
+                                    <i class="fas fa-clock me-2"></i>
+                                    <strong>Due soon!</strong> Please return this item by {{ active_loan.end_date.strftime('%B %d, %Y') }}.
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Enjoy the item!</strong> Please return it by {{ active_loan.end_date.strftime('%B %d, %Y') }}.
+                                </div>
+                            {% endif %}
                         {% endif %}
                     {% endif %}
                 </div>
