@@ -1,18 +1,20 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="card mb-4 conversation-header">
-        <div class="card-header">
-            <h2>
-                Conversation with 
-                <a href="{{ url_for('main.user_profile', user_id=thread_messages[0].other_user.id) }}" class="text-decoration-none">
-                    <span class="other-user">{{ thread_messages[0].other_user.full_name }}</span>
+    <!-- Conversation Header -->
+    <div class="mb-4">
+        <div class="d-flex align-items-center gap-3 mb-2">
+            <h1 class="mb-0">
+                <a href="{{ url_for('main.user_profile', user_id=thread_messages[0].other_user.id) }}" class="text-primary text-decoration-none">
+                    {{ thread_messages[0].other_user.full_name }}
                 </a>
-                about 
-                <a href="{{ url_for('main.item_detail', item_id=thread_messages[0].item.id) }}" class="text-decoration-none">
-                    <span class="item-name">{{ thread_messages[0].item.name }}</span>
-                </a>
-            </h2>
+            </h1>
+        </div>
+        <div class="d-flex align-items-center gap-2 text-muted">
+            <i class="fas fa-box"></i>
+            <a href="{{ url_for('main.item_detail', item_id=thread_messages[0].item.id) }}" class="text-decoration-none text-secondary">
+                <span class="item-name">{{ thread_messages[0].item.name }}</span>
+            </a>
         </div>
     </div>
 
@@ -202,6 +204,7 @@
 
     <a href="{{ url_for('main.messages') }}" class="btn btn-secondary mt-3">Back to Messages</a>
 </div>
+
 <!-- Scroll to the end of the thread -->
 <script>
     document.addEventListener("DOMContentLoaded", function() {
