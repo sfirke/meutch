@@ -45,6 +45,96 @@
         </div>
     </div>
 
+    <!-- Active Loan Management Panel -->
+    {% if active_loan %}
+    <div class="card mb-4 border-{{ 'warning' if active_loan.status == 'pending' else 'info' if active_loan.status == 'approved' else 'secondary' }} shadow-sm">
+        <div class="card-header bg-{{ 'warning' if active_loan.status == 'pending' else 'info' if active_loan.status == 'approved' else 'secondary' }} text-{{ 'dark' if active_loan.status == 'pending' else 'white' }}">
+            <h5 class="mb-0">
+                <i class="fas fa-handshake me-2"></i>
+                Loan Management
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-2">
+                        <strong>Duration:</strong> {{ active_loan.start_date.strftime('%Y-%m-%d') }} to {{ active_loan.end_date.strftime('%Y-%m-%d') }}
+                    </p>
+                    <p class="mb-2">
+                        <strong>Status:</strong> 
+                        <span class="badge bg-{{ 'warning' if active_loan.status == 'pending' else 'success' if active_loan.status == 'approved' else 'danger' }}">
+                            {{ active_loan.status|title }}
+                        </span>
+                        {% if active_loan.status == 'approved' %}
+                            {% if active_loan.is_overdue() %}
+                                <span class="badge bg-danger ms-2">Overdue by {{ active_loan.days_overdue() }} day{{ 's' if active_loan.days_overdue() != 1 else '' }}</span>
+                            {% elif active_loan.is_due_soon() %}
+                                <span class="badge bg-warning text-dark ms-2">Due in {{ active_loan.days_until_due() }} day{{ 's' if active_loan.days_until_due() != 1 else '' }}</span>
+                            {% endif %}
+                        {% endif %}
+                    </p>
+                    <p class="mb-0">
+                        <strong>Borrower:</strong> {{ active_loan.borrower_name }}
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    {% if active_loan.status == 'pending' %}
+                        {% if thread_messages[0].item.owner == current_user %}
+                            <h6 class="mb-3">Item Owner Actions:</h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                <form method="POST" action="{{ url_for('main.process_loan', loan_id=active_loan.id, action='approve') }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-check me-1"></i>Approve Request
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('main.process_loan', loan_id=active_loan.id, action='deny') }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="fas fa-times me-1"></i>Deny Request
+                                    </button>
+                                </form>
+                                <a href="{{ url_for('main.extend_loan', loan_id=active_loan.id) }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-calendar-plus me-1"></i>Extend Loan Period
+                                </a>
+                            </div>
+                        {% elif active_loan.borrower_id == current_user.id %}
+                            <h6 class="mb-3">Borrower Actions:</h6>
+                            <form method="POST" action="{{ url_for('main.cancel_loan_request', loan_id=active_loan.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="fas fa-ban me-1"></i>Cancel Request
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% elif active_loan.status == 'approved' %}
+                        {% if thread_messages[0].item.owner == current_user %}
+                            <h6 class="mb-3">Item Owner Actions:</h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="{{ url_for('main.extend_loan', loan_id=active_loan.id) }}" class="btn btn-primary">
+                                    <i class="fas fa-calendar-plus me-1"></i>Extend Loan Period
+                                </a>
+                                <form method="POST" action="{{ url_for('main.complete_loan', loan_id=active_loan.id) }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-check-circle me-1"></i>Mark as Returned
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('main.owner_cancel_loan', loan_id=active_loan.id) }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-secondary">
+                                        <i class="fas fa-ban me-1"></i>Cancel Loan
+                                    </button>
+                                </form>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <h3>Messages</h3>
     <div class="thread-container">
         {% for msg in thread_messages %}
@@ -86,40 +176,8 @@
                                 {{ msg.loan_request.status|title }}
                             </span>
                         </p>
-                        
-                        {% if msg.loan_request.status == 'pending' %}
-                            {% if msg.item.owner == current_user %}
-                                <div class="actions">
-                                    <form method="POST" action="{{ url_for('main.process_loan', loan_id=msg.loan_request.id, action='approve') }}" style="display: inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-success btn-sm">Approve Request</button>
-                                    </form>
-                                    <form method="POST" action="{{ url_for('main.process_loan', loan_id=msg.loan_request.id, action='deny') }}" style="display: inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-danger btn-sm">Deny Request</button>
-                                    </form>
-                                    <a href="{{ url_for('main.extend_loan', loan_id=msg.loan_request.id) }}" class="btn btn-outline-primary btn-sm">Extend Loan Period</a>
-                                </div>
-                            {% elif msg.loan_request.borrower_id == current_user.id %}
-                                <form method="POST" action="{{ url_for('main.cancel_loan_request', loan_id=msg.loan_request.id) }}" style="display: inline;">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn btn-warning btn-sm">Cancel Request</button>
-                                </form>
-                            {% endif %}
-                        {% elif msg.loan_request.status == 'approved' %}
-                            {% if msg.item.owner == current_user %}
-                                <div class="actions">
-                                    <a href="{{ url_for('main.extend_loan', loan_id=msg.loan_request.id) }}" class="btn btn-outline-primary btn-sm">Extend Loan Period</a>
-                                    <form method="POST" action="{{ url_for('main.complete_loan', loan_id=msg.loan_request.id) }}" style="display: inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-info btn-sm">Mark as Returned</button>
-                                    </form>
-                                    <form method="POST" action="{{ url_for('main.owner_cancel_loan', loan_id=msg.loan_request.id) }}" style="display: inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-secondary btn-sm">Cancel Loan</button>
-                                    </form>
-                                </div>
-                            {% endif %}
+                        {% if msg.loan_request.status not in ['pending', 'approved'] %}
+                            <p class="text-muted"><em>This loan request is no longer active. {{ msg.loan_request.status|title }} on {{ msg.timestamp.strftime('%Y-%m-%d') }}.</em></p>
                         {% endif %}
                     </div>
                 {% endif %}                                        

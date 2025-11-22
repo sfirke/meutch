@@ -964,6 +964,13 @@ def view_conversation(message_id):
     except:
         db.session.rollback()
 
+    # Find active loan request for this conversation (pending or approved)
+    active_loan = None
+    for msg in thread_messages:
+        if msg.loan_request and msg.loan_request.status in ['pending', 'approved']:
+            active_loan = msg.loan_request
+            break
+
     # Handle reply form
     form = MessageForm()
     if form.validate_on_submit():
@@ -988,7 +995,7 @@ def view_conversation(message_id):
         flash("Your reply has been sent.", "success")
         return redirect(url_for('main.view_conversation', message_id=message_id))
 
-    return render_template('messaging/view_conversation.html', message=message, thread_messages=thread_messages, form=form)
+    return render_template('messaging/view_conversation.html', message=message, thread_messages=thread_messages, form=form, active_loan=active_loan)
 
 
 @main_bp.route('/delete_account', methods=['GET', 'POST'])
