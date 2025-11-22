@@ -676,7 +676,6 @@ def profile():
                 flash('Profile image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'warning')
         
         current_user.about_me = form.about_me.data
-        current_user.email_notifications_enabled = form.email_notifications_enabled.data
         
         # Handle web links - delete all existing and recreate
         UserWebLink.query.filter_by(user_id=current_user.id).delete()
@@ -703,7 +702,6 @@ def profile():
         return redirect(url_for('main.profile'))
     elif request.method == 'GET':
         form.about_me.data = current_user.about_me
-        form.email_notifications_enabled.data = current_user.email_notifications_enabled
         
         # Populate web links in form
         existing_links = UserWebLink.query.filter_by(user_id=current_user.id).order_by(UserWebLink.display_order).all()

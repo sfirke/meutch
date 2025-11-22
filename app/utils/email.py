@@ -126,11 +126,6 @@ def send_message_notification_email(message):
         current_app.logger.error(f"User not found for message notification: recipient={message.recipient_id}, sender={message.sender_id}")
         return False
     
-    # Check if recipient has email notifications enabled
-    if not recipient.email_notifications_enabled:
-        current_app.logger.info(f"Email notifications disabled for user {recipient.id}, skipping notification")
-        return True  # Return True since this is not an error
-    
     # Generate the conversation URL
     conversation_url = url_for('main.view_conversation', message_id=message.id, _external=True)
     
@@ -256,12 +251,6 @@ def send_circle_join_request_notification_email(join_request):
     
     success_count = 0
     for admin in admin_users:
-        # Check if admin has email notifications enabled
-        if not admin.email_notifications_enabled:
-            current_app.logger.info(f"Email notifications disabled for admin {admin.id}, skipping notification")
-            success_count += 1  # Count as success since this is not an error
-            continue
-        
         # Link to the requesting user's profile for quick review context
         profile_url = url_for('main.user_profile', user_id=requesting_user.id, _external=True)
 
@@ -341,11 +330,6 @@ def send_circle_join_request_decision_email(join_request):
     if not circle or not requesting_user:
         current_app.logger.error(f"Circle or user not found for join request decision notification: circle={join_request.circle_id}, user={join_request.user_id}")
         return False
-    
-    # Check if user has email notifications enabled
-    if not requesting_user.email_notifications_enabled:
-        current_app.logger.info(f"Email notifications disabled for user {requesting_user.id}, skipping notification")
-        return True  # Return True since this is not an error
     
     # Generate the circle details URL
     circle_url = url_for('circles.view_circle', circle_id=circle.id, _external=True)
@@ -458,11 +442,6 @@ def send_loan_due_soon_email(loan):
         current_app.logger.error(f"User not found for loan due soon email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
         return False
     
-    # Check if borrower has email notifications enabled
-    if not borrower.email_notifications_enabled:
-        current_app.logger.info(f"Email notifications disabled for borrower {borrower.id}, skipping reminder")
-        return True  # Return True since this is not an error
-    
     # Generate the item URL
     item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
     
@@ -543,11 +522,6 @@ def send_loan_due_today_borrower_email(loan):
         current_app.logger.error(f"User not found for loan due today email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
         return False
     
-    # Check if borrower has email notifications enabled
-    if not borrower.email_notifications_enabled:
-        current_app.logger.info(f"Email notifications disabled for borrower {borrower.id}, skipping reminder")
-        return True  # Return True since this is not an error
-    
     # Generate the item URL
     item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
     
@@ -627,11 +601,6 @@ def send_loan_due_today_owner_email(loan):
     if not borrower or not owner:
         current_app.logger.error(f"User not found for loan due today owner email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
         return False
-    
-    # Check if owner has email notifications enabled
-    if not owner.email_notifications_enabled:
-        current_app.logger.info(f"Email notifications disabled for owner {owner.id}, skipping reminder")
-        return True  # Return True since this is not an error
     
     # Generate the item URL
     item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
@@ -720,11 +689,6 @@ def send_loan_overdue_borrower_email(loan, days_overdue):
         current_app.logger.error(f"User not found for loan overdue email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
         return False
     
-    # Check if borrower has email notifications enabled
-    if not borrower.email_notifications_enabled:
-        current_app.logger.info(f"Email notifications disabled for borrower {borrower.id}, skipping reminder")
-        return True  # Return True since this is not an error
-    
     # Generate the item URL
     item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
     
@@ -806,11 +770,6 @@ def send_loan_overdue_owner_email(loan, days_overdue):
     if not borrower or not owner:
         current_app.logger.error(f"User not found for loan overdue owner email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
         return False
-    
-    # Check if owner has email notifications enabled
-    if not owner.email_notifications_enabled:
-        current_app.logger.info(f"Email notifications disabled for owner {owner.id}, skipping reminder")
-        return True  # Return True since this is not an error
     
     # Generate the item URL
     item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)

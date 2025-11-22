@@ -29,7 +29,6 @@ class UserFactory(SQLAlchemyModelFactory):
     first_name = factory.LazyAttribute(lambda obj: fake.first_name())
     last_name = factory.LazyAttribute(lambda obj: fake.last_name())
     email_confirmed = True
-    email_notifications_enabled = True
     # Password must match TEST_PASSWORD in conftest.py for login tests to work
     password_hash = factory.LazyFunction(lambda: generate_password_hash('testpassword123'))
 
