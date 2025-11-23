@@ -4,7 +4,7 @@ from factory.alchemy import SQLAlchemyModelFactory
 from faker import Faker
 from werkzeug.security import generate_password_hash
 from app import db
-from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, CircleJoinRequest, UserWebLink
+from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, CircleJoinRequest, UserWebLink, AdminAction
 import uuid
 
 fake = Faker()
@@ -29,6 +29,7 @@ class UserFactory(SQLAlchemyModelFactory):
     first_name = factory.LazyAttribute(lambda obj: fake.first_name())
     last_name = factory.LazyAttribute(lambda obj: fake.last_name())
     email_confirmed = True
+    is_admin = False
     # Password must match TEST_PASSWORD in conftest.py for login tests to work
     password_hash = factory.LazyFunction(lambda: generate_password_hash('testpassword123'))
 
@@ -116,3 +117,19 @@ class UserWebLinkFactory(SQLAlchemyModelFactory):
     platform_type = factory.Iterator(['facebook', 'instagram', 'linkedin', 'x', 'mastodon', 'bluesky'])
     url = factory.LazyAttribute(lambda obj: f"https://{obj.platform_type}.com/testuser")
     display_order = factory.Sequence(lambda n: (n % 5) + 1)  # 1-5
+
+
+class AdminActionFactory(SQLAlchemyModelFactory):
+    """Factory for AdminAction model."""
+    class Meta:
+        model = AdminAction
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+    
+    action_type = factory.Iterator(['promote', 'demote', 'delete'])
+    target_user = factory.SubFactory(UserFactory)
+    admin_user = factory.SubFactory(UserFactory, is_admin=True)
+    details = factory.LazyAttribute(lambda obj: {
+        'target_email': obj.target_user.email,
+        'target_name': obj.target_user.full_name
+    })
