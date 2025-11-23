@@ -49,10 +49,46 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>User</th>
-                                <th>Email</th>
-                                <th>Joined</th>
-                                <th>Last Active</th>
+                                <th>
+                                    <a href="{{ url_for('admin.dashboard', sort_by='full_name', order='asc' if current_sort == 'full_name' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
+                                        User
+                                        {% if current_sort == 'full_name' %}
+                                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ url_for('admin.dashboard', sort_by='email', order='asc' if current_sort == 'email' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
+                                        Email
+                                        {% if current_sort == 'email' %}
+                                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ url_for('admin.dashboard', sort_by='created_at', order='asc' if current_sort == 'created_at' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
+                                        Joined
+                                        {% if current_sort == 'created_at' %}
+                                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ url_for('admin.dashboard', sort_by='last_login', order='asc' if current_sort == 'last_login' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
+                                        Last Active
+                                        {% if current_sort == 'last_login' %}
+                                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
                                 <th>Items</th>
                                 <th>Status</th>
                                 <th class="text-end">Actions</th>
@@ -134,11 +170,11 @@
                                         </div>
 
                                         <!-- Promote Modal -->
-                                        <div class="modal fade" id="promoteModal{{ user.id }}" tabindex="-1">
+                                        <div class="modal fade" id="promoteModal{{ user.id }}" tabindex="-1" aria-labelledby="promoteModalLabel{{ user.id }}" aria-hidden="true">
                                             <div class="modal-dialog modal-dialog-centered">
                                                 <div class="modal-content">
                                                     <div class="modal-header">
-                                                        <h5 class="modal-title">Promote to Admin</h5>
+                                                        <h5 class="modal-title" id="promoteModalLabel{{ user.id }}">Promote to Admin</h5>
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                     </div>
                                                     <div class="modal-body">
@@ -159,11 +195,11 @@
                                         </div>
 
                                         <!-- Demote Modal -->
-                                        <div class="modal fade" id="demoteModal{{ user.id }}" tabindex="-1">
+                                        <div class="modal fade" id="demoteModal{{ user.id }}" tabindex="-1" aria-labelledby="demoteModalLabel{{ user.id }}" aria-hidden="true">
                                             <div class="modal-dialog modal-dialog-centered">
                                                 <div class="modal-content">
                                                     <div class="modal-header">
-                                                        <h5 class="modal-title">Remove Admin Status</h5>
+                                                        <h5 class="modal-title" id="demoteModalLabel{{ user.id }}">Remove Admin Status</h5>
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                     </div>
                                                     <div class="modal-body">
@@ -184,11 +220,11 @@
                                         </div>
 
                                         <!-- Delete Modal -->
-                                        <div class="modal fade" id="deleteModal{{ user.id }}" tabindex="-1">
+                                        <div class="modal fade" id="deleteModal{{ user.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ user.id }}" aria-hidden="true">
                                             <div class="modal-dialog modal-dialog-centered">
                                                 <div class="modal-content">
                                                     <div class="modal-header bg-danger text-white">
-                                                        <h5 class="modal-title">Delete User Account</h5>
+                                                        <h5 class="modal-title" id="deleteModalLabel{{ user.id }}">Delete User Account</h5>
                                                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                                     </div>
                                                     <div class="modal-body">
@@ -225,7 +261,7 @@
                     <nav aria-label="User list pagination">
                         <ul class="pagination justify-content-center mt-4">
                             <li class="page-item {% if not users_pagination.has_prev %}disabled{% endif %}">
-                                <a class="page-link" href="{{ url_for('admin.dashboard', page=users_pagination.prev_num) if users_pagination.has_prev else '#' }}">
+                                <a class="page-link" href="{{ url_for('admin.dashboard', page=users_pagination.prev_num, sort_by=current_sort, order=current_order) if users_pagination.has_prev else '#' }}">
                                     Previous
                                 </a>
                             </li>
@@ -233,7 +269,7 @@
                             {% for page_num in users_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
                                 {% if page_num %}
                                     <li class="page-item {% if page_num == users_pagination.page %}active{% endif %}">
-                                        <a class="page-link" href="{{ url_for('admin.dashboard', page=page_num) }}">{{ page_num }}</a>
+                                        <a class="page-link" href="{{ url_for('admin.dashboard', page=page_num, sort_by=current_sort, order=current_order) }}">{{ page_num }}</a>
                                     </li>
                                 {% else %}
                                     <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -241,7 +277,7 @@
                             {% endfor %}
                             
                             <li class="page-item {% if not users_pagination.has_next %}disabled{% endif %}">
-                                <a class="page-link" href="{{ url_for('admin.dashboard', page=users_pagination.next_num) if users_pagination.has_next else '#' }}">
+                                <a class="page-link" href="{{ url_for('admin.dashboard', page=users_pagination.next_num, sort_by=current_sort, order=current_order) if users_pagination.has_next else '#' }}">
                                     Next
                                 </a>
                             </li>
@@ -254,37 +290,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-// Fix modal z-index and focus issues
-document.addEventListener('DOMContentLoaded', function() {
-    // Ensure modals appear on top and are interactive
-    var modalElements = document.querySelectorAll('.modal');
-    modalElements.forEach(function(modalEl) {
-        modalEl.addEventListener('show.bs.modal', function() {
-            // Remove any existing backdrops
-            var existingBackdrops = document.querySelectorAll('.modal-backdrop');
-            existingBackdrops.forEach(function(backdrop) {
-                backdrop.remove();
-            });
-            
-            // Ensure modal is on top
-            setTimeout(function() {
-                modalEl.style.zIndex = 1060;
-                var backdrop = document.querySelector('.modal-backdrop');
-                if (backdrop) {
-                    backdrop.style.zIndex = 1055;
-                }
-            }, 10);
-        });
-        
-        modalEl.addEventListener('shown.bs.modal', function() {
-            // Focus the modal to ensure interactivity
-            modalEl.focus();
-        });
-    });
-});
-</script>
 {% endblock %}

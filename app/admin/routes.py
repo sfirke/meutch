@@ -17,15 +17,23 @@ logger = logging.getLogger(__name__)
 @admin_required
 def dashboard():
     """Admin dashboard with metrics and user management"""
-    # Get pagination parameters
+    # Get pagination and sorting parameters
     page = request.args.get('page', 1, type=int)
+    sort_by = request.args.get('sort_by', 'created_at', type=str)
+    order = request.args.get('order', 'desc', type=str)
     per_page = 20
+    
+    # Validate sort parameters
+    valid_sorts = ['email', 'created_at', 'last_login', 'full_name']
+    if sort_by not in valid_sorts:
+        sort_by = 'created_at'
+    if order not in ['asc', 'desc']:
+        order = 'desc'
     
     # Calculate metrics
     total_users = User.query.filter_by(is_deleted=False).count()
     
     # Active users (users who have logged in within last 30 days)
-    # Using created_at as proxy since we don't have last_login yet
     thirty_days_ago = datetime.now(UTC) - timedelta(days=30)
     recent_users = User.query.filter(
         User.is_deleted == False,
@@ -34,18 +42,47 @@ def dashboard():
     
     total_items = Item.query.count()
     
-    # Get paginated user list with item counts
-    users_query = User.query.filter_by(is_deleted=False).outerjoin(Item).group_by(User.id).order_by(User.created_at.desc())
+    # Build sort order
+    if sort_by == 'email':
+        sort_column = User.email
+    elif sort_by == 'last_login':
+        # Sort nulls last for last_login
+        if order == 'desc':
+            sort_column = User.last_login.desc().nullslast()
+        else:
+            sort_column = User.last_login.asc().nullslast()
+    elif sort_by == 'full_name':
+        # Sort by first name then last name
+        if order == 'desc':
+            sort_column = User.first_name.desc()
+            secondary_sort = User.last_name.desc()
+        else:
+            sort_column = User.first_name.asc()
+            secondary_sort = User.last_name.asc()
+    else:  # created_at
+        sort_column = User.created_at
     
-    # Add item count to each user
-    users_with_counts = db.session.query(
+    # Apply ascending/descending order (unless already done for last_login or full_name)
+    if sort_by not in ['last_login', 'full_name']:
+        if order == 'desc':
+            sort_column = sort_column.desc()
+        else:
+            sort_column = sort_column.asc()
+    
+    # Add item count to each user with dynamic sorting
+    query = db.session.query(
         User,
         func.count(Item.id).label('item_count')
     ).outerjoin(Item, Item.owner_id == User.id)\
      .filter(User.is_deleted == False)\
-     .group_by(User.id)\
-     .order_by(User.created_at.desc())\
-     .paginate(page=page, per_page=per_page, error_out=False)
+     .group_by(User.id)
+     
+    if sort_by == 'full_name':
+        query = query.order_by(sort_column, secondary_sort)
+    else:
+        query = query.order_by(sort_column)
+        
+    users_with_counts = query.paginate(page=page, per_page=per_page, error_out=False)
     
     # Create CSRF form for actions
     form = EmptyForm()
@@ -55,7 +92,9 @@ def dashboard():
                          recent_users=recent_users,
                          total_items=total_items,
                          users_pagination=users_with_counts,
-                         form=form)
+                         form=form,
+                         current_sort=sort_by,
+                         current_order=order)
 
 
 @bp.route('/users/<uuid:user_id>/promote', methods=['POST'])
