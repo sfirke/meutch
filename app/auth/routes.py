@@ -98,6 +98,10 @@ def login():
         user = User.query.filter(db.func.lower(User.email) == db.func.lower(form.email.data)).first()
         if user and user.check_password(form.password.data):  # Use the model method
             if user.is_confirmed():
+                # Update last_login timestamp
+                user.last_login = datetime.now(UTC)
+                db.session.commit()
+                
                 login_user(user)
                 # Handle redirect to 'next' page if provided
                 next_page = request.args.get('next')

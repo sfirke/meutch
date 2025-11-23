@@ -213,13 +213,15 @@ def _seed_development_data():
                 last_name="Test",
                 latitude=40.7128 + (i * 0.01),  # Spread users around NYC area
                 longitude=-74.0060 + (i * 0.01),
-                email_confirmed=True
+                email_confirmed=True,
+                is_admin=(i < 2)  # Make user1 and user2 admins
             )
             user.set_password("password123")
             db.session.add(user)
             db.session.flush()  # Get the ID
             users.append(user)
-            click.echo(f"  ✓ User: {user.email}")
+            admin_marker = " [ADMIN]" if user.is_admin else ""
+            click.echo(f"  ✓ User: {user.email}{admin_marker}")
         else:
             existing_user = User.query.filter_by(email=email).first()
             users.append(existing_user)

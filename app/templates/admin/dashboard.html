@@ -52,6 +52,7 @@
                                 <th>User</th>
                                 <th>Email</th>
                                 <th>Joined</th>
+                                <th>Last Active</th>
                                 <th>Items</th>
                                 <th>Status</th>
                                 <th class="text-end">Actions</th>
@@ -64,14 +65,7 @@
                                         <div class="d-flex align-items-center">
                                             <img src="{{ user.profile_image }}" alt="{{ user.full_name }}" 
                                                  class="rounded-circle me-2" width="40" height="40">
-                                            <div>
-                                                <strong>{{ user.full_name }}</strong>
-                                                {% if user.is_admin %}
-                                                    <span class="badge bg-warning text-dark ms-2">
-                                                        <i class="fas fa-shield-alt"></i> Admin
-                                                    </span>
-                                                {% endif %}
-                                            </div>
+                                            <strong>{{ user.full_name }}</strong>
                                         </div>
                                     </td>
                                     <td>
@@ -83,17 +77,30 @@
                                         </small>
                                     </td>
                                     <td>
+                                        {% if user.last_login %}
+                                            <small class="text-muted">
+                                                {{ user.last_login.strftime('%b %d, %Y') }}
+                                            </small>
+                                        {% else %}
+                                            <small class="text-muted">Never</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
                                         {% if item_count > 0 %}
-                                            <span class="badge bg-info">{{ item_count }}</span>
+                                            <span class="badge bg-secondary">{{ item_count }}</span>
                                         {% else %}
                                             <span class="text-muted">0</span>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if user.email_confirmed %}
-                                            <span class="badge bg-success">Verified</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Pending</span>
+                                        {% if user.is_deleted %}
+                                            <span class="badge bg-danger">Deleted</span>
+                                        {% elif user.is_admin %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-shield-alt"></i> Admin
+                                            </span>
+                                        {% elif not user.email_confirmed %}
+                                            <span class="badge bg-secondary">Unverified</span>
                                         {% endif %}
                                     </td>
                                     <td class="text-end">
@@ -128,7 +135,7 @@
 
                                         <!-- Promote Modal -->
                                         <div class="modal fade" id="promoteModal{{ user.id }}" tabindex="-1">
-                                            <div class="modal-dialog">
+                                            <div class="modal-dialog modal-dialog-centered">
                                                 <div class="modal-content">
                                                     <div class="modal-header">
                                                         <h5 class="modal-title">Promote to Admin</h5>
@@ -153,7 +160,7 @@
 
                                         <!-- Demote Modal -->
                                         <div class="modal fade" id="demoteModal{{ user.id }}" tabindex="-1">
-                                            <div class="modal-dialog">
+                                            <div class="modal-dialog modal-dialog-centered">
                                                 <div class="modal-content">
                                                     <div class="modal-header">
                                                         <h5 class="modal-title">Remove Admin Status</h5>
@@ -178,7 +185,7 @@
 
                                         <!-- Delete Modal -->
                                         <div class="modal fade" id="deleteModal{{ user.id }}" tabindex="-1">
-                                            <div class="modal-dialog">
+                                            <div class="modal-dialog modal-dialog-centered">
                                                 <div class="modal-content">
                                                     <div class="modal-header bg-danger text-white">
                                                         <h5 class="modal-title">Delete User Account</h5>
@@ -247,4 +254,37 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Fix modal z-index and focus issues
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure modals appear on top and are interactive
+    var modalElements = document.querySelectorAll('.modal');
+    modalElements.forEach(function(modalEl) {
+        modalEl.addEventListener('show.bs.modal', function() {
+            // Remove any existing backdrops
+            var existingBackdrops = document.querySelectorAll('.modal-backdrop');
+            existingBackdrops.forEach(function(backdrop) {
+                backdrop.remove();
+            });
+            
+            // Ensure modal is on top
+            setTimeout(function() {
+                modalEl.style.zIndex = 1060;
+                var backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) {
+                    backdrop.style.zIndex = 1055;
+                }
+            }, 10);
+        });
+        
+        modalEl.addEventListener('shown.bs.modal', function() {
+            // Focus the modal to ensure interactivity
+            modalEl.focus();
+        });
+    });
+});
+</script>
 {% endblock %}

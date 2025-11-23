@@ -41,6 +41,7 @@ class User(UserMixin, db.Model):
     password_reset_token = db.Column(db.String(128), nullable=True)
     password_reset_sent_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=func.now())
+    last_login = db.Column(db.DateTime, nullable=True)
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
