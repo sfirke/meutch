@@ -33,11 +33,11 @@ def dashboard():
     # Calculate metrics
     total_users = User.query.filter_by(is_deleted=False).count()
     
-    # Active users (users who have logged in within last 30 days)
+    # Recently active users (users who have logged in within last 30 days)
     thirty_days_ago = datetime.now(UTC) - timedelta(days=30)
     recent_users = User.query.filter(
         User.is_deleted == False,
-        User.created_at >= thirty_days_ago
+        User.last_login >= thirty_days_ago
     ).count()
     
     total_items = Item.query.count()
