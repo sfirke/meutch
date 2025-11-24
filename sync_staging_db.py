@@ -69,9 +69,10 @@ def sync_staging_db():
     try:
         # Use PostgreSQL tools directly (both DBs are PostgreSQL 17)
         click.echo("📦 Creating production dump...")
+        # Don't use --clean since we handle dropping tables ourselves with CASCADE
         dump_cmd = [
             'pg_dump', prod_db_url,
-            '--no-owner', '--no-privileges', '--clean', '--if-exists',
+            '--no-owner', '--no-privileges',
             '--file', dump_file, '--verbose'
         ]
         
@@ -85,6 +86,7 @@ def sync_staging_db():
         
         # Drop all tables in staging to ensure clean slate
         # This prevents foreign key constraint issues when restoring
+        # The production dump will recreate everything including alembic_version
         click.echo("🧹 Cleaning staging database...")
         drop_cmd = ['psql', staging_db_url, '-t', '-c',
                    "SELECT 'DROP TABLE IF EXISTS \"' || tablename || '\" CASCADE;' "
@@ -99,6 +101,7 @@ def sync_staging_db():
                 click.echo(f"⚠️  Warning during cleanup: {exec_result.stderr}")
         
         click.echo("📥 Restoring to staging...")
+        # Remove --clean from restore since we already dropped everything
         restore_cmd = ['psql', staging_db_url, '--file', dump_file]
         
         result = subprocess.run(restore_cmd, capture_output=True, text=True)
