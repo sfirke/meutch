@@ -106,7 +106,7 @@ def promote_user(user_id):
         flash('Invalid request', 'danger')
         return redirect(url_for('admin.dashboard'))
     
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     
     if user.is_deleted:
         flash('Cannot promote a deleted user', 'admin-error')
@@ -147,7 +147,7 @@ def demote_user(user_id):
         flash('Invalid request', 'danger')
         return redirect(url_for('admin.dashboard'))
     
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     
     # Prevent self-demotion
     if user.id == current_user.id:
@@ -189,7 +189,7 @@ def delete_user(user_id):
         flash('Invalid request', 'danger')
         return redirect(url_for('admin.dashboard'))
     
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     
     # Prevent self-deletion
     if user.id == current_user.id:
