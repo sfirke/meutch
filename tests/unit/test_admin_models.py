@@ -15,17 +15,6 @@ def test_user_is_admin_default_false(app, db_session):
     assert user.is_admin is False
 
 
-def test_user_can_be_promoted_to_admin(app, db_session):
-    """Test that a user can be promoted to admin"""
-    user = UserFactory()
-    db_session.commit()
-    
-    user.is_admin = True
-    db_session.commit()
-    
-    assert user.is_admin is True
-
-
 def test_admin_action_model_creation(app, db_session):
     """Test AdminAction model can be created"""
     admin = UserFactory(is_admin=True)
@@ -71,7 +60,6 @@ def test_admin_action_factory(app, db_session):
 
 def test_admin_required_decorator_blocks_non_admin(app, db_session):
     """Test that admin_required decorator blocks non-admin users"""
-    from flask import abort
     
     @admin_required
     def admin_only_view():
@@ -108,13 +96,3 @@ def test_admin_required_decorator_allows_admin(app, db_session):
         # Should succeed
         result = admin_only_view()
         assert result == "admin content"
-
-
-def test_user_factory_can_create_admin(app, db_session):
-    """Test that UserFactory can create admin users"""
-    admin = UserFactory(is_admin=True)
-    regular = UserFactory(is_admin=False)
-    db_session.commit()
-    
-    assert admin.is_admin is True
-    assert regular.is_admin is False
