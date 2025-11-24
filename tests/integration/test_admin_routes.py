@@ -3,6 +3,7 @@ import pytest
 from flask import url_for
 from tests.factories import UserFactory, ItemFactory, AdminActionFactory
 from app.models import AdminAction
+from conftest import login_user
 
 
 class TestAdminDashboardAccess:
@@ -19,10 +20,7 @@ class TestAdminDashboardAccess:
         user = UserFactory(is_admin=False)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': user.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, user.email)
         
         response = client.get('/admin/')
         assert response.status_code == 403
@@ -32,10 +30,7 @@ class TestAdminDashboardAccess:
         admin = UserFactory(is_admin=True)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.get('/admin/')
         assert response.status_code == 200
@@ -51,10 +46,7 @@ class TestAdminDashboardMetrics:
         UserFactory.create_batch(5)  # 5 regular users
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.get('/admin/')
         assert response.status_code == 200
@@ -68,14 +60,12 @@ class TestAdminDashboardMetrics:
         ItemFactory.create_batch(3)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.get('/admin/')
         assert response.status_code == 200
         assert b'Total Items' in response.data
+        assert b'3' in response.data
 
 
 class TestAdminUserList:
@@ -87,10 +77,7 @@ class TestAdminUserList:
         user = UserFactory()
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.get('/admin/')
         assert response.status_code == 200
@@ -103,10 +90,7 @@ class TestAdminUserList:
         UserFactory.create_batch(25)  # More than one page (20 per page)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         # First page
         response = client.get('/admin/')
@@ -127,10 +111,7 @@ class TestPromoteUser:
         user = UserFactory(is_admin=False)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.post(f'/admin/users/{user.id}/promote', follow_redirects=True)
         assert response.status_code == 200
@@ -153,10 +134,7 @@ class TestPromoteUser:
         target = UserFactory(is_admin=False)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': non_admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, non_admin.email)
         
         response = client.post(f'/admin/users/{target.id}/promote')
         assert response.status_code == 403
@@ -171,10 +149,7 @@ class TestPromoteUser:
         already_admin = UserFactory(is_admin=True)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.post(f'/admin/users/{already_admin.id}/promote', follow_redirects=True)
         assert response.status_code == 200
@@ -190,10 +165,7 @@ class TestDemoteUser:
         target_admin = UserFactory(is_admin=True)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.post(f'/admin/users/{target_admin.id}/demote', follow_redirects=True)
         assert response.status_code == 200
@@ -215,10 +187,7 @@ class TestDemoteUser:
         admin = UserFactory(is_admin=True)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.post(f'/admin/users/{admin.id}/demote', follow_redirects=True)
         assert response.status_code == 200
@@ -234,10 +203,7 @@ class TestDemoteUser:
         regular_user = UserFactory(is_admin=False)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.post(f'/admin/users/{regular_user.id}/demote', follow_redirects=True)
         assert response.status_code == 200
@@ -254,12 +220,8 @@ class TestDeleteUser:
         db_session.commit()
         
         user_id = user.id
-        user_email = user.email
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.post(f'/admin/users/{user_id}/delete', follow_redirects=True)
         assert response.status_code == 200
@@ -282,10 +244,7 @@ class TestDeleteUser:
         admin = UserFactory(is_admin=True)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.post(f'/admin/users/{admin.id}/delete', follow_redirects=True)
         assert response.status_code == 200
@@ -301,10 +260,7 @@ class TestDeleteUser:
         target = UserFactory()
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': non_admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, non_admin.email)
         
         response = client.post(f'/admin/users/{target.id}/delete')
         assert response.status_code == 403
@@ -322,10 +278,7 @@ class TestAdminNavbarLink:
         admin = UserFactory(is_admin=True)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.get('/')
         assert response.status_code == 200
@@ -336,10 +289,7 @@ class TestAdminNavbarLink:
         user = UserFactory(is_admin=False)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': user.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, user.email)
         
         response = client.get('/')
         assert response.status_code == 200
@@ -355,10 +305,7 @@ class TestAdminFlashMessages:
         user = UserFactory(is_admin=False)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         response = client.post(f'/admin/users/{user.id}/promote', follow_redirects=True)
         assert response.status_code == 200
@@ -370,10 +317,7 @@ class TestAdminFlashMessages:
         admin = UserFactory(is_admin=True)
         db_session.commit()
         
-        client.post('/auth/login', data={
-            'email': admin.email,
-            'password': 'testpassword123'
-        })
+        login_user(client, admin.email)
         
         # Try to demote self
         response = client.post(f'/admin/users/{admin.id}/demote', follow_redirects=True)
