@@ -91,23 +91,21 @@ def app():
     app = create_app(TestConfig)
     
     with app.app_context():
-        # Ensure clean state by dropping all tables first
+        # Drop and recreate tables for clean state
         db.drop_all()
         db.create_all()
         
-        # Create test categories - check if they exist first to avoid duplicates
+        # Create test categories
         categories = ['Tools', 'Electronics', 'Books', 'Sports Equipment']
         for cat_name in categories:
-            existing_cat = Category.query.filter_by(name=cat_name).first()
-            if not existing_cat:
-                category = Category(name=cat_name)
-                db.session.add(category)
+            category = Category(name=cat_name)
+            db.session.add(category)
         
         db.session.commit()
         
         yield app
         
-        # Clean up after test
+        # Clean up
         db.session.remove()
         db.drop_all()
 
@@ -125,19 +123,19 @@ def runner(app):
 def db_session(app):
     """Create a database session with automatic rollback for test isolation."""
     with app.app_context():
-        # Start a transaction
+        # Start a transaction for isolation
         connection = db.engine.connect()
         transaction = connection.begin()
         
-        # Configure session to use this connection
-        db.session.configure(bind=connection)
+        # Bind the session to this connection
+        db.session.bind = connection
         
         yield db.session
         
-        # Rollback transaction and close connection
+        # Rollback the transaction and close
+        db.session.remove()
         transaction.rollback()
         connection.close()
-        db.session.remove()
 
 @pytest.fixture
 def auth_user(app):

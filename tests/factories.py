@@ -9,6 +9,10 @@ import uuid
 
 fake = Faker()
 
+# Pre-compute password hash once to avoid slow bcrypt on every user creation
+# This matches TEST_PASSWORD in conftest.py
+TEST_PASSWORD_HASH = generate_password_hash('testpassword123')
+
 class CategoryFactory(SQLAlchemyModelFactory):
     """Factory for Category model."""
     class Meta:
@@ -30,8 +34,8 @@ class UserFactory(SQLAlchemyModelFactory):
     last_name = factory.LazyAttribute(lambda obj: fake.last_name())
     email_confirmed = True
     is_admin = False
-    # Password must match TEST_PASSWORD in conftest.py for login tests to work
-    password_hash = factory.LazyFunction(lambda: generate_password_hash('testpassword123'))
+    # Use pre-computed hash instead of hashing on every factory call
+    password_hash = TEST_PASSWORD_HASH
 
 class TagFactory(SQLAlchemyModelFactory):
     """Factory for Tag model."""
