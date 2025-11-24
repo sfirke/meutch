@@ -83,8 +83,23 @@ def sync_staging_db():
         dump_size = os.path.getsize(dump_file)
         click.echo(f"📊 Created dump: {dump_size / 1024:.1f} KB")
         
+        # Drop all tables in staging to ensure clean slate
+        # This prevents foreign key constraint issues when restoring
+        click.echo("🧹 Cleaning staging database...")
+        drop_cmd = ['psql', staging_db_url, '-t', '-c',
+                   "SELECT 'DROP TABLE IF EXISTS \"' || tablename || '\" CASCADE;' "
+                   "FROM pg_tables WHERE schemaname = 'public';"]
+        drop_result = subprocess.run(drop_cmd, capture_output=True, text=True)
+        
+        if drop_result.returncode == 0 and drop_result.stdout.strip():
+            # Execute the generated DROP statements
+            execute_drops = ['psql', staging_db_url, '-c', drop_result.stdout]
+            exec_result = subprocess.run(execute_drops, capture_output=True, text=True)
+            if exec_result.returncode != 0:
+                click.echo(f"⚠️  Warning during cleanup: {exec_result.stderr}")
+        
         click.echo("📥 Restoring to staging...")
-        restore_cmd = ['psql', staging_db_url, '--file', dump_file, '--quiet']
+        restore_cmd = ['psql', staging_db_url, '--file', dump_file]
         
         result = subprocess.run(restore_cmd, capture_output=True, text=True)
         
