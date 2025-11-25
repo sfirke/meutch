@@ -55,6 +55,13 @@
                             <i class="fas fa-info-circle me-1"></i>About
                         </a>
                     </li>
+                    {% if current_user.is_authenticated and current_user.is_admin %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
+                                <i class="fas fa-user-shield me-1"></i>Admin Panel
+                            </a>
+                        </li>
+                    {% endif %}
                 </ul>
 
                 <ul class="navbar-nav">
@@ -121,11 +128,25 @@
             {% if messages %}
                 <div class="container mt-3">
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                            <i class="fas fa-{{ 'exclamation-triangle' if category == 'warning' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
+                        {% if category == 'admin-success' %}
+                            <div class="alert alert-success alert-dismissible fade show border-start border-5 border-success" role="alert">
+                                <i class="fas fa-user-shield me-2"></i>
+                                <strong>Admin:</strong> {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% elif category == 'admin-error' %}
+                            <div class="alert alert-danger alert-dismissible fade show border-start border-5 border-danger" role="alert">
+                                <i class="fas fa-user-shield me-2"></i>
+                                <strong>Admin:</strong> {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                <i class="fas fa-{{ 'exclamation-triangle' if category == 'warning' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endif %}
                     {% endfor %}
                 </div>
             {% endif %}

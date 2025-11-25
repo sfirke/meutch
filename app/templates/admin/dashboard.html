@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="mb-4">
+        <h1><i class="fas fa-user-shield me-2"></i>Admin Panel</h1>
+        <p class="text-muted">Platform administration and user management</p>
+    </div>
+
+    <!-- Metrics Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                    <h3 class="card-title">{{ total_users }}</h3>
+                    <p class="card-text text-muted">Total Users</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-check fa-3x text-success mb-3"></i>
+                    <h3 class="card-title">{{ recent_users }}</h3>
+                    <p class="card-text text-muted">Recent Users <small>(30 days)</small></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <i class="fas fa-box fa-3x text-info mb-3"></i>
+                    <h3 class="card-title">{{ total_items }}</h3>
+                    <p class="card-text text-muted">Total Items</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Management Table -->
+    <div class="card">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>User Management</h5>
+        </div>
+        <div class="card-body">
+            {% if users_pagination.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <a href="{{ url_for('admin.dashboard', sort_by='full_name', order='asc' if current_sort == 'full_name' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
+                                        User
+                                        {% if current_sort == 'full_name' %}
+                                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ url_for('admin.dashboard', sort_by='email', order='asc' if current_sort == 'email' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
+                                        Email
+                                        {% if current_sort == 'email' %}
+                                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ url_for('admin.dashboard', sort_by='created_at', order='asc' if current_sort == 'created_at' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
+                                        Joined
+                                        {% if current_sort == 'created_at' %}
+                                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ url_for('admin.dashboard', sort_by='last_login', order='asc' if current_sort == 'last_login' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
+                                        Last Active
+                                        {% if current_sort == 'last_login' %}
+                                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>Items</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user, item_count in users_pagination.items %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <img src="{{ user.profile_image }}" alt="{{ user.full_name }}" 
+                                                 class="rounded-circle me-2" width="40" height="40">
+                                            <strong>{{ user.full_name }}</strong>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="mailto:{{ user.email }}">{{ user.email }}</a>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ user.created_at.strftime('%b %d, %Y') }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if user.last_login %}
+                                            <small class="text-muted">
+                                                {{ user.last_login.strftime('%b %d, %Y') }}
+                                            </small>
+                                        {% else %}
+                                            <small class="text-muted">Never</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item_count > 0 %}
+                                            <span class="badge bg-secondary">{{ item_count }}</span>
+                                        {% else %}
+                                            <span class="text-muted">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.is_deleted %}
+                                            <span class="badge bg-danger">Deleted</span>
+                                        {% elif user.is_admin %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-shield-alt"></i> Admin
+                                            </span>
+                                        {% elif not user.email_confirmed %}
+                                            <span class="badge bg-secondary">Unverified</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group" role="group">
+                                            {% if user.id != current_user.id %}
+                                                {% if not user.is_admin %}
+                                                    <!-- Promote to Admin Button -->
+                                                    <button type="button" class="btn btn-sm btn-outline-success" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#promoteModal{{ user.id }}">
+                                                        <i class="fas fa-arrow-up"></i> Promote
+                                                    </button>
+                                                {% else %}
+                                                    <!-- Demote from Admin Button -->
+                                                    <button type="button" class="btn btn-sm btn-outline-warning" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#demoteModal{{ user.id }}">
+                                                        <i class="fas fa-arrow-down"></i> Demote
+                                                    </button>
+                                                {% endif %}
+                                                
+                                                <!-- Delete User Button -->
+                                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#deleteModal{{ user.id }}">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>
+                                            {% else %}
+                                                <span class="text-muted"><em>You</em></span>
+                                            {% endif %}
+                                        </div>
+
+                                        <!-- Promote Modal -->
+                                        <div class="modal fade" id="promoteModal{{ user.id }}" tabindex="-1" aria-labelledby="promoteModalLabel{{ user.id }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="promoteModalLabel{{ user.id }}">Promote to Admin</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p>Are you sure you want to promote <strong>{{ user.full_name }}</strong> to admin?</p>
+                                                        <p class="text-muted small">They will have full access to the admin panel and can manage other users.</p>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <form method="POST" action="{{ url_for('admin.promote_user', user_id=user.id) }}" class="d-inline">
+                                                            {{ form.hidden_tag() }}
+                                                            <button type="submit" class="btn btn-success">
+                                                                <i class="fas fa-arrow-up"></i> Promote
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Demote Modal -->
+                                        <div class="modal fade" id="demoteModal{{ user.id }}" tabindex="-1" aria-labelledby="demoteModalLabel{{ user.id }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="demoteModalLabel{{ user.id }}">Remove Admin Status</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p>Are you sure you want to remove admin status from <strong>{{ user.full_name }}</strong>?</p>
+                                                        <p class="text-muted small">They will lose access to the admin panel.</p>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <form method="POST" action="{{ url_for('admin.demote_user', user_id=user.id) }}" class="d-inline">
+                                                            {{ form.hidden_tag() }}
+                                                            <button type="submit" class="btn btn-warning">
+                                                                <i class="fas fa-arrow-down"></i> Demote
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Delete Modal -->
+                                        <div class="modal fade" id="deleteModal{{ user.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ user.id }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header bg-danger text-white">
+                                                        <h5 class="modal-title" id="deleteModalLabel{{ user.id }}">Delete User Account</h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p><strong class="text-danger">Warning:</strong> This will permanently delete the account for <strong>{{ user.full_name }}</strong>.</p>
+                                                        <p class="text-muted small">This action will:</p>
+                                                        <ul class="text-muted small">
+                                                            <li>Soft-delete the user account</li>
+                                                            <li>Mark all their items as deleted</li>
+                                                            <li>Anonymize their email address</li>
+                                                            <li>This cannot be undone</li>
+                                                        </ul>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}" class="d-inline">
+                                                            {{ form.hidden_tag() }}
+                                                            <button type="submit" class="btn btn-danger">
+                                                                <i class="fas fa-trash"></i> Delete Account
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if users_pagination.pages > 1 %}
+                    <nav aria-label="User list pagination">
+                        <ul class="pagination justify-content-center mt-4">
+                            <li class="page-item {% if not users_pagination.has_prev %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin.dashboard', page=users_pagination.prev_num, sort_by=current_sort, order=current_order) if users_pagination.has_prev else '#' }}">
+                                    Previous
+                                </a>
+                            </li>
+                            
+                            {% for page_num in users_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                {% if page_num %}
+                                    <li class="page-item {% if page_num == users_pagination.page %}active{% endif %}">
+                                        <a class="page-link" href="{{ url_for('admin.dashboard', page=page_num, sort_by=current_sort, order=current_order) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <li class="page-item {% if not users_pagination.has_next %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin.dashboard', page=users_pagination.next_num, sort_by=current_sort, order=current_order) if users_pagination.has_next else '#' }}">
+                                    Next
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <p class="text-muted text-center py-4">No users found.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

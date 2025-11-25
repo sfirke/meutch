@@ -213,13 +213,15 @@ def _seed_development_data():
                 last_name="Test",
                 latitude=40.7128 + (i * 0.01),  # Spread users around NYC area
                 longitude=-74.0060 + (i * 0.01),
-                email_confirmed=True
+                email_confirmed=True,
+                is_admin=(i < 2)  # Make user1 and user2 admins
             )
             user.set_password("password123")
             db.session.add(user)
             db.session.flush()  # Get the ID
             users.append(user)
-            click.echo(f"  ✓ User: {user.email}")
+            admin_marker = " [ADMIN]" if user.is_admin else ""
+            click.echo(f"  ✓ User: {user.email}{admin_marker}")
         else:
             existing_user = User.query.filter_by(email=email).first()
             users.append(existing_user)
@@ -649,6 +651,76 @@ def check_loan_reminders_logic():
                 db.session.rollback()
     
     return stats
+
+
+@click.group()
+def user():
+    """User management commands."""
+    pass
+
+
+@user.command('promote-admin')
+@click.argument('email')
+@with_appcontext
+def promote_admin(email):
+    """Promote a user to admin status."""
+    from app import db
+    from app.models import User
+    
+    # Find user by email (case-insensitive)
+    user = User.query.filter(User.email.ilike(email)).first()
+    
+    if not user:
+        click.echo(f'❌ User not found: {email}')
+        return
+    
+    if user.is_deleted:
+        click.echo(f'❌ Cannot promote deleted user: {email}')
+        return
+    
+    if user.is_admin:
+        click.echo(f'ℹ️  User {email} is already an admin')
+        return
+    
+    # Confirm promotion
+    if not click.confirm(f'Promote {user.full_name} ({email}) to admin?'):
+        click.echo('Aborted.')
+        return
+    
+    user.is_admin = True
+    db.session.commit()
+    
+    click.echo(f'✅ {user.full_name} ({email}) promoted to admin')
+
+
+@user.command('demote-admin')
+@click.argument('email')
+@with_appcontext
+def demote_admin(email):
+    """Remove admin status from a user."""
+    from app import db
+    from app.models import User
+    
+    # Find user by email (case-insensitive)
+    user = User.query.filter(User.email.ilike(email)).first()
+    
+    if not user:
+        click.echo(f'❌ User not found: {email}')
+        return
+    
+    if not user.is_admin:
+        click.echo(f'ℹ️  User {email} is not an admin')
+        return
+    
+    # Confirm demotion
+    if not click.confirm(f'Remove admin status from {user.full_name} ({email})?'):
+        click.echo('Aborted.')
+        return
+    
+    user.is_admin = False
+    db.session.commit()
+    
+    click.echo(f'✅ Admin status removed from {user.full_name} ({email})')
 
 
 @click.command()

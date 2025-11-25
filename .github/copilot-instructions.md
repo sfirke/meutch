@@ -54,20 +54,20 @@ When you write a test, use factories from `tests/factories.py` to create test da
 export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
 
 # Unit tests (fastest)
-./run_tests.sh -u -c  # Takes 18 seconds - NEVER CANCEL
+./run_tests.sh -u -c  # Takes 60 seconds - NEVER CANCEL
 
 # Integration tests  
-./run_tests.sh -i     # Takes 30 seconds - NEVER CANCEL
+./run_tests.sh -i     # Takes 60 seconds - NEVER CANCEL
 
 # Functional tests
-./run_tests.sh -f     # Takes 7 seconds - NEVER CANCEL
+./run_tests.sh -f     # Takes 60 seconds - NEVER CANCEL
 
 # All tests with coverage
-./run_tests.sh -c     # Takes 56 seconds - NEVER CANCEL
+./run_tests.sh -c     # Takes 180 seconds - NEVER CANCEL
 ```
 
 **TIMEOUT REQUIREMENTS:**
-- Set timeouts to at least 120 seconds for all test commands
+- Set timeouts to at least 180 seconds for all test commands
 - Set timeouts to at least 60 seconds for any build commands
 - **NEVER CANCEL** long-running operations - tests may take up to 60 seconds
 

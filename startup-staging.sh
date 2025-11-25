@@ -26,19 +26,20 @@ fi
 # Sync production data to staging if both database URLs are available
 if [ -n "$PROD_DATABASE_URL" ] && [ -n "$STAGING_DATABASE_URL" ]; then
     echo "📊 Starting production data sync..."
-    echo "💡 This will run synchronously to ensure visibility in deployment logs"
+    echo "💡 This creates a clean copy of production (schema + data + migration state)"
     python sync_staging_db.py
     echo "✅ Production data sync completed"
+    
+    # Run any NEW migrations that exist in staging code but not in production
+    echo "🔄 Running new migrations (if any)..."
+    flask db upgrade
+    echo "✅ Migrations completed"
 else
-    echo "⚠️  Required environment variables not set, skipping production data sync"
-    echo "   Staging will use empty database"
+    echo "⚠️  Skipping production sync (environment variables not set)"
+    echo "🔄 Running database migrations for empty database..."
+    flask db upgrade
+    echo "✅ Migrations completed"
 fi
-
-# Run database migrations AFTER data sync to apply schema changes to synced data
-echo "🔄 Running database migrations..."
-flask db upgrade
-
-echo "✅ Database migrations completed successfully"
 
 echo "✅ Staging startup completed successfully!"
 echo "🌐 Application ready to serve requests"

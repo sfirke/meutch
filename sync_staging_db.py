@@ -69,9 +69,11 @@ def sync_staging_db():
     try:
         # Use PostgreSQL tools directly (both DBs are PostgreSQL 17)
         click.echo("📦 Creating production dump...")
+        # Use --clean to drop objects before recreating them
         dump_cmd = [
             'pg_dump', prod_db_url,
-            '--no-owner', '--no-privileges', '--clean', '--if-exists',
+            '--clean', '--if-exists',
+            '--no-owner', '--no-privileges',
             '--file', dump_file, '--verbose'
         ]
         
@@ -83,8 +85,9 @@ def sync_staging_db():
         dump_size = os.path.getsize(dump_file)
         click.echo(f"📊 Created dump: {dump_size / 1024:.1f} KB")
         
-        click.echo("📥 Restoring to staging...")
-        restore_cmd = ['psql', staging_db_url, '--file', dump_file, '--quiet']
+        # Restore to staging - dump includes DROP statements with CASCADE
+        click.echo("📥 Restoring to staging (will drop existing objects)...")
+        restore_cmd = ['psql', staging_db_url, '--file', dump_file, '--single-transaction']
         
         result = subprocess.run(restore_cmd, capture_output=True, text=True)
         

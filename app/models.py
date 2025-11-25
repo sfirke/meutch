@@ -41,8 +41,10 @@ class User(UserMixin, db.Model):
     password_reset_token = db.Column(db.String(128), nullable=True)
     password_reset_sent_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=func.now())
+    last_login = db.Column(db.DateTime, nullable=True)
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
     
     @property
     def profile_image(self):
@@ -568,3 +570,21 @@ class UserWebLink(db.Model):
     
     def __repr__(self):
         return f'<UserWebLink {self.user_id}: {self.platform_type} - {self.url}>'
+
+
+class AdminAction(db.Model):
+    """Audit log for admin actions"""
+    __tablename__ = 'admin_action'
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
+    action_type = db.Column(db.String(50), nullable=False)  # 'promote', 'demote', 'delete'
+    target_user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    admin_user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, default=func.now(), nullable=False)
+    details = db.Column(db.JSON, nullable=True)  # Additional context like reason, email, etc.
+    
+    # Relationships
+    target_user = db.relationship('User', foreign_keys=[target_user_id], backref='actions_received')
+    admin_user = db.relationship('User', foreign_keys=[admin_user_id], backref='actions_performed')
+    
+    def __repr__(self):
+        return f'<AdminAction {self.action_type} by {self.admin_user_id} on {self.target_user_id}>'

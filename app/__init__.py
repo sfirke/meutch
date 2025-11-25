@@ -57,10 +57,14 @@ def create_app(config_class=None):
     from app.circles import bp as circles_bp
     app.register_blueprint(circles_bp, url_prefix='/circles')
 
+    from app.admin import bp as admin_bp
+    app.register_blueprint(admin_bp, url_prefix='/admin')
+
     # Register CLI commands
     try:
-        from app.cli import seed, check_loan_reminders
+        from app.cli import seed, user, check_loan_reminders
         app.cli.add_command(seed)
+        app.cli.add_command(user)
         app.cli.add_command(check_loan_reminders)
     except ImportError as e:
         print(f"Warning: Could not import CLI commands: {e}")
