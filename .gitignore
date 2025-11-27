@@ -180,3 +180,6 @@ app/static/uploads/circles/*
 !app/static/uploads/items/.gitkeep
 !app/static/uploads/profiles/.gitkeep
 !app/static/uploads/circles/.gitkeep
+
+# markdown design files
+dev_docs/*

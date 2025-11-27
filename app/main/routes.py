@@ -12,16 +12,6 @@ from app.utils.storage import delete_file, upload_item_image, upload_profile_ima
 
 @main_bp.route('/')
 def index():
-    # Only show items whose owner is in at least one public circle
-    public_circle_ids = select(Circle.id).where(Circle.requires_approval == False)
-    # Find user IDs who are in at least one public circle
-    public_user_ids = select(circle_members.c.user_id).where(
-        circle_members.c.circle_id.in_(public_circle_ids)
-    ).distinct()
-    
-    # Base query for items in public circles, ordered by newest first
-    base_query = Item.query.filter(Item.owner_id.in_(public_user_ids)).order_by(Item.created_at.desc())
-    
     circles = []
     items = []
     pagination = None
@@ -30,13 +20,40 @@ def index():
     
     if current_user.is_authenticated:
         circles = current_user.circles
-        # For logged-in users: show paginated results
-        page = request.args.get('page', 1, type=int)
-        per_page = 12  # Items per page for logged-in users
-        pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
-        items = pagination.items
+        
+        # For logged-in users: show items from users who share circles with them
+        # Get all circle IDs the current user is a member of
+        user_circle_ids = [circle.id for circle in current_user.circles]
+        
+        if user_circle_ids:
+            # Find all user IDs who are members of the same circles
+            shared_circle_user_ids = select(circle_members.c.user_id).where(
+                circle_members.c.circle_id.in_(user_circle_ids)
+            ).distinct()
+            
+            # Query items from those users, excluding own items, ordered by newest first
+            base_query = Item.query.filter(
+                Item.owner_id.in_(shared_circle_user_ids),
+                Item.owner_id != current_user.id
+            ).order_by(Item.created_at.desc())
+            
+            # Paginate results
+            page = request.args.get('page', 1, type=int)
+            per_page = 12  # Items per page for logged-in users
+            pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
+            items = pagination.items
+        # else: user has no circles, items list stays empty
+        
     else:
-        # For anonymous users: show limited items with count
+        # For anonymous users: show items from public circle members
+        public_circle_ids = select(Circle.id).where(Circle.requires_approval == False)
+        public_user_ids = select(circle_members.c.user_id).where(
+            circle_members.c.circle_id.in_(public_circle_ids)
+        ).distinct()
+        
+        base_query = Item.query.filter(Item.owner_id.in_(public_user_ids)).order_by(Item.created_at.desc())
+        
+        # Show limited items with count
         preview_limit = 12  # Items to show for preview
         total_items = base_query.count()
         items = base_query.limit(preview_limit).all()
