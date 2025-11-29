@@ -165,12 +165,11 @@
                     </a>
                 {% elif current_user.is_authenticated %}
                     <h4>No items available</h4>
-                    <p>No items are currently available for sharing. Be the first to list something!</p>
+                    <p>No items are currently available for sharing in the circles you belong to. Be the first to list something!</p>
                     <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
                         <i class="fas fa-plus me-1"></i>List Your First Item
                     </a>
                 {% else %}
-                    <h4>Items coming soon!</h4>
                     <p>Join our community to see what your neighbors are sharing and list your own items.</p>
                     <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
                         <i class="fas fa-user-plus me-1"></i>Join Meutch
