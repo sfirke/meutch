@@ -63,6 +63,46 @@ body {
     color: var(--dark-text) !important;
 }
 
+/* Navbar Logo */
+.navbar-logo {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    border-radius: var(--border-radius-sm);
+    transition: transform 0.2s ease;
+}
+
+.navbar-brand:hover .navbar-logo {
+    transform: scale(1.05);
+}
+
+/* Hero Logo (homepage/about page) */
+.hero-logo {
+    width: 160px;
+    height: 160px;
+    object-fit: contain;
+    margin-bottom: 1rem;
+    animation: fadeInDown 0.6s ease-out;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Footer Logo */
+.footer-logo {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
 .logo-placeholder {
     width: 32px;
     height: 32px;
@@ -523,6 +563,12 @@ footer h6 {
     
     h1 {
         font-size: 2rem;
+    }
+    
+    /* Hero logo smaller on mobile */
+    .hero-logo {
+        width: 80px;
+        height: 80px;
     }
     
     .items-grid {
