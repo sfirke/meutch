@@ -9,6 +9,7 @@
     <div class="row mb-5">
         <div class="col-12">
             <div class="text-center">
+                <img src="{{ url_for('static', filename='img/logo_handshake.png') }}" alt="Meutch - Share with your community" class="hero-logo mb-3">
                 <h1 class="display-4 mb-3">Welcome to Meutch</h1>
                 <p class="lead text-muted mb-4">Help a neighbor, help the world.</p>
                 {% if not current_user.is_authenticated %}
