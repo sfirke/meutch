@@ -30,13 +30,8 @@ class TestMainRoutes:
         with app.app_context():
             # Create more than 12 items to test the limit
             category = CategoryFactory()
-            user = UserFactory()
-            
-            # Create a public circle and add the user to it
-            from app.models import Circle
-            circle = Circle(name="Test Public Circle", description="Test", requires_approval=False)
-            db.session.add(circle)
-            circle.members.append(user)
+            # User must be marked as public showcase for items to be visible to anonymous users
+            user = UserFactory(is_public_showcase=True)
             db.session.commit()
             
             for i in range(15):

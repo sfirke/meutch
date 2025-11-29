@@ -163,18 +163,18 @@
                     <a href="{{ url_for('circles.search_circles') }}" class="btn btn-primary">
                         <i class="fas fa-search me-1"></i>Find Circles to Join
                     </a>
-                {% else %}
+                {% elif current_user.is_authenticated %}
                     <h4>No items available</h4>
-                    <p>No items are currently available for sharing. {% if current_user.is_authenticated %}Be the first to list something!{% else %}Join our community to start sharing.{% endif %}</p>
-                    {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
-                            <i class="fas fa-plus me-1"></i>List Your First Item
-                        </a>
-                    {% else %}
-                        <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
-                            <i class="fas fa-user-plus me-1"></i>Join Meutch
-                        </a>
-                    {% endif %}
+                    <p>No items are currently available for sharing. Be the first to list something!</p>
+                    <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>List Your First Item
+                    </a>
+                {% else %}
+                    <h4>Items coming soon!</h4>
+                    <p>Join our community to see what your neighbors are sharing and list your own items.</p>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
+                        <i class="fas fa-user-plus me-1"></i>Join Meutch
+                    </a>
                 {% endif %}
             </div>
         {% endif %}

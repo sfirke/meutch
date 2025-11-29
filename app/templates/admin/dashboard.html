@@ -138,6 +138,11 @@
                                         {% elif not user.email_confirmed %}
                                             <span class="badge bg-secondary">Unverified</span>
                                         {% endif %}
+                                        {% if user.is_public_showcase %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-star"></i> Showcase
+                                            </span>
+                                        {% endif %}
                                     </td>
                                     <td class="text-end">
                                         <div class="btn-group" role="group">
@@ -155,6 +160,22 @@
                                                             data-bs-toggle="modal" 
                                                             data-bs-target="#demoteModal{{ user.id }}">
                                                         <i class="fas fa-arrow-down"></i> Demote
+                                                    </button>
+                                                {% endif %}
+                                                
+                                                {% if not user.is_public_showcase %}
+                                                    <!-- Enable Showcase Button -->
+                                                    <button type="button" class="btn btn-sm btn-outline-info" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#enableShowcaseModal{{ user.id }}">
+                                                        <i class="fas fa-star"></i> Enable Showcase
+                                                    </button>
+                                                {% else %}
+                                                    <!-- Disable Showcase Button -->
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#disableShowcaseModal{{ user.id }}">
+                                                        <i class="fas fa-star"></i> Disable Showcase
                                                     </button>
                                                 {% endif %}
                                                 
@@ -243,6 +264,56 @@
                                                             {{ form.hidden_tag() }}
                                                             <button type="submit" class="btn btn-danger">
                                                                 <i class="fas fa-trash"></i> Delete Account
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Enable Showcase Modal -->
+                                        <div class="modal fade" id="enableShowcaseModal{{ user.id }}" tabindex="-1" aria-labelledby="enableShowcaseModalLabel{{ user.id }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="enableShowcaseModalLabel{{ user.id }}">Enable Public Showcase</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p>Enable public showcase for <strong>{{ user.full_name }}</strong>?</p>
+                                                        <p class="text-muted small">Their items will be visible to unauthenticated visitors on the homepage.</p>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <form method="POST" action="{{ url_for('admin.enable_showcase', user_id=user.id) }}" class="d-inline">
+                                                            {{ form.hidden_tag() }}
+                                                            <button type="submit" class="btn btn-info">
+                                                                <i class="fas fa-star"></i> Enable Showcase
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Disable Showcase Modal -->
+                                        <div class="modal fade" id="disableShowcaseModal{{ user.id }}" tabindex="-1" aria-labelledby="disableShowcaseModalLabel{{ user.id }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="disableShowcaseModalLabel{{ user.id }}">Disable Public Showcase</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p>Disable public showcase for <strong>{{ user.full_name }}</strong>?</p>
+                                                        <p class="text-muted small">Their items will no longer be visible to unauthenticated visitors.</p>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <form method="POST" action="{{ url_for('admin.disable_showcase', user_id=user.id) }}" class="d-inline">
+                                                            {{ form.hidden_tag() }}
+                                                            <button type="submit" class="btn btn-secondary">
+                                                                <i class="fas fa-star"></i> Disable Showcase
                                                             </button>
                                                         </form>
                                                     </div>
