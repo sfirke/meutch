@@ -45,18 +45,16 @@ def index():
         # else: user has no circles, items list stays empty
         
     else:
-        # For anonymous users: show items from public circle members
-        public_circle_ids = select(Circle.id).where(Circle.requires_approval == False)
-        public_user_ids = select(circle_members.c.user_id).where(
-            circle_members.c.circle_id.in_(public_circle_ids)
-        ).distinct()
+        # For anonymous users: show items from public showcase users only
+        showcase_user_ids = select(User.id).where(User.is_public_showcase == True)
         
-        base_query = Item.query.filter(Item.owner_id.in_(public_user_ids)).order_by(Item.created_at.desc())
+        base_query = Item.query.filter(Item.owner_id.in_(showcase_user_ids))
         
         # Show limited items with count
         preview_limit = 12  # Items to show for preview
         total_items = base_query.count()
-        items = base_query.limit(preview_limit).all()
+        # Random selection for variety instead of newest first
+        items = base_query.order_by(func.random()).limit(preview_limit).all()
         remaining_items = max(0, total_items - preview_limit)
         
     return render_template('main/index.html', 

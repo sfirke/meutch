@@ -30,25 +30,25 @@ class TestItemVisibility:
         assert item.name.encode() not in response.data
 
     def test_logged_out_user_can_see_items_from_public_circle_member(self, client):
+        """Test that logged-out users can see items from public showcase users.
+        
+        Note: This test was updated for the public showcase feature. Previously,
+        items from public circle members were visible to unauthenticated users.
+        Now, only items from users marked as is_public_showcase=True are visible.
+        """
         # Create a category
         category = CategoryFactory()
         db.session.commit()
 
-        # Create a user and an item
-        user = UserFactory()
+        # Create a user marked as public showcase and an item
+        user = UserFactory(is_public_showcase=True)
         item = ItemFactory(owner=user, category=category)
-        db.session.commit()
-
-        # Create a public circle and add the user as a member
-        public_circle = CircleFactory(requires_approval=False)
-        db.session.commit()
-        db.session.execute(circle_members.insert().values(user_id=user.id, circle_id=public_circle.id))
         db.session.commit()
 
         # Now, as a logged-out user, visit the homepage
         response = client.get(url_for('main.index'))
         assert response.status_code == 200
-        # The item should be visible
+        # The item should be visible because user is a showcase user
         assert item.name.encode() in response.data
 
     def test_authenticated_user_does_not_see_own_items(self, client):
