@@ -53,18 +53,20 @@ class TestMainRoutes:
         """Test that authenticated users get pagination controls."""
         with app.app_context():
             user = auth_user()
+            other_user = UserFactory()
             category = CategoryFactory()
             
-            # Create a public circle and add the user to it
+            # Create a circle and add both users to it so auth_user can see other_user's items
             from app.models import Circle
-            circle = Circle(name="Test Public Circle", description="Test", requires_approval=False)
+            circle = Circle(name="Test Circle", description="Test", requires_approval=False)
             db.session.add(circle)
             circle.members.append(user)
+            circle.members.append(other_user)
             db.session.commit()
             
-            # Create more than 12 items to trigger pagination
+            # Create more than 12 items for the other user (not auth_user)
             for i in range(15):
-                ItemFactory(owner=user, category=category, available=True)
+                ItemFactory(owner=other_user, category=category, available=True)
             
             login_user(client, user.email)
             response = client.get('/')

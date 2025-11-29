@@ -72,9 +72,9 @@
                 <div class="empty-state">
                     <i class="fas fa-users-slash"></i>
                     <h4>No circles yet</h4>
-                    <p>You're not a member of any circles yet. Create one to start sharing resources with your community!</p>
-                    <a href="{{ url_for('circles.create_circle') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-1"></i>Create Your First Circle
+                    <p>You're not a member of any circles yet. Join a circle near you to start sharing resources with your community!</p>
+                    <a href="{{ url_for('circles.search_circles') }}" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>Find Circles to Join
                     </a>
                 </div>
             {% endif %}
@@ -156,16 +156,24 @@
         {% else %}
             <div class="empty-state">
                 <i class="fas fa-box"></i>
-                <h4>No items available</h4>
-                <p>No items are currently available for sharing. {% if current_user.is_authenticated %}Be the first to list something!{% else %}Join our community to start sharing.{% endif %}</p>
-                {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-1"></i>List Your First Item
+                {% if current_user.is_authenticated and not circles %}
+                    <h4>Join a circle to see items</h4>
+                    <p>You're not a member of any circles yet. Join a circle near you to see items from your community!</p>
+                    <a href="{{ url_for('circles.search_circles') }}" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>Find Circles to Join
                     </a>
                 {% else %}
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
-                        <i class="fas fa-user-plus me-1"></i>Join Meutch
-                    </a>
+                    <h4>No items available</h4>
+                    <p>No items are currently available for sharing. {% if current_user.is_authenticated %}Be the first to list something!{% else %}Join our community to start sharing.{% endif %}</p>
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>List Your First Item
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
+                            <i class="fas fa-user-plus me-1"></i>Join Meutch
+                        </a>
+                    {% endif %}
                 {% endif %}
             </div>
         {% endif %}
