@@ -230,3 +230,81 @@ def delete_user(user_id):
         logger.error(f'Error deleting user {user_email}: {str(e)}')
     
     return redirect(url_for('admin.dashboard'))
+
+
+@bp.route('/users/<uuid:user_id>/enable-showcase', methods=['POST'])
+@admin_required
+def enable_showcase(user_id):
+    """Enable public showcase for a user's items"""
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash('Invalid request', 'danger')
+        return redirect(url_for('admin.dashboard'))
+    
+    user = db.get_or_404(User, user_id)
+    
+    if user.is_deleted:
+        flash('Cannot enable showcase for a deleted user', 'admin-error')
+        return redirect(url_for('admin.dashboard'))
+    
+    if user.is_public_showcase:
+        flash(f'{user.full_name} already has public showcase enabled', 'admin-error')
+        return redirect(url_for('admin.dashboard'))
+    
+    # Enable showcase
+    user.is_public_showcase = True
+    
+    # Log admin action
+    action = AdminAction(
+        action_type='enable_showcase',
+        target_user_id=user.id,
+        admin_user_id=current_user.id,
+        details={
+            'target_email': user.email,
+            'target_name': user.full_name
+        }
+    )
+    db.session.add(action)
+    db.session.commit()
+    
+    flash(f'Public showcase enabled for {user.full_name}', 'admin-success')
+    logger.info(f'Admin {current_user.email} enabled showcase for {user.email}')
+    
+    return redirect(url_for('admin.dashboard'))
+
+
+@bp.route('/users/<uuid:user_id>/disable-showcase', methods=['POST'])
+@admin_required
+def disable_showcase(user_id):
+    """Disable public showcase for a user's items"""
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash('Invalid request', 'danger')
+        return redirect(url_for('admin.dashboard'))
+    
+    user = db.get_or_404(User, user_id)
+    
+    if not user.is_public_showcase:
+        flash(f'{user.full_name} does not have public showcase enabled', 'admin-error')
+        return redirect(url_for('admin.dashboard'))
+    
+    # Disable showcase
+    user.is_public_showcase = False
+    
+    # Log admin action
+    action = AdminAction(
+        action_type='disable_showcase',
+        target_user_id=user.id,
+        admin_user_id=current_user.id,
+        details={
+            'target_email': user.email,
+            'target_name': user.full_name
+        }
+    )
+    db.session.add(action)
+    db.session.commit()
+    
+    flash(f'Public showcase disabled for {user.full_name}', 'admin-success')
+    logger.info(f'Admin {current_user.email} disabled showcase for {user.email}')
+    
+    return redirect(url_for('admin.dashboard'))
