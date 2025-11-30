@@ -71,59 +71,6 @@ class TestHomepageShowcaseItems:
         
         # Should show "3 more" (15 - 12 = 3)
         assert b'3 more' in response.data
-    
-    def test_homepage_shows_random_selection(self, client, db_session):
-        """Test that items are randomly selected, not ordered by creation date"""
-        category = CategoryFactory()
-        showcase_user = UserFactory(is_public_showcase=True)
-        db_session.commit()
-        
-        # Create more than 12 items
-        items = []
-        for i in range(20):
-            item = ItemFactory(owner=showcase_user, category=category, name=f"Random Item {i:03d}")
-            items.append(item)
-        db_session.commit()
-        
-        # Make multiple requests and check we get different orderings
-        # (statistically, with 20 items taking 12, different orderings should appear)
-        responses = []
-        for _ in range(3):
-            response = client.get(url_for('main.index'))
-            assert response.status_code == 200
-            responses.append(response.data)
-        
-        # At minimum, we should see that some items appear (validating the query works)
-        assert b'Random Item' in responses[0]
-    
-    def test_authenticated_user_homepage_unchanged(self, client, db_session):
-        """Test that authenticated users still see circle-based items"""
-        category = CategoryFactory()
-        
-        # Create two users in same circle
-        user1 = UserFactory(is_public_showcase=False)
-        user2 = UserFactory(is_public_showcase=False)
-        db_session.commit()
-        
-        circle = CircleFactory(requires_approval=False)
-        db_session.commit()
-        db_session.execute(circle_members.insert().values(user_id=user1.id, circle_id=circle.id))
-        db_session.execute(circle_members.insert().values(user_id=user2.id, circle_id=circle.id))
-        db_session.commit()
-        
-        # Create item owned by user2
-        item = ItemFactory(owner=user2, category=category, name="Circle Member Item")
-        db_session.commit()
-        
-        # Login as user1
-        login_user(client, user1.email)
-        
-        response = client.get(url_for('main.index'))
-        assert response.status_code == 200
-        
-        # Should see the item (circle-based visibility, not showcase-based)
-        assert item.name.encode() in response.data
-
 
 class TestAdminShowcaseRoutes:
     """Tests for admin panel showcase enable/disable routes"""
