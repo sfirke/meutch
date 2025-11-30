@@ -214,7 +214,8 @@ def _seed_development_data():
                 latitude=40.7128 + (i * 0.01),  # Spread users around NYC area
                 longitude=-74.0060 + (i * 0.01),
                 email_confirmed=True,
-                is_admin=(i < 2)  # Make user1 and user2 admins
+                is_admin=(i < 2),  # Make user1 and user2 admins
+                is_public_showcase=(i < 2)  # Make user1 and user2 public showcase users
             )
             user.set_password("password123")
             db.session.add(user)
@@ -721,6 +722,70 @@ def demote_admin(email):
     db.session.commit()
     
     click.echo(f'✅ Admin status removed from {user.full_name} ({email})')
+
+
+@user.command('enable-showcase')
+@click.argument('email')
+@with_appcontext
+def enable_showcase(email):
+    """Enable public showcase for a user's items (visible to unauthenticated visitors)."""
+    from app import db
+    from app.models import User
+    
+    # Find user by email (case-insensitive)
+    user = User.query.filter(User.email.ilike(email)).first()
+    
+    if not user:
+        click.echo(f'❌ User not found: {email}')
+        return
+    
+    if user.is_deleted:
+        click.echo(f'❌ Cannot enable showcase for deleted user: {email}')
+        return
+    
+    if user.is_public_showcase:
+        click.echo(f'ℹ️  User {email} already has public showcase enabled')
+        return
+    
+    # Confirm action
+    if not click.confirm(f'Enable public showcase for {user.full_name} ({email})? Their items will be visible to unauthenticated visitors.'):
+        click.echo('Aborted.')
+        return
+    
+    user.is_public_showcase = True
+    db.session.commit()
+    
+    click.echo(f'✅ Public showcase enabled for {user.full_name} ({email})')
+
+
+@user.command('disable-showcase')
+@click.argument('email')
+@with_appcontext
+def disable_showcase(email):
+    """Disable public showcase for a user's items."""
+    from app import db
+    from app.models import User
+    
+    # Find user by email (case-insensitive)
+    user = User.query.filter(User.email.ilike(email)).first()
+    
+    if not user:
+        click.echo(f'❌ User not found: {email}')
+        return
+    
+    if not user.is_public_showcase:
+        click.echo(f'ℹ️  User {email} does not have public showcase enabled')
+        return
+    
+    # Confirm action
+    if not click.confirm(f'Disable public showcase for {user.full_name} ({email})?'):
+        click.echo('Aborted.')
+        return
+    
+    user.is_public_showcase = False
+    db.session.commit()
+    
+    click.echo(f'✅ Public showcase disabled for {user.full_name} ({email})')
 
 
 @click.command()

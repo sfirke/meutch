@@ -18,6 +18,18 @@ class TestUser:
             assert user.last_name is not None
             assert user.email_confirmed is True
     
+    def test_user_is_public_showcase_defaults_to_false(self, app):
+        """Test that is_public_showcase defaults to False."""
+        with app.app_context():
+            user = UserFactory()
+            assert user.is_public_showcase is False
+    
+    def test_user_is_public_showcase_can_be_set(self, app):
+        """Test that is_public_showcase can be set to True."""
+        with app.app_context():
+            user = UserFactory(is_public_showcase=True)
+            assert user.is_public_showcase is True
+    
     def test_password_hashing(self, app):
         """Test password hashing and verification."""
         with app.app_context():

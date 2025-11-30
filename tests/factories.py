@@ -34,6 +34,7 @@ class UserFactory(SQLAlchemyModelFactory):
     last_name = factory.LazyAttribute(lambda obj: fake.last_name())
     email_confirmed = True
     is_admin = False
+    is_public_showcase = False
     # Use pre-computed hash instead of hashing on every factory call
     password_hash = TEST_PASSWORD_HASH
 
