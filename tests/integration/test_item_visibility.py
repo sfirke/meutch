@@ -29,13 +29,8 @@ class TestItemVisibility:
         # The item should NOT be visible
         assert item.name.encode() not in response.data
 
-    def test_logged_out_user_can_see_items_from_public_circle_member(self, client):
-        """Test that logged-out users can see items from public showcase users.
-        
-        Note: This test was updated for the public showcase feature. Previously,
-        items from public circle members were visible to unauthenticated users.
-        Now, only items from users marked as is_public_showcase=True are visible.
-        """
+    def test_logged_out_user_can_see_items_from_public_showcase_user(self, client):
+        """Test that logged-out users can see items from public showcase users."""
         # Create a category
         category = CategoryFactory()
         db.session.commit()
