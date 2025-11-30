@@ -52,7 +52,7 @@ class TestHomepageShowcaseItems:
         assert response.status_code == 200
         
         # Should see empty state message
-        assert b'Items coming soon!' in response.data
+        assert b'Join our community' in response.data
         assert b'Join Meutch' in response.data
     
     def test_unauthenticated_user_sees_remaining_items_teaser(self, client, db_session):
