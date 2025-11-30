@@ -5,6 +5,7 @@ from unittest.mock import patch
 from tests.factories import UserFactory, CircleFactory
 from app.models import db, circle_members, CircleJoinRequest
 from datetime import datetime, UTC
+from conftest import TEST_PASSWORD
 
 
 class TestCircleJoinRequestEmailIntegration:
@@ -15,8 +16,6 @@ class TestCircleJoinRequestEmailIntegration:
         with app.app_context():
             # Create users and circle
             requesting_user = UserFactory(email='user@test.com')
-            requesting_user.set_password('testpassword123')
-            
             admin1 = UserFactory(email='admin1@test.com')
             admin2 = UserFactory(email='admin2@test.com')
             circle = CircleFactory(name='Test Circle', requires_approval=True)
@@ -41,7 +40,7 @@ class TestCircleJoinRequestEmailIntegration:
             # User logs in
             client.post('/auth/login', data={
                 'email': requesting_user.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             # Patch the email sending function
@@ -76,7 +75,6 @@ class TestCircleJoinRequestEmailIntegration:
             # Create users and circle
             requesting_user = UserFactory(email='user@test.com')
             admin = UserFactory(email='admin@test.com')
-            admin.set_password('testpassword123')
             circle = CircleFactory(name='Test Circle', requires_approval=True)
             
             # Add admin to circle
@@ -101,7 +99,7 @@ class TestCircleJoinRequestEmailIntegration:
             # Admin logs in
             client.post('/auth/login', data={
                 'email': admin.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             # Patch the email sending function
@@ -130,7 +128,6 @@ class TestCircleJoinRequestEmailIntegration:
             # Create users and circle
             requesting_user = UserFactory(email='user@test.com')
             admin = UserFactory(email='admin@test.com')
-            admin.set_password('testpassword123')
             circle = CircleFactory(name='Test Circle', requires_approval=True)
             
             # Add admin to circle
@@ -155,7 +152,7 @@ class TestCircleJoinRequestEmailIntegration:
             # Admin logs in
             client.post('/auth/login', data={
                 'email': admin.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             # Patch the email sending function
@@ -183,8 +180,6 @@ class TestCircleJoinRequestEmailIntegration:
         with app.app_context():
             # Create users and circle
             requesting_user = UserFactory(email='user@test.com')
-            requesting_user.set_password('testpassword123')
-            
             admin = UserFactory(email='admin@test.com')
             circle = CircleFactory(name='Test Circle', requires_approval=False)  # No approval required
             
@@ -201,7 +196,7 @@ class TestCircleJoinRequestEmailIntegration:
             # User logs in
             client.post('/auth/login', data={
                 'email': requesting_user.email,
-                'password': 'testpassword123'
+                'password': TEST_PASSWORD
             }, follow_redirects=True)
             
             # Patch the email sending function

@@ -15,8 +15,6 @@ class TestEmailNotificationIntegration:
         with app.app_context():
             # Create users and item
             sender = UserFactory(email='sender@test.com')
-            sender.set_password(TEST_PASSWORD)
-            
             recipient = UserFactory(email='recipient@test.com')
             item = ItemFactory(owner=recipient, name='Test Item')
             
@@ -52,8 +50,6 @@ class TestEmailNotificationIntegration:
         with app.app_context():
             # Create users and item
             borrower = UserFactory(email='borrower@test.com')
-            borrower.set_password(TEST_PASSWORD)
-            
             owner = UserFactory(email='owner@test.com')
             item = ItemFactory(owner=owner, name='Test Item')
             
@@ -88,4 +84,5 @@ class TestEmailNotificationIntegration:
                 assert call_args[0][0] == owner.email  # to_email
                 assert 'New Loan Request for Test Item' in call_args[0][1]  # subject
                 assert 'Can I borrow this item please?' in call_args[0][2]  # message body
+
 
