@@ -13,6 +13,9 @@ from unittest.mock import patch
 # Test constants
 TEST_PASSWORD = 'testpassword123'  # Must match UserFactory password
 
+# Import pre-computed password hash from factories to avoid slow bcrypt calls
+from tests.factories import TEST_PASSWORD_HASH
+
 def is_port_open(host, port):
     """Check if a port is open."""
     try:
@@ -150,9 +153,9 @@ def auth_user(app):
             last_name='User',
             latitude=40.7128,
             longitude=-74.0060,
-            email_confirmed=True
+            email_confirmed=True,
+            password_hash=TEST_PASSWORD_HASH  # Use pre-computed hash instead of set_password()
         )
-        user.set_password(TEST_PASSWORD)
         db.session.add(user)
         db.session.commit()
         user_id = user.id
