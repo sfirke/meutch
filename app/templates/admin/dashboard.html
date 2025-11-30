@@ -162,31 +162,32 @@
                                                         <i class="fas fa-arrow-down"></i> Demote
                                                     </button>
                                                 {% endif %}
-                                                
-                                                {% if not user.is_public_showcase %}
-                                                    <!-- Enable Showcase Button -->
-                                                    <button type="button" class="btn btn-sm btn-outline-info" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#enableShowcaseModal{{ user.id }}">
-                                                        <i class="fas fa-star"></i> Enable Showcase
-                                                    </button>
-                                                {% else %}
-                                                    <!-- Disable Showcase Button -->
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#disableShowcaseModal{{ user.id }}">
-                                                        <i class="fas fa-star"></i> Disable Showcase
-                                                    </button>
-                                                {% endif %}
-                                                
+                                            {% endif %}
+                                            
+                                            {# Showcase buttons available for all users including self #}
+                                            {% if not user.is_public_showcase %}
+                                                <!-- Enable Showcase Button -->
+                                                <button type="button" class="btn btn-sm btn-outline-info" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#enableShowcaseModal{{ user.id }}">
+                                                    <i class="fas fa-star"></i> Enable Showcase
+                                                </button>
+                                            {% else %}
+                                                <!-- Disable Showcase Button -->
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#disableShowcaseModal{{ user.id }}">
+                                                    <i class="fas fa-star"></i> Disable Showcase
+                                                </button>
+                                            {% endif %}
+                                            
+                                            {% if user.id != current_user.id %}
                                                 <!-- Delete User Button -->
                                                 <button type="button" class="btn btn-sm btn-outline-danger" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#deleteModal{{ user.id }}">
                                                     <i class="fas fa-trash"></i> Delete
                                                 </button>
-                                            {% else %}
-                                                <span class="text-muted"><em>You</em></span>
                                             {% endif %}
                                         </div>
 
