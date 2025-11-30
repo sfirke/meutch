@@ -14,9 +14,8 @@ class TestCircleJoinRequestEmailIntegration:
     def test_join_circle_request_sends_email_notification(self, client, app):
         """Test that circle join requests trigger email notifications to admins."""
         with app.app_context():
-            # Create users and circle (UserFactory already sets password_hash with pre-computed hash)
+            # Create users and circle
             requesting_user = UserFactory(email='user@test.com')
-            
             admin1 = UserFactory(email='admin1@test.com')
             admin2 = UserFactory(email='admin2@test.com')
             circle = CircleFactory(name='Test Circle', requires_approval=True)
@@ -73,7 +72,7 @@ class TestCircleJoinRequestEmailIntegration:
     def test_approve_join_request_sends_email_notification(self, client, app):
         """Test that approving a join request sends email notification to the requesting user."""
         with app.app_context():
-            # Create users and circle (UserFactory already sets password_hash with pre-computed hash)
+            # Create users and circle
             requesting_user = UserFactory(email='user@test.com')
             admin = UserFactory(email='admin@test.com')
             circle = CircleFactory(name='Test Circle', requires_approval=True)
@@ -126,7 +125,7 @@ class TestCircleJoinRequestEmailIntegration:
     def test_reject_join_request_sends_email_notification(self, client, app):
         """Test that rejecting a join request sends email notification to the requesting user."""
         with app.app_context():
-            # Create users and circle (UserFactory already sets password_hash with pre-computed hash)
+            # Create users and circle
             requesting_user = UserFactory(email='user@test.com')
             admin = UserFactory(email='admin@test.com')
             circle = CircleFactory(name='Test Circle', requires_approval=True)
@@ -179,9 +178,8 @@ class TestCircleJoinRequestEmailIntegration:
     def test_circle_without_approval_no_email(self, client, app):
         """Test that joining a circle without approval requirement doesn't send emails."""
         with app.app_context():
-            # Create users and circle (UserFactory already sets password_hash with pre-computed hash)
+            # Create users and circle
             requesting_user = UserFactory(email='user@test.com')
-            
             admin = UserFactory(email='admin@test.com')
             circle = CircleFactory(name='Test Circle', requires_approval=False)  # No approval required
             

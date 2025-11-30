@@ -13,9 +13,8 @@ class TestEmailNotificationIntegration:
     def test_message_sends_email_notification(self, client, app):
         """Test that sending a message triggers an email notification."""
         with app.app_context():
-            # Create users and item (UserFactory already sets password_hash with pre-computed hash)
+            # Create users and item
             sender = UserFactory(email='sender@test.com')
-            
             recipient = UserFactory(email='recipient@test.com')
             item = ItemFactory(owner=recipient, name='Test Item')
             
@@ -49,9 +48,8 @@ class TestEmailNotificationIntegration:
     def test_loan_request_sends_email_notification(self, client, app):
         """Test that loan requests trigger email notifications."""
         with app.app_context():
-            # Create users and item (UserFactory already sets password_hash with pre-computed hash)
+            # Create users and item
             borrower = UserFactory(email='borrower@test.com')
-            
             owner = UserFactory(email='owner@test.com')
             item = ItemFactory(owner=owner, name='Test Item')
             
