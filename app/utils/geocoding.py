@@ -146,3 +146,58 @@ def format_distance(distance_miles: float) -> str:
     if distance_miles < 0.1:
         return "< 0.1 mi"
     return f"{distance_miles:.1f} mi"
+
+
+def sort_by_distance(items, reference_user, distance_fn, radius=None):
+    """
+    Sort items by distance from reference user.
+    
+    Args:
+        items: List of items to sort
+        reference_user: User to calculate distances from
+        distance_fn: Function that takes (item, user) and returns distance in miles or None
+        radius: Optional maximum distance in miles to include items
+        
+    Returns:
+        List of items sorted by distance (closest first), with items beyond radius filtered out
+    """
+    if not reference_user.is_geocoded:
+        # If reference user has no location, return original list
+        return items
+    
+    # Calculate distances and filter by radius
+    items_with_distance = []
+    items_without_distance = []
+    
+    for item in items:
+        distance = distance_fn(item, reference_user)
+        if distance is None:
+            items_without_distance.append(item)
+        elif radius is None or distance <= radius:
+            items_with_distance.append((item, distance))
+    
+    # Sort items with distance by distance (closest first)
+    items_with_distance.sort(key=lambda x: x[1])
+    
+    # Return sorted items (with distance) + items without distance at the end
+    return [item for item, _ in items_with_distance] + items_without_distance
+
+
+def sort_items_by_owner_distance(items, reference_user):
+    """
+    Convenience function to sort items by their owner's distance from reference user.
+    
+    Args:
+        items: List of Item objects to sort
+        reference_user: User to calculate distances from
+        
+    Returns:
+        List of items sorted by owner distance (closest first)
+    """
+    def item_owner_distance(item, user):
+        """Calculate distance from item's owner to user."""
+        if not (item.owner and item.owner.is_geocoded):
+            return None
+        return user.distance_to(item.owner)
+    
+    return sort_by_distance(items, reference_user, item_owner_distance)

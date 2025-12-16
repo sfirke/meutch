@@ -186,6 +186,22 @@ class User(UserMixin, db.Model):
             'has_outstanding': borrowing + lending + pending_borrowing + pending_lending > 0
         }
 
+    def shares_circle_with(self, other_user):
+        """Check if this user shares any circle with another user."""
+        if not other_user:
+            return False
+        
+        # Query for any shared circle memberships
+        shared_circle = db.session.query(circle_members).join(
+            circle_members.alias('cm2'),
+            circle_members.c.circle_id == circle_members.alias('cm2').c.circle_id
+        ).filter(
+            circle_members.c.user_id == self.id,
+            circle_members.alias('cm2').c.user_id == other_user.id
+        ).first()
+        
+        return shared_circle is not None
+    
     def delete_account(self):
         """Perform cascading deletion of user account"""
         from app.utils.storage import delete_file
