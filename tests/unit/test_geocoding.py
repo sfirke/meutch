@@ -6,7 +6,6 @@ from app.utils.geocoding import (
 from tests.factories import UserFactory, ItemFactory, CategoryFactory
 from app.models import db
 
-
 class TestSortByDistance:
     """Test sort_by_distance utility function."""
     
@@ -157,6 +156,7 @@ class TestSortItemsByOwnerDistance:
     def test_sort_items_by_owner_distance(self, app):
         """Test sorting items by owner distance."""
         with app.app_context():
+            
             # Create a reference user in NYC
             reference_user = UserFactory(latitude=40.7128, longitude=-74.0060)
             
@@ -185,6 +185,7 @@ class TestSortItemsByOwnerDistance:
     def test_sort_items_by_owner_distance_owner_no_location(self, app):
         """Test that items with owners without location are sorted to end."""
         with app.app_context():
+            
             reference_user = UserFactory(latitude=40.7128, longitude=-74.0060)
             
             owner_with_loc = UserFactory(latitude=42.3601, longitude=-71.0589)  # Boston

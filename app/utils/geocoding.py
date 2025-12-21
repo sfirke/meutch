@@ -150,54 +150,60 @@ def format_distance(distance_miles: float) -> str:
 
 def sort_by_distance(items, reference_user, distance_fn, radius=None):
     """
-    Sort items by distance from reference user.
+    Sort items by distance from a reference user's location.
+    
+    This is a generic utility that can sort any objects by distance.
     
     Args:
-        items: List of items to sort
-        reference_user: User to calculate distances from
-        distance_fn: Function that takes (item, user) and returns distance in miles or None
-        radius: Optional maximum distance in miles to include items
+        items: List of objects to sort
+        reference_user: User object with location (must have is_geocoded property)
+        distance_fn: Function to calculate distance, takes (item, user) and returns distance in miles or None
+        radius: Optional radius in miles to filter by
         
     Returns:
-        List of items sorted by distance (closest first), with items beyond radius filtered out
+        List of items sorted by distance (closest first, items without location at end)
     """
-    if not reference_user.is_geocoded:
-        # If reference user has no location, return original list
-        return items
+    if not reference_user.is_geocoded or not items:
+        return list(items)
     
-    # Calculate distances and filter by radius
     items_with_distance = []
-    items_without_distance = []
-    
     for item in items:
         distance = distance_fn(item, reference_user)
-        if distance is None:
-            items_without_distance.append(item)
-        elif radius is None or distance <= radius:
-            items_with_distance.append((item, distance))
+        items_with_distance.append((item, distance))
     
-    # Sort items with distance by distance (closest first)
-    items_with_distance.sort(key=lambda x: x[1])
+    # Filter by radius if specified
+    if radius:
+        radius_miles = float(radius)
+        items_with_distance = [
+            (item, dist) for item, dist in items_with_distance
+            if dist is not None and dist <= radius_miles
+        ]
     
-    # Return sorted items (with distance) + items without distance at the end
-    return [item for item, _ in items_with_distance] + items_without_distance
+    # Sort by distance (None values at end)
+    items_with_distance.sort(key=lambda x: (x[1] is None, x[1] if x[1] is not None else float('inf')))
+    return [item for item, _ in items_with_distance]
 
 
-def sort_items_by_owner_distance(items, reference_user):
+def sort_items_by_owner_distance(items, reference_user, radius=None):
     """
-    Convenience function to sort items by their owner's distance from reference user.
+    Sort items by distance from item owner to reference user.
+    
+    Convenience wrapper around sort_by_distance for sorting items.
     
     Args:
         items: List of Item objects to sort
-        reference_user: User to calculate distances from
+        reference_user: User object with location
+        radius: Optional radius in miles to filter by
         
     Returns:
         List of items sorted by owner distance (closest first)
     """
     def item_owner_distance(item, user):
-        """Calculate distance from item's owner to user."""
-        if not (item.owner and item.owner.is_geocoded):
-            return None
-        return user.distance_to(item.owner)
+        if item.owner and item.owner.is_geocoded and user.is_geocoded:
+            return calculate_distance(
+                item.owner.latitude, item.owner.longitude,
+                user.latitude, user.longitude
+            )
+        return None
     
-    return sort_by_distance(items, reference_user, item_owner_distance)
+    return sort_by_distance(items, reference_user, item_owner_distance, radius)
