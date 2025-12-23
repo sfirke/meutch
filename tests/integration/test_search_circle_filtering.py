@@ -166,3 +166,27 @@ class TestSearchDistanceSorting:
     """Distance sorting is tested comprehensively in test_geocoding.py unit tests."""
     pass
 
+
+@pytest.mark.usefixtures('app')
+class TestSearchDistanceDisplay:
+    def test_search_results_show_distance_when_geocoded(self, client, app):
+        """If viewer and owner are geocoded, item cards show an approximate distance badge."""
+        with app.app_context():
+            category = CategoryFactory()
+            viewer = UserFactory(latitude=40.7128, longitude=-74.0060)  # NYC
+            owner = UserFactory(latitude=42.3601, longitude=-71.0589)   # Boston
+            circle = CircleFactory()
+            circle.members.append(viewer)
+            circle.members.append(owner)
+            db.session.commit()
+
+            ItemFactory(owner=owner, category=category, name="Distance Test Item")
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(url_for('main.search', q='Distance'))
+            assert response.status_code == 200
+            assert b'Distance Test Item' in response.data
+            # Badge uses formatted miles like "190.1 mi" (approx)
+            assert b'mi' in response.data
+

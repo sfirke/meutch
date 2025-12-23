@@ -3,6 +3,13 @@
 {% block content %}
 <div class="container mt-5">
     <h2 class="mb-4">Search Results for "{{ query }}"</h2>
+    {% if has_circles and current_user.is_authenticated %}
+        {% if current_user.is_geocoded %}
+            <p class="text-muted mb-3"><small><i class="fas fa-map-marker-alt me-1"></i>Distances shown are approximate.</small></p>
+        {% else %}
+            <p class="text-muted mb-3"><small><i class="fas fa-map-marker-alt me-1"></i>Add your location to see distances.</small></p>
+        {% endif %}
+    {% endif %}
     <div id="items-section">
     {% if not has_circles %}
     <div class="alert alert-info">

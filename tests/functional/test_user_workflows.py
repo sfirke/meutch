@@ -365,4 +365,3 @@ class TestUserProfileWorkflow:
             assert response.status_code == 200
             # With @login_required, user is redirected to the login page
             assert b'Login' in response.data
-            assert b'Login' in response.data
