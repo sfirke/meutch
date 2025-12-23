@@ -876,20 +876,22 @@ def update_location():
     return render_template('main/update_location.html', form=form)
 
 @main_bp.route('/user/<uuid:user_id>')
+@login_required
 def user_profile(user_id):
-    if not current_user.is_authenticated:
-        flash('You must be logged in to view user profiles.', 'warning')
-        return redirect(url_for('auth.login', next=request.url))
-    
-    user = db.get_or_404(User, user_id)
-    
-    # Allow users to view their own profile
-    # Allow admins to view any profile
-    # Otherwise, require shared circle membership
-    if current_user.id != user.id and not current_user.is_admin:
-        if not current_user.shares_circle_with(user):
+    # Privacy: avoid leaking whether a user exists to people who can't view them.
+    # We only return a 404 after confirming the viewer is allowed (admin/self/shared-circle).
+    if current_user.is_admin:
+        user = db.get_or_404(User, user_id)
+    elif current_user.id == user_id:
+        user = db.get_or_404(User, user_id)
+    else:
+        # Viewer is neither admin nor viewing self.
+        # If viewer shares a circle with the target user, allow; otherwise, act as if not found.
+        target_user = db.session.get(User, user_id)
+        if not target_user or not current_user.shares_circle_with(target_user):
             flash('You can only view profiles of users in your circles.', 'warning')
             return redirect(url_for('main.index'))
+        user = target_user
     
     # Pagination parameters
     page = request.args.get('page', 1, type=int)

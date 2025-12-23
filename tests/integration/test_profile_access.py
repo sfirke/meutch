@@ -58,8 +58,7 @@ class TestProfileAccessControl:
         
         # Should redirect with warning
         assert response.status_code == 302
-        
-        # Follow redirect
+        # Follow redirect to index
         response = client.get(url_for('main.user_profile', user_id=user2.id), follow_redirects=True)
         assert b'You can only view profiles of users in your circles' in response.data
 
@@ -132,13 +131,14 @@ class TestProfileAccessControl:
         assert response.status_code == 200
         assert b'Partial Overlap' in response.data
 
-    def test_profile_404_for_nonexistent_user(self, client):
-        """Test that viewing a nonexistent user profile returns 404."""
+    def test_profile_nonexistent_user_does_not_leak_existence(self, client):
+        """Non-admins should not learn if a non-shared user exists (or not)."""
         import uuid
-        user = UserFactory()
+
+        viewer = UserFactory()
         db.session.commit()
 
-        login_user(client, user.email)
+        login_user(client, viewer.email)
         response = client.get(url_for('main.user_profile', user_id=uuid.uuid4()))
-        
-        assert response.status_code == 404
+        # Redirect to index with generic warning (same behavior as unauthorized access)
+        assert response.status_code == 302

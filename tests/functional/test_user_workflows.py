@@ -363,5 +363,6 @@ class TestUserProfileWorkflow:
             client.get('/auth/logout', follow_redirects=True)
             response = client.get(f'/user/{user.id}', follow_redirects=True)
             assert response.status_code == 200
-            assert b'You must be logged in to view user profiles.' in response.data
+            # With @login_required, user is redirected to the login page
+            assert b'Login' in response.data
             assert b'Login' in response.data
