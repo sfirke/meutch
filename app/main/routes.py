@@ -5,10 +5,12 @@ from sqlalchemy import or_, and_, func, select
 from sqlalchemy.orm import joinedload
 from datetime import datetime, UTC
 from app import db
-from app.models import Item, LoanRequest, Tag, User, Message, Circle, circle_members, Category
+from app.models import Item, LoanRequest, Tag, User, Message, Category
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
+from app.utils.geocoding import sort_items_by_owner_distance
+from app.utils.pagination import ListPagination
 
 @main_bp.route('/')
 def index():
@@ -22,15 +24,10 @@ def index():
         circles = current_user.circles
         
         # For logged-in users: show items from users who share circles with them
-        # Get all circle IDs the current user is a member of
-        user_circle_ids = [circle.id for circle in current_user.circles]
+        has_circles = len(current_user.circles) > 0
         
-        if user_circle_ids:
-            # Find all user IDs who are members of the same circles
-            shared_circle_user_ids = select(circle_members.c.user_id).where(
-                circle_members.c.circle_id.in_(user_circle_ids)
-            ).distinct()
-            
+        if has_circles:
+            shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
             # Query items from those users, excluding own items, ordered by newest first
             base_query = Item.query.filter(
                 Item.owner_id.in_(shared_circle_user_ids),
@@ -122,54 +119,45 @@ def search():
     page = request.args.get('page', 1, type=int)
     per_page = 12  # Number of items per page (consistent with other pages)
 
+    # Check if user has any circles
+    has_circles = len(current_user.circles) > 0
+    shared_circle_user_ids = current_user.get_shared_circle_user_ids_query() if has_circles else None
+
     if request.method == 'GET' and not query:
         # Display the search form
-        return render_template('search_items.html')
+        return render_template('search_items.html', has_circles=has_circles)
 
     if not query:
         flash('Please enter a search term.', 'warning')
         return redirect(url_for('main.search'))
     
-    # Check if user has any circles
-    user_circle_ids = [circle.id for circle in current_user.circles]
+    # If user has no circles, show empty results with prompt
+    if not has_circles:
+        return render_template('search_results.html', items=[], query=query, pagination=None, has_circles=False)
     
-    if not user_circle_ids:
-        # User has no circles - show empty state with join circle prompt
-        return render_template('search_results.html', items=[], query=query, pagination=None)
-    
-    # Find all user IDs who are members of the same circles (excluding self)
-    shared_circle_user_ids = select(circle_members.c.user_id).where(
-        circle_members.c.circle_id.in_(user_circle_ids)
-    ).distinct()
-    
-    # Perform case-insensitive search on name and description, filtered by circle membership
-    # Also search tags by joining the Tag model
-    base_query = Item.query.outerjoin(Item.tags).outerjoin(Item.category).filter(
-        Item.owner_id.in_(shared_circle_user_ids),
-        Item.owner_id != current_user.id,  # Exclude own items
-        or_(
-            Item.name.ilike(f'%{query}%'),
-            Item.description.ilike(f'%{query}%'),
-            Tag.name.ilike(f'%{query}%')
+    # Perform case-insensitive search on name, description, and tags
+    # Only include items from users in shared circles
+    items_query = Item.query.outerjoin(Item.tags).outerjoin(Item.category).filter(
+        and_(
+            Item.owner_id.in_(shared_circle_user_ids),
+            or_(
+                Item.name.ilike(f'%{query}%'),
+                Item.description.ilike(f'%{query}%'),
+                Tag.name.ilike(f'%{query}%')
+            )
         )
     ).distinct()
     
     # Get all matching items for distance sorting
-    all_items = base_query.all()
+    all_items = items_query.all()
     
-    # Sort by owner distance if user is geocoded
-    if current_user.is_geocoded:
-        from app.utils.geocoding import sort_items_by_owner_distance
-        sorted_items = sort_items_by_owner_distance(all_items, current_user)
-    else:
-        sorted_items = all_items
+    # Sort by distance from current user
+    sorted_items = sort_items_by_owner_distance(all_items, current_user)
     
-    # Apply pagination to sorted results
-    from app.utils.pagination import ListPagination
-    pagination = ListPagination(sorted_items, page=page, per_page=per_page)
-    items = pagination.items
+    # Paginate the sorted results
+    pagination = ListPagination(items=sorted_items, page=page, per_page=per_page)
 
-    return render_template('search_results.html', items=items, query=query, pagination=pagination)
+    return render_template('search_results.html', items=pagination.items, query=query, pagination=pagination, has_circles=True)
 
 @main_bp.route('/item/<uuid:item_id>', methods=['GET', 'POST'])
 @login_required
@@ -638,50 +626,48 @@ def tag_items(tag_id):
     # Get pagination parameters from the request
     page = request.args.get('page', 1, type=int)
     per_page = 12  # Number of items per page (consistent with other pages)
-
-    # Check if user has any circles
-    user_circle_ids = [circle.id for circle in current_user.circles]
     
-    if not user_circle_ids:
-        # User has no circles - show empty state with join circle prompt
-        return render_template('main/tag_items.html', tag=tag, items=[], pagination=None)
+    # Get circle member IDs for filtering
+    has_circles = len(current_user.circles) > 0
     
-    # Find all user IDs who are members of the same circles (excluding self)
-    shared_circle_user_ids = select(circle_members.c.user_id).where(
-        circle_members.c.circle_id.in_(user_circle_ids)
-    ).distinct()
+    if not has_circles:
+        # User has no circles - show prompt to join
+        return render_template(
+            'main/tag_items.html',
+            tag=tag,
+            items=[],
+            pagination=None,
+            no_circles=True
+        )
     
-    # Query items with tag, filtered by circle membership
-    base_query = Item.query.join(Item.tags).filter(
-        Tag.id == tag_id,
-        Item.owner_id.in_(shared_circle_user_ids),
-        Item.owner_id != current_user.id  # Exclude own items
-    ).options(
-        joinedload(Item.owner),
-        joinedload(Item.category),
-        joinedload(Item.tags)
+    shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
+    
+    # Perform a paginated query to retrieve items associated with the tag
+    # filtered to only items from users in shared circles
+    items_pagination = (
+        Item.query
+        .join(Item.tags)  # Join with tags
+        .filter(
+            Tag.id == tag_id,  # Filter by the specific tag
+            Item.owner_id.in_(shared_circle_user_ids)  # Filter by circle membership
+        )
+        .options(
+            joinedload(Item.owner),
+            joinedload(Item.category),
+            joinedload(Item.tags)
+        )
+        .order_by(Item.created_at.desc())
+        .paginate(page=page, per_page=per_page, error_out=False)
     )
-    
-    # Get all matching items for distance sorting
-    all_items = base_query.all()
-    
-    # Sort by owner distance if user is geocoded
-    if current_user.is_geocoded:
-        from app.utils.geocoding import sort_items_by_owner_distance
-        sorted_items = sort_items_by_owner_distance(all_items, current_user)
-    else:
-        sorted_items = all_items
-    
-    # Apply pagination to sorted results
-    from app.utils.pagination import ListPagination
-    pagination = ListPagination(sorted_items, page=page, per_page=per_page)
-    items = pagination.items
+
+    # Extract items from the pagination object
+    items = items_pagination.items
 
     return render_template(
         'main/tag_items.html',
         tag=tag,
         items=items,
-        pagination=pagination
+        pagination=items_pagination
     )
 
 @main_bp.route('/category/<uuid:category_id>')
@@ -694,49 +680,46 @@ def category_items(category_id):
     page = request.args.get('page', 1, type=int)
     per_page = 12  # Number of items per page (consistent with other pages)
 
-    # Check if user has any circles
-    user_circle_ids = [circle.id for circle in current_user.circles]
+    # Get circle member IDs for filtering
+    has_circles = len(current_user.circles) > 0
     
-    if not user_circle_ids:
-        # User has no circles - show empty state with join circle prompt
-        return render_template('main/category_items.html', category=category, items=[], pagination=None)
-    
-    # Find all user IDs who are members of the same circles (excluding self)
-    shared_circle_user_ids = select(circle_members.c.user_id).where(
-        circle_members.c.circle_id.in_(user_circle_ids)
-    ).distinct()
-    
-    # Query items in category, filtered by circle membership
-    base_query = Item.query.filter(
-        Item.category_id == category_id,
-        Item.owner_id.in_(shared_circle_user_ids),
-        Item.owner_id != current_user.id  # Exclude own items
-    ).options(
-        joinedload(Item.owner),
-        joinedload(Item.category),
-        joinedload(Item.tags)
+    if not has_circles:
+        # User has no circles - show prompt to join
+        return render_template(
+            'main/category_items.html',
+            category=category,
+            items=[],
+            pagination=None,
+            no_circles=True
+        )
+
+    shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
+
+    # Perform a paginated query to retrieve items associated with the category
+    # filtered to only items from users in shared circles
+    items_pagination = (
+        Item.query
+        .filter(
+            Item.category_id == category_id,  # Filter by the specific category
+            Item.owner_id.in_(shared_circle_user_ids)  # Filter by circle membership
+        )
+        .options(
+            joinedload(Item.owner),
+            joinedload(Item.category),
+            joinedload(Item.tags)
+        )
+        .order_by(Item.created_at.desc())
+        .paginate(page=page, per_page=per_page, error_out=False)
     )
-    
-    # Get all matching items for distance sorting
-    all_items = base_query.all()
-    
-    # Sort by owner distance if user is geocoded
-    if current_user.is_geocoded:
-        from app.utils.geocoding import sort_items_by_owner_distance
-        sorted_items = sort_items_by_owner_distance(all_items, current_user)
-    else:
-        sorted_items = all_items
-    
-    # Apply pagination to sorted results
-    from app.utils.pagination import ListPagination
-    pagination = ListPagination(sorted_items, page=page, per_page=per_page)
-    items = pagination.items
+
+    # Extract items from the pagination object
+    items = items_pagination.items
 
     return render_template(
         'main/category_items.html',
         category=category,
         items=items,
-        pagination=pagination
+        pagination=items_pagination
     )
 
 @main_bp.route('/profile', methods=['GET', 'POST'])
@@ -893,14 +876,20 @@ def update_location():
     return render_template('main/update_location.html', form=form)
 
 @main_bp.route('/user/<uuid:user_id>')
-@login_required
 def user_profile(user_id):
+    if not current_user.is_authenticated:
+        flash('You must be logged in to view user profiles.', 'warning')
+        return redirect(url_for('auth.login', next=request.url))
+    
     user = db.get_or_404(User, user_id)
     
-    # Check if current user can view this profile
-    if current_user.id != user.id and not current_user.is_admin and not current_user.shares_circle_with(user):
-        flash('You can only view profiles of users in your circles.', 'warning')
-        return redirect(url_for('main.index'))
+    # Allow users to view their own profile
+    # Allow admins to view any profile
+    # Otherwise, require shared circle membership
+    if current_user.id != user.id and not current_user.is_admin:
+        if not current_user.shares_circle_with(user):
+            flash('You can only view profiles of users in your circles.', 'warning')
+            return redirect(url_for('main.index'))
     
     # Pagination parameters
     page = request.args.get('page', 1, type=int)

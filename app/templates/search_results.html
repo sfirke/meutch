@@ -4,7 +4,13 @@
 <div class="container mt-5">
     <h2 class="mb-4">Search Results for "{{ query }}"</h2>
     <div id="items-section">
-    {% if items %}
+    {% if not has_circles %}
+    <div class="alert alert-info">
+        <h5><i class="bi bi-info-circle"></i> Join a circle to see items</h5>
+        <p>You need to join at least one lending circle to search and browse items from other members.</p>
+        <a href="{{ url_for('circles.manage_circles') }}" class="btn btn-primary">Find Circles to Join</a>
+    </div>
+    {% elif items %}
         <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for item in items %}
                 <div class="col">
@@ -17,7 +23,7 @@
     {% endif %}
 
         <!-- Pagination -->
-        {% if pagination.pages > 1 %}
+        {% if pagination and pagination.pages > 1 %}
             <nav aria-label="Search results pages">
                 <ul class="pagination justify-content-center mt-4">
                     {% if pagination.has_prev %}

@@ -8,7 +8,13 @@
     <h2>Items Tagged "{{ tag.name }}"</h2>
     
     <div id="items-section">
-    {% if items %}
+    {% if no_circles %}
+    <div class="alert alert-info">
+        <h5><i class="bi bi-info-circle"></i> Join a circle to see items</h5>
+        <p>You need to join at least one lending circle to browse items from other members.</p>
+        <a href="{{ url_for('circles.manage_circles') }}" class="btn btn-primary">Find Circles to Join</a>
+    </div>
+    {% elif items %}
         <div class="items-grid">
             {% for item in items %}
                 {% include 'main/_item_card.html' %}

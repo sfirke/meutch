@@ -1,9 +1,11 @@
 """Integration tests for web links functionality."""
 
 import pytest
+from app import db
 from app.models import User, UserWebLink
 from conftest import login_user
-from tests.factories import UserFactory, UserWebLinkFactory
+from tests.factories import UserFactory, UserWebLinkFactory, CircleFactory
+
 
 
 class TestWebLinksIntegration:
@@ -68,9 +70,15 @@ class TestWebLinksIntegration:
     
     def test_user_profile_displays_web_links(self, client, app, auth_user):
         """Test that user profiles display web links correctly."""
-        with app.app_context():
+        with app.app_context():            
             user1 = auth_user()
             user2 = UserFactory(email='user2@example.com', first_name='TestUser')
+            
+            # Create a shared circle so user1 can view user2's profile
+            circle = CircleFactory()
+            circle.members.append(user1)
+            circle.members.append(user2)
+            db.session.commit()
             
             # Create web links for user2
             UserWebLinkFactory(

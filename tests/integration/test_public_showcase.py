@@ -6,7 +6,7 @@ is_public_showcase=True, and that the admin panel can manage this flag.
 import pytest
 from flask import url_for
 from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory
-from app.models import AdminAction, circle_members, db
+from app.models import AdminAction, db
 from conftest import login_user
 
 
@@ -27,8 +27,7 @@ class TestHomepageShowcaseItems:
         
         # Add regular user to a public circle
         public_circle = CircleFactory(requires_approval=False)
-        db_session.commit()
-        db_session.execute(circle_members.insert().values(user_id=regular_user.id, circle_id=public_circle.id))
+        public_circle.members.append(regular_user)
         db_session.commit()
         
         response = client.get(url_for('main.index'))

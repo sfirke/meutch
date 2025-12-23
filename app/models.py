@@ -68,6 +68,44 @@ class User(UserMixin, db.Model):
         from app.utils.geocoding import calculate_distance
         return calculate_distance(self.latitude, self.longitude, other_user.latitude, other_user.longitude)
     
+    def shares_circle_with(self, other_user):
+        """
+        Check if current user shares at least one circle with another user.
+        
+        Args:
+            other_user: User object to check against
+            
+        Returns:
+            True if users share at least one circle, False otherwise
+        """
+        if not other_user:
+            return False
+        my_circle_ids = {circle.id for circle in self.circles}
+        other_circle_ids = {circle.id for circle in other_user.circles}
+        return bool(my_circle_ids & other_circle_ids)
+    
+    def get_shared_circle_user_ids_query(self):
+        """
+        Get a SQL select statement for user IDs who share circles with this user.
+        
+        This method returns a SQLAlchemy select statement that can be used in queries
+        to filter items or other data to only those from users who share at least one
+        circle with the current user.
+        
+        Returns:
+            SQLAlchemy select statement that yields user IDs, or None if user has no circles
+        """
+        from sqlalchemy import select
+        
+        user_circle_ids = [circle.id for circle in self.circles]
+        
+        if not user_circle_ids:
+            return None
+        
+        return select(circle_members.c.user_id).where(
+            circle_members.c.circle_id.in_(user_circle_ids)
+        ).distinct()
+    
     def can_update_location(self):
         """Check if user can update their location (limited to one successful geolocation per day)"""
         # If no previous geocoding attempt, allow update
@@ -186,22 +224,6 @@ class User(UserMixin, db.Model):
             'has_outstanding': borrowing + lending + pending_borrowing + pending_lending > 0
         }
 
-    def shares_circle_with(self, other_user):
-        """Check if this user shares any circle with another user."""
-        if not other_user:
-            return False
-        
-        # Query for any shared circle memberships
-        shared_circle = db.session.query(circle_members).join(
-            circle_members.alias('cm2'),
-            circle_members.c.circle_id == circle_members.alias('cm2').c.circle_id
-        ).filter(
-            circle_members.c.user_id == self.id,
-            circle_members.alias('cm2').c.user_id == other_user.id
-        ).first()
-        
-        return shared_circle is not None
-    
     def delete_account(self):
         """Perform cascading deletion of user account"""
         from app.utils.storage import delete_file
