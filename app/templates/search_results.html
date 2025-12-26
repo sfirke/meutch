@@ -7,7 +7,7 @@
         {% if current_user.is_geocoded %}
             <p class="text-muted mb-3"><small><i class="fas fa-map-marker-alt me-1"></i>Distances shown are approximate.</small></p>
         {% else %}
-            <p class="text-muted mb-3"><small><i class="fas fa-map-marker-alt me-1"></i>Add your location to see distances.</small></p>
+            <p class="text-muted mb-3"><small><i class="fas fa-map-marker-alt me-1"></i><a href="{{ url_for('main.update_location') }}">Add your location</a> to see distances.</small></p>
         {% endif %}
     {% endif %}
     <div id="items-section">

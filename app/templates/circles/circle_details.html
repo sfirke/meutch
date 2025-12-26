@@ -21,7 +21,7 @@
     {% if distance %}
         <p><strong>Distance:</strong> {{ distance }} from you</p>
     {% elif circle.is_geocoded %}
-        <p><strong>Location:</strong> Set (distance not available - please update your location in your profile)</p>
+        <p><strong>Location:</strong> Set (distance not available - please <a href="{{ url_for('main.update_location') }}">update your location</a> in your profile)</p>
     {% else %}
         <p><strong>Location:</strong> Not set</p>
     {% endif %}
