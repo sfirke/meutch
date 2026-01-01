@@ -101,7 +101,9 @@
                                         <div class="d-flex align-items-center">
                                             <img src="{{ user.profile_image }}" alt="{{ user.full_name }}" 
                                                  class="rounded-circle me-2" width="40" height="40">
-                                            <strong>{{ user.full_name }}</strong>
+                                            <a href="{{ url_for('main.user_profile', user_id=user.id) }}" class="text-decoration-none">
+                                                <strong>{{ user.full_name }}</strong>
+                                            </a>
                                         </div>
                                     </td>
                                     <td>
