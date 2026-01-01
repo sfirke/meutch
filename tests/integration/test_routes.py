@@ -1,7 +1,7 @@
 """Integration tests for main routes."""
 import pytest
 from app import db
-from app.models import Item, User, Category
+from app.models import Item, User, Category, Circle
 from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory
 from conftest import login_user
 from unittest.mock import patch
@@ -52,7 +52,6 @@ class TestMainRoutes:
             category = CategoryFactory()
             
             # Create a circle and add both users to it so auth_user can see other_user's items
-            from app.models import Circle
             circle = Circle(name="Test Circle", description="Test", requires_approval=False)
             db.session.add(circle)
             circle.members.append(user)
@@ -86,7 +85,6 @@ class TestMainRoutes:
             user = UserFactory()
             
             # Create a public circle and add the user to it
-            from app.models import Circle
             circle = Circle(name="Test Public Circle", description="Test", requires_approval=False)
             db.session.add(circle)
             circle.members.append(user)
@@ -347,7 +345,6 @@ class TestTagAndCategoryBrowsing:
     def test_tag_items_page_valid_tag(self, client, app):
         """Test tag items page with valid tag."""
         with app.app_context():
-            from app.models import Category
 
             # Create a user and login
             from conftest import login_user
@@ -381,7 +378,6 @@ class TestTagAndCategoryBrowsing:
             item2.tags.append(tag)
             # item3 has no tags
             
-            from app import db
             db.session.commit()
             
             response = client.get(f'/tag/{tag.id}')
@@ -454,7 +450,6 @@ class TestTagAndCategoryBrowsing:
                 item.tags.append(tag)
                 items.append(item)
             
-            from app import db
             db.session.commit()
             
             # Test first page (newest items first)
@@ -499,7 +494,6 @@ class TestTagAndCategoryBrowsing:
             item2 = ItemFactory(name='Phone', category=category, owner=item_owner)
             item3 = ItemFactory(name='Book', category=books_category, owner=item_owner)  # Different category
             
-            from app import db
             db.session.commit()
             
             response = client.get(f'/category/{category.id}')
@@ -534,7 +528,6 @@ class TestTagAndCategoryBrowsing:
             
             category = CategoryFactory(name='Unique Empty Category')
             
-            from app import db
             db.session.commit()
             
             response = client.get(f'/category/{category.id}')
@@ -568,7 +561,6 @@ class TestTagAndCategoryBrowsing:
                 item.created_at = base_time - timedelta(minutes=15-i)
                 items.append(item)
             
-            from app import db
             db.session.commit()
             
             # Test first page (newest items first)
