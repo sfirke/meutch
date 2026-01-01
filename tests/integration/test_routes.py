@@ -293,51 +293,6 @@ class TestSearchRoutes:
         response = client.get('/search')
         assert response.status_code == 302
         assert 'login' in response.location
-    
-    def test_search_get_empty(self, client, app):
-        """Test search page with no query."""
-        with app.app_context():
-            user = UserFactory()
-            circle = CircleFactory()
-            circle.members.append(user)
-            db.session.commit()
-            
-            login_user(client, user.email)
-            
-            response = client.get('/search')
-            assert response.status_code == 200
-    
-    def test_search_with_query(self, client, app):
-        """Test search with query."""
-        with app.app_context():
-            user1 = UserFactory()
-            user2 = UserFactory()
-            circle = CircleFactory()
-            circle.members.append(user1)
-            circle.members.append(user2)
-            db.session.commit()
-            
-            item = ItemFactory(name='Unique Test Item', owner=user2)
-            db.session.commit()
-            
-            login_user(client, user1.email)
-            
-            response = client.get('/search?q=Unique')
-            assert response.status_code == 200
-            assert item.name.encode() in response.data
-    
-    def test_search_no_results(self, client, app):
-        """Test search with no results."""
-        with app.app_context():
-            user = UserFactory()
-            circle = CircleFactory()
-            circle.members.append(user)
-            db.session.commit()
-            
-            login_user(client, user.email)
-            
-            response = client.get('/search?q=nonexistentitem')
-            assert response.status_code == 200
 
 class TestTagAndCategoryBrowsing:
     """Test tag and category browsing functionality."""

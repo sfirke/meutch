@@ -10,17 +10,17 @@ from conftest import login_user
 class TestSearchCircleFiltering:
     """Test that search only returns items from users in shared circles."""
 
-    def test_search_requires_login(self, client):
-        """Test that search page redirects to login when not authenticated."""
+    def test_search_get_empty(self, client):
+        """Test search page with no query loads successfully."""
+        user = UserFactory()
+        circle = CircleFactory()
+        circle.members.append(user)
+        db.session.commit()
+        
+        login_user(client, user.email)
+        
         response = client.get(url_for('main.search'))
-        assert response.status_code == 302
-        assert 'login' in response.location
-
-    def test_search_with_query_requires_login(self, client):
-        """Test that search with query redirects to login when not authenticated."""
-        response = client.get(url_for('main.search', q='test'))
-        assert response.status_code == 302
-        assert 'login' in response.location
+        assert response.status_code == 200
 
     def test_search_returns_only_shared_circle_items(self, client):
         """Test that search only returns items from users in shared circles."""
