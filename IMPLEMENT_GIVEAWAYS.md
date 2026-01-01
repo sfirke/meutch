@@ -115,3 +115,10 @@ When filtering by item type:
 - `loans`: `is_giveaway = False`
 - `giveaways`: `is_giveaway = True AND claim_status = 'unclaimed'`
 - `both`: All available items (loans + unclaimed giveaways)
+
+## Outstanding Questions & Considerations
+
+- Decide whether we reuse the existing `Item.available` flag for giveaways. Without a plan to synchronize `available` with `claim_status`, claimed giveaways may still appear in mixed item lists and profile views.
+- Outline the notification mechanics for the "release claim" flow. We should specify whether we send automated messages/emails (and how to prevent spamming the same user multiple times).
+- Call out server-side guards that block legacy loan actions on giveaways (e.g., hitting the request loan endpoint directly) so security is not dependent on template conditionals alone.
+- Capture migration details such as default values, indexes (e.g., on `is_giveaway`/`claim_status`), and `ON DELETE SET NULL` behavior for `claimed_by_id` to keep performance and data integrity aligned with existing patterns.
