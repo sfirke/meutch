@@ -163,7 +163,14 @@ class TestSearchDistanceSorting:
 @pytest.mark.usefixtures('app')
 class TestSearchDistanceDisplay:
     def test_search_results_show_distance_when_geocoded(self, client, app):
-        """If viewer and owner are geocoded, item cards show an approximate distance badge."""
+        """Integration test: verify distance badges render in HTML.
+        
+        This is the only test that verifies the full rendering pipeline from
+        context processor -> template -> HTML output. Unit tests verify the
+        get_distance_to_item() function works, but don't test actual rendering.
+        
+        Note: NYC to Boston is approximately 190 miles.
+        """
         with app.app_context():
             category = CategoryFactory()
             viewer = UserFactory(latitude=40.7128, longitude=-74.0060)  # NYC
@@ -179,7 +186,14 @@ class TestSearchDistanceDisplay:
             login_user(client, viewer.email)
             response = client.get(url_for('main.search', q='Distance'))
             assert response.status_code == 200
-            assert b'Distance Test Item' in response.data
-            # Badge uses formatted miles like "190.1 mi" (approx)
-            assert b'mi' in response.data
+            
+            html = response.data.decode('utf-8')
+            assert 'Distance Test Item' in html
+            
+            # Verify distance badge appears with expected range (180-200 mi)
+            # Badge format: <span class="badge bg-info ms-1">...190.X mi</span>
+            assert 'badge bg-info' in html
+            assert ' mi' in html
+            # Rough sanity check that distance is in expected range
+            assert any(f'{d}' in html for d in range(180, 201))
 
