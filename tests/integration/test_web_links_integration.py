@@ -70,7 +70,7 @@ class TestWebLinksIntegration:
     
     def test_user_profile_displays_web_links(self, client, app, auth_user):
         """Test that user profiles display web links correctly."""
-        with app.app_context():            
+        with app.app_context():
             user1 = auth_user()
             user2 = UserFactory(email='user2@example.com', first_name='TestUser')
             
