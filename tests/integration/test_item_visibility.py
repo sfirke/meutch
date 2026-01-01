@@ -1,5 +1,5 @@
 import pytest
-from app.models import Item, User, Category, Circle, db, circle_members
+from app.models import Item, User, Category, Circle, db
 from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory
 from flask import url_for
 from conftest import login_user
@@ -18,8 +18,7 @@ class TestItemVisibility:
 
         # Create a private circle and add the user as a member
         private_circle = CircleFactory(requires_approval=True)
-        db.session.commit()
-        db.session.execute(circle_members.insert().values(user_id=user.id, circle_id=private_circle.id))
+        private_circle.members.append(user)
         db.session.commit()
 
         # Ensure user is NOT in any public circle
@@ -54,8 +53,7 @@ class TestItemVisibility:
         
         # Create a circle and add user
         circle = CircleFactory(requires_approval=False)
-        db.session.commit()
-        db.session.execute(circle_members.insert().values(user_id=user.id, circle_id=circle.id))
+        circle.members.append(user)
         db.session.commit()
         
         # Create an item owned by the user
@@ -79,9 +77,8 @@ class TestItemVisibility:
         
         # Create a circle and add both users
         circle = CircleFactory(requires_approval=False)
-        db.session.commit()
-        db.session.execute(circle_members.insert().values(user_id=user1.id, circle_id=circle.id))
-        db.session.execute(circle_members.insert().values(user_id=user2.id, circle_id=circle.id))
+        circle.members.append(user1)
+        circle.members.append(user2)
         db.session.commit()
         
         # Create an item owned by user2
@@ -107,11 +104,10 @@ class TestItemVisibility:
         # Create two separate circles
         circle1 = CircleFactory(requires_approval=False)
         circle2 = CircleFactory(requires_approval=False)
-        db.session.commit()
         
         # Add user1 to circle1, user3 to circle2 (no overlap)
-        db.session.execute(circle_members.insert().values(user_id=user1.id, circle_id=circle1.id))
-        db.session.execute(circle_members.insert().values(user_id=user3.id, circle_id=circle2.id))
+        circle1.members.append(user1)
+        circle2.members.append(user3)
         db.session.commit()
         
         # Create items for user2 (not in any circle) and user3 (in different circle)
@@ -139,13 +135,12 @@ class TestItemVisibility:
         # Create two circles
         circle1 = CircleFactory(requires_approval=False, name="Circle 1")
         circle2 = CircleFactory(requires_approval=False, name="Circle 2")
-        db.session.commit()
         
         # Add user1 to both circles, user2 to circle1, user3 to circle2
-        db.session.execute(circle_members.insert().values(user_id=user1.id, circle_id=circle1.id))
-        db.session.execute(circle_members.insert().values(user_id=user1.id, circle_id=circle2.id))
-        db.session.execute(circle_members.insert().values(user_id=user2.id, circle_id=circle1.id))
-        db.session.execute(circle_members.insert().values(user_id=user3.id, circle_id=circle2.id))
+        circle1.members.append(user1)
+        circle2.members.append(user1)
+        circle1.members.append(user2)
+        circle2.members.append(user3)
         db.session.commit()
         
         # Create items for user2 and user3
@@ -185,8 +180,7 @@ class TestItemVisibility:
         
         # Create a circle with only this user
         circle = CircleFactory(requires_approval=False)
-        db.session.commit()
-        db.session.execute(circle_members.insert().values(user_id=user.id, circle_id=circle.id))
+        circle.members.append(user)
         db.session.commit()
         
         # Login as user

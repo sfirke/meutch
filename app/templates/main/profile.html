@@ -266,7 +266,7 @@
                     {% elif current_user.geocoding_failed %}
                         <div class="alert alert-warning alert-sm">
                             <i class="fas fa-exclamation-triangle me-1"></i>
-                            <small>We couldn't determine your location. Update your address to see distances.</small>
+                            <small>We couldn't determine your location. <a href="{{ url_for('main.update_location') }}">Update your address</a> to see distances.</small>
                         </div>
                     {% else %}
                         <div class="alert alert-info alert-sm">

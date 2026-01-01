@@ -146,3 +146,64 @@ def format_distance(distance_miles: float) -> str:
     if distance_miles < 0.1:
         return "< 0.1 mi"
     return f"{distance_miles:.1f} mi"
+
+
+def sort_by_distance(items, reference_user, distance_fn, radius=None):
+    """
+    Sort items by distance from a reference user's location.
+    
+    This is a generic utility that can sort any objects by distance.
+    
+    Args:
+        items: List of objects to sort
+        reference_user: User object with location (must have is_geocoded property)
+        distance_fn: Function to calculate distance, takes (item, user) and returns distance in miles or None
+        radius: Optional radius in miles to filter by
+        
+    Returns:
+        List of items sorted by distance (closest first, items without location at end)
+    """
+    if not reference_user.is_geocoded or not items:
+        return list(items)
+    
+    items_with_distance = []
+    for item in items:
+        distance = distance_fn(item, reference_user)
+        items_with_distance.append((item, distance))
+    
+    # Filter by radius if specified
+    if radius:
+        radius_miles = float(radius)
+        items_with_distance = [
+            (item, dist) for item, dist in items_with_distance
+            if dist is not None and dist <= radius_miles
+        ]
+    
+    # Sort by distance (None values at end)
+    items_with_distance.sort(key=lambda x: (x[1] is None, x[1] if x[1] is not None else float('inf')))
+    return [item for item, _ in items_with_distance]
+
+
+def sort_items_by_owner_distance(items, reference_user, radius=None):
+    """
+    Sort items by distance from item owner to reference user.
+    
+    Convenience wrapper around sort_by_distance for sorting items.
+    
+    Args:
+        items: List of Item objects to sort
+        reference_user: User object with location
+        radius: Optional radius in miles to filter by
+        
+    Returns:
+        List of items sorted by owner distance (closest first)
+    """
+    def item_owner_distance(item, user):
+        if item.owner and item.owner.is_geocoded and user.is_geocoded:
+            return calculate_distance(
+                item.owner.latitude, item.owner.longitude,
+                user.latitude, user.longitude
+            )
+        return None
+    
+    return sort_by_distance(items, reference_user, item_owner_distance, radius)
