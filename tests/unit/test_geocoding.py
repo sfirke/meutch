@@ -12,7 +12,6 @@ class TestSortByDistance:
     def test_sort_by_distance_sorts_correctly(self, app):
         """Test that items are sorted by distance correctly."""
         with app.app_context():
-            from tests.factories import UserFactory
             
             # Create a reference user in NYC
             reference_user = UserFactory(latitude=40.7128, longitude=-74.0060)
@@ -46,7 +45,6 @@ class TestSortByDistance:
     def test_sort_by_distance_handles_no_location(self, app):
         """Test that items without location are sorted to the end."""
         with app.app_context():
-            from tests.factories import UserFactory
             
             # Create a reference user in NYC
             reference_user = UserFactory(latitude=40.7128, longitude=-74.0060)
@@ -80,7 +78,6 @@ class TestSortByDistance:
     def test_sort_by_distance_filters_by_radius(self, app):
         """Test that items beyond radius are filtered out."""
         with app.app_context():
-            from tests.factories import UserFactory
             
             # Create a reference user in NYC
             reference_user = UserFactory(latitude=40.7128, longitude=-74.0060)
@@ -110,7 +107,6 @@ class TestSortByDistance:
     def test_sort_by_distance_user_not_geocoded(self, app):
         """Test that original list is returned when user is not geocoded."""
         with app.app_context():
-            from tests.factories import UserFactory
             
             # Create a reference user without location
             reference_user = UserFactory(latitude=None, longitude=None)
@@ -138,7 +134,6 @@ class TestSortByDistance:
     def test_sort_by_distance_empty_list(self, app):
         """Test that empty list returns empty list."""
         with app.app_context():
-            from tests.factories import UserFactory
             
             reference_user = UserFactory(latitude=40.7128, longitude=-74.0060)
             
