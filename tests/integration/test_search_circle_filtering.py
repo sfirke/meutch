@@ -88,23 +88,16 @@ class TestSearchCircleFiltering:
 
         login_user(client, user.email)
         
-        # Test search form page
-        response = client.get(url_for('main.search'))
-        assert response.status_code == 200
-        assert b'Join a circle' in response.data
-        assert b'Find Circles to Join' in response.data
-
-    def test_search_results_show_join_circle_prompt_when_no_circles(self, client):
-        """Test that search results show join circle prompt when user has no circles."""
-        user = UserFactory()
-        db.session.commit()
-
-        login_user(client, user.email)
-        
-        response = client.get(url_for('main.search', q='anything'))
-        assert response.status_code == 200
-        assert b'Join a circle' in response.data
-        assert b'Find Circles to Join' in response.data
+        # Test both search form page and search results page
+        for url_params in [None, {'q': 'anything'}]:
+            if url_params:
+                response = client.get(url_for('main.search', **url_params))
+            else:
+                response = client.get(url_for('main.search'))
+            
+            assert response.status_code == 200
+            assert b'Join a circle' in response.data
+            assert b'Find Circles to Join' in response.data
 
     def test_search_returns_empty_when_no_matching_items_in_circles(self, client):
         """Test that search returns empty results when no items match in circles."""
