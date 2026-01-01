@@ -359,9 +359,15 @@ class TestUserProfileWorkflow:
             assert response.status_code == 200
             assert bytes(user.first_name, encoding='utf-8') in response.data
             
-            # Test unauthenticated access is blocked
+            # Test unauthenticated access redirects to login
             client.get('/auth/logout', follow_redirects=True)
+            
+            # First verify we get redirected (without following)
+            response = client.get(f'/user/{user.id}')
+            assert response.status_code == 302
+            assert '/auth/login' in response.location
+            
+            # Then verify following redirect lands on login page
             response = client.get(f'/user/{user.id}', follow_redirects=True)
             assert response.status_code == 200
-            # With @login_required, user is redirected to the login page
             assert b'Login' in response.data
