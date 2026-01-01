@@ -6,6 +6,21 @@ from app.utils.geocoding import (
 from tests.factories import UserFactory, ItemFactory, CategoryFactory
 from app.models import db
 
+
+def create_simple_distance_fn():
+    """
+    Create a realistic distance function for testing sort_by_distance.
+    This mimics how distance functions are used in the actual application.
+    """
+    def distance_fn(item, user):
+        if not hasattr(item, 'lat') or item.lat is None or item.lon is None:
+            return None
+        if not user.is_geocoded:
+            return None
+        return calculate_distance(item.lat, item.lon, user.latitude, user.longitude)
+    return distance_fn
+
+
 class TestSortByDistance:
     """Test sort_by_distance utility function."""
     
@@ -32,9 +47,7 @@ class TestSortByDistance:
             
             items = [item_la, item_chicago, item_boston]
             
-            def distance_fn(item, user):
-                return calculate_distance(item.lat, item.lon, user.latitude, user.longitude)
-            
+            distance_fn = create_simple_distance_fn()
             sorted_items = sort_by_distance(items, reference_user, distance_fn)
             
             # Should be sorted: Boston (closest), Chicago, LA (farthest)
@@ -63,11 +76,7 @@ class TestSortByDistance:
             
             items = [item_no_loc1, item_boston, item_no_loc2]
             
-            def distance_fn(item, user):
-                if item.lat is None or item.lon is None:
-                    return None
-                return calculate_distance(item.lat, item.lon, user.latitude, user.longitude)
-            
+            distance_fn = create_simple_distance_fn()
             sorted_items = sort_by_distance(items, reference_user, distance_fn)
             
             # Boston should be first (has location), no-location items at end
@@ -95,8 +104,7 @@ class TestSortByDistance:
             
             items = [item_la, item_boston]
             
-            def distance_fn(item, user):
-                return calculate_distance(item.lat, item.lon, user.latitude, user.longitude)
+            distance_fn = create_simple_distance_fn()
             
             # Filter to 500 mile radius (should exclude LA)
             sorted_items = sort_by_distance(items, reference_user, distance_fn, radius=500)
@@ -122,9 +130,7 @@ class TestSortByDistance:
             
             items = [item1, item2]
             
-            def distance_fn(item, user):
-                return calculate_distance(item.lat, item.lon, user.latitude, user.longitude)
-            
+            distance_fn = create_simple_distance_fn()
             sorted_items = sort_by_distance(items, reference_user, distance_fn)
             
             # Original order should be preserved
@@ -136,9 +142,7 @@ class TestSortByDistance:
         with app.app_context():
             
             reference_user = UserFactory(latitude=40.7128, longitude=-74.0060)
-            
-            def distance_fn(item, user):
-                return 0
+            distance_fn = create_simple_distance_fn()
             
             sorted_items = sort_by_distance([], reference_user, distance_fn)
             
