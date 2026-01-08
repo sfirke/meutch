@@ -104,7 +104,7 @@ class TestGiveawayItemCreation:
             assert response.status_code == 200
             
             # Verify item was updated
-            updated_item = Item.query.get(item.id)
+            updated_item = db.session.get(Item, item.id)
             assert updated_item.is_giveaway is True
             assert updated_item.giveaway_visibility == 'public'
             assert updated_item.claim_status == 'unclaimed'
@@ -136,7 +136,7 @@ class TestGiveawayItemCreation:
             assert response.status_code == 200
             
             # Verify item was updated
-            updated_item = Item.query.get(item.id)
+            updated_item = db.session.get(Item, item.id)
             assert updated_item.is_giveaway is False
             assert updated_item.giveaway_visibility is None
             assert updated_item.claim_status is None
