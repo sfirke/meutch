@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Header -->
+            <div class="mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-user-check me-2"></i>
+                    {% if is_reassignment %}Change Recipient{% else %}Select Recipient{% endif %}
+                </h1>
+                <p class="text-muted lead">
+                    {% if is_reassignment %}
+                        Choose a new recipient for giveaway: <strong>{{ item.name }}</strong>
+                    {% else %}
+                        Choose who will receive your giveaway: <strong>{{ item.name }}</strong>
+                    {% endif %}
+                </p>
+                <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Item
+                </a>
+            </div>
+
+            <!-- Quick Selection Buttons -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-magic me-2"></i>Quick Selection</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Let the system choose for you:</p>
+                    <form method="POST" action="{{ url_for('main.select_recipient', item_id=item.id) }}" class="d-inline">
+                        <input type="hidden" name="selection_method" value="first">
+                        <button type="submit" class="btn btn-primary me-2 mb-2">
+                            <i class="fas fa-clock me-2"></i>
+                            {% if is_reassignment %}Next in Line{% else %}First Requester{% endif %}
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('main.select_recipient', item_id=item.id) }}" class="d-inline">
+                        <input type="hidden" name="selection_method" value="random">
+                        <button type="submit" class="btn btn-info me-2 mb-2">
+                            <i class="fas fa-random me-2"></i>
+                            {% if is_reassignment %}Random from Remaining{% else %}Random Selection{% endif %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Manual Selection -->
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-hand-pointer me-2"></i>Manual Selection</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Review the interested users and choose one:</p>
+                    
+                    <form method="POST" action="{{ url_for('main.select_recipient', item_id=item.id) }}" id="manualSelectionForm">
+                        <input type="hidden" name="selection_method" value="manual">
+                        
+                        <div class="list-group mb-3">
+                            {% for interest in interested_users %}
+                                <div class="list-group-item">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="radio" 
+                                               name="user_id" 
+                                               id="user{{ interest.user_id }}"
+                                               value="{{ interest.user_id }}"
+                                               required>
+                                        <label class="form-check-label w-100" for="user{{ interest.user_id }}">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">
+                                                        {{ interest.user.full_name }}
+                                                        {% if is_reassignment and item.claimed_by_id == interest.user_id %}
+                                                            <span class="badge bg-secondary">Previously Selected</span>
+                                                        {% endif %}
+                                                    </h6>
+                                                    <p class="mb-1 text-muted small">
+                                                        <i class="fas fa-clock me-1"></i>
+                                                        Requested {{ interest.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                                    </p>
+                                                    {% if interest.message %}
+                                                        <div class="mt-2 p-2 bg-light rounded">
+                                                            <p class="mb-0 small"><strong>Message:</strong> {{ interest.message }}</p>
+                                                        </div>
+                                                    {% else %}
+                                                        <p class="mb-0 small text-muted fst-italic">No message provided</p>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check me-2"></i>Confirm Manual Selection
+                            </button>
+                            <a href="{{ url_for('main.item_detail', item_id=item.id) }}" 
+                               class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="alert alert-info mt-4" role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Note:</strong> Once you select a recipient, they will receive a notification message. 
+                {% if not is_reassignment %}
+                    Other interested users will remain in the pool in case you need to change the recipient later.
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

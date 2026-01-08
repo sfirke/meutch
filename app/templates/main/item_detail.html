@@ -95,14 +95,73 @@
                         
                         <!-- Action Buttons -->
                         <div class="d-grid gap-2 d-md-flex">
-                            {% if current_user.is_authenticated and current_user.id != item.owner.id and item.available %}
-                                <a href="{{ url_for('main.request_item', item_id=item.id) }}" 
-                                   class="btn btn-primary btn-lg">
-                                    <i class="fas fa-hand-holding me-2"></i>Request to Borrow
-                                </a>
+                            {% if current_user.is_authenticated and current_user.id != item.owner.id %}
+                                {% if item.is_giveaway %}
+                                    <!-- Giveaway actions for non-owners -->
+                                    {% if item.claim_status in [None, 'unclaimed'] %}
+                                        {% if not user_interest %}
+                                            <!-- Show "I Want This!" button if not already interested -->
+                                            <button type="button" class="btn btn-success btn-lg" 
+                                                    data-bs-toggle="collapse" 
+                                                    data-bs-target="#expressInterestForm"
+                                                    aria-expanded="false" 
+                                                    aria-controls="expressInterestForm">
+                                                <i class="fas fa-gift me-2"></i>I Want This!
+                                            </button>
+                                        {% else %}
+                                            <!-- Show confirmation that interest has been expressed -->
+                                            <div class="alert alert-success mb-0" role="alert">
+                                                <i class="fas fa-check-circle me-2"></i>You've expressed interest! The owner will contact you if selected.
+                                            </div>
+                                            <form action="{{ url_for('main.withdraw_interest', item_id=item.id) }}" 
+                                                  method="post" 
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('Are you sure you want to withdraw your interest?');">
+                                                <button type="submit" class="btn btn-outline-secondary">
+                                                    <i class="fas fa-times me-2"></i>Withdraw Interest
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    {% elif item.claim_status == 'pending_pickup' %}
+                                        <div class="alert alert-warning mb-0" role="alert">
+                                            <i class="fas fa-clock me-2"></i>This giveaway has been claimed by another user.
+                                        </div>
+                                    {% elif item.claim_status == 'claimed' %}
+                                        <div class="alert alert-info mb-0" role="alert">
+                                            <i class="fas fa-check-circle me-2"></i>This giveaway has been claimed{% if item.claimed_at %} on {{ item.claimed_at.strftime('%B %d, %Y') }}{% endif %}.
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <!-- Regular loan item actions -->
+                                    {% if item.available %}
+                                        <a href="{{ url_for('main.request_item', item_id=item.id) }}" 
+                                           class="btn btn-primary btn-lg">
+                                            <i class="fas fa-hand-holding me-2"></i>Request to Borrow
+                                        </a>
+                                    {% endif %}
+                                {% endif %}
                             {% endif %}
                             
                             {% if current_user.is_authenticated and current_user.id == item.owner.id %}
+                                <!-- Owner actions -->
+                                {% if item.is_giveaway %}
+                                    {% if item.claim_status in [None, 'unclaimed'] and interested_count > 0 %}
+                                        <a href="{{ url_for('main.select_recipient', item_id=item.id) }}" 
+                                           class="btn btn-primary btn-lg">
+                                            <i class="fas fa-user-check me-2"></i>View & Select Recipient
+                                            <span class="badge bg-light text-dark ms-2">{{ interested_count }}</span>
+                                        </a>
+                                    {% elif item.claim_status == 'pending_pickup' %}
+                                        <div class="alert alert-warning mb-3" role="alert">
+                                            <i class="fas fa-clock me-2"></i>Pending pickup by {{ item.claimed_by.full_name }}
+                                        </div>
+                                    {% elif item.claim_status == 'claimed' %}
+                                        <div class="alert alert-success mb-3" role="alert">
+                                            <i class="fas fa-check-circle me-2"></i>Claimed by {{ item.claimed_by.full_name }}{% if item.claimed_at %} on {{ item.claimed_at.strftime('%B %d, %Y') }}{% endif %}
+                                        </div>
+                                    {% endif %}
+                                {% endif %}
+                                
                                 <a href="{{ url_for('main.edit_item', item_id=item.id) }}" 
                                    class="btn btn-outline-primary">
                                     <i class="fas fa-edit me-2"></i>Edit Item
@@ -116,6 +175,37 @@
                                 </form>
                             {% endif %}
                         </div>
+                        
+                        <!-- Collapsible Interest Expression Form (for giveaways) -->
+                        {% if current_user.is_authenticated and current_user.id != item.owner.id and item.is_giveaway and item.claim_status in [None, 'unclaimed'] and not user_interest %}
+                            <div class="collapse mt-3" id="expressInterestForm">
+                                <div class="card card-body">
+                                    <h5 class="mb-3">Why do you want this item?</h5>
+                                    <form action="{{ url_for('main.express_interest', item_id=item.id) }}" method="post">
+                                        <div class="mb-3">
+                                            <label for="interestMessage" class="form-label">
+                                                Optional message to the owner (helps them decide):
+                                            </label>
+                                            <textarea class="form-control" 
+                                                      id="interestMessage" 
+                                                      name="message" 
+                                                      rows="3" 
+                                                      placeholder="e.g., I've been looking for this tool for a home project..."></textarea>
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" class="btn btn-success">
+                                                <i class="fas fa-paper-plane me-2"></i>Submit Interest
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" 
+                                                    data-bs-toggle="collapse" 
+                                                    data-bs-target="#expressInterestForm">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
                 
@@ -124,16 +214,19 @@
                     <div class="card">
                         <div class="card-header">
                             <h5 class="card-title mb-0">
-                                <i class="fas fa-envelope me-2"></i>Message the Owner
+                                <i class="fas fa-envelope me-2"></i>{% if item.is_giveaway %}Ask a Question{% else %}Message the Owner{% endif %}
                             </h5>
                         </div>
                         <div class="card-body">
+                            {% if item.is_giveaway %}
+                                <p class="text-muted">Have questions about this giveaway? Send a message to the owner.</p>
+                            {% endif %}
                             <form method="POST" action="{{ url_for('main.item_detail', item_id=item.id) }}">
                                 {{ form.hidden_tag() }}
                                 
                                 <div class="mb-3">
                                     {{ form.body.label(class="form-label") }}
-                                    {{ form.body(class="form-control", rows="4", placeholder="What do you want to know about the item or lending it?") }}
+                                    {{ form.body(class="form-control", rows="4", placeholder="What do you want to know about the item or lending it?" if not item.is_giveaway else "What do you want to know about this giveaway?") }}
                                     {% if form.body.errors %}
                                         <div class="text-danger mt-2">
                                             {% for error in form.body.errors %}

@@ -1,11 +1,13 @@
 from uuid import UUID
-from flask import render_template, current_app, request, flash, redirect, url_for
+import random
+from flask import render_template, current_app, request, flash, redirect, url_for, jsonify
 from flask_login import login_required, current_user, logout_user
 from sqlalchemy import or_, and_, func, select
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC
 from app import db
-from app.models import Item, LoanRequest, Tag, User, Message, Category
+from app.models import Item, LoanRequest, Tag, User, Message, Category, GiveawayInterest
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
@@ -300,9 +302,212 @@ def item_detail(item_id):
     # Retrieve messages related to this item (optional)
     messages = Message.query.filter_by(item_id=item.id, recipient_id=current_user.id).order_by(Message.timestamp.desc()).all()
     
+    # Check if current user has expressed interest in this giveaway
+    user_interest = None
+    if item.is_giveaway:
+        user_interest = GiveawayInterest.query.filter_by(
+            item_id=item.id,
+            user_id=current_user.id
+        ).first()
+    
+    # Get count of interested users for owner
+    interested_count = 0
+    if item.is_giveaway and item.owner_id == current_user.id:
+        interested_count = GiveawayInterest.query.filter_by(
+            item_id=item.id,
+            status='active'
+        ).count()
+    
     from app.forms import DeleteItemForm
     delete_form = DeleteItemForm()
-    return render_template('main/item_detail.html', item=item, form=form, messages=messages, delete_form=delete_form)
+    return render_template('main/item_detail.html', 
+                         item=item, 
+                         form=form, 
+                         messages=messages, 
+                         delete_form=delete_form,
+                         user_interest=user_interest,
+                         interested_count=interested_count)
+
+
+@main_bp.route('/item/<uuid:item_id>/express-interest', methods=['POST'])
+@login_required
+def express_interest(item_id):
+    """Allow a user to express interest in claiming a giveaway"""
+    item = db.get_or_404(Item, item_id)
+    
+    # Validation: item must be a giveaway
+    if not item.is_giveaway:
+        flash('This item is not a giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be unclaimed
+    if item.claim_status not in [None, 'unclaimed']:
+        flash('This giveaway is no longer available.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: user cannot express interest in own item
+    if item.owner_id == current_user.id:
+        flash('You cannot express interest in your own giveaway.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Get optional message from form data
+    message_text = request.form.get('message', '').strip()
+    
+    # Create GiveawayInterest record
+    try:
+        interest = GiveawayInterest(
+            item_id=item.id,
+            user_id=current_user.id,
+            message=message_text if message_text else None,
+            status='active'
+        )
+        db.session.add(interest)
+        db.session.commit()
+        flash('Your interest has been recorded! The owner will contact you if you are selected.', 'success')
+    except IntegrityError:
+        db.session.rollback()
+        flash('You have already expressed interest in this giveaway.', 'info')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error expressing interest in giveaway {item_id}: {str(e)}")
+        flash('An error occurred. Please try again.', 'danger')
+    
+    return redirect(url_for('main.item_detail', item_id=item.id))
+
+
+@main_bp.route('/item/<uuid:item_id>/withdraw-interest', methods=['POST'])
+@login_required
+def withdraw_interest(item_id):
+    """Allow a user to withdraw their interest in a giveaway"""
+    item = db.get_or_404(Item, item_id)
+    
+    # Find the user's interest record
+    interest = GiveawayInterest.query.filter_by(
+        item_id=item.id,
+        user_id=current_user.id
+    ).first()
+    
+    if not interest:
+        flash('You have not expressed interest in this giveaway.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Delete the interest record
+    try:
+        db.session.delete(interest)
+        db.session.commit()
+        flash('Your interest has been withdrawn.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error withdrawing interest from giveaway {item_id}: {str(e)}")
+        flash('An error occurred. Please try again.', 'danger')
+    
+    return redirect(url_for('main.item_detail', item_id=item.id))
+
+
+@main_bp.route('/item/<uuid:item_id>/select-recipient', methods=['GET', 'POST'])
+@login_required
+def select_recipient(item_id):
+    """Owner views interested users and selects a recipient for a giveaway"""
+    item = db.get_or_404(Item, item_id)
+    
+    # Validation: user must be owner
+    if item.owner_id != current_user.id:
+        flash('You do not have permission to manage this giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be a giveaway
+    if not item.is_giveaway:
+        flash('This item is not a giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be unclaimed or pending_pickup
+    if item.claim_status not in [None, 'unclaimed', 'pending_pickup']:
+        flash('This giveaway has already been claimed.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Handle POST request (recipient selection)
+    if request.method == 'POST':
+        selection_method = request.form.get('selection_method')
+        manual_user_id = request.form.get('user_id')
+        
+        # Get all active interests
+        active_interests = GiveawayInterest.query.filter_by(
+            item_id=item.id,
+            status='active'
+        ).order_by(GiveawayInterest.created_at).all()
+        
+        if not active_interests:
+            flash('No interested users found.', 'warning')
+            return redirect(url_for('main.item_detail', item_id=item.id))
+        
+        # Determine selected user based on method
+        selected_interest = None
+        if selection_method == 'first':
+            selected_interest = active_interests[0]
+        elif selection_method == 'random':
+            selected_interest = random.choice(active_interests)
+        elif selection_method == 'manual' and manual_user_id:
+            selected_interest = next(
+                (interest for interest in active_interests if str(interest.user_id) == manual_user_id),
+                None
+            )
+        
+        if not selected_interest:
+            flash('Invalid selection. Please try again.', 'danger')
+            return redirect(url_for('main.select_recipient', item_id=item.id))
+        
+        try:
+            # Update item status
+            item.claim_status = 'pending_pickup'
+            item.claimed_by_id = selected_interest.user_id
+            item.available = False
+            # claimed_at remains NULL until handoff is confirmed
+            
+            # Update the selected interest status
+            selected_interest.status = 'selected'
+            
+            # Create notification message to selected user
+            notification_message = Message(
+                sender_id=current_user.id,
+                recipient_id=selected_interest.user_id,
+                item_id=item.id,
+                body=f"Good news! You've been selected for the giveaway '{item.name}'! Please coordinate pickup with the owner."
+            )
+            db.session.add(notification_message)
+            
+            db.session.commit()
+            
+            # Send email notification
+            try:
+                from app.utils.email import send_message_notification_email
+                send_message_notification_email(notification_message)
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email notification for giveaway selection: {str(e)}")
+            
+            flash(f'{selected_interest.user.full_name} has been selected! They will be notified.', 'success')
+            return redirect(url_for('main.item_detail', item_id=item.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error selecting recipient for giveaway {item_id}: {str(e)}")
+            flash('An error occurred. Please try again.', 'danger')
+            return redirect(url_for('main.select_recipient', item_id=item.id))
+    
+    # GET request - show selection page
+    interested_users = GiveawayInterest.query.filter_by(
+        item_id=item.id,
+        status='active'
+    ).order_by(GiveawayInterest.created_at).all()
+    
+    if not interested_users:
+        flash('No users have expressed interest in this giveaway yet.', 'info')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    return render_template('main/select_recipient.html', 
+                         item=item, 
+                         interested_users=interested_users,
+                         is_reassignment=(item.claim_status == 'pending_pickup'))
+
 
 @main_bp.route('/items/<uuid:item_id>/request', methods=['GET', 'POST'])
 @login_required
