@@ -346,12 +346,33 @@ class ListItemForm(FlaskForm):
         OptionalFileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], 'Images only! Allowed formats: JPG, PNG, GIF, BMP, WebP')
     ])
     delete_image = BooleanField('Delete current image')
+    is_giveaway = BooleanField('This is a giveaway (free item)')
+    giveaway_visibility = RadioField('Giveaway Visibility',
+        choices=[
+            ('default', 'Circles only - Only visible to users in my circles'),
+            ('public', 'Public - Visible to all users on the platform')
+        ],
+        default='default',
+        validators=[Optional()]
+    )
     submit = SubmitField('List Item')
     submit_and_create_another = SubmitField('List Item & Create Another')
     
     def __init__(self, *args, **kwargs):
         super(ListItemForm, self).__init__(*args, **kwargs)
         self.category.choices = [('', 'Select a category...')] + [(str(c.id), c.name) for c in Category.query.order_by('name')]
+    
+    def validate(self, extra_validators=None):
+        """Custom validation to ensure giveaway_visibility is set when is_giveaway is checked"""
+        rv = FlaskForm.validate(self, extra_validators)
+        if not rv:
+            return False
+        
+        if self.is_giveaway.data and not self.giveaway_visibility.data:
+            self.giveaway_visibility.errors.append('Please select a visibility option for this giveaway.')
+            rv = False
+        
+        return rv
     
 class EditProfileForm(FlaskForm):
     about_me = TextAreaField('About Me', validators=[Length(max=500)])

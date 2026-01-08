@@ -2,20 +2,32 @@
     {% if item.image %}
         <div class="position-relative">
             <img src="{{ item.image }}" class="card-img-top" alt="{{ item.name }}">
+            <!-- Giveaway badge -->
+            {% if item.is_giveaway %}
+                <span class="position-absolute top-0 start-0 m-2 badge bg-success">
+                    <i class="fas fa-gift me-1"></i>FREE
+                </span>
+            {% endif %}
             <!-- Availability status badge -->
             {% if not item.available %}
                 <span class="position-absolute top-0 end-0 m-2 badge bg-warning">
-                    <i class="fas fa-clock me-1"></i>Borrowed
+                    <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Claimed{% else %}Borrowed{% endif %}
                 </span>
             {% endif %}
         </div>
     {% else %}
         <div class="card-img-top d-flex align-items-center justify-content-center bg-light position-relative" style="height: 200px;">
             <i class="fas fa-image text-muted" style="font-size: 3rem;"></i>
+            <!-- Giveaway badge for items without images -->
+            {% if item.is_giveaway %}
+                <span class="position-absolute top-0 start-0 m-2 badge bg-success">
+                    <i class="fas fa-gift me-1"></i>FREE
+                </span>
+            {% endif %}
             <!-- Availability status badge for items without images -->
             {% if not item.available %}
                 <span class="position-absolute top-0 end-0 m-2 badge bg-warning">
-                    <i class="fas fa-clock me-1"></i>Borrowed
+                    <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Claimed{% else %}Borrowed{% endif %}
                 </span>
             {% endif %}
         </div>

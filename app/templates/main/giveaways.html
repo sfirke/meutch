@@ -1,0 +1,114 @@
+<!-- app/templates/main/giveaways.html -->
+{% extends "base.html" %}
+
+{% block title %}Giveaways{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-gift me-2"></i>Available Giveaways</h2>
+    </div>
+    
+    <!-- Sort and Filter Controls -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" action="{{ url_for('main.giveaways') }}" class="row g-3">
+                <!-- Sort By -->
+                <div class="col-md-4">
+                    <label for="sort" class="form-label">Sort By</label>
+                    <select name="sort" id="sort" class="form-select" onchange="this.form.submit()">
+                        <option value="date" {% if sort_by == 'date' %}selected{% endif %}>Newest First</option>
+                        <option value="distance" {% if sort_by == 'distance' %}selected{% endif %}>Distance</option>
+                    </select>
+                </div>
+                
+                <!-- Distance Filter -->
+                <div class="col-md-4">
+                    <label for="distance" class="form-label">Distance Filter</label>
+                    <select name="distance" id="distance" class="form-select" onchange="this.form.submit()">
+                        <option value="" {% if not max_distance %}selected{% endif %}>All distances</option>
+                        <option value="5" {% if max_distance == 5 %}selected{% endif %}>Within 5 miles</option>
+                        <option value="10" {% if max_distance == 10 %}selected{% endif %}>Within 10 miles</option>
+                        <option value="25" {% if max_distance == 25 %}selected{% endif %}>Within 25 miles</option>
+                        <option value="50" {% if max_distance == 50 %}selected{% endif %}>Within 50 miles</option>
+                    </select>
+                </div>
+                
+                <!-- Reset Button -->
+                <div class="col-md-4 d-flex align-items-end">
+                    <a href="{{ url_for('main.giveaways') }}" class="btn btn-secondary w-100">
+                        <i class="fas fa-redo me-1"></i>Reset Filters
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Items Section -->
+    <div id="items-section">
+        {% if no_circles %}
+            <div class="alert alert-info">
+                <h5><i class="fas fa-info-circle me-2"></i>Join a circle to see giveaways</h5>
+                <p>You need to join at least one lending circle to browse giveaways from other members.</p>
+                <a href="{{ url_for('circles.manage_circles') }}" class="btn btn-primary">Find Circles to Join</a>
+            </div>
+        {% elif items %}
+            <div class="items-grid">
+                {% for item in items %}
+                    {% include 'main/_item_card.html' %}
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination Controls -->
+            {% if pagination.pages > 1 %}
+                <nav aria-label="Giveaways pages" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.giveaways', page=pagination.prev_num, sort=sort_by, distance=max_distance) }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&laquo;</span>
+                            </li>
+                        {% endif %}
+                        
+                        {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+                            {% if p %}
+                                {% if p == pagination.page %}
+                                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.giveaways', page=p, sort=sort_by, distance=max_distance) }}">{{ p }}</a></li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.giveaways', page=pagination.next_num, sort=sort_by, distance=max_distance) }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&raquo;</span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-secondary">
+                <i class="fas fa-search me-2"></i>No giveaways found matching your filters.
+                {% if max_distance %}
+                    <p class="mb-0 mt-2">Try expanding your distance filter or <a href="{{ url_for('main.giveaways') }}">view all giveaways</a>.</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
