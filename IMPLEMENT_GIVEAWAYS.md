@@ -600,6 +600,13 @@ This feature is broken down into **4 sequential PRs** for incremental review and
   - [ ] Add helpful tooltips and descriptions
   - [ ] Test accessibility (keyboard navigation, screen readers)
 
+- [ ] **Sample Data for Development**
+  - [ ] Add giveaway items to `app/cli.py` seed data (invoked via `./dev-start.sh seed`)
+  - [ ] Create 5 giveaway items with mix of visibility statuses (default and public)
+  - [ ] Add interest records on some giveaways
+  - [ ] Set one giveaway to pending_pickup status with selected recipient
+  - [ ] Ensure giveaways are distributed across different categories and owners
+
 - [ ] **Documentation**
   - [ ] Update README with giveaways feature description
   - [ ] Document new routes in API docs (if applicable)
