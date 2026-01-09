@@ -174,13 +174,9 @@ def giveaways():
             filtered_items.sort(key=lambda item: item.created_at, reverse=True)
         
         # Manual pagination for distance-filtered results
-        total_items = len(filtered_items)
-        start_idx = (page - 1) * per_page
-        end_idx = start_idx + per_page
-        items = filtered_items[start_idx:end_idx]
-        
-        # Create manual pagination object
-        pagination = ListPagination(items, page, per_page, total_items)
+        # ListPagination handles slicing internally
+        pagination = ListPagination(filtered_items, page, per_page)
+        items = pagination.items
     
     else:
         # No distance filter - can use database sorting and pagination
@@ -190,11 +186,9 @@ def giveaways():
             sorted_items = sort_items_by_owner_distance(all_items, current_user)
             
             # Manual pagination
-            total_items = len(sorted_items)
-            start_idx = (page - 1) * per_page
-            end_idx = start_idx + per_page
-            items = sorted_items[start_idx:end_idx]
-            pagination = ListPagination(items, page, per_page, total_items)
+            # ListPagination handles slicing internally
+            pagination = ListPagination(sorted_items, page, per_page)
+            items = pagination.items
         else:
             # Date sort - use database ordering
             base_query = base_query.order_by(Item.created_at.desc())
