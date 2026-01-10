@@ -117,9 +117,8 @@
                                                   method="post" 
                                                   class="d-inline"
                                                   onsubmit="return confirm('Are you sure you want to withdraw your interest?');">
-                                                <button type="submit" class="btn btn-outline-secondary">
-                                                    <i class="fas fa-times me-2"></i>Withdraw Interest
-                                                </button>
+                                                {{ withdraw_interest_form.hidden_tag() }}
+                                                {{ withdraw_interest_form.submit(class="btn btn-outline-secondary") }}
                                             </form>
                                         {% endif %}
                                     {% elif item.claim_status == 'pending_pickup' %}
@@ -182,15 +181,10 @@
                                 <div class="card card-body">
                                     <h5 class="mb-3">Why do you want this item?</h5>
                                     <form action="{{ url_for('main.express_interest', item_id=item.id) }}" method="post">
+                                        {{ express_interest_form.hidden_tag() }}
                                         <div class="mb-3">
-                                            <label for="interestMessage" class="form-label">
-                                                Optional message to the owner (helps them decide):
-                                            </label>
-                                            <textarea class="form-control" 
-                                                      id="interestMessage" 
-                                                      name="message" 
-                                                      rows="3" 
-                                                      placeholder="e.g., I've been looking for this tool for a home project..."></textarea>
+                                            {{ express_interest_form.message.label(class="form-label", text="Optional message to the owner (helps them decide):") }}
+                                            {{ express_interest_form.message(class="form-control", rows="3", placeholder="e.g., I've been looking for this tool for a home project...") }}
                                         </div>
                                         <div class="d-flex gap-2">
                                             <button type="submit" class="btn btn-success">

@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC
 from app import db
 from app.models import Item, LoanRequest, Tag, User, Message, Category, GiveawayInterest
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, EmptyForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 from app.utils.geocoding import sort_items_by_owner_distance
@@ -267,8 +267,10 @@ def search():
 def item_detail(item_id):
     item = db.get_or_404(Item, item_id)
     
-    # Initialize the MessageForm
+    # Initialize forms
     form = MessageForm()
+    express_interest_form = ExpressInterestForm()
+    withdraw_interest_form = WithdrawInterestForm()
     
     # Process form submission
     if form.validate_on_submit():
@@ -320,7 +322,9 @@ def item_detail(item_id):
                          messages=messages, 
                          delete_form=delete_form,
                          user_interest=user_interest,
-                         interested_count=interested_count)
+                         interested_count=interested_count,
+                         express_interest_form=express_interest_form,
+                         withdraw_interest_form=withdraw_interest_form)
 
 
 @main_bp.route('/item/<uuid:item_id>/express-interest', methods=['POST'])
@@ -328,6 +332,7 @@ def item_detail(item_id):
 def express_interest(item_id):
     """Allow a user to express interest in claiming a giveaway"""
     item = db.get_or_404(Item, item_id)
+    form = ExpressInterestForm()
     
     # Validation: item must be a giveaway
     if not item.is_giveaway:
@@ -344,27 +349,28 @@ def express_interest(item_id):
         flash('You cannot express interest in your own giveaway.', 'warning')
         return redirect(url_for('main.item_detail', item_id=item.id))
     
-    # Get optional message from form data
-    message_text = request.form.get('message', '').strip()
-    
-    # Create GiveawayInterest record
-    try:
-        interest = GiveawayInterest(
-            item_id=item.id,
-            user_id=current_user.id,
-            message=message_text if message_text else None,
-            status='active'
-        )
-        db.session.add(interest)
-        db.session.commit()
-        flash('Your interest has been recorded! The owner will contact you if you are selected.', 'success')
-    except IntegrityError:
-        db.session.rollback()
-        flash('You have already expressed interest in this giveaway.', 'info')
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error expressing interest in giveaway {item_id}: {str(e)}")
-        flash('An error occurred. Please try again.', 'danger')
+    if form.validate_on_submit():
+        # Get optional message from form
+        message_text = form.message.data.strip() if form.message.data else None
+        
+        # Create GiveawayInterest record
+        try:
+            interest = GiveawayInterest(
+                item_id=item.id,
+                user_id=current_user.id,
+                message=message_text,
+                status='active'
+            )
+            db.session.add(interest)
+            db.session.commit()
+            flash('Your interest has been recorded! The owner will contact you if you are selected.', 'success')
+        except IntegrityError:
+            db.session.rollback()
+            flash('You have already expressed interest in this giveaway.', 'info')
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error expressing interest in giveaway {item_id}: {str(e)}")
+            flash('An error occurred. Please try again.', 'danger')
     
     return redirect(url_for('main.item_detail', item_id=item.id))
 
@@ -374,6 +380,11 @@ def express_interest(item_id):
 def withdraw_interest(item_id):
     """Allow a user to withdraw their interest in a giveaway"""
     item = db.get_or_404(Item, item_id)
+    form = WithdrawInterestForm()
+    
+    if not form.validate_on_submit():
+        flash('Invalid request.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
     
     # Find the user's interest record
     interest = GiveawayInterest.query.filter_by(
@@ -419,10 +430,25 @@ def select_recipient(item_id):
         flash('This giveaway has already been claimed.', 'warning')
         return redirect(url_for('main.item_detail', item_id=item.id))
     
+    # Create forms for each selection method
+    first_form = SelectRecipientForm(selection_method='first')
+    random_form = SelectRecipientForm(selection_method='random')
+    manual_form = SelectRecipientForm(selection_method='manual')
+    
     # Handle POST request (recipient selection)
     if request.method == 'POST':
+        # Determine which form was submitted and validate it
         selection_method = request.form.get('selection_method')
-        manual_user_id = request.form.get('user_id')
+        
+        if selection_method == 'first' and first_form.validate_on_submit():
+            form = first_form
+        elif selection_method == 'random' and random_form.validate_on_submit():
+            form = random_form
+        elif selection_method == 'manual' and manual_form.validate_on_submit():
+            form = manual_form
+        else:
+            flash('Invalid selection. Please try again.', 'danger')
+            return redirect(url_for('main.select_recipient', item_id=item.id))
         
         # Get all active interests
         active_interests = GiveawayInterest.query.filter_by(
@@ -440,7 +466,8 @@ def select_recipient(item_id):
             selected_interest = active_interests[0]
         elif selection_method == 'random':
             selected_interest = random.choice(active_interests)
-        elif selection_method == 'manual' and manual_user_id:
+        elif selection_method == 'manual':
+            manual_user_id = form.user_id.data
             selected_interest = next(
                 (interest for interest in active_interests if str(interest.user_id) == manual_user_id),
                 None
@@ -500,7 +527,10 @@ def select_recipient(item_id):
     return render_template('main/select_recipient.html', 
                          item=item, 
                          interested_users=interested_users,
-                         is_reassignment=(item.claim_status == 'pending_pickup'))
+                         is_reassignment=(item.claim_status == 'pending_pickup'),
+                         first_form=first_form,
+                         random_form=random_form,
+                         manual_form=manual_form)
 
 
 @main_bp.route('/items/<uuid:item_id>/request', methods=['GET', 'POST'])
@@ -680,6 +710,11 @@ def delete_item(item_id):
 @main_bp.route('/loan/<uuid:loan_id>/<string:action>', methods=['POST'])
 @login_required
 def process_loan(loan_id, action):
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Invalid request.", "danger")
+        return redirect(url_for('main.messages'))
+    
     loan = db.get_or_404(LoanRequest, loan_id)
     
     if loan.item.owner_id != current_user.id:
@@ -734,6 +769,11 @@ def process_loan(loan_id, action):
 @main_bp.route('/loan/<uuid:loan_id>/cancel', methods=['POST'])
 @login_required
 def cancel_loan_request(loan_id):
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Invalid request.", "danger")
+        return redirect(url_for('main.messages'))
+    
     loan = db.get_or_404(LoanRequest, loan_id)
     
     if loan.borrower_id != current_user.id:
@@ -779,6 +819,11 @@ def cancel_loan_request(loan_id):
 @main_bp.route('/loan/<uuid:loan_id>/complete', methods=['POST'])
 @login_required
 def complete_loan(loan_id):
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Invalid request.", "danger")
+        return redirect(url_for('main.messages'))
+    
     loan = db.get_or_404(LoanRequest, loan_id)
     
     if loan.item.owner_id != current_user.id:
@@ -825,6 +870,11 @@ def complete_loan(loan_id):
 @main_bp.route('/loan/<uuid:loan_id>/owner_cancel', methods=['POST'])
 @login_required
 def owner_cancel_loan(loan_id):
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Invalid request.", "danger")
+        return redirect(url_for('main.messages'))
+    
     loan = db.get_or_404(LoanRequest, loan_id)
     
     # Check if the current user is the owner of the item
@@ -1420,7 +1470,15 @@ def view_conversation(message_id):
         flash("Your reply has been sent.", "success")
         return redirect(url_for('main.view_conversation', message_id=message_id))
 
-    return render_template('messaging/view_conversation.html', message=message, thread_messages=thread_messages, form=form, active_loan=active_loan)
+    # Create EmptyForms for loan actions
+    loan_action_form = EmptyForm()
+
+    return render_template('messaging/view_conversation.html', 
+                         message=message, 
+                         thread_messages=thread_messages, 
+                         form=form, 
+                         active_loan=active_loan,
+                         loan_action_form=loan_action_form)
 
 
 @main_bp.route('/delete_account', methods=['GET', 'POST'])
