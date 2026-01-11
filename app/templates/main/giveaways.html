@@ -46,6 +46,25 @@
     
     <!-- Items Section -->
     <div id="items-section">
+        <!-- My Giveaways Section (if user has any) -->
+        {% if my_giveaways %}
+            <div class="mb-5">
+                <h3 class="mb-3"><i class="fas fa-user-circle me-2"></i>My Giveaways</h3>
+                <div class="items-grid">
+                    {% for item in my_giveaways %}
+                        {% set show_owner_controls = true %}
+                        {% include 'main/_item_card.html' %}
+                    {% endfor %}
+                </div>
+            </div>
+            <hr class="my-4">
+        {% endif %}
+        
+        <!-- Available Giveaways from Others (only show heading if user has their own giveaways) -->
+        {% if my_giveaways %}
+            <h3 class="mb-3"><i class="fas fa-users me-2"></i>Available from Others</h3>
+        {% endif %}
+        
         {% if no_circles %}
             <div class="alert alert-info">
                 <h5><i class="fas fa-info-circle me-2"></i>Join a circle to see giveaways</h5>

@@ -129,9 +129,16 @@ def giveaways():
     # Check if user has any circles
     has_circles = len(current_user.circles) > 0
     
+    # Get user's own giveaways (always show these regardless of circle status)
+    my_giveaways = Item.query.filter(
+        Item.owner_id == current_user.id,
+        Item.is_giveaway == True
+    ).order_by(Item.created_at.desc()).all()
+    
     if not has_circles:
         return render_template('main/giveaways.html', 
                              items=[], 
+                             my_giveaways=my_giveaways,
                              pagination=None, 
                              no_circles=True,
                              sort_by=sort_by,
@@ -197,6 +204,7 @@ def giveaways():
     
     return render_template('main/giveaways.html',
                          items=items,
+                         my_giveaways=my_giveaways,
                          pagination=pagination,
                          no_circles=False,
                          sort_by=sort_by,
@@ -1186,12 +1194,15 @@ def profile():
     page = request.args.get('page', 1, type=int)
     per_page = 12  # Items per page for logged-in users (same as index page)
     
-    # Fetch user's items with pagination (newest first)
-    items_pagination = Item.query.filter_by(owner_id=current_user.id).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    # Fetch user's giveaways separately (newest first, not paginated)
+    user_giveaways = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).order_by(Item.created_at.desc()).all()
+    
+    # Fetch user's regular items with pagination (newest first)
+    items_pagination = Item.query.filter_by(owner_id=current_user.id, is_giveaway=False).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     user_items = items_pagination.items
     
-    # Create a DeleteItemForm for each item
-    delete_forms = {item.id: DeleteItemForm() for item in user_items}
+    # Create a DeleteItemForm for each item (both giveaways and regular items)
+    delete_forms = {item.id: DeleteItemForm() for item in user_giveaways + user_items}
     
     borrowing = current_user.get_active_loans_as_borrower()
     lending = current_user.get_active_loans_as_owner()
@@ -1199,7 +1210,8 @@ def profile():
     return render_template('main/profile.html', 
                          form=form, 
                          user=current_user, 
-                         items=user_items, 
+                         items=user_items,
+                         giveaways=user_giveaways,
                          delete_forms=delete_forms,
                          borrowing=borrowing,
                          lending=lending,
