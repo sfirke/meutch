@@ -1,5 +1,5 @@
 import pytest
-from app.models import Item, User, Category, Circle, db
+from app.models import Item, User, Category, db
 from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory
 from flask import url_for
 from conftest import login_user
