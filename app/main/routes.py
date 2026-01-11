@@ -541,6 +541,84 @@ def select_recipient(item_id):
                          manual_form=manual_form)
 
 
+@main_bp.route('/item/<uuid:item_id>/message-requester/<uuid:user_id>', methods=['GET', 'POST'])
+@login_required
+def message_giveaway_requester(item_id, user_id):
+    """Allow giveaway owner to initiate a message with an interested user"""
+    item = db.get_or_404(Item, item_id)
+    
+    # Validation: user must be owner
+    if item.owner_id != current_user.id:
+        flash('You do not have permission to message requesters for this item.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be a giveaway
+    if not item.is_giveaway:
+        flash('This item is not a giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Get the target user
+    target_user = db.get_or_404(User, user_id)
+    
+    # Validation: target user must have expressed interest
+    interest = GiveawayInterest.query.filter_by(
+        item_id=item.id,
+        user_id=user_id
+    ).first()
+    
+    if not interest:
+        flash('This user has not expressed interest in this giveaway.', 'warning')
+        return redirect(url_for('main.select_recipient', item_id=item.id))
+    
+    # Check if a conversation already exists
+    existing_message = Message.query.filter(
+        Message.item_id == item.id,
+        or_(
+            and_(Message.sender_id == current_user.id, Message.recipient_id == user_id),
+            and_(Message.sender_id == user_id, Message.recipient_id == current_user.id)
+        )
+    ).first()
+    
+    if existing_message:
+        # Redirect to existing conversation
+        return redirect(url_for('main.view_conversation', message_id=existing_message.id))
+    
+    # Handle form submission
+    form = MessageForm()
+    if form.validate_on_submit():
+        # Create new message
+        message = Message(
+            sender_id=current_user.id,
+            recipient_id=user_id,
+            item_id=item.id,
+            body=form.body.data
+        )
+        db.session.add(message)
+        
+        try:
+            db.session.commit()
+            
+            # Send email notification to recipient
+            try:
+                from app.utils.email import send_message_notification_email
+                send_message_notification_email(message)
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email notification for message {message.id}: {str(e)}")
+            
+            flash('Your message has been sent.', 'success')
+            return redirect(url_for('main.view_conversation', message_id=message.id))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error sending message for giveaway {item_id}: {str(e)}")
+            flash('An error occurred. Please try again.', 'danger')
+    
+    return render_template('main/message_requester.html', 
+                         form=form, 
+                         item=item, 
+                         target_user=target_user,
+                         interest=interest)
+
+
 @main_bp.route('/items/<uuid:item_id>/request', methods=['GET', 'POST'])
 @login_required
 def request_item(item_id):

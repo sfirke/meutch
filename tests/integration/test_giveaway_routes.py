@@ -3,7 +3,7 @@ import pytest
 from app import db
 from app.models import Item, Category
 from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory
-from conftest import login_user
+from conftest import TEST_PASSWORD
 
 
 class TestGiveawayItemCreation:
@@ -886,3 +886,214 @@ class TestRecipientSelection:
             
             assert response.status_code == 200
             assert b'not a giveaway' in response.data
+
+
+class TestGiveawayOwnerMessaging:
+    """Test giveaway owner messaging functionality."""
+    
+    def test_owner_can_message_requester(self, client, app, auth_user):
+        """Test that owner can initiate a message with a giveaway requester."""
+        with app.app_context():
+            from app.models import GiveawayInterest, Message
+            
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            
+            # Requester expresses interest
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                message="I really need this!",
+                status='active'
+            )
+            db.session.add(interest)
+            db.session.commit()
+            
+            client.post('/auth/login', data={'email': owner.email, 'password': TEST_PASSWORD}, follow_redirects=True)
+            
+            # Owner navigates to message form
+            response = client.get(
+                f'/item/{giveaway.id}/message-requester/{requester.id}'
+            )
+            
+            assert response.status_code == 200
+            assert requester.full_name.encode() in response.data
+            assert b'I really need this!' in response.data
+            assert giveaway.name.encode() in response.data
+            
+            # Owner sends a message
+            response = client.post(
+                f'/item/{giveaway.id}/message-requester/{requester.id}',
+                data={
+                    'body': 'Can you pick this up today?'
+                },
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            
+            # Verify message was created
+            message = Message.query.filter_by(
+                sender_id=owner.id,
+                recipient_id=requester.id,
+                item_id=giveaway.id
+            ).first()
+            
+            assert message is not None
+            assert message.body == 'Can you pick this up today?'
+    
+    def test_non_owner_cannot_message_requester(self, client, app, auth_user):
+        """Test that non-owner cannot access the message requester route."""
+        with app.app_context():
+            from app.models import GiveawayInterest
+            
+            owner = UserFactory()
+            non_owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status='active'
+            )
+            db.session.add(interest)
+            db.session.commit()
+            
+            client.post('/auth/login', data={'email': non_owner.email, 'password': TEST_PASSWORD}, follow_redirects=True)
+            
+            response = client.get(
+                f'/item/{giveaway.id}/message-requester/{requester.id}',
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            assert b'do not have permission' in response.data
+    
+    def test_cannot_message_non_requester(self, client, app, auth_user):
+        """Test that owner cannot message someone who hasn't expressed interest."""
+        with app.app_context():
+            owner = auth_user()
+            random_user = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            db.session.commit()
+            
+            client.post('/auth/login', data={'email': owner.email, 'password': TEST_PASSWORD}, follow_redirects=True)
+            
+            response = client.get(
+                f'/item/{giveaway.id}/message-requester/{random_user.id}',
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            assert b'not expressed interest' in response.data
+    
+    def test_redirects_to_existing_conversation(self, client, app, auth_user):
+        """Test that accessing message route redirects to existing conversation."""
+        with app.app_context():
+            from app.models import GiveawayInterest, Message
+            
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status='active'
+            )
+            db.session.add(interest)
+            
+            # Create existing message
+            existing_message = Message(
+                sender_id=requester.id,
+                recipient_id=owner.id,
+                item_id=giveaway.id,
+                body="I have a question"
+            )
+            db.session.add(existing_message)
+            db.session.commit()
+            
+            client.post('/auth/login', data={'email': owner.email, 'password': TEST_PASSWORD}, follow_redirects=True)
+            
+            response = client.get(
+                f'/item/{giveaway.id}/message-requester/{requester.id}',
+                follow_redirects=False
+            )
+            
+            # Should redirect to existing conversation
+            assert response.status_code == 302
+            assert f'/message/{existing_message.id}' in response.location
+    
+    def test_message_button_appears_on_select_recipient_page(self, client, app, auth_user):
+        """Test that Message button appears for each interested user."""
+        with app.app_context():
+            from app.models import GiveawayInterest
+            
+            owner = auth_user()
+            requester1 = UserFactory(first_name="Alice", last_name="Smith")
+            requester2 = UserFactory(first_name="Bob", last_name="Jones")
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            
+            interest1 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester1.id,
+                message="Need this for work",
+                status='active'
+            )
+            interest2 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester2.id,
+                status='active'
+            )
+            db.session.add_all([interest1, interest2])
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.get(f'/item/{giveaway.id}/select-recipient')
+            
+            assert response.status_code == 200
+            assert b'Alice Smith' in response.data
+            assert b'Bob Jones' in response.data
+            # Check for Message button/link
+            assert b'Message' in response.data
+            assert f'/item/{giveaway.id}/message-requester/{requester1.id}'.encode() in response.data
+            assert f'/item/{giveaway.id}/message-requester/{requester2.id}'.encode() in response.data
+

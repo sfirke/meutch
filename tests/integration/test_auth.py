@@ -2,8 +2,8 @@
 import pytest
 from app.models import User
 from tests.factories import UserFactory, ItemFactory
-from conftest import login_user, logout_user, TEST_PASSWORD
-from unittest.mock import patch, Mock
+from conftest import login_user, TEST_PASSWORD
+from unittest.mock import patch
 
 class TestAuthenticationRoutes:
     """Test authentication routes."""
