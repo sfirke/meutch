@@ -61,6 +61,7 @@
                         
                         <div class="list-group mb-3">
                             {% for interest in interested_users %}
+                                {% set msg_info = user_messaging_info[interest.user_id|string] %}
                                 <div class="list-group-item">
                                     <div class="form-check">
                                         <input class="form-check-input" 
@@ -84,18 +85,48 @@
                                                     </p>
                                                     {% if interest.message %}
                                                         <div class="mt-2 p-2 bg-light rounded">
-                                                            <p class="mb-0 small"><strong>Message:</strong> {{ interest.message }}</p>
+                                                            <p class="mb-0 small"><strong>Initial Message:</strong> {{ interest.message }}</p>
                                                         </div>
                                                     {% else %}
-                                                        <p class="mb-0 small text-muted fst-italic">No message provided</p>
+                                                        <p class="mb-0 small text-muted fst-italic">No initial message provided</p>
+                                                    {% endif %}
+                                                    
+                                                    {# Show conversation preview if messages exist #}
+                                                    {% if msg_info.has_conversation and msg_info.latest_message %}
+                                                        <div class="mt-2 p-2 border-start border-3 border-primary bg-light rounded">
+                                                            <p class="mb-0 small">
+                                                                <strong>
+                                                                    <i class="fas fa-comments me-1"></i>
+                                                                    Conversation ({{ msg_info.message_count }} message{% if msg_info.message_count != 1 %}s{% endif %})
+                                                                    {% if msg_info.unread_count > 0 %}
+                                                                        <span class="badge bg-danger ms-1">{{ msg_info.unread_count }} new</span>
+                                                                    {% endif %}
+                                                                </strong>
+                                                            </p>
+                                                            <p class="mb-0 small text-muted">
+                                                                <em>Latest: "{{ msg_info.latest_message.body[:80] }}{% if msg_info.latest_message.body|length > 80 %}...{% endif %}"</em>
+                                                            </p>
+                                                        </div>
                                                     {% endif %}
                                                 </div>
                                                 <div class="ms-3">
-                                                    <a href="{{ url_for('main.message_giveaway_requester', item_id=item.id, user_id=interest.user_id) }}" 
-                                                       class="btn btn-sm btn-outline-primary"
-                                                       onclick="event.stopPropagation();">
-                                                        <i class="fas fa-envelope me-1"></i>Message
-                                                    </a>
+                                                    {% if msg_info.has_conversation %}
+                                                        <a href="{{ url_for('main.message_giveaway_requester', item_id=item.id, user_id=interest.user_id) }}" 
+                                                           class="btn btn-sm btn-primary"
+                                                           onclick="event.stopPropagation();">
+                                                            <i class="fas fa-comments me-1"></i>
+                                                            {% if msg_info.unread_count > 0 %}
+                                                                <span class="badge bg-danger rounded-pill">{{ msg_info.unread_count }}</span>
+                                                            {% endif %}
+                                                            View Chat
+                                                        </a>
+                                                    {% else %}
+                                                        <a href="{{ url_for('main.message_giveaway_requester', item_id=item.id, user_id=interest.user_id) }}" 
+                                                           class="btn btn-sm btn-outline-primary"
+                                                           onclick="event.stopPropagation();">
+                                                            <i class="fas fa-envelope me-1"></i>Send Message
+                                                        </a>
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                         </label>

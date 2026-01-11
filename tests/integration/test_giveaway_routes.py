@@ -3,7 +3,7 @@ import pytest
 from app import db
 from app.models import Item, Category
 from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory
-from conftest import TEST_PASSWORD
+from conftest import TEST_PASSWORD, login_user
 
 
 class TestGiveawayItemCreation:

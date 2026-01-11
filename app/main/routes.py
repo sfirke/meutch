@@ -532,9 +532,40 @@ def select_recipient(item_id):
         flash('No users have expressed interest in this giveaway yet.', 'info')
         return redirect(url_for('main.item_detail', item_id=item.id))
     
+    # Gather messaging information for each interested user
+    user_messaging_info = {}
+    for interest in interested_users:
+        # Check for existing conversation between owner and this user about this item
+        conversation_messages = Message.query.filter(
+            Message.item_id == item.id,
+            or_(
+                and_(Message.sender_id == current_user.id, 
+                     Message.recipient_id == interest.user_id),
+                and_(Message.sender_id == interest.user_id, 
+                     Message.recipient_id == current_user.id)
+            )
+        ).order_by(Message.timestamp).all()
+        
+        has_conversation = len(conversation_messages) > 0
+        
+        # Count unread messages from this user to the owner
+        unread_count = sum(1 for msg in conversation_messages 
+                          if msg.recipient_id == current_user.id and not msg.is_read)
+        
+        # Get the most recent message for preview
+        latest_message = conversation_messages[-1] if conversation_messages else None
+        
+        user_messaging_info[str(interest.user_id)] = {
+            'has_conversation': has_conversation,
+            'unread_count': unread_count,
+            'message_count': len(conversation_messages),
+            'latest_message': latest_message
+        }
+    
     return render_template('main/select_recipient.html', 
                          item=item, 
                          interested_users=interested_users,
+                         user_messaging_info=user_messaging_info,
                          is_reassignment=(item.claim_status == 'pending_pickup'),
                          first_form=first_form,
                          random_form=random_form,
