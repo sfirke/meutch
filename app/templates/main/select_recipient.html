@@ -30,6 +30,7 @@
                     <p class="mb-3">Let the system choose for you:</p>
                     <form method="POST" action="{{ url_for('main.select_recipient', item_id=item.id) }}" class="d-inline">
                         {{ first_form.hidden_tag() }}
+                        <input type="hidden" name="selection_method" value="first">
                         <button type="submit" class="btn btn-primary me-2 mb-2">
                             <i class="fas fa-clock me-2"></i>
                             {% if is_reassignment %}Next in Line{% else %}First Requester{% endif %}
@@ -37,6 +38,7 @@
                     </form>
                     <form method="POST" action="{{ url_for('main.select_recipient', item_id=item.id) }}" class="d-inline">
                         {{ random_form.hidden_tag() }}
+                        <input type="hidden" name="selection_method" value="random">
                         <button type="submit" class="btn btn-info me-2 mb-2">
                             <i class="fas fa-random me-2"></i>
                             {% if is_reassignment %}Random from Remaining{% else %}Random Selection{% endif %}
@@ -55,6 +57,7 @@
                     
                     <form method="POST" action="{{ url_for('main.select_recipient', item_id=item.id) }}" id="manualSelectionForm">
                         {{ manual_form.hidden_tag() }}
+                        <input type="hidden" name="selection_method" value="manual">
                         
                         <div class="list-group mb-3">
                             {% for interest in interested_users %}
