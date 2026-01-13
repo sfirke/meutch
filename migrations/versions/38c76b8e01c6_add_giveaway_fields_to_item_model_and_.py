@@ -37,12 +37,6 @@ def upgrade():
         batch_op.drop_index(batch_op.f('ix_admin_action_timestamp'))
         batch_op.create_unique_constraint(None, ['id'])
 
-    with op.batch_alter_table('circle', schema=None) as batch_op:
-        batch_op.alter_column('visibility',
-               existing_type=sa.VARCHAR(length=20),
-               nullable=True,
-               existing_server_default=sa.text("'public'::character varying"))
-
     with op.batch_alter_table('item', schema=None) as batch_op:
         batch_op.add_column(sa.Column('is_giveaway', sa.Boolean(), server_default='false', nullable=False))
         batch_op.add_column(sa.Column('giveaway_visibility', sa.String(length=20), nullable=True))
@@ -69,12 +63,6 @@ def downgrade():
         batch_op.drop_column('claim_status')
         batch_op.drop_column('giveaway_visibility')
         batch_op.drop_column('is_giveaway')
-
-    with op.batch_alter_table('circle', schema=None) as batch_op:
-        batch_op.alter_column('visibility',
-               existing_type=sa.VARCHAR(length=20),
-               nullable=False,
-               existing_server_default=sa.text("'public'::character varying"))
 
     with op.batch_alter_table('admin_action', schema=None) as batch_op:
         batch_op.drop_constraint(None, type_='unique')
