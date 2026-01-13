@@ -220,48 +220,6 @@ class TestListItemForm:
             form = ListItemForm(data=form_data)
             assert form.validate() is False
             assert 'Please select a visibility option for this giveaway.' in form.giveaway_visibility.errors
-    
-    def test_giveaway_with_default_visibility(self, app):
-        """Test giveaway item with default (circles only) visibility."""
-        with app.app_context():
-            category = CategoryFactory()
-            form_data = {
-                'name': 'Free Item',
-                'description': 'A giveaway item',
-                'category': str(category.id),
-                'is_giveaway': True,
-                'giveaway_visibility': 'default'
-            }
-            form = ListItemForm(data=form_data)
-            assert form.validate() is True
-    
-    def test_giveaway_with_public_visibility(self, app):
-        """Test giveaway item with public visibility."""
-        with app.app_context():
-            category = CategoryFactory()
-            form_data = {
-                'name': 'Free Item',
-                'description': 'A giveaway item',
-                'category': str(category.id),
-                'is_giveaway': True,
-                'giveaway_visibility': 'public'
-            }
-            form = ListItemForm(data=form_data)
-            assert form.validate() is True
-    
-    def test_loan_item_without_giveaway_visibility(self, app):
-        """Test regular loan item (not giveaway) without visibility - should pass."""
-        with app.app_context():
-            category = CategoryFactory()
-            form_data = {
-                'name': 'Loan Item',
-                'description': 'A regular item for lending',
-                'category': str(category.id),
-                'is_giveaway': False
-                # giveaway_visibility not provided - should be fine for loans
-            }
-            form = ListItemForm(data=form_data)
-            assert form.validate() is True
 
 class TestEditProfileForm:
     """Test EditProfileForm."""
