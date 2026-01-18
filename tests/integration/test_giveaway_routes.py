@@ -217,8 +217,9 @@ class TestGiveawaysFeed:
             other_user = UserFactory()
             circle.members.append(other_user)
             
-            # Create giveaways at different times
-            import time
+            # Create giveaways with explicit different timestamps
+            from datetime import datetime, UTC, timedelta
+            
             giveaway1 = ItemFactory(
                 owner=other_user,
                 category=category,
@@ -227,9 +228,7 @@ class TestGiveawaysFeed:
                 giveaway_visibility='default',
                 claim_status='unclaimed'
             )
-            db.session.commit()
-            
-            time.sleep(0.2)  # Ensure different timestamp
+            giveaway1.created_at = datetime.now(UTC) - timedelta(hours=2)
             
             giveaway2 = ItemFactory(
                 owner=other_user,
@@ -239,6 +238,8 @@ class TestGiveawaysFeed:
                 giveaway_visibility='default',
                 claim_status='unclaimed'
             )
+            giveaway2.created_at = datetime.now(UTC) - timedelta(hours=1)
+            
             db.session.commit()
             
             # Test date sorting (newest first)
@@ -248,9 +249,8 @@ class TestGiveawaysFeed:
             # Newest should appear before oldest in HTML (lower byte position)
             new_pos = response.data.find(b'New Giveaway')
             old_pos = response.data.find(b'Old Giveaway')
-            # If sorting works correctly, New (created second) should appear first (lower position)
-            # But due to timing, they might be created at same timestamp, so just verify both found
             assert new_pos != -1 and old_pos != -1, "Both giveaways should be found in response"
+            assert new_pos < old_pos, "New Giveaway should appear before Old Giveaway when sorting by date"
 
 
 class TestSearchFiltering:
