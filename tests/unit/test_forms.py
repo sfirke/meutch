@@ -205,6 +205,21 @@ class TestListItemForm:
             assert form.validate() is False
             assert any('This field is required.' in error for error in form.name.errors)
             assert any('This field is required.' in error for error in form.category.errors)
+    
+    def test_giveaway_without_visibility(self, app):
+        """Test giveaway item without visibility selection (should fail)."""
+        with app.app_context():
+            category = CategoryFactory()
+            form_data = {
+                'name': 'Free Item',
+                'description': 'A giveaway item',
+                'category': str(category.id),
+                'is_giveaway': True,
+                'giveaway_visibility': ''  # Missing required visibility
+            }
+            form = ListItemForm(data=form_data)
+            assert form.validate() is False
+            assert 'Please select a visibility option for this giveaway.' in form.giveaway_visibility.errors
 
 class TestEditProfileForm:
     """Test EditProfileForm."""

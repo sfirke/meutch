@@ -331,7 +331,7 @@ class User(UserMixin, db.Model):
         db.session.commit()
 
     # Relationships
-    items = db.relationship('Item', backref='owner', lazy=True)
+    items = db.relationship('Item', foreign_keys='Item.owner_id', backref='owner', lazy=True)
     circles = db.relationship('Circle', secondary=circle_members, back_populates='members')
     # Friendships will go here later
     def __repr__(self):
@@ -348,6 +348,14 @@ class Item(db.Model):
     category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('category.id'), nullable=False)
     loan_requests = db.relationship('LoanRequest', backref='item')
     image_url = db.Column(db.String(500), nullable=True)
+    is_giveaway = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
+    giveaway_visibility = db.Column(db.String(20), nullable=True)  # 'default' or 'public'
+    claim_status = db.Column(db.String(20), nullable=True)  # 'unclaimed', 'pending_pickup', 'claimed'
+    claimed_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    claimed_at = db.Column(db.DateTime, nullable=True)  # Only set when handoff confirmed (pending_pickup → claimed)
+    
+    # Relationships
+    claimed_by = db.relationship('User', foreign_keys=[claimed_by_id], backref='claimed_giveaways')
 
     @property
     def image(self):
@@ -368,12 +376,36 @@ class Item(db.Model):
     def __repr__(self):
         return f'<Item {self.name}>'
 
+
+class GiveawayInterest(db.Model):
+    """Track users who have expressed interest in claiming a giveaway item"""
+    __tablename__ = 'giveaway_interest'
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
+    item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=func.now())
+    message = db.Column(db.Text, nullable=True)  # Optional "why I want this" message
+    status = db.Column(db.String(20), nullable=False, default='active')  # 'active' or 'selected'
+    
+    # Relationships - passive_deletes tells SQLAlchemy to let the database handle CASCADE
+    item = db.relationship('Item', backref='giveaway_interests', passive_deletes=True)
+    user = db.relationship('User', backref='giveaway_interests', passive_deletes=True)
+    
+    # Unique constraint - one interest per user per item
+    __table_args__ = (
+        db.UniqueConstraint('item_id', 'user_id', name='uq_giveaway_interest_item_user'),
+    )
+    
+    def __repr__(self):
+        return f'<GiveawayInterest item_id={self.item_id} user_id={self.user_id} status={self.status}>'
+
     
 class Circle(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.Text, nullable=True)
-    visibility = db.Column(db.String(20), default='public')  # public, private, unlisted
+    visibility = db.Column(db.String(20), default='public', nullable=False)  # public, private, unlisted
     requires_approval = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=func.now())
     image_url = db.Column(db.String(500), nullable=True)

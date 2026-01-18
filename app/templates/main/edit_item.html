@@ -38,6 +38,32 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
+        
+        <!-- Giveaway Option -->
+        <div class="mb-3">
+            <div class="form-check">
+                {{ form.is_giveaway(class="form-check-input", id="isGiveawayCheckbox") }}
+                {{ form.is_giveaway.label(class="form-check-label") }}
+            </div>
+            <small class="text-muted">A giveaway is a one-time transfer - the item will be given away for free, not loaned.</small>
+            {% for error in form.is_giveaway.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Giveaway Visibility (conditional) -->
+        <div class="mb-3" id="giveawayVisibilitySection" style="display: none;">
+            {{ form.giveaway_visibility.label(class="form-label") }}
+            {% for subfield in form.giveaway_visibility %}
+                <div class="form-check">
+                    {{ subfield(class="form-check-input") }}
+                    {{ subfield.label(class="form-check-label") }}
+                </div>
+            {% endfor %}
+            {% for error in form.giveaway_visibility.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
 
         {% if item.image_url %}
         <div class="mb-3">
@@ -61,4 +87,26 @@
         <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="btn btn-secondary">Cancel</a>
     </form>
 </div>
+
+<script>
+    // Show/hide giveaway visibility options based on checkbox state
+    document.addEventListener('DOMContentLoaded', function() {
+        const giveawayCheckbox = document.getElementById('isGiveawayCheckbox');
+        const visibilitySection = document.getElementById('giveawayVisibilitySection');
+        
+        function toggleVisibilitySection() {
+            if (giveawayCheckbox.checked) {
+                visibilitySection.style.display = 'block';
+            } else {
+                visibilitySection.style.display = 'none';
+            }
+        }
+        
+        // Initialize on page load
+        toggleVisibilitySection();
+        
+        // Update when checkbox changes
+        giveawayCheckbox.addEventListener('change', toggleVisibilitySection);
+    });
+</script>
 {% endblock %}

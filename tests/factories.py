@@ -4,7 +4,7 @@ from factory.alchemy import SQLAlchemyModelFactory
 from faker import Faker
 from werkzeug.security import generate_password_hash
 from app import db
-from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, CircleJoinRequest, UserWebLink, AdminAction
+from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, CircleJoinRequest, UserWebLink, AdminAction, GiveawayInterest
 import uuid
 
 fake = Faker()
@@ -138,3 +138,16 @@ class AdminActionFactory(SQLAlchemyModelFactory):
         'target_email': obj.target_user.email,
         'target_name': obj.target_user.full_name
     })
+
+
+class GiveawayInterestFactory(SQLAlchemyModelFactory):
+    """Factory for GiveawayInterest model."""
+    class Meta:
+        model = GiveawayInterest
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+    
+    item = factory.SubFactory(ItemFactory, is_giveaway=True, giveaway_visibility='default', claim_status='unclaimed')
+    user = factory.SubFactory(UserFactory)
+    message = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=200))
+    status = 'active'
