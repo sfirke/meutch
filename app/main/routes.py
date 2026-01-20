@@ -473,10 +473,11 @@ def select_recipient(item_id):
             selected_interest = random.choice(active_interests)
         elif selection_method == 'manual':
             manual_user_id = form.user_id.data
-            selected_interest = next(
-                (interest for interest in active_interests if str(interest.user_id) == manual_user_id),
-                None
-            )
+            selected_interest = GiveawayInterest.query.filter_by(
+                item_id=item.id,
+                user_id=manual_user_id,
+                status='active'
+            ).first()
         
         if not selected_interest:
             flash('Invalid selection. Please try again.', 'danger')
