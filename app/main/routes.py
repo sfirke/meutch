@@ -1,18 +1,18 @@
-from uuid import UUID
 import random
-from flask import render_template, current_app, request, flash, redirect, url_for, jsonify
+from flask import render_template, current_app, request, flash, redirect, url_for
 from flask_login import login_required, current_user, logout_user
 from sqlalchemy import or_, and_, func, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC
 from app import db
-from app.models import Item, LoanRequest, Tag, User, Message, Category, GiveawayInterest
+from app.models import Item, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, EmptyForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 from app.utils.geocoding import sort_items_by_owner_distance
 from app.utils.pagination import ListPagination
+from app.utils.email import send_message_notification_email
 
 @main_bp.route('/')
 def index():
@@ -159,7 +159,6 @@ def giveaways():
     
     # Apply distance filtering if requested and both users are geocoded
     if max_distance and current_user.is_geocoded:
-        from app.utils.geocoding import calculate_distance
         # We need to filter after getting all items since distance calculation requires
         # comparing user coordinates. Get all matching items first.
         all_items = base_query.all()
@@ -295,7 +294,6 @@ def item_detail(item_id):
         
         # Send email notification to recipient
         try:
-            from app.utils.email import send_message_notification_email
             send_message_notification_email(message)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for message {message.id}: {str(e)}")
@@ -322,7 +320,6 @@ def item_detail(item_id):
             status='active'
         ).count()
     
-    from app.forms import DeleteItemForm
     delete_form = DeleteItemForm()
     return render_template('main/item_detail.html', 
                          item=item, 
@@ -508,7 +505,6 @@ def select_recipient(item_id):
             
             # Send email notification
             try:
-                from app.utils.email import send_message_notification_email
                 send_message_notification_email(notification_message)
             except Exception as e:
                 current_app.logger.error(f"Failed to send email notification for giveaway selection: {str(e)}")
@@ -631,7 +627,6 @@ def message_giveaway_requester(item_id, user_id):
             
             # Send email notification to recipient
             try:
-                from app.utils.email import send_message_notification_email
                 send_message_notification_email(message)
             except Exception as e:
                 current_app.logger.error(f"Failed to send email notification for message {message.id}: {str(e)}")
@@ -696,7 +691,6 @@ def request_item(item_id):
             
             # Send email notification to recipient
             try:
-                from app.utils.email import send_message_notification_email
                 send_message_notification_email(message)
             except Exception as e:
                 current_app.logger.error(f"Failed to send email notification for loan request message {message.id}: {str(e)}")
@@ -869,7 +863,6 @@ def process_loan(loan_id, action):
         
         # Send email notification to recipient
         try:
-            from app.utils.email import send_message_notification_email
             send_message_notification_email(message)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for loan decision message {message.id}: {str(e)}")
@@ -919,7 +912,6 @@ def cancel_loan_request(loan_id):
         
         # Send email notification to recipient
         try:
-            from app.utils.email import send_message_notification_email
             send_message_notification_email(message)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for loan cancellation message {message.id}: {str(e)}")
@@ -970,7 +962,6 @@ def complete_loan(loan_id):
         
         # Send email notification to recipient
         try:
-            from app.utils.email import send_message_notification_email
             send_message_notification_email(message)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for loan completion message {message.id}: {str(e)}")
@@ -1023,7 +1014,6 @@ def owner_cancel_loan(loan_id):
         
         # Send email notification to recipient
         try:
-            from app.utils.email import send_message_notification_email
             send_message_notification_email(message)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for owner loan cancellation message {message.id}: {str(e)}")
@@ -1086,7 +1076,6 @@ def extend_loan(loan_id):
             
             # Send email notification to borrower
             try:
-                from app.utils.email import send_message_notification_email
                 send_message_notification_email(message)
             except Exception as e:
                 current_app.logger.error(f"Failed to send email notification for loan extension message {message.id}: {str(e)}")
@@ -1240,7 +1229,6 @@ def category_items(category_id):
 @main_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    from app.models import UserWebLink
     
     form = EditProfileForm()
     if form.validate_on_submit():
@@ -1331,7 +1319,6 @@ def profile():
 def update_location():
     """Allow users to update their location coordinates"""
     from app.utils.geocoding import geocode_address, build_address_string, GeocodingError
-    from datetime import datetime
     
     # Check if user can update location (daily limit)
     if not current_user.can_update_location():
@@ -1583,7 +1570,6 @@ def view_conversation(message_id):
         
         # Send email notification to recipient
         try:
-            from app.utils.email import send_message_notification_email
             send_message_notification_email(reply)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for reply message {reply.id}: {str(e)}")
