@@ -552,7 +552,7 @@ def select_recipient(item_id):
         # Get the most recent message for preview
         latest_message = conversation_messages[-1] if conversation_messages else None
         
-        user_messaging_info[str(interest.user_id)] = {
+        user_messaging_info[interest.user_id] = {
             'has_conversation': has_conversation,
             'unread_count': unread_count,
             'message_count': len(conversation_messages),
@@ -715,7 +715,7 @@ def edit_item(item_id):
     form = ListItemForm(obj=item)
 
     if request.method == 'GET':
-        form.category.data = str(item.category_id)
+        form.category.data = item.category_id
         # Prepopulate giveaway fields
         form.is_giveaway.data = item.is_giveaway
         form.giveaway_visibility.data = item.giveaway_visibility
