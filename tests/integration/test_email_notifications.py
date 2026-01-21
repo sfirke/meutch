@@ -1,10 +1,8 @@
 import pytest
 from unittest.mock import patch
-from flask import url_for
-
 from app import db
 from tests.factories import UserFactory, ItemFactory
-from conftest import TEST_PASSWORD
+from conftest import login_user
 
 
 class TestEmailNotificationIntegration:
@@ -21,10 +19,7 @@ class TestEmailNotificationIntegration:
             db.session.commit()
             
             # Sender logs in
-            client.post('/auth/login', data={
-                'email': sender.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, sender.email)
             
             # Patch the email sending function
             with patch('app.utils.email.send_email') as mock_send_email:
@@ -56,10 +51,7 @@ class TestEmailNotificationIntegration:
             db.session.commit()
             
             # Borrower logs in
-            client.post('/auth/login', data={
-                'email': borrower.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, borrower.email)
             
             # Patch the email sending function
             with patch('app.utils.email.send_email') as mock_send_email:

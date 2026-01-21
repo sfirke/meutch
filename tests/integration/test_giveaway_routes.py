@@ -1,9 +1,9 @@
 """Integration tests for giveaway routes and functionality."""
 import pytest
 from app import db
-from app.models import Item, Category
+from app.models import Item
 from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory
-from conftest import TEST_PASSWORD, login_user
+from conftest import login_user
 
 
 class TestGiveawayItemCreation:
@@ -794,11 +794,14 @@ class TestRecipientSelection:
             assert giveaway.claim_status == 'pending_pickup'
     
     def test_random_selection(self, client, app, auth_user):
-        """Test owner can randomly select a recipient."""
+        """Test owner can randomly select a recipient and selection is actually random."""
+        from unittest.mock import patch
+        
         with app.app_context():
             owner = auth_user()
-            user1 = UserFactory()
-            user2 = UserFactory()
+            user1 = UserFactory(first_name='Alice')
+            user2 = UserFactory(first_name='Bob')
+            user3 = UserFactory(first_name='Charlie')
             category = CategoryFactory()
             
             giveaway = ItemFactory(
@@ -819,24 +822,70 @@ class TestRecipientSelection:
                 item_id=giveaway.id,
                 user_id=user2.id
             )
-            db.session.add_all([interest1, interest2])
+            interest3 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=user3.id
+            )
+            db.session.add_all([interest1, interest2, interest3])
             db.session.commit()
             
             login_user(client, owner.email)
             
-            # Select random
-            response = client.post(
-                f'/item/{giveaway.id}/select-recipient',
-                data={'selection_method': 'random'},
-                follow_redirects=True
-            )
+            # Test 1: Mock random.choice to return first interest (user1)
+            with patch('app.main.routes.random.choice', return_value=interest1):
+                response = client.post(
+                    f'/item/{giveaway.id}/select-recipient',
+                    data={'selection_method': 'random'},
+                    follow_redirects=True
+                )
+                
+                assert response.status_code == 200
+                db.session.refresh(giveaway)
+                assert giveaway.claimed_by_id == user1.id
+                assert giveaway.claim_status == 'pending_pickup'
+                assert b'Alice' in response.data  # Verify correct user shown in flash message
             
-            assert response.status_code == 200
+            # Reset giveaway for second test
+            giveaway.claim_status = 'unclaimed'
+            giveaway.claimed_by_id = None
+            giveaway.available = True
+            interest1.status = 'active'
+            db.session.commit()
             
-            # Verify one of the users was selected
-            db.session.refresh(giveaway)
-            assert giveaway.claimed_by_id in [user1.id, user2.id]
-            assert giveaway.claim_status == 'pending_pickup'
+            # Test 2: Mock random.choice to return second interest (user2)
+            with patch('app.main.routes.random.choice', return_value=interest2):
+                response = client.post(
+                    f'/item/{giveaway.id}/select-recipient',
+                    data={'selection_method': 'random'},
+                    follow_redirects=True
+                )
+                
+                assert response.status_code == 200
+                db.session.refresh(giveaway)
+                assert giveaway.claimed_by_id == user2.id
+                assert giveaway.claim_status == 'pending_pickup'
+                assert b'Bob' in response.data  # Verify correct user shown in flash message
+            
+            # Reset giveaway for third test
+            giveaway.claim_status = 'unclaimed'
+            giveaway.claimed_by_id = None
+            giveaway.available = True
+            interest2.status = 'active'
+            db.session.commit()
+            
+            # Test 3: Mock random.choice to return third interest (user3)
+            with patch('app.main.routes.random.choice', return_value=interest3):
+                response = client.post(
+                    f'/item/{giveaway.id}/select-recipient',
+                    data={'selection_method': 'random'},
+                    follow_redirects=True
+                )
+                
+                assert response.status_code == 200
+                db.session.refresh(giveaway)
+                assert giveaway.claimed_by_id == user3.id
+                assert giveaway.claim_status == 'pending_pickup'
+                assert b'Charlie' in response.data  # Verify correct user shown in flash message
     
     def test_non_owner_cannot_select_recipient(self, client, app, auth_user):
         """Test non-owner cannot access recipient selection."""
@@ -917,7 +966,7 @@ class TestGiveawayOwnerMessaging:
             db.session.add(interest)
             db.session.commit()
             
-            client.post('/auth/login', data={'email': owner.email, 'password': TEST_PASSWORD}, follow_redirects=True)
+            login_user(client, owner.email)
             
             # Owner navigates to message form
             response = client.get(
@@ -975,7 +1024,7 @@ class TestGiveawayOwnerMessaging:
             db.session.add(interest)
             db.session.commit()
             
-            client.post('/auth/login', data={'email': non_owner.email, 'password': TEST_PASSWORD}, follow_redirects=True)
+            login_user(client, non_owner.email)
             
             response = client.get(
                 f'/item/{giveaway.id}/message-requester/{requester.id}',
@@ -1000,7 +1049,7 @@ class TestGiveawayOwnerMessaging:
             )
             db.session.commit()
             
-            client.post('/auth/login', data={'email': owner.email, 'password': TEST_PASSWORD}, follow_redirects=True)
+            login_user(client, owner.email)
             
             response = client.get(
                 f'/item/{giveaway.id}/message-requester/{random_user.id}',
@@ -1043,7 +1092,7 @@ class TestGiveawayOwnerMessaging:
             db.session.add(existing_message)
             db.session.commit()
             
-            client.post('/auth/login', data={'email': owner.email, 'password': TEST_PASSWORD}, follow_redirects=True)
+            login_user(client, owner.email)
             
             response = client.get(
                 f'/item/{giveaway.id}/message-requester/{requester.id}',

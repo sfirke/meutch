@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from flask import url_for
 from app.models import User, Item, Category, db
 from tests.factories import UserFactory, CategoryFactory
-from conftest import TEST_PASSWORD
+from conftest import login_user
 
 class TestUserRegistrationWorkflow:
     """Test complete user registration workflow."""
@@ -35,10 +35,7 @@ class TestUserRegistrationWorkflow:
             db.session.commit()
             
             # Login after confirmation
-            response = client.post('/auth/login', data={
-                'email': 'newuser@example.com',
-                'password': 'newpassword123'
-            }, follow_redirects=True)
+            response = login_user(client, 'newuser@example.com', 'newpassword123')
             
             assert response.status_code == 200
             assert b'Welcome' in response.data or b'Your Items' in response.data
@@ -51,10 +48,7 @@ class TestItemManagementWorkflow:
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
             # Login
-            client.post('/auth/login', data={
-                'email': user.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, user.email)
             
             # Create an item
             category = CategoryFactory(name='Test Category')
@@ -114,10 +108,7 @@ class TestLoanRequestWorkflow:
             item = ItemFactory(owner=lender)
             
             # Borrower logs in and requests item
-            client.post('/auth/login', data={
-                'email': borrower.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, borrower.email)
             
             # Generate dynamic dates - start date 3 days from now, end date 8 days from now
             start_date = (date.today() + timedelta(days=3)).strftime('%Y-%m-%d')
@@ -133,10 +124,7 @@ class TestLoanRequestWorkflow:
             
             # Logout borrower and login lender
             client.get('/auth/logout', follow_redirects=True)
-            client.post('/auth/login', data={
-                'email': lender.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, lender.email)
             
             # Lender checks messages and approves loan
             response = client.get('/messages')
@@ -171,10 +159,7 @@ class TestCircleWorkflow:
             member_user = UserFactory(email='member@test.com')
             
             # Admin creates circle
-            client.post('/auth/login', data={
-                'email': admin_user.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, admin_user.email)
             
             response = client.post('/circles', data={
                 'create_circle': True,
@@ -194,10 +179,7 @@ class TestCircleWorkflow:
             
             # Member requests to join
             client.get('/auth/logout', follow_redirects=True)
-            client.post('/auth/login', data={
-                'email': member_user.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, member_user.email)
             
             response = client.post(f'/circles/join/{circle.id}', data={
                 'message': 'I would like to join this circle'
@@ -207,10 +189,7 @@ class TestCircleWorkflow:
             
             # Admin approves request
             client.get('/auth/logout', follow_redirects=True)
-            client.post('/auth/login', data={
-                'email': admin_user.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, admin_user.email)
             
             # Find join request
             from app.models import CircleJoinRequest
@@ -240,7 +219,6 @@ class TestSearchAndBrowsingWorkflow:
             category = CategoryFactory()
             
             from tests.factories import ItemFactory, TagFactory, CircleFactory
-            from conftest import login_user
             
             # Create a shared circle
             circle = CircleFactory()
@@ -289,10 +267,7 @@ class TestMessagingWorkflow:
             item = ItemFactory(owner=recipient)
             
             # Sender logs in and sends message
-            client.post('/auth/login', data={
-                'email': sender.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, sender.email)
             
             response = client.post(f'/item/{item.id}', data={
                 'body': 'Hello, I am interested in this item!'
@@ -303,10 +278,7 @@ class TestMessagingWorkflow:
             
             # Recipient logs in and checks messages
             client.get('/auth/logout', follow_redirects=True)
-            client.post('/auth/login', data={
-                'email': recipient.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, recipient.email)
             
             response = client.get('/messages')
             assert response.status_code == 200
@@ -349,10 +321,7 @@ class TestUserProfileWorkflow:
             user = auth_user()
             
             # Login for authenticated test
-            client.post('/auth/login', data={
-                'email': user.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, user.email)
             
             # Test authenticated access works
             response = client.get(f'/user/{user.id}')

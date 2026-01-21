@@ -5,10 +5,7 @@ from app.models import Circle, db
 from tests.factories import UserFactory, CircleFactory
 from sqlalchemy import text
 from flask import url_for
-from conftest import TEST_PASSWORD
-
-def login_user(client, user):
-    client.post('/auth/login', data={'email': user.email, 'password': TEST_PASSWORD}, follow_redirects=True)
+from conftest import login_user
 
 def login_admin(client, user, circle):
     db.session.execute(
@@ -20,14 +17,14 @@ def login_admin(client, user, circle):
         )
     )
     db.session.commit()
-    client.post('/auth/login', data={'email': user.email, 'password': TEST_PASSWORD}, follow_redirects=True)
+    login_user(client, user.email)
 
 
 @patch('app.circles.routes.upload_circle_image', return_value='https://example.com/circle.jpg')
 def test_create_circle_with_image(mock_upload, client, app):
     with app.app_context():
         user = UserFactory()
-        login_user(client, user)
+        login_user(client, user.email)
         image_data = (io.BytesIO(b'fake image data'), 'circle.jpg')
         response = client.post(url_for('circles.create_circle'), data={
             'name': 'Circle With Image',
@@ -45,7 +42,7 @@ def test_create_circle_with_image(mock_upload, client, app):
 def test_create_circle_with_invalid_image(mock_upload, client, app):
     with app.app_context():
         user = UserFactory()
-        login_user(client, user)
+        login_user(client, user.email)
         # Mock upload failure
         bad_image = (io.BytesIO(b"not an image"), 'circle.jpg')
         response = client.post(url_for('circles.create_circle'), data={
