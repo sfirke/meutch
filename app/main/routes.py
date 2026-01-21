@@ -748,7 +748,6 @@ def edit_item(item_id):
     form = ListItemForm(obj=item)
 
     if request.method == 'GET':
-        form.category.data = item.category_id
         # Prepopulate giveaway fields
         form.is_giveaway.data = item.is_giveaway
         form.giveaway_visibility.data = item.giveaway_visibility
@@ -809,7 +808,8 @@ def edit_item(item_id):
         # After editing an item, redirect the user back to the item's detail page
         return redirect(url_for('main.item_detail', item_id=item.id))
     
-    # Prepopulate tags field
+    # Prepopulate category and tags fields
+    form.category.data = str(item.category_id)
     form.tags.data = ', '.join([tag.name for tag in item.tags])
     
     return render_template('main/edit_item.html', form=form, item=item)
