@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC
 from app import db
-from app.models import Item, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink
+from app.models import Item, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, EmptyForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
@@ -147,12 +147,29 @@ def giveaways():
     # Get users who share circles with current user
     shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
     
-    # Base query: giveaways that are unclaimed, from shared circle users, excluding own items
+    # Get all users who belong to any circle (for public giveaways)
+    all_circle_user_ids = select(circle_members.c.user_id).distinct()
+    
+    # Base query: giveaways that are unclaimed, excluding own items
+    # Include items that meet either condition:
+    # 1. Default visibility from shared circle users
+    # 2. Public visibility from any circle member
     base_query = Item.query.filter(
         Item.is_giveaway == True,
         and_(
             or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None)),
-            Item.owner_id.in_(shared_circle_user_ids),
+            or_(
+                # Default visibility: must share circles with owner
+                and_(
+                    or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
+                    Item.owner_id.in_(shared_circle_user_ids)
+                ),
+                # Public visibility: owner just needs to be in any circle
+                and_(
+                    Item.giveaway_visibility == 'public',
+                    Item.owner_id.in_(all_circle_user_ids)
+                )
+            ),
             Item.owner_id != current_user.id
         )
     ).join(Item.owner)
@@ -233,11 +250,27 @@ def search():
     if not has_circles:
         return render_template('search_results.html', items=[], query=query, pagination=None, has_circles=False, item_type=item_type)
     
+    # Get all users who belong to any circle (for public giveaways)
+    all_circle_user_ids = select(circle_members.c.user_id).distinct()
+    
     # Perform case-insensitive search on name, description, and tags
-    # Only include items from users in shared circles
+    # Include items that meet search criteria AND either:
+    # 1. Are from shared circle users (for default visibility items and loans)
+    # 2. Are public giveaways from any circle member
     items_query = Item.query.outerjoin(Item.tags).outerjoin(Item.category).filter(
         and_(
-            Item.owner_id.in_(shared_circle_user_ids),
+            or_(
+                # Default items (loans and default-visibility giveaways): must share circles
+                and_(
+                    or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
+                    Item.owner_id.in_(shared_circle_user_ids)
+                ),
+                # Public giveaways: owner just needs to be in any circle
+                and_(
+                    Item.giveaway_visibility == 'public',
+                    Item.owner_id.in_(all_circle_user_ids)
+                )
+            ),
             or_(
                 Item.name.ilike(f'%{query}%'),
                 Item.description.ilike(f'%{query}%'),

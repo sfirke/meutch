@@ -251,6 +251,101 @@ class TestGiveawaysFeed:
             old_pos = response.data.find(b'Old Giveaway')
             assert new_pos != -1 and old_pos != -1, "Both giveaways should be found in response"
             assert new_pos < old_pos, "New Giveaway should appear before Old Giveaway when sorting by date"
+    
+    def test_public_giveaway_visible_without_shared_circles(self, client, app, auth_user):
+        """Test that public giveaways are visible to users who don't share circles with owner."""
+        with app.app_context():
+            user = auth_user()
+            other_user = UserFactory()
+            
+            # Create two separate circles - users don't share any circles
+            circle1 = CircleFactory()
+            circle1.members.append(user)
+            
+            circle2 = CircleFactory()
+            circle2.members.append(other_user)
+            
+            db.session.commit()
+            login_user(client, user.email)
+            
+            category = CategoryFactory()
+            
+            # Create a public giveaway owned by other_user
+            public_giveaway = ItemFactory(
+                owner=other_user,
+                category=category,
+                name='Public Free Item',
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed'
+            )
+            
+            # Create a default (circles-only) giveaway that should NOT appear
+            default_giveaway = ItemFactory(
+                owner=other_user,
+                category=category,
+                name='Circles Only Free Item',
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed'
+            )
+            
+            db.session.commit()
+            
+            response = client.get('/giveaways')
+            
+            assert response.status_code == 200
+            assert b'Public Free Item' in response.data, "Public giveaway should be visible to all circle members"
+            assert b'Circles Only Free Item' not in response.data, "Default visibility giveaway should not be visible without shared circles"
+    
+    def test_public_giveaway_visible_in_search_without_shared_circles(self, client, app, auth_user):
+        """Test that public giveaways appear in search for users who don't share circles with owner."""
+        with app.app_context():
+            user = auth_user()
+            other_user = UserFactory()
+            
+            # Create two separate circles - users don't share any circles
+            circle1 = CircleFactory()
+            circle1.members.append(user)
+            
+            circle2 = CircleFactory()
+            circle2.members.append(other_user)
+            
+            db.session.commit()
+            login_user(client, user.email)
+            
+            category = CategoryFactory()
+            
+            # Create a public giveaway owned by other_user
+            public_giveaway = ItemFactory(
+                owner=other_user,
+                category=category,
+                name='Searchable Public Giveaway',
+                description='This is a public item',
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed'
+            )
+            
+            # Create a default (circles-only) giveaway that should NOT appear
+            default_giveaway = ItemFactory(
+                owner=other_user,
+                category=category,
+                name='Searchable Default Giveaway',
+                description='This is a default visibility item',
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed'
+            )
+            
+            db.session.commit()
+            
+            # Search for giveaways
+            response = client.get('/search?q=Searchable&item_type=giveaways')
+            
+            assert response.status_code == 200
+            assert b'Searchable Public Giveaway' in response.data, "Public giveaway should appear in search for all circle members"
+            assert b'Searchable Default Giveaway' not in response.data, "Default visibility giveaway should not appear in search without shared circles"
 
 
 class TestSearchFiltering:
