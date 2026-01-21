@@ -3,7 +3,7 @@ from flask import url_for
 from app.models import Circle
 from app import db
 from tests.factories import UserFactory
-from conftest import TEST_PASSWORD
+from conftest import login_user
 
 
 def test_public_circle_join_flow(client, app):
@@ -13,10 +13,7 @@ def test_public_circle_join_flow(client, app):
         joiner = UserFactory(email='joiner_public@test.com')
 
         # Creator logs in and creates a public circle (requires_approval=False)
-        client.post('/auth/login', data={
-            'email': creator.email,
-            'password': TEST_PASSWORD
-        }, follow_redirects=True)
+        login_user(client, creator.email)
 
         response = client.post('/circles', data={
             'create_circle': True,
@@ -36,10 +33,7 @@ def test_public_circle_join_flow(client, app):
         client.get('/auth/logout', follow_redirects=True)
 
         # Joiner logs in and attempts to join the public circle
-        client.post('/auth/login', data={
-            'email': joiner.email,
-            'password': TEST_PASSWORD
-        }, follow_redirects=True)
+        login_user(client, joiner.email)
 
         # Joiner should be able to view the circle details page before joining
         response = client.get(f'/circles/{circle.id}', follow_redirects=True)

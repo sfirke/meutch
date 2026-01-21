@@ -440,6 +440,144 @@ def _seed_development_data():
     else:
         click.echo(f"  ≈ Messages exist: {existing_messages} records")
 
+    # Giveaway items (create sample giveaway items if none exist)
+    from app.models import GiveawayInterest
+    existing_giveaways = Item.query.filter_by(is_giveaway=True).count()
+    if existing_giveaways < 5:
+        click.echo('  Creating giveaway items...')
+        
+        giveaway_examples = [
+            {
+                'name': 'Free Moving Boxes',
+                'description': 'Large collection of moving boxes, various sizes. Just moved in and don\'t need them anymore!',
+                'category': 'Home & Garden',
+                'visibility': 'public',
+                'status': 'unclaimed',
+                'has_interests': True,
+                'interest_count': 3
+            },
+            {
+                'name': 'Old Textbooks - Biology',
+                'description': 'College biology textbooks from last semester. Free to anyone who needs them.',
+                'category': 'Books',
+                'visibility': 'default',
+                'status': 'unclaimed',
+                'has_interests': True,
+                'interest_count': 2
+            },
+            {
+                'name': 'Kids\' Bicycle',
+                'description': 'Small bicycle for ages 5-7. My kids have outgrown it, hope it can help another family.',
+                'category': 'Sports',
+                'visibility': 'public',
+                'status': 'pending_pickup',
+                'has_interests': True,
+                'interest_count': 4,
+                'claimed_by_index': 0  # Will claim for first interested user
+            },
+            {
+                'name': 'Coffee Maker',
+                'description': 'Basic drip coffee maker, works great. Upgraded to espresso machine.',
+                'category': 'Kitchen',
+                'visibility': 'default',
+                'status': 'unclaimed',
+                'has_interests': False
+            },
+            {
+                'name': 'Old Monitor (VGA)',
+                'description': 'Working 19" monitor with VGA connection. A bit old but still functional.',
+                'category': 'Electronics',
+                'visibility': 'public',
+                'status': 'unclaimed',
+                'has_interests': True,
+                'interest_count': 1
+            }
+        ]
+        
+        for giveaway_data in giveaway_examples:
+            # Check if this giveaway already exists
+            existing = Item.query.filter_by(name=giveaway_data['name']).first()
+            if existing:
+                click.echo(f"  ≈ Giveaway exists: {existing.name}")
+                continue
+            
+            category = category_map.get(giveaway_data['category'], categories[0])
+            owner = random.choice(users)
+            
+            # Create giveaway item
+            giveaway = Item(
+                name=giveaway_data['name'],
+                description=giveaway_data['description'],
+                category=category,
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility=giveaway_data['visibility'],
+                claim_status=giveaway_data['status'],
+                available=(giveaway_data['status'] == 'unclaimed')
+            )
+            db.session.add(giveaway)
+            db.session.flush()  # Get the ID
+            
+            # Add random tags
+            giveaway_tags = random.sample(tags, random.randint(1, 2))
+            for tag in giveaway_tags:
+                giveaway.tags.append(tag)
+            
+            # Add interests if specified
+            interested_users = []
+            if giveaway_data.get('has_interests'):
+                interest_count = giveaway_data.get('interest_count', 1)
+                potential_interested = [u for u in users if u.id != owner.id]
+                interested_users = random.sample(potential_interested, min(interest_count, len(potential_interested)))
+                
+                for idx, interested_user in enumerate(interested_users):
+                    interest = GiveawayInterest(
+                        item_id=giveaway.id,
+                        user_id=interested_user.id,
+                        message=random.choice([
+                            'I really need this!',
+                            'This would be perfect for my project.',
+                            'Been looking for exactly this!',
+                            None,  # Some users don't leave a message
+                            'Would love to have this, thank you!',
+                        ]),
+                        status='active'
+                    )
+                    db.session.add(interest)
+                    db.session.flush()
+            
+            # If status is pending_pickup, select a recipient
+            if giveaway_data['status'] == 'pending_pickup' and interested_users:
+                claimed_by_idx = giveaway_data.get('claimed_by_index', 0)
+                if claimed_by_idx < len(interested_users):
+                    recipient = interested_users[claimed_by_idx]
+                    giveaway.claimed_by_id = recipient.id
+                    giveaway.available = False
+                    
+                    # Update the selected interest status
+                    selected_interest = GiveawayInterest.query.filter_by(
+                        item_id=giveaway.id,
+                        user_id=recipient.id
+                    ).first()
+                    if selected_interest:
+                        selected_interest.status = 'selected'
+                    
+                    # Create notification message
+                    notification = Message(
+                        sender_id=owner.id,
+                        recipient_id=recipient.id,
+                        item_id=giveaway.id,
+                        body=f"Good news! You've been selected for the giveaway '{giveaway.name}'! Please coordinate pickup with the owner.",
+                        is_read=False
+                    )
+                    db.session.add(notification)
+            
+            status_marker = f" [{giveaway_data['status']}]" if giveaway_data['status'] != 'unclaimed' else ""
+            interest_marker = f" ({len(interested_users)} interested)" if interested_users else ""
+            click.echo(f"  ✓ Giveaway: {giveaway.name} (owner: {owner.email}, visibility: {giveaway_data['visibility']}){status_marker}{interest_marker}")
+    else:
+        click.echo(f"  ≈ Giveaways exist: {existing_giveaways} items")
+    
     # Web Links (add some sample social links for development users)
     existing_web_links = UserWebLink.query.count()
     if existing_web_links < 10:

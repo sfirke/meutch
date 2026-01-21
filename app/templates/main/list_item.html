@@ -64,7 +64,6 @@
                 {{ form.is_giveaway(class="form-check-input", id="isGiveawayCheckbox") }}
                 {{ form.is_giveaway.label(class="form-check-label") }}
             </div>
-            <small class="text-muted">A giveaway is a one-time transfer - the item will be given away for free, not loaned.</small>
             {% for error in form.is_giveaway.errors %}
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}

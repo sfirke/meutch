@@ -5,7 +5,7 @@ from unittest.mock import patch
 from tests.factories import UserFactory, CircleFactory
 from app.models import db, circle_members, CircleJoinRequest
 from datetime import datetime, UTC
-from conftest import TEST_PASSWORD
+from conftest import login_user
 
 
 class TestCircleJoinRequestEmailIntegration:
@@ -38,10 +38,7 @@ class TestCircleJoinRequestEmailIntegration:
             db.session.commit()
             
             # User logs in
-            client.post('/auth/login', data={
-                'email': requesting_user.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, requesting_user.email)
             
             # Patch the email sending function
             with patch('app.utils.email.send_email') as mock_send_email:
@@ -97,10 +94,7 @@ class TestCircleJoinRequestEmailIntegration:
             db.session.commit()
             
             # Admin logs in
-            client.post('/auth/login', data={
-                'email': admin.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, admin.email)
             
             # Patch the email sending function
             with patch('app.utils.email.send_email') as mock_send_email:
@@ -150,10 +144,7 @@ class TestCircleJoinRequestEmailIntegration:
             db.session.commit()
             
             # Admin logs in
-            client.post('/auth/login', data={
-                'email': admin.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, admin.email)
             
             # Patch the email sending function
             with patch('app.utils.email.send_email') as mock_send_email:
@@ -194,10 +185,7 @@ class TestCircleJoinRequestEmailIntegration:
             db.session.commit()
             
             # User logs in
-            client.post('/auth/login', data={
-                'email': requesting_user.email,
-                'password': TEST_PASSWORD
-            }, follow_redirects=True)
+            login_user(client, requesting_user.email)
             
             # Patch the email sending function
             with patch('app.utils.email.send_email') as mock_send_email:

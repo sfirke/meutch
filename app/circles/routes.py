@@ -538,14 +538,8 @@ def create_circle():
 @circles_bp.route('/search-circles', methods=['GET', 'POST'])
 @login_required
 def search_circles():
-    form = CircleSearchForm()
-    circles = []
-    if form.validate_on_submit():
-        query = form.search_query.data.strip()
-        circles = Circle.query.filter(Circle.name.ilike(f'%{query}%')).all()
-        if not circles:
-            flash('No circles found matching your search criteria.', 'info')
-    return render_template('circles/search_circles.html', form=form, circles=circles)
+    """Redirect to the main circles page with Find Circles tab."""
+    return redirect(url_for('circles.manage_circles') + '#find-circles-tab')
 
 @circles_bp.route('/<uuid:circle_id>/remove/<uuid:user_id>', methods=['POST'])
 @login_required

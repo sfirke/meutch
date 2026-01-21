@@ -4,7 +4,7 @@ from app.auth import bp as auth_bp
 from app.auth import bp as auth
 from app.models import User
 from app import db
-from app.forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm
+from app.forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, ResendConfirmationForm
 from app.utils.email import send_confirmation_email, send_password_reset_email
 from app.utils.geocoding import geocode_address, build_address_string, GeocodingError
 from datetime import datetime, timedelta, UTC
@@ -150,13 +150,15 @@ def confirm_email(token):
 @auth_bp.route('/resend-confirmation', methods=['GET', 'POST'])
 def resend_confirmation():
     """Resend confirmation email"""
-    if request.method == 'POST':
-        email = request.form.get('email')
+    form = ResendConfirmationForm()
+    
+    if form.validate_on_submit():
+        email = form.email.data
         user = User.query.filter(db.func.lower(User.email) == db.func.lower(email)).first()
         
         if not user:
             flash('No account found with that email address.', 'danger')
-            return render_template('auth/resend_confirmation.html')
+            return render_template('auth/resend_confirmation.html', form=form)
         
         if user.is_confirmed():
             flash('Your email is already confirmed. You can log in.', 'info')
@@ -168,9 +170,9 @@ def resend_confirmation():
         else:
             flash('Error sending confirmation email. Please try again later.', 'danger')
         
-        return render_template('auth/resend_confirmation.html')
+        return render_template('auth/resend_confirmation.html', form=form)
     
-    return render_template('auth/resend_confirmation.html')
+    return render_template('auth/resend_confirmation.html', form=form)
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():

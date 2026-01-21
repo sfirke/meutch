@@ -1,16 +1,18 @@
-from uuid import UUID
+import random
 from flask import render_template, current_app, request, flash, redirect, url_for
 from flask_login import login_required, current_user, logout_user
 from sqlalchemy import or_, and_, func, select
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC
 from app import db
-from app.models import Item, LoanRequest, Tag, User, Message, Category
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm
+from app.models import Item, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, EmptyForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 from app.utils.geocoding import sort_items_by_owner_distance
 from app.utils.pagination import ListPagination
+from app.utils.email import send_message_notification_email
 
 @main_bp.route('/')
 def index():
@@ -127,9 +129,16 @@ def giveaways():
     # Check if user has any circles
     has_circles = len(current_user.circles) > 0
     
+    # Get user's own giveaways (always show these regardless of circle status)
+    my_giveaways = Item.query.filter(
+        Item.owner_id == current_user.id,
+        Item.is_giveaway == True
+    ).order_by(Item.created_at.desc()).all()
+    
     if not has_circles:
         return render_template('main/giveaways.html', 
                              items=[], 
+                             my_giveaways=my_giveaways,
                              pagination=None, 
                              no_circles=True,
                              sort_by=sort_by,
@@ -138,19 +147,35 @@ def giveaways():
     # Get users who share circles with current user
     shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
     
-    # Base query: giveaways that are unclaimed, from shared circle users, excluding own items
+    # Get all users who belong to any circle (for public giveaways)
+    all_circle_user_ids = select(circle_members.c.user_id).distinct()
+    
+    # Base query: giveaways that are unclaimed, excluding own items
+    # Include items that meet either condition:
+    # 1. Default visibility from shared circle users
+    # 2. Public visibility from any circle member
     base_query = Item.query.filter(
         Item.is_giveaway == True,
         and_(
             or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None)),
-            Item.owner_id.in_(shared_circle_user_ids),
+            or_(
+                # Default visibility: must share circles with owner
+                and_(
+                    or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
+                    Item.owner_id.in_(shared_circle_user_ids)
+                ),
+                # Public visibility: owner just needs to be in any circle
+                and_(
+                    Item.giveaway_visibility == 'public',
+                    Item.owner_id.in_(all_circle_user_ids)
+                )
+            ),
             Item.owner_id != current_user.id
         )
     ).join(Item.owner)
     
     # Apply distance filtering if requested and both users are geocoded
     if max_distance and current_user.is_geocoded:
-        from app.utils.geocoding import calculate_distance
         # We need to filter after getting all items since distance calculation requires
         # comparing user coordinates. Get all matching items first.
         all_items = base_query.all()
@@ -172,13 +197,9 @@ def giveaways():
             filtered_items.sort(key=lambda item: item.created_at, reverse=True)
         
         # Manual pagination for distance-filtered results
-        total_items = len(filtered_items)
-        start_idx = (page - 1) * per_page
-        end_idx = start_idx + per_page
-        items = filtered_items[start_idx:end_idx]
-        
-        # Create manual pagination object
-        pagination = ListPagination(items, page, per_page, total_items)
+        # ListPagination handles slicing internally
+        pagination = ListPagination(filtered_items, page, per_page)
+        items = pagination.items
     
     else:
         # No distance filter - can use database sorting and pagination
@@ -188,11 +209,9 @@ def giveaways():
             sorted_items = sort_items_by_owner_distance(all_items, current_user)
             
             # Manual pagination
-            total_items = len(sorted_items)
-            start_idx = (page - 1) * per_page
-            end_idx = start_idx + per_page
-            items = sorted_items[start_idx:end_idx]
-            pagination = ListPagination(items, page, per_page, total_items)
+            # ListPagination handles slicing internally
+            pagination = ListPagination(sorted_items, page, per_page)
+            items = pagination.items
         else:
             # Date sort - use database ordering
             base_query = base_query.order_by(Item.created_at.desc())
@@ -201,6 +220,7 @@ def giveaways():
     
     return render_template('main/giveaways.html',
                          items=items,
+                         my_giveaways=my_giveaways,
                          pagination=pagination,
                          no_circles=False,
                          sort_by=sort_by,
@@ -230,11 +250,27 @@ def search():
     if not has_circles:
         return render_template('search_results.html', items=[], query=query, pagination=None, has_circles=False, item_type=item_type)
     
+    # Get all users who belong to any circle (for public giveaways)
+    all_circle_user_ids = select(circle_members.c.user_id).distinct()
+    
     # Perform case-insensitive search on name, description, and tags
-    # Only include items from users in shared circles
+    # Include items that meet search criteria AND either:
+    # 1. Are from shared circle users (for default visibility items and loans)
+    # 2. Are public giveaways from any circle member
     items_query = Item.query.outerjoin(Item.tags).outerjoin(Item.category).filter(
         and_(
-            Item.owner_id.in_(shared_circle_user_ids),
+            or_(
+                # Default items (loans and default-visibility giveaways): must share circles
+                and_(
+                    or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
+                    Item.owner_id.in_(shared_circle_user_ids)
+                ),
+                # Public giveaways: owner just needs to be in any circle
+                and_(
+                    Item.giveaway_visibility == 'public',
+                    Item.owner_id.in_(all_circle_user_ids)
+                )
+            ),
             or_(
                 Item.name.ilike(f'%{query}%'),
                 Item.description.ilike(f'%{query}%'),
@@ -271,8 +307,10 @@ def search():
 def item_detail(item_id):
     item = db.get_or_404(Item, item_id)
     
-    # Initialize the MessageForm
+    # Initialize forms
     form = MessageForm()
+    express_interest_form = ExpressInterestForm()
+    withdraw_interest_form = WithdrawInterestForm()
     
     # Process form submission
     if form.validate_on_submit():
@@ -289,7 +327,6 @@ def item_detail(item_id):
         
         # Send email notification to recipient
         try:
-            from app.utils.email import send_message_notification_email
             send_message_notification_email(message)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for message {message.id}: {str(e)}")
@@ -300,9 +337,347 @@ def item_detail(item_id):
     # Retrieve messages related to this item (optional)
     messages = Message.query.filter_by(item_id=item.id, recipient_id=current_user.id).order_by(Message.timestamp.desc()).all()
     
-    from app.forms import DeleteItemForm
+    # Check if current user has expressed interest in this giveaway
+    user_interest = None
+    if item.is_giveaway:
+        user_interest = GiveawayInterest.query.filter_by(
+            item_id=item.id,
+            user_id=current_user.id
+        ).first()
+    
+    # Get count of interested users for owner
+    interested_count = 0
+    if item.is_giveaway and item.owner_id == current_user.id:
+        interested_count = GiveawayInterest.query.filter_by(
+            item_id=item.id,
+            status='active'
+        ).count()
+    
     delete_form = DeleteItemForm()
-    return render_template('main/item_detail.html', item=item, form=form, messages=messages, delete_form=delete_form)
+    return render_template('main/item_detail.html', 
+                         item=item, 
+                         form=form, 
+                         messages=messages, 
+                         delete_form=delete_form,
+                         user_interest=user_interest,
+                         interested_count=interested_count,
+                         express_interest_form=express_interest_form,
+                         withdraw_interest_form=withdraw_interest_form)
+
+
+@main_bp.route('/item/<uuid:item_id>/express-interest', methods=['POST'])
+@login_required
+def express_interest(item_id):
+    """Allow a user to express interest in claiming a giveaway"""
+    item = db.get_or_404(Item, item_id)
+    form = ExpressInterestForm()
+    
+    # Validation: item must be a giveaway
+    if not item.is_giveaway:
+        flash('This item is not a giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be unclaimed
+    if item.claim_status not in [None, 'unclaimed']:
+        flash('This giveaway is no longer available.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: user cannot express interest in own item
+    if item.owner_id == current_user.id:
+        flash('You cannot express interest in your own giveaway.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    if form.validate_on_submit():
+        # Get optional message from form
+        message_text = form.message.data.strip() if form.message.data else None
+        
+        # Create GiveawayInterest record
+        try:
+            interest = GiveawayInterest(
+                item_id=item.id,
+                user_id=current_user.id,
+                message=message_text,
+                status='active'
+            )
+            db.session.add(interest)
+            db.session.commit()
+            flash('Your interest has been recorded! The owner will contact you if you are selected.', 'success')
+        except IntegrityError:
+            db.session.rollback()
+            flash('You have already expressed interest in this giveaway.', 'info')
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error expressing interest in giveaway {item_id}: {str(e)}")
+            flash('An error occurred. Please try again.', 'danger')
+    
+    return redirect(url_for('main.item_detail', item_id=item.id))
+
+
+@main_bp.route('/item/<uuid:item_id>/withdraw-interest', methods=['POST'])
+@login_required
+def withdraw_interest(item_id):
+    """Allow a user to withdraw their interest in a giveaway"""
+    item = db.get_or_404(Item, item_id)
+    form = WithdrawInterestForm()
+    
+    if not form.validate_on_submit():
+        flash('Invalid request.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Find the user's interest record
+    interest = GiveawayInterest.query.filter_by(
+        item_id=item.id,
+        user_id=current_user.id
+    ).first()
+    
+    if not interest:
+        flash('You have not expressed interest in this giveaway.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Delete the interest record
+    try:
+        db.session.delete(interest)
+        db.session.commit()
+        flash('Your interest has been withdrawn.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error withdrawing interest from giveaway {item_id}: {str(e)}")
+        flash('An error occurred. Please try again.', 'danger')
+    
+    return redirect(url_for('main.item_detail', item_id=item.id))
+
+
+@main_bp.route('/item/<uuid:item_id>/select-recipient', methods=['GET', 'POST'])
+@login_required
+def select_recipient(item_id):
+    """Owner views interested users and selects a recipient for a giveaway"""
+    item = db.get_or_404(Item, item_id)
+    
+    # Validation: user must be owner
+    if item.owner_id != current_user.id:
+        flash('You do not have permission to manage this giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be a giveaway
+    if not item.is_giveaway:
+        flash('This item is not a giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be unclaimed or pending_pickup
+    if item.claim_status not in [None, 'unclaimed', 'pending_pickup']:
+        flash('This giveaway has already been claimed.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Create forms for each selection method
+    first_form = SelectRecipientForm(selection_method='first')
+    random_form = SelectRecipientForm(selection_method='random')
+    manual_form = SelectRecipientForm(selection_method='manual')
+    
+    # Handle POST request (recipient selection)
+    if request.method == 'POST':
+        # Determine which form was submitted and validate it
+        selection_method = request.form.get('selection_method')
+        
+        if selection_method == 'first' and first_form.validate_on_submit():
+            form = first_form
+        elif selection_method == 'random' and random_form.validate_on_submit():
+            form = random_form
+        elif selection_method == 'manual' and manual_form.validate_on_submit():
+            form = manual_form
+        else:
+            flash('Invalid selection. Please try again.', 'danger')
+            return redirect(url_for('main.select_recipient', item_id=item.id))
+        
+        # Get all active interests
+        active_interests = GiveawayInterest.query.filter_by(
+            item_id=item.id,
+            status='active'
+        ).order_by(GiveawayInterest.created_at).all()
+        
+        if not active_interests:
+            flash('No interested users found.', 'warning')
+            return redirect(url_for('main.item_detail', item_id=item.id))
+        
+        # Determine selected user based on method
+        selected_interest = None
+        if selection_method == 'first':
+            selected_interest = active_interests[0]
+        elif selection_method == 'random':
+            selected_interest = random.choice(active_interests)
+        elif selection_method == 'manual':
+            manual_user_id = form.user_id.data
+            selected_interest = GiveawayInterest.query.filter_by(
+                item_id=item.id,
+                user_id=manual_user_id,
+                status='active'
+            ).first()
+        
+        if not selected_interest:
+            flash('Invalid selection. Please try again.', 'danger')
+            return redirect(url_for('main.select_recipient', item_id=item.id))
+        
+        try:
+            # Update item status
+            item.claim_status = 'pending_pickup'
+            item.claimed_by_id = selected_interest.user_id
+            item.available = False
+            # claimed_at remains NULL until handoff is confirmed
+            
+            # Update the selected interest status
+            selected_interest.status = 'selected'
+            
+            # Create notification message to selected user
+            notification_message = Message(
+                sender_id=current_user.id,
+                recipient_id=selected_interest.user_id,
+                item_id=item.id,
+                body=f"Good news! You've been selected for the giveaway '{item.name}'! Please coordinate pickup with the owner."
+            )
+            db.session.add(notification_message)
+            
+            db.session.commit()
+            
+            # Send email notification
+            try:
+                send_message_notification_email(notification_message)
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email notification for giveaway selection: {str(e)}")
+            
+            flash(f'{selected_interest.user.full_name} has been selected! They will be notified.', 'success')
+            return redirect(url_for('main.item_detail', item_id=item.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error selecting recipient for giveaway {item_id}: {str(e)}")
+            flash('An error occurred. Please try again.', 'danger')
+            return redirect(url_for('main.select_recipient', item_id=item.id))
+    
+    # GET request - show selection page
+    interested_users = GiveawayInterest.query.filter_by(
+        item_id=item.id,
+        status='active'
+    ).order_by(GiveawayInterest.created_at).all()
+    
+    if not interested_users:
+        flash('No users have expressed interest in this giveaway yet.', 'info')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Gather messaging information for each interested user
+    user_messaging_info = {}
+    for interest in interested_users:
+        # Check for existing conversation between owner and this user about this item
+        conversation_messages = Message.query.filter(
+            Message.item_id == item.id,
+            or_(
+                and_(Message.sender_id == current_user.id, 
+                     Message.recipient_id == interest.user_id),
+                and_(Message.sender_id == interest.user_id, 
+                     Message.recipient_id == current_user.id)
+            )
+        ).order_by(Message.timestamp).all()
+        
+        has_conversation = len(conversation_messages) > 0
+        
+        # Count unread messages from this user to the owner
+        unread_count = sum(1 for msg in conversation_messages 
+                          if msg.recipient_id == current_user.id and not msg.is_read)
+        
+        # Get the most recent message for preview
+        latest_message = conversation_messages[-1] if conversation_messages else None
+        
+        user_messaging_info[str(interest.user_id)] = {
+            'has_conversation': has_conversation,
+            'unread_count': unread_count,
+            'message_count': len(conversation_messages),
+            'latest_message': latest_message
+        }
+    
+    return render_template('main/select_recipient.html', 
+                         item=item, 
+                         interested_users=interested_users,
+                         user_messaging_info=user_messaging_info,
+                         is_reassignment=(item.claim_status == 'pending_pickup'),
+                         first_form=first_form,
+                         random_form=random_form,
+                         manual_form=manual_form)
+
+
+@main_bp.route('/item/<uuid:item_id>/message-requester/<uuid:user_id>', methods=['GET', 'POST'])
+@login_required
+def message_giveaway_requester(item_id, user_id):
+    """Allow giveaway owner to initiate a message with an interested user"""
+    item = db.get_or_404(Item, item_id)
+    
+    # Validation: user must be owner
+    if item.owner_id != current_user.id:
+        flash('You do not have permission to message requesters for this item.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be a giveaway
+    if not item.is_giveaway:
+        flash('This item is not a giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Get the target user
+    target_user = db.get_or_404(User, user_id)
+    
+    # Validation: target user must have expressed interest
+    interest = GiveawayInterest.query.filter_by(
+        item_id=item.id,
+        user_id=user_id
+    ).first()
+    
+    if not interest:
+        flash('This user has not expressed interest in this giveaway.', 'warning')
+        return redirect(url_for('main.select_recipient', item_id=item.id))
+    
+    # Check if a conversation already exists
+    existing_message = Message.query.filter(
+        Message.item_id == item.id,
+        or_(
+            and_(Message.sender_id == current_user.id, Message.recipient_id == user_id),
+            and_(Message.sender_id == user_id, Message.recipient_id == current_user.id)
+        )
+    ).first()
+    
+    if existing_message:
+        # Redirect to existing conversation
+        return redirect(url_for('main.view_conversation', message_id=existing_message.id))
+    
+    # Handle form submission
+    form = MessageForm()
+    if form.validate_on_submit():
+        # Create new message
+        message = Message(
+            sender_id=current_user.id,
+            recipient_id=user_id,
+            item_id=item.id,
+            body=form.body.data
+        )
+        db.session.add(message)
+        
+        try:
+            db.session.commit()
+            
+            # Send email notification to recipient
+            try:
+                send_message_notification_email(message)
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email notification for message {message.id}: {str(e)}")
+            
+            flash('Your message has been sent.', 'success')
+            return redirect(url_for('main.view_conversation', message_id=message.id))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error sending message for giveaway {item_id}: {str(e)}")
+            flash('An error occurred. Please try again.', 'danger')
+    
+    return render_template('main/message_requester.html', 
+                         form=form, 
+                         item=item, 
+                         target_user=target_user,
+                         interest=interest)
+
 
 @main_bp.route('/items/<uuid:item_id>/request', methods=['GET', 'POST'])
 @login_required
@@ -350,7 +725,6 @@ def request_item(item_id):
             
             # Send email notification to recipient
             try:
-                from app.utils.email import send_message_notification_email
                 send_message_notification_email(message)
             except Exception as e:
                 current_app.logger.error(f"Failed to send email notification for loan request message {message.id}: {str(e)}")
@@ -374,7 +748,7 @@ def edit_item(item_id):
     form = ListItemForm(obj=item)
 
     if request.method == 'GET':
-        form.category.data = str(item.category_id)
+        form.category.data = item.category_id
         # Prepopulate giveaway fields
         form.is_giveaway.data = item.is_giveaway
         form.giveaway_visibility.data = item.giveaway_visibility
@@ -481,6 +855,11 @@ def delete_item(item_id):
 @main_bp.route('/loan/<uuid:loan_id>/<string:action>', methods=['POST'])
 @login_required
 def process_loan(loan_id, action):
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Invalid request.", "danger")
+        return redirect(url_for('main.messages'))
+    
     loan = db.get_or_404(LoanRequest, loan_id)
     
     if loan.item.owner_id != current_user.id:
@@ -518,7 +897,6 @@ def process_loan(loan_id, action):
         
         # Send email notification to recipient
         try:
-            from app.utils.email import send_message_notification_email
             send_message_notification_email(message)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for loan decision message {message.id}: {str(e)}")
@@ -535,6 +913,11 @@ def process_loan(loan_id, action):
 @main_bp.route('/loan/<uuid:loan_id>/cancel', methods=['POST'])
 @login_required
 def cancel_loan_request(loan_id):
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Invalid request.", "danger")
+        return redirect(url_for('main.messages'))
+    
     loan = db.get_or_404(LoanRequest, loan_id)
     
     if loan.borrower_id != current_user.id:
@@ -563,7 +946,6 @@ def cancel_loan_request(loan_id):
         
         # Send email notification to recipient
         try:
-            from app.utils.email import send_message_notification_email
             send_message_notification_email(message)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for loan cancellation message {message.id}: {str(e)}")
@@ -580,6 +962,11 @@ def cancel_loan_request(loan_id):
 @main_bp.route('/loan/<uuid:loan_id>/complete', methods=['POST'])
 @login_required
 def complete_loan(loan_id):
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Invalid request.", "danger")
+        return redirect(url_for('main.messages'))
+    
     loan = db.get_or_404(LoanRequest, loan_id)
     
     if loan.item.owner_id != current_user.id:
@@ -609,7 +996,6 @@ def complete_loan(loan_id):
         
         # Send email notification to recipient
         try:
-            from app.utils.email import send_message_notification_email
             send_message_notification_email(message)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for loan completion message {message.id}: {str(e)}")
@@ -626,6 +1012,11 @@ def complete_loan(loan_id):
 @main_bp.route('/loan/<uuid:loan_id>/owner_cancel', methods=['POST'])
 @login_required
 def owner_cancel_loan(loan_id):
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Invalid request.", "danger")
+        return redirect(url_for('main.messages'))
+    
     loan = db.get_or_404(LoanRequest, loan_id)
     
     # Check if the current user is the owner of the item
@@ -657,7 +1048,6 @@ def owner_cancel_loan(loan_id):
         
         # Send email notification to recipient
         try:
-            from app.utils.email import send_message_notification_email
             send_message_notification_email(message)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for owner loan cancellation message {message.id}: {str(e)}")
@@ -720,7 +1110,6 @@ def extend_loan(loan_id):
             
             # Send email notification to borrower
             try:
-                from app.utils.email import send_message_notification_email
                 send_message_notification_email(message)
             except Exception as e:
                 current_app.logger.error(f"Failed to send email notification for loan extension message {message.id}: {str(e)}")
@@ -874,7 +1263,6 @@ def category_items(category_id):
 @main_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    from app.models import UserWebLink
     
     form = EditProfileForm()
     if form.validate_on_submit():
@@ -937,12 +1325,15 @@ def profile():
     page = request.args.get('page', 1, type=int)
     per_page = 12  # Items per page for logged-in users (same as index page)
     
-    # Fetch user's items with pagination (newest first)
-    items_pagination = Item.query.filter_by(owner_id=current_user.id).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    # Fetch user's giveaways separately (newest first, not paginated)
+    user_giveaways = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).order_by(Item.created_at.desc()).all()
+    
+    # Fetch user's regular items with pagination (newest first)
+    items_pagination = Item.query.filter_by(owner_id=current_user.id, is_giveaway=False).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     user_items = items_pagination.items
     
-    # Create a DeleteItemForm for each item
-    delete_forms = {item.id: DeleteItemForm() for item in user_items}
+    # Create a DeleteItemForm for each item (both giveaways and regular items)
+    delete_forms = {item.id: DeleteItemForm() for item in user_giveaways + user_items}
     
     borrowing = current_user.get_active_loans_as_borrower()
     lending = current_user.get_active_loans_as_owner()
@@ -950,7 +1341,8 @@ def profile():
     return render_template('main/profile.html', 
                          form=form, 
                          user=current_user, 
-                         items=user_items, 
+                         items=user_items,
+                         giveaways=user_giveaways,
                          delete_forms=delete_forms,
                          borrowing=borrowing,
                          lending=lending,
@@ -961,7 +1353,6 @@ def profile():
 def update_location():
     """Allow users to update their location coordinates"""
     from app.utils.geocoding import geocode_address, build_address_string, GeocodingError
-    from datetime import datetime
     
     # Check if user can update location (daily limit)
     if not current_user.can_update_location():
@@ -1213,7 +1604,6 @@ def view_conversation(message_id):
         
         # Send email notification to recipient
         try:
-            from app.utils.email import send_message_notification_email
             send_message_notification_email(reply)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for reply message {reply.id}: {str(e)}")
@@ -1221,7 +1611,15 @@ def view_conversation(message_id):
         flash("Your reply has been sent.", "success")
         return redirect(url_for('main.view_conversation', message_id=message_id))
 
-    return render_template('messaging/view_conversation.html', message=message, thread_messages=thread_messages, form=form, active_loan=active_loan)
+    # Create EmptyForms for loan actions
+    loan_action_form = EmptyForm()
+
+    return render_template('messaging/view_conversation.html', 
+                         message=message, 
+                         thread_messages=thread_messages, 
+                         form=form, 
+                         active_loan=active_loan,
+                         loan_action_form=loan_action_form)
 
 
 @main_bp.route('/delete_account', methods=['GET', 'POST'])

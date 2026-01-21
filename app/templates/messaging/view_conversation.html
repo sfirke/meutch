@@ -97,13 +97,13 @@
                             <h6 class="mb-3">Item Owner Actions:</h6>
                             <div class="d-flex flex-wrap gap-2">
                                 <form method="POST" action="{{ url_for('main.process_loan', loan_id=active_loan.id, action='approve') }}" class="d-inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    {{ loan_action_form.hidden_tag() }}
                                     <button type="submit" class="btn btn-success">
                                         <i class="fas fa-check me-1"></i>Approve Request
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ url_for('main.process_loan', loan_id=active_loan.id, action='deny') }}" class="d-inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    {{ loan_action_form.hidden_tag() }}
                                     <button type="submit" class="btn btn-danger">
                                         <i class="fas fa-times me-1"></i>Deny Request
                                     </button>
@@ -115,7 +115,7 @@
                         {% elif active_loan.borrower_id == current_user.id %}
                             <h6 class="mb-3">Borrower Actions:</h6>
                             <form method="POST" action="{{ url_for('main.cancel_loan_request', loan_id=active_loan.id) }}" class="d-inline">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                {{ loan_action_form.hidden_tag() }}
                                 <button type="submit" class="btn btn-warning">
                                     <i class="fas fa-ban me-1"></i>Cancel Request
                                 </button>
@@ -129,13 +129,13 @@
                                     <i class="fas fa-calendar-plus me-1"></i>Extend Loan Period
                                 </a>
                                 <form method="POST" action="{{ url_for('main.complete_loan', loan_id=active_loan.id) }}" class="d-inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    {{ loan_action_form.hidden_tag() }}
                                     <button type="submit" class="btn btn-success">
                                         <i class="fas fa-check-circle me-1"></i>Mark as Returned
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ url_for('main.owner_cancel_loan', loan_id=active_loan.id) }}" class="d-inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    {{ loan_action_form.hidden_tag() }}
                                     <button type="submit" class="btn btn-secondary">
                                         <i class="fas fa-ban me-1"></i>Cancel Loan
                                     </button>

@@ -6,7 +6,7 @@ is_public_showcase=True, and that the admin panel can manage this flag.
 import pytest
 from flask import url_for
 from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory
-from app.models import AdminAction, db
+from app.models import AdminAction
 from conftest import login_user
 
 

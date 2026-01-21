@@ -528,3 +528,34 @@ class DeleteAccountForm(FlaskForm):
     def validate_confirmation(self, field):
         if field.data != "DELETE MY ACCOUNT":
             raise ValidationError('You must type "DELETE MY ACCOUNT" exactly to confirm deletion.')
+
+class ExpressInterestForm(FlaskForm):
+    message = TextAreaField(
+        'Optional message to the owner',
+        validators=[Optional(), Length(max=500, message="Message must be under 500 characters.")]
+    )
+    submit = SubmitField('Submit Interest')
+
+class WithdrawInterestForm(FlaskForm):
+    submit = SubmitField('Withdraw Interest')
+
+class SelectRecipientForm(FlaskForm):
+    selection_method = RadioField(
+        'Selection Method',
+        choices=[
+            ('first', 'First Requester'),
+            ('random', 'Random Selection'),
+            ('manual', 'Manual Selection')
+        ],
+        validators=[DataRequired(message="Please select a method.")]
+    )
+    user_id = StringField('Selected User ID')  # Hidden field for manual selection
+    submit = SubmitField('Select Recipient')
+
+class ResendConfirmationForm(FlaskForm):
+    email = StringField('Email Address', validators=[
+        DataRequired(message="Email is required."),
+        Email(message="Invalid email format."),
+        Length(max=120, message="Email must be under 120 characters.")
+    ])
+    submit = SubmitField('Send Confirmation Email')
