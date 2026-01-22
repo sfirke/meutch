@@ -88,13 +88,13 @@ class TestConfig(Config):
     # Logging
     LOG_LEVEL = 'ERROR'
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def app():
-    """Create application for testing."""
+    """Create application for testing (session-scoped)."""
     app = create_app(TestConfig)
     
     with app.app_context():
-        # Drop and recreate tables for clean state
+        # Drop and recreate tables once per test session
         db.drop_all()
         db.create_all()
         
@@ -105,10 +105,11 @@ def app():
             db.session.add(category)
         
         db.session.commit()
-        
-        yield app
-        
-        # Clean up
+    
+    yield app
+    
+    # Clean up after all tests
+    with app.app_context():
         db.session.remove()
         db.drop_all()
 
@@ -122,23 +123,41 @@ def runner(app):
     """Create test CLI runner."""
     return app.test_cli_runner()
 
+@pytest.fixture(autouse=True)
+def clean_db(app):
+    """Clean database between tests using transactions."""
+    with app.app_context():
+        # Clean all tables except categories (which are session-scoped)
+        from app.models import (
+            GiveawayInterest, LoanRequest, Message, CircleJoinRequest,
+            UserWebLink, AdminAction, Item, Circle, Tag, User, circle_members, item_tags
+        )
+        
+        # Delete in order to respect foreign key constraints
+        # First delete records from association tables (many-to-many)
+        db.session.execute(circle_members.delete())
+        db.session.execute(item_tags.delete())
+        
+        # Then delete from main tables - order matters for foreign keys
+        # Most dependent tables first, then parent tables
+        for model in [GiveawayInterest, Message, LoanRequest, CircleJoinRequest,
+                      UserWebLink, AdminAction, Item, Tag, Circle, User]:
+            db.session.query(model).delete()
+        
+        db.session.commit()
+    
+    yield
+    
+    # Cleanup after test
+    with app.app_context():
+        db.session.rollback()
+        db.session.remove()
+
 @pytest.fixture
 def db_session(app):
     """Create a database session with automatic rollback for test isolation."""
     with app.app_context():
-        # Start a transaction for isolation
-        connection = db.engine.connect()
-        transaction = connection.begin()
-        
-        # Bind the session to this connection
-        db.session.bind = connection
-        
         yield db.session
-        
-        # Rollback the transaction and close
-        db.session.remove()
-        transaction.rollback()
-        connection.close()
 
 @pytest.fixture
 def auth_user(app):
