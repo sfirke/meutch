@@ -1,4 +1,4 @@
-"""Integration tests for profile items visibility privacy feature.
+"""Integration tests for profile items visibility.
 
 Users should only see another user's items on their profile if:
 1. They are the profile owner (viewing own profile)
