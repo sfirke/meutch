@@ -1433,25 +1433,34 @@ def user_profile(user_id):
             return redirect(url_for('main.index'))
         user = target_user
     
-    # Pagination parameters
-    page = request.args.get('page', 1, type=int)
-    per_page = 12  # Items per page (consistent with profile and index pages)
+    # Privacy: Only show items to the profile owner or admins
+    # Circle members can view profiles but not browse items
+    can_view_items = current_user.is_admin or current_user.id == user.id
     
-    # Fetch user's items with pagination (newest first)
-    items_pagination = Item.query.filter_by(owner_id=user.id).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-    items = items_pagination.items
-    
-    # Create DeleteItemForm for each item if the current user is the owner
+    items = []
+    items_pagination = None
     delete_forms = {}
-    if current_user.is_authenticated and current_user.id == user.id:
-        delete_forms = {item.id: DeleteItemForm() for item in items}
+    
+    if can_view_items:
+        # Pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = 12  # Items per page (consistent with profile and index pages)
+        
+        # Fetch user's items with pagination (newest first)
+        items_pagination = Item.query.filter_by(owner_id=user.id).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        items = items_pagination.items
+        
+        # Create DeleteItemForm for each item if the current user is the owner
+        if current_user.id == user.id:
+            delete_forms = {item.id: DeleteItemForm() for item in items}
     
     return render_template(
         'main/user_profile.html',
         user=user,
         items=items,
         pagination=items_pagination,
-        delete_forms=delete_forms
+        delete_forms=delete_forms,
+        can_view_items=can_view_items
     )
 
 @main_bp.route('/about')

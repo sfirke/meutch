@@ -40,7 +40,8 @@
     </div>
 </div>
     
-    <!-- User's Items -->
+    <!-- User's Items (only visible to self and admins) -->
+    {% if can_view_items %}
     <div id="items-section" class="mt-4">
         <h4>{{ user.first_name }}'s Items</h4>
         {% if items %}
@@ -99,5 +100,6 @@
             <p>{{ user.first_name }} has not listed any items yet.</p>
         {% endif %}
     </div>
+    {% endif %}
 </div>
 {% endblock %}
