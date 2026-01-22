@@ -234,6 +234,38 @@ class TestItemRoutes:
             updated = db.session.get(Item, item.id)
             assert updated.name == 'Redirected Name'
     
+    def test_edit_item_retains_category(self, client, app, auth_user):
+        """Test that the category is retained when editing an item."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory(name='Test Category')
+            item = ItemFactory(owner=user, category=category, name='Original Item', description='Original description')
+            # Add tags to verify they are also retained (as reference)
+            tag1 = TagFactory(name='tag1')
+            tag2 = TagFactory(name='tag2')
+            item.tags.append(tag1)
+            item.tags.append(tag2)
+            db.session.commit()
+            
+            login_user(client, user.email)
+            
+            # GET request to edit page
+            response = client.get(f'/item/{item.id}/edit')
+            assert response.status_code == 200
+            response_text = response.data.decode('utf-8')
+            
+            # Verify the category is present and pre-selected in the form
+            assert str(category.id) in response_text, \
+                   f"Category ID {category.id} should be present in the edit form"
+            # Check that the category option has the "selected" attribute
+            assert f'<option selected value="{category.id}">Test Category</option>' in response_text or \
+                   f'<option value="{category.id}" selected>Test Category</option>' in response_text, \
+                   "Category should be pre-selected in the edit form"
+            
+            # Verify tags are also populated (as reference)
+            assert 'tag1, tag2' in response_text or 'tag2, tag1' in response_text, \
+                   "Tags should be pre-populated in the edit form"
+    
     def test_delete_item_own_item(self, client, app, auth_user):
         """Test deleting own item."""
         with app.app_context():
