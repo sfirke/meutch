@@ -10,7 +10,7 @@
     <div class="alert alert-info">
         <h5><i class="bi bi-info-circle"></i> Join a circle to see items</h5>
         <p>You need to join at least one lending circle to search and browse items from other members.</p>
-        <a href="{{ url_for('circles.manage_circles') }}" class="btn btn-primary">Find Circles to Join</a>
+        <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">Find Circles to Join</a>
     </div>
     {% else %}
     <form action="{{ url_for('main.search') }}" method="get" class="d-flex mb-4">

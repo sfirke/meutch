@@ -74,7 +74,7 @@
                     <i class="fas fa-users-slash"></i>
                     <h4>No circles yet</h4>
                     <p>You're not a member of any circles yet. Join a circle near you to start sharing resources with your community!</p>
-                    <a href="{{ url_for('circles.manage_circles') }}" class="btn btn-primary">
+                    <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
                         <i class="fas fa-search me-1"></i>Find Circles to Join
                     </a>
                 </div>
@@ -160,7 +160,7 @@
                 {% if current_user.is_authenticated and not circles %}
                     <h4>Join a circle to see items</h4>
                     <p>You're not a member of any circles yet. Join a circle near you to see items from your community!</p>
-                    <a href="{{ url_for('circles.manage_circles') }}" class="btn btn-primary">
+                    <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
                         <i class="fas fa-search me-1"></i>Find Circles to Join
                     </a>
                 {% elif current_user.is_authenticated %}
