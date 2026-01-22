@@ -533,14 +533,6 @@ def create_circle():
         return redirect(url_for('circles.view_circle', circle_id=new_circle.id))
     return render_template('circles/create_circle.html', form=form)
 
-
-
-@circles_bp.route('/search-circles', methods=['GET', 'POST'])
-@login_required
-def search_circles():
-    """Redirect to the main circles page with Find Circles tab."""
-    return redirect(url_for('circles.manage_circles') + '#find-circles-tab')
-
 @circles_bp.route('/<uuid:circle_id>/remove/<uuid:user_id>', methods=['POST'])
 @login_required
 def remove_member(circle_id, user_id):
