@@ -49,9 +49,8 @@ class TestProfileItemsVisibility:
         
         # Should be able to view profile (same circle)
         assert response.status_code == 200
-        # But should NOT see the item
+        # But should NOT see the item or a header indicating items
         assert b'Private Item' not in response.data
-        # Should see a message about items being private or hidden
         assert b"Item Owner's Items" not in response.data or b'Items' not in response.data
 
     def test_admin_can_see_items_on_any_profile(self, client):
