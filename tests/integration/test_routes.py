@@ -238,7 +238,7 @@ class TestItemRoutes:
         """Test that the category is retained when editing an item."""
         with app.app_context():
             user = auth_user()
-            category = CategoryFactory(name='Test Category')
+            category = CategoryFactory()
             item = ItemFactory(owner=user, category=category, name='Original Item', description='Original description')
             # Add tags to verify they are also retained (as reference)
             tag1 = TagFactory(name='tag1')
@@ -258,8 +258,8 @@ class TestItemRoutes:
             assert str(category.id) in response_text, \
                    f"Category ID {category.id} should be present in the edit form"
             # Check that the category option has the "selected" attribute
-            assert f'<option selected value="{category.id}">Test Category</option>' in response_text or \
-                   f'<option value="{category.id}" selected>Test Category</option>' in response_text, \
+            assert f'<option selected value="{category.id}">{category.name}</option>' in response_text or \
+                   f'<option value="{category.id}" selected>{category.name}</option>' in response_text, \
                    "Category should be pre-selected in the edit form"
             
             # Verify tags are also populated (as reference)
@@ -347,14 +347,10 @@ class TestTagAndCategoryBrowsing:
             # Create a tag and some items with that tag
             tag = TagFactory(name='electronics')
             
-            # Get or create categories - use existing Electronics category
-            electronics_category = Category.query.filter_by(name='Electronics').first()
-            if not electronics_category:
-                electronics_category = CategoryFactory(name='Electronics')
+            # Get or create categories - use factory-generated unique names
+            electronics_category = CategoryFactory()
             
-            books_category = Category.query.filter_by(name='Books & Media').first()
-            if not books_category:
-                books_category = CategoryFactory(name='Books & Media')
+            books_category = CategoryFactory()
             
             # Create items with this tag - owned by user in shared circle
             item1 = ItemFactory(name='Laptop', category=electronics_category, owner=item_owner)
@@ -421,9 +417,7 @@ class TestTagAndCategoryBrowsing:
             tag = TagFactory(name='test-pagination')
             
             # Get or create category
-            category = Category.query.filter_by(name='Electronics').first()
-            if not category:
-                category = CategoryFactory(name='Test Pagination Category')
+            category = CategoryFactory()
             
             # Create more than 12 items (current per_page) with this tag - owned by circle member
             items = []
@@ -466,15 +460,10 @@ class TestTagAndCategoryBrowsing:
             circle.members.append(user)
             circle.members.append(item_owner)
                         
-            # Get or create Electronics category
-            category = Category.query.filter_by(name='Electronics').first()
-            if not category:
-                category = CategoryFactory(name='Test Electronics Category')
+            # Create categories
+            category = CategoryFactory()
                 
-            # Get or create Books category
-            books_category = Category.query.filter_by(name='Books & Media').first()
-            if not books_category:
-                books_category = CategoryFactory(name='Test Books Category')
+            books_category = CategoryFactory()
             
             # Create items in this category - owned by circle member
             item1 = ItemFactory(name='Laptop', category=category, owner=item_owner)
@@ -513,14 +502,14 @@ class TestTagAndCategoryBrowsing:
             circle = CircleFactory()
             circle.members.append(user)
             
-            category = CategoryFactory(name='Unique Empty Category')
+            category = CategoryFactory()
             
             db.session.commit()
             
             response = client.get(f'/category/{category.id}')
             assert response.status_code == 200
-            assert b'Items in "Unique Empty Category"' in response.data
-            assert b'No items found in the "Unique Empty Category" category' in response.data
+            assert f'Items in "{category.name}"'.encode() in response.data
+            assert f'No items found in the "{category.name}" category'.encode() in response.data
     
     def test_category_items_pagination(self, client, app):
         """Test category items page pagination."""
@@ -535,7 +524,7 @@ class TestTagAndCategoryBrowsing:
             circle.members.append(user)
             circle.members.append(item_owner)
             
-            category = CategoryFactory(name='Unique Test Category for Pagination')
+            category = CategoryFactory()
             
             # Create more than 12 items (current per_page) in this category - owned by circle member
             items = []

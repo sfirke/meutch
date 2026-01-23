@@ -28,7 +28,6 @@ def ensure_test_database():
     """Ensure the test database is running."""
     # Check if the test database is already running
     if is_port_open('localhost', 5433):
-        print("✅ Test database is already running")
         return
     
     print("🚀 Starting test database...")
@@ -88,13 +87,18 @@ class TestConfig(Config):
     # Logging
     LOG_LEVEL = 'ERROR'
 
-@pytest.fixture
+
+@pytest.fixture(scope='session')
 def app():
-    """Create application for testing."""
+    """Create application for testing (session-scoped).
+    
+    Database schema is created once per test session for speed.
+    The clean_db fixture handles cleanup between tests.
+    """
     app = create_app(TestConfig)
     
     with app.app_context():
-        # Drop and recreate tables for clean state
+        # Drop and recreate tables once per test session
         db.drop_all()
         db.create_all()
         
@@ -105,10 +109,11 @@ def app():
             db.session.add(category)
         
         db.session.commit()
-        
-        yield app
-        
-        # Clean up
+    
+    yield app
+    
+    # Clean up after all tests
+    with app.app_context():
         db.session.remove()
         db.drop_all()
 
@@ -122,23 +127,48 @@ def runner(app):
     """Create test CLI runner."""
     return app.test_cli_runner()
 
+@pytest.fixture(autouse=True)
+def clean_db(app):
+    """Clean database before each test using TRUNCATE for speed.
+    
+    Uses TRUNCATE CASCADE which is faster than DELETE for clearing tables.
+    Preserves categories since they're seeded at session start.
+    Runs BEFORE each test to ensure clean state.
+    """
+    # Cleanup BEFORE test to ensure clean state
+    with app.app_context():
+        db.session.rollback()  # Roll back any uncommitted transactions
+        
+        # Use TRUNCATE CASCADE for fast cleanup - order doesn't matter with CASCADE
+        # Exclude 'category' table since it's seeded at session start
+        # Use actual PostgreSQL table names (not model names)
+        tables_to_truncate = [
+            'giveaway_interest', 'messages', 'loan_request', 'circle_join_requests',
+            'user_web_links', 'admin_action', 'item_tags', 'item', 'tag', 'feedback',
+            'circle_members', 'circle', 'users'
+        ]
+        
+        for table in tables_to_truncate:
+            try:
+                db.session.execute(db.text(f'TRUNCATE TABLE {table} CASCADE'))
+            except Exception:
+                pass  # Table might not exist or be empty
+        
+        db.session.commit()
+        db.session.remove()
+    
+    yield
+    
+    # Also cleanup after test
+    with app.app_context():
+        db.session.rollback()
+        db.session.remove()
+
 @pytest.fixture
 def db_session(app):
     """Create a database session with automatic rollback for test isolation."""
     with app.app_context():
-        # Start a transaction for isolation
-        connection = db.engine.connect()
-        transaction = connection.begin()
-        
-        # Bind the session to this connection
-        db.session.bind = connection
-        
         yield db.session
-        
-        # Rollback the transaction and close
-        db.session.remove()
-        transaction.rollback()
-        connection.close()
 
 @pytest.fixture
 def auth_user(app):

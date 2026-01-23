@@ -49,27 +49,31 @@ flask db upgrade  # Takes 1 second
 
 When you write a test, use factories from `tests/factories.py` to create test data.
 
+**IMPORTANT:** Tests have been optimized for speed. The session-scoped app fixture means:
+- Categories persist across tests - DO NOT hardcode category names in tests
+- Use `CategoryFactory()` without the `name` parameter to get unique names
+- Database schema is created once per test session, not per test
+
 ```bash
 # CRITICAL: Always set TEST_DATABASE_URL before running tests
 export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
 
 # Unit tests (fastest)
-./run_tests.sh -u -c  # Takes 60 seconds - NEVER CANCEL
+./run_tests.sh -u -c  # Takes ~5 seconds - NEVER CANCEL
 
 # Integration tests  
-./run_tests.sh -i     # Takes 60 seconds - NEVER CANCEL
+./run_tests.sh -i     # Takes ~70 seconds - NEVER CANCEL
 
 # Functional tests
-./run_tests.sh -f     # Takes 60 seconds - NEVER CANCEL
+./run_tests.sh -f     # Takes ~5 seconds - NEVER CANCEL
 
 # All tests with coverage
-./run_tests.sh -c     # Takes 180 seconds - NEVER CANCEL
+./run_tests.sh -c     # Takes ~85 seconds - NEVER CANCEL
 ```
 
 **TIMEOUT REQUIREMENTS:**
-- Set timeouts to at least 180 seconds for all test commands
-- Set timeouts to at least 60 seconds for any build commands
-- **NEVER CANCEL** long-running operations - tests may take up to 60 seconds
+- Set timeouts to at least 120 seconds for all test commands
+- **NEVER CANCEL** long-running operations - tests are optimized but still thorough
 
 ### Running the Web Application
 ```bash
@@ -96,7 +100,7 @@ After making ANY code changes, ALWAYS run these validation steps:
 1. **Test Suite Validation:**
    ```bash
    export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
-   ./run_tests.sh -c  # NEVER CANCEL - takes 56 seconds
+   ./run_tests.sh -c  # NEVER CANCEL - takes ~85 seconds
    ```
 
 2. **Web Application Testing:**
@@ -132,7 +136,7 @@ export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meu
 # 1. Start database if needed
 docker ps | grep meutch-test-db || docker compose -f docker-compose.test.yml up -d
 
-# 2. Run full test suite - NEVER CANCEL - takes 56 seconds  
+# 2. Run full test suite - NEVER CANCEL - takes ~85 seconds  
 ./run_tests.sh -c
 
 # 3. Start app and validate endpoints
@@ -179,7 +183,7 @@ docker compose -f docker-compose.test.yml up -d
 ### Important Files
 - `app.py` - Application entry point
 - `config.py` - Configuration classes for different environments
-- `conftest.py` - Pytest configuration and fixtures
+- `conftest.py` - Pytest configuration and fixtures (session-scoped app, autouse clean_db)
 - `run_tests.sh` - Test runner script with multiple options
 - `requirements.txt` - Python dependencies
 
