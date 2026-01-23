@@ -187,19 +187,6 @@ docker compose -f docker-compose.test.yml up -d
 - `run_tests.sh` - Test runner script with multiple options
 - `requirements.txt` - Python dependencies
 
-### Test Suite Optimizations
-The test suite has been optimized for speed (~50% faster than baseline):
-- **Session-scoped fixtures**: App and database schema created once per session
-- **TRUNCATE CASCADE cleanup**: Fast table cleanup between tests
-- **Pre-computed password hashes**: Avoids expensive bcrypt calls in factories
-- **Factory patterns**: CategoryFactory() and UserFactory() generate unique names/emails automatically
-
-**When writing tests:**
-- Never hardcode category names - use `CategoryFactory()` without name parameter
-- Never hardcode email addresses - use `UserFactory()` without email parameter
-- Categories persist across tests in the same session
-- Use factories from `tests/factories.py` for all test data
-
 ### File Storage
 - Set `STORAGE_BACKEND` to `"local"` (dev, uses `app/static/uploads/`) or `"digitalocean"` (prod, requires `DO_SPACES_*` vars)
 - Defaults to `"local"` in development; must be explicit in production/staging
