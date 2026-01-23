@@ -28,7 +28,6 @@ def ensure_test_database():
     """Ensure the test database is running."""
     # Check if the test database is already running
     if is_port_open('localhost', 5433):
-        print("✅ Test database is already running")
         return
     
     print("🚀 Starting test database...")
@@ -88,9 +87,14 @@ class TestConfig(Config):
     # Logging
     LOG_LEVEL = 'ERROR'
 
+
 @pytest.fixture(scope='session')
 def app():
-    """Create application for testing (session-scoped)."""
+    """Create application for testing (session-scoped).
+    
+    Database schema is created once per test session for speed.
+    The clean_db fixture handles cleanup between tests.
+    """
     app = create_app(TestConfig)
     
     with app.app_context():
@@ -125,30 +129,37 @@ def runner(app):
 
 @pytest.fixture(autouse=True)
 def clean_db(app):
-    """Clean database between tests using transactions."""
+    """Clean database before each test using TRUNCATE for speed.
+    
+    Uses TRUNCATE CASCADE which is faster than DELETE for clearing tables.
+    Preserves categories since they're seeded at session start.
+    Runs BEFORE each test to ensure clean state.
+    """
+    # Cleanup BEFORE test to ensure clean state
     with app.app_context():
-        # Clean all tables except categories (which are session-scoped)
-        from app.models import (
-            GiveawayInterest, LoanRequest, Message, CircleJoinRequest,
-            UserWebLink, AdminAction, Item, Circle, Tag, User, circle_members, item_tags
-        )
+        db.session.rollback()  # Roll back any uncommitted transactions
         
-        # Delete in order to respect foreign key constraints
-        # First delete records from association tables (many-to-many)
-        db.session.execute(circle_members.delete())
-        db.session.execute(item_tags.delete())
+        # Use TRUNCATE CASCADE for fast cleanup - order doesn't matter with CASCADE
+        # Exclude 'category' table since it's seeded at session start
+        # Use actual PostgreSQL table names (not model names)
+        tables_to_truncate = [
+            'giveaway_interest', 'messages', 'loan_request', 'circle_join_requests',
+            'user_web_links', 'admin_action', 'item_tags', 'item', 'tag', 'feedback',
+            'circle_members', 'circle', 'users'
+        ]
         
-        # Then delete from main tables - order matters for foreign keys
-        # Most dependent tables first, then parent tables
-        for model in [GiveawayInterest, Message, LoanRequest, CircleJoinRequest,
-                      UserWebLink, AdminAction, Item, Tag, Circle, User]:
-            db.session.query(model).delete()
+        for table in tables_to_truncate:
+            try:
+                db.session.execute(db.text(f'TRUNCATE TABLE {table} CASCADE'))
+            except Exception:
+                pass  # Table might not exist or be empty
         
         db.session.commit()
+        db.session.remove()
     
     yield
     
-    # Cleanup after test
+    # Also cleanup after test
     with app.app_context():
         db.session.rollback()
         db.session.remove()
