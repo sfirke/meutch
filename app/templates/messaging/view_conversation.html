@@ -185,7 +185,7 @@
                                 You
                             {% endif %}
                         </div>
-                        <span class="message-timestamp">{{ msg.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+                        <span class="message-timestamp">{{ msg.timestamp|utc_timestamp('compact') }}</span>
                     </div>
                 </div>
                 <div class="card-body">
@@ -208,7 +208,7 @@
                             </span>
                         </p>
                         {% if msg.loan_request.status not in ['pending', 'approved'] %}
-                            <p class="text-muted"><em>This loan request is no longer active. {{ msg.loan_request.status|title }} on {{ msg.timestamp.strftime('%Y-%m-%d') }}.</em></p>
+                            <p class="text-muted"><em>This loan request is no longer active. {{ msg.loan_request.status|title }} on {{ msg.timestamp|utc_timestamp('date') }}.</em></p>
                         {% endif %}
                     </div>
                 {% endif %}                                        

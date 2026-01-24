@@ -111,13 +111,13 @@
                                     </td>
                                     <td>
                                         <small class="text-muted">
-                                            {{ user.created_at.strftime('%b %d, %Y') }}
+                                            {{ user.created_at|utc_timestamp('short-date') }}
                                         </small>
                                     </td>
                                     <td>
                                         {% if user.last_login %}
                                             <small class="text-muted">
-                                                {{ user.last_login.strftime('%b %d, %Y') }}
+                                                {{ user.last_login|utc_timestamp('short-date') }}
                                             </small>
                                         {% else %}
                                             <small class="text-muted">Never</small>

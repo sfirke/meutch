@@ -23,7 +23,7 @@
                 </div>
                 <div class="card-body">
                     <p><strong>Name:</strong> {{ target_user.full_name }}</p>
-                    <p class="mb-1"><strong>Requested:</strong> {{ interest.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                    <p class="mb-1"><strong>Requested:</strong> {{ interest.created_at|utc_timestamp('datetime') }}</p>
                     {% if interest.message %}
                         <div class="mt-3 p-3 bg-light rounded">
                             <p class="mb-0"><strong>Their message:</strong></p>

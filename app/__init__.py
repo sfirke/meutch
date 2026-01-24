@@ -84,6 +84,10 @@ def create_app(config_class=None):
     app.context_processor(inject_total_pending)
     app.context_processor(inject_distance_utils)
     
+    # Register custom Jinja filters
+    from app.template_filters import register_filters
+    register_filters(app)
+    
     # Auto-seed development database if empty
     with app.app_context():
         if app.config.get('FLASK_ENV') == 'development':

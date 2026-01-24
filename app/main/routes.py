@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC
 from app import db
 from app.models import Item, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, EmptyForm
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 from app.utils.geocoding import sort_items_by_owner_distance
@@ -354,6 +354,8 @@ def item_detail(item_id):
         ).count()
     
     delete_form = DeleteItemForm()
+    release_to_all_form = ReleaseToAllForm()
+    confirm_handoff_form = ConfirmHandoffForm()
     return render_template('main/item_detail.html', 
                          item=item, 
                          form=form, 
@@ -362,7 +364,9 @@ def item_detail(item_id):
                          user_interest=user_interest,
                          interested_count=interested_count,
                          express_interest_form=express_interest_form,
-                         withdraw_interest_form=withdraw_interest_form)
+                         withdraw_interest_form=withdraw_interest_form,
+                         release_to_all_form=release_to_all_form,
+                         confirm_handoff_form=confirm_handoff_form)
 
 
 @main_bp.route('/item/<uuid:item_id>/express-interest', methods=['POST'])
@@ -553,10 +557,20 @@ def select_recipient(item_id):
             return redirect(url_for('main.select_recipient', item_id=item.id))
     
     # GET request - show selection page
-    interested_users = GiveawayInterest.query.filter_by(
-        item_id=item.id,
-        status='active'
-    ).order_by(GiveawayInterest.created_at).all()
+    is_reassignment = (item.claim_status == 'pending_pickup')
+    
+    if is_reassignment:
+        # For reassignment, show all interested users (including previously selected)
+        interested_users = GiveawayInterest.query.filter(
+            GiveawayInterest.item_id == item.id,
+            GiveawayInterest.status.in_(['active', 'selected'])
+        ).order_by(GiveawayInterest.created_at).all()
+    else:
+        # For initial selection, only show active interests
+        interested_users = GiveawayInterest.query.filter_by(
+            item_id=item.id,
+            status='active'
+        ).order_by(GiveawayInterest.created_at).all()
     
     if not interested_users:
         flash('No users have expressed interest in this giveaway yet.', 'info')
@@ -592,14 +606,22 @@ def select_recipient(item_id):
             'latest_message': latest_message
         }
     
+    # Create forms for change-recipient (used when is_reassignment=True)
+    next_form = ChangeRecipientForm(selection_method='next')
+    random_reassign_form = ChangeRecipientForm(selection_method='random')
+    manual_reassign_form = ChangeRecipientForm(selection_method='manual')
+    
     return render_template('main/select_recipient.html', 
                          item=item, 
                          interested_users=interested_users,
                          user_messaging_info=user_messaging_info,
-                         is_reassignment=(item.claim_status == 'pending_pickup'),
+                         is_reassignment=is_reassignment,
                          first_form=first_form,
                          random_form=random_form,
-                         manual_form=manual_form)
+                         manual_form=manual_form,
+                         next_form=next_form,
+                         random_reassign_form=random_reassign_form,
+                         manual_reassign_form=manual_reassign_form)
 
 
 @main_bp.route('/item/<uuid:item_id>/message-requester/<uuid:user_id>', methods=['GET', 'POST'])
@@ -677,6 +699,234 @@ def message_giveaway_requester(item_id, user_id):
                          item=item, 
                          target_user=target_user,
                          interest=interest)
+
+
+@main_bp.route('/item/<uuid:item_id>/change-recipient', methods=['POST'])
+@login_required
+def change_recipient(item_id):
+    """Owner changes the recipient of a giveaway that's pending pickup."""
+    item = db.get_or_404(Item, item_id)
+    
+    # Validation: user must be owner
+    if item.owner_id != current_user.id:
+        flash('You do not have permission to manage this giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be a giveaway
+    if not item.is_giveaway:
+        flash('This item is not a giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be pending_pickup
+    if item.claim_status != 'pending_pickup':
+        flash('This giveaway is not pending pickup.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    form = ChangeRecipientForm()
+    
+    if not form.validate_on_submit():
+        flash('Invalid request.', 'danger')
+        return redirect(url_for('main.select_recipient', item_id=item.id))
+    
+    selection_method = form.selection_method.data
+    
+    # Get the current claimed_by_id to exclude from selection
+    previous_claimed_by_id = item.claimed_by_id
+    
+    # Get all active interests, excluding the previous recipient
+    active_interests = GiveawayInterest.query.filter(
+        GiveawayInterest.item_id == item.id,
+        GiveawayInterest.status == 'active',
+        GiveawayInterest.user_id != previous_claimed_by_id
+    ).order_by(GiveawayInterest.created_at).all()
+    
+    if not active_interests:
+        flash('No other interested users available to select.', 'warning')
+        return redirect(url_for('main.select_recipient', item_id=item.id))
+    
+    # Determine selected user based on method
+    selected_interest = None
+    if selection_method == 'next':
+        selected_interest = active_interests[0]
+    elif selection_method == 'random':
+        selected_interest = random.choice(active_interests)
+    elif selection_method == 'manual':
+        manual_user_id = form.user_id.data
+        selected_interest = GiveawayInterest.query.filter(
+            GiveawayInterest.item_id == item.id,
+            GiveawayInterest.user_id == manual_user_id,
+            GiveawayInterest.status == 'active',
+            GiveawayInterest.user_id != previous_claimed_by_id
+        ).first()
+    
+    if not selected_interest:
+        flash('Invalid selection. Please try again.', 'danger')
+        return redirect(url_for('main.select_recipient', item_id=item.id))
+    
+    try:
+        # Reset previous recipient's interest status to active
+        previous_interest = GiveawayInterest.query.filter_by(
+            item_id=item.id,
+            user_id=previous_claimed_by_id
+        ).first()
+        if previous_interest:
+            previous_interest.status = 'active'
+        
+        # Notify previous recipient that they are no longer selected
+        previous_recipient = db.session.get(User, previous_claimed_by_id)
+        if previous_recipient:
+            previous_notification = Message(
+                sender_id=current_user.id,
+                recipient_id=previous_recipient.id,
+                item_id=item.id,
+                body=f"The owner has selected a different recipient for the giveaway '{item.name}'. Your interest remains active and you may still be selected in the future."
+            )
+            db.session.add(previous_notification)
+        
+        # Update item status - keep pending_pickup, update claimed_by_id
+        item.claimed_by_id = selected_interest.user_id
+        # claimed_at remains NULL until handoff is confirmed
+        
+        # Update the selected interest status
+        selected_interest.status = 'selected'
+        
+        # Create notification message to newly selected user
+        notification_message = Message(
+            sender_id=current_user.id,
+            recipient_id=selected_interest.user_id,
+            item_id=item.id,
+            body=f"Good news! You've been selected for the giveaway '{item.name}'! Please coordinate pickup with the owner."
+        )
+        db.session.add(notification_message)
+        
+        db.session.commit()
+        
+        # Send email notification
+        try:
+            send_message_notification_email(notification_message)
+        except Exception as e:
+            current_app.logger.error(f"Failed to send email notification for giveaway reassignment: {str(e)}")
+        
+        flash(f'{selected_interest.user.full_name} has been selected! They will be notified.', 'success')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error changing recipient for giveaway {item_id}: {str(e)}")
+        flash('An error occurred. Please try again.', 'danger')
+        return redirect(url_for('main.select_recipient', item_id=item.id))
+
+
+@main_bp.route('/item/<uuid:item_id>/release-to-all', methods=['POST'])
+@login_required
+def release_to_all(item_id):
+    """Owner releases a giveaway back to unclaimed status."""
+    item = db.get_or_404(Item, item_id)
+    
+    # Validation: user must be owner
+    if item.owner_id != current_user.id:
+        flash('You do not have permission to manage this giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be a giveaway
+    if not item.is_giveaway:
+        flash('This item is not a giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be pending_pickup
+    if item.claim_status != 'pending_pickup':
+        flash('This giveaway is not pending pickup.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    form = ReleaseToAllForm()
+    
+    if not form.validate_on_submit():
+        flash('Invalid request.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    try:
+        # Reset the previously selected user's interest status to active
+        previous_recipient_id = item.claimed_by_id
+        if previous_recipient_id:
+            previous_interest = GiveawayInterest.query.filter_by(
+                item_id=item.id,
+                user_id=previous_recipient_id
+            ).first()
+            if previous_interest:
+                previous_interest.status = 'active'
+            
+            # Notify previous recipient that the giveaway has been released back to everyone
+            release_notification = Message(
+                sender_id=current_user.id,
+                recipient_id=previous_recipient_id,
+                item_id=item.id,
+                body=f"The owner has released the giveaway '{item.name}' back to everyone. Your interest remains active and you may still be selected."
+            )
+            db.session.add(release_notification)
+        
+        # Update item status
+        item.claim_status = 'unclaimed'
+        item.claimed_by_id = None
+        # claimed_at stays NULL
+        item.available = True
+        
+        db.session.commit()
+        
+        flash('The giveaway has been released and will reappear in the feed. All interested users remain in the pool.', 'success')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error releasing giveaway {item_id} to all: {str(e)}")
+        flash('An error occurred. Please try again.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+
+
+@main_bp.route('/item/<uuid:item_id>/confirm-handoff', methods=['POST'])
+@login_required
+def confirm_handoff(item_id):
+    """Owner confirms the handoff of a giveaway is complete."""
+    item = db.get_or_404(Item, item_id)
+    
+    # Validation: user must be owner
+    if item.owner_id != current_user.id:
+        flash('You do not have permission to manage this giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be a giveaway
+    if not item.is_giveaway:
+        flash('This item is not a giveaway.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    # Validation: item must be pending_pickup
+    if item.claim_status != 'pending_pickup':
+        flash('This giveaway is not pending pickup.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    form = ConfirmHandoffForm()
+    
+    if not form.validate_on_submit():
+        flash('Invalid request.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+    
+    try:
+        # Update item to claimed status
+        item.claim_status = 'claimed'
+        item.claimed_at = datetime.now(UTC)
+        # claimed_by_id remains unchanged
+        item.available = False  # Should already be False, but enforce
+        
+        db.session.commit()
+        
+        recipient_name = item.claimed_by.full_name if item.claimed_by else 'the recipient'
+        flash(f'Handoff complete! The giveaway has been successfully given to {recipient_name}.', 'success')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error confirming handoff for giveaway {item_id}: {str(e)}")
+        flash('An error occurred. Please try again.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
 
 
 @main_bp.route('/items/<uuid:item_id>/request', methods=['GET', 'POST'])

@@ -108,22 +108,8 @@
                                                     aria-controls="expressInterestForm">
                                                 <i class="fas fa-gift me-2"></i>I Want This!
                                             </button>
-                                        {% else %}
-                                            <!-- Show confirmation that interest has been expressed -->
-                                            <div class="alert alert-success mb-0" role="alert">
-                                                <i class="fas fa-check-circle me-2"></i>You've expressed interest! The owner will contact you if selected.
-                                            </div>
-                                            <form action="{{ url_for('main.withdraw_interest', item_id=item.id) }}" 
-                                                  method="post" 
-                                                  class="d-inline"
-                                                  onsubmit="return confirm('Are you sure you want to withdraw your interest?');">
-                                                {{ withdraw_interest_form.hidden_tag() }}
-                                                {{ withdraw_interest_form.submit(class="btn btn-outline-secondary") }}
-                                            </form>
-                                        {% endif %}
-                                        
-                                        <!-- Collapsible Interest Expression Form (for giveaways) -->
-                                        {% if not user_interest %}
+                                            
+                                            <!-- Collapsible Interest Expression Form (for giveaways) -->
                                             <div class="collapse mt-3" id="expressInterestForm">
                                                 <div class="card card-body">
                                                     <h5 class="mb-3">Why do you want this item?</h5>
@@ -146,6 +132,18 @@
                                                     </form>
                                                 </div>
                                             </div>
+                                        {% else %}
+                                            <!-- Show confirmation that interest has been expressed -->
+                                            <div class="alert alert-success mb-0" role="alert">
+                                                <i class="fas fa-check-circle me-2"></i>You've expressed interest! The owner will contact you if selected.
+                                            </div>
+                                            <form action="{{ url_for('main.withdraw_interest', item_id=item.id) }}" 
+                                                  method="post" 
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('Are you sure you want to withdraw your interest?');">
+                                                {{ withdraw_interest_form.hidden_tag() }}
+                                                {{ withdraw_interest_form.submit(class="btn btn-outline-secondary") }}
+                                            </form>
                                         {% endif %}
                                     {% elif item.claim_status == 'pending_pickup' %}
                                         <div class="alert alert-warning mb-0" role="alert">
@@ -153,7 +151,7 @@
                                         </div>
                                     {% elif item.claim_status == 'claimed' %}
                                         <div class="alert alert-info mb-0" role="alert">
-                                            <i class="fas fa-check-circle me-2"></i>This giveaway has been claimed{% if item.claimed_at %} on {{ item.claimed_at.strftime('%B %d, %Y') }}{% endif %}.
+                                            <i class="fas fa-check-circle me-2"></i>This giveaway has been claimed{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}.
                                         </div>
                                     {% endif %}
                                 {% else %}
@@ -178,11 +176,35 @@
                                         </a>
                                     {% elif item.claim_status == 'pending_pickup' %}
                                         <div class="alert alert-warning mb-3" role="alert">
-                                            <i class="fas fa-clock me-2"></i>Pending pickup by {{ item.claimed_by.full_name }}
+                                            <i class="fas fa-clock me-2"></i>Pending pickup by <strong>{{ item.claimed_by.full_name }}</strong>
+                                        </div>
+                                        <div class="d-flex flex-wrap gap-2 mb-3">
+                                            <a href="{{ url_for('main.select_recipient', item_id=item.id) }}" 
+                                               class="btn btn-outline-warning">
+                                                <i class="fas fa-exchange-alt me-2"></i>Change Recipient
+                                            </a>
+                                            <form action="{{ url_for('main.release_to_all', item_id=item.id) }}" 
+                                                  method="post" 
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('Release this giveaway back to everyone? The item will reappear in the feed and all interested users will remain in the pool.');">
+                                                {{ release_to_all_form.hidden_tag() }}
+                                                <button type="submit" class="btn btn-outline-secondary">
+                                                    <i class="fas fa-undo me-2"></i>Release to Everyone
+                                                </button>
+                                            </form>
+                                            <form action="{{ url_for('main.confirm_handoff', item_id=item.id) }}" 
+                                                  method="post" 
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('Confirm that the handoff is complete? This action cannot be undone.');">
+                                                {{ confirm_handoff_form.hidden_tag() }}
+                                                <button type="submit" class="btn btn-success">
+                                                    <i class="fas fa-check-circle me-2"></i>Confirm Handoff Complete
+                                                </button>
+                                            </form>
                                         </div>
                                     {% elif item.claim_status == 'claimed' %}
                                         <div class="alert alert-success mb-3" role="alert">
-                                            <i class="fas fa-check-circle me-2"></i>Claimed by {{ item.claimed_by.full_name }}{% if item.claimed_at %} on {{ item.claimed_at.strftime('%B %d, %Y') }}{% endif %}
+                                            <i class="fas fa-check-circle me-2"></i>Given to <strong>{{ item.claimed_by.full_name if item.claimed_by else 'a user' }}</strong>{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}
                                         </div>
                                     {% endif %}
                                 {% endif %}

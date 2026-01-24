@@ -28,22 +28,37 @@
                 </div>
                 <div class="card-body">
                     <p class="mb-3">Let the system choose for you:</p>
-                    <form method="POST" action="{{ url_for('main.select_recipient', item_id=item.id) }}" class="d-inline">
-                        {{ first_form.hidden_tag() }}
-                        <input type="hidden" name="selection_method" value="first">
-                        <button type="submit" class="btn btn-primary me-2 mb-2">
-                            <i class="fas fa-clock me-2"></i>
-                            {% if is_reassignment %}Next in Line{% else %}First Requester{% endif %}
-                        </button>
-                    </form>
-                    <form method="POST" action="{{ url_for('main.select_recipient', item_id=item.id) }}" class="d-inline">
-                        {{ random_form.hidden_tag() }}
-                        <input type="hidden" name="selection_method" value="random">
-                        <button type="submit" class="btn btn-info me-2 mb-2">
-                            <i class="fas fa-random me-2"></i>
-                            {% if is_reassignment %}Random from Remaining{% else %}Random Selection{% endif %}
-                        </button>
-                    </form>
+                    {% if is_reassignment %}
+                        <form method="POST" action="{{ url_for('main.change_recipient', item_id=item.id) }}" class="d-inline">
+                            {{ next_form.hidden_tag() }}
+                            <input type="hidden" name="selection_method" value="next">
+                            <button type="submit" class="btn btn-primary me-2 mb-2">
+                                <i class="fas fa-clock me-2"></i>Next in Line
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('main.change_recipient', item_id=item.id) }}" class="d-inline">
+                            {{ random_reassign_form.hidden_tag() }}
+                            <input type="hidden" name="selection_method" value="random">
+                            <button type="submit" class="btn btn-info me-2 mb-2">
+                                <i class="fas fa-random me-2"></i>Random from Remaining
+                            </button>
+                        </form>
+                    {% else %}
+                        <form method="POST" action="{{ url_for('main.select_recipient', item_id=item.id) }}" class="d-inline">
+                            {{ first_form.hidden_tag() }}
+                            <input type="hidden" name="selection_method" value="first">
+                            <button type="submit" class="btn btn-primary me-2 mb-2">
+                                <i class="fas fa-clock me-2"></i>First Requester
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('main.select_recipient', item_id=item.id) }}" class="d-inline">
+                            {{ random_form.hidden_tag() }}
+                            <input type="hidden" name="selection_method" value="random">
+                            <button type="submit" class="btn btn-info me-2 mb-2">
+                                <i class="fas fa-random me-2"></i>Random Selection
+                            </button>
+                        </form>
+                    {% endif %}
                 </div>
             </div>
 
@@ -55,9 +70,15 @@
                 <div class="card-body">
                     <p class="mb-3">Review the interested users and choose one:</p>
                     
-                    <form method="POST" action="{{ url_for('main.select_recipient', item_id=item.id) }}" id="manualSelectionForm">
-                        {{ manual_form.hidden_tag() }}
-                        <input type="hidden" name="selection_method" value="manual">
+                    {% if is_reassignment %}
+                        <form method="POST" action="{{ url_for('main.change_recipient', item_id=item.id) }}" id="manualSelectionForm">
+                            {{ manual_reassign_form.hidden_tag() }}
+                            <input type="hidden" name="selection_method" value="manual">
+                    {% else %}
+                        <form method="POST" action="{{ url_for('main.select_recipient', item_id=item.id) }}" id="manualSelectionForm">
+                            {{ manual_form.hidden_tag() }}
+                            <input type="hidden" name="selection_method" value="manual">
+                    {% endif %}
                         
                         <div class="list-group mb-3">
                             {% for interest in interested_users %}
@@ -81,7 +102,7 @@
                                                     </h6>
                                                     <p class="mb-1 text-muted small">
                                                         <i class="fas fa-clock me-1"></i>
-                                                        Requested {{ interest.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                                        Requested {{ interest.created_at|utc_timestamp('datetime') }}
                                                     </p>
                                                     {% if interest.message %}
                                                         <div class="mt-2 p-2 bg-light rounded">
