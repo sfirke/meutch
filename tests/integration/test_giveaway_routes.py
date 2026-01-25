@@ -2020,7 +2020,7 @@ class TestItemDetailPageForGiveaways:
             assert b'Change Recipient' in response.data
             assert b'Release to Everyone' in response.data
             assert b'Confirm Handoff Complete' in response.data
-            assert b'Pending pickup by' in response.data
+            assert b'Recipient:' in response.data
             assert b'John Doe' in response.data
     
     def test_owner_sees_claimed_badge(self, client, app, auth_user):
