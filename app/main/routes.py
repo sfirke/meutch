@@ -752,6 +752,10 @@ def change_recipient(item_id):
         selected_interest = random.choice(active_interests)
     elif selection_method == 'manual':
         manual_user_id = form.user_id.data
+        # Check if they selected the current recipient (convert to string for comparison)
+        if str(manual_user_id) == str(previous_claimed_by_id):
+            flash('That recipient is currently selected.', 'warning')
+            return redirect(url_for('main.select_recipient', item_id=item.id))
         selected_interest = GiveawayInterest.query.filter(
             GiveawayInterest.item_id == item.id,
             GiveawayInterest.user_id == manual_user_id,
