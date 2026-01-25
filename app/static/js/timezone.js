@@ -165,6 +165,32 @@
         convertTimestamps();
     }
 
+    // Watch for dynamically added timestamps (e.g., via AJAX)
+    if (typeof MutationObserver !== 'undefined') {
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes.length > 0) {
+                    convertTimestamps();
+                }
+            });
+        });
+        
+        // Start observing when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            });
+        } else {
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        }
+    }
+
     // Expose for manual conversion if needed
     window.MeutchTimezone = {
         convertTimestamps: convertTimestamps,
