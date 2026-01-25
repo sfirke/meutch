@@ -129,10 +129,11 @@ def giveaways():
     # Check if user has any circles
     has_circles = len(current_user.circles) > 0
     
-    # Get user's own giveaways (always show these regardless of circle status)
+    # Get user's own active giveaways (unclaimed or pending_pickup, always show these regardless of circle status)
     my_giveaways = Item.query.filter(
         Item.owner_id == current_user.id,
-        Item.is_giveaway == True
+        Item.is_giveaway == True,
+        or_(Item.claim_status == 'unclaimed', Item.claim_status == 'pending_pickup', Item.claim_status.is_(None))
     ).order_by(Item.created_at.desc()).all()
     
     if not has_circles:

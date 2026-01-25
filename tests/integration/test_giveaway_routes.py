@@ -347,6 +347,64 @@ class TestGiveawaysFeed:
             assert b'Searchable Public Giveaway' in response.data, "Public giveaway should appear in search for all circle members"
             assert b'Searchable Default Giveaway' not in response.data, "Default visibility giveaway should not appear in search without shared circles"
 
+    def test_my_giveaways_section_only_shows_active(self, client, app, auth_user):
+        """Test that 'My Giveaways' section on feed page only shows active giveaways, not claimed ones."""
+        from datetime import datetime, UTC, timedelta
+        
+        with app.app_context():
+            user = auth_user()
+            recipient = UserFactory()
+            circle = CircleFactory()
+            circle.members.append(user)
+            circle.members.append(recipient)
+            db.session.commit()
+            login_user(client, user.email)
+            
+            category = CategoryFactory()
+            
+            # Create active giveaways (should appear in "My Giveaways")
+            active_unclaimed = ItemFactory(
+                owner=user,
+                category=category,
+                name='My Active Unclaimed',
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed'
+            )
+            
+            active_pending = ItemFactory(
+                owner=user,
+                category=category,
+                name='My Active Pending',
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='pending_pickup',
+                claimed_by=recipient
+            )
+            
+            # Create past giveaway (should NOT appear in "My Giveaways")
+            past_claimed = ItemFactory(
+                owner=user,
+                category=category,
+                name='My Past Claimed',
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='claimed',
+                claimed_by=recipient,
+                claimed_at=datetime.now(UTC) - timedelta(days=5)
+            )
+            
+            db.session.commit()
+            
+            response = client.get('/giveaways')
+            
+            assert response.status_code == 200
+            # Active giveaways should appear
+            assert b'My Active Unclaimed' in response.data, "Unclaimed giveaway should appear in My Giveaways"
+            assert b'My Active Pending' in response.data, "Pending pickup giveaway should appear in My Giveaways"
+            # Past giveaway should NOT appear
+            assert b'My Past Claimed' not in response.data, "Claimed giveaway should NOT appear in My Giveaways"
+
 
 class TestSearchFiltering:
     """Test search filtering by item type."""
