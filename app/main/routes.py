@@ -1075,6 +1075,11 @@ def delete_item(item_id):
         flash('You can only delete your own items.', 'danger')
         return redirect(url_for('main.profile'))
     
+    # Prevent deletion of claimed giveaways (completed transactions)
+    if item.is_giveaway and item.claim_status == 'claimed':
+        flash('You cannot delete a giveaway that has been claimed and handed off. This is a completed transaction.', 'danger')
+        return redirect(url_for('main.profile'))
+    
     try:
         # Start by deleting messages associated with loan requests
         Message.query.filter(
@@ -1591,8 +1596,8 @@ def profile():
     items_pagination = Item.query.filter_by(owner_id=current_user.id, is_giveaway=False).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     user_items = items_pagination.items
     
-    # Create a DeleteItemForm for each item (both giveaways and regular items)
-    delete_forms = {item.id: DeleteItemForm() for item in active_giveaways + past_giveaways + user_items}
+    # Create a DeleteItemForm for each item (exclude claimed giveaways since they can't be deleted)
+    delete_forms = {item.id: DeleteItemForm() for item in active_giveaways + user_items}
     
     borrowing = current_user.get_active_loans_as_borrower()
     lending = current_user.get_active_loans_as_owner()

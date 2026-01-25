@@ -33,6 +33,47 @@ class TestProfileGiveawaysSeparation:
             assert b'My Active Giveaways' in response.data
             assert b'Unclaimed Item' in response.data
     
+    def test_profile_claimed_giveaways_cannot_be_deleted(self, client, app, auth_user):
+        """Test that claimed giveaways don't have delete buttons and can't be deleted."""
+        with app.app_context():
+            user = auth_user()
+            recipient = UserFactory()
+            category = CategoryFactory()
+            
+            # Create claimed giveaway
+            claimed_giveaway = ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=True,
+                claim_status='claimed',
+                claimed_by=recipient,
+                claimed_at=datetime.now(UTC) - timedelta(days=5),
+                name='Claimed Giveaway'
+            )
+            item_id = claimed_giveaway.id
+            db.session.commit()
+            
+            login_user(client, user.email)
+            
+            # Check profile page shows the claimed giveaway in past section
+            response = client.get('/profile')
+            assert response.status_code == 200
+            assert b'Claimed Giveaway' in response.data
+            assert b'My Past Giveaways' in response.data
+            
+            # Try to delete the claimed giveaway via POST
+            response = client.post(
+                f'/item/{item_id}/delete',
+                follow_redirects=True
+            )
+            
+            # Should get an error message
+            assert b'cannot delete a giveaway that has been claimed' in response.data or b'completed transaction' in response.data
+            
+            # Verify the item still exists
+            item = db.session.get(Item, item_id)
+            assert item is not None
+    
     def test_profile_shows_pending_pickup_in_active(self, client, app, auth_user):
         """Test that profile displays pending_pickup giveaways in active section."""
         with app.app_context():
