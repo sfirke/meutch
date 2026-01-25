@@ -560,18 +560,12 @@ def select_recipient(item_id):
     # GET request - show selection page
     is_reassignment = (item.claim_status == 'pending_pickup')
     
-    if is_reassignment:
-        # For reassignment, show all interested users (including previously selected)
-        interested_users = GiveawayInterest.query.filter(
-            GiveawayInterest.item_id == item.id,
-            GiveawayInterest.status.in_(['active', 'selected'])
-        ).order_by(GiveawayInterest.created_at).all()
-    else:
-        # For initial selection, only show active interests
-        interested_users = GiveawayInterest.query.filter_by(
-            item_id=item.id,
-            status='active'
-        ).order_by(GiveawayInterest.created_at).all()
+    # Show active interests and any selected interest (for reassignment case)
+    # When not reassigning, there won't be any selected interests, so this works for both cases
+    interested_users = GiveawayInterest.query.filter(
+        GiveawayInterest.item_id == item.id,
+        GiveawayInterest.status.in_(['active', 'selected'])
+    ).order_by(GiveawayInterest.created_at).all()
     
     if not interested_users:
         flash('No users have expressed interest in this giveaway yet.', 'info')
