@@ -4,7 +4,7 @@ from flask_login import login_required, current_user, logout_user
 from sqlalchemy import or_, and_, func, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 from app import db
 from app.models import Item, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm
@@ -1575,15 +1575,24 @@ def profile():
     page = request.args.get('page', 1, type=int)
     per_page = 12  # Items per page for logged-in users (same as index page)
     
-    # Fetch user's giveaways separately (newest first, not paginated)
-    user_giveaways = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).order_by(Item.created_at.desc()).all()
+    # Fetch user's active giveaways (unclaimed or pending_pickup)
+    active_giveaways = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
+        or_(Item.claim_status == 'unclaimed', Item.claim_status == 'pending_pickup', Item.claim_status.is_(None))
+    ).order_by(Item.created_at.desc()).all()
+    
+    # Fetch user's past giveaways (claimed within last 90 days)
+    ninety_days_ago = datetime.now(UTC) - timedelta(days=90)
+    past_giveaways = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
+        Item.claim_status == 'claimed',
+        Item.claimed_at >= ninety_days_ago
+    ).order_by(Item.claimed_at.desc()).all()
     
     # Fetch user's regular items with pagination (newest first)
     items_pagination = Item.query.filter_by(owner_id=current_user.id, is_giveaway=False).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     user_items = items_pagination.items
     
     # Create a DeleteItemForm for each item (both giveaways and regular items)
-    delete_forms = {item.id: DeleteItemForm() for item in user_giveaways + user_items}
+    delete_forms = {item.id: DeleteItemForm() for item in active_giveaways + past_giveaways + user_items}
     
     borrowing = current_user.get_active_loans_as_borrower()
     lending = current_user.get_active_loans_as_owner()
@@ -1592,7 +1601,8 @@ def profile():
                          form=form, 
                          user=current_user, 
                          items=user_items,
-                         giveaways=user_giveaways,
+                         active_giveaways=active_giveaways,
+                         past_giveaways=past_giveaways,
                          delete_forms=delete_forms,
                          borrowing=borrowing,
                          lending=lending,
