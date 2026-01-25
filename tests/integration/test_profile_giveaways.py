@@ -34,7 +34,7 @@ class TestProfileGiveawaysSeparation:
             assert b'Unclaimed Item' in response.data
     
     def test_profile_claimed_giveaways_cannot_be_deleted(self, client, app, auth_user):
-        """Test that claimed giveaways don't have delete buttons and can't be deleted."""
+        """Test that claimed giveaways don't have delete/edit buttons and can't be deleted."""
         with app.app_context():
             user = auth_user()
             recipient = UserFactory()
@@ -60,6 +60,20 @@ class TestProfileGiveawaysSeparation:
             assert response.status_code == 200
             assert b'Claimed Giveaway' in response.data
             assert b'My Past Giveaways' in response.data
+            
+            # Verify neither edit nor delete buttons are present for past giveaways
+            content = response.data.decode('utf-8')
+            # Find the past giveaways section
+            past_section_start = content.find('My Past Giveaways')
+            assert past_section_start > 0
+            # Find the next section (if any) or end of content
+            items_section_start = content.find('Items for Lending', past_section_start)
+            past_section_end = items_section_start if items_section_start > 0 else len(content)
+            past_section = content[past_section_start:past_section_end]
+            
+            # Verify no edit or delete buttons in past giveaways section
+            assert 'btn-warning' not in past_section, "Edit button should not appear for past giveaways"
+            assert 'btn-danger' not in past_section, "Delete button should not appear for past giveaways"
             
             # Try to delete the claimed giveaway via POST
             response = client.post(
