@@ -1088,6 +1088,9 @@ def delete_item(item_id):
         # Delete all loan requests for this item
         LoanRequest.query.filter_by(item_id=item_id).delete()
         
+        # Delete all giveaway interest records for this item
+        GiveawayInterest.query.filter_by(item_id=item_id).delete()
+        
         # Clear item-tag associations
         item.tags.clear()
         
