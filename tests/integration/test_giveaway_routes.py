@@ -1499,10 +1499,11 @@ class TestRecipientReassignment:
             
             db.session.refresh(giveaway)
             assert giveaway.claim_status == 'pending_pickup'
+            assert giveaway.claimed_by_id == requester2.id
             assert giveaway.claimed_at is None
     
-    def test_change_recipient_sends_notification(self, client, app, auth_user):
-        """Test that only newly selected user receives notification."""
+    def test_change_recipient_sends_notifications(self, client, app, auth_user):
+        """Test that selected, de-selected users receive notification."""
         with app.app_context():
             
             owner = auth_user()
