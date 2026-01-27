@@ -1,9 +1,11 @@
 """Integration tests for giveaway routes and functionality."""
 import pytest
 from app import db
-from app.models import Item
+from app.models import Item, GiveawayInterest, Message
 from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory
 from conftest import login_user
+from datetime import datetime, UTC, timedelta
+from sqlalchemy import text
 
 
 class TestGiveawayItemCreation:
@@ -218,7 +220,6 @@ class TestGiveawaysFeed:
             circle.members.append(other_user)
             
             # Create giveaways with explicit different timestamps
-            from datetime import datetime, UTC, timedelta
             
             giveaway1 = ItemFactory(
                 owner=other_user,
@@ -349,7 +350,6 @@ class TestGiveawaysFeed:
 
     def test_my_giveaways_section_only_shows_active(self, client, app, auth_user):
         """Test that 'My Giveaways' section on feed page only shows active giveaways, not claimed ones."""
-        from datetime import datetime, UTC, timedelta
         
         with app.app_context():
             user = auth_user()
@@ -593,7 +593,6 @@ class TestGiveawayInterestExpression:
             assert b'Your interest has been recorded' in response.data
             
             # Verify interest record was created
-            from app.models import GiveawayInterest
             interest = GiveawayInterest.query.filter_by(
                 item_id=giveaway.id,
                 user_id=user.id
@@ -629,7 +628,6 @@ class TestGiveawayInterestExpression:
             assert response.status_code == 200
             
             # Verify interest record was created without message
-            from app.models import GiveawayInterest
             interest = GiveawayInterest.query.filter_by(
                 item_id=giveaway.id,
                 user_id=user.id
@@ -664,7 +662,6 @@ class TestGiveawayInterestExpression:
             assert b'cannot express interest in your own giveaway' in response.data
             
             # Verify no interest record was created
-            from app.models import GiveawayInterest
             interest = GiveawayInterest.query.filter_by(
                 item_id=giveaway.id,
                 user_id=user.id
@@ -707,7 +704,6 @@ class TestGiveawayInterestExpression:
             assert b'already expressed interest' in response2.data
             
             # Verify only one interest record exists
-            from app.models import GiveawayInterest
             count = GiveawayInterest.query.filter_by(
                 item_id=giveaway.id,
                 user_id=user.id
@@ -759,7 +755,6 @@ class TestGiveawayInterestExpression:
             )
             
             # Create interest record
-            from app.models import GiveawayInterest
             interest = GiveawayInterest(
                 item_id=giveaway.id,
                 user_id=user.id,
@@ -806,7 +801,6 @@ class TestRecipientSelection:
             )
             
             # Create interest records
-            from app.models import GiveawayInterest
             interest1 = GiveawayInterest(
                 item_id=giveaway.id,
                 user_id=user1.id,
@@ -847,7 +841,6 @@ class TestRecipientSelection:
             )
             
             # Create interest records
-            from app.models import GiveawayInterest, Message
             interest1 = GiveawayInterest(
                 item_id=giveaway.id,
                 user_id=user1.id
@@ -914,8 +907,6 @@ class TestRecipientSelection:
             )
             
             # Create interest records with specific timestamps
-            from app.models import GiveawayInterest
-            from datetime import datetime, UTC, timedelta
             
             interest1 = GiveawayInterest(
                 item_id=giveaway.id,
@@ -966,7 +957,6 @@ class TestRecipientSelection:
             )
             
             # Create interest records
-            from app.models import GiveawayInterest
             interest1 = GiveawayInterest(
                 item_id=giveaway.id,
                 user_id=user1.id
@@ -1096,7 +1086,6 @@ class TestGiveawayOwnerMessaging:
     def test_owner_can_message_requester(self, client, app, auth_user):
         """Test that owner can initiate a message with a giveaway requester."""
         with app.app_context():
-            from app.models import GiveawayInterest, Message
             
             owner = auth_user()
             requester = UserFactory()
@@ -1155,7 +1144,6 @@ class TestGiveawayOwnerMessaging:
     def test_non_owner_cannot_message_requester(self, client, app, auth_user):
         """Test that non-owner cannot access the message requester route."""
         with app.app_context():
-            from app.models import GiveawayInterest
             
             owner = UserFactory()
             non_owner = auth_user()
@@ -1215,7 +1203,6 @@ class TestGiveawayOwnerMessaging:
     def test_redirects_to_existing_conversation(self, client, app, auth_user):
         """Test that accessing message route redirects to existing conversation."""
         with app.app_context():
-            from app.models import GiveawayInterest, Message
             
             owner = auth_user()
             requester = UserFactory()
@@ -1259,7 +1246,6 @@ class TestGiveawayOwnerMessaging:
     def test_message_button_appears_on_select_recipient_page(self, client, app, auth_user):
         """Test that Message button appears for each interested user."""
         with app.app_context():
-            from app.models import GiveawayInterest
             
             owner = auth_user()
             requester1 = UserFactory(first_name="Alice", last_name="Smith")
@@ -1301,13 +1287,11 @@ class TestGiveawayOwnerMessaging:
 
 
 class TestRecipientReassignment:
-    """Test changing the recipient of a giveaway that's pending pickup (PR #4)."""
+    """Test changing the recipient of a giveaway that's pending pickup."""
     
     def test_change_recipient_next_in_line(self, client, app, auth_user):
         """Test 'next in line' excludes previous recipient."""
         with app.app_context():
-            from app.models import GiveawayInterest, Message
-            from datetime import datetime, UTC, timedelta
             
             owner = auth_user()
             requester1 = UserFactory(first_name="First", last_name="User")
@@ -1377,7 +1361,6 @@ class TestRecipientReassignment:
     def test_change_recipient_random_excludes_previous(self, client, app, auth_user):
         """Test random selection excludes previous recipient."""
         with app.app_context():
-            from app.models import GiveawayInterest
             import random as stdlib_random
             
             owner = auth_user()
@@ -1424,7 +1407,6 @@ class TestRecipientReassignment:
     def test_change_recipient_manual(self, client, app, auth_user):
         """Test manual reassignment to a specific user."""
         with app.app_context():
-            from app.models import GiveawayInterest
             
             owner = auth_user()
             requester1 = UserFactory()
@@ -1473,8 +1455,7 @@ class TestRecipientReassignment:
     def test_change_recipient_keeps_pending_pickup_status(self, client, app, auth_user):
         """Test reassignment keeps pending_pickup status and claimed_at as NULL."""
         with app.app_context():
-            from app.models import GiveawayInterest
-            
+           
             owner = auth_user()
             requester1 = UserFactory()
             requester2 = UserFactory()
@@ -1494,11 +1475,15 @@ class TestRecipientReassignment:
                 user_id=requester1.id,
                 status='selected'
             )
+            interest1.created_at = datetime.now(UTC) - timedelta(hours=3)
+            
             interest2 = GiveawayInterest(
                 item_id=giveaway.id,
                 user_id=requester2.id,
                 status='active'
             )
+            interest2.created_at = datetime.now(UTC) - timedelta(hours=2)
+            
             db.session.add_all([interest1, interest2])
             db.session.commit()
             
@@ -1519,7 +1504,6 @@ class TestRecipientReassignment:
     def test_change_recipient_sends_notification(self, client, app, auth_user):
         """Test that only newly selected user receives notification."""
         with app.app_context():
-            from app.models import GiveawayInterest, Message
             
             owner = auth_user()
             requester1 = UserFactory()
@@ -1579,7 +1563,6 @@ class TestRecipientReassignment:
     def test_change_recipient_no_other_users(self, client, app, auth_user):
         """Test error when no other interested users available."""
         with app.app_context():
-            from app.models import GiveawayInterest
             
             owner = auth_user()
             requester1 = UserFactory()
@@ -1616,7 +1599,6 @@ class TestRecipientReassignment:
     def test_change_recipient_non_owner_denied(self, client, app, auth_user):
         """Test non-owner cannot change recipient."""
         with app.app_context():
-            from app.models import GiveawayInterest
             
             owner = UserFactory()
             non_owner = auth_user()
@@ -1659,7 +1641,6 @@ class TestRecipientReassignment:
     def test_change_recipient_not_pending_pickup(self, client, app, auth_user):
         """Test cannot change recipient if not pending_pickup."""
         with app.app_context():
-            from app.models import GiveawayInterest
             
             owner = auth_user()
             requester1 = UserFactory()
@@ -1698,7 +1679,6 @@ class TestReleaseToAll:
     def test_release_to_all_returns_to_unclaimed(self, client, app, auth_user):
         """Test release-to-all returns to unclaimed state."""
         with app.app_context():
-            from app.models import GiveawayInterest
             
             owner = auth_user()
             requester = UserFactory()
@@ -1739,7 +1719,6 @@ class TestReleaseToAll:
     def test_release_to_all_keeps_interests_active(self, client, app, auth_user):
         """Test all existing GiveawayInterest records remain active."""
         with app.app_context():
-            from app.models import GiveawayInterest
             
             owner = auth_user()
             requester1 = UserFactory()
@@ -1785,7 +1764,6 @@ class TestReleaseToAll:
     def test_release_to_all_notifies_previous_recipient(self, client, app, auth_user):
         """Test that previous recipient is notified on release-to-all."""
         with app.app_context():
-            from app.models import GiveawayInterest, Message
             
             owner = auth_user()
             requester = UserFactory()
@@ -1890,7 +1868,6 @@ class TestConfirmHandoff:
     def test_confirm_handoff_sets_claimed_at_timestamp(self, client, app, auth_user):
         """Test that claimed_at is set to current time on confirmation."""
         with app.app_context():
-            from datetime import datetime, UTC, timedelta
             
             owner = auth_user()
             requester = UserFactory()
@@ -2026,7 +2003,6 @@ class TestItemDetailPageForGiveaways:
     def test_owner_sees_claimed_badge(self, client, app, auth_user):
         """Test owner sees claimed badge with recipient name and date."""
         with app.app_context():
-            from datetime import datetime, UTC
             
             owner = auth_user()
             requester = UserFactory(first_name="Jane", last_name="Smith")
@@ -2061,7 +2037,6 @@ class TestDataIntegrity:
     def test_claimed_by_null_when_user_deleted(self, client, app, auth_user):
         """Test claimed_by_id becomes NULL when claiming user deletes account."""
         with app.app_context():
-            from datetime import datetime, UTC
             
             owner = auth_user()
             requester = UserFactory()
@@ -2092,8 +2067,6 @@ class TestDataIntegrity:
     def test_giveaway_interest_cascade_delete_on_item_delete(self, client, app, auth_user):
         """Test GiveawayInterest records are removed when item deleted."""
         with app.app_context():
-            from app.models import GiveawayInterest
-            from sqlalchemy import text
             
             owner = auth_user()
             requester = UserFactory()
@@ -2129,8 +2102,6 @@ class TestDataIntegrity:
     def test_giveaway_interest_cascade_delete_on_user_delete(self, client, app, auth_user):
         """Test GiveawayInterest records are removed when user hard deleted."""
         with app.app_context():
-            from app.models import GiveawayInterest
-            from sqlalchemy import text
             
             owner = auth_user()
             requester = UserFactory()
@@ -2169,7 +2140,6 @@ class TestDataIntegrity:
     def test_cannot_change_from_claimed_back_to_other_states(self, client, app, auth_user):
         """Test that release-to-all fails for claimed items."""
         with app.app_context():
-            from datetime import datetime, UTC
             
             owner = auth_user()
             requester = UserFactory()
@@ -2207,7 +2177,6 @@ class TestSelectRecipientReassignmentUI:
     def test_select_recipient_page_shows_initial_selection_ui(self, client, app, auth_user):
         """Test select recipient page shows 'Select Recipient' header for initial selection."""
         with app.app_context():
-            from app.models import GiveawayInterest
             
             owner = auth_user()
             requester = UserFactory()
