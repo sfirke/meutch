@@ -1675,7 +1675,7 @@ class TestRecipientReassignment:
 
 
 class TestReleaseToAll:
-    """Test releasing a giveaway back to unclaimed status (PR #4)."""
+    """Test releasing a giveaway back to unclaimed status."""
     
     def test_release_to_all_returns_to_unclaimed(self, client, app, auth_user):
         """Test release-to-all returns to unclaimed state."""
@@ -1832,7 +1832,7 @@ class TestReleaseToAll:
 
 
 class TestConfirmHandoff:
-    """Test confirming the handoff of a giveaway (PR #4)."""
+    """Test confirming the handoff of a giveaway."""
     
     def test_confirm_handoff_transitions_to_claimed(self, client, app, auth_user):
         """Test confirm-handoff transitions to claimed state."""
@@ -1969,10 +1969,59 @@ class TestConfirmHandoff:
             assert response.status_code == 200
             assert b'Available Item' in response.data
             assert b'Claimed Item' not in response.data
+    
+    def test_pending_pickup_items_not_visible_to_others(self, client, app, auth_user):
+        """Test pending_pickup items (even public ones) don't appear to other users in giveaway feed."""
+        with app.app_context():
+            user = auth_user()
+            owner = UserFactory()
+            recipient = UserFactory()
+            
+            # Create separate circles so user doesn't share circles with owner
+            circle1 = CircleFactory()
+            circle1.members.append(user)
+            
+            circle2 = CircleFactory() 
+            circle2.members.append(owner)
+            circle2.members.append(recipient)
+            
+            category = CategoryFactory()
+            
+            # Public giveaway that's pending pickup (should NOT appear to other users)
+            pending_giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                name='Pending Public Item',
+                is_giveaway=True,
+                giveaway_visibility='public',  # Public visibility
+                claim_status='pending_pickup',  # But pending pickup
+                claimed_by=recipient
+            )
+            pending_giveaway.available = False
+            
+            # Unclaimed public giveaway (should appear)
+            unclaimed_giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                name='Available Public Item',
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed'
+            )
+            
+            db.session.commit()
+            
+            login_user(client, user.email)
+            
+            response = client.get('/giveaways')
+            
+            assert response.status_code == 200
+            assert b'Available Public Item' in response.data, "Unclaimed public giveaway should appear"
+            assert b'Pending Public Item' not in response.data, "Pending pickup giveaway should NOT appear to other users"
 
 
 class TestItemDetailPageForGiveaways:
-    """Test item detail page UI for different giveaway states (PR #4)."""
+    """Test item detail page UI for different giveaway states."""
     
     def test_owner_sees_pending_pickup_controls(self, client, app, auth_user):
         """Test owner sees Change Recipient, Release to Everyone, and Confirm Handoff buttons."""
@@ -2033,10 +2082,10 @@ class TestItemDetailPageForGiveaways:
 
 
 class TestDataIntegrity:
-    """Test data integrity and edge cases for giveaways (PR #4)."""
+    """Test data integrity and edge cases for giveaways."""
     
-    def test_claimed_by_null_when_user_deleted(self, client, app, auth_user):
-        """Test claimed_by_id becomes NULL when claiming user deletes account."""
+    def test_claimed_by_persists_when_user_soft_deleted(self, client, app, auth_user):
+        """Test claimed_by_id persists when claiming user soft deletes account."""
         with app.app_context():
             
             owner = auth_user()
@@ -2091,10 +2140,19 @@ class TestDataIntegrity:
             interest_id = interest.id
             giveaway_id = giveaway.id
             
-            # Delete the giveaway using raw SQL to bypass SQLAlchemy's ORM handling
-            # The database CASCADE should handle the interest deletion
-            db.session.execute(text("DELETE FROM item WHERE id = :id"), {"id": str(giveaway_id)})
-            db.session.commit()
+            # Login as the owner
+            login_user(client, owner.email)
+            
+            # Delete the giveaway through the app's deletion route
+            from app.forms import DeleteItemForm
+            delete_form = DeleteItemForm()
+            response = client.post(
+                f'/item/{giveaway_id}/delete',
+                data=delete_form.data,
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
             
             # Verify interest record was cascade deleted
             deleted_interest = db.session.get(GiveawayInterest, interest_id)
