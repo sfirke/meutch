@@ -1,9 +1,11 @@
 """Integration tests for giveaway routes and functionality."""
 import pytest
 from app import db
-from app.models import Item
+from app.models import Item, GiveawayInterest, Message
 from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory
 from conftest import login_user
+from datetime import datetime, UTC, timedelta
+from sqlalchemy import text
 
 
 class TestGiveawayItemCreation:
@@ -218,7 +220,6 @@ class TestGiveawaysFeed:
             circle.members.append(other_user)
             
             # Create giveaways with explicit different timestamps
-            from datetime import datetime, UTC, timedelta
             
             giveaway1 = ItemFactory(
                 owner=other_user,
@@ -346,6 +347,63 @@ class TestGiveawaysFeed:
             assert response.status_code == 200
             assert b'Searchable Public Giveaway' in response.data, "Public giveaway should appear in search for all circle members"
             assert b'Searchable Default Giveaway' not in response.data, "Default visibility giveaway should not appear in search without shared circles"
+
+    def test_my_giveaways_section_only_shows_active(self, client, app, auth_user):
+        """Test that 'My Giveaways' section on feed page only shows active giveaways, not claimed ones."""
+        
+        with app.app_context():
+            user = auth_user()
+            recipient = UserFactory()
+            circle = CircleFactory()
+            circle.members.append(user)
+            circle.members.append(recipient)
+            db.session.commit()
+            login_user(client, user.email)
+            
+            category = CategoryFactory()
+            
+            # Create active giveaways (should appear in "My Giveaways")
+            active_unclaimed = ItemFactory(
+                owner=user,
+                category=category,
+                name='My Active Unclaimed',
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed'
+            )
+            
+            active_pending = ItemFactory(
+                owner=user,
+                category=category,
+                name='My Active Pending',
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='pending_pickup',
+                claimed_by=recipient
+            )
+            
+            # Create past giveaway (should NOT appear in "My Giveaways")
+            past_claimed = ItemFactory(
+                owner=user,
+                category=category,
+                name='My Past Claimed',
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='claimed',
+                claimed_by=recipient,
+                claimed_at=datetime.now(UTC) - timedelta(days=5)
+            )
+            
+            db.session.commit()
+            
+            response = client.get('/giveaways')
+            
+            assert response.status_code == 200
+            # Active giveaways should appear
+            assert b'My Active Unclaimed' in response.data, "Unclaimed giveaway should appear in My Giveaways"
+            assert b'My Active Pending' in response.data, "Pending pickup giveaway should appear in My Giveaways"
+            # Past giveaway should NOT appear
+            assert b'My Past Claimed' not in response.data, "Claimed giveaway should NOT appear in My Giveaways"
 
 
 class TestSearchFiltering:
@@ -535,7 +593,6 @@ class TestGiveawayInterestExpression:
             assert b'Your interest has been recorded' in response.data
             
             # Verify interest record was created
-            from app.models import GiveawayInterest
             interest = GiveawayInterest.query.filter_by(
                 item_id=giveaway.id,
                 user_id=user.id
@@ -571,7 +628,6 @@ class TestGiveawayInterestExpression:
             assert response.status_code == 200
             
             # Verify interest record was created without message
-            from app.models import GiveawayInterest
             interest = GiveawayInterest.query.filter_by(
                 item_id=giveaway.id,
                 user_id=user.id
@@ -606,7 +662,6 @@ class TestGiveawayInterestExpression:
             assert b'cannot express interest in your own giveaway' in response.data
             
             # Verify no interest record was created
-            from app.models import GiveawayInterest
             interest = GiveawayInterest.query.filter_by(
                 item_id=giveaway.id,
                 user_id=user.id
@@ -649,7 +704,6 @@ class TestGiveawayInterestExpression:
             assert b'already expressed interest' in response2.data
             
             # Verify only one interest record exists
-            from app.models import GiveawayInterest
             count = GiveawayInterest.query.filter_by(
                 item_id=giveaway.id,
                 user_id=user.id
@@ -701,7 +755,6 @@ class TestGiveawayInterestExpression:
             )
             
             # Create interest record
-            from app.models import GiveawayInterest
             interest = GiveawayInterest(
                 item_id=giveaway.id,
                 user_id=user.id,
@@ -748,7 +801,6 @@ class TestRecipientSelection:
             )
             
             # Create interest records
-            from app.models import GiveawayInterest
             interest1 = GiveawayInterest(
                 item_id=giveaway.id,
                 user_id=user1.id,
@@ -789,7 +841,6 @@ class TestRecipientSelection:
             )
             
             # Create interest records
-            from app.models import GiveawayInterest, Message
             interest1 = GiveawayInterest(
                 item_id=giveaway.id,
                 user_id=user1.id
@@ -856,8 +907,6 @@ class TestRecipientSelection:
             )
             
             # Create interest records with specific timestamps
-            from app.models import GiveawayInterest
-            from datetime import datetime, UTC, timedelta
             
             interest1 = GiveawayInterest(
                 item_id=giveaway.id,
@@ -908,7 +957,6 @@ class TestRecipientSelection:
             )
             
             # Create interest records
-            from app.models import GiveawayInterest
             interest1 = GiveawayInterest(
                 item_id=giveaway.id,
                 user_id=user1.id
@@ -1038,7 +1086,6 @@ class TestGiveawayOwnerMessaging:
     def test_owner_can_message_requester(self, client, app, auth_user):
         """Test that owner can initiate a message with a giveaway requester."""
         with app.app_context():
-            from app.models import GiveawayInterest, Message
             
             owner = auth_user()
             requester = UserFactory()
@@ -1097,7 +1144,6 @@ class TestGiveawayOwnerMessaging:
     def test_non_owner_cannot_message_requester(self, client, app, auth_user):
         """Test that non-owner cannot access the message requester route."""
         with app.app_context():
-            from app.models import GiveawayInterest
             
             owner = UserFactory()
             non_owner = auth_user()
@@ -1157,7 +1203,6 @@ class TestGiveawayOwnerMessaging:
     def test_redirects_to_existing_conversation(self, client, app, auth_user):
         """Test that accessing message route redirects to existing conversation."""
         with app.app_context():
-            from app.models import GiveawayInterest, Message
             
             owner = auth_user()
             requester = UserFactory()
@@ -1201,7 +1246,6 @@ class TestGiveawayOwnerMessaging:
     def test_message_button_appears_on_select_recipient_page(self, client, app, auth_user):
         """Test that Message button appears for each interested user."""
         with app.app_context():
-            from app.models import GiveawayInterest
             
             owner = auth_user()
             requester1 = UserFactory(first_name="Alice", last_name="Smith")
@@ -1241,3 +1285,982 @@ class TestGiveawayOwnerMessaging:
             assert f'/item/{giveaway.id}/message-requester/{requester1.id}'.encode() in response.data
             assert f'/item/{giveaway.id}/message-requester/{requester2.id}'.encode() in response.data
 
+
+class TestRecipientReassignment:
+    """Test changing the recipient of a giveaway that's pending pickup."""
+    
+    def test_change_recipient_next_in_line(self, client, app, auth_user):
+        """Test 'next in line' excludes previous recipient."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester1 = UserFactory(first_name="First", last_name="User")
+            requester2 = UserFactory(first_name="Second", last_name="User")
+            requester3 = UserFactory(first_name="Third", last_name="User")
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester1
+            )
+            giveaway.available = False
+            
+            # Create interests with different timestamps
+            interest1 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester1.id,
+                status='selected'  # Previously selected
+            )
+            interest1.created_at = datetime.now(UTC) - timedelta(hours=3)
+            
+            interest2 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester2.id,
+                status='active'
+            )
+            interest2.created_at = datetime.now(UTC) - timedelta(hours=2)
+            
+            interest3 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester3.id,
+                status='active'
+            )
+            interest3.created_at = datetime.now(UTC) - timedelta(hours=1)
+            
+            db.session.add_all([interest1, interest2, interest3])
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            # Change recipient to "next in line" (should be requester2, the earliest active)
+            response = client.post(
+                f'/item/{giveaway.id}/change-recipient',
+                data={'selection_method': 'next'},
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            
+            # Verify requester2 is now selected (not requester1)
+            db.session.refresh(giveaway)
+            assert giveaway.claimed_by_id == requester2.id
+            assert giveaway.claim_status == 'pending_pickup'
+            assert giveaway.claimed_at is None  # Not set until handoff confirmed
+            
+            # Verify requester1's interest is back to active
+            db.session.refresh(interest1)
+            assert interest1.status == 'active'
+            
+            # Verify requester2's interest is now selected
+            db.session.refresh(interest2)
+            assert interest2.status == 'selected'
+    
+    def test_change_recipient_random_excludes_previous(self, client, app, auth_user):
+        """Test random selection excludes previous recipient."""
+        with app.app_context():
+            import random as stdlib_random
+            
+            owner = auth_user()
+            requester1 = UserFactory()
+            requester2 = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester1
+            )
+            giveaway.available = False
+            
+            interest1 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester1.id,
+                status='selected'
+            )
+            interest2 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester2.id,
+                status='active'
+            )
+            db.session.add_all([interest1, interest2])
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            # With only one remaining option (requester2), random must select them
+            response = client.post(
+                f'/item/{giveaway.id}/change-recipient',
+                data={'selection_method': 'random'},
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            
+            db.session.refresh(giveaway)
+            assert giveaway.claimed_by_id == requester2.id
+    
+    def test_change_recipient_manual(self, client, app, auth_user):
+        """Test manual reassignment to a specific user."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester1 = UserFactory()
+            requester2 = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester1
+            )
+            giveaway.available = False
+            
+            interest1 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester1.id,
+                status='selected'
+            )
+            interest2 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester2.id,
+                status='active'
+            )
+            db.session.add_all([interest1, interest2])
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/change-recipient',
+                data={
+                    'selection_method': 'manual',
+                    'user_id': str(requester2.id)
+                },
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            
+            db.session.refresh(giveaway)
+            assert giveaway.claimed_by_id == requester2.id
+            assert giveaway.claim_status == 'pending_pickup'
+    
+    def test_change_recipient_keeps_pending_pickup_status(self, client, app, auth_user):
+        """Test reassignment keeps pending_pickup status and claimed_at as NULL."""
+        with app.app_context():
+           
+            owner = auth_user()
+            requester1 = UserFactory()
+            requester2 = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester1
+            )
+            giveaway.available = False
+            
+            interest1 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester1.id,
+                status='selected'
+            )
+            interest1.created_at = datetime.now(UTC) - timedelta(hours=3)
+            
+            interest2 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester2.id,
+                status='active'
+            )
+            interest2.created_at = datetime.now(UTC) - timedelta(hours=2)
+            
+            db.session.add_all([interest1, interest2])
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/change-recipient',
+                data={'selection_method': 'next'},
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            
+            db.session.refresh(giveaway)
+            assert giveaway.claim_status == 'pending_pickup'
+            assert giveaway.claimed_by_id == requester2.id
+            assert giveaway.claimed_at is None
+    
+    def test_change_recipient_sends_notifications(self, client, app, auth_user):
+        """Test that selected, de-selected users receive notification."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester1 = UserFactory()
+            requester2 = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester1
+            )
+            giveaway.available = False
+            
+            interest1 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester1.id,
+                status='selected'
+            )
+            interest2 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester2.id,
+                status='active'
+            )
+            db.session.add_all([interest1, interest2])
+            db.session.commit()
+            
+            initial_messages = Message.query.count()
+            
+            login_user(client, owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/change-recipient',
+                data={'selection_method': 'next'},
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            
+            # Verify two new messages were created:
+            # 1. To requester1 (previous recipient) notifying they were de-selected
+            # 2. To requester2 (new recipient) notifying they were selected
+            final_messages = Message.query.count()
+            assert final_messages == initial_messages + 2
+            
+            # Verify message to new recipient
+            new_recipient_message = Message.query.filter_by(recipient_id=requester2.id).first()
+            assert new_recipient_message is not None
+            assert 'selected' in new_recipient_message.body.lower()
+            
+            # Verify message to previous recipient
+            prev_recipient_message = Message.query.filter_by(recipient_id=requester1.id).first()
+            assert prev_recipient_message is not None
+            assert 'different recipient' in prev_recipient_message.body.lower()
+    
+    def test_change_recipient_no_other_users(self, client, app, auth_user):
+        """Test error when no other interested users available."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester1 = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester1
+            )
+            
+            # Only one interested user (the current one)
+            interest1 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester1.id,
+                status='selected'
+            )
+            db.session.add(interest1)
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/change-recipient',
+                data={'selection_method': 'next'},
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            assert b'No other interested users' in response.data
+    
+    def test_change_recipient_non_owner_denied(self, client, app, auth_user):
+        """Test non-owner cannot change recipient."""
+        with app.app_context():
+            
+            owner = UserFactory()
+            non_owner = auth_user()
+            requester1 = UserFactory()
+            requester2 = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester1
+            )
+            
+            interest1 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester1.id,
+                status='selected'
+            )
+            interest2 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester2.id,
+                status='active'
+            )
+            db.session.add_all([interest1, interest2])
+            db.session.commit()
+            
+            login_user(client, non_owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/change-recipient',
+                data={'selection_method': 'next'},
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            assert b'do not have permission' in response.data
+    
+    def test_change_recipient_not_pending_pickup(self, client, app, auth_user):
+        """Test cannot change recipient if not pending_pickup."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester1 = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'  # Not pending_pickup
+            )
+            
+            interest1 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester1.id,
+                status='active'
+            )
+            db.session.add(interest1)
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/change-recipient',
+                data={'selection_method': 'next'},
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            assert b'not pending pickup' in response.data
+
+
+class TestReleaseToAll:
+    """Test releasing a giveaway back to unclaimed status."""
+    
+    def test_release_to_all_returns_to_unclaimed(self, client, app, auth_user):
+        """Test release-to-all returns to unclaimed state."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester
+            )
+            giveaway.available = False
+            
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status='selected'
+            )
+            db.session.add(interest)
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/release-to-all',
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            
+            db.session.refresh(giveaway)
+            assert giveaway.claim_status == 'unclaimed'
+            assert giveaway.claimed_by_id is None
+            assert giveaway.claimed_at is None
+            assert giveaway.available is True
+    
+    def test_release_to_all_keeps_interests_active(self, client, app, auth_user):
+        """Test all existing GiveawayInterest records remain active."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester1 = UserFactory()
+            requester2 = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester1
+            )
+            
+            interest1 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester1.id,
+                status='selected'
+            )
+            interest2 = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester2.id,
+                status='active'
+            )
+            db.session.add_all([interest1, interest2])
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/release-to-all',
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            
+            # Verify both interests are active
+            db.session.refresh(interest1)
+            db.session.refresh(interest2)
+            assert interest1.status == 'active'
+            assert interest2.status == 'active'
+    
+    def test_release_to_all_notifies_previous_recipient(self, client, app, auth_user):
+        """Test that previous recipient is notified on release-to-all."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester
+            )
+            
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status='selected'
+            )
+            db.session.add(interest)
+            db.session.commit()
+            
+            initial_messages = Message.query.count()
+            
+            login_user(client, owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/release-to-all',
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            
+            # Verify notification was sent to previous recipient
+            final_messages = Message.query.count()
+            assert final_messages == initial_messages + 1
+            
+            notification = Message.query.filter_by(recipient_id=requester.id).first()
+            assert notification is not None
+            assert 'released' in notification.body.lower()
+            assert 'back to everyone' in notification.body.lower()
+    
+    def test_release_to_all_not_pending_pickup(self, client, app, auth_user):
+        """Test cannot release if not pending_pickup."""
+        with app.app_context():
+            owner = auth_user()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/release-to-all',
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            assert b'not pending pickup' in response.data
+
+
+class TestConfirmHandoff:
+    """Test confirming the handoff of a giveaway."""
+    
+    def test_confirm_handoff_transitions_to_claimed(self, client, app, auth_user):
+        """Test confirm-handoff transitions to claimed state."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester
+            )
+            giveaway.available = False
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/confirm-handoff',
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            
+            db.session.refresh(giveaway)
+            assert giveaway.claim_status == 'claimed'
+            assert giveaway.claimed_at is not None
+            assert giveaway.claimed_by_id == requester.id
+            assert giveaway.available is False
+    
+    def test_confirm_handoff_sets_claimed_at_timestamp(self, client, app, auth_user):
+        """Test that claimed_at is set to current time on confirmation."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester
+            )
+            giveaway.available = False
+            db.session.commit()
+            
+            before_time = datetime.now(UTC)
+            
+            login_user(client, owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/confirm-handoff',
+                follow_redirects=True
+            )
+            
+            after_time = datetime.now(UTC)
+            
+            assert response.status_code == 200
+            
+            db.session.refresh(giveaway)
+            assert giveaway.claimed_at is not None
+            # Ensure claimed_at is timezone-aware for comparison
+            claimed_at_utc = giveaway.claimed_at.replace(tzinfo=UTC) if giveaway.claimed_at.tzinfo is None else giveaway.claimed_at
+            assert before_time <= claimed_at_utc <= after_time
+    
+    def test_confirm_handoff_not_pending_pickup(self, client, app, auth_user):
+        """Test cannot confirm handoff if not pending_pickup."""
+        with app.app_context():
+            owner = auth_user()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.post(
+                f'/item/{giveaway.id}/confirm-handoff',
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            assert b'not pending pickup' in response.data
+    
+    def test_claimed_items_not_in_feeds(self, client, app, auth_user):
+        """Test claimed items don't appear in giveaway feed."""
+        with app.app_context():
+            user = auth_user()
+            other_user = UserFactory()
+            circle = CircleFactory()
+            circle.members.append(user)
+            circle.members.append(other_user)
+            
+            category = CategoryFactory()
+            
+            # Claimed giveaway (should NOT appear)
+            claimed_giveaway = ItemFactory(
+                owner=other_user,
+                category=category,
+                name='Claimed Item',
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='claimed',
+                claimed_by=user
+            )
+            claimed_giveaway.available = False
+            
+            # Unclaimed giveaway (should appear)
+            unclaimed_giveaway = ItemFactory(
+                owner=other_user,
+                category=category,
+                name='Available Item',
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed'
+            )
+            
+            db.session.commit()
+            
+            login_user(client, user.email)
+            
+            response = client.get('/giveaways')
+            
+            assert response.status_code == 200
+            assert b'Available Item' in response.data
+            assert b'Claimed Item' not in response.data
+    
+    def test_pending_pickup_items_not_visible_to_others(self, client, app, auth_user):
+        """Test pending_pickup items (even public ones) don't appear to other users in giveaway feed."""
+        with app.app_context():
+            user = auth_user()
+            owner = UserFactory()
+            recipient = UserFactory()
+            
+            # Create separate circles so user doesn't share circles with owner
+            circle1 = CircleFactory()
+            circle1.members.append(user)
+            
+            circle2 = CircleFactory() 
+            circle2.members.append(owner)
+            circle2.members.append(recipient)
+            
+            category = CategoryFactory()
+            
+            # Public giveaway that's pending pickup (should NOT appear to other users)
+            pending_giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                name='Pending Public Item',
+                is_giveaway=True,
+                giveaway_visibility='public',  # Public visibility
+                claim_status='pending_pickup',  # But pending pickup
+                claimed_by=recipient
+            )
+            pending_giveaway.available = False
+            
+            # Unclaimed public giveaway (should appear)
+            unclaimed_giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                name='Available Public Item',
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed'
+            )
+            
+            db.session.commit()
+            
+            login_user(client, user.email)
+            
+            response = client.get('/giveaways')
+            
+            assert response.status_code == 200
+            assert b'Available Public Item' in response.data, "Unclaimed public giveaway should appear"
+            assert b'Pending Public Item' not in response.data, "Pending pickup giveaway should NOT appear to other users"
+
+
+class TestItemDetailPageForGiveaways:
+    """Test item detail page UI for different giveaway states."""
+    
+    def test_owner_sees_pending_pickup_controls(self, client, app, auth_user):
+        """Test owner sees Change Recipient, Release to Everyone, and Confirm Handoff buttons."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory(first_name="John", last_name="Doe")
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester
+            )
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.get(f'/item/{giveaway.id}')
+            
+            assert response.status_code == 200
+            assert b'Change Recipient' in response.data
+            assert b'Release to Everyone' in response.data
+            assert b'Confirm Handoff Complete' in response.data
+            assert b'Recipient:' in response.data
+            assert b'John Doe' in response.data
+    
+    def test_owner_sees_claimed_badge(self, client, app, auth_user):
+        """Test owner sees claimed badge with recipient name and date."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester = UserFactory(first_name="Jane", last_name="Smith")
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='claimed',
+                claimed_by=requester
+            )
+            giveaway.claimed_at = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.get(f'/item/{giveaway.id}')
+            
+            assert response.status_code == 200
+            assert b'Jane Smith' in response.data
+            assert b'June 15, 2025' in response.data
+            # Should NOT show action buttons for claimed items
+            assert b'Change Recipient' not in response.data
+            assert b'Release to Everyone' not in response.data
+            assert b'Confirm Handoff Complete' not in response.data
+
+
+class TestDataIntegrity:
+    """Test data integrity and edge cases for giveaways."""
+    
+    def test_claimed_by_persists_when_user_soft_deleted(self, client, app, auth_user):
+        """Test claimed_by_id persists when claiming user soft deletes account."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='claimed',
+                claimed_by=requester
+            )
+            giveaway.claimed_at = datetime.now(UTC)
+            db.session.commit()
+            
+            # Soft delete the requester
+            requester.is_deleted = True
+            requester.deleted_at = datetime.now(UTC)
+            db.session.commit()
+            
+            # Verify item still exists and maintains claim status
+            db.session.refresh(giveaway)
+            assert giveaway.claim_status == 'claimed'
+            assert giveaway.claimed_at is not None
+            # claimed_by_id should still reference the user (soft delete doesn't cascade)
+            assert giveaway.claimed_by_id == requester.id
+    
+    def test_giveaway_interest_cascade_delete_on_item_delete(self, client, app, auth_user):
+        """Test GiveawayInterest records are removed when item deleted."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status='active'
+            )
+            db.session.add(interest)
+            db.session.commit()
+            
+            interest_id = interest.id
+            giveaway_id = giveaway.id
+            
+            # Login as the owner
+            login_user(client, owner.email)
+            
+            # Delete the giveaway through the app's deletion route
+            from app.forms import DeleteItemForm
+            delete_form = DeleteItemForm()
+            response = client.post(
+                f'/item/{giveaway_id}/delete',
+                data=delete_form.data,
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            
+            # Verify interest record was cascade deleted
+            deleted_interest = db.session.get(GiveawayInterest, interest_id)
+            assert deleted_interest is None
+    
+    def test_giveaway_interest_cascade_delete_on_user_delete(self, client, app, auth_user):
+        """Test GiveawayInterest records are removed when user hard deleted."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status='active'
+            )
+            db.session.add(interest)
+            db.session.commit()
+            
+            interest_id = interest.id
+            requester_id = requester.id
+            
+            # Hard delete the requester user using raw SQL to bypass SQLAlchemy's ORM handling
+            db.session.execute(text("DELETE FROM users WHERE id = :id"), {"id": str(requester_id)})
+            db.session.commit()
+            
+            # Verify interest record was cascade deleted
+            deleted_interest = db.session.get(GiveawayInterest, interest_id)
+            assert deleted_interest is None
+            
+            # Verify giveaway still exists
+            db.session.refresh(giveaway)
+            assert giveaway is not None
+    
+    def test_cannot_change_from_claimed_back_to_other_states(self, client, app, auth_user):
+        """Test that release-to-all fails for claimed items."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='claimed',  # Terminal state
+                claimed_by=requester
+            )
+            giveaway.claimed_at = datetime.now(UTC)
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            # Try to release to all (should fail)
+            response = client.post(
+                f'/item/{giveaway.id}/release-to-all',
+                follow_redirects=True
+            )
+            
+            assert response.status_code == 200
+            assert b'not pending pickup' in response.data
+            
+            # Verify status unchanged
+            db.session.refresh(giveaway)
+            assert giveaway.claim_status == 'claimed'
+
+
+class TestSelectRecipientReassignmentUI:
+    """Test the select_recipient page shows correct UI for reassignment."""
+    
+    def test_select_recipient_page_shows_initial_selection_ui(self, client, app, auth_user):
+        """Test select recipient page shows 'Select Recipient' header for initial selection."""
+        with app.app_context():
+            
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+            
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'  # Initial selection
+            )
+            
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status='active'
+            )
+            db.session.add(interest)
+            db.session.commit()
+            
+            login_user(client, owner.email)
+            
+            response = client.get(f'/item/{giveaway.id}/select-recipient')
+            
+            assert response.status_code == 200
+            assert b'Select Recipient' in response.data
+            assert b'First Requester' in response.data
+            assert b'Random Selection' in response.data

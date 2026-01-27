@@ -552,6 +552,32 @@ class SelectRecipientForm(FlaskForm):
     user_id = StringField('Selected User ID')  # Hidden field for manual selection
     submit = SubmitField('Select Recipient')
 
+
+class ChangeRecipientForm(FlaskForm):
+    """Form for changing the recipient of a giveaway that's pending pickup."""
+    selection_method = RadioField(
+        'Selection Method',
+        choices=[
+            ('next', 'Next in Line'),
+            ('random', 'Random from Remaining'),
+            ('manual', 'Manual Selection')
+        ],
+        validators=[DataRequired(message="Please select a method.")]
+    )
+    user_id = StringField('Selected User ID')  # Hidden field for manual selection
+    submit = SubmitField('Change Recipient')
+
+
+class ReleaseToAllForm(FlaskForm):
+    """Form for releasing a giveaway back to unclaimed status."""
+    submit = SubmitField('Release to Everyone')
+
+
+class ConfirmHandoffForm(FlaskForm):
+    """Form for confirming the handoff of a giveaway."""
+    submit = SubmitField('Confirm Handoff Complete')
+
+
 class ResendConfirmationForm(FlaskForm):
     email = StringField('Email Address', validators=[
         DataRequired(message="Email is required."),

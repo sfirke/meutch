@@ -73,6 +73,13 @@ db.sqlite3-journal
 instance/
 .webassets-cache
 
+# JavaScript build artifacts (for future use)
+app/static/js/dist/
+app/static/js/*.min.js
+app/static/js/*.map
+node_modules/
+package-lock.json
+
 # Scrapy stuff:
 .scrapy
 

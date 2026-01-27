@@ -491,6 +491,17 @@ def _seed_development_data():
                 'status': 'unclaimed',
                 'has_interests': True,
                 'interest_count': 1
+            },
+            {
+                'name': 'Vintage Blender',
+                'description': 'Retro 1970s blender in working condition. Perfect for smoothies!',
+                'category': 'Kitchen',
+                'visibility': 'default',
+                'status': 'claimed',
+                'owner_email': 'user1@example.com',
+                'claimed_by_email': 'user2@example.com',
+                'has_interests': False,
+                'days_ago': 10  # Claimed 10 days ago
             }
         ]
         
@@ -502,7 +513,14 @@ def _seed_development_data():
                 continue
             
             category = category_map.get(giveaway_data['category'], categories[0])
-            owner = random.choice(users)
+            
+            # Handle owner assignment (can be random or specified)
+            if 'owner_email' in giveaway_data:
+                owner = User.query.filter_by(email=giveaway_data['owner_email']).first()
+                if not owner:
+                    owner = random.choice(users)
+            else:
+                owner = random.choice(users)
             
             # Create giveaway item
             giveaway = Item(
@@ -571,6 +589,25 @@ def _seed_development_data():
                         is_read=False
                     )
                     db.session.add(notification)
+            
+            # If status is claimed, mark as claimed with timestamp
+            elif giveaway_data['status'] == 'claimed':
+                from datetime import datetime, UTC, timedelta
+                
+                # Find the claimed_by user (can be specified or random)
+                if 'claimed_by_email' in giveaway_data:
+                    claimed_by_user = User.query.filter_by(email=giveaway_data['claimed_by_email']).first()
+                    if not claimed_by_user:
+                        claimed_by_user = random.choice([u for u in users if u.id != owner.id])
+                else:
+                    claimed_by_user = random.choice([u for u in users if u.id != owner.id])
+                
+                giveaway.claimed_by_id = claimed_by_user.id
+                giveaway.available = False
+                
+                # Set claimed_at timestamp (N days ago)
+                days_ago = giveaway_data.get('days_ago', 5)
+                giveaway.claimed_at = datetime.now(UTC) - timedelta(days=days_ago)
             
             status_marker = f" [{giveaway_data['status']}]" if giveaway_data['status'] != 'unclaimed' else ""
             interest_marker = f" ({len(interested_users)} interested)" if interested_users else ""

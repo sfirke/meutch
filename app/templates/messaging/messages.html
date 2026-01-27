@@ -36,7 +36,7 @@
 
                                 <!-- Timestamp and Badge -->
                                 <div class="col-auto text-end ms-3 d-flex flex-column justify-content-between">
-                                    <span class="text-muted small">{{ convo.latest_message.timestamp.strftime('%b %d, %H:%M') }}</span>
+                                    <span class="text-muted small">{{ convo.latest_message.timestamp|utc_timestamp('message') }}</span>
                                     {% if convo.unread_count > 0 %}
                                         <span class="badge bg-warning text-dark mt-2">{{ convo.unread_count }} New</span>
                                     {% endif %}
