@@ -61,19 +61,9 @@ class TestProfileGiveawaysSeparation:
             assert b'Claimed Giveaway' in response.data
             assert b'My Past Giveaways' in response.data
             
-            # Verify neither edit nor delete buttons are present for past giveaways
-            content = response.data.decode('utf-8')
-            # Find the past giveaways section
-            past_section_start = content.find('My Past Giveaways')
-            assert past_section_start > 0
-            # Find the next section (if any) or end of content
-            items_section_start = content.find('Items for Lending', past_section_start)
-            past_section_end = items_section_start if items_section_start > 0 else len(content)
-            past_section = content[past_section_start:past_section_end]
-            
-            # Verify no edit or delete buttons in past giveaways section
-            assert 'btn-warning' not in past_section, "Edit button should not appear for past giveaways"
-            assert 'btn-danger' not in past_section, "Delete button should not appear for past giveaways"
+            # Verify no edit or delete buttons are present on page
+            assert b'btn-warning' not in response.data, "Edit button should not appear for past giveaways"
+            assert b'btn-danger' not in response.data, "Delete button should not appear for past giveaways"
             
             # Try to delete the claimed giveaway via POST
             response = client.post(
@@ -137,6 +127,7 @@ class TestProfileGiveawaysSeparation:
             
             assert response.status_code == 200
             assert b'My Past Giveaways' in response.data
+            assert b'My Active Giveaways' not in response.data
             assert b'Recently Claimed Item' in response.data
     
     def test_profile_hides_old_claimed_giveaways(self, client, app, auth_user):
