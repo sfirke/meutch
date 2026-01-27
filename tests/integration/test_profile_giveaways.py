@@ -127,7 +127,9 @@ class TestProfileGiveawaysSeparation:
             
             assert response.status_code == 200
             assert b'My Past Giveaways' in response.data
-            assert b'My Active Giveaways' not in response.data
+            # Check that the visible "My Active Giveaways" heading is NOT present
+            # (the HTML comment contains this text, so we check for the actual h4 heading)
+            assert b'>My Active Giveaways<' not in response.data
             assert b'Recently Claimed Item' in response.data
     
     def test_profile_hides_old_claimed_giveaways(self, client, app, auth_user):
