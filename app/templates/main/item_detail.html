@@ -15,10 +15,17 @@
                     </div>
                 {% endif %}
                 
-                <!-- Borrowed indicator -->
+                <!-- Giveaway badge -->
+                {% if item.is_giveaway %}
+                    <span class="position-absolute top-0 start-0 m-3 badge bg-success fs-6">
+                        <i class="fas fa-gift me-1"></i>FREE
+                    </span>
+                {% endif %}
+                
+                <!-- Status indicator -->
                 {% if not item.available %}
                     <span class="position-absolute top-0 end-0 m-3 badge bg-warning">
-                        <i class="fas fa-clock me-1"></i>Borrowed
+                        <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Claimed{% else %}Borrowed{% endif %}
                     </span>
                 {% endif %}
             </div>

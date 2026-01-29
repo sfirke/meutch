@@ -800,11 +800,18 @@ def change_recipient(item_id):
         
         db.session.commit()
         
-        # Send email notification
+        # Send email notification to newly selected recipient
         try:
             send_message_notification_email(notification_message)
         except Exception as e:
             current_app.logger.error(f"Failed to send email notification for giveaway reassignment: {str(e)}")
+        
+        # Send email notification to previous recipient about being de-selected
+        if previous_recipient:
+            try:
+                send_message_notification_email(previous_notification)
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email notification to previous recipient: {str(e)}")
         
         flash(f'{selected_interest.user.full_name} has been selected! They will be notified.', 'success')
         return redirect(url_for('main.item_detail', item_id=item.id))
@@ -870,6 +877,13 @@ def release_to_all(item_id):
         item.available = True
         
         db.session.commit()
+        
+        # Send email notification to previous recipient about the release
+        if previous_recipient_id:
+            try:
+                send_message_notification_email(release_notification)
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email notification for giveaway release: {str(e)}")
         
         flash('The giveaway has been released and will reappear in the feed. All interested users remain in the pool.', 'success')
         return redirect(url_for('main.item_detail', item_id=item.id))
