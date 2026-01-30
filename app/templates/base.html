@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %} - Meutch</title>
     
+    <!-- Meta Description -->
+    <meta name="description" content="The actual sharing economy, uncommercialized. Help a neighbor, help the world.">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:title" content="{% block og_title %}Meutch - The actual sharing economy, uncommercialized{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Help a neighbor, help the world. Join Meutch to share and borrow items with your community.{% endblock %}">
+    <meta property="og:image" content="{{ request.url_root.rstrip('/') }}{{ url_for('static', filename='img/logo_m.png') }}">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary">
+    <meta property="twitter:url" content="{{ request.url }}">
+    <meta property="twitter:title" content="{% block twitter_title %}Meutch - The actual sharing economy, uncommercialized{% endblock %}">
+    <meta property="twitter:description" content="{% block twitter_description %}Help a neighbor, help the world. Join Meutch to share and borrow items with your community.{% endblock %}">
+    <meta property="twitter:image" content="{{ request.url_root.rstrip('/') }}{{ url_for('static', filename='img/logo_m.png') }}">
+    
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/logo_m.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/logo_m.png') }}">
