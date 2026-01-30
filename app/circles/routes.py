@@ -277,10 +277,14 @@ def view_circle(circle_id):
     else:
         ordered_members = []
 
+    # Check if current user is the last member
+    is_last_member = is_member and len(circle.members) == 1
+    
     return render_template(
         'circles/circle_details.html',
         circle=circle,
         is_member=is_member,
+        is_last_member=is_last_member,
         form=form,
         join_form=join_form,
         ordered_members=ordered_members,
