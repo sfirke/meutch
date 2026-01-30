@@ -77,7 +77,7 @@
         
         <div class="mb-3">
             {{ form.image.label }}
-            {{ form.image(class="form-control drag-drop-upload") }}
+            {{ form.image(class="form-control drag-drop-upload", accept="image/*") }}
             {% for error in form.image.errors %}
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
