@@ -1891,6 +1891,9 @@ def view_conversation(message_id):
         )
     ).all()
     
+    # Track if there were any unread messages before marking them as read
+    has_unread_messages = len(unread_messages) > 0
+    
     for msg in unread_messages:
         msg.is_read = True
     
@@ -1937,7 +1940,8 @@ def view_conversation(message_id):
                          thread_messages=thread_messages, 
                          form=form, 
                          active_loan=active_loan,
-                         loan_action_form=loan_action_form)
+                         loan_action_form=loan_action_form,
+                         has_unread_messages=has_unread_messages)
 
 
 @main_bp.route('/delete_account', methods=['GET', 'POST'])
