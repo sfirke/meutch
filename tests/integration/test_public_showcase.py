@@ -55,21 +55,27 @@ class TestHomepageShowcaseItems:
         assert b'Join Meutch' in response.data
     
     def test_unauthenticated_user_sees_remaining_items_teaser(self, client, db_session):
-        """Test that 'X more' teaser shows correct count for showcase items"""
+        """Test that 'X more' teaser shows correct count based on all items in database"""
         category = CategoryFactory()
         showcase_user = UserFactory(is_public_showcase=True)
+        non_showcase_user = UserFactory(is_public_showcase=False)
         db_session.commit()
         
-        # Create 15 items from showcase user (more than the 12 preview limit)
-        for i in range(15):
-            ItemFactory(owner=showcase_user, category=category, name=f"Showcase Item {i}")
+        # Create 6 non-giveaway items from showcase user (fills the preview limit)
+        for i in range(6):
+            ItemFactory(owner=showcase_user, category=category, name=f"Showcase Item {i}", is_giveaway=False)
+        
+        # Create 4 items from non-showcase user (not displayed but counted in total)
+        for i in range(4):
+            ItemFactory(owner=non_showcase_user, category=category, name=f"Hidden Item {i}", is_giveaway=False)
         db_session.commit()
         
         response = client.get(url_for('main.index'))
         assert response.status_code == 200
         
-        # Should show "3 more" (15 - 12 = 3)
-        assert b'3 more' in response.data
+        # Should show "4 more" (10 total items - 6 displayed = 4)
+        # This proves non-showcase items are included in the total count
+        assert b'4 more' in response.data
 
 class TestAdminShowcaseRoutes:
     """Tests for admin panel showcase enable/disable routes"""

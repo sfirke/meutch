@@ -18,6 +18,7 @@ from app.utils.email import send_message_notification_email
 def index():
     circles = []
     items = []
+    giveaway_items = []
     pagination = None
     total_items = 0
     remaining_items = 0
@@ -47,17 +48,44 @@ def index():
         # For anonymous users: show items from public showcase users only
         showcase_user_ids = select(User.id).where(User.is_public_showcase == True)
         
-        base_query = Item.query.filter(Item.owner_id.in_(showcase_user_ids))
+        # Regular items (non-giveaways) from showcase users
+        base_query = Item.query.filter(
+            Item.owner_id.in_(showcase_user_ids),
+            Item.is_giveaway == False
+        )
+        
+        # Public giveaways (visibility='public', unclaimed)
+        giveaway_query = Item.query.filter(
+            Item.is_giveaway == True,
+            Item.giveaway_visibility == 'public',
+            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+        )
         
         # Show limited items with count
-        preview_limit = 12  # Items to show for preview
-        total_items = base_query.count()
-        # Random selection for variety instead of newest first
+        preview_limit = 6  # Items to show for each section
+        
+        # Count ALL items in the database (excluding claimed giveaways) to show true scope
+        total_items = Item.query.filter(
+            or_(
+                Item.is_giveaway == False,
+                and_(
+                    Item.is_giveaway == True,
+                    Item.claim_status != 'claimed'
+                )
+            )
+        ).count()
+        
+        # Random selection for variety
         items = base_query.order_by(func.random()).limit(preview_limit).all()
-        remaining_items = max(0, total_items - preview_limit)
+        giveaway_items = giveaway_query.order_by(func.random()).limit(preview_limit).all()
+        
+        # Calculate remaining: total minus what's actually displayed
+        displayed_count = len(items) + len(giveaway_items)
+        remaining_items = max(0, total_items - displayed_count)
         
     return render_template('main/index.html', 
                          items=items,
+                         giveaway_items=giveaway_items,
                          circles=circles, 
                          pagination=pagination,
                          total_items=total_items,
