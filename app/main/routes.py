@@ -1428,8 +1428,8 @@ def extend_loan(loan_id):
                 flash(f"Loan due date has been updated to {form.new_end_date.data.strftime('%B %d, %Y')}.", "success")
         except Exception as e:
             db.session.rollback()
-            flash("An error occurred while extending the loan.", "danger")
-            current_app.logger.error(f"Error extending loan {loan_id}: {e}")
+            flash("An error occurred while updating the loan due date.", "danger")
+            current_app.logger.error(f"Error updating loan due date {loan_id}: {e}")
         
         # Redirect back to the original conversation
         original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
