@@ -41,7 +41,7 @@ class TestVacationModeToggle:
         
         # Verify user state changed
         db.session.refresh(user)
-        assert user.vacation_mode == True
+        assert user.vacation_mode is True
     
     def test_disable_vacation_mode(self, client):
         """Test disabling vacation mode via POST request."""
@@ -62,7 +62,7 @@ class TestVacationModeToggle:
         
         # Verify user state changed
         db.session.refresh(user)
-        assert user.vacation_mode == False
+        assert user.vacation_mode is False
 
 
 @pytest.mark.usefixtures('app')

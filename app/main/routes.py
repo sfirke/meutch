@@ -2001,12 +2001,16 @@ def toggle_vacation_mode():
     form = VacationModeForm()
     
     if form.validate_on_submit():
-        current_user.vacation_mode = form.vacation_mode.data
-        db.session.commit()
-        
-        if current_user.vacation_mode:
-            flash('Vacation mode enabled. Your items are now hidden from other users.', 'success')
-        else:
-            flash('Vacation mode disabled. Your items are now visible to other users.', 'success')
+        try:
+            current_user.vacation_mode = form.vacation_mode.data
+            db.session.commit()
+            
+            if current_user.vacation_mode:
+                flash('Vacation mode enabled. Your items are now hidden from other users.', 'success')
+            else:
+                flash('Vacation mode disabled. Your items are now visible to other users.', 'success')
+        except Exception:
+            db.session.rollback()
+            flash('An error occurred while updating vacation mode. Please try again.', 'danger')
     
     return redirect(url_for('main.profile'))
