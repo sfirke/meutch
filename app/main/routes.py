@@ -1389,11 +1389,20 @@ def extend_loan(loan_id):
         loan.last_overdue_reminder_sent = None
         loan.overdue_reminder_count = 0
         
+        # Determine if the due date was extended (moved later) or moved earlier
+        is_extension = form.new_end_date.data > old_end_date
+        
         # Create notification message to borrower
         if form.message.data and form.message.data.strip():
-            message_body = f"The loan of '{loan.item.name}' has been extended until {form.new_end_date.data.strftime('%B %d, %Y')}.\n\nMessage from owner: {form.message.data}"
+            if is_extension:
+                message_body = f"The loan of '{loan.item.name}' has been extended until {form.new_end_date.data.strftime('%B %d, %Y')}.\n\nMessage from owner: {form.message.data}"
+            else:
+                message_body = f"The due date for '{loan.item.name}' has been updated to {form.new_end_date.data.strftime('%B %d, %Y')}.\n\nMessage from owner: {form.message.data}"
         else:
-            message_body = f"Good news! The loan of '{loan.item.name}' has been extended. The new due date is {form.new_end_date.data.strftime('%B %d, %Y')} (previously {old_end_date.strftime('%B %d, %Y')})."
+            if is_extension:
+                message_body = f"Good news! The loan of '{loan.item.name}' has been extended. The new due date is {form.new_end_date.data.strftime('%B %d, %Y')} (previously {old_end_date.strftime('%B %d, %Y')})."
+            else:
+                message_body = f"The due date for '{loan.item.name}' has been updated. The new due date is {form.new_end_date.data.strftime('%B %d, %Y')} (previously {old_end_date.strftime('%B %d, %Y')})."
         
         message = Message(
             sender_id=current_user.id,
@@ -1413,7 +1422,10 @@ def extend_loan(loan_id):
             except Exception as e:
                 current_app.logger.error(f"Failed to send email notification for loan extension message {message.id}: {str(e)}")
             
-            flash(f"Loan has been extended until {form.new_end_date.data.strftime('%B %d, %Y')}.", "success")
+            if is_extension:
+                flash(f"Loan has been extended until {form.new_end_date.data.strftime('%B %d, %Y')}.", "success")
+            else:
+                flash(f"Loan due date has been updated to {form.new_end_date.data.strftime('%B %d, %Y')}.", "success")
         except Exception as e:
             db.session.rollback()
             flash("An error occurred while extending the loan.", "danger")

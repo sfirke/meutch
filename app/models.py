@@ -491,9 +491,9 @@ class LoanRequest(db.Model):
         return (self.end_date - today).days
     
     def is_due_soon(self):
-        """Returns True if loan is due within 3 days (and not yet due)"""
+        """Returns True if loan is due within 3 days (including today)"""
         days = self.days_until_due()
-        return 0 < days <= 3
+        return 0 <= days <= 3
     
     def is_overdue(self):
         """Returns True if loan is past due date"""
