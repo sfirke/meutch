@@ -1105,3 +1105,59 @@ footer h6 {
 .main-content {
     padding: 2rem 0;
 }
+
+/* Drag and Drop Upload Zones */
+.drag-drop-zone {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    text-align: center;
+    background-color: #fafafa;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    margin-bottom: 1rem;
+}
+
+.drag-drop-zone:hover {
+    border-color: var(--primary-color);
+    background-color: #f0fdfa;
+}
+
+.drag-drop-zone.drag-over {
+    border-color: var(--primary-color);
+    background-color: #e6fffa;
+    border-style: solid;
+    transform: scale(1.02);
+}
+
+.drag-drop-zone.has-file {
+    border-color: var(--success-color);
+    background-color: #f0fdf4;
+}
+
+.drag-drop-content {
+    pointer-events: none;
+}
+
+.drag-drop-content .fa-cloud-upload-alt {
+    color: var(--muted-text);
+    transition: color 0.3s ease;
+}
+
+.drag-drop-zone:hover .fa-cloud-upload-alt,
+.drag-drop-zone.drag-over .fa-cloud-upload-alt {
+    color: var(--primary-color);
+}
+
+.drag-drop-zone.has-file .fa-cloud-upload-alt {
+    color: var(--success-color);
+}
+
+.drag-drop-zone .browse-btn {
+    pointer-events: all;
+}
+
+.drag-drop-zone .file-info {
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
