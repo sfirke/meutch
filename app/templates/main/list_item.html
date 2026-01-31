@@ -31,7 +31,7 @@
         <!-- Image -->
         <div class="mb-3">
             {{ form.image.label(class="form-label") }}
-            {{ form.image(class="form-control", accept="image/*") }}
+            {{ form.image(class="form-control drag-drop-upload", accept="image/*") }}
             <div class="form-text">
                 <small class="text-muted">Supported formats: JPG, PNG, GIF, BMP, WebP</small>
             </div>
@@ -112,4 +112,7 @@
         giveawayCheckbox.addEventListener('change', toggleVisibilitySection);
     });
 </script>
+
+<!-- Drag and Drop Upload Script -->
+<script src="{{ url_for('static', filename='js/drag-drop-upload.js') }}"></script>
 {% endblock %}
