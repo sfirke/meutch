@@ -1161,3 +1161,34 @@ footer h6 {
     font-size: 0.875rem;
     margin-top: 0.5rem;
 }
+
+/* Mobile/Touch Device Optimization */
+/* Hide drag-and-drop specific UI on touch devices where drag-and-drop isn't supported */
+@media (hover: none) and (pointer: coarse) {
+    /* Simplify the drop zone for mobile - remove drag language */
+    .drag-drop-zone .drag-drop-content > p:first-of-type,
+    .drag-drop-zone .drag-drop-content > p:nth-of-type(2) {
+        display: none;
+    }
+    
+    /* Make the icon smaller and adjust spacing */
+    .drag-drop-content .fa-cloud-upload-alt {
+        font-size: 2rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* Reduce padding on mobile */
+    .drag-drop-zone {
+        padding: 1.5rem 1rem;
+    }
+    
+    /* Disable hover effects on touch devices */
+    .drag-drop-zone:hover {
+        border-color: var(--border-color);
+        background-color: #fafafa;
+    }
+    
+    .drag-drop-zone:hover .fa-cloud-upload-alt {
+        color: var(--muted-text);
+    }
+}
