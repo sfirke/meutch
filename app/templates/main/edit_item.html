@@ -8,7 +8,7 @@
         
         <div class="mb-3">
             {{ form.name.label }}
-            {{ form.name(class="form-control") }}
+            {{ form.name(class="form-control", autocapitalize="words") }}
             {% for error in form.name.errors %}
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
