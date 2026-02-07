@@ -31,7 +31,7 @@
         <!-- Image -->
         <div class="mb-3">
             {{ form.image.label(class="form-label") }}
-            {{ form.image(class="form-control drag-drop-upload", accept="image/*") }}
+            {{ form.image(class="form-control drag-drop-upload photo-preview", accept="image/*") }}
             <div class="form-text">
                 <small class="text-muted">Supported formats: JPG, PNG, GIF, BMP, WebP</small>
             </div>
@@ -113,6 +113,13 @@
     });
 </script>
 
+<!-- Cropper.js CSS and JS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
 <!-- Drag and Drop Upload Script -->
 <script src="{{ url_for('static', filename='js/drag-drop-upload.js') }}"></script>
+
+<!-- Photo Preview Script -->
+<script src="{{ url_for('static', filename='js/photo-preview.js') }}"></script>
 {% endblock %}
