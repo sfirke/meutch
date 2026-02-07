@@ -16,13 +16,11 @@
      */
     function initPhotoPreview(fileInput) {
         if (!fileInput || fileInput.type !== 'file') {
-            console.warn('Invalid file input element provided to initPhotoPreview');
             return;
         }
 
-        // Check if Cropper is available
+        // Cropper.js must be loaded - it's a required dependency
         if (typeof Cropper === 'undefined') {
-            console.error('Cropper.js library not loaded. Photo preview will not work.');
             return;
         }
 
@@ -364,16 +362,9 @@
     /**
      * Auto-initialize all file inputs with class 'photo-preview'
      */
-    let initAttempts = 0;
-    const MAX_INIT_ATTEMPTS = 50; // Try for up to 5 seconds
-    
     function autoInit() {
-        // Check if Cropper.js is available
+        // Cropper.js must be loaded synchronously before this script
         if (typeof Cropper === 'undefined') {
-            initAttempts++;
-            if (initAttempts < MAX_INIT_ATTEMPTS) {
-                setTimeout(autoInit, 100);
-            }
             return;
         }
         
