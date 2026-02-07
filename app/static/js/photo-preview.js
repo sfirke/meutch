@@ -50,24 +50,21 @@
                         <button type="button" class="btn btn-sm btn-outline-secondary rotate-right-btn">
                             <i class="fas fa-redo"></i> Rotate Right
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary flip-horizontal-btn">
-                            <i class="fas fa-arrows-alt-h"></i> Flip Horizontal
+                        <button type="button" class="btn btn-sm btn-outline-secondary zoom-in-btn">
+                            <i class="fas fa-search-plus"></i> Zoom In
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary flip-vertical-btn">
-                            <i class="fas fa-arrows-alt-v"></i> Flip Vertical
+                        <button type="button" class="btn btn-sm btn-outline-secondary zoom-out-btn">
+                            <i class="fas fa-search-minus"></i> Zoom Out
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-secondary reset-btn">
                             <i class="fas fa-sync-alt"></i> Reset
-                        </button>
-                        <button type="button" class="btn btn-sm btn-success accept-btn">
-                            <i class="fas fa-check"></i> Accept Photo
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-danger remove-btn">
                             <i class="fas fa-trash"></i> Remove Photo
                         </button>
                     </div>
                     <small class="text-muted d-block mt-2">
-                        Adjust your photo as needed, then click "Accept Photo" to confirm. You can also drag to reposition and use the mouse wheel to zoom.
+                        Adjust your photo as needed. You can drag to reposition and use the zoom buttons. Changes will be applied when you submit the form.
                     </small>
                 </div>
             </div>
@@ -81,10 +78,9 @@
         const previewImage = previewContainer.querySelector('#preview-image');
         const rotateLeftBtn = previewContainer.querySelector('.rotate-left-btn');
         const rotateRightBtn = previewContainer.querySelector('.rotate-right-btn');
-        const flipHorizontalBtn = previewContainer.querySelector('.flip-horizontal-btn');
-        const flipVerticalBtn = previewContainer.querySelector('.flip-vertical-btn');
+        const zoomInBtn = previewContainer.querySelector('.zoom-in-btn');
+        const zoomOutBtn = previewContainer.querySelector('.zoom-out-btn');
         const resetBtn = previewContainer.querySelector('.reset-btn');
-        const acceptBtn = previewContainer.querySelector('.accept-btn');
         const removeBtn = previewContainer.querySelector('.remove-btn');
         const controlsDiv = previewContainer.querySelector('.photo-preview-controls');
         
@@ -92,7 +88,8 @@
             previewImage: !!previewImage,
             rotateLeftBtn: !!rotateLeftBtn,
             rotateRightBtn: !!rotateRightBtn,
-            acceptBtn: !!acceptBtn,
+            zoomInBtn: !!zoomInBtn,
+            zoomOutBtn: !!zoomOutBtn,
             removeBtn: !!removeBtn,
             controlsDiv: !!controlsDiv
         });
@@ -118,7 +115,8 @@
             e.preventDefault();
             console.log('Rotate left clicked', cropper);
             if (cropper) {
-                cropper.rotate(-90);
+                const currentRotation = cropper.getData().rotate || 0;
+                cropper.rotateTo(currentRotation - 90);
             }
         });
 
@@ -126,25 +124,24 @@
             e.preventDefault();
             console.log('Rotate right clicked', cropper);
             if (cropper) {
-                cropper.rotate(90);
+                const currentRotation = cropper.getData().rotate || 0;
+                cropper.rotateTo(currentRotation + 90);
             }
         });
 
-        flipHorizontalBtn.addEventListener('click', function(e) {
+        zoomInBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('Flip horizontal clicked', cropper);
+            console.log('Zoom in clicked', cropper);
             if (cropper) {
-                const scaleX = cropper.getData().scaleX || 1;
-                cropper.scaleX(-scaleX);
+                cropper.zoom(0.1);
             }
         });
 
-        flipVerticalBtn.addEventListener('click', function(e) {
+        zoomOutBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('Flip vertical clicked', cropper);
+            console.log('Zoom out clicked', cropper);
             if (cropper) {
-                const scaleY = cropper.getData().scaleY || 1;
-                cropper.scaleY(-scaleY);
+                cropper.zoom(-0.1);
             }
         });
 
@@ -153,33 +150,6 @@
             console.log('Reset clicked', currentFile);
             if (currentFile) {
                 displayImage(currentFile, previewImage, previewContainer);
-            }
-        });
-
-        acceptBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log('Accept clicked', cropper);
-            if (cropper) {
-                updateFileInputWithCroppedImage(fileInput, function() {
-                    // Hide controls after accepting
-                    controlsDiv.style.display = 'none';
-                    
-                    // Show a success message
-                    const message = document.createElement('div');
-                    message.className = 'alert alert-success mt-2';
-                    message.innerHTML = '<i class="fas fa-check-circle"></i> Photo accepted! Changes will be saved when you submit the form.';
-                    previewContainer.querySelector('.card-body').appendChild(message);
-                    
-                    // Remove the message after 3 seconds
-                    setTimeout(function() {
-                        message.remove();
-                    }, 3000);
-                    
-                    // Disable cropper interaction
-                    if (cropper) {
-                        cropper.disable();
-                    }
-                });
             }
         });
 
@@ -193,6 +163,18 @@
             const event = new Event('change', { bubbles: true });
             fileInput.dispatchEvent(event);
         });
+        
+        // Add form submit handler to ensure cropped image is used
+        const form = fileInput.closest('form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                if (cropper && currentFile) {
+                    console.log('Form submitting - updating file with cropped version');
+                    // Update file input with final cropped/rotated version
+                    updateFileInputWithCroppedImage(fileInput);
+                }
+            });
+        }
     }
 
     /**
