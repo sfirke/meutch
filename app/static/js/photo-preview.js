@@ -131,7 +131,7 @@
             // File size limit: 20MB (prevent DoS from huge files)
             const maxSize = 20 * 1024 * 1024; // 20MB in bytes
             if (file.size > maxSize) {
-                alert('File is too large. Please select an image under 10MB.');
+                alert('File is too large. Please select an image under 20MB.');
                 fileInput.value = '';
                 hidePreview(previewContainer);
                 return;
@@ -294,7 +294,7 @@
                     zoomOnWheel: true,
                     zoomOnTouch: true,
                     rotatable: true,
-                    checkOrientation: false,
+                    checkOrientation: true,
                     minContainerWidth: 200,
                     minContainerHeight: 200
                 });
