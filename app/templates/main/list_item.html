@@ -13,7 +13,7 @@
         <!-- Item Name -->
         <div class="mb-3">
             {{ form.name.label(class="form-label") }}
-            {{ form.name(class="form-control", placeholder="Enter item name") }}
+            {{ form.name(class="form-control", placeholder="Enter item name", autocapitalize="words") }}
             {% for error in form.name.errors %}
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
