@@ -204,8 +204,8 @@
                     updateFileInputWithCroppedImage(fileInput, function() {
                         console.log('Image processed, submitting form');
                         imageProcessed = true;
-                        // Now submit the form
-                        form.submit();
+                        // Use HTMLFormElement.prototype.submit to avoid conflict with named submit buttons
+                        HTMLFormElement.prototype.submit.call(form);
                     });
                 }
             });
