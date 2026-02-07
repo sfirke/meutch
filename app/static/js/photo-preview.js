@@ -7,8 +7,70 @@
 (function() {
     'use strict';
 
+    // Constants
+    const ROTATION_ANIMATION_DELAY = 10; // milliseconds to wait after rotation for zoom adjustment
+    
+    const BUTTON_CONFIGS = [
+        { class: 'rotate-left-btn', icon: 'fa-undo', text: 'Rotate Left', style: 'btn-outline-secondary' },
+        { class: 'rotate-right-btn', icon: 'fa-redo', text: 'Rotate Right', style: 'btn-outline-secondary' },
+        { class: 'zoom-in-btn', icon: 'fa-search-plus', text: 'Zoom In', style: 'btn-outline-secondary' },
+        { class: 'zoom-out-btn', icon: 'fa-search-minus', text: 'Zoom Out', style: 'btn-outline-secondary' },
+        { class: 'reset-btn', icon: 'fa-sync-alt', text: 'Reset', style: 'btn-outline-secondary' },
+        { class: 'remove-btn', icon: 'fa-trash', text: 'Remove Photo', style: 'btn-outline-danger' }
+    ];
+
     let cropper = null;
     let currentFile = null;
+
+    /**
+     * Show a toast notification to the user
+     * @param {string} message - The message to display
+     * @param {string} type - Bootstrap alert type (danger, warning, info, success)
+     */
+    function showNotification(message, type) {
+        // Try to use Bootstrap toasts if available, otherwise fall back to alert
+        const toastContainer = document.querySelector('.toast-container');
+        
+        if (toastContainer && typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+            const toastEl = document.createElement('div');
+            toastEl.className = 'toast align-items-center text-white bg-' + type + ' border-0';
+            toastEl.setAttribute('role', 'alert');
+            toastEl.setAttribute('aria-live', 'assertive');
+            toastEl.setAttribute('aria-atomic', 'true');
+            
+            toastEl.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+            
+            toastContainer.appendChild(toastEl);
+            const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 5000 });
+            toast.show();
+            
+            // Remove toast element after it's hidden
+            toastEl.addEventListener('hidden.bs.toast', function() {
+                toastEl.remove();
+            });
+        } else {
+            // Fallback to alert if Bootstrap toasts aren't available
+            alert(message);
+        }
+    }
+
+    /**
+     * Zoom the cropper to fit the container after rotation
+     * @param {Cropper} cropperInstance - The Cropper.js instance
+     */
+    function zoomToFitContainer(cropperInstance) {
+        const containerData = cropperInstance.getContainerData();
+        const imageData = cropperInstance.getImageData();
+        const ratio = imageData.aspectRatio > 1 ? 
+            containerData.width / imageData.width :
+            containerData.height / imageData.height;
+        cropperInstance.zoomTo(ratio);
+    }
 
     /**
      * Initialize photo preview for a file input element
@@ -60,23 +122,16 @@
         const controls = document.createElement('div');
         controls.className = 'photo-preview-controls mt-3 d-flex gap-2 flex-wrap';
         
-        // Create control buttons
-        const buttons = [
-            { class: 'rotate-left-btn', icon: 'fa-undo', text: 'Rotate Left', style: 'btn-outline-secondary' },
-            { class: 'rotate-right-btn', icon: 'fa-redo', text: 'Rotate Right', style: 'btn-outline-secondary' },
-            { class: 'zoom-in-btn', icon: 'fa-search-plus', text: 'Zoom In', style: 'btn-outline-secondary' },
-            { class: 'zoom-out-btn', icon: 'fa-search-minus', text: 'Zoom Out', style: 'btn-outline-secondary' },
-            { class: 'reset-btn', icon: 'fa-sync-alt', text: 'Reset', style: 'btn-outline-secondary' },
-            { class: 'remove-btn', icon: 'fa-trash', text: 'Remove Photo', style: 'btn-outline-danger' }
-        ];
-        
-        buttons.forEach(function(btnConfig) {
+        // Create control buttons with accessibility support
+        BUTTON_CONFIGS.forEach(function(btnConfig) {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'btn btn-sm ' + btnConfig.style + ' ' + btnConfig.class;
+            btn.setAttribute('aria-label', btnConfig.text);
             
             const icon = document.createElement('i');
             icon.className = 'fas ' + btnConfig.icon;
+            icon.setAttribute('aria-hidden', 'true');
             
             btn.appendChild(icon);
             btn.appendChild(document.createTextNode(' ' + btnConfig.text));
@@ -120,16 +175,16 @@
             // Strict file type validation - only allow specific image types
             const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
             if (!allowedTypes.includes(file.type.toLowerCase())) {
-                alert('Invalid file type. Please select a valid image file (JPEG, PNG, GIF, WebP, or BMP).');
+                showNotification('Invalid file type. Please select a valid image file (JPEG, PNG, GIF, WebP, or BMP).', 'danger');
                 fileInput.value = '';
                 hidePreview(previewContainer);
                 return;
             }
             
             // File size limit: 20MB (prevent DoS from huge files)
-            const maxSize = 20 * 1024 * 1024; // 20MB in bytes
+            const maxSize = 1 * 1024 * 1024; // 20MB in bytes
             if (file.size > maxSize) {
-                alert('File is too large. Please select an image under 20MB.');
+                showNotification('File is too large. Please select an image under 20MB.', 'danger');
                 fileInput.value = '';
                 hidePreview(previewContainer);
                 return;
@@ -145,8 +200,6 @@
         rotateLeftBtn.addEventListener('click', function(e) {
             e.preventDefault();
             if (cropper) {
-                // Get container dimensions before rotation
-                const containerData = cropper.getContainerData();
                 const imageData = cropper.getImageData();
                 const currentRotation = imageData.rotate || 0;
                 
@@ -155,18 +208,14 @@
                 
                 // After rotation, zoom to fit the container
                 setTimeout(function() {
-                    cropper.zoomTo(cropper.getImageData().aspectRatio > 1 ? 
-                        containerData.width / cropper.getImageData().width :
-                        containerData.height / cropper.getImageData().height);
-                }, 10);
+                    zoomToFitContainer(cropper);
+                }, ROTATION_ANIMATION_DELAY);
             }
         });
 
         rotateRightBtn.addEventListener('click', function(e) {
             e.preventDefault();
             if (cropper) {
-                // Get container dimensions before rotation
-                const containerData = cropper.getContainerData();
                 const imageData = cropper.getImageData();
                 const currentRotation = imageData.rotate || 0;
                 
@@ -175,10 +224,8 @@
                 
                 // After rotation, zoom to fit the container
                 setTimeout(function() {
-                    cropper.zoomTo(cropper.getImageData().aspectRatio > 1 ? 
-                        containerData.width / cropper.getImageData().width :
-                        containerData.height / cropper.getImageData().height);
-                }, 10);
+                    zoomToFitContainer(cropper);
+                }, ROTATION_ANIMATION_DELAY);
             }
         });
 
@@ -251,13 +298,13 @@
         const reader = new FileReader();
         
         reader.onerror = function() {
-            alert('Failed to read image file. Please try another file.');
+            showNotification('Failed to read image file. Please try another file.', 'danger');
         };
         
         reader.onload = function(e) {
             // Validate the result is a data URL
             if (!e.target.result || !e.target.result.startsWith('data:image/')) {
-                alert('Failed to load image. Please try another file.');
+                showNotification('Failed to load image. Please try another file.', 'danger');
                 return;
             }
             
