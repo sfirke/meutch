@@ -2,6 +2,7 @@
  * Photo Preview with Rotation and Cropping
  * Provides image preview, rotation, and cropping capabilities for file uploads
  * Uses Cropper.js for advanced image manipulation
+ * Requires notifications.js for user feedback
  */
 
 (function() {
@@ -21,43 +22,6 @@
 
     let cropper = null;
     let currentFile = null;
-
-    /**
-     * Show a toast notification to the user
-     * @param {string} message - The message to display
-     * @param {string} type - Bootstrap alert type (danger, warning, info, success)
-     */
-    function showNotification(message, type) {
-        // Try to use Bootstrap toasts if available, otherwise fall back to alert
-        const toastContainer = document.querySelector('.toast-container');
-        
-        if (toastContainer && typeof bootstrap !== 'undefined' && bootstrap.Toast) {
-            const toastEl = document.createElement('div');
-            toastEl.className = 'toast align-items-center text-white bg-' + type + ' border-0';
-            toastEl.setAttribute('role', 'alert');
-            toastEl.setAttribute('aria-live', 'assertive');
-            toastEl.setAttribute('aria-atomic', 'true');
-            
-            toastEl.innerHTML = `
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            `;
-            
-            toastContainer.appendChild(toastEl);
-            const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 5000 });
-            toast.show();
-            
-            // Remove toast element after it's hidden
-            toastEl.addEventListener('hidden.bs.toast', function() {
-                toastEl.remove();
-            });
-        } else {
-            // Fallback to alert if Bootstrap toasts aren't available
-            alert(message);
-        }
-    }
 
     /**
      * Zoom the cropper to fit the container after rotation
@@ -189,7 +153,7 @@
             // Strict file type validation - only allow specific image types
             const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
             if (!allowedTypes.includes(file.type.toLowerCase())) {
-                showNotification('Invalid file type. Please select a valid image file (JPEG, PNG, GIF, WebP, or BMP).', 'danger');
+                Notifications.error('Invalid file type. Please select a valid image file (JPEG, PNG, GIF, WebP, or BMP).');
                 clearFileInput(fileInput, previewContainer);
                 return;
             }
@@ -197,7 +161,7 @@
             // File size limit: 20MB (prevent DoS from huge files)
             const maxSize = 20 * 1024 * 1024; // 20MB in bytes
             if (file.size > maxSize) {
-                showNotification('File is too large. Please select an image under 20MB.', 'danger');
+                Notifications.error('File is too large. Please select an image under 20MB.');
                 clearFileInput(fileInput, previewContainer);
                 return;
             }
@@ -310,13 +274,13 @@
         const reader = new FileReader();
         
         reader.onerror = function() {
-            showNotification('Failed to read image file. Please try another file.', 'danger');
+            Notifications.error('Failed to read image file. Please try another file.');
         };
         
         reader.onload = function(e) {
             // Validate the result is a data URL
             if (!e.target.result || !e.target.result.startsWith('data:image/')) {
-                showNotification('Failed to load image. Please try another file.', 'danger');
+                Notifications.error('Failed to load image. Please try another file.');
                 return;
             }
             
