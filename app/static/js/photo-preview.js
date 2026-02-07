@@ -115,8 +115,20 @@
             e.preventDefault();
             console.log('Rotate left clicked', cropper);
             if (cropper) {
-                const currentRotation = cropper.getData().rotate || 0;
+                // Get container dimensions before rotation
+                const containerData = cropper.getContainerData();
+                const imageData = cropper.getImageData();
+                const currentRotation = imageData.rotate || 0;
+                
+                // Rotate to new angle
                 cropper.rotateTo(currentRotation - 90);
+                
+                // After rotation, zoom to fit the container
+                setTimeout(function() {
+                    cropper.zoomTo(cropper.getImageData().aspectRatio > 1 ? 
+                        containerData.width / cropper.getImageData().width :
+                        containerData.height / cropper.getImageData().height);
+                }, 10);
             }
         });
 
@@ -124,8 +136,20 @@
             e.preventDefault();
             console.log('Rotate right clicked', cropper);
             if (cropper) {
-                const currentRotation = cropper.getData().rotate || 0;
+                // Get container dimensions before rotation
+                const containerData = cropper.getContainerData();
+                const imageData = cropper.getImageData();
+                const currentRotation = imageData.rotate || 0;
+                
+                // Rotate to new angle
                 cropper.rotateTo(currentRotation + 90);
+                
+                // After rotation, zoom to fit the container
+                setTimeout(function() {
+                    cropper.zoomTo(cropper.getImageData().aspectRatio > 1 ? 
+                        containerData.width / cropper.getImageData().width :
+                        containerData.height / cropper.getImageData().height);
+                }, 10);
             }
         });
 
@@ -167,11 +191,22 @@
         // Add form submit handler to ensure cropped image is used
         const form = fileInput.closest('form');
         if (form) {
+            // Track if we've already processed the image
+            let imageProcessed = false;
+            
             form.addEventListener('submit', function(e) {
-                if (cropper && currentFile) {
+                if (cropper && currentFile && !imageProcessed) {
+                    // Prevent the form from submitting until we process the image
+                    e.preventDefault();
                     console.log('Form submitting - updating file with cropped version');
+                    
                     // Update file input with final cropped/rotated version
-                    updateFileInputWithCroppedImage(fileInput);
+                    updateFileInputWithCroppedImage(fileInput, function() {
+                        console.log('Image processed, submitting form');
+                        imageProcessed = true;
+                        // Now submit the form
+                        form.submit();
+                    });
                 }
             });
         }
@@ -200,7 +235,7 @@
             previewImage.onload = function() {
                 // Initialize Cropper.js
                 cropper = new Cropper(previewImage, {
-                    viewMode: 1,
+                    viewMode: 2, // Restrict canvas to container
                     dragMode: 'move',
                     aspectRatio: NaN, // Free aspect ratio
                     autoCropArea: 1,
@@ -215,7 +250,11 @@
                     background: false,
                     zoomable: true,
                     zoomOnWheel: true,
-                    zoomOnTouch: true
+                    zoomOnTouch: true,
+                    rotatable: true,
+                    checkOrientation: false,
+                    minContainerWidth: 200,
+                    minContainerHeight: 200
                 });
             };
         };
