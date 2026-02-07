@@ -1192,3 +1192,22 @@ footer h6 {
         color: var(--muted-text);
     }
 }
+
+/* Photo Preview - Cropper.js Customization */
+/* Make all corner handles the same size for easier grabbing */
+.cropper-point {
+    width: 9px !important;
+    height: 9px !important;
+}
+
+/* Ensure the visual indicator is consistent across all corners */
+.cropper-point.point-se {
+    width: 9px !important;
+    height: 9px !important;
+}
+
+/* Make corner points more visible with better contrast */
+.cropper-point {
+    opacity: 0.9 !important;
+    background-color: var(--primary-color) !important;
+}
