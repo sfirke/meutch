@@ -73,6 +73,20 @@
     }
 
     /**
+     * Clear the file input and update dependent UI elements
+     * This ensures both photo-preview and drag-drop-upload UI stay in sync
+     * @param {HTMLElement} fileInput - The file input element to clear
+     * @param {HTMLElement} previewContainer - The preview container element
+     */
+    function clearFileInput(fileInput, previewContainer) {
+        fileInput.value = '';
+        hidePreview(previewContainer);
+        // Trigger change event to notify drag-drop-upload component
+        const event = new Event('change', { bubbles: true });
+        fileInput.dispatchEvent(event);
+    }
+
+    /**
      * Initialize photo preview for a file input element
      * @param {HTMLElement} fileInput - The file input element to enhance
      */
@@ -176,17 +190,15 @@
             const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
             if (!allowedTypes.includes(file.type.toLowerCase())) {
                 showNotification('Invalid file type. Please select a valid image file (JPEG, PNG, GIF, WebP, or BMP).', 'danger');
-                fileInput.value = '';
-                hidePreview(previewContainer);
+                clearFileInput(fileInput, previewContainer);
                 return;
             }
             
             // File size limit: 20MB (prevent DoS from huge files)
-            const maxSize = 1 * 1024 * 1024; // 20MB in bytes
+            const maxSize = 20 * 1024 * 1024; // 20MB in bytes
             if (file.size > maxSize) {
                 showNotification('File is too large. Please select an image under 20MB.', 'danger');
-                fileInput.value = '';
-                hidePreview(previewContainer);
+                clearFileInput(fileInput, previewContainer);
                 return;
             }
             
