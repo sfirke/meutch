@@ -134,16 +134,11 @@
                 hidePreview(previewContainer);
                 return;
             }
-                currentFile = file;
-                displayImage(file, previewImage, previewContainer);
-                // Show controls when a new file is selected
-                controlsDiv.style.display = 'flex';
-                // Remove any existing success messages
-                const existingMessages = previewContainer.querySelectorAll('.alert-success');
-                existingMessages.forEach(msg => msg.remove());
-            } else {
-                hidePreview(previewContainer);
-            }
+            
+            currentFile = file;
+            displayImage(file, previewImage, previewContainer);
+            // Show controls when a new file is selected
+            controlsDiv.style.display = 'flex';
         });
 
         // Control button handlers
@@ -254,6 +249,11 @@
         }
         
         const reader = new FileReader();
+        
+        reader.onerror = function() {
+            alert('Failed to read image file. Please try another file.');
+        };
+        
         reader.onload = function(e) {
             // Validate the result is a data URL
             if (!e.target.result || !e.target.result.startsWith('data:image/')) {
@@ -271,6 +271,9 @@
             previewImage.src = e.target.result;
             previewContainer.style.display = 'block';
 
+            // Clean up previous onload handler to prevent memory leaks
+            previewImage.onload = null;
+            
             // Wait for image to load before initializing Cropper
             previewImage.onload = function() {
                 // Initialize Cropper.js
@@ -333,30 +336,36 @@
             return;
         }
 
-        // Convert canvas to blob
-        canvas.toBlob(function(blob) {
-            if (!blob) {
+        // Convert canvas to blob with error handling
+        try {
+            canvas.toBlob(function(blob) {
+                if (!blob) {
+                    console.warn('Failed to create blob from canvas');
+                    if (callback) callback();
+                    return;
+                }
+
+                // Create a new file from the blob
+                const fileName = currentFile.name;
+                const newFile = new File([blob], fileName, {
+                    type: currentFile.type,
+                    lastModified: Date.now()
+                });
+
+                // Update the file input
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(newFile);
+                fileInput.files = dataTransfer.files;
+
+                // Store the updated file
+                currentFile = newFile;
+                
                 if (callback) callback();
-                return;
-            }
-
-            // Create a new file from the blob
-            const fileName = currentFile.name;
-            const newFile = new File([blob], fileName, {
-                type: currentFile.type,
-                lastModified: Date.now()
-            });
-
-            // Update the file input
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(newFile);
-            fileInput.files = dataTransfer.files;
-
-            // Store the updated file
-            currentFile = newFile;
-            
+            }, currentFile.type);
+        } catch (e) {
+            console.error('Error converting canvas to blob:', e);
             if (callback) callback();
-        }, currentFile.type);
+        }
     }
 
     /**
