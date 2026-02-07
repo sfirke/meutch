@@ -32,50 +32,75 @@
         }
         fileInput.dataset.photoPreviewInitialized = 'true';
 
-        // Create preview container
+        // Create preview container using DOM methods (safer than innerHTML)
         const previewContainer = document.createElement('div');
         previewContainer.className = 'photo-preview-container mt-3';
         previewContainer.style.display = 'none';
-        previewContainer.innerHTML = `
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title">Photo Preview</h6>
-                    <div class="photo-preview-wrapper">
-                        <img id="preview-image" class="img-fluid" style="max-width: 100%; display: block;">
-                    </div>
-                    <div class="photo-preview-controls mt-3 d-flex gap-2 flex-wrap">
-                        <button type="button" class="btn btn-sm btn-outline-secondary rotate-left-btn">
-                            <i class="fas fa-undo"></i> Rotate Left
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary rotate-right-btn">
-                            <i class="fas fa-redo"></i> Rotate Right
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary zoom-in-btn">
-                            <i class="fas fa-search-plus"></i> Zoom In
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary zoom-out-btn">
-                            <i class="fas fa-search-minus"></i> Zoom Out
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary reset-btn">
-                            <i class="fas fa-sync-alt"></i> Reset
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger remove-btn">
-                            <i class="fas fa-trash"></i> Remove Photo
-                        </button>
-                    </div>
-                    <small class="text-muted d-block mt-2">
-                        Adjust your photo as needed. You can drag to reposition and use the zoom buttons. Changes will be applied when you submit the form.
-                    </small>
-                </div>
-            </div>
-        `;
+        
+        const card = document.createElement('div');
+        card.className = 'card';
+        
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body';
+        
+        const title = document.createElement('h6');
+        title.className = 'card-title';
+        title.textContent = 'Photo Preview';
+        
+        const wrapper = document.createElement('div');
+        wrapper.className = 'photo-preview-wrapper';
+        
+        const previewImage = document.createElement('img');
+        previewImage.id = 'preview-image';
+        previewImage.className = 'img-fluid';
+        previewImage.style.maxWidth = '100%';
+        previewImage.style.display = 'block';
+        previewImage.alt = 'Photo preview';
+        
+        wrapper.appendChild(previewImage);
+        
+        const controls = document.createElement('div');
+        controls.className = 'photo-preview-controls mt-3 d-flex gap-2 flex-wrap';
+        
+        // Create control buttons
+        const buttons = [
+            { class: 'rotate-left-btn', icon: 'fa-undo', text: 'Rotate Left', style: 'btn-outline-secondary' },
+            { class: 'rotate-right-btn', icon: 'fa-redo', text: 'Rotate Right', style: 'btn-outline-secondary' },
+            { class: 'zoom-in-btn', icon: 'fa-search-plus', text: 'Zoom In', style: 'btn-outline-secondary' },
+            { class: 'zoom-out-btn', icon: 'fa-search-minus', text: 'Zoom Out', style: 'btn-outline-secondary' },
+            { class: 'reset-btn', icon: 'fa-sync-alt', text: 'Reset', style: 'btn-outline-secondary' },
+            { class: 'remove-btn', icon: 'fa-trash', text: 'Remove Photo', style: 'btn-outline-danger' }
+        ];
+        
+        buttons.forEach(function(btnConfig) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm ' + btnConfig.style + ' ' + btnConfig.class;
+            
+            const icon = document.createElement('i');
+            icon.className = 'fas ' + btnConfig.icon;
+            
+            btn.appendChild(icon);
+            btn.appendChild(document.createTextNode(' ' + btnConfig.text));
+            controls.appendChild(btn);
+        });
+        
+        const helpText = document.createElement('small');
+        helpText.className = 'text-muted d-block mt-2';
+        helpText.textContent = 'Adjust your photo as needed. You can drag to reposition and use the zoom buttons. Changes will be applied when you submit the form.';
+        
+        cardBody.appendChild(title);
+        cardBody.appendChild(wrapper);
+        cardBody.appendChild(controls);
+        cardBody.appendChild(helpText);
+        card.appendChild(cardBody);
+        previewContainer.appendChild(card);
 
         // Insert preview container after the file input's parent container
         const fileInputContainer = fileInput.closest('.mb-3') || fileInput.parentNode;
         fileInputContainer.parentNode.insertBefore(previewContainer, fileInputContainer.nextSibling);
 
         // Get references to elements
-        const previewImage = previewContainer.querySelector('#preview-image');
         const rotateLeftBtn = previewContainer.querySelector('.rotate-left-btn');
         const rotateRightBtn = previewContainer.querySelector('.rotate-right-btn');
         const zoomInBtn = previewContainer.querySelector('.zoom-in-btn');
@@ -83,21 +108,34 @@
         const resetBtn = previewContainer.querySelector('.reset-btn');
         const removeBtn = previewContainer.querySelector('.remove-btn');
         const controlsDiv = previewContainer.querySelector('.photo-preview-controls');
-        
-        console.log('Preview elements:', {
-            previewImage: !!previewImage,
-            rotateLeftBtn: !!rotateLeftBtn,
-            rotateRightBtn: !!rotateRightBtn,
-            zoomInBtn: !!zoomInBtn,
-            zoomOutBtn: !!zoomOutBtn,
-            removeBtn: !!removeBtn,
-            controlsDiv: !!controlsDiv
-        });
 
-        // File input change handler
+        // File input change handler with security validations
         fileInput.addEventListener('change', function() {
             const file = fileInput.files[0];
-            if (file && file.type.startsWith('image/')) {
+            
+            // Validate file exists and is an image
+            if (!file) {
+                hidePreview(previewContainer);
+                return;
+            }
+            
+            // Strict file type validation - only allow specific image types
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+            if (!allowedTypes.includes(file.type.toLowerCase())) {
+                alert('Invalid file type. Please select a valid image file (JPEG, PNG, GIF, WebP, or BMP).');
+                fileInput.value = '';
+                hidePreview(previewContainer);
+                return;
+            }
+            
+            // File size limit: 20MB (prevent DoS from huge files)
+            const maxSize = 20 * 1024 * 1024; // 20MB in bytes
+            if (file.size > maxSize) {
+                alert('File is too large. Please select an image under 10MB.');
+                fileInput.value = '';
+                hidePreview(previewContainer);
+                return;
+            }
                 currentFile = file;
                 displayImage(file, previewImage, previewContainer);
                 // Show controls when a new file is selected
@@ -113,7 +151,6 @@
         // Control button handlers
         rotateLeftBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('Rotate left clicked', cropper);
             if (cropper) {
                 // Get container dimensions before rotation
                 const containerData = cropper.getContainerData();
@@ -134,7 +171,6 @@
 
         rotateRightBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('Rotate right clicked', cropper);
             if (cropper) {
                 // Get container dimensions before rotation
                 const containerData = cropper.getContainerData();
@@ -155,7 +191,6 @@
 
         zoomInBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('Zoom in clicked', cropper);
             if (cropper) {
                 cropper.zoom(0.1);
             }
@@ -163,7 +198,6 @@
 
         zoomOutBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('Zoom out clicked', cropper);
             if (cropper) {
                 cropper.zoom(-0.1);
             }
@@ -171,7 +205,6 @@
 
         resetBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('Reset clicked', currentFile);
             if (currentFile) {
                 displayImage(currentFile, previewImage, previewContainer);
             }
@@ -198,11 +231,9 @@
                 if (cropper && currentFile && !imageProcessed) {
                     // Prevent the form from submitting until we process the image
                     e.preventDefault();
-                    console.log('Form submitting - updating file with cropped version');
                     
                     // Update file input with final cropped/rotated version
                     updateFileInputWithCroppedImage(fileInput, function() {
-                        console.log('Image processed, submitting form');
                         imageProcessed = true;
                         // Use HTMLFormElement.prototype.submit to avoid conflict with named submit buttons
                         HTMLFormElement.prototype.submit.call(form);
@@ -219,8 +250,19 @@
      * @param {HTMLElement} previewContainer - The preview container element
      */
     function displayImage(file, previewImage, previewContainer) {
+        // Additional security check
+        if (!file || !file.type || !file.type.startsWith('image/')) {
+            return;
+        }
+        
         const reader = new FileReader();
         reader.onload = function(e) {
+            // Validate the result is a data URL
+            if (!e.target.result || !e.target.result.startsWith('data:image/')) {
+                alert('Failed to load image. Please try another file.');
+                return;
+            }
+            
             // Destroy existing cropper instance
             if (cropper) {
                 cropper.destroy();
@@ -330,17 +372,12 @@
         if (typeof Cropper === 'undefined') {
             initAttempts++;
             if (initAttempts < MAX_INIT_ATTEMPTS) {
-                console.warn('Cropper.js not loaded yet, retrying... (attempt ' + initAttempts + '/' + MAX_INIT_ATTEMPTS + ')');
                 setTimeout(autoInit, 100);
-            } else {
-                console.error('Failed to load Cropper.js after ' + MAX_INIT_ATTEMPTS + ' attempts. Photo preview will not work.');
             }
             return;
         }
         
-        console.log('Initializing photo preview...');
         const fileInputs = document.querySelectorAll('input[type="file"].photo-preview');
-        console.log('Found', fileInputs.length, 'file inputs with photo-preview class');
         fileInputs.forEach(function(input) {
             initPhotoPreview(input);
         });
