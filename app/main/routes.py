@@ -69,7 +69,7 @@ def index():
         # Show limited items with count
         preview_limit = 6  # Items to show for each section
         
-        # Count ALL items in the database (excluding claimed giveaways) to show true scope'
+        # Count ALL items in the database (excluding claimed giveaways) to show true scope
         # Do include vacation mode users here to reflect total available items
         total_items = Item.query.filter(
             or_(
