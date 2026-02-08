@@ -18,10 +18,14 @@ Notifications.error('Something went wrong');
 Notifications.warning('Please be careful');
 Notifications.info('Just so you know');
 
-// With options
+// With options - auto-hide after custom delay
 Notifications.show('Custom message', 'primary', {
-    delay: 3000,      // Auto-hide after 3 seconds
-    autohide: false   // Don't auto-hide
+    delay: 3000
+});
+
+// With options - manual dismiss (do not auto-hide)
+Notifications.show('Custom message', 'primary', {
+    autohide: false
 });
 ```
 
