@@ -203,7 +203,12 @@ def _seed_development_data():
     users = []
     existing_users = User.query.filter(User.email.like('user%@example.com')).all()
     existing_emails = {user.email for user in existing_users}
-    
+    # Pre-compute the development password hash once to avoid repeated expensive
+    # hashing calls (matches the approach used in test factories).
+    from werkzeug.security import generate_password_hash
+    DEV_PASSWORD = "password123"
+    dev_password_hash = generate_password_hash(DEV_PASSWORD)
+
     for i in range(12):
         email = f"user{i+1}@example.com"
         if email not in existing_emails:
@@ -217,7 +222,9 @@ def _seed_development_data():
                 is_admin=(i < 2),  # Make user1 and user2 admins
                 is_public_showcase=(i < 2)  # Make user1 and user2 public showcase users
             )
-            user.set_password("password123")
+            # Assign the pre-computed password hash directly instead of calling
+            # `set_password` for each user to avoid repeated hashing calls.
+            user.password_hash = dev_password_hash
             db.session.add(user)
             db.session.flush()  # Get the ID
             users.append(user)
