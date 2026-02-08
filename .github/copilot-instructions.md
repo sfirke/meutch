@@ -191,24 +191,14 @@ docker compose -f docker-compose.test.yml up -d
 - Set `STORAGE_BACKEND` to `"local"` (dev, uses `app/static/uploads/`) or `"digitalocean"` (prod, requires `DO_SPACES_*` vars)
 - Defaults to `"local"` in development; must be explicit in production/staging
 
-### Database Models
-- `User` - User accounts with UUID primary keys
-- `Item` - Items available for lending
-- `Category` - Item categories (Tools, Electronics, Books, etc.)
-- `Circle` - Lending circles/communities  
-- `Message` - Direct messages between users
-- `LoanRequest` - Formal loan requests for items
-
 ## Development Workflow
 
 ### Making Changes
-1. **Always start with setup commands** (database + environment variables)
+1. **Always start with setup commands** source the venv
 2. **Run tests before making changes** to establish baseline
 3. **Make small, focused changes**
 4. **Run affected test suites immediately** after changes
-5. **Run full test suite** before considering work complete
-6. **Test web application manually** for user-facing changes
-7. **Never skip validation steps** - they catch issues early
+5. **Document the PR's purpose** in CHANGELOG.md
 
 ### Common Change Scenarios
 - **Model changes:** Run unit tests (`./run_tests.sh -u`), then integration tests (`./run_tests.sh -i`)
