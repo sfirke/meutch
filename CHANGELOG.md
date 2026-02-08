@@ -1,6 +1,6 @@
 # Changelog
 
-This changelog is organized by month for continuous release notes. Links point to pull requests on GitHub.
+Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in. 
 
 ## Feb 2026
 
@@ -17,6 +17,6 @@ This changelog is organized by month for continuous release notes. Links point t
 - Add PR size labeler GitHub Action to help reviewers quickly see PR size ([#153](https://github.com/sfirke/meutch/pull/153)).
 - Speed up tests via session-scoped fixtures and cleanup improvements ([#134](https://github.com/sfirke/meutch/pull/134)).
 - Remove deprecated `search_circles` route ([#131](https://github.com/sfirke/meutch/pull/131)).
-- Fix: users should be able to browse another user's item list from their profile ([#133](https://github.com/sfirke/meutch/pull/133)).
+- Fix: users should not be able to browse another user's item list from their profile ([#133](https://github.com/sfirke/meutch/pull/133)).
 - Fix: category field retained when editing items ([#130](https://github.com/sfirke/meutch/pull/130)).
 - Fix URL in `README.md` ([#122](https://github.com/sfirke/meutch/pull/122)).
