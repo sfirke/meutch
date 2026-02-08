@@ -77,7 +77,7 @@
         
         <div class="mb-3">
             {{ form.image.label }}
-            {{ form.image(class="form-control drag-drop-upload", accept="image/*") }}
+            {{ form.image(class="form-control drag-drop-upload photo-preview", accept="image/*") }}
             {% for error in form.image.errors %}
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
@@ -110,6 +110,13 @@
     });
 </script>
 
+<!-- Cropper.js CSS and JS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
 <!-- Drag and Drop Upload Script -->
 <script src="{{ url_for('static', filename='js/drag-drop-upload.js') }}"></script>
+
+<!-- Photo Preview Script -->
+<script src="{{ url_for('static', filename='js/photo-preview.js') }}"></script>
 {% endblock %}
