@@ -185,10 +185,28 @@
 
     <!-- Join/Leave Controls -->
     {% if is_member %}
-        <form method="post" action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}">
+        <form method="post" action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" id="leave-circle-form">
             {{ form.hidden_tag() }}
-            <button type="submit" class="btn btn-danger">Leave Circle</button>
+            <button type="submit" class="btn btn-danger" id="leave-circle-btn">Leave Circle</button>
         </form>
+        
+        {% if is_last_member %}
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('leave-circle-form');
+            const btn = document.getElementById('leave-circle-btn');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (confirm('⚠️ Warning: You are the last member of this circle. If you leave, the circle will be permanently deleted. Do you want to continue?')) {
+                    // User confirmed, submit the form
+                    form.submit();
+                }
+            });
+        });
+        </script>
+        {% endif %}
     {% else %}
     {% if pending_request %}
         <div class="alert alert-info">
