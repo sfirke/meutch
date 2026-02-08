@@ -121,7 +121,11 @@
                                     {% if item.current_loan.is_overdue() %}
                                         <span class="badge bg-danger ms-2">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
                                     {% elif item.current_loan.is_due_soon() %}
-                                        <span class="badge bg-warning text-dark ms-2">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
+                                        {% if item.current_loan.days_until_due() == 0 %}
+                                            <span class="badge bg-warning text-dark ms-2">Due today</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark ms-2">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
+                                        {% endif %}
                                     {% endif %}
                                 </td>
                                 <td>
@@ -173,7 +177,11 @@
                                     {% if item.current_loan.is_overdue() %}
                                         <span class="badge bg-danger ms-2">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
                                     {% elif item.current_loan.is_due_soon() %}
-                                        <span class="badge bg-warning text-dark ms-2">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
+                                        {% if item.current_loan.days_until_due() == 0 %}
+                                            <span class="badge bg-warning text-dark ms-2">Due today</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark ms-2">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
+                                        {% endif %}
                                     {% endif %}
                                 </td>
                                 <td>

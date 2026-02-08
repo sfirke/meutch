@@ -83,7 +83,11 @@
                             {% if active_loan.is_overdue() %}
                                 <span class="badge bg-danger ms-2">Overdue by {{ active_loan.days_overdue() }} day{{ 's' if active_loan.days_overdue() != 1 else '' }}</span>
                             {% elif active_loan.is_due_soon() %}
-                                <span class="badge bg-warning text-dark ms-2">Due in {{ active_loan.days_until_due() }} day{{ 's' if active_loan.days_until_due() != 1 else '' }}</span>
+                                {% if active_loan.days_until_due() == 0 %}
+                                    <span class="badge bg-warning text-dark ms-2">Due today</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark ms-2">Due in {{ active_loan.days_until_due() }} day{{ 's' if active_loan.days_until_due() != 1 else '' }}</span>
+                                {% endif %}
                             {% endif %}
                         {% endif %}
                     </p>
@@ -198,7 +202,11 @@
                                 {% if msg.loan_request.is_overdue() %}
                                     <span class="badge bg-danger ms-2">Overdue by {{ msg.loan_request.days_overdue() }} day{{ 's' if msg.loan_request.days_overdue() != 1 else '' }}</span>
                                 {% elif msg.loan_request.is_due_soon() %}
-                                    <span class="badge bg-warning text-dark ms-2">Due in {{ msg.loan_request.days_until_due() }} day{{ 's' if msg.loan_request.days_until_due() != 1 else '' }}</span>
+                                    {% if msg.loan_request.days_until_due() == 0 %}
+                                        <span class="badge bg-warning text-dark ms-2">Due today</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark ms-2">Due in {{ msg.loan_request.days_until_due() }} day{{ 's' if msg.loan_request.days_until_due() != 1 else '' }}</span>
+                                    {% endif %}
                                 {% endif %}
                             {% endif %}
                         </p>

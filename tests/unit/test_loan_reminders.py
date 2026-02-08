@@ -97,6 +97,21 @@ class TestLoanRequestHelperMethods:
             
             assert loan.days_until_due() == 0
     
+    def test_is_due_soon_returns_true_when_due_today(self, app):
+        """Test is_due_soon returns True for loans due today."""
+        with app.app_context():
+            user = UserFactory()
+            item = ItemFactory(owner=user)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=user,
+                start_date=date.today() - timedelta(days=5),
+                end_date=date.today(),
+                status='approved'
+            )
+            
+            assert loan.is_due_soon() is True
+    
     def test_days_until_due_past(self, app):
         """Test days_until_due returns negative number for past due dates."""
         with app.app_context():
