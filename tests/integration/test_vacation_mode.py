@@ -273,7 +273,8 @@ class TestVacationModeAnonymousUsers:
         response = client.get(url_for('main.index'))
         
         assert response.status_code == 200
-        # Visible item should be shown (note: could be subject to random selection so we check at model level)
-        # Since items are randomly selected, let's just verify the vacation mode filter is working
-        # The hidden item should definitely not be shown
+        # Visible item should be shown
+        # Could be subject to random selection but here there are just two items so should always show
+        # Noting this in case someday it starts flaky failing (e.g. because we add more showcase items)
+        assert b'Visible Showcase Item' in response.data
         assert b'Hidden Showcase Item' not in response.data
