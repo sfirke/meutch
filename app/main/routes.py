@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC, timedelta
 from app import db
 from app.models import Item, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm, VacationModeForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 from app.utils.geocoding import sort_items_by_owner_distance
@@ -31,10 +31,11 @@ def index():
         
         if has_circles:
             shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
-            # Query items from those users, excluding own items, ordered by newest first
-            base_query = Item.query.filter(
+            # Query items from those users, excluding own items and vacation mode users, ordered by newest first
+            base_query = Item.query.join(User, Item.owner_id == User.id).filter(
                 Item.owner_id.in_(shared_circle_user_ids),
-                Item.owner_id != current_user.id
+                Item.owner_id != current_user.id,
+                User.vacation_mode == False
             ).order_by(Item.created_at.desc())
             
             # Paginate results
@@ -45,8 +46,11 @@ def index():
         # else: user has no circles, items list stays empty
         
     else:
-        # For anonymous users: show items from public showcase users only
-        showcase_user_ids = select(User.id).where(User.is_public_showcase == True)
+        # For anonymous users: show items from public showcase users only (excluding vacation mode)
+        showcase_user_ids = select(User.id).where(
+            User.is_public_showcase == True,
+            User.vacation_mode == False
+        )
         
         # Regular items (non-giveaways) from showcase users
         base_query = Item.query.filter(
@@ -54,17 +58,19 @@ def index():
             Item.is_giveaway == False
         )
         
-        # Public giveaways (visibility='public', unclaimed)
-        giveaway_query = Item.query.filter(
+        # Public giveaways (visibility='public', unclaimed) - also exclude vacation mode
+        giveaway_query = Item.query.join(User, Item.owner_id == User.id).filter(
             Item.is_giveaway == True,
             Item.giveaway_visibility == 'public',
-            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None)),
+            User.vacation_mode == False
         )
         
         # Show limited items with count
         preview_limit = 6  # Items to show for each section
         
         # Count ALL items in the database (excluding claimed giveaways) to show true scope
+        # Do include vacation mode users here to reflect total available items
         total_items = Item.query.filter(
             or_(
                 Item.is_giveaway == False,
@@ -179,12 +185,13 @@ def giveaways():
     # Get all users who belong to any circle (for public giveaways)
     all_circle_user_ids = select(circle_members.c.user_id).distinct()
     
-    # Base query: giveaways that are unclaimed, excluding own items
+    # Base query: giveaways that are unclaimed, excluding own items and vacation mode users
     # Include items that meet either condition:
     # 1. Default visibility from shared circle users
     # 2. Public visibility from any circle member
-    base_query = Item.query.filter(
+    base_query = Item.query.join(User, Item.owner_id == User.id).filter(
         Item.is_giveaway == True,
+        User.vacation_mode == False,
         and_(
             or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None)),
             or_(
@@ -201,7 +208,7 @@ def giveaways():
             ),
             Item.owner_id != current_user.id
         )
-    ).join(Item.owner)
+    )
     
     # Apply distance filtering if requested and both users are geocoded
     if max_distance and current_user.is_geocoded:
@@ -286,7 +293,9 @@ def search():
     # Include items that meet search criteria AND either:
     # 1. Are from shared circle users (for default visibility items and loans)
     # 2. Are public giveaways from any circle member
-    items_query = Item.query.outerjoin(Item.tags).outerjoin(Item.category).filter(
+    # Also exclude items from users in vacation mode
+    items_query = Item.query.join(User, Item.owner_id == User.id).outerjoin(Item.tags).outerjoin(Item.category).filter(
+        User.vacation_mode == False,
         and_(
             or_(
                 # Default items (loans and default-visibility giveaways): must share circles
@@ -1464,10 +1473,11 @@ def tag_items(tag_id):
     
     shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
     
-    # Build base query for items with this tag from shared circle users
-    items_query = Item.query.join(Item.tags).filter(
+    # Build base query for items with this tag from shared circle users (excluding vacation mode)
+    items_query = Item.query.join(Item.tags).join(User, Item.owner_id == User.id).filter(
         Tag.id == tag_id,  # Filter by the specific tag
-        Item.owner_id.in_(shared_circle_user_ids)  # Filter by circle membership
+        Item.owner_id.in_(shared_circle_user_ids),  # Filter by circle membership
+        User.vacation_mode == False  # Exclude vacation mode users
     )
     
     # Apply item_type filter
@@ -1531,10 +1541,11 @@ def category_items(category_id):
 
     shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
 
-    # Build base query for items in this category from shared circle users
-    items_query = Item.query.filter(
+    # Build base query for items in this category from shared circle users (excluding vacation mode)
+    items_query = Item.query.join(User, Item.owner_id == User.id).filter(
         Item.category_id == category_id,  # Filter by the specific category
-        Item.owner_id.in_(shared_circle_user_ids)  # Filter by circle membership
+        Item.owner_id.in_(shared_circle_user_ids),  # Filter by circle membership
+        User.vacation_mode == False  # Exclude vacation mode users
     )
     
     # Apply item_type filter
@@ -1658,6 +1669,10 @@ def profile():
     borrowing = current_user.get_active_loans_as_borrower()
     lending = current_user.get_active_loans_as_owner()
     
+    # Create vacation mode form with current state
+    vacation_form = VacationModeForm()
+    vacation_form.vacation_mode.data = current_user.vacation_mode
+    
     return render_template('main/profile.html', 
                          form=form, 
                          user=current_user, 
@@ -1667,7 +1682,8 @@ def profile():
                          delete_forms=delete_forms,
                          borrowing=borrowing,
                          lending=lending,
-                         pagination=items_pagination)
+                         pagination=items_pagination,
+                         vacation_form=vacation_form)
 
 @main_bp.route('/update-location', methods=['GET', 'POST'])
 @login_required
@@ -1976,3 +1992,25 @@ def delete_account():
             return redirect(url_for('main.delete_account'))
     
     return render_template('main/delete_account.html', form=form, loans_summary=loans_summary)
+
+
+@main_bp.route('/toggle-vacation-mode', methods=['POST'])
+@login_required
+def toggle_vacation_mode():
+    """Toggle vacation mode for the current user."""
+    form = VacationModeForm()
+    
+    if form.validate_on_submit():
+        try:
+            current_user.vacation_mode = form.vacation_mode.data
+            db.session.commit()
+            
+            if current_user.vacation_mode:
+                flash('Vacation mode enabled. Your items are now hidden from other users.', 'success')
+            else:
+                flash('Vacation mode disabled. Your items are now visible to other users.', 'success')
+        except Exception:
+            db.session.rollback()
+            flash('An error occurred while updating vacation mode. Please try again.', 'danger')
+    
+    return redirect(url_for('main.profile'))

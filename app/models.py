@@ -46,6 +46,7 @@ class User(UserMixin, db.Model):
     deleted_at = db.Column(db.DateTime, nullable=True)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     is_public_showcase = db.Column(db.Boolean, default=False, nullable=False)
+    vacation_mode = db.Column(db.Boolean, default=False, nullable=False)
     
     @property
     def profile_image(self):

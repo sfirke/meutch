@@ -529,6 +529,10 @@ class DeleteAccountForm(FlaskForm):
         if field.data != "DELETE MY ACCOUNT":
             raise ValidationError('You must type "DELETE MY ACCOUNT" exactly to confirm deletion.')
 
+class VacationModeForm(FlaskForm):
+    vacation_mode = BooleanField('Vacation Mode')
+    submit = SubmitField('Update')
+
 class ExpressInterestForm(FlaskForm):
     message = TextAreaField(
         'Optional message to the owner',
