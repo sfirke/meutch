@@ -589,3 +589,46 @@ class ResendConfirmationForm(FlaskForm):
         Length(max=120, message="Email must be under 120 characters.")
     ])
     submit = SubmitField('Send Confirmation Email')
+
+
+class ItemRequestForm(FlaskForm):
+    """Form for creating or editing a community item request."""
+    title = StringField('What do you need?', validators=[
+        DataRequired(message="A short title is required."),
+        Length(max=100, message="Title must be under 100 characters.")
+    ])
+    description = TextAreaField('More details (optional)', validators=[
+        Optional(),
+        Length(max=1000, message="Description must be under 1000 characters.")
+    ])
+    expires_at = DateField('Request expires on', validators=[
+        DataRequired(message="Please select an expiration date.")
+    ])
+    seeking = SelectField('What are you looking for?',
+        choices=[
+            ('either', 'Loan or Giveaway'),
+            ('loan', 'Loan Only'),
+            ('giveaway', 'Giveaway Only'),
+        ],
+        default='either',
+        validators=[DataRequired()]
+    )
+    visibility = SelectField('Who can see this?',
+        choices=[
+            ('circles', 'My Circles'),
+            ('public', 'Public'),
+        ],
+        default='circles',
+        validators=[DataRequired()]
+    )
+    submit = SubmitField('Post Request')
+
+    def validate_expires_at(self, field):
+        """Expiration must be between today and 6 months from today."""
+        from dateutil.relativedelta import relativedelta
+        today = datetime.now().date()
+        max_date = today + relativedelta(months=6)
+        if field.data < today:
+            raise ValidationError('Expiration date cannot be in the past.')
+        if field.data > max_date:
+            raise ValidationError('Expiration date cannot be more than 6 months from today.')

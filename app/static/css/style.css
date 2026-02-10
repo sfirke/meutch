@@ -1213,3 +1213,34 @@ footer h6 {
     opacity: 0.9 !important;
     background-color: var(--primary-color) !important;
 }
+
+/* ============================================
+   Requests Feed — Social-media-style cards
+   ============================================ */
+
+.request-card {
+    background: #fff;
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.request-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.request-card-fulfilled {
+    opacity: 0.65;
+    background: #f8f9fa;
+}
+
+.request-card-expired {
+    opacity: 0.55;
+    background: #f8f9fa;
+}
+
+.request-avatar img {
+    object-fit: cover;
+    border: 2px solid var(--border-color, #dee2e6);
+}
