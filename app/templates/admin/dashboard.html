@@ -150,178 +150,52 @@
                                         <div class="btn-group" role="group">
                                             {% if user.id != current_user.id %}
                                                 {% if not user.is_admin %}
-                                                    <!-- Promote to Admin Button -->
-                                                    <button type="button" class="btn btn-sm btn-outline-success" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#promoteModal{{ user.id }}">
+                                                    <button type="button" class="btn btn-sm btn-outline-success"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#promoteModal"
+                                                            data-user-name="{{ user.full_name }}"
+                                                            data-action-url="{{ url_for('admin.promote_user', user_id=user.id) }}">
                                                         <i class="fas fa-arrow-up"></i> Promote
                                                     </button>
                                                 {% else %}
-                                                    <!-- Demote from Admin Button -->
-                                                    <button type="button" class="btn btn-sm btn-outline-warning" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#demoteModal{{ user.id }}">
+                                                    <button type="button" class="btn btn-sm btn-outline-warning"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#demoteModal"
+                                                            data-user-name="{{ user.full_name }}"
+                                                            data-action-url="{{ url_for('admin.demote_user', user_id=user.id) }}">
                                                         <i class="fas fa-arrow-down"></i> Demote
                                                     </button>
                                                 {% endif %}
                                             {% endif %}
-                                            
+
                                             {# Showcase buttons available for all users including self #}
                                             {% if not user.is_public_showcase %}
-                                                <!-- Enable Showcase Button -->
-                                                <button type="button" class="btn btn-sm btn-outline-info" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#enableShowcaseModal{{ user.id }}">
+                                                <button type="button" class="btn btn-sm btn-outline-info"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#enableShowcaseModal"
+                                                        data-user-name="{{ user.full_name }}"
+                                                        data-action-url="{{ url_for('admin.enable_showcase', user_id=user.id) }}">
                                                     <i class="fas fa-star"></i> Enable Showcase
                                                 </button>
                                             {% else %}
-                                                <!-- Disable Showcase Button -->
-                                                <button type="button" class="btn btn-sm btn-outline-secondary" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#disableShowcaseModal{{ user.id }}">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#disableShowcaseModal"
+                                                        data-user-name="{{ user.full_name }}"
+                                                        data-action-url="{{ url_for('admin.disable_showcase', user_id=user.id) }}">
                                                     <i class="fas fa-star"></i> Disable Showcase
                                                 </button>
                                             {% endif %}
-                                            
+
                                             {% if user.id != current_user.id %}
-                                                <!-- Delete User Button -->
-                                                <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#deleteModal{{ user.id }}">
+                                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#deleteModal"
+                                                        data-user-name="{{ user.full_name }}"
+                                                        data-action-url="{{ url_for('admin.delete_user', user_id=user.id) }}">
                                                     <i class="fas fa-trash"></i> Delete
                                                 </button>
                                             {% endif %}
-                                        </div>
-
-                                        <!-- Promote Modal -->
-                                        <div class="modal fade" id="promoteModal{{ user.id }}" tabindex="-1" aria-labelledby="promoteModalLabel{{ user.id }}" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title" id="promoteModalLabel{{ user.id }}">Promote to Admin</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <p>Are you sure you want to promote <strong>{{ user.full_name }}</strong> to admin?</p>
-                                                        <p class="text-muted small">They will have full access to the admin panel and can manage other users.</p>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                        <form method="POST" action="{{ url_for('admin.promote_user', user_id=user.id) }}" class="d-inline">
-                                                            {{ form.hidden_tag() }}
-                                                            <button type="submit" class="btn btn-success">
-                                                                <i class="fas fa-arrow-up"></i> Promote
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Demote Modal -->
-                                        <div class="modal fade" id="demoteModal{{ user.id }}" tabindex="-1" aria-labelledby="demoteModalLabel{{ user.id }}" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title" id="demoteModalLabel{{ user.id }}">Remove Admin Status</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <p>Are you sure you want to remove admin status from <strong>{{ user.full_name }}</strong>?</p>
-                                                        <p class="text-muted small">They will lose access to the admin panel.</p>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                        <form method="POST" action="{{ url_for('admin.demote_user', user_id=user.id) }}" class="d-inline">
-                                                            {{ form.hidden_tag() }}
-                                                            <button type="submit" class="btn btn-warning">
-                                                                <i class="fas fa-arrow-down"></i> Demote
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Delete Modal -->
-                                        <div class="modal fade" id="deleteModal{{ user.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ user.id }}" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header bg-danger text-white">
-                                                        <h5 class="modal-title" id="deleteModalLabel{{ user.id }}">Delete User Account</h5>
-                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <p><strong class="text-danger">Warning:</strong> This will permanently delete the account for <strong>{{ user.full_name }}</strong>.</p>
-                                                        <p class="text-muted small">This action will:</p>
-                                                        <ul class="text-muted small">
-                                                            <li>Soft-delete the user account</li>
-                                                            <li>Mark all their items as deleted</li>
-                                                            <li>Anonymize their email address</li>
-                                                            <li>This cannot be undone</li>
-                                                        </ul>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                        <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}" class="d-inline">
-                                                            {{ form.hidden_tag() }}
-                                                            <button type="submit" class="btn btn-danger">
-                                                                <i class="fas fa-trash"></i> Delete Account
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Enable Showcase Modal -->
-                                        <div class="modal fade" id="enableShowcaseModal{{ user.id }}" tabindex="-1" aria-labelledby="enableShowcaseModalLabel{{ user.id }}" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title" id="enableShowcaseModalLabel{{ user.id }}">Enable Public Showcase</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <p>Enable public showcase for <strong>{{ user.full_name }}</strong>?</p>
-                                                        <p class="text-muted small">Their items will be visible to unauthenticated visitors on the homepage.</p>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                        <form method="POST" action="{{ url_for('admin.enable_showcase', user_id=user.id) }}" class="d-inline">
-                                                            {{ form.hidden_tag() }}
-                                                            <button type="submit" class="btn btn-info">
-                                                                <i class="fas fa-star"></i> Enable Showcase
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Disable Showcase Modal -->
-                                        <div class="modal fade" id="disableShowcaseModal{{ user.id }}" tabindex="-1" aria-labelledby="disableShowcaseModalLabel{{ user.id }}" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title" id="disableShowcaseModalLabel{{ user.id }}">Disable Public Showcase</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <p>Disable public showcase for <strong>{{ user.full_name }}</strong>?</p>
-                                                        <p class="text-muted small">Their items will no longer be visible to unauthenticated visitors.</p>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                        <form method="POST" action="{{ url_for('admin.disable_showcase', user_id=user.id) }}" class="d-inline">
-                                                            {{ form.hidden_tag() }}
-                                                            <button type="submit" class="btn btn-secondary">
-                                                                <i class="fas fa-star"></i> Disable Showcase
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -364,4 +238,161 @@
         </div>
     </div>
 </div>
+
+<!-- Shared Modals (one per action type, populated dynamically via JS) -->
+
+<!-- Promote Modal -->
+<div class="modal fade" id="promoteModal" tabindex="-1" aria-labelledby="promoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="promoteModalLabel">Promote to Admin</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to promote <strong class="modal-user-name"></strong> to admin?</p>
+                <p class="text-muted small">They will have full access to the admin panel and can manage other users.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="" class="d-inline modal-action-form">
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-arrow-up"></i> Promote
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demote Modal -->
+<div class="modal fade" id="demoteModal" tabindex="-1" aria-labelledby="demoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="demoteModalLabel">Remove Admin Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to remove admin status from <strong class="modal-user-name"></strong>?</p>
+                <p class="text-muted small">They will lose access to the admin panel.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="" class="d-inline modal-action-form">
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-arrow-down"></i> Demote
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">Delete User Account</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong class="text-danger">Warning:</strong> This will permanently delete the account for <strong class="modal-user-name"></strong>.</p>
+                <p class="text-muted small">This action will:</p>
+                <ul class="text-muted small">
+                    <li>Soft-delete the user account</li>
+                    <li>Mark all their items as deleted</li>
+                    <li>Anonymize their email address</li>
+                    <li>This cannot be undone</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="" class="d-inline modal-action-form">
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete Account
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enable Showcase Modal -->
+<div class="modal fade" id="enableShowcaseModal" tabindex="-1" aria-labelledby="enableShowcaseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="enableShowcaseModalLabel">Enable Public Showcase</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Enable public showcase for <strong class="modal-user-name"></strong>?</p>
+                <p class="text-muted small">Their items will be visible to unauthenticated visitors on the homepage.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="" class="d-inline modal-action-form">
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="btn btn-info">
+                        <i class="fas fa-star"></i> Enable Showcase
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Disable Showcase Modal -->
+<div class="modal fade" id="disableShowcaseModal" tabindex="-1" aria-labelledby="disableShowcaseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="disableShowcaseModalLabel">Disable Public Showcase</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Disable public showcase for <strong class="modal-user-name"></strong>?</p>
+                <p class="text-muted small">Their items will no longer be visible to unauthenticated visitors.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="" class="d-inline modal-action-form">
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="btn btn-secondary">
+                        <i class="fas fa-star"></i> Disable Showcase
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Populate shared modals dynamically when opened #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.modal').forEach(function(modal) {
+        modal.addEventListener('show.bs.modal', function(event) {
+            var button = event.relatedTarget;
+            if (!button) return;
+
+            var userName = button.getAttribute('data-user-name');
+            var actionUrl = button.getAttribute('data-action-url');
+
+            modal.querySelectorAll('.modal-user-name').forEach(function(el) {
+                el.textContent = userName;
+            });
+
+            var form = modal.querySelector('.modal-action-form');
+            if (form && actionUrl) {
+                form.setAttribute('action', actionUrl);
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

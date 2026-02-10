@@ -115,10 +115,12 @@
     }
 
     /**
-     * Convert all elements with data-utc-timestamp attribute
+     * Convert all elements with data-utc-timestamp attribute.
+     * Marks each element with data-tz-converted after processing
+     * so the MutationObserver doesn't re-trigger an infinite loop.
      */
     function convertTimestamps() {
-        const elements = document.querySelectorAll('[data-utc-timestamp]');
+        const elements = document.querySelectorAll('[data-utc-timestamp]:not([data-tz-converted])');
         
         elements.forEach(function(el) {
             const timestamp = el.getAttribute('data-utc-timestamp');
@@ -155,6 +157,9 @@
                     console.warn('Failed to parse timestamp:', timestamp, e);
                 }
             }
+            
+            // Mark as converted so it won't be processed again
+            el.setAttribute('data-tz-converted', '');
         });
     }
 
