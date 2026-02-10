@@ -194,7 +194,8 @@ h1 {
 
 .card-img-top {
     height: 200px;
-    object-fit: cover;
+    object-fit: contain;
+    background-color: #f8f9fa;
     transition: transform 0.3s ease;
 }
 
@@ -784,7 +785,8 @@ footer h6 {
     width: 100%;
     height: auto;
     max-height: 500px;
-    object-fit: cover;
+    object-fit: contain;
+    background-color: #f8f9fa;
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-lg);
     border: 1px solid var(--border-color);
