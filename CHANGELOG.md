@@ -4,6 +4,8 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ## Feb 2026
 
+- Show the full image for an item (letterboxing as needed) by changing CSS attributes. Images are no longer arbitrarily cropped ([#171])
+- The admin panel no longer freezes on page load - there had been an infinite JavaScript loop ([#170])
 - Add Open Graph and Twitter Card meta tags for link preview support ([#144](https://github.com/sfirke/meutch/pull/144)) — Link previews now include title, description, and image for better sharing on social and SMS.
 - Add drag & drop support for image uploads ([#143](https://github.com/sfirke/meutch/pull/143)) — Desktop users can drag images onto upload fields; accessibility and validation included.
 - Photo processing improvements: rotate, crop, zoom for uploaded photos; shared `notifications.js` for re-usable toast behavior ([#164](https://github.com/sfirke/meutch/pull/164)).
