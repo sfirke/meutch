@@ -242,13 +242,15 @@
     <a href="{{ url_for('main.messages') }}" class="btn btn-secondary mt-3">Back to Messages</a>
 </div>
 
-<!-- Scroll to the end of the thread -->
+<!-- Scroll to the end of the thread only if there are unread messages -->
 <script>
     document.addEventListener("DOMContentLoaded", function() {
+        {% if has_unread_messages %}
         var element = document.getElementById("end-of-thread");
         if(element){
             element.scrollIntoView({ behavior: "smooth" });
         }
+        {% endif %}
     });
 </script>
 {% endblock %}
