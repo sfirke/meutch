@@ -227,6 +227,6 @@ def fulfill(request_id):
     item_request.fulfilled_at = datetime.now(UTC)
     db.session.commit()
 
-    flash('Request marked as fulfilled! 🎉 It will remain visible for a week as social proof.', 'success')
+    flash('Request marked as fulfilled! 🎉 It will remain visible for a week.', 'success')
     return redirect(url_for('requests.feed'))
 
