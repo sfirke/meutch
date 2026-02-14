@@ -5,7 +5,7 @@ from flask import render_template, request, flash, redirect, url_for, abort
 from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, select
 from app import db
-from app.models import ItemRequest, User, circle_members
+from app.models import ItemRequest, User
 from app.forms import ItemRequestForm, EmptyForm
 from app.requests import bp as requests_bp
 from app.utils.pagination import ListPagination
@@ -54,11 +54,9 @@ def feed():
     )
 
     if scope == 'public':
-        # Public requests from any user who is in at least one circle
-        all_circle_user_ids = select(circle_members.c.user_id).distinct()
+        # Public requests from any user
         base_query = base_query.filter(
             ItemRequest.visibility == 'public',
-            ItemRequest.user_id.in_(all_circle_user_ids),
         )
     else:
         # Circles scope: requests from users who share circles with current user
