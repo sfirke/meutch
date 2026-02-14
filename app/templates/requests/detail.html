@@ -73,6 +73,14 @@
                         <p class="text-muted small"><i class="fas fa-hourglass-half me-1"></i>Expires {{ item_request.expires_at.strftime('%B %d, %Y') }}</p>
                     {% endif %}
 
+                    {% if item_request.user_id != current_user.id and item_request.status == 'open' and not item_request.is_expired and (item_request.visibility == 'public' or current_user.shares_circle_with(item_request.user)) %}
+                        <div class="mb-3">
+                            <a href="{{ url_for('requests.conversation', request_id=item_request.id) }}" class="btn btn-outline-primary">
+                                <i class="fas fa-comment-dots me-1"></i>I can help!
+                            </a>
+                        </div>
+                    {% endif %}
+
                     <!-- Owner actions -->
                     {% if item_request.user_id == current_user.id %}
                         <hr>

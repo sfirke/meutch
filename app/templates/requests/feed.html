@@ -20,8 +20,8 @@
                 <div class="col-md-4">
                     <label for="scope" class="form-label">Show requests from</label>
                     <select name="scope" id="scope" class="form-select" onchange="toggleDistanceFilter(); this.form.submit();">
+                        <option value="public" {% if scope == 'public' %}selected{% endif %}>Everyone</option>
                         <option value="circles" {% if scope == 'circles' %}selected{% endif %}>My Circles</option>
-                        <option value="public" {% if scope == 'public' %}selected{% endif %}>Public</option>
                     </select>
                 </div>
 
