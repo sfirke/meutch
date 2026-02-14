@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Message Request Author{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <a href="{{ url_for('requests.detail', request_id=item_request.id) }}" class="btn btn-outline-secondary btn-sm mb-3">
+                <i class="fas fa-arrow-left me-1"></i>Back to Request
+            </a>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h4 class="mb-2">{{ item_request.title }}</h4>
+                    <p class="text-muted mb-0">Message {{ item_request.user.full_name }} about this request.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ form.body.label(class="form-label") }}
+                            {{ form.body(class="form-control", rows="5", placeholder="Hi! I might be able to help with this request...") }}
+                            {% for error in form.body.errors %}
+                                <div class="text-danger mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-1"></i>Send Message
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

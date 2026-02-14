@@ -518,11 +518,18 @@ class Feedback(db.Model):
 
 class Message(db.Model):
     __tablename__ = 'messages'
+    __table_args__ = (
+        db.CheckConstraint(
+            '((item_id IS NOT NULL AND request_id IS NULL) OR (item_id IS NULL AND request_id IS NOT NULL))',
+            name='ck_messages_exactly_one_target'
+        ),
+    )
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sender_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     recipient_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
-    item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id'), nullable=False)
+    item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id'), nullable=True)
+    request_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item_request.id'), nullable=True)
     body = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=func.now())
     is_read = db.Column(db.Boolean, default=False)
@@ -534,6 +541,7 @@ class Message(db.Model):
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
     recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
     item = db.relationship('Item', backref='messages')
+    request = db.relationship('ItemRequest', backref='messages')
     parent = db.relationship('Message', remote_side=[id], backref='replies')
 
     @staticmethod
@@ -545,6 +553,11 @@ class Message(db.Model):
     def is_loan_request_message(self):
         """Returns True if this message is related to a loan request"""
         return self.loan_request_id is not None
+
+    @property
+    def is_request_message(self):
+        """Returns True if this message is related to an item request conversation."""
+        return self.request_id is not None
     
     @property
     def has_pending_action(self):

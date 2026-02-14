@@ -2,8 +2,8 @@
 import pytest
 from datetime import datetime, UTC, timedelta
 from app import db
-from app.models import ItemRequest, Circle
-from tests.factories import UserFactory, ItemRequestFactory, CircleFactory
+from app.models import ItemRequest, Circle, Message
+from tests.factories import UserFactory, ItemRequestFactory, CircleFactory, MessageFactory
 from conftest import login_user
 
 
@@ -26,11 +26,11 @@ class TestRequestsFeedAccess:
             assert b'Community Requests' in response.data
 
     def test_feed_shows_no_circles_message(self, client, app, auth_user):
-        """Test feed shows message when user has no circles."""
+        """Test feed shows message when user has no circles and views circles scope."""
         with app.app_context():
             user = auth_user()
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/requests/?scope=circles')
             assert response.status_code == 200
             assert b'Join a circle to see requests' in response.data
 
@@ -56,7 +56,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/requests/?scope=circles')
             assert response.status_code == 200
             assert b'Need a screwdriver' in response.data
 
@@ -80,7 +80,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/requests/?scope=circles')
             assert response.status_code == 200
             assert b'Hidden request' not in response.data
 
@@ -104,7 +104,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=public')
+            response = client.get('/requests/?scope=public&distance=')
             assert response.status_code == 200
             assert b'Public screwdriver request' in response.data
 
@@ -151,7 +151,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/requests/?scope=circles')
             assert response.status_code == 200
             assert b'Got my screwdriver' in response.data
 
@@ -556,6 +556,107 @@ class TestRequestDetail:
             assert response.status_code == 200
             assert b'Edit' in response.data
             assert b'Mark Fulfilled' in response.data
+
+
+class TestRequestConversations:
+    """Test request-linked conversation flows."""
+
+    def test_start_conversation_creates_request_message(self, client, app):
+        """Posting to conversation route creates a request-linked message."""
+        with app.app_context():
+            requester = UserFactory()
+            helper = UserFactory()
+            item_request = ItemRequestFactory(user=requester, visibility='public')
+            db.session.commit()
+
+            login_user(client, helper.email)
+            response = client.post(
+                f'/requests/{item_request.id}/conversation',
+                data={'body': 'I have one you can borrow!'},
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert b'I have one you can borrow!' in response.data
+
+            message = Message.query.filter_by(request_id=item_request.id).first()
+            assert message is not None
+            assert message.item_id is None
+            assert message.sender_id == helper.id
+            assert message.recipient_id == requester.id
+
+    def test_conversation_route_redirects_when_thread_exists(self, client, app):
+        """Route should redirect to existing conversation instead of creating duplicate."""
+        with app.app_context():
+            requester = UserFactory()
+            helper = UserFactory()
+            item_request = ItemRequestFactory(user=requester, visibility='public')
+            existing_message = MessageFactory(
+                sender=helper,
+                recipient=requester,
+                item=None,
+                request=item_request,
+                body='Existing request thread',
+            )
+            db.session.commit()
+
+            login_user(client, helper.email)
+            response = client.get(f'/requests/{item_request.id}/conversation')
+
+            assert response.status_code == 302
+            assert f'/message/{existing_message.id}' in response.headers['Location']
+
+    def test_messages_inbox_shows_request_title(self, client, app):
+        """Request-linked conversations should show Re: title in inbox."""
+        with app.app_context():
+            requester = UserFactory()
+            helper = UserFactory()
+            item_request = ItemRequestFactory(user=requester, title='Need a melon baller', visibility='public')
+            MessageFactory(
+                sender=helper,
+                recipient=requester,
+                item=None,
+                request=item_request,
+                body='I can help with this.',
+            )
+            db.session.commit()
+
+            login_user(client, requester.email)
+            response = client.get('/messages')
+
+            assert response.status_code == 200
+            assert b'Re: Need a melon baller' in response.data
+
+    def test_view_conversation_reply_preserves_request_context(self, client, app):
+        """Replies in request threads should keep request_id and null item_id."""
+        with app.app_context():
+            requester = UserFactory()
+            helper = UserFactory()
+            item_request = ItemRequestFactory(user=requester, visibility='public')
+            first_message = MessageFactory(
+                sender=helper,
+                recipient=requester,
+                item=None,
+                request=item_request,
+                body='Initial request message',
+            )
+            db.session.commit()
+
+            login_user(client, requester.email)
+            response = client.post(
+                f'/message/{first_message.id}',
+                data={'body': 'Thanks, messaging you now!'},
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            reply = Message.query.filter(
+                Message.parent_id == first_message.id,
+                Message.body == 'Thanks, messaging you now!'
+            ).first()
+            assert reply is not None
+            assert reply.request_id == item_request.id
+            assert reply.item_id is None
 
 
 class TestRequestNavigation:

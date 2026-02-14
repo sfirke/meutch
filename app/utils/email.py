@@ -129,6 +129,15 @@ def send_message_notification_email(message):
     # Generate the conversation URL
     conversation_url = url_for('main.view_conversation', message_id=message.id, _external=True)
     
+    context_label = None
+    if message.item is not None:
+        context_label = message.item.name
+    elif message.request is not None:
+        context_label = f"request: {message.request.title}"
+    else:
+        current_app.logger.error(f"Message {message.id} has no item or request context")
+        return False
+
     # Determine the subject and email content based on message type
     if message.is_loan_request_message:
         # Check if this is a loan extension message (owner extending the due date)
@@ -155,7 +164,7 @@ def send_message_notification_email(message):
             raise ValueError(f"Unknown loan request status '{message.loan_request.status}' for message {message.id}. "
                            f"Valid statuses are: pending, approved, denied, completed, canceled")
     else:
-        subject = f"Meutch - New Message about {message.item.name}"
+        subject = f"Meutch - New Message about {context_label}"
         email_type = "message"
     
     text_content = f"""
@@ -163,7 +172,7 @@ Hello {recipient.first_name},
 
 You have received a new {email_type} on Meutch from {sender.first_name} {sender.last_name}.
 
-Item: {message.item.name}
+Context: {context_label}
 From: {sender.first_name} {sender.last_name}
 
 Message:
@@ -186,7 +195,7 @@ The Meutch Team
         
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p><strong>From:</strong> {sender.first_name} {sender.last_name}</p>
-            <p><strong>Item:</strong> {message.item.name}</p>
+            <p><strong>Context:</strong> {context_label}</p>
         </div>
         
         <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">
