@@ -88,14 +88,6 @@
                                     </button>
                                 </form>
                             {% endif %}
-                            {% if item_request.is_fulfilled %}
-                                <form method="POST" action="{{ url_for('requests.reopen', request_id=item_request.id) }}" class="d-inline">
-                                    {{ reopen_form.hidden_tag() }}
-                                    <button type="submit" class="btn btn-outline-secondary btn-sm">
-                                        <i class="fas fa-redo me-1"></i>Reopen
-                                    </button>
-                                </form>
-                            {% endif %}
                             <form method="POST" action="{{ url_for('requests.delete', request_id=item_request.id) }}" class="d-inline" onsubmit="return confirm('Remove this request?');">
                                 {{ delete_form.hidden_tag() }}
                                 <button type="submit" class="btn btn-outline-danger btn-sm">

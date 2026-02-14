@@ -470,45 +470,6 @@ class TestRequestFulfillment:
             response = client.post(f'/requests/{req.id}/fulfill')
             assert response.status_code == 403
 
-    def test_reopen_fulfilled_request(self, client, app, auth_user):
-        """Test reopening a fulfilled request."""
-        with app.app_context():
-            user = auth_user()
-            req = ItemRequestFactory(
-                user=user,
-                status='fulfilled',
-                fulfilled_at=datetime.now(UTC),
-            )
-            db.session.commit()
-            req_id = req.id
-
-            login_user(client, user.email)
-            response = client.post(f'/requests/{req_id}/reopen', follow_redirects=True)
-
-            assert response.status_code == 200
-            assert b'reopened' in response.data.lower()
-
-            reopened = db.session.get(ItemRequest, req_id)
-            assert reopened.status == 'open'
-            assert reopened.fulfilled_at is None
-
-    def test_reopen_open_request_rejected(self, client, app, auth_user):
-        """Test that reopening an already-open request is rejected."""
-        with app.app_context():
-            user = auth_user()
-            req = ItemRequestFactory(user=user, status='open')
-            db.session.commit()
-            req_id = req.id
-
-            login_user(client, user.email)
-            response = client.post(f'/requests/{req_id}/reopen', follow_redirects=True)
-
-            assert response.status_code == 200
-            # Should not change status — still open
-            same_req = db.session.get(ItemRequest, req_id)
-            assert same_req.status == 'open'
-
-
 class TestRequestDetail:
     """Test request detail page."""
 
