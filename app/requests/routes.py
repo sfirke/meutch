@@ -76,8 +76,7 @@ def feed():
                                    max_distance=max_distance,
                                    no_circles=True,
                                    fulfill_form=EmptyForm(),
-                                   delete_form=EmptyForm(),
-                                   reopen_form=EmptyForm())
+                                   delete_form=EmptyForm())
 
         shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
         base_query = base_query.filter(
@@ -119,8 +118,7 @@ def feed():
                            max_distance=max_distance,
                            no_circles=False,
                            fulfill_form=EmptyForm(),
-                           delete_form=EmptyForm(),
-                           reopen_form=EmptyForm())
+                           delete_form=EmptyForm())
 
 
 @requests_bp.route('/new', methods=['GET', 'POST'])
@@ -194,8 +192,7 @@ def detail(request_id):
     return render_template('requests/detail.html',
                            item_request=item_request,
                            fulfill_form=EmptyForm(),
-                           delete_form=EmptyForm(),
-                           reopen_form=EmptyForm())
+                           delete_form=EmptyForm())
 
 
 @requests_bp.route('/<uuid:request_id>/delete', methods=['POST'])
@@ -238,31 +235,6 @@ def fulfill(request_id):
     db.session.commit()
 
     flash('Request marked as fulfilled! 🎉 It will remain visible for a week as social proof.', 'success')
-    return redirect(url_for('requests.feed'))
-
-
-@requests_bp.route('/<uuid:request_id>/reopen', methods=['POST'])
-@login_required
-def reopen(request_id):
-    """Reopen a fulfilled request."""
-    form = EmptyForm()
-    if not form.validate_on_submit():
-        abort(400)
-
-    item_request = db.session.get(ItemRequest, request_id)
-    if not item_request:
-        abort(404)
-    if item_request.user_id != current_user.id:
-        abort(403)
-    if item_request.status not in ('fulfilled',):
-        flash('Only fulfilled requests can be reopened.', 'warning')
-        return redirect(url_for('requests.feed'))
-
-    item_request.status = 'open'
-    item_request.fulfilled_at = None
-    db.session.commit()
-
-    flash('Your request has been reopened.', 'success')
     return redirect(url_for('requests.feed'))
 
 
