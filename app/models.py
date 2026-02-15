@@ -644,6 +644,74 @@ class UserWebLink(db.Model):
         return f'<UserWebLink {self.user_id}: {self.platform_type} - {self.url}>'
 
 
+class ItemRequest(db.Model):
+    """A community request/ask for an item that someone needs."""
+    __tablename__ = 'item_request'
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    seeking = db.Column(db.String(20), nullable=False, default='either')  # 'loan', 'giveaway', 'either'
+    visibility = db.Column(db.String(20), nullable=False, default='circles')  # 'circles', 'public'
+    status = db.Column(db.String(20), nullable=False, default='open')  # 'open', 'fulfilled', 'deleted'
+    fulfilled_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=func.now())
+    updated_at = db.Column(db.DateTime, default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = db.relationship('User', backref='requests', passive_deletes=True)
+
+    @property
+    def is_expired(self):
+        """Returns True if the request has passed its expiration date."""
+        if self.expires_at is None:
+            return False
+        expires_at_utc = self.expires_at.replace(tzinfo=UTC) if self.expires_at.tzinfo is None else self.expires_at
+        return datetime.now(UTC) > expires_at_utc
+
+    @property
+    def is_active(self):
+        """Returns True if the request is open and not expired."""
+        return self.status == 'open' and not self.is_expired
+
+    @property
+    def is_fulfilled(self):
+        """Returns True if the request has been marked fulfilled."""
+        return self.status == 'fulfilled'
+
+    @property
+    def show_in_feed(self):
+        """Returns True if this request should appear in the feed.
+
+        Active requests always show. Fulfilled requests show for 7 days
+        after fulfillment as social proof. Deleted/expired requests don't show.
+        """
+        if self.status == 'deleted':
+            return False
+        if self.status == 'open':
+            return not self.is_expired
+        if self.status == 'fulfilled' and self.fulfilled_at:
+            fulfilled_at_utc = self.fulfilled_at.replace(tzinfo=UTC) if self.fulfilled_at.tzinfo is None else self.fulfilled_at
+            return (datetime.now(UTC) - fulfilled_at_utc).days < 7
+        return False
+
+    SEEKING_CHOICES = [
+        ('either', 'Loan or Giveaway'),
+        ('loan', 'Loan Only'),
+        ('giveaway', 'Giveaway Only'),
+    ]
+
+    VISIBILITY_CHOICES = [
+        ('circles', 'My Circles'),
+        ('public', 'Public'),
+    ]
+
+    def __repr__(self):
+        return f'<ItemRequest {self.id} "{self.title}" by user {self.user_id}>'
+
+
 class AdminAction(db.Model):
     """Audit log for admin actions"""
     __tablename__ = 'admin_action'

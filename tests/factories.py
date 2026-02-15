@@ -3,8 +3,9 @@ import factory
 from factory.alchemy import SQLAlchemyModelFactory
 from faker import Faker
 from werkzeug.security import generate_password_hash
+from datetime import datetime, UTC, timedelta
 from app import db
-from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, CircleJoinRequest, UserWebLink, AdminAction, GiveawayInterest
+from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, CircleJoinRequest, UserWebLink, AdminAction, GiveawayInterest, ItemRequest
 import uuid
 
 fake = Faker()
@@ -151,3 +152,19 @@ class GiveawayInterestFactory(SQLAlchemyModelFactory):
     user = factory.SubFactory(UserFactory)
     message = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=200))
     status = 'active'
+
+
+class ItemRequestFactory(SQLAlchemyModelFactory):
+    """Factory for ItemRequest model."""
+    class Meta:
+        model = ItemRequest
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+
+    user = factory.SubFactory(UserFactory)
+    title = factory.LazyAttribute(lambda obj: f"{fake.catch_phrase()} {uuid.uuid4().hex[:6]}")
+    description = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=200))
+    expires_at = factory.LazyAttribute(lambda obj: datetime.now(UTC) + timedelta(days=30))
+    seeking = 'either'
+    visibility = 'circles'
+    status = 'open'

@@ -1,0 +1,80 @@
+<!-- app/templates/requests/edit.html -->
+{% extends "base.html" %}
+
+{% block title %}Edit Request{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-edit me-2"></i>Edit Request</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('requests.edit', request_id=item_request.id) }}">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Title -->
+                        <div class="mb-3">
+                            {{ form.title.label(class="form-label fw-bold") }}
+                            {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
+                            <div class="form-text">A short description of what you're looking for (max 100 characters)</div>
+                            {% for error in form.title.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label fw-bold") }}
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="4") }}
+                            <div class="form-text">Any additional context or details (max 1000 characters)</div>
+                            {% for error in form.description.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Seeking -->
+                        <div class="mb-3">
+                            {{ form.seeking.label(class="form-label fw-bold") }}
+                            {{ form.seeking(class="form-select" + (" is-invalid" if form.seeking.errors else "")) }}
+                            {% for error in form.seeking.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Visibility -->
+                        <div class="mb-3">
+                            {{ form.visibility.label(class="form-label fw-bold") }}
+                            {{ form.visibility(class="form-select" + (" is-invalid" if form.visibility.errors else "")) }}
+                            <div class="form-text">
+                                <strong>My Circles:</strong> Only visible to members of your circles.
+                                <strong>Public:</strong> Visible to all users on the platform.
+                            </div>
+                            {% for error in form.visibility.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Expiration -->
+                        <div class="mb-4">
+                            {{ form.expires_at.label(class="form-label fw-bold") }}
+                            {{ form.expires_at(class="form-control" + (" is-invalid" if form.expires_at.errors else "")) }}
+                            <div class="form-text">Maximum 6 months from today.</div>
+                            {% for error in form.expires_at.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('requests.feed') }}" class="btn btn-secondary me-md-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

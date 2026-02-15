@@ -60,6 +60,9 @@ def create_app(config_class=None):
     from app.admin import bp as admin_bp
     app.register_blueprint(admin_bp, url_prefix='/admin')
 
+    from app.requests import bp as requests_bp
+    app.register_blueprint(requests_bp, url_prefix='/requests')
+
     # Register CLI commands
     try:
         from app.cli import seed, user, check_loan_reminders

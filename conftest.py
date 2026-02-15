@@ -145,7 +145,7 @@ def clean_db(app):
         tables_to_truncate = [
             'giveaway_interest', 'messages', 'loan_request', 'circle_join_requests',
             'user_web_links', 'admin_action', 'item_tags', 'item', 'tag', 'feedback',
-            'circle_members', 'circle', 'users'
+            'item_request', 'circle_members', 'circle', 'users'
         ]
         
         for table in tables_to_truncate:
