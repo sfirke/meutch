@@ -20,7 +20,7 @@
                         <!-- Title -->
                         <div class="mb-3">
                             {{ form.title.label(class="form-label fw-bold") }}
-                            {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else ""), placeholder="e.g., Plastic googly eyes, Melon baller, Small scrap of drywall") }}
+                            {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else ""), placeholder="e.g., Melon baller, Small scrap of drywall") }}
                             <div class="form-text">A short description of what you're looking for (max 100 characters)</div>
                             {% for error in form.title.errors %}
                                 <div class="invalid-feedback">{{ error }}</div>
@@ -30,7 +30,7 @@
                         <!-- Description -->
                         <div class="mb-3">
                             {{ form.description.label(class="form-label fw-bold") }}
-                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="4", placeholder="e.g., I'm sewing a spider stuffed animal and am looking for eight plastic googly eyes") }}
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="4", placeholder="e.g., I need to patch a 6-inch circular hole in my drywall and don't want to buy a whole sheet") }}
                             <div class="form-text">Any additional context or details (max 1000 characters)</div>
                             {% for error in form.description.errors %}
                                 <div class="invalid-feedback">{{ error }}</div>
