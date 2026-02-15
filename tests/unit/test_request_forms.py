@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 from werkzeug.datastructures import MultiDict
 from app.forms import ItemRequestForm
+from app.models import ItemRequest
 
 
 class TestItemRequestForm:
@@ -201,3 +202,12 @@ class TestItemRequestForm:
                 }
                 form = ItemRequestForm(data=form_data)
                 assert form.validate() is False
+
+    def test_form_choices_match_model_constants(self, app):
+        """Test that form choices reference the model constants (DRY principle)."""
+        with app.app_context():
+            with app.test_request_context():
+                form = ItemRequestForm()
+                # Verify form fields use the exact same constants from the model
+                assert form.seeking.choices == ItemRequest.SEEKING_CHOICES
+                assert form.visibility.choices == ItemRequest.VISIBILITY_CHOICES
