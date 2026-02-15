@@ -593,7 +593,7 @@ class ResendConfirmationForm(FlaskForm):
 
 class ItemRequestForm(FlaskForm):
     """Form for creating or editing a community item request."""
-    title = StringField('What do you need?', validators=[
+    title = StringField('What are you looking for?', validators=[
         DataRequired(message="A short title is required."),
         Length(max=100, message="Title must be under 100 characters.")
     ])
