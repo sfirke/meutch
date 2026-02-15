@@ -1,14 +1,14 @@
 """Routes for the Requests (community asks) blueprint."""
 from datetime import datetime, UTC, timedelta
-from dateutil.relativedelta import relativedelta
-from flask import render_template, request, flash, redirect, url_for, abort
+from flask import render_template, request, flash, redirect, url_for, abort, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, select
 from app import db
-from app.models import ItemRequest, User
-from app.forms import ItemRequestForm, EmptyForm
+from app.models import ItemRequest, User, Message
+from app.forms import ItemRequestForm, EmptyForm, MessageForm
 from app.requests import bp as requests_bp
 from app.utils.pagination import ListPagination
+from app.utils.email import send_message_notification_email
 
 
 @requests_bp.route('/')
@@ -229,4 +229,55 @@ def fulfill(request_id):
 
     flash('Request marked as fulfilled! 🎉 It will remain visible for a week.', 'success')
     return redirect(url_for('requests.feed'))
+
+
+@requests_bp.route('/<uuid:request_id>/conversation', methods=['GET', 'POST'])
+@login_required
+def conversation(request_id):
+    """Start or continue a conversation with a request author."""
+    item_request = db.session.get(ItemRequest, request_id)
+    if not item_request or item_request.status == 'deleted':
+        abort(404)
+
+    if item_request.user_id == current_user.id:
+        flash('You cannot message yourself about your own request.', 'warning')
+        return redirect(url_for('requests.detail', request_id=item_request.id))
+
+    if item_request.visibility == 'circles' and not current_user.shares_circle_with(item_request.user):
+        abort(403)
+
+    existing_message = Message.query.filter(
+        Message.request_id == item_request.id,
+        Message.item_id.is_(None),
+        or_(
+            and_(Message.sender_id == current_user.id, Message.recipient_id == item_request.user_id),
+            and_(Message.sender_id == item_request.user_id, Message.recipient_id == current_user.id),
+        )
+    ).order_by(Message.timestamp.asc()).first()
+
+    if existing_message:
+        return redirect(url_for('main.view_conversation', message_id=existing_message.id))
+
+    form = MessageForm()
+    if form.validate_on_submit():
+        message = Message(
+            sender_id=current_user.id,
+            recipient_id=item_request.user_id,
+            item_id=None,
+            request_id=item_request.id,
+            body=form.body.data,
+            is_read=False,
+        )
+        db.session.add(message)
+        db.session.commit()
+
+        try:
+            send_message_notification_email(message)
+        except Exception as e:
+            current_app.logger.error(f"Failed to send email notification for request message {message.id}: {str(e)}")
+
+        flash('Your message has been sent.', 'success')
+        return redirect(url_for('main.view_conversation', message_id=message.id))
+
+    return render_template('requests/conversation_start.html', form=form, item_request=item_request)
 
