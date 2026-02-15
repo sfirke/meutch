@@ -23,7 +23,7 @@
                         {{ form.hidden_tag() }}
                         <div class="mb-3">
                             {{ form.body.label(class="form-label") }}
-                            {{ form.body(class="form-control", rows="5", placeholder="Hi! I might be able to help with this request...") }}
+                            {{ form.body(class="form-control", rows="5", placeholder="Hi! I might be able to help with this request... (include a link to a Meutch item if applicable)") }}
                             {% for error in form.body.errors %}
                                 <div class="text-danger mt-1">{{ error }}</div>
                             {% endfor %}

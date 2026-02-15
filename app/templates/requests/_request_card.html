@@ -104,7 +104,7 @@
             {% if not is_own and req.status == 'open' and not is_expired %}
                 <div class="mt-3">
                     <a href="{{ url_for('requests.conversation', request_id=req.id) }}" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-comment-dots me-1"></i>I can help!
+                        <i class="fas fa-comment-dots me-1"></i>Message
                     </a>
                 </div>
             {% endif %}
