@@ -682,7 +682,9 @@ class ItemRequest(db.Model):
         if self.expires_at is None:
             return False
         expires_at_utc = self.expires_at.replace(tzinfo=UTC) if self.expires_at.tzinfo is None else self.expires_at
-        return datetime.now(UTC) > expires_at_utc
+        # Compare dates (not datetimes) so items are available through the entire expiration day
+        today = datetime.now(UTC).date()
+        return today > expires_at_utc.date()
 
     @property
     def is_active(self):
