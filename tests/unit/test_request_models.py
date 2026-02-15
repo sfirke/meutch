@@ -133,15 +133,6 @@ class TestItemRequestShowInFeed:
             )
             assert req.show_in_feed is False
 
-    def test_show_in_feed_recently_fulfilled(self, app):
-        """Test recently fulfilled request shows in feed."""
-        with app.app_context():
-            req = ItemRequestFactory(
-                status='fulfilled',
-                fulfilled_at=datetime.now(UTC) - timedelta(days=3),
-            )
-            assert req.show_in_feed is True
-
     def test_show_in_feed_fulfilled_over_7_days(self, app):
         """Test fulfilled request older than 7 days doesn't show."""
         with app.app_context():

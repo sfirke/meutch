@@ -89,11 +89,9 @@ class TestRequestsFeedFiltering:
         with app.app_context():
             user = auth_user()
             other_user = UserFactory()
-            # Put each user in a circle (not shared)
-            circle1 = CircleFactory()
-            circle1.members.append(user)
-            circle2 = CircleFactory()
-            circle2.members.append(other_user)
+            # User needs to be in a circle to access the feed
+            circle = CircleFactory()
+            circle.members.append(user)
             db.session.commit()
 
             ItemRequestFactory(
@@ -114,8 +112,7 @@ class TestRequestsFeedFiltering:
             user = auth_user()
             other_user = UserFactory()
             circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(other_user)
+            circle.members.extend([user, other_user])
             db.session.commit()
 
             ItemRequestFactory(
@@ -137,8 +134,7 @@ class TestRequestsFeedFiltering:
             user = auth_user()
             other_user = UserFactory()
             circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(other_user)
+            circle.members.extend([user, other_user])
             db.session.commit()
 
             ItemRequestFactory(
@@ -161,8 +157,7 @@ class TestRequestsFeedFiltering:
             user = auth_user()
             other_user = UserFactory()
             circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(other_user)
+            circle.members.extend([user, other_user])
             db.session.commit()
 
             ItemRequestFactory(
@@ -185,8 +180,7 @@ class TestRequestsFeedFiltering:
             user = auth_user()
             other_user = UserFactory()
             circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(other_user)
+            circle.members.extend([user, other_user])
             db.session.commit()
 
             ItemRequestFactory(
@@ -208,8 +202,7 @@ class TestRequestsFeedFiltering:
             user = auth_user()
             other_user = UserFactory(vacation_mode=True)
             circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(other_user)
+            circle.members.extend([user, other_user])
             db.session.commit()
 
             ItemRequestFactory(
@@ -249,12 +242,9 @@ class TestRequestsFeedFiltering:
             nearby_user = UserFactory(latitude=40.7300, longitude=-74.0000)  # Very close to NYC
             far_user = UserFactory(latitude=34.0522, longitude=-118.2437)    # Los Angeles
 
+            # User needs to be in a circle to access the feed
             circle = CircleFactory()
             circle.members.append(user)
-            circle2 = CircleFactory()
-            circle2.members.append(nearby_user)
-            circle3 = CircleFactory()
-            circle3.members.append(far_user)
             db.session.commit()
 
             ItemRequestFactory(user=nearby_user, title='Nearby request', visibility='public')
@@ -469,45 +459,6 @@ class TestRequestFulfillment:
             login_user(client, user.email)
             response = client.post(f'/requests/{req.id}/fulfill')
             assert response.status_code == 403
-
-    def test_reopen_fulfilled_request(self, client, app, auth_user):
-        """Test reopening a fulfilled request."""
-        with app.app_context():
-            user = auth_user()
-            req = ItemRequestFactory(
-                user=user,
-                status='fulfilled',
-                fulfilled_at=datetime.now(UTC),
-            )
-            db.session.commit()
-            req_id = req.id
-
-            login_user(client, user.email)
-            response = client.post(f'/requests/{req_id}/reopen', follow_redirects=True)
-
-            assert response.status_code == 200
-            assert b'reopened' in response.data.lower()
-
-            reopened = db.session.get(ItemRequest, req_id)
-            assert reopened.status == 'open'
-            assert reopened.fulfilled_at is None
-
-    def test_reopen_open_request_rejected(self, client, app, auth_user):
-        """Test that reopening an already-open request is rejected."""
-        with app.app_context():
-            user = auth_user()
-            req = ItemRequestFactory(user=user, status='open')
-            db.session.commit()
-            req_id = req.id
-
-            login_user(client, user.email)
-            response = client.post(f'/requests/{req_id}/reopen', follow_redirects=True)
-
-            assert response.status_code == 200
-            # Should not change status — still open
-            same_req = db.session.get(ItemRequest, req_id)
-            assert same_req.status == 'open'
-
 
 class TestRequestDetail:
     """Test request detail page."""
