@@ -186,8 +186,35 @@ def detail(request_id):
     if not item_request or item_request.status == 'deleted':
         abort(404)
 
+    # Get conversations about this request (for the author only)
+    conversations = []
+    if current_user.id == item_request.user_id:
+        # Get all messages about this request, ordered by timestamp
+        messages = Message.query.filter(
+            Message.request_id == item_request.id,
+            Message.item_id.is_(None),
+        ).order_by(Message.timestamp.desc()).all()
+        
+        # Group by unique (sender, recipient) pairs to get conversation threads
+        conversation_map = {}
+        for msg in messages:
+            # Normalize key so same conversation appears only once
+            pair = tuple(sorted([msg.sender_id, msg.recipient_id]))
+            if pair not in conversation_map:
+                conversation_map[pair] = msg
+        
+        # Convert to list with the other person's info
+        for pair, latest_msg in conversation_map.items():
+            other_user_id = pair[0] if pair[1] == current_user.id else pair[1]
+            other_user = db.session.get(User, other_user_id)
+            conversations.append({
+                'other_user': other_user,
+                'latest_message': latest_msg,
+            })
+
     return render_template('requests/detail.html',
                            item_request=item_request,
+                           conversations=conversations,
                            fulfill_form=EmptyForm(),
                            delete_form=EmptyForm())
 

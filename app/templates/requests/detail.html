@@ -104,6 +104,30 @@
                             </form>
                         </div>
                     {% endif %}
+
+                    <!-- Conversations section (for request author) -->
+                    {% if item_request.user_id == current_user.id and conversations %}
+                        <hr>
+                        <h5 class="mb-3">
+                            <i class="fas fa-comments me-2"></i>Conversations
+                        </h5>
+                        <div class="list-group">
+                            {% for conv in conversations %}
+                                <a href="{{ url_for('main.view_conversation', message_id=conv.latest_message.id) }}" class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 align-items-center">
+                                        <img src="{{ conv.other_user.profile_image }}" alt="{{ conv.other_user.full_name }}" class="rounded-circle me-2 flex-shrink-0" width="40" height="40">
+                                        <div class="flex-grow-1 min-width-0">
+                                            <strong class="d-block">{{ conv.other_user.full_name }}</strong>
+                                            <small class="text-muted d-block text-truncate">{{ conv.latest_message.body|truncate(100) }}</small>
+                                        </div>
+                                        <small class="text-muted flex-shrink-0 ms-2" data-utc-time="{{ conv.latest_message.timestamp.strftime('%Y-%m-%dT%H:%M:%SZ') if conv.latest_message.timestamp else '' }}">
+                                            {{ conv.latest_message.timestamp.strftime('%b %d') if conv.latest_message.timestamp else '' }}
+                                        </small>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

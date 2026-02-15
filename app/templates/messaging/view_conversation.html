@@ -60,7 +60,11 @@
     {% elif conversation_request %}
         <div class="card mb-4">
             <div class="card-body">
-                <h5 class="card-title mb-2">{{ conversation_request.title }}</h5>
+                <h5 class="card-title mb-2">
+                    <a href="{{ url_for('requests.detail', request_id=conversation_request.id) }}" class="text-decoration-none text-dark">
+                        {{ conversation_request.title }}
+                    </a>
+                </h5>
                 {% if conversation_request.description %}
                     <p class="card-text mb-2">{{ conversation_request.description }}</p>
                 {% endif %}
