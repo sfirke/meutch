@@ -7,18 +7,26 @@
     <div class="d-flex align-items-start">
         <!-- User Avatar -->
         <div class="request-avatar me-3 flex-shrink-0">
-            <a href="{{ url_for('main.user_profile', user_id=req.user.id) if not is_own else url_for('main.profile') }}">
+            {% if is_fulfilled %}
                 <img src="{{ req.user.profile_image }}" alt="{{ req.user.full_name }}" class="rounded-circle" width="48" height="48">
-            </a>
+            {% else %}
+                <a href="{{ url_for('main.user_profile', user_id=req.user.id) if not is_own else url_for('main.profile') }}">
+                    <img src="{{ req.user.profile_image }}" alt="{{ req.user.full_name }}" class="rounded-circle" width="48" height="48">
+                </a>
+            {% endif %}
         </div>
 
         <!-- Content -->
         <div class="flex-grow-1 min-width-0">
             <div class="d-flex justify-content-between align-items-start mb-1">
                 <div>
-                    <a href="{{ url_for('main.user_profile', user_id=req.user.id) if not is_own else url_for('main.profile') }}" class="text-decoration-none">
+                    {% if is_fulfilled %}
                         <strong class="text-dark">{{ req.user.full_name }}</strong>
-                    </a>
+                    {% else %}
+                        <a href="{{ url_for('main.user_profile', user_id=req.user.id) if not is_own else url_for('main.profile') }}" class="text-decoration-none">
+                            <strong class="text-dark">{{ req.user.full_name }}</strong>
+                        </a>
+                    {% endif %}
                     <small class="text-muted ms-2" data-utc-time="{{ req.created_at.strftime('%Y-%m-%dT%H:%M:%SZ') if req.created_at else '' }}">
                         {{ req.created_at.strftime('%b %d, %Y') if req.created_at else '' }}
                     </small>
@@ -54,9 +62,13 @@
             <h5 class="mb-1">
                 {% if is_fulfilled %}<i class="fas fa-check-circle text-success me-1" title="Fulfilled"></i>{% endif %}
                 {% if is_expired and not is_fulfilled %}<i class="fas fa-clock text-muted me-1" title="Expired"></i>{% endif %}
-                <a href="{{ url_for('requests.detail', request_id=req.id) }}" class="text-decoration-none {% if is_fulfilled %}text-muted{% else %}text-dark{% endif %}">
-                    {{ req.title }}
-                </a>
+                {% if is_fulfilled %}
+                    <span class="text-muted">{{ req.title }}</span>
+                {% else %}
+                    <a href="{{ url_for('requests.detail', request_id=req.id) }}" class="text-decoration-none text-dark">
+                        {{ req.title }}
+                    </a>
+                {% endif %}
             </h5>
 
             <!-- Description -->
