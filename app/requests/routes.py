@@ -1,11 +1,10 @@
 """Routes for the Requests (community asks) blueprint."""
 from datetime import datetime, UTC, timedelta
-from dateutil.relativedelta import relativedelta
 from flask import render_template, request, flash, redirect, url_for, abort, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, select
 from app import db
-from app.models import ItemRequest, Message, User
+from app.models import ItemRequest, User, Message
 from app.forms import ItemRequestForm, EmptyForm, MessageForm
 from app.requests import bp as requests_bp
 from app.utils.pagination import ListPagination
