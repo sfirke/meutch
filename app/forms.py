@@ -2,7 +2,7 @@ from flask_wtf import FlaskForm
 from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField, FloatField, RadioField, FieldList, FormField
 from flask_wtf.file import FileField, FileAllowed
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError, NumberRange, URL
-from app.models import Category, User
+from app.models import Category, User, ItemRequest
 from datetime import datetime
 
 def OptionalURL(message=None):
@@ -605,19 +605,12 @@ class ItemRequestForm(FlaskForm):
         DataRequired(message="Please select an expiration date.")
     ])
     seeking = SelectField('What are you looking for?',
-        choices=[
-            ('either', 'Loan or Giveaway'),
-            ('loan', 'Loan Only'),
-            ('giveaway', 'Giveaway Only'),
-        ],
+        choices=ItemRequest.SEEKING_CHOICES,
         default='either',
         validators=[DataRequired()]
     )
     visibility = SelectField('Who can see this?',
-        choices=[
-            ('circles', 'My Circles'),
-            ('public', 'Public'),
-        ],
+        choices=ItemRequest.VISIBILITY_CHOICES,
         default='circles',
         validators=[DataRequired()]
     )
