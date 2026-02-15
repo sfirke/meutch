@@ -2,7 +2,7 @@
 from datetime import datetime, UTC, timedelta
 from flask import render_template, request, flash, redirect, url_for, abort, current_app
 from flask_login import login_required, current_user
-from sqlalchemy import or_, and_, select
+from sqlalchemy import or_, and_
 from app import db
 from app.models import ItemRequest, User, Message
 from app.forms import ItemRequestForm, EmptyForm, MessageForm
