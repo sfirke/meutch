@@ -89,11 +89,9 @@ class TestRequestsFeedFiltering:
         with app.app_context():
             user = auth_user()
             other_user = UserFactory()
-            # Put each user in a circle (not shared)
-            circle1 = CircleFactory()
-            circle1.members.append(user)
-            circle2 = CircleFactory()
-            circle2.members.append(other_user)
+            # User needs to be in a circle to access the feed
+            circle = CircleFactory()
+            circle.members.append(user)
             db.session.commit()
 
             ItemRequestFactory(
@@ -114,8 +112,7 @@ class TestRequestsFeedFiltering:
             user = auth_user()
             other_user = UserFactory()
             circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(other_user)
+            circle.members.extend([user, other_user])
             db.session.commit()
 
             ItemRequestFactory(
@@ -137,8 +134,7 @@ class TestRequestsFeedFiltering:
             user = auth_user()
             other_user = UserFactory()
             circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(other_user)
+            circle.members.extend([user, other_user])
             db.session.commit()
 
             ItemRequestFactory(
@@ -161,8 +157,7 @@ class TestRequestsFeedFiltering:
             user = auth_user()
             other_user = UserFactory()
             circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(other_user)
+            circle.members.extend([user, other_user])
             db.session.commit()
 
             ItemRequestFactory(
@@ -185,8 +180,7 @@ class TestRequestsFeedFiltering:
             user = auth_user()
             other_user = UserFactory()
             circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(other_user)
+            circle.members.extend([user, other_user])
             db.session.commit()
 
             ItemRequestFactory(
@@ -208,8 +202,7 @@ class TestRequestsFeedFiltering:
             user = auth_user()
             other_user = UserFactory(vacation_mode=True)
             circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(other_user)
+            circle.members.extend([user, other_user])
             db.session.commit()
 
             ItemRequestFactory(
@@ -249,12 +242,9 @@ class TestRequestsFeedFiltering:
             nearby_user = UserFactory(latitude=40.7300, longitude=-74.0000)  # Very close to NYC
             far_user = UserFactory(latitude=34.0522, longitude=-118.2437)    # Los Angeles
 
+            # User needs to be in a circle to access the feed
             circle = CircleFactory()
             circle.members.append(user)
-            circle2 = CircleFactory()
-            circle2.members.append(nearby_user)
-            circle3 = CircleFactory()
-            circle3.members.append(far_user)
             db.session.commit()
 
             ItemRequestFactory(user=nearby_user, title='Nearby request', visibility='public')
