@@ -1,6 +1,7 @@
 """Integration tests for requests routes."""
 import pytest
 from datetime import datetime, UTC, timedelta
+from unittest.mock import patch
 from app import db
 from app.models import ItemRequest, Circle, Message
 from tests.factories import UserFactory, ItemRequestFactory, CircleFactory, MessageFactory
@@ -628,3 +629,116 @@ class TestRequestNavigation:
         response = client.get('/')
         assert response.status_code == 200
         assert b'hand-holding-heart' not in response.data
+
+
+class TestRequestEmailNotifications:
+    """Test email notifications for request-related messages."""
+
+    def test_start_conversation_sends_email_notification(self, client, app):
+        """Test that starting a conversation on a request sends an email notification to the requester."""
+        with app.app_context():
+            requester = UserFactory(email='requester@test.com')
+            helper = UserFactory(email='helper@test.com')
+            item_request = ItemRequestFactory(
+                user=requester,
+                title='Need a melon baller',
+                visibility='public',
+            )
+            db.session.commit()
+
+            login_user(client, helper.email)
+
+            # Patch the email sending function
+            with patch('app.utils.email.send_email') as mock_send_email:
+                mock_send_email.return_value = True
+
+                response = client.post(
+                    f'/requests/{item_request.id}/conversation',
+                    data={'body': 'I have one you can borrow!'},
+                    follow_redirects=True,
+                )
+
+                assert response.status_code == 200
+                assert b'Your message has been sent.' in response.data
+
+                # Verify email was sent
+                mock_send_email.assert_called_once()
+                call_args = mock_send_email.call_args
+                assert call_args[0][0] == requester.email  # to_email
+                assert 'Meutch - New Message about request: Need a melon baller' in call_args[0][1]  # subject
+                assert 'I have one you can borrow!' in call_args[0][2]  # message body
+
+    def test_reply_to_request_conversation_sends_email(self, client, app):
+        """Test that replying in a request conversation thread sends email notification."""
+        with app.app_context():
+            requester = UserFactory(email='requester@test.com')
+            helper = UserFactory(email='helper@test.com')
+            item_request = ItemRequestFactory(
+                user=requester,
+                title='Need a hammer drill',
+                visibility='public',
+            )
+            initial_message = MessageFactory(
+                sender=helper,
+                recipient=requester,
+                item=None,
+                request=item_request,
+                body='I have one you can borrow!',
+            )
+            db.session.commit()
+
+            login_user(client, requester.email)
+
+            # Patch the email sending function
+            with patch('app.utils.email.send_email') as mock_send_email:
+                mock_send_email.return_value = True
+
+                response = client.post(
+                    f'/message/{initial_message.id}',
+                    data={'body': 'Great! When can I pick it up?'},
+                    follow_redirects=True,
+                )
+
+                assert response.status_code == 200
+
+                # Verify email was sent to the helper
+                mock_send_email.assert_called_once()
+                call_args = mock_send_email.call_args
+                assert call_args[0][0] == helper.email  # to_email (the other participant)
+                assert 'Meutch - New Message about request: Need a hammer drill' in call_args[0][1]  # subject
+                assert 'Great! When can I pick it up?' in call_args[0][2]  # message body
+
+    def test_request_message_email_includes_context(self, client, app):
+        """Test that request message emails properly identify the request context."""
+        with app.app_context():
+            requester = UserFactory(email='requester@test.com', first_name='Alice')
+            helper = UserFactory(email='helper@test.com', first_name='Bob')
+            item_request = ItemRequestFactory(
+                user=requester,
+                title='Looking for a soldering iron',
+                visibility='public',
+            )
+            db.session.commit()
+
+            login_user(client, helper.email)
+
+            with patch('app.utils.email.send_email') as mock_send_email:
+                mock_send_email.return_value = True
+
+                response = client.post(
+                    f'/requests/{item_request.id}/conversation',
+                    data={'body': 'I have a soldering iron!'},
+                    follow_redirects=True,
+                )
+
+                assert response.status_code == 200
+
+                mock_send_email.assert_called_once()
+                call_args = mock_send_email.call_args
+                text_content = call_args[0][2]  # text_content argument
+
+                # Verify the email includes request-specific context
+                assert 'Looking for a soldering iron' in text_content  # request title
+                assert 'Bob' in text_content  # helper's first name
+                assert 'I have a soldering iron!' in text_content  # message body
+                assert 'view_conversation' in call_args[0][3] or 'conversation' in text_content  # has link
