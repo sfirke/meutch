@@ -1859,7 +1859,7 @@ def messages():
             other_user = db.session.get(User, convo.sender_id)
         
         # Calculate unread messages where current_user is the recipient
-        if convo.item_id is not None:
+        if not convo.is_request_message:
             target_filter = and_(
                 Message.item_id == convo.item_id,
                 Message.request_id.is_(None),
@@ -1907,19 +1907,16 @@ def view_conversation(message_id):
         flash("You do not have permission to view this message.", "danger")
         return redirect(url_for('main.messages'))
     
-    if message.item_id is not None:
+    if not message.is_request_message:
         target_filter = and_(
             Message.item_id == message.item_id,
             Message.request_id.is_(None),
         )
-    elif message.request_id is not None:
+    else:
         target_filter = and_(
             Message.request_id == message.request_id,
             Message.item_id.is_(None),
         )
-    else:
-        flash("This conversation is missing required context.", "danger")
-        return redirect(url_for('main.messages'))
 
     # Fetch thread messages
     thread_messages = Message.query.filter(
@@ -1968,7 +1965,7 @@ def view_conversation(message_id):
 
     # Find active loan request for this conversation (pending or approved)
     active_loan = None
-    if message.item_id is not None:
+    if not message.is_request_message:
         for msg in thread_messages:
             if msg.loan_request and msg.loan_request.status in ['pending', 'approved']:
                 active_loan = msg.loan_request
@@ -1982,6 +1979,7 @@ def view_conversation(message_id):
             recipient_id=other_user.id,
             item_id=message.item_id,
             request_id=message.request_id,
+
             body=form.body.data,
             is_read=False,
             parent_id=message.id
