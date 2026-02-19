@@ -20,8 +20,8 @@
                             <a href="{{ url_for('main.user_profile', user_id=item_request.user.id) if item_request.user_id != current_user.id else url_for('main.profile') }}" class="text-decoration-none">
                                 <strong class="text-dark fs-5">{{ item_request.user.full_name }}</strong>
                             </a>
-                            <div class="text-muted small" data-utc-time="{{ item_request.created_at.strftime('%Y-%m-%dT%H:%M:%SZ') if item_request.created_at else '' }}">
-                                Posted {{ item_request.created_at.strftime('%B %d, %Y') if item_request.created_at else '' }}
+                            <div class="text-muted small">
+                                Posted {{ item_request.created_at|utc_timestamp('date') if item_request.created_at else '' }}
                             </div>
                         </div>
                     </div>
@@ -120,8 +120,8 @@
                                             <strong class="d-block">{{ conv.other_user.full_name }}</strong>
                                             <small class="text-muted d-block text-truncate">{{ conv.latest_message.body|truncate(100) }}</small>
                                         </div>
-                                        <small class="text-muted flex-shrink-0 ms-2" data-utc-time="{{ conv.latest_message.timestamp.strftime('%Y-%m-%dT%H:%M:%SZ') if conv.latest_message.timestamp else '' }}">
-                                            {{ conv.latest_message.timestamp.strftime('%b %d') if conv.latest_message.timestamp else '' }}
+                                        <small class="text-muted flex-shrink-0 ms-2">
+                                            {{ conv.latest_message.timestamp|utc_timestamp('message') if conv.latest_message.timestamp else '' }}
                                         </small>
                                     </div>
                                 </a>

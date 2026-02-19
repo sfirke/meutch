@@ -27,8 +27,8 @@
                             <strong class="text-dark">{{ req.user.full_name }}</strong>
                         </a>
                     {% endif %}
-                    <small class="text-muted ms-2" data-utc-time="{{ req.created_at.strftime('%Y-%m-%dT%H:%M:%SZ') if req.created_at else '' }}">
-                        {{ req.created_at.strftime('%b %d, %Y') if req.created_at else '' }}
+                    <small class="text-muted ms-2">
+                        {{ req.created_at|utc_timestamp('date') if req.created_at else '' }}
                     </small>
                 </div>
                 {% if is_own %}
