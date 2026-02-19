@@ -130,10 +130,13 @@ def send_message_notification_email(message):
     conversation_url = url_for('main.view_conversation', message_id=message.id, _external=True)
     
     context_label = None
+    context_type_label = None  # User-facing label for email
     if message.item is not None:
         context_label = message.item.name
+        context_type_label = f"Item: {message.item.name}"
     elif message.request is not None:
         context_label = f"request: {message.request.title}"
+        context_type_label = f"Request: {message.request.title}"
     else:
         current_app.logger.error(f"Message {message.id} has no item or request context")
         return False
@@ -172,7 +175,7 @@ Hello {recipient.first_name},
 
 You have received a new {email_type} on Meutch from {sender.first_name} {sender.last_name}.
 
-Context: {context_label}
+{context_type_label}
 From: {sender.first_name} {sender.last_name}
 
 Message:
@@ -195,7 +198,7 @@ The Meutch Team
         
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p><strong>From:</strong> {sender.first_name} {sender.last_name}</p>
-            <p><strong>Context:</strong> {context_label}</p>
+            <p>{context_type_label}</p>
         </div>
         
         <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">
