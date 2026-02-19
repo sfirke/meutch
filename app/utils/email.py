@@ -134,7 +134,7 @@ def send_message_notification_email(message):
     if message.item is not None:
         context_label = message.item.name
         context_type_label = f"Item: {message.item.name}"
-    elif message.request is not None:
+    elif message.is_request_message:
         context_label = f"request: {message.request.title}"
         context_type_label = f"Request: {message.request.title}"
     else:
