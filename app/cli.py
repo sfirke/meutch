@@ -15,8 +15,10 @@ import os
 import random
 from datetime import datetime, UTC, timedelta
 from flask.cli import with_appcontext
-
-
+from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, Feedback, CircleJoinRequest, ItemRequest, UserWebLink, GiveawayInterest
+from app import db
+from urllib.parse import urlparse
+    
 @click.group()
 def seed():
     """Database seeding commands."""
@@ -28,7 +30,6 @@ def seed():
 @with_appcontext
 def data(env):
     """Seed database with data for specified environment."""
-    from app import db
     
     click.echo(f"🌱 Seeding {env} database...")
     
@@ -54,12 +55,7 @@ def data(env):
 @with_appcontext
 def clear():
     """Clear all data from database (keep tables)."""
-    from app import db
-    from app.models import (
-        User, Item, Category, Circle, Tag, LoanRequest, Message, 
-        Feedback, CircleJoinRequest, ItemRequest
-    )
-    
+
     if os.environ.get('FLASK_ENV') == 'production':
         click.echo('❌ Cannot clear production database!')
         return
@@ -107,12 +103,7 @@ def clear():
 @with_appcontext
 def status():
     """Show database record counts."""
-    from app import db
-    from app.models import (
-        User, Item, Category, Circle, Tag, LoanRequest, Message, 
-        Feedback, CircleJoinRequest, ItemRequest
-    )
-    
+
     models = [
         ('Users', User),
         ('Items', Item), 
@@ -150,8 +141,6 @@ def status():
 @with_appcontext
 def seed_requests():
     """Seed sample ItemRequests and request conversations for development."""
-    from app import db
-    from app.models import User, ItemRequest, Message
 
     # Check existing count (idempotent: skip if >=10 requests already)
     existing_count = ItemRequest.query.count()
@@ -239,9 +228,7 @@ def seed_requests():
 
 def _seed_basic_data():
     """Seed basic categories only for production (idempotent)."""
-    from app import db
-    from app.models import Category
-    
+
     categories = ['Electronics', 'Books', 'Tools', 'Kitchen', 'Sports', 'Clothing', 'Home & Garden', 'Toys']
     
     for name in categories:
@@ -256,9 +243,6 @@ def _seed_basic_data():
 
 def _seed_development_data():
     """Seed rich development data (idempotent)."""
-    from app import db
-    from app.models import User, Category, Tag, Circle, Item, LoanRequest, Message, UserWebLink
-    import random
     
     click.echo('Creating development data...')
     
@@ -499,7 +483,6 @@ def _seed_development_data():
                     ).first()
                     
                     if not existing_request:
-                        from datetime import date, timedelta
                         
                         # Generate realistic loan dates
                         start_date = date.today() + timedelta(days=random.randint(1, 14))
@@ -541,7 +524,6 @@ def _seed_development_data():
         click.echo(f"  ≈ Messages exist: {existing_messages} records")
 
     # Giveaway items (create sample giveaway items if none exist)
-    from app.models import GiveawayInterest
     existing_giveaways = Item.query.filter_by(is_giveaway=True).count()
     if existing_giveaways < 5:
         click.echo('  Creating giveaway items...')
@@ -692,7 +674,6 @@ def _seed_development_data():
             
             # If status is claimed, mark as claimed with timestamp
             elif giveaway_data['status'] == 'claimed':
-                from datetime import datetime, UTC, timedelta
                 
                 # Find the claimed_by user (can be specified or random)
                 if 'claimed_by_email' in giveaway_data:
@@ -769,8 +750,6 @@ def _seed_development_data():
 
 def _get_database_info():
     """Get readable database information for user display."""
-    import os
-    from urllib.parse import urlparse
     
     db_url = os.environ.get('DATABASE_URL', '')
     
@@ -830,8 +809,7 @@ def check_loan_reminders_logic():
     
     Returns a dict with statistics about emails sent.
     """
-    from app import db
-    from app.models import LoanRequest
+
     from app.utils.email import (
         send_loan_due_soon_email,
         send_loan_due_today_borrower_email,
@@ -839,7 +817,6 @@ def check_loan_reminders_logic():
         send_loan_overdue_borrower_email,
         send_loan_overdue_owner_email
     )
-    from datetime import date, datetime, UTC
     
     today = date.today()
     
@@ -940,8 +917,6 @@ def user():
 @with_appcontext
 def promote_admin(email):
     """Promote a user to admin status."""
-    from app import db
-    from app.models import User
     
     # Find user by email (case-insensitive)
     user = User.query.filter(User.email.ilike(email)).first()
@@ -974,9 +949,6 @@ def promote_admin(email):
 @with_appcontext
 def demote_admin(email):
     """Remove admin status from a user."""
-    from app import db
-    from app.models import User
-    
     # Find user by email (case-insensitive)
     user = User.query.filter(User.email.ilike(email)).first()
     
@@ -1004,8 +976,6 @@ def demote_admin(email):
 @with_appcontext
 def enable_showcase(email):
     """Enable public showcase for a user's items (visible to unauthenticated visitors)."""
-    from app import db
-    from app.models import User
     
     # Find user by email (case-insensitive)
     user = User.query.filter(User.email.ilike(email)).first()
@@ -1038,9 +1008,6 @@ def enable_showcase(email):
 @with_appcontext
 def disable_showcase(email):
     """Disable public showcase for a user's items."""
-    from app import db
-    from app.models import User
-    
     # Find user by email (case-insensitive)
     user = User.query.filter(User.email.ilike(email)).first()
     
