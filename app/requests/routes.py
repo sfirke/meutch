@@ -31,9 +31,6 @@ def feed():
         ItemRequest.status != 'deleted',
     ).order_by(ItemRequest.created_at.desc()).all()
 
-    # Show all non-deleted requests in My Requests section (PR4: owner dashboard shows all)
-    # Already filtered to status != 'deleted' above
-
     # Build the base query for others' requests
     base_query = ItemRequest.query.join(User, ItemRequest.user_id == User.id).filter(
         ItemRequest.user_id != current_user.id,
