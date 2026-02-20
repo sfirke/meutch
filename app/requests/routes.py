@@ -22,13 +22,26 @@ def feed():
 
     now = datetime.now(UTC)
     seven_days_ago = now - timedelta(days=7)
+    ninety_days_ago = now - timedelta(days=90)
 
     has_circles = len(current_user.circles) > 0
 
-    # My own requests (open or recently fulfilled) — always shown at top
+    # My own requests (open, recently fulfilled, or recently expired within 90 days) — always shown at top
     my_requests = ItemRequest.query.filter(
         ItemRequest.user_id == current_user.id,
         ItemRequest.status != 'deleted',
+        or_(
+            # Open and not expired, or expired within the last 90 days
+            and_(
+                ItemRequest.status == 'open',
+                ItemRequest.expires_at > ninety_days_ago,
+            ),
+            # Fulfilled within the last 90 days
+            and_(
+                ItemRequest.status == 'fulfilled',
+                ItemRequest.fulfilled_at > ninety_days_ago,
+            ),
+        ),
     ).order_by(ItemRequest.created_at.desc()).all()
 
     # Build the base query for others' requests

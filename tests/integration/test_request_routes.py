@@ -130,7 +130,7 @@ class TestRequestsFeedFiltering:
             assert b'Expired request' not in response.data
 
     def test_feed_shows_recently_fulfilled_requests(self, client, app, auth_user):
-        """Test that fulfilled requests within 7 days are shown."""
+        """Test that fulfilled requests from others within 7 days are shown."""
         with app.app_context():
             user = auth_user()
             other_user = UserFactory()
@@ -153,7 +153,7 @@ class TestRequestsFeedFiltering:
             assert b'Got my screwdriver' in response.data
 
     def test_feed_hides_old_fulfilled_requests(self, client, app, auth_user):
-        """Test that fulfilled requests older than 7 days are hidden."""
+        """Test that fulfilled requests from others older than 7 days are hidden."""
         with app.app_context():
             user = auth_user()
             other_user = UserFactory()
@@ -174,6 +174,46 @@ class TestRequestsFeedFiltering:
             response = client.get('/requests/')
             assert response.status_code == 200
             assert b'Old fulfilled request' not in response.data
+
+    def test_feed_shows_own_request_within_90_days(self, client, app, auth_user):
+        """Test that user's own fulfilled requests within 90 days are shown."""
+        with app.app_context():
+            user = auth_user()
+            db.session.commit()
+
+            ItemRequestFactory(
+                user=user,
+                title='My request from 30 days ago',
+                visibility='circles',
+                status='fulfilled',
+                fulfilled_at=datetime.now(UTC) - timedelta(days=30),
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/requests/?scope=circles')
+            assert response.status_code == 200
+            assert b'My request from 30 days ago' in response.data
+
+    def test_feed_shows_own_expired_request_within_90_days(self, client, app, auth_user):
+        """Test that user's own expired requests within 90 days are shown."""
+        with app.app_context():
+            user = auth_user()
+            db.session.commit()
+
+            ItemRequestFactory(
+                user=user,
+                title='My request that expired 30 days ago',
+                visibility='circles',
+                status='open',
+                expires_at=datetime.now(UTC) - timedelta(days=30),
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/requests/?scope=circles')
+            assert response.status_code == 200
+            assert b'My request that expired 30 days ago' in response.data
 
     def test_feed_hides_deleted_requests(self, client, app, auth_user):
         """Test that deleted requests are never shown."""
