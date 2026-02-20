@@ -13,7 +13,7 @@ Production environment only creates basic categories and tags.
 import click
 import os
 import random
-from datetime import datetime, UTC, timedelta
+from datetime import date, datetime, UTC, timedelta
 from flask.cli import with_appcontext
 from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, Feedback, CircleJoinRequest, ItemRequest, UserWebLink, GiveawayInterest
 from app import db
@@ -137,93 +137,7 @@ def status():
     click.echo(f'{"Total":15}: {total:5} records')
 
 
-@seed.command('requests')
-@with_appcontext
-def seed_requests():
-    """Seed sample ItemRequests and request conversations for development."""
 
-    # Check existing count (idempotent: skip if >=10 requests already)
-    existing_count = ItemRequest.query.count()
-    if existing_count >= 10:
-        click.echo(f'  ≈ Requests already seeded ({existing_count} found), skipping.')
-        return
-
-    # Find dev users
-    users = User.query.filter(User.email.like('user%@example.com')).all()
-    if len(users) < 4:
-        click.echo('❌ Dev users not found. Run `flask seed data` first.')
-        return
-
-    now = datetime.now(UTC)
-
-    request_data = [
-        # (owner_idx, title, description, seeking, visibility, expires_delta_days, status, fulfilled_days_ago)
-        (0, 'Looking for a melon baller', 'Need it for a summer party, just for the weekend.', 'loan', 'circles', 14, 'open', None),
-        (1, 'Small piece of drywall', 'About 2x2 feet. Patching a hole, don\'t want to buy a whole sheet.', 'giveaway', 'public', 30, 'open', None),
-        (2, 'Folding table for one week', 'Need a 6-foot folding table for a garage sale next weekend.', 'loan', 'circles', 21, 'open', None),
-        (3, 'Stand mixer (KitchenAid or similar)', 'I want to try making bread. Would love to borrow one for a few days.', 'loan', 'public', 45, 'open', None),
-        (4, 'Kids bike 20" wheel', 'My nephew is visiting for two weeks, needs a bike to get around.', 'either', 'circles', 60, 'open', None),
-        (5, 'Carpet cleaner / steam cleaner', None, 'loan', 'public', 30, 'open', None),
-        (6, 'Camping tent 4-person', 'Going camping next month, only need it once.', 'loan', 'circles', 40, 'open', None),
-        (7, 'Electric drill with bits', 'Working on a small home project, just need it for a day.', 'loan', 'public', 20, 'open', None),
-        (8, 'Canning jars (any size)', 'Making jam and ran out — dozen or so would be great.', 'giveaway', 'circles', 30, 'open', None),
-        (9, 'Bread machine', 'Curious to try it before buying.', 'loan', 'public', 25, 'open', None),
-        (10, 'Extension ladder 20ft+', 'Need to clean gutters. Would borrow for a weekend.', 'loan', 'circles', 35, 'open', None),
-        (0, 'Box of packing materials', 'Bubble wrap, boxes, peanuts — whatever you have!', 'giveaway', 'public', 10, 'open', None),
-        (1, 'Baby swing or bouncer', 'Friend is visiting with an infant. Just for a week.', 'loan', 'circles', 50, 'open', None),
-        # One fulfilled recently
-        (2, 'Hedge trimmer', 'Needed to tame the bushes!', 'loan', 'circles', 60, 'fulfilled', 3),
-        # One nearly expired
-        (3, 'Portable projector', 'For outdoor movie night.', 'loan', 'public', 2, 'open', None),
-    ]
-
-    created = 0
-    for (owner_idx, title, desc, seeking, visibility, delta_days, status, fulfilled_days_ago) in request_data:
-        owner = users[owner_idx % len(users)]
-        expires_at = now + timedelta(days=delta_days)
-        fulfilled_at = (now - timedelta(days=fulfilled_days_ago)) if fulfilled_days_ago else None
-
-        req = ItemRequest(
-            user_id=owner.id,
-            title=title,
-            description=desc,
-            expires_at=expires_at,
-            seeking=seeking,
-            visibility=visibility,
-            status=status,
-            fulfilled_at=fulfilled_at,
-        )
-        db.session.add(req)
-        db.session.flush()
-        created += 1
-        click.echo(f'  ✓ Request [{status}]: "{title}" by {owner.email}')
-
-    # Add a few request-linked conversation messages
-    # Pick a few open requests and have another user reach out
-    open_requests = [r for r in ItemRequest.query.all() if r.status == 'open']
-    convo_count = 0
-    for i, req in enumerate(open_requests[:4]):
-        # Use a different user as the "helper"
-        helper = next((u for u in users if u.id != req.user_id), None)
-        if helper:
-            msg = Message(
-                sender_id=helper.id,
-                recipient_id=req.user_id,
-                item_id=None,
-                request_id=req.id,
-                body=random.choice([
-                    f"Hi! I have a {req.title.lower()} you can borrow. Let me know when works.",
-                    f"I think I can help with this! I have one you can use.",
-                    f"Happy to help — I've got one sitting in my garage.",
-                    f"Reach out if you still need this, I can lend mine.",
-                ]),
-                is_read=False,
-            )
-            db.session.add(msg)
-            convo_count += 1
-
-    db.session.commit()
-    click.echo(f'✅ Created {created} requests and {convo_count} conversations.')
 
 
 def _seed_basic_data():
@@ -746,6 +660,98 @@ def _seed_development_data():
                     click.echo(f"  ✓ Web link: {user.email} -> {link_data['platform']} ({link_data['url']})")
     else:
         click.echo(f"  ≈ Web links exist: {existing_web_links} records")
+    
+    # Seed item requests
+    click.echo('Creating item requests...')
+    _seed_requests(users)
+
+
+def _seed_requests(users):
+    """Seed sample ItemRequests and request conversations for development.
+    
+    Args:
+        users: List of User objects to create requests for
+    """
+
+    # Check existing count (idempotent: skip if >=10 requests already)
+    existing_count = ItemRequest.query.count()
+    if existing_count >= 10:
+        click.echo(f'  ≈ Requests already seeded ({existing_count} found), skipping.')
+        return
+
+    if len(users) < 4:
+        click.echo('❌ Insufficient users for requests.')
+        return
+
+    now = datetime.now(UTC)
+
+    request_data = [
+        # (owner_idx, title, description, seeking, visibility, expires_delta_days, status, fulfilled_days_ago)
+        (0, 'Looking for a melon baller', 'Need it for a summer party, just for the weekend.', 'loan', 'circles', 14, 'open', None),
+        (1, 'Small piece of drywall', 'About 2x2 feet. Patching a hole, don\'t want to buy a whole sheet.', 'giveaway', 'public', 30, 'open', None),
+        (2, 'Folding table for one week', 'Need a 6-foot folding table for a garage sale next weekend.', 'loan', 'circles', 21, 'open', None),
+        (3, 'Stand mixer (KitchenAid or similar)', 'I want to try making bread. Would love to borrow one for a few days.', 'loan', 'public', 45, 'open', None),
+        (4, 'Kids bike 20" wheel', 'My nephew is visiting for two weeks, needs a bike to get around.', 'either', 'circles', 60, 'open', None),
+        (5, 'Carpet cleaner / steam cleaner', None, 'loan', 'public', 30, 'open', None),
+        (6, 'Camping tent 4-person', 'Going camping next month, only need it once.', 'loan', 'circles', 40, 'open', None),
+        (7, 'Electric drill with bits', 'Working on a small home project, just need it for a day.', 'loan', 'public', 20, 'open', None),
+        (8, 'Canning jars (any size)', 'Making jam and ran out — dozen or so would be great.', 'giveaway', 'circles', 30, 'open', None),
+        (9, 'Bread machine', 'Curious to try it before buying.', 'loan', 'public', 25, 'open', None),
+        (10, 'Extension ladder 20ft+', 'Need to clean gutters. Would borrow for a weekend.', 'loan', 'circles', 35, 'open', None),
+        (0, 'Box of packing materials', 'Bubble wrap, boxes, peanuts — whatever you have!', 'giveaway', 'public', 10, 'open', None),
+        (1, 'Baby swing or bouncer', 'Friend is visiting with an infant. Just for a week.', 'loan', 'circles', 50, 'open', None),
+        # One fulfilled recently
+        (2, 'Hedge trimmer', 'Needed to tame the bushes!', 'loan', 'circles', 60, 'fulfilled', 3),
+        # One nearly expired
+        (3, 'Portable projector', 'For outdoor movie night.', 'loan', 'public', 2, 'open', None),
+    ]
+
+    created = 0
+    for (owner_idx, title, desc, seeking, visibility, delta_days, status, fulfilled_days_ago) in request_data:
+        owner = users[owner_idx % len(users)]
+        expires_at = now + timedelta(days=delta_days)
+        fulfilled_at = (now - timedelta(days=fulfilled_days_ago)) if fulfilled_days_ago else None
+
+        req = ItemRequest(
+            user_id=owner.id,
+            title=title,
+            description=desc,
+            expires_at=expires_at,
+            seeking=seeking,
+            visibility=visibility,
+            status=status,
+            fulfilled_at=fulfilled_at,
+        )
+        db.session.add(req)
+        db.session.flush()
+        created += 1
+        click.echo(f'  ✓ Request [{status}]: "{title}" by {owner.email}')
+
+    # Add a few request-linked conversation messages
+    # Pick a few open requests and have another user reach out
+    open_requests = [r for r in ItemRequest.query.all() if r.status == 'open']
+    convo_count = 0
+    for i, req in enumerate(open_requests[:4]):
+        # Use a different user as the "helper"
+        helper = next((u for u in users if u.id != req.user_id), None)
+        if helper:
+            msg = Message(
+                sender_id=helper.id,
+                recipient_id=req.user_id,
+                item_id=None,
+                request_id=req.id,
+                body=random.choice([
+                    f"Hi! I have a {req.title.lower()} you can borrow. Let me know when works.",
+                    f"I think I can help with this! I have one you can use.",
+                    f"Happy to help — I've got one sitting in my garage.",
+                    f"Reach out if you still need this, I can lend mine.",
+                ]),
+                is_read=False,
+            )
+            db.session.add(msg)
+            convo_count += 1
+
+    click.echo(f'  ✅ Created {created} requests and {convo_count} conversations.')
 
 
 def _get_database_info():
