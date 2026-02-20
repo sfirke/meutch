@@ -4,13 +4,21 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ## Feb 2026
 
-- Add "vacation mode" toggle to user profile ([#147]). When enabled, it hides user's items from being discovered (existing loans persist).
-- Show the full image for an item (letterboxing as needed) by changing CSS attributes. Images are no longer arbitrarily cropped ([#171])
-- The admin panel no longer freezes on page load - there had been an infinite JavaScript loop ([#170])
+### Features
+
+**Major**
+- Implement user requests ([#192](https://github.com/sfirke/meutch/pull/192))
+- Add "vacation mode" toggle to user profile ([#147](https://github.com/sfirke/meutch/pull/147)). When enabled, it hides user's items from being discovered (existing loans persist).
+- Photo processing improvements: rotate, crop, zoom for uploaded photos; shared `notifications.js` for re-usable toast behavior ([#164](https://github.com/sfirke/meutch/pull/164)).
+
+**Minor**
+- Show the full image for an item (letterboxing as needed) by changing CSS attributes. Images are no longer arbitrarily cropped ([#171](https://github.com/sfirke/meutch/pull/171))
 - Add Open Graph and Twitter Card meta tags for link preview support ([#144](https://github.com/sfirke/meutch/pull/144)) — Link previews now include title, description, and image for better sharing on social and SMS.
 - Add drag & drop support for image uploads ([#143](https://github.com/sfirke/meutch/pull/143)) — Desktop users can drag images onto upload fields; accessibility and validation included.
-- Photo processing improvements: rotate, crop, zoom for uploaded photos; shared `notifications.js` for re-usable toast behavior ([#164](https://github.com/sfirke/meutch/pull/164)).
 - Add mobile keyboard auto-capitalization for item title fields ([#163](https://github.com/sfirke/meutch/pull/163)).
+
+### Fixes
+- The admin panel no longer freezes on page load - there had been an infinite JavaScript loop ([#170](https://github.com/sfirke/meutch/pull/170))
 - Speed up creation of seed data by caching hashed passwords ([#167](https://github.com/sfirke/meutch/pull/167)).
 
 ## Jan 2026

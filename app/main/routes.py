@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC, timedelta
 from app import db
-from app.models import Item, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
+from app.models import Item, ItemRequest, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm, VacationModeForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
@@ -1820,13 +1820,15 @@ def messages():
         func.least(Message.sender_id, Message.recipient_id).label('user1_id'),
         func.greatest(Message.sender_id, Message.recipient_id).label('user2_id'),
         Message.item_id,
+        Message.request_id,
         func.max(Message.timestamp).label('latest_timestamp')
     ).filter(
         or_(Message.sender_id == current_user.id, Message.recipient_id == current_user.id)
     ).group_by(
         func.least(Message.sender_id, Message.recipient_id),
         func.greatest(Message.sender_id, Message.recipient_id),
-        Message.item_id
+        Message.item_id,
+        Message.request_id
     ).subquery()
 
     # Join the subquery with the Message table to get the latest message per conversation
@@ -1835,7 +1837,14 @@ def messages():
         and_(
             func.least(Message.sender_id, Message.recipient_id) == latest_messages_subquery.c.user1_id,
             func.greatest(Message.sender_id, Message.recipient_id) == latest_messages_subquery.c.user2_id,
-            Message.item_id == latest_messages_subquery.c.item_id,
+            or_(
+                and_(Message.item_id.is_(None), latest_messages_subquery.c.item_id.is_(None)),
+                Message.item_id == latest_messages_subquery.c.item_id,
+            ),
+            or_(
+                and_(Message.request_id.is_(None), latest_messages_subquery.c.request_id.is_(None)),
+                Message.request_id == latest_messages_subquery.c.request_id,
+            ),
             Message.timestamp == latest_messages_subquery.c.latest_timestamp
         )
     ).order_by(Message.timestamp.desc()).all()
@@ -1850,17 +1859,33 @@ def messages():
             other_user = db.session.get(User, convo.sender_id)
         
         # Calculate unread messages where current_user is the recipient
+        if not convo.is_request_message:
+            target_filter = and_(
+                Message.item_id == convo.item_id,
+                Message.request_id.is_(None),
+            )
+            item = db.session.get(Item, convo.item_id)
+            item_request = None
+        else:
+            target_filter = and_(
+                Message.request_id == convo.request_id,
+                Message.item_id.is_(None),
+            )
+            item = None
+            item_request = db.session.get(ItemRequest, convo.request_id)
+
         unread_count = Message.query.filter(
-            Message.item_id == convo.item_id,
+            target_filter,
             Message.recipient_id == current_user.id,
             Message.sender_id == other_user.id,
             Message.is_read == False
         ).count()
         
         conversation_summaries.append({
-            'conversation_id': f"{min(convo.sender_id, convo.recipient_id)}_{max(convo.sender_id, convo.recipient_id)}_{convo.item_id}",
+            'conversation_id': f"{min(convo.sender_id, convo.recipient_id)}_{max(convo.sender_id, convo.recipient_id)}_{convo.item_id}_{convo.request_id}",
             'other_user': other_user,
-            'item': db.session.get(Item, convo.item_id),
+            'item': item,
+            'item_request': item_request,
             'latest_message': convo,
             'unread_count': unread_count
         })
@@ -1882,13 +1907,24 @@ def view_conversation(message_id):
         flash("You do not have permission to view this message.", "danger")
         return redirect(url_for('main.messages'))
     
+    if not message.is_request_message:
+        target_filter = and_(
+            Message.item_id == message.item_id,
+            Message.request_id.is_(None),
+        )
+    else:
+        target_filter = and_(
+            Message.request_id == message.request_id,
+            Message.item_id.is_(None),
+        )
+
     # Fetch thread messages
     thread_messages = Message.query.filter(
-        Message.item_id == message.item_id,
+        target_filter,
         or_(
-            and_(Message.sender_id == message.sender_id, 
+            and_(Message.sender_id == message.sender_id,
                  Message.recipient_id == message.recipient_id),
-            and_(Message.sender_id == message.recipient_id, 
+            and_(Message.sender_id == message.recipient_id,
                  Message.recipient_id == message.sender_id)
         )
     ).order_by(Message.timestamp).all()
@@ -1899,7 +1935,7 @@ def view_conversation(message_id):
 
     # Mark messages as read, excluding pending loan requests that require action
     unread_messages = Message.query.filter(
-        Message.item_id == message.item_id,
+        target_filter,
         or_(
             and_(
                 Message.sender_id == message.sender_id,
@@ -1929,10 +1965,11 @@ def view_conversation(message_id):
 
     # Find active loan request for this conversation (pending or approved)
     active_loan = None
-    for msg in thread_messages:
-        if msg.loan_request and msg.loan_request.status in ['pending', 'approved']:
-            active_loan = msg.loan_request
-            break
+    if not message.is_request_message:
+        for msg in thread_messages:
+            if msg.loan_request and msg.loan_request.status in ['pending', 'approved']:
+                active_loan = msg.loan_request
+                break
 
     # Handle reply form
     form = MessageForm()
@@ -1941,6 +1978,8 @@ def view_conversation(message_id):
             sender_id=current_user.id,
             recipient_id=other_user.id,
             item_id=message.item_id,
+            request_id=message.request_id,
+
             body=form.body.data,
             is_read=False,
             parent_id=message.id

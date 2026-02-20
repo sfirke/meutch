@@ -10,6 +10,7 @@ from tests.factories import (
     LoanRequestFactory,
     CircleFactory,
     CircleJoinRequestFactory,
+    ItemRequestFactory,
 )
 from app.models import circle_members, db
 
@@ -252,6 +253,56 @@ class TestUnreadMessagesCount:
             with patch('app.context_processors.current_user', user):
                 result = inject_unread_messages_count()
                 assert result == {'unread_messages_count': 0}
+
+    def test_inject_unread_messages_count_request_messages(self, app):
+        """Test counting item request conversation messages."""
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            item_request = ItemRequestFactory(user=recipient)
+
+            # Create request conversation message (unread) - no item, just request
+            MessageFactory(sender=sender, recipient=recipient, item=None, request=item_request, is_read=False)
+
+            # Create another unread request message
+            MessageFactory(sender=sender, recipient=recipient, item=None, request=item_request, is_read=False)
+
+            # Create read request message (should not be counted)
+            MessageFactory(sender=sender, recipient=recipient, item=None, request=item_request, is_read=True)
+
+            with patch('app.context_processors.current_user', recipient):
+                result = inject_unread_messages_count()
+                # Should count both unread request messages
+                assert result == {'unread_messages_count': 2}
+
+    def test_inject_unread_messages_count_all_message_types(self, app):
+        """Test counting all message types together: items, loan requests, and requests."""
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+
+            # Regular item message
+            item = ItemFactory(owner=recipient)
+            MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
+
+            # Item request message (no item, just request)
+            item_request = ItemRequestFactory(user=recipient)
+            MessageFactory(sender=sender, recipient=recipient, item=None, request=item_request, is_read=False)
+
+            # Loan request message
+            loan_request = LoanRequestFactory(item=item, borrower=sender, status='pending')
+            MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                item=item,
+                loan_request=loan_request,
+                is_read=False
+            )
+
+            with patch('app.context_processors.current_user', recipient):
+                result = inject_unread_messages_count()
+                # Should count all three types of unread messages
+                assert result == {'unread_messages_count': 3}
 
 
 class TestDistanceUtils:

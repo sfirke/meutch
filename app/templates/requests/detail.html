@@ -1,0 +1,136 @@
+<!-- app/templates/requests/detail.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ item_request.title }} - Request{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <a href="{{ url_for('requests.feed') }}" class="btn btn-outline-secondary btn-sm mb-3">
+                <i class="fas fa-arrow-left me-1"></i>Back to Requests
+            </a>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <!-- Author info -->
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="{{ item_request.user.profile_image }}" alt="{{ item_request.user.full_name }}" class="rounded-circle me-3" width="56" height="56">
+                        <div>
+                            <a href="{{ url_for('main.user_profile', user_id=item_request.user.id) if item_request.user_id != current_user.id else url_for('main.profile') }}" class="text-decoration-none">
+                                <strong class="text-dark fs-5">{{ item_request.user.full_name }}</strong>
+                            </a>
+                            <div class="text-muted small">
+                                Posted {{ item_request.created_at|utc_timestamp('date') if item_request.created_at else '' }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Title -->
+                    <h3 class="mb-2">
+                        {% if item_request.is_fulfilled %}<i class="fas fa-check-circle text-success me-1"></i>{% endif %}
+                        {% if item_request.is_expired and not item_request.is_fulfilled %}<i class="fas fa-clock text-muted me-1"></i>{% endif %}
+                        {{ item_request.title }}
+                    </h3>
+
+                    <!-- Description -->
+                    {% if item_request.description %}
+                        <p class="mb-3 fs-5 {% if item_request.is_fulfilled %}text-muted{% endif %}">{{ item_request.description }}</p>
+                    {% endif %}
+
+                    <!-- Badges -->
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        {% if item_request.seeking == 'loan' %}
+                            <span class="badge bg-info"><i class="fas fa-handshake me-1"></i>Seeking Loan</span>
+                        {% elif item_request.seeking == 'giveaway' %}
+                            <span class="badge bg-success"><i class="fas fa-gift me-1"></i>Seeking Giveaway</span>
+                        {% else %}
+                            <span class="badge bg-secondary"><i class="fas fa-exchange-alt me-1"></i>Loan or Giveaway</span>
+                        {% endif %}
+
+                        {% if item_request.is_fulfilled %}
+                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>Fulfilled</span>
+                        {% elif item_request.is_expired %}
+                            <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Expired</span>
+                        {% endif %}
+
+                        {% if item_request.visibility == 'public' %}
+                            <span class="badge bg-light text-dark border"><i class="fas fa-globe me-1"></i>Public</span>
+                        {% else %}
+                            <span class="badge bg-light text-dark border"><i class="fas fa-users me-1"></i>Circles Only</span>
+                        {% endif %}
+
+                        {% if item_request.user_id != current_user.id and item_request.user.is_geocoded and current_user.is_geocoded %}
+                            {% set dist = get_distance_to_user(item_request.user) %}
+                            {% if dist %}
+                                <span class="badge bg-light text-dark border"><i class="fas fa-map-marker-alt me-1"></i>{{ dist }}</span>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+
+                    <!-- Expiration info -->
+                    {% if item_request.status == 'open' and not item_request.is_expired %}
+                        <p class="text-muted small"><i class="fas fa-hourglass-half me-1"></i>Expires {{ item_request.expires_at.strftime('%B %d, %Y') }}</p>
+                    {% endif %}
+
+                    {% if item_request.user_id != current_user.id and item_request.status == 'open' and not item_request.is_expired and (item_request.visibility == 'public' or current_user.shares_circle_with(item_request.user)) %}
+                        <div class="mb-3">
+                            <a href="{{ url_for('requests.conversation', request_id=item_request.id) }}" class="btn btn-outline-primary">
+                                <i class="fas fa-comment-dots me-1"></i>Message
+                            </a>
+                        </div>
+                    {% endif %}
+
+                    <!-- Owner actions -->
+                    {% if item_request.user_id == current_user.id %}
+                        <hr>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{{ url_for('requests.edit', request_id=item_request.id) }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-edit me-1"></i>Edit
+                            </a>
+                            {% if item_request.status == 'open' and not item_request.is_expired %}
+                                <form method="POST" action="{{ url_for('requests.fulfill', request_id=item_request.id) }}" class="d-inline">
+                                    {{ fulfill_form.hidden_tag() }}
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="fas fa-check-circle me-1"></i>Mark Fulfilled
+                                    </button>
+                                </form>
+                            {% endif %}
+                            <form method="POST" action="{{ url_for('requests.delete', request_id=item_request.id) }}" class="d-inline" onsubmit="return confirm('Remove this request?');">
+                                {{ delete_form.hidden_tag() }}
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="fas fa-trash me-1"></i>Delete
+                                </button>
+                            </form>
+                        </div>
+                    {% endif %}
+
+                    <!-- Conversations section (for request author) -->
+                    {% if item_request.user_id == current_user.id and conversations %}
+                        <hr>
+                        <h5 class="mb-3">
+                            <i class="fas fa-comments me-2"></i>Conversations
+                        </h5>
+                        <div class="list-group">
+                            {% for conv in conversations %}
+                                <a href="{{ url_for('main.view_conversation', message_id=conv.latest_message.id) }}" class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 align-items-center">
+                                        <img src="{{ conv.other_user.profile_image }}" alt="{{ conv.other_user.full_name }}" class="rounded-circle me-2 flex-shrink-0" width="40" height="40">
+                                        <div class="flex-grow-1 min-width-0">
+                                            <strong class="d-block">{{ conv.other_user.full_name }}</strong>
+                                            <small class="text-muted d-block text-truncate">{{ conv.latest_message.body|truncate(100) }}</small>
+                                        </div>
+                                        <small class="text-muted flex-shrink-0 ms-2">
+                                            {{ conv.latest_message.timestamp|utc_timestamp('message') if conv.latest_message.timestamp else '' }}
+                                        </small>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

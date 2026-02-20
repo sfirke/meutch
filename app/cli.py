@@ -13,10 +13,12 @@ Production environment only creates basic categories and tags.
 import click
 import os
 import random
-from datetime import datetime
+from datetime import date, datetime, UTC, timedelta
 from flask.cli import with_appcontext
-
-
+from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, Feedback, CircleJoinRequest, ItemRequest, UserWebLink, GiveawayInterest
+from app import db
+from urllib.parse import urlparse
+    
 @click.group()
 def seed():
     """Database seeding commands."""
@@ -28,7 +30,6 @@ def seed():
 @with_appcontext
 def data(env):
     """Seed database with data for specified environment."""
-    from app import db
     
     click.echo(f"🌱 Seeding {env} database...")
     
@@ -54,12 +55,7 @@ def data(env):
 @with_appcontext
 def clear():
     """Clear all data from database (keep tables)."""
-    from app import db
-    from app.models import (
-        User, Item, Category, Circle, Tag, LoanRequest, Message, 
-        Feedback, CircleJoinRequest
-    )
-    
+
     if os.environ.get('FLASK_ENV') == 'production':
         click.echo('❌ Cannot clear production database!')
         return
@@ -83,6 +79,7 @@ def clear():
     models_to_clear = [
         ('Feedback', Feedback),                    # depends on: loan_request, user
         ('Circle Join Requests', CircleJoinRequest), # depends on: circle, user
+        ('Item Requests', ItemRequest),             # depends on: user
         ('Messages', Message),                     # depends on: user, item, loan_request
         ('Loan Requests', LoanRequest),           # depends on: item, user
         ('Items', Item),                          # depends on: user, category
@@ -106,12 +103,7 @@ def clear():
 @with_appcontext
 def status():
     """Show database record counts."""
-    from app import db
-    from app.models import (
-        User, Item, Category, Circle, Tag, LoanRequest, Message, 
-        Feedback, CircleJoinRequest
-    )
-    
+
     models = [
         ('Users', User),
         ('Items', Item), 
@@ -119,6 +111,7 @@ def status():
         ('Circles', Circle),
         ('Tags', Tag),
         ('Loan Requests', LoanRequest),
+        ('Item Requests', ItemRequest),
         ('Messages', Message),
         ('Feedback', Feedback),
         ('Circle Join Requests', CircleJoinRequest),
@@ -144,11 +137,12 @@ def status():
     click.echo(f'{"Total":15}: {total:5} records')
 
 
+
+
+
 def _seed_basic_data():
     """Seed basic categories only for production (idempotent)."""
-    from app import db
-    from app.models import Category
-    
+
     categories = ['Electronics', 'Books', 'Tools', 'Kitchen', 'Sports', 'Clothing', 'Home & Garden', 'Toys']
     
     for name in categories:
@@ -163,9 +157,6 @@ def _seed_basic_data():
 
 def _seed_development_data():
     """Seed rich development data (idempotent)."""
-    from app import db
-    from app.models import User, Category, Tag, Circle, Item, LoanRequest, Message, UserWebLink
-    import random
     
     click.echo('Creating development data...')
     
@@ -406,7 +397,6 @@ def _seed_development_data():
                     ).first()
                     
                     if not existing_request:
-                        from datetime import date, timedelta
                         
                         # Generate realistic loan dates
                         start_date = date.today() + timedelta(days=random.randint(1, 14))
@@ -448,7 +438,6 @@ def _seed_development_data():
         click.echo(f"  ≈ Messages exist: {existing_messages} records")
 
     # Giveaway items (create sample giveaway items if none exist)
-    from app.models import GiveawayInterest
     existing_giveaways = Item.query.filter_by(is_giveaway=True).count()
     if existing_giveaways < 5:
         click.echo('  Creating giveaway items...')
@@ -599,7 +588,6 @@ def _seed_development_data():
             
             # If status is claimed, mark as claimed with timestamp
             elif giveaway_data['status'] == 'claimed':
-                from datetime import datetime, UTC, timedelta
                 
                 # Find the claimed_by user (can be specified or random)
                 if 'claimed_by_email' in giveaway_data:
@@ -672,12 +660,102 @@ def _seed_development_data():
                     click.echo(f"  ✓ Web link: {user.email} -> {link_data['platform']} ({link_data['url']})")
     else:
         click.echo(f"  ≈ Web links exist: {existing_web_links} records")
+    
+    # Seed item requests
+    click.echo('Creating item requests...')
+    _seed_requests(users)
+
+
+def _seed_requests(users):
+    """Seed sample ItemRequests and request conversations for development.
+    
+    Args:
+        users: List of User objects to create requests for
+    """
+
+    # Check existing count (idempotent: skip if >=10 requests already)
+    existing_count = ItemRequest.query.count()
+    if existing_count >= 10:
+        click.echo(f'  ≈ Requests already seeded ({existing_count} found), skipping.')
+        return
+
+    if len(users) < 4:
+        click.echo('❌ Insufficient users for requests.')
+        return
+
+    now = datetime.now(UTC)
+
+    request_data = [
+        # (owner_idx, title, description, seeking, visibility, expires_delta_days, status, fulfilled_days_ago)
+        (0, 'Looking for a melon baller', 'Need it for a summer party, just for the weekend.', 'loan', 'circles', 14, 'open', None),
+        (1, 'Small piece of drywall', 'About 2x2 feet. Patching a hole, don\'t want to buy a whole sheet.', 'giveaway', 'public', 30, 'open', None),
+        (2, 'Folding table for one week', 'Need a 6-foot folding table for a garage sale next weekend.', 'loan', 'circles', 21, 'open', None),
+        (3, 'Stand mixer (KitchenAid or similar)', 'I want to try making bread. Would love to borrow one for a few days.', 'loan', 'public', 45, 'open', None),
+        (4, 'Kids bike 20" wheel', 'My nephew is visiting for two weeks, needs a bike to get around.', 'either', 'circles', 60, 'open', None),
+        (5, 'Carpet cleaner / steam cleaner', None, 'loan', 'public', 30, 'open', None),
+        (6, 'Camping tent 4-person', 'Going camping next month, only need it once.', 'loan', 'circles', 40, 'open', None),
+        (7, 'Electric drill with bits', 'Working on a small home project, just need it for a day.', 'loan', 'public', 20, 'open', None),
+        (8, 'Canning jars (any size)', 'Making jam and ran out — dozen or so would be great.', 'giveaway', 'circles', 30, 'open', None),
+        (9, 'Bread machine', 'Curious to try it before buying.', 'loan', 'public', 25, 'open', None),
+        (10, 'Extension ladder 20ft+', 'Need to clean gutters. Would borrow for a weekend.', 'loan', 'circles', 35, 'open', None),
+        (0, 'Box of packing materials', 'Bubble wrap, boxes, peanuts — whatever you have!', 'giveaway', 'public', 10, 'open', None),
+        (1, 'Baby swing or bouncer', 'Friend is visiting with an infant. Just for a week.', 'loan', 'circles', 50, 'open', None),
+        # One fulfilled recently
+        (2, 'Hedge trimmer', 'Needed to tame the bushes!', 'loan', 'circles', 60, 'fulfilled', 3),
+        # One nearly expired
+        (3, 'Portable projector', 'For outdoor movie night.', 'loan', 'public', 2, 'open', None),
+    ]
+
+    created = 0
+    for (owner_idx, title, desc, seeking, visibility, delta_days, status, fulfilled_days_ago) in request_data:
+        owner = users[owner_idx % len(users)]
+        expires_at = now + timedelta(days=delta_days)
+        fulfilled_at = (now - timedelta(days=fulfilled_days_ago)) if fulfilled_days_ago else None
+
+        req = ItemRequest(
+            user_id=owner.id,
+            title=title,
+            description=desc,
+            expires_at=expires_at,
+            seeking=seeking,
+            visibility=visibility,
+            status=status,
+            fulfilled_at=fulfilled_at,
+        )
+        db.session.add(req)
+        db.session.flush()
+        created += 1
+        click.echo(f'  ✓ Request [{status}]: "{title}" by {owner.email}')
+
+    # Add a few request-linked conversation messages
+    # Pick a few open requests and have another user reach out
+    open_requests = [r for r in ItemRequest.query.all() if r.status == 'open']
+    convo_count = 0
+    for i, req in enumerate(open_requests[:4]):
+        # Use a different user as the "helper"
+        helper = next((u for u in users if u.id != req.user_id), None)
+        if helper:
+            msg = Message(
+                sender_id=helper.id,
+                recipient_id=req.user_id,
+                item_id=None,
+                request_id=req.id,
+                body=random.choice([
+                    f"Hi! I have a {req.title.lower()} you can borrow. Let me know when works.",
+                    f"I think I can help with this! I have one you can use.",
+                    f"Happy to help — I've got one sitting in my garage.",
+                    f"Reach out if you still need this, I can lend mine.",
+                ]),
+                is_read=False,
+            )
+            db.session.add(msg)
+            convo_count += 1
+
+    click.echo(f'  ✅ Created {created} requests and {convo_count} conversations.')
 
 
 def _get_database_info():
     """Get readable database information for user display."""
-    import os
-    from urllib.parse import urlparse
     
     db_url = os.environ.get('DATABASE_URL', '')
     
@@ -737,8 +815,7 @@ def check_loan_reminders_logic():
     
     Returns a dict with statistics about emails sent.
     """
-    from app import db
-    from app.models import LoanRequest
+
     from app.utils.email import (
         send_loan_due_soon_email,
         send_loan_due_today_borrower_email,
@@ -746,7 +823,6 @@ def check_loan_reminders_logic():
         send_loan_overdue_borrower_email,
         send_loan_overdue_owner_email
     )
-    from datetime import date, datetime, UTC
     
     today = date.today()
     
@@ -847,8 +923,6 @@ def user():
 @with_appcontext
 def promote_admin(email):
     """Promote a user to admin status."""
-    from app import db
-    from app.models import User
     
     # Find user by email (case-insensitive)
     user = User.query.filter(User.email.ilike(email)).first()
@@ -881,9 +955,6 @@ def promote_admin(email):
 @with_appcontext
 def demote_admin(email):
     """Remove admin status from a user."""
-    from app import db
-    from app.models import User
-    
     # Find user by email (case-insensitive)
     user = User.query.filter(User.email.ilike(email)).first()
     
@@ -911,8 +982,6 @@ def demote_admin(email):
 @with_appcontext
 def enable_showcase(email):
     """Enable public showcase for a user's items (visible to unauthenticated visitors)."""
-    from app import db
-    from app.models import User
     
     # Find user by email (case-insensitive)
     user = User.query.filter(User.email.ilike(email)).first()
@@ -945,9 +1014,6 @@ def enable_showcase(email):
 @with_appcontext
 def disable_showcase(email):
     """Disable public showcase for a user's items."""
-    from app import db
-    from app.models import User
-    
     # Find user by email (case-insensitive)
     user = User.query.filter(User.email.ilike(email)).first()
     

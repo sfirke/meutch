@@ -518,11 +518,18 @@ class Feedback(db.Model):
 
 class Message(db.Model):
     __tablename__ = 'messages'
+    __table_args__ = (
+        db.CheckConstraint(
+            '((item_id IS NOT NULL AND request_id IS NULL) OR (item_id IS NULL AND request_id IS NOT NULL))',
+            name='ck_messages_exactly_one_target'
+        ),
+    )
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sender_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     recipient_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
-    item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id'), nullable=False)
+    item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id'), nullable=True)
+    request_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item_request.id'), nullable=True)
     body = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=func.now())
     is_read = db.Column(db.Boolean, default=False)
@@ -534,6 +541,7 @@ class Message(db.Model):
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
     recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
     item = db.relationship('Item', backref='messages')
+    request = db.relationship('ItemRequest', backref='messages')
     parent = db.relationship('Message', remote_side=[id], backref='replies')
 
     @staticmethod
@@ -545,6 +553,11 @@ class Message(db.Model):
     def is_loan_request_message(self):
         """Returns True if this message is related to a loan request"""
         return self.loan_request_id is not None
+
+    @property
+    def is_request_message(self):
+        """Returns True if this message is related to an item request conversation."""
+        return self.request_id is not None
     
     @property
     def has_pending_action(self):
@@ -642,6 +655,76 @@ class UserWebLink(db.Model):
     
     def __repr__(self):
         return f'<UserWebLink {self.user_id}: {self.platform_type} - {self.url}>'
+
+
+class ItemRequest(db.Model):
+    """A community request/ask for an item that someone needs."""
+    __tablename__ = 'item_request'
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    seeking = db.Column(db.String(20), nullable=False, default='either')  # 'loan', 'giveaway', 'either'
+    visibility = db.Column(db.String(20), nullable=False, default='circles')  # 'circles', 'public'
+    status = db.Column(db.String(20), nullable=False, default='open')  # 'open', 'fulfilled', 'deleted'
+    fulfilled_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=func.now())
+    updated_at = db.Column(db.DateTime, default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = db.relationship('User', backref='requests', passive_deletes=True)
+
+    @property
+    def is_expired(self):
+        """Returns True if the request has passed its expiration date."""
+        if self.expires_at is None:
+            return False
+        expires_at_utc = self.expires_at.replace(tzinfo=UTC) if self.expires_at.tzinfo is None else self.expires_at
+        # Compare dates (not datetimes) so items are available through the entire expiration day
+        today = datetime.now(UTC).date()
+        return today > expires_at_utc.date()
+
+    @property
+    def is_active(self):
+        """Returns True if the request is open and not expired."""
+        return self.status == 'open' and not self.is_expired
+
+    @property
+    def is_fulfilled(self):
+        """Returns True if the request has been marked fulfilled."""
+        return self.status == 'fulfilled'
+
+    @property
+    def show_in_feed(self):
+        """Returns True if this request should appear in the feed.
+
+        Active requests always show. Fulfilled requests show for 7 days
+        after fulfillment as social proof. Deleted/expired requests don't show.
+        """
+        if self.status == 'deleted':
+            return False
+        if self.status == 'open':
+            return not self.is_expired
+        if self.status == 'fulfilled' and self.fulfilled_at:
+            fulfilled_at_utc = self.fulfilled_at.replace(tzinfo=UTC) if self.fulfilled_at.tzinfo is None else self.fulfilled_at
+            return (datetime.now(UTC) - fulfilled_at_utc).days < 7
+        return False
+
+    SEEKING_CHOICES = [
+        ('either', 'Loan or Giveaway'),
+        ('loan', 'Loan Only'),
+        ('giveaway', 'Giveaway Only'),
+    ]
+
+    VISIBILITY_CHOICES = [
+        ('circles', 'My Circles'),
+        ('public', 'Public'),
+    ]
+
+    def __repr__(self):
+        return f'<ItemRequest {self.id} "{self.title}" by user {self.user_id}>'
 
 
 class AdminAction(db.Model):
