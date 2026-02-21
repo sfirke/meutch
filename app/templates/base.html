@@ -16,7 +16,7 @@
     <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='img/logo_m.png', _external=True) }}{% endblock %}">
     
     <!-- Twitter -->
-    <meta name="twitter:card" content="summary">
+    <meta name="twitter:card" content="{% block twitter_card %}summary{% endblock %}">
     <meta name="twitter:url" content="{{ request.url }}">
     <meta name="twitter:title" content="{% block twitter_title %}Meutch - The actual sharing economy, uncommercialized{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Help a neighbor, help the world. Join Meutch to share and borrow items with your community.{% endblock %}">
