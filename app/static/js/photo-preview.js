@@ -242,53 +242,43 @@
         if (form) {
             // Track if we've already processed the image
             let imageProcessed = false;
-            let lastSubmitter = null;
+            let pendingSubmitter = null;
 
-            // Track submit button clicks as a fallback for browsers that don't populate e.submitter
-            form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function(submitControl) {
-                submitControl.addEventListener('click', function() {
-                    lastSubmitter = submitControl;
-                });
+            // Capture clicked submit button for browsers that don't support e.submitter
+            form.querySelectorAll('[type="submit"]').forEach(function(btn) {
+                btn.addEventListener('click', function() { pendingSubmitter = btn; });
             });
 
-            function submitWithOriginalIntent() {
-                const submitter = lastSubmitter;
-
-                // Preferred path: requestSubmit preserves submitter name/value and triggers standard submit flow.
-                if (typeof form.requestSubmit === 'function') {
-                    if (submitter) {
-                        form.requestSubmit(submitter);
-                    } else {
-                        form.requestSubmit();
-                    }
-                    return;
-                }
-
-                // Fallback path: if requestSubmit is unavailable, preserve submitter intent with a hidden input.
-                if (submitter && submitter.name) {
-                    const hiddenIntent = document.createElement('input');
-                    hiddenIntent.type = 'hidden';
-                    hiddenIntent.name = submitter.name;
-                    hiddenIntent.value = submitter.value || '';
-                    form.appendChild(hiddenIntent);
-                }
-
-                HTMLFormElement.prototype.submit.call(form);
-            }
-            
             form.addEventListener('submit', function(e) {
-                if (e.submitter) {
-                    lastSubmitter = e.submitter;
-                }
+                // e.submitter is more reliable than click tracking when available
+                if (e.submitter) pendingSubmitter = e.submitter;
 
                 if (cropper && currentFile && !imageProcessed) {
                     // Prevent the form from submitting until we process the image
                     e.preventDefault();
-                    
+                    // Capture now so the async callback uses the correct button
+                    const submitter = pendingSubmitter;
+
                     // Update file input with final cropped/rotated version
                     updateFileInputWithCroppedImage(fileInput, function() {
                         imageProcessed = true;
-                        submitWithOriginalIntent();
+
+                        // requestSubmit preserves submitter identity and reruns validation
+                        if (typeof form.requestSubmit === 'function') {
+                            form.requestSubmit(submitter || undefined);
+                            return;
+                        }
+
+                        // Legacy fallback: inject button identity as a hidden field before raw submit
+                        if (submitter && submitter.name) {
+                            const hidden = document.createElement('input');
+                            hidden.type = 'hidden';
+                            hidden.name = submitter.name;
+                            hidden.value = submitter.value || '';
+                            form.appendChild(hidden);
+                        }
+
+                        HTMLFormElement.prototype.submit.call(form);
                     });
                 }
             });
