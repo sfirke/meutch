@@ -81,6 +81,23 @@ class TestGiveawaySharePreview:
             assert response.status_code == 200
             assert b'Free Ladder - Free Giveaway on Meutch' in response.data
 
+    def test_public_giveaway_preview_uses_item_image_for_meta(self, client, app):
+        """Test that preview metadata uses giveaway image when present."""
+        with app.app_context():
+            user = UserFactory()
+            item = ItemFactory(
+                owner=user,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed',
+                image_url='https://cdn.example.com/giveaway.jpg'
+            )
+            db.session.commit()
+
+            response = client.get(f'/share/giveaway/{item.id}')
+            assert response.status_code == 200
+            assert b'https://cdn.example.com/giveaway.jpg' in response.data
+
     def test_non_public_giveaway_returns_404(self, client, app):
         """Test that a giveaway with default visibility returns 404."""
         with app.app_context():
@@ -191,6 +208,21 @@ class TestRequestSharePreview:
             response = client.get(f'/share/request/{req.id}')
             assert response.status_code == 200
             assert b'Need a drill - Request on Meutch' in response.data
+
+    def test_public_request_preview_uses_requester_image_for_meta(self, client, app):
+        """Test that preview metadata uses requester image when present."""
+        with app.app_context():
+            user = UserFactory(profile_image_url='https://cdn.example.com/requester.jpg')
+            req = ItemRequestFactory(
+                user=user,
+                visibility='public',
+                title='Need a pressure washer'
+            )
+            db.session.commit()
+
+            response = client.get(f'/share/request/{req.id}')
+            assert response.status_code == 200
+            assert b'https://cdn.example.com/requester.jpg' in response.data
 
     def test_circles_only_request_returns_404(self, client, app):
         """Test that a circles-only request returns 404."""
@@ -332,6 +364,19 @@ class TestCircleSharePreview:
             response = client.get(f'/share/circle/{circle.id}')
             assert response.status_code == 200
             assert b'Neighbors Circle - Circle on Meutch' in response.data
+
+    def test_circle_preview_uses_circle_image_for_meta(self, client, app):
+        """Test that preview metadata uses circle image when present."""
+        with app.app_context():
+            circle = CircleFactory(
+                visibility='public',
+                image_url='https://cdn.example.com/circle.jpg'
+            )
+            db.session.commit()
+
+            response = client.get(f'/share/circle/{circle.id}')
+            assert response.status_code == 200
+            assert b'https://cdn.example.com/circle.jpg' in response.data
 
     def test_nonexistent_circle_returns_404(self, client, app):
         """Test that a non-existent circle ID returns 404."""

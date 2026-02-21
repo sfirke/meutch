@@ -21,6 +21,8 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - The admin panel no longer freezes on page load - there had been an infinite JavaScript loop ([#170](https://github.com/sfirke/meutch/pull/170))
 - Speed up creation of seed data by caching hashed passwords ([#167](https://github.com/sfirke/meutch/pull/167)).
 - Edit item form submit button now says "Save" instead of "List Item" for better clarity on the edit action.
+- Share link previews now use the shared entity's image (giveaway/circle) or requester profile image when available, instead of always showing the Meutch logo.
+- Share button behavior now sends richer Web Share payload data and has a more reliable copy-link fallback state.
 
 ## Jan 2026
 

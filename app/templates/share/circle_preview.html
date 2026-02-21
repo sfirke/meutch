@@ -5,9 +5,11 @@
 
 {% block og_title %}{{ circle.name }} - Circle on Meutch{% endblock %}
 {% block og_description %}{{ circle.description|truncate(200) if circle.description else 'Join the ' + circle.name + ' circle on Meutch to share and borrow with the community!' }}{% endblock %}
+{% block og_image %}{{ preview_image_url }}{% endblock %}
 
 {% block twitter_title %}{{ circle.name }} - Circle on Meutch{% endblock %}
 {% block twitter_description %}{{ circle.description|truncate(200) if circle.description else 'Join the ' + circle.name + ' circle on Meutch to share and borrow with the community!' }}{% endblock %}
+{% block twitter_image %}{{ preview_image_url }}{% endblock %}
 
 {% block content %}
 <div class="container mt-5 mb-5">
