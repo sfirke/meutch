@@ -52,12 +52,33 @@ function copyToClipboardFallback(url, button) {
     navigator.clipboard.writeText(url).then(function() {
         showCopiedState(button);
     }).catch(function() {
-        var tempInput = document.createElement('input');
-        tempInput.value = url;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        document.execCommand('copy');
-        document.body.removeChild(tempInput);
-        showCopiedState(button);
+        var tempTextarea = document.createElement('textarea');
+        tempTextarea.value = url;
+        tempTextarea.setAttribute('readonly', '');
+        tempTextarea.style.position = 'fixed';
+        tempTextarea.style.top = '0';
+        tempTextarea.style.left = '0';
+        tempTextarea.style.opacity = '0';
+
+        document.body.appendChild(tempTextarea);
+        tempTextarea.focus();
+        tempTextarea.select();
+        tempTextarea.setSelectionRange(0, tempTextarea.value.length);
+
+        var copied = false;
+        try {
+            copied = document.execCommand('copy');
+        } catch (error) {
+            copied = false;
+        }
+
+        document.body.removeChild(tempTextarea);
+
+        if (copied) {
+            showCopiedState(button);
+            return;
+        }
+
+        window.prompt('Copy this link:', url);
     });
 }
