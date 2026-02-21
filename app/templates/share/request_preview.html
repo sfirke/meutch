@@ -1,0 +1,100 @@
+{# app/templates/share/request_preview.html #}
+{% extends "base.html" %}
+
+{% block title %}{{ item_request.title }} - Request{% endblock %}
+
+{% block og_title %}{{ item_request.title }} - Request on Meutch{% endblock %}
+{% block og_description %}{{ item_request.description|truncate(200) if item_request.description else item_request.user.first_name + ' is looking for help! Join Meutch to respond.' }}{% endblock %}
+
+{% block twitter_title %}{{ item_request.title }} - Request on Meutch{% endblock %}
+{% block twitter_description %}{{ item_request.description|truncate(200) if item_request.description else item_request.user.first_name + ' is looking for help! Join Meutch to respond.' }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm share-preview-card">
+                <div class="card-body">
+                    <!-- Author Info -->
+                    <div class="d-flex align-items-center mb-4">
+                        <img src="{{ item_request.user.profile_image }}" alt="{{ item_request.user.first_name }}" class="rounded-circle me-3" width="56" height="56">
+                        <div>
+                            <strong class="fs-5">{{ item_request.user.first_name }}</strong>
+                            <div class="text-muted small">
+                                Posted {{ item_request.created_at|utc_timestamp('date') if item_request.created_at else '' }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Title -->
+                    <h1 class="h2 mb-3">
+                        {% if item_request.is_fulfilled %}
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                        {% elif item_request.is_expired %}
+                            <i class="fas fa-clock text-muted me-2"></i>
+                        {% else %}
+                            <i class="fas fa-hand-holding-heart text-primary me-2"></i>
+                        {% endif %}
+                        {{ item_request.title }}
+                    </h1>
+
+                    <!-- Description -->
+                    {% if item_request.description %}
+                        <p class="fs-5 {% if item_request.is_fulfilled %}text-muted{% endif %} mb-4">{{ item_request.description }}</p>
+                    {% endif %}
+
+                    <!-- Badges -->
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        {% if item_request.seeking == 'loan' %}
+                            <span class="badge bg-info"><i class="fas fa-handshake me-1"></i>Seeking Loan</span>
+                        {% elif item_request.seeking == 'giveaway' %}
+                            <span class="badge bg-success"><i class="fas fa-gift me-1"></i>Seeking Giveaway</span>
+                        {% else %}
+                            <span class="badge bg-secondary"><i class="fas fa-exchange-alt me-1"></i>Loan or Giveaway</span>
+                        {% endif %}
+
+                        {% if item_request.is_fulfilled %}
+                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>Fulfilled</span>
+                        {% elif item_request.is_expired %}
+                            <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Expired</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Expiration -->
+                    {% if item_request.status == 'open' and not item_request.is_expired %}
+                        <p class="text-muted small mb-4">
+                            <i class="fas fa-hourglass-half me-1"></i>Expires {{ item_request.expires_at.strftime('%B %d, %Y') }}
+                        </p>
+                    {% endif %}
+
+                    <hr>
+
+                    <!-- CTA Section -->
+                    <div class="text-center py-3">
+                        <p class="fs-5 mb-3">
+                            {% if item_request.status == 'open' and not item_request.is_expired %}
+                                <i class="fas fa-comments me-2 text-primary"></i>Can you help? Join Meutch to respond to this request!
+                            {% else %}
+                                <i class="fas fa-search me-2 text-primary"></i>Discover more community requests and sharing on Meutch!
+                            {% endif %}
+                        </p>
+                        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
+                            <a href="{{ url_for('auth.register', next=url_for('requests.detail', request_id=item_request.id)) }}" 
+                               class="btn btn-primary btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>Sign Up
+                            </a>
+                            <a href="{{ url_for('auth.login', next=url_for('requests.detail', request_id=item_request.id)) }}" 
+                               class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Log In
+                            </a>
+                        </div>
+                        <p class="text-muted small mt-3 mb-0">
+                            Meutch is a free, nonprofit platform for community sharing.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

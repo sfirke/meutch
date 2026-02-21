@@ -1244,3 +1244,34 @@ footer h6 {
     object-fit: cover;
     border: 2px solid var(--border-color, #dee2e6);
 }
+
+/* ===========================================
+   Share Preview Pages & Share Button
+   =========================================== */
+
+.share-preview-card {
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.share-preview-image {
+    max-height: 400px;
+    object-fit: cover;
+}
+
+.share-preview-image-placeholder {
+    height: 250px;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+}
+
+.share-member-avatar img {
+    object-fit: cover;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.share-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+}

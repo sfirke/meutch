@@ -1,0 +1,99 @@
+{# app/templates/share/giveaway_preview.html #}
+{% extends "base.html" %}
+
+{% block title %}{{ item.name }} - Free Giveaway{% endblock %}
+
+{% block og_title %}{{ item.name }} - Free Giveaway on Meutch{% endblock %}
+{% block og_description %}{{ item.description|truncate(200) if item.description else 'Someone is giving away ' + item.name + ' for free! Join Meutch to claim it.' }}{% endblock %}
+
+{% block twitter_title %}{{ item.name }} - Free Giveaway on Meutch{% endblock %}
+{% block twitter_description %}{{ item.description|truncate(200) if item.description else 'Someone is giving away ' + item.name + ' for free! Join Meutch to claim it.' }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Preview Card -->
+            <div class="card shadow-sm share-preview-card">
+                <!-- Image -->
+                {% if item.image_url %}
+                    <img src="{{ item.image_url }}" alt="{{ item.name }}" class="card-img-top share-preview-image">
+                {% else %}
+                    <div class="share-preview-image-placeholder d-flex flex-column align-items-center justify-content-center bg-light">
+                        <i class="fas fa-gift text-success mb-2" style="font-size: 4rem;"></i>
+                        <span class="text-muted">Free Giveaway</span>
+                    </div>
+                {% endif %}
+                
+                <div class="card-body">
+                    <!-- Giveaway Badge -->
+                    <div class="mb-3">
+                        <span class="badge bg-success fs-6">
+                            <i class="fas fa-gift me-1"></i>FREE
+                        </span>
+                        {% if item.claim_status == 'claimed' %}
+                            <span class="badge bg-secondary ms-1">
+                                <i class="fas fa-check me-1"></i>Claimed
+                            </span>
+                        {% elif item.claim_status == 'pending_pickup' %}
+                            <span class="badge bg-warning text-dark ms-1">
+                                <i class="fas fa-clock me-1"></i>Pending Pickup
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Title -->
+                    <h1 class="card-title h2 mb-3">{{ item.name }}</h1>
+                    
+                    <!-- Description -->
+                    {% if item.description %}
+                        <p class="card-text fs-5 text-muted mb-4">{{ item.description }}</p>
+                    {% endif %}
+
+                    <!-- Details -->
+                    <div class="row mb-4">
+                        <div class="col-sm-6 mb-2">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ item.owner.profile_image }}" alt="{{ item.owner.first_name }}" class="rounded-circle me-2" width="32" height="32">
+                                <span class="text-muted">Listed by <strong>{{ item.owner.first_name }}</strong></span>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 mb-2">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-folder me-2 text-muted"></i>
+                                <span class="text-muted">{{ item.category.name }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- CTA Section -->
+                    <div class="text-center py-3">
+                        <p class="fs-5 mb-3">
+                            {% if item.claim_status in [None, 'unclaimed'] %}
+                                <i class="fas fa-hand-pointer me-2 text-success"></i>Want this item? Join Meutch to claim it!
+                            {% else %}
+                                <i class="fas fa-search me-2 text-primary"></i>Discover more free items and community sharing on Meutch!
+                            {% endif %}
+                        </p>
+                        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
+                            <a href="{{ url_for('auth.register', next=url_for('main.item_detail', item_id=item.id)) }}" 
+                               class="btn btn-primary btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>Sign Up
+                            </a>
+                            <a href="{{ url_for('auth.login', next=url_for('main.item_detail', item_id=item.id)) }}" 
+                               class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Log In
+                            </a>
+                        </div>
+                        <p class="text-muted small mt-3 mb-0">
+                            Meutch is a free, nonprofit platform for community sharing.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
