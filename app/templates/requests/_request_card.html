@@ -46,6 +46,16 @@
                                     </form>
                                 </li>
                             {% endif %}
+                            {% if req.visibility == 'public' %}
+                                <li>
+                                    <button type="button" class="dropdown-item"
+                                            data-share-url="{{ url_for('share.request_preview', request_id=req.id, _external=True) }}"
+                                            data-share-title="{{ req.title|e }} - Request on Meutch"
+                                            onclick="shareLink(this)">
+                                        <i class="fas fa-share-nodes me-2"></i>Share
+                                    </button>
+                                </li>
+                            {% endif %}
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form method="POST" action="{{ url_for('requests.delete', request_id=req.id) }}" class="d-inline" onsubmit="return confirm('Remove this request?');">
