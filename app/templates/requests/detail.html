@@ -27,11 +27,19 @@
                     </div>
 
                     <!-- Title -->
-                    <h3 class="mb-2">
-                        {% if item_request.is_fulfilled %}<i class="fas fa-check-circle text-success me-1"></i>{% endif %}
-                        {% if item_request.is_expired and not item_request.is_fulfilled %}<i class="fas fa-clock text-muted me-1"></i>{% endif %}
-                        {{ item_request.title }}
-                    </h3>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h3 class="mb-2">
+                            {% if item_request.is_fulfilled %}<i class="fas fa-check-circle text-success me-1"></i>{% endif %}
+                            {% if item_request.is_expired and not item_request.is_fulfilled %}<i class="fas fa-clock text-muted me-1"></i>{% endif %}
+                            {{ item_request.title }}
+                        </h3>
+                        {% if item_request.visibility == 'public' %}
+                            {% set share_url = url_for('share.request_preview', request_id=item_request.id, _external=True) %}
+                            {% set share_title = item_request.title + ' (Request)' %}
+                            {% set share_text = 'Request on Meutch: ' + item_request.title %}
+                            {% include 'share/_share_button.html' %}
+                        {% endif %}
+                    </div>
 
                     <!-- Description -->
                     {% if item_request.description %}
@@ -134,3 +142,5 @@
     </div>
 </div>
 {% endblock %}
+
+

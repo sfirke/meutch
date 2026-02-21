@@ -37,7 +37,15 @@
                 <!-- Header Card -->
                 <div class="card mb-4">
                     <div class="card-body">
-                        <h1 class="card-title h2 mb-3">{{ item.name }}</h1>
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h1 class="card-title h2 mb-0">{{ item.name }}</h1>
+                            {% if item.is_giveaway and item.giveaway_visibility == 'public' %}
+                                {% set share_url = url_for('share.giveaway_preview', item_id=item.id, _external=True) %}
+                                {% set share_title = item.name + ' (Free Giveaway)' %}
+                                {% set share_text = 'Free giveaway on Meutch: ' + item.name %}
+                                {% include 'share/_share_button.html' %}
+                            {% endif %}
+                        </div>
                         
                         {% if item.description %}
                             <p class="card-text lead text-muted mb-4">{{ item.description }}</p>
