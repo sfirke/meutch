@@ -33,11 +33,16 @@ def circle_preview(circle_id):
         abort(404)
 
     # For public circles, get a sample of members to show avatars
+    # Prioritize members who have uploaded a custom avatar
     sample_members = []
     if circle.visibility == 'public' and circle.members:
         members_list = list(circle.members)
-        sample_size = min(8, len(members_list))
-        sample_members = random.sample(members_list, sample_size)
+        with_avatar = [m for m in members_list if m.profile_image_url]
+        without_avatar = [m for m in members_list if not m.profile_image_url]
+        random.shuffle(with_avatar)
+        random.shuffle(without_avatar)
+        prioritized = with_avatar + without_avatar
+        sample_members = prioritized[:8]
 
     return render_template('share/circle_preview.html',
                            circle=circle,
