@@ -242,8 +242,45 @@
         if (form) {
             // Track if we've already processed the image
             let imageProcessed = false;
+            let lastSubmitter = null;
+
+            // Track submit button clicks as a fallback for browsers that don't populate e.submitter
+            form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function(submitControl) {
+                submitControl.addEventListener('click', function() {
+                    lastSubmitter = submitControl;
+                });
+            });
+
+            function submitWithOriginalIntent() {
+                const submitter = lastSubmitter;
+
+                // Preferred path: requestSubmit preserves submitter name/value and triggers standard submit flow.
+                if (typeof form.requestSubmit === 'function') {
+                    if (submitter) {
+                        form.requestSubmit(submitter);
+                    } else {
+                        form.requestSubmit();
+                    }
+                    return;
+                }
+
+                // Fallback path: if requestSubmit is unavailable, preserve submitter intent with a hidden input.
+                if (submitter && submitter.name) {
+                    const hiddenIntent = document.createElement('input');
+                    hiddenIntent.type = 'hidden';
+                    hiddenIntent.name = submitter.name;
+                    hiddenIntent.value = submitter.value || '';
+                    form.appendChild(hiddenIntent);
+                }
+
+                HTMLFormElement.prototype.submit.call(form);
+            }
             
             form.addEventListener('submit', function(e) {
+                if (e.submitter) {
+                    lastSubmitter = e.submitter;
+                }
+
                 if (cropper && currentFile && !imageProcessed) {
                     // Prevent the form from submitting until we process the image
                     e.preventDefault();
@@ -251,8 +288,7 @@
                     // Update file input with final cropped/rotated version
                     updateFileInputWithCroppedImage(fileInput, function() {
                         imageProcessed = true;
-                        // Use HTMLFormElement.prototype.submit to avoid conflict with named submit buttons
-                        HTMLFormElement.prototype.submit.call(form);
+                        submitWithOriginalIntent();
                     });
                 }
             });

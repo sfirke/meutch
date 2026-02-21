@@ -143,6 +143,27 @@ class TestItemRoutes:
             assert item is not None
             assert item.owner_id == user.id
             assert len(item.tags) == 2
+
+    def test_list_item_post_create_another_redirects_to_list_form(self, client, app, auth_user):
+        """Test create-another submit action returns user to the list-item form."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            login_user(client, user.email)
+
+            response = client.post('/list-item', data={
+                'name': 'Another Item',
+                'description': 'A test item for create another flow',
+                'category': str(category.id),
+                'submit_and_create_another': 'List Item & Create Another'
+            }, follow_redirects=False)
+
+            assert response.status_code == 302
+            assert response.headers['Location'].endswith('/list-item')
+
+            item = Item.query.filter_by(name='Another Item').first()
+            assert item is not None
+            assert item.owner_id == user.id
     
     def test_item_detail_requires_login(self, client, app):
         """Test that item detail requires login."""
