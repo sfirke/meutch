@@ -10,7 +10,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Implement user requests ([#192](https://github.com/sfirke/meutch/pull/192))
 - Add "vacation mode" toggle to user profile ([#147](https://github.com/sfirke/meutch/pull/147)). When enabled, it hides user's items from being discovered (existing loans persist).
 - Photo processing improvements: rotate, crop, zoom for uploaded photos; shared `notifications.js` for re-usable toast behavior ([#164](https://github.com/sfirke/meutch/pull/164)).
-- Add shareable links for public giveaways, requests, and circles (both public and private) with rich link previews for social media and SMS, including entity images and metadata.
+- Add shareable links for public giveaways, requests, and circles (both public and private) with rich link previews for social media and SMS, including entity images and metadata. ([#196](https://github.com/sfirke/meutch/pull/196)).
 
 **Minor**
 - Show the full image for an item (letterboxing as needed) by changing CSS attributes. Images are no longer arbitrarily cropped ([#171](https://github.com/sfirke/meutch/pull/171))
