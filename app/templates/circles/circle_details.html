@@ -17,7 +17,8 @@
         </h2>
         {% if circle.visibility != 'unlisted' %}
             {% set share_url = url_for('share.circle_preview', circle_id=circle.id, _external=True) %}
-            {% set share_title = circle.name + ' - Circle on Meutch' %}
+            {% set share_title = circle.name + ' Circle' %}
+            {% set share_text = 'Join the ' + circle.name + ' circle on Meutch' %}
             {% include 'share/_share_button.html' %}
         {% endif %}
     </div>

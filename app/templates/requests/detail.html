@@ -35,7 +35,8 @@
                         </h3>
                         {% if item_request.visibility == 'public' %}
                             {% set share_url = url_for('share.request_preview', request_id=item_request.id, _external=True) %}
-                            {% set share_title = item_request.title + ' - Request on Meutch' %}
+                            {% set share_title = item_request.title + ' (Request)' %}
+                            {% set share_text = 'Request on Meutch: ' + item_request.title %}
                             {% include 'share/_share_button.html' %}
                         {% endif %}
                     </div>
