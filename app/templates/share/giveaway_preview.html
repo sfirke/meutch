@@ -5,9 +5,11 @@
 
 {% block og_title %}{{ item.name }} - Free Giveaway on Meutch{% endblock %}
 {% block og_description %}{{ item.description|truncate(200) if item.description else 'Someone is giving away ' + item.name + ' for free! Join Meutch to claim it.' }}{% endblock %}
+{% block og_image %}{{ preview_image_url }}{% endblock %}
 
 {% block twitter_title %}{{ item.name }} - Free Giveaway on Meutch{% endblock %}
 {% block twitter_description %}{{ item.description|truncate(200) if item.description else 'Someone is giving away ' + item.name + ' for free! Join Meutch to claim it.' }}{% endblock %}
+{% block twitter_image %}{{ preview_image_url }}{% endblock %}
 
 {% block content %}
 <div class="container mt-5 mb-5">

@@ -5,9 +5,11 @@
 
 {% block og_title %}{{ item_request.title }} - Request on Meutch{% endblock %}
 {% block og_description %}{{ item_request.description|truncate(200) if item_request.description else item_request.user.first_name + ' is looking for help! Join Meutch to respond.' }}{% endblock %}
+{% block og_image %}{{ preview_image_url }}{% endblock %}
 
 {% block twitter_title %}{{ item_request.title }} - Request on Meutch{% endblock %}
 {% block twitter_description %}{{ item_request.description|truncate(200) if item_request.description else item_request.user.first_name + ' is looking for help! Join Meutch to respond.' }}{% endblock %}
+{% block twitter_image %}{{ preview_image_url }}{% endblock %}
 
 {% block content %}
 <div class="container mt-5 mb-5">

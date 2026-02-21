@@ -13,14 +13,14 @@
     <meta property="og:url" content="{{ request.url }}">
     <meta property="og:title" content="{% block og_title %}Meutch - The actual sharing economy, uncommercialized{% endblock %}">
     <meta property="og:description" content="{% block og_description %}Help a neighbor, help the world. Join Meutch to share and borrow items with your community.{% endblock %}">
-    <meta property="og:image" content="{{ url_for('static', filename='img/logo_m.png', _external=True) }}">
+    <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='img/logo_m.png', _external=True) }}{% endblock %}">
     
     <!-- Twitter -->
     <meta name="twitter:card" content="summary">
     <meta name="twitter:url" content="{{ request.url }}">
     <meta name="twitter:title" content="{% block twitter_title %}Meutch - The actual sharing economy, uncommercialized{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Help a neighbor, help the world. Join Meutch to share and borrow items with your community.{% endblock %}">
-    <meta name="twitter:image" content="{{ url_for('static', filename='img/logo_m.png', _external=True) }}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ url_for('static', filename='img/logo_m.png', _external=True) }}{% endblock %}">
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/logo_m.png') }}">

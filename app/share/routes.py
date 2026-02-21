@@ -1,9 +1,20 @@
-from flask import render_template, abort, redirect, url_for
+from urllib.parse import urljoin
+
+from flask import render_template, abort, redirect, url_for, request
 from flask_login import current_user
 from app.share import bp as share
 from app.models import Item, ItemRequest, Circle
 from app import db
 import random
+
+
+def _absolute_image_url(image_url):
+    """Return an absolute URL for OG/Twitter image tags."""
+    if not image_url:
+        return url_for('static', filename='img/logo_m.png', _external=True)
+    if image_url.startswith('http://') or image_url.startswith('https://'):
+        return image_url
+    return urljoin(request.url_root, image_url.lstrip('/'))
 
 
 @share.route('/giveaway/<uuid:item_id>')
@@ -16,7 +27,11 @@ def giveaway_preview(item_id):
     if current_user.is_authenticated:
         return redirect(url_for('main.item_detail', item_id=item_id))
 
-    return render_template('share/giveaway_preview.html', item=item)
+    return render_template(
+        'share/giveaway_preview.html',
+        item=item,
+        preview_image_url=_absolute_image_url(item.image_url)
+    )
 
 
 @share.route('/request/<uuid:request_id>')
@@ -29,7 +44,11 @@ def request_preview(request_id):
     if current_user.is_authenticated:
         return redirect(url_for('requests.detail', request_id=request_id))
 
-    return render_template('share/request_preview.html', item_request=item_request)
+    return render_template(
+        'share/request_preview.html',
+        item_request=item_request,
+        preview_image_url=_absolute_image_url(item_request.user.profile_image_url)
+    )
 
 
 @share.route('/circle/<uuid:circle_id>')
@@ -54,7 +73,10 @@ def circle_preview(circle_id):
         prioritized = with_avatar + without_avatar
         sample_members = prioritized[:8]
 
-    return render_template('share/circle_preview.html',
-                           circle=circle,
-                           sample_members=sample_members,
-                           member_count=len(circle.members))
+    return render_template(
+        'share/circle_preview.html',
+        circle=circle,
+        sample_members=sample_members,
+        member_count=len(circle.members),
+        preview_image_url=_absolute_image_url(circle.image_url)
+    )
