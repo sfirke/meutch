@@ -41,7 +41,8 @@
                             <h1 class="card-title h2 mb-0">{{ item.name }}</h1>
                             {% if item.is_giveaway and item.giveaway_visibility == 'public' %}
                                 {% set share_url = url_for('share.giveaway_preview', item_id=item.id, _external=True) %}
-                                {% set share_title = item.name + ' - Free Giveaway on Meutch' %}
+                                {% set share_title = item.name + ' (Free Giveaway)' %}
+                                {% set share_text = 'Free giveaway on Meutch: ' + item.name %}
                                 {% include 'share/_share_button.html' %}
                             {% endif %}
                         </div>

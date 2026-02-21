@@ -3,7 +3,7 @@
 function shareLink(button) {
     const url = button.getAttribute('data-share-url');
     const title = button.getAttribute('data-share-title');
-    const text = button.getAttribute('data-share-text') || ('Check this out on Meutch: ' + title);
+    const text = button.getAttribute('data-share-text') || title;
     const shareData = {
         title: title,
         text: text,
