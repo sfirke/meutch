@@ -1046,6 +1046,7 @@ def edit_item(item_id):
         return redirect(url_for('main.profile'))
     
     form = ListItemForm(obj=item)
+    form.submit.label.text = 'Save'
 
     if request.method == 'GET':
         # Prepopulate giveaway fields
