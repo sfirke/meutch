@@ -1,4 +1,5 @@
-from flask import render_template, abort
+from flask import render_template, abort, redirect, url_for
+from flask_login import current_user
 from app.share import bp as share
 from app.models import Item, ItemRequest, Circle
 from app import db
@@ -12,6 +13,9 @@ def giveaway_preview(item_id):
     if not item or not item.is_giveaway or item.giveaway_visibility != 'public':
         abort(404)
 
+    if current_user.is_authenticated:
+        return redirect(url_for('main.item_detail', item_id=item_id))
+
     return render_template('share/giveaway_preview.html', item=item)
 
 
@@ -22,6 +26,9 @@ def request_preview(request_id):
     if not item_request or item_request.visibility != 'public' or item_request.status == 'deleted':
         abort(404)
 
+    if current_user.is_authenticated:
+        return redirect(url_for('requests.detail', request_id=request_id))
+
     return render_template('share/request_preview.html', item_request=item_request)
 
 
@@ -31,6 +38,9 @@ def circle_preview(circle_id):
     circle = db.session.get(Circle, circle_id)
     if not circle or circle.visibility == 'unlisted':
         abort(404)
+
+    if current_user.is_authenticated:
+        return redirect(url_for('circles.view_circle', circle_id=circle_id))
 
     # For public circles, get a sample of members to show avatars
     # Prioritize members who have uploaded a custom avatar
