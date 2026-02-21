@@ -62,66 +62,21 @@ export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meu
 ./run_tests.sh -u -c  # Takes ~5 seconds - NEVER CANCEL
 
 # Integration tests  
-./run_tests.sh -i     # Takes ~70 seconds - NEVER CANCEL
+./run_tests.sh -i     # Takes ~120 seconds - NEVER CANCEL
 
 # Functional tests
-./run_tests.sh -f     # Takes ~5 seconds - NEVER CANCEL
+./run_tests.sh -f     # Takes ~10 seconds - NEVER CANCEL
 
 # All tests with coverage
-./run_tests.sh -c     # Takes ~85 seconds - NEVER CANCEL
+./run_tests.sh -c     # Takes ~130 seconds - NEVER CANCEL
 ```
 
 **TIMEOUT REQUIREMENTS:**
 - Set timeouts to at least 120 seconds for all test commands
 - **NEVER CANCEL** long-running operations - tests are optimized but still thorough
 
-### Running the Web Application
-```bash
-# Start web server for testing changes
-export FLASK_ENV=development
-export SECRET_KEY=dev-secret-key
-export DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
-export STORAGE_BACKEND=local  # Use local file storage for development
-export FLASK_APP=app.py
 
-# Ensure database is migrated first
-flask db upgrade
-
-# Start server
-python -c "from app import create_app; app = create_app(); app.run(host='127.0.0.1', port=5000, debug=False)"
-# Access at http://127.0.0.1:5000
-```
-
-## Validation Requirements
-
-### MANDATORY Post-Change Validation
-After making ANY code changes, ALWAYS run these validation steps:
-
-1. **Test Suite Validation:**
-   ```bash
-   export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
-   ./run_tests.sh -c  # NEVER CANCEL - takes ~85 seconds
-   ```
-
-2. **Web Application Testing:**
-   ```bash
-   # Start the app (commands above)
-   # Test these endpoints return 200:
-   curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/          # Homepage
-   curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/about     # About page  
-   curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/auth/login # Login page
-   ```
-
-3. **End-to-End User Scenarios:**
-   Test these complete workflows through the web interface:
-   - User registration and login flow
-   - Create and list an item for lending
-   - Browse available items
-   - Send a message about an item
-   - Create or join a lending circle
-
-### Critical Database Requirements
-- **PostgreSQL is REQUIRED** - SQLite will not work due to UUID column types
+### Critical PostgreSQL Database Requirements
 - Database connection on port 5433 (to avoid conflicts with system PostgreSQL)
 - Test database automatically started by Docker with postgres:17-alpine image
 - Always use TEST_DATABASE_URL for tests and DATABASE_URL for development
@@ -163,30 +118,6 @@ docker compose -f docker-compose.test.yml down -v
 docker compose -f docker-compose.test.yml up -d
 ```
 
-## Code Structure & Navigation
-
-### Key Directories
-- `app/` - Main Flask application
-  - `app/main/` - Main blueprint (homepage, items, profiles)
-  - `app/auth/` - Authentication routes
-  - `app/circles/` - Lending circles functionality
-  - `app/models.py` - Database models
-  - `app/forms.py` - WTForms form definitions
-  - `app/utils/storage.py` - File storage abstraction (local files or DO Spaces)
-  - `app/static/uploads/` - Local file storage directory (git-ignored, except .gitkeep files)
-- `tests/` - Test suite
-  - `tests/unit/` - Unit tests (forms, models, storage)
-  - `tests/integration/` - Integration tests (routes, auth)
-  - `tests/functional/` - End-to-end workflow tests
-- `migrations/` - Database migration files
-
-### Important Files
-- `app.py` - Application entry point
-- `config.py` - Configuration classes for different environments
-- `conftest.py` - Pytest configuration and fixtures (session-scoped app, autouse clean_db)
-- `run_tests.sh` - Test runner script with multiple options
-- `requirements.txt` - Python dependencies
-
 ### File Storage
 - Set `STORAGE_BACKEND` to `"local"` (dev, uses `app/static/uploads/`) or `"digitalocean"` (prod, requires `DO_SPACES_*` vars)
 - Defaults to `"local"` in development; must be explicit in production/staging
@@ -202,15 +133,8 @@ docker compose -f docker-compose.test.yml up -d
 
 ### Common Change Scenarios
 - **Model changes:** Run unit tests (`./run_tests.sh -u`), then integration tests (`./run_tests.sh -i`)
-- **Route changes:** Run integration tests (`./run_tests.sh -i`), then test web app manually
+- **Route changes:** Run integration tests (`./run_tests.sh -i`)
 - **Form changes:** Run unit tests for forms, then functional tests (`./run_tests.sh -f`)
-- **Any user-facing changes:** Always test through web interface after automated tests pass
-
-### Configuration Environments
-- `development` - Local development with PostgreSQL
-- `testing` - Test environment (used by pytest)  
-- `staging` - Staging environment with production data sync
-- `production` - Production deployment
 
 ## Troubleshooting
 
@@ -224,4 +148,4 @@ docker compose -f docker-compose.test.yml up -d
 - Requires PostgreSQL database with proper environment variables
 - See `.github/workflows/` for CI/CD pipeline configuration
 
-**Remember: Always validate your changes thoroughly using both automated tests and manual web application testing.**
+**Remember: Always validate your changes thoroughly by running the tests for any code that has been touched.**

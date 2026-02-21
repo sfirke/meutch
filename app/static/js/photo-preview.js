@@ -242,16 +242,42 @@
         if (form) {
             // Track if we've already processed the image
             let imageProcessed = false;
-            
+            let pendingSubmitter = null;
+
+            // Capture clicked submit button for browsers that don't support e.submitter
+            form.querySelectorAll('[type="submit"]').forEach(function(btn) {
+                btn.addEventListener('click', function() { pendingSubmitter = btn; });
+            });
+
             form.addEventListener('submit', function(e) {
+                // e.submitter is more reliable than click tracking when available
+                if (e.submitter) pendingSubmitter = e.submitter;
+
                 if (cropper && currentFile && !imageProcessed) {
                     // Prevent the form from submitting until we process the image
                     e.preventDefault();
-                    
+                    // Capture now so the async callback uses the correct button
+                    const submitter = pendingSubmitter;
+
                     // Update file input with final cropped/rotated version
                     updateFileInputWithCroppedImage(fileInput, function() {
                         imageProcessed = true;
-                        // Use HTMLFormElement.prototype.submit to avoid conflict with named submit buttons
+
+                        // requestSubmit preserves submitter identity and reruns validation
+                        if (typeof form.requestSubmit === 'function') {
+                            form.requestSubmit(submitter || undefined);
+                            return;
+                        }
+
+                        // Legacy fallback: inject button identity as a hidden field before raw submit
+                        if (submitter && submitter.name) {
+                            const hidden = document.createElement('input');
+                            hidden.type = 'hidden';
+                            hidden.name = submitter.name;
+                            hidden.value = submitter.value || '';
+                            form.appendChild(hidden);
+                        }
+
                         HTMLFormElement.prototype.submit.call(form);
                     });
                 }
