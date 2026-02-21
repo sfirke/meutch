@@ -91,10 +91,7 @@
                     <!-- Owner actions -->
                     {% if item_request.user_id == current_user.id %}
                         <hr>
-                        <div class="d-flex flex-wrap gap-2">
-                            <a href="{{ url_for('requests.edit', request_id=item_request.id) }}" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-edit me-1"></i>Edit
-                            </a>
+                        <div class="d-flex align-items-center gap-2">
                             {% if item_request.status == 'open' and not item_request.is_expired %}
                                 <form method="POST" action="{{ url_for('requests.fulfill', request_id=item_request.id) }}" class="d-inline">
                                     {{ fulfill_form.hidden_tag() }}
@@ -103,12 +100,30 @@
                                     </button>
                                 </form>
                             {% endif %}
-                            <form method="POST" action="{{ url_for('requests.delete', request_id=item_request.id) }}" class="d-inline" onsubmit="return confirm('Remove this request?');">
-                                {{ delete_form.hidden_tag() }}
-                                <button type="submit" class="btn btn-outline-danger btn-sm">
-                                    <i class="fas fa-trash me-1"></i>Delete
+                            <div class="dropdown ms-auto">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-ellipsis-v"></i>
                                 </button>
-                            </form>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="{{ url_for('requests.edit', request_id=item_request.id) }}"><i class="fas fa-edit me-2"></i>Edit</a></li>
+                                    {% if item_request.visibility == 'public' %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <button type="button" class="dropdown-item"
+                                                    onclick="shareRequestOwner('{{ url_for('share.request_preview', request_id=item_request.id, _external=True) }}', '{{ item_request.title|e }} - Request on Meutch', this)">
+                                                <i class="fas fa-share-nodes me-2"></i>Share Link
+                                            </button>
+                                        </li>
+                                    {% endif %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form method="POST" action="{{ url_for('requests.delete', request_id=item_request.id) }}" class="d-inline" onsubmit="return confirm('Remove this request?');">
+                                            {{ delete_form.hidden_tag() }}
+                                            <button type="submit" class="dropdown-item text-danger"><i class="fas fa-trash me-2"></i>Delete</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     {% endif %}
 
@@ -140,4 +155,32 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function shareRequestOwner(url, title, button) {
+    if (navigator.share) {
+        navigator.share({ title: title, url: url }).catch(function(err) {
+            if (err.name !== 'AbortError') { copyShareToClipboard(url, button); }
+        });
+    } else {
+        copyShareToClipboard(url, button);
+    }
+}
+function copyShareToClipboard(url, button) {
+    navigator.clipboard.writeText(url).then(function() {
+        var orig = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+        setTimeout(function() { button.innerHTML = orig; }, 2000);
+    }).catch(function() {
+        var t = document.createElement('input');
+        t.value = url;
+        document.body.appendChild(t);
+        t.select();
+        document.execCommand('copy');
+        document.body.removeChild(t);
+    });
+}
+</script>
 {% endblock %}

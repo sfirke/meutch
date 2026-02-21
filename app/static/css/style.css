@@ -1256,8 +1256,10 @@ footer h6 {
 }
 
 .share-preview-image {
+    width: 100%;
     max-height: 400px;
-    object-fit: cover;
+    object-fit: contain;
+    background-color: #f8f9fa;
 }
 
 .share-preview-image-placeholder {
