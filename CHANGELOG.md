@@ -10,6 +10,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Implement user requests ([#192](https://github.com/sfirke/meutch/pull/192))
 - Add "vacation mode" toggle to user profile ([#147](https://github.com/sfirke/meutch/pull/147)). When enabled, it hides user's items from being discovered (existing loans persist).
 - Photo processing improvements: rotate, crop, zoom for uploaded photos; shared `notifications.js` for re-usable toast behavior ([#164](https://github.com/sfirke/meutch/pull/164)).
+- Add shareable links for public giveaways, requests, and circles (both public and private) with rich link previews for social media and SMS, including entity images and metadata.
 
 **Minor**
 - Show the full image for an item (letterboxing as needed) by changing CSS attributes. Images are no longer arbitrarily cropped ([#171](https://github.com/sfirke/meutch/pull/171))
@@ -21,8 +22,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - The admin panel no longer freezes on page load - there had been an infinite JavaScript loop ([#170](https://github.com/sfirke/meutch/pull/170))
 - Speed up creation of seed data by caching hashed passwords ([#167](https://github.com/sfirke/meutch/pull/167)).
 - Edit item form submit button now says "Save" instead of "List Item" for better clarity on the edit action.
-- Share link previews now use the shared entity's image (giveaway/circle) or requester profile image when available, instead of always showing the Meutch logo.
-- Share button behavior now sends richer Web Share payload data and has a more reliable copy-link fallback state.
 
 ## Jan 2026
 
