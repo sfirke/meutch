@@ -190,3 +190,6 @@ app/static/uploads/circles/*
 
 # markdown design files
 dev_docs/*
+
+# AI / LLM
+AGENTS.md

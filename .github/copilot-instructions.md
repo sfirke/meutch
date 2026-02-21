@@ -1,4 +1,3 @@
-
 # Meutch - Item Sharing & Lending Platform
 
 Meutch is a nonprofit, open-source web application built with **Flask** (Python), **PostgreSQL**, and **Bootstrap** for the frontend. It enables community-based item sharing and lending. Users can list items for others to borrow, join lending circles, and communicate through the platform.
