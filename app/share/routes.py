@@ -1,6 +1,6 @@
 from urllib.parse import urljoin
 
-from flask import render_template, abort, redirect, url_for, request
+from flask import render_template, abort, redirect, url_for, request, flash
 from flask_login import current_user
 from app.share import bp as share
 from app.models import Item, ItemRequest, Circle
@@ -48,6 +48,7 @@ def request_preview(request_id):
 
     if current_user.is_authenticated:
         if show_fulfilled_fallback:
+            flash('This request has already been fulfilled and is no longer available.', 'info')
             return redirect(url_for('requests.feed'))
         return redirect(url_for('requests.detail', request_id=request_id))
 
