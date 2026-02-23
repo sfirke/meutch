@@ -193,3 +193,4 @@ dev_docs/*
 
 # AI / LLM
 AGENTS.md
+.github/hooks/*

@@ -1,0 +1,106 @@
+{# app/templates/share/circle_preview.html #}
+{% extends "base.html" %}
+
+{% block title %}{{ circle.name }} - Circle{% endblock %}
+
+{% block og_title %}{{ circle.name }} - Circle on Meutch{% endblock %}
+{% block og_description %}{{ circle.description|truncate(200) if circle.description else 'Join the ' + circle.name + ' circle on Meutch to share and borrow with the community!' }}{% endblock %}
+{% block og_image %}{{ preview_image_url }}{% endblock %}
+
+{% block twitter_title %}{{ circle.name }} - Circle on Meutch{% endblock %}
+{% block twitter_description %}{{ circle.description|truncate(200) if circle.description else 'Join the ' + circle.name + ' circle on Meutch to share and borrow with the community!' }}{% endblock %}
+{% block twitter_card %}{{ 'summary_large_image' if circle.image_url else 'summary' }}{% endblock %}
+{% block twitter_image %}{{ preview_image_url }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm share-preview-card">
+                <!-- Circle Image -->
+                {% if circle.image_url %}
+                    <img src="{{ circle.image_url }}" alt="{{ circle.name }}" class="card-img-top share-preview-image">
+                {% endif %}
+                
+                <div class="card-body">
+                    <!-- Visibility Badge -->
+                    <div class="mb-3">
+                        {% if circle.visibility == 'public' %}
+                            <span class="badge bg-primary">
+                                <i class="fas fa-globe me-1"></i>Public Circle
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="fas fa-lock me-1"></i>Private Circle
+                            </span>
+                        {% endif %}
+                        <span class="badge bg-light text-dark border ms-1">
+                            <i class="fas fa-users me-1"></i>{{ member_count }} member{{ 's' if member_count != 1 else '' }}
+                        </span>
+                    </div>
+
+                    <!-- Circle Name -->
+                    <h1 class="h2 mb-3">{{ circle.name }}</h1>
+
+                    <!-- Description -->
+                    {% if circle.description %}
+                        <p class="fs-5 text-muted mb-4">{{ circle.description }}</p>
+                    {% endif %}
+
+                    <!-- Member Avatars (public circles only) -->
+                    {% if circle.visibility == 'public' and sample_members %}
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-3"><i class="fas fa-users"></i></h6>
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                {% for member in sample_members %}
+                                    <div class="share-member-avatar" title="{{ member.first_name }}">
+                                        <img src="{{ member.profile_image }}" 
+                                             alt="{{ member.first_name }}" 
+                                             class="rounded-circle"
+                                             width="44" height="44">
+                                    </div>
+                                {% endfor %}
+                                {% if member_count > sample_members|length %}
+                                    <span class="text-muted small ms-2">
+                                        +{{ member_count - sample_members|length }} more
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Private circle note -->
+                    {% if circle.visibility == 'private' %}
+                        <div class="alert alert-light border mb-4">
+                            <i class="fas fa-lock me-2 text-muted"></i>
+                            This is a private circle. Join to see its members and shared items. Membership requires approval.
+                        </div>
+                    {% endif %}
+
+                    <hr>
+
+                    <!-- CTA Section -->
+                    <div class="text-center py-3">
+                        <p class="fs-5 mb-3">
+                            <i class="fas fa-handshake me-2 text-primary"></i>Join this circle to start sharing with the community!
+                        </p>
+                        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
+                            <a href="{{ url_for('auth.register', next=auth_next_url) }}" 
+                               class="btn btn-primary btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>Sign Up
+                            </a>
+                            <a href="{{ url_for('auth.login', next=auth_next_url) }}" 
+                               class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Log In
+                            </a>
+                        </div>
+                        <p class="text-muted small mt-3 mb-0">
+                            Meutch is a free, nonprofit platform for community sharing.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

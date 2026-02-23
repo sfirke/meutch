@@ -6,14 +6,22 @@
 
 {% block content %}
 <div class="container mt-5">
-    <h2>
-        {% if circle.visibility == 'private' %}
-            <i class="fas fa-lock text-muted me-2" title="Private Circle"></i>
-        {% elif circle.visibility == 'unlisted' %}
-            <i class="fas fa-eye-slash text-muted me-2" title="Unlisted Circle"></i>
+    <div class="d-flex justify-content-between align-items-start">
+        <h2>
+            {% if circle.visibility == 'private' %}
+                <i class="fas fa-lock text-muted me-2" title="Private Circle"></i>
+            {% elif circle.visibility == 'unlisted' %}
+                <i class="fas fa-eye-slash text-muted me-2" title="Unlisted Circle"></i>
+            {% endif %}
+            {{ circle.name }}
+        </h2>
+        {% if circle.visibility != 'unlisted' %}
+            {% set share_url = url_for('share.circle_preview', circle_id=circle.id, _external=True) %}
+            {% set share_title = circle.name + ' Circle' %}
+            {% set share_text = 'Join the ' + circle.name + ' circle on Meutch' %}
+            {% include 'share/_share_button.html' %}
         {% endif %}
-        {{ circle.name }}
-    </h2>
+    </div>
     <p>{{ circle.description }}</p>
     <p><strong>Members:</strong> {{ circle.members|length }}</p>
     
