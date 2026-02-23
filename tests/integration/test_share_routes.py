@@ -1,4 +1,6 @@
 """Integration tests for share link routes."""
+from datetime import datetime, UTC, timedelta
+
 import pytest
 from app import db
 from tests.factories import UserFactory, ItemFactory, CircleFactory, ItemRequestFactory
@@ -301,17 +303,77 @@ class TestRequestSharePreview:
         response = client.get(f'/share/request/{uuid.uuid4()}')
         assert response.status_code == 404
 
-    def test_fulfilled_request_still_accessible(self, client, app):
-        """Test that a fulfilled request preview is still accessible."""
+    def test_fulfilled_request_older_than_7_days_shows_fallback(self, client, app):
+        """Test that old fulfilled requests show fulfilled fallback content and feed CTA."""
         with app.app_context():
             user = UserFactory()
             req = ItemRequestFactory(
-                user=user, visibility='public', status='fulfilled'
+                user=user,
+                visibility='public',
+                status='fulfilled',
+                fulfilled_at=datetime.now(UTC) - timedelta(days=8),
             )
             db.session.commit()
-            
+
             response = client.get(f'/share/request/{req.id}')
             assert response.status_code == 200
+            assert b'This request has already been fulfilled.' in response.data
+            assert b'Browse current community requests in the requests feed.' in response.data
+            assert b'/auth/register' in response.data
+            assert b'/auth/login' in response.data
+            assert (b'next=%2Frequests%2F' in response.data) or (b'next=/requests/' in response.data)
+
+    def test_fulfilled_request_within_7_days_still_accessible_with_feed_next(self, client, app):
+        """Test that recent fulfilled request is visible but points auth CTA to feed."""
+        with app.app_context():
+            user = UserFactory()
+            req = ItemRequestFactory(
+                user=user,
+                visibility='public',
+                status='fulfilled',
+                fulfilled_at=datetime.now(UTC) - timedelta(days=2),
+            )
+            db.session.commit()
+
+            response = client.get(f'/share/request/{req.id}')
+            assert response.status_code == 200
+            assert req.title.encode() in response.data
+            assert b'This request has already been fulfilled.' not in response.data
+            assert b'/auth/register' in response.data
+            assert b'/auth/login' in response.data
+            assert (b'next=%2Frequests%2F' in response.data) or (b'next=/requests/' in response.data)
+
+    def test_open_request_uses_request_detail_for_auth_next(self, client, app):
+        """Test that open requests preserve request-detail next links."""
+        with app.app_context():
+            user = UserFactory()
+            req = ItemRequestFactory(user=user, visibility='public', status='open')
+            db.session.commit()
+
+            response = client.get(f'/share/request/{req.id}')
+            assert response.status_code == 200
+            encoded_next = f'%2Frequests%2F{req.id}%2Fdetail'.encode()
+            raw_next = f'/requests/{req.id}/detail'.encode()
+            assert b'/auth/register' in response.data
+            assert b'/auth/login' in response.data
+            assert (b'next=' + encoded_next in response.data) or (b'next=' + raw_next in response.data)
+
+    def test_authenticated_user_old_fulfilled_share_link_redirects_to_feed(self, client, app):
+        """Test authenticated users are redirected to requests feed for old fulfilled shared requests."""
+        with app.app_context():
+            user = UserFactory()
+            req = ItemRequestFactory(
+                user=user,
+                visibility='public',
+                status='fulfilled',
+                fulfilled_at=datetime.now(UTC) - timedelta(days=8),
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get(f'/share/request/{req.id}')
+            assert response.status_code == 302
+            assert response.headers['Location'].endswith('/requests/')
 
 
 class TestCircleSharePreview:
@@ -362,7 +424,7 @@ class TestCircleSharePreview:
             
             response = client.get(f'/share/circle/{circle.id}')
             assert response.status_code == 200
-            assert b'Some members' in response.data
+            assert b'share-member-avatar' in response.data
             assert b'2 members' in response.data
 
     def test_private_circle_hides_member_avatars(self, client, app):
@@ -375,7 +437,7 @@ class TestCircleSharePreview:
             
             response = client.get(f'/share/circle/{circle.id}')
             assert response.status_code == 200
-            assert b'Some members' not in response.data
+            assert b'share-member-avatar' not in response.data
             assert b'private circle' in response.data.lower()
 
     def test_circle_preview_shows_description(self, client, app):
@@ -611,5 +673,7 @@ class TestRegisterNextParam:
             })
             # Should redirect to login with next param preserved
             assert response.status_code == 302
-            assert 'next=' in response.headers['Location']
-            assert '/auth/login' in response.headers['Location']
+            location = response.headers['Location']
+            assert '/auth/login' in location
+            # Check both url-encoded and raw forms of the next parameter in the Location header
+            assert ('next=%2Fcircles%2Fsome-id' in location) or ('next=/circles/some-id' in location)

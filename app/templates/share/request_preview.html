@@ -18,6 +18,32 @@
         <div class="col-lg-8">
             <div class="card shadow-sm share-preview-card">
                 <div class="card-body">
+                    {% if show_fulfilled_fallback %}
+                    <div class="text-center py-4">
+                        <h1 class="h2 mb-3">
+                            <i class="fas fa-check-circle text-success me-2"></i>This request has already been fulfilled.
+                        </h1>
+                        <p class="fs-5 mb-3">
+                            <i class="fas fa-search me-2 text-primary"></i>Browse current community requests in the requests feed.
+                        </p>
+                        <p class="text-muted mb-4">
+                            Join Meutch to discover active requests and connect with neighbors.
+                        </p>
+                        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
+                            <a href="{{ url_for('auth.register', next=auth_next_url) }}"
+                               class="btn btn-primary btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>Sign Up
+                            </a>
+                            <a href="{{ url_for('auth.login', next=auth_next_url) }}"
+                               class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Log In
+                            </a>
+                        </div>
+                        <p class="text-muted small mt-3 mb-0">
+                            Meutch is a free, nonprofit platform for community sharing.
+                        </p>
+                    </div>
+                    {% else %}
                     <!-- Author Info -->
                     <div class="d-flex align-items-center mb-4">
                         <img src="{{ item_request.user.profile_image }}" alt="{{ item_request.user.first_name }}" class="rounded-circle me-3" width="56" height="56">
@@ -82,11 +108,11 @@
                             {% endif %}
                         </p>
                         <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
-                            <a href="{{ url_for('auth.register', next=url_for('requests.detail', request_id=item_request.id)) }}" 
+                            <a href="{{ url_for('auth.register', next=auth_next_url) }}"
                                class="btn btn-primary btn-lg">
                                 <i class="fas fa-user-plus me-2"></i>Sign Up
                             </a>
-                            <a href="{{ url_for('auth.login', next=url_for('requests.detail', request_id=item_request.id)) }}" 
+                            <a href="{{ url_for('auth.login', next=auth_next_url) }}"
                                class="btn btn-outline-secondary btn-lg">
                                 <i class="fas fa-sign-in-alt me-2"></i>Log In
                             </a>
@@ -95,6 +121,7 @@
                             Meutch is a free, nonprofit platform for community sharing.
                         </p>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

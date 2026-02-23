@@ -81,11 +81,11 @@
                             {% endif %}
                         </p>
                         <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
-                            <a href="{{ url_for('auth.register', next=url_for('main.item_detail', item_id=item.id)) }}" 
+                            <a href="{{ url_for('auth.register', next=auth_next_url) }}" 
                                class="btn btn-primary btn-lg">
                                 <i class="fas fa-user-plus me-2"></i>Sign Up
                             </a>
-                            <a href="{{ url_for('auth.login', next=url_for('main.item_detail', item_id=item.id)) }}" 
+                            <a href="{{ url_for('auth.login', next=auth_next_url) }}" 
                                class="btn btn-outline-secondary btn-lg">
                                 <i class="fas fa-sign-in-alt me-2"></i>Log In
                             </a>

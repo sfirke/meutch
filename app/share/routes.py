@@ -27,10 +27,13 @@ def giveaway_preview(item_id):
     if current_user.is_authenticated:
         return redirect(url_for('main.item_detail', item_id=item_id))
 
+    auth_next_url = url_for('main.item_detail', item_id=item.id)
+
     return render_template(
         'share/giveaway_preview.html',
         item=item,
-        preview_image_url=_absolute_image_url(item.image_url)
+        preview_image_url=_absolute_image_url(item.image_url),
+        auth_next_url=auth_next_url,
     )
 
 
@@ -41,13 +44,25 @@ def request_preview(request_id):
     if not item_request or item_request.visibility != 'public' or item_request.status == 'deleted':
         abort(404)
 
+    show_fulfilled_fallback = item_request.is_fulfilled and not item_request.show_in_feed
+
     if current_user.is_authenticated:
+        if show_fulfilled_fallback:
+            return redirect(url_for('requests.feed'))
         return redirect(url_for('requests.detail', request_id=request_id))
+
+    auth_next_url = (
+        url_for('requests.feed')
+        if item_request.is_fulfilled
+        else url_for('requests.detail', request_id=item_request.id)
+    )
 
     return render_template(
         'share/request_preview.html',
         item_request=item_request,
-        preview_image_url=_absolute_image_url(item_request.user.profile_image_url)
+        preview_image_url=_absolute_image_url(item_request.user.profile_image_url),
+        show_fulfilled_fallback=show_fulfilled_fallback,
+        auth_next_url=auth_next_url,
     )
 
 
@@ -60,6 +75,8 @@ def circle_preview(circle_id):
 
     if current_user.is_authenticated:
         return redirect(url_for('circles.view_circle', circle_id=circle_id))
+
+    auth_next_url = url_for('circles.view_circle', circle_id=circle.id)
 
     # For public circles, get a sample of members to show avatars
     # Prioritize members who have uploaded a custom avatar
@@ -78,5 +95,6 @@ def circle_preview(circle_id):
         circle=circle,
         sample_members=sample_members,
         member_count=len(circle.members),
-        preview_image_url=_absolute_image_url(circle.image_url)
+        preview_image_url=_absolute_image_url(circle.image_url),
+        auth_next_url=auth_next_url,
     )
