@@ -19,6 +19,15 @@ print_color() {
 # Docker compose file for tests
 DOCKER_COMPOSE_FILE="docker-compose.test.yml"
 CONTAINER_NAME="meutch-test-db"
+TEST_DB_NAME="meutch_test"
+
+ensure_test_db_exists() {
+    DB_EXISTS=$(docker exec $CONTAINER_NAME psql -U test_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='${TEST_DB_NAME}'" 2>/dev/null | tr -d ' ')
+    if [ "$DB_EXISTS" != "1" ]; then
+        print_color $BLUE "🆕 Creating test database: ${TEST_DB_NAME}"
+        docker exec $CONTAINER_NAME psql -U test_user -d postgres -c "CREATE DATABASE ${TEST_DB_NAME}" > /dev/null
+    fi
+}
 
 # Function to check if Docker is running
 check_docker() {
@@ -41,7 +50,7 @@ start_db() {
     print_color $BLUE "⏳ Waiting for database to be ready..."
     timeout=30
     while [ $timeout -gt 0 ]; do
-        if docker compose -f $DOCKER_COMPOSE_FILE exec -T test-postgres pg_isready -U test_user -d meutch_dev > /dev/null 2>&1; then
+        if docker compose -f $DOCKER_COMPOSE_FILE exec -T test-postgres pg_isready -U test_user -d postgres > /dev/null 2>&1; then
             print_color $GREEN "✅ Test database is ready!"
             break
         fi
@@ -53,9 +62,12 @@ start_db() {
         print_color $RED "❌ Timeout waiting for database to be ready"
         exit 1
     fi
+
+    ensure_test_db_exists
     
     print_color $GREEN "🎉 Test database started successfully!"
-    print_color $BLUE "Database URL: postgresql://test_user:test_password@localhost:5433/meutch_dev"
+    print_color $BLUE "Database URL (tests): postgresql://test_user:test_password@localhost:5433/${TEST_DB_NAME}"
+    print_color $BLUE "Database URL (dev): postgresql://test_user:test_password@localhost:5433/meutch_dev"
 }
 
 # Function to stop the test database
@@ -94,7 +106,7 @@ status_db() {
 # Function to connect to database with psql
 connect_db() {
     print_color $BLUE "🔗 Connecting to test database..."
-    docker compose -f $DOCKER_COMPOSE_FILE exec test-postgres psql -U test_user -d meutch_dev
+    docker compose -f $DOCKER_COMPOSE_FILE exec test-postgres psql -U test_user -d $TEST_DB_NAME
 }
 
 # Function to run database migrations
@@ -103,7 +115,7 @@ migrate_db() {
     
     # Set the test database URL
     export FLASK_APP=app.py
-    export DATABASE_URL="postgresql://test_user:test_password@localhost:5433/meutch_dev"
+    export DATABASE_URL="postgresql://test_user:test_password@localhost:5433/$TEST_DB_NAME"
     
     # Run migrations
     flask db upgrade

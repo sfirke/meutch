@@ -26,7 +26,8 @@ cp .env.example .env
 
 The default values in `.env.example` are configured for local development with the Docker PostgreSQL database. You can use them as-is or customize as needed. The file includes:
 - Flask configuration (`FLASK_ENV`, `FLASK_APP`)
-- Database connection string for the local Docker database
+- Database connection string for development data (`meutch_dev`)
+- A separate test database URL pattern (`meutch_test`) to isolate test runs from development data
 - Storage backend configuration (defaults to `local` for development)
 - Optional email and cloud storage settings (commented out by default)
 

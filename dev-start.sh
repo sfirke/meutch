@@ -3,6 +3,21 @@
 
 echo "🚀 Starting Meutch Development Environment"
 
+wait_for_db() {
+    echo "⏳ Waiting for database to be ready..."
+    timeout=30
+    while [ $timeout -gt 0 ]; do
+        if docker compose -f docker-compose.test.yml exec -T test-postgres pg_isready -U test_user -d postgres > /dev/null 2>&1; then
+            return 0
+        fi
+        sleep 1
+        ((timeout--))
+    done
+
+    echo "❌ Timeout waiting for database to be ready"
+    exit 1
+}
+
 # Check if virtual environment exists
 if [ ! -d "venv" ]; then
     echo "❌ Virtual environment not found. Please run 'python -m venv venv' first."
@@ -30,29 +45,20 @@ fi
 if ! docker ps | grep -q "meutch-test-db"; then
     echo "🐳 Starting PostgreSQL container (docker-compose.test.yml)..."
     docker compose -f docker-compose.test.yml up -d
-    
-    # Wait for database to be ready
-    echo "⏳ Waiting for database to be ready..."
-    sleep 5
 fi
+
+wait_for_db
 
 echo "🔧 Environment configured from .env"
 
-# Check for corrupted database state (alembic_version exists but tables don't)
-echo "🔍 Checking database integrity..."
-DB_TABLES=$(docker exec meutch-test-db psql -U test_user -d meutch_dev -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';" 2>/dev/null | tr -d ' ')
-ALEMBIC_EXISTS=$(docker exec meutch-test-db psql -U test_user -d meutch_dev -t -c "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='alembic_version');" 2>/dev/null | tr -d ' ')
-
-# If alembic_version exists but we have fewer than expected tables (should be 15+), database is corrupted
-if [ "$ALEMBIC_EXISTS" = "t" ] && [ "$DB_TABLES" -lt 10 ]; then
-    echo "⚠️  Corrupted database detected (alembic_version exists but tables missing)"
-    echo "🔧 Resetting database to fix migration state..."
-    docker compose -f docker-compose.test.yml down -v
-    echo "🐳 Starting fresh PostgreSQL container..."
-    docker compose -f docker-compose.test.yml up -d
-    echo "⏳ Waiting for database to be ready..."
-    sleep 5
-fi
+echo "🔍 Ensuring development/test databases exist..."
+for DB_NAME in meutch_dev meutch_test; do
+    DB_EXISTS=$(docker exec meutch-test-db psql -U test_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" 2>/dev/null | tr -d ' ')
+    if [ "$DB_EXISTS" != "1" ]; then
+        echo "🆕 Creating database: ${DB_NAME}"
+        docker exec meutch-test-db psql -U test_user -d postgres -c "CREATE DATABASE ${DB_NAME}" > /dev/null
+    fi
+done
 
 # Run database migrations
 echo "📊 Applying database migrations..."
