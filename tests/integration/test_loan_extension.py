@@ -88,8 +88,8 @@ class TestLoanExtension:
             assert response.status_code == 200
             
             # Check that flash message says "updated" not "extended"
-            assert b'updated' in response.data
-            assert b'extended' not in response.data
+            assert b'Loan due date has been updated to' in response.data
+            assert b'Loan has been extended until' not in response.data
             
             # Check that the notification message to borrower says "updated" not "extended"
             message = Message.query.filter_by(
@@ -99,8 +99,8 @@ class TestLoanExtension:
             ).order_by(Message.timestamp.desc()).first()
             
             assert message is not None
-            assert 'updated' in message.body.lower()
-            assert 'extended' not in message.body.lower()
+            assert 'has been updated' in message.body.lower()
+            assert 'has been extended' not in message.body.lower()
             # Should not have "good news" for earlier date
             assert 'good news' not in message.body.lower()
     
@@ -181,6 +181,6 @@ class TestLoanExtension:
             ).order_by(Message.timestamp.desc()).first()
             
             assert message is not None
-            assert 'updated' in message.body.lower()
-            assert 'extended' not in message.body.lower()
+            assert 'has been updated' in message.body.lower()
+            assert 'has been extended' not in message.body.lower()
             assert custom_msg in message.body
