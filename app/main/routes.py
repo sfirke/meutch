@@ -432,6 +432,7 @@ def express_interest(item_id):
     if form.validate_on_submit():
         # Get optional message from form
         message_text = form.message.data.strip() if form.message.data else None
+        notification_body = message_text or f"Hi! I'm interested in your giveaway '{item.name}'."
         
         # Create GiveawayInterest record
         try:
@@ -442,7 +443,24 @@ def express_interest(item_id):
                 status='active'
             )
             db.session.add(interest)
+
+            # Create in-app notification for owner so they can respond to the request.
+            message = Message(
+                sender_id=current_user.id,
+                recipient_id=item.owner_id,
+                item_id=item.id,
+                body=notification_body
+            )
+            db.session.add(message)
+
             db.session.commit()
+
+            # Send email notification to owner.
+            try:
+                send_message_notification_email(message)
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email notification for giveaway interest message {message.id}: {str(e)}")
+
             flash('Your interest has been recorded! The owner will contact you if you are selected.', 'success')
         except IntegrityError:
             db.session.rollback()
