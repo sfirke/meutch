@@ -446,10 +446,10 @@ def handle_join_request(circle_id, request_id, action):
             sender_id=current_user.id,
             recipient_id=join_request.user_id,
             circle_id=circle.id,
-            body=f"Your request to join '{circle.name}' has been rejected."
+            body=f"Your request to join '{circle.name}' has been denied."
         )
         db.session.add(decision_message)
-        flash('User request has been rejected.', 'info')
+        flash('User request has been denied.', 'info')
     else:
         flash('Invalid action.', 'danger')
         return redirect(url_for('circles.view_circle', circle_id=circle_id))
