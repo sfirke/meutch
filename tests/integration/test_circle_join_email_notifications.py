@@ -207,7 +207,7 @@ class TestCircleJoinRequestEmailIntegration:
                     circle_id=circle.id
                 ).order_by(Message.timestamp.desc()).first()
                 assert decision_message is not None
-                assert 'rejected' in decision_message.body.lower()
+                assert 'denied' in decision_message.body.lower()
 
     def test_circle_without_approval_no_email(self, client, app):
         """Test that joining a circle without approval requirement doesn't send emails."""
