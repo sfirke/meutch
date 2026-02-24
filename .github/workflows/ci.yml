@@ -57,7 +57,7 @@ jobs:
 
     - name: Validate Alembic revision IDs
       run: |
-        python local_scripts/check_alembic_revision_ids.py
+        python scripts/check_alembic_revision_ids.py
     
     - name: Run tests with pytest
       run: |
