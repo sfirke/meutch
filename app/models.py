@@ -520,7 +520,9 @@ class Message(db.Model):
     __tablename__ = 'messages'
     __table_args__ = (
         db.CheckConstraint(
-            '((item_id IS NOT NULL AND request_id IS NULL) OR (item_id IS NULL AND request_id IS NOT NULL))',
+            '((CASE WHEN item_id IS NOT NULL THEN 1 ELSE 0 END) + '
+            '(CASE WHEN request_id IS NOT NULL THEN 1 ELSE 0 END) + '
+            '(CASE WHEN circle_id IS NOT NULL THEN 1 ELSE 0 END)) = 1',
             name='ck_messages_exactly_one_target'
         ),
     )
@@ -530,6 +532,7 @@ class Message(db.Model):
     recipient_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id'), nullable=True)
     request_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item_request.id'), nullable=True)
+    circle_id = db.Column(UUID(as_uuid=True), db.ForeignKey('circle.id'), nullable=True)
     body = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=func.now())
     is_read = db.Column(db.Boolean, default=False)
@@ -542,6 +545,7 @@ class Message(db.Model):
     recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
     item = db.relationship('Item', backref='messages')
     request = db.relationship('ItemRequest', backref='messages')
+    circle = db.relationship('Circle', backref='messages')
     parent = db.relationship('Message', remote_side=[id], backref='replies')
 
     @staticmethod
@@ -558,6 +562,11 @@ class Message(db.Model):
     def is_request_message(self):
         """Returns True if this message is related to an item request conversation."""
         return self.request_id is not None
+
+    @property
+    def is_circle_message(self):
+        """Returns True if this message is related to a circle conversation."""
+        return self.circle_id is not None
     
     @property
     def has_pending_action(self):

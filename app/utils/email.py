@@ -137,8 +137,11 @@ def send_message_notification_email(message):
     elif message.is_request_message:
         context_label = f"request: {message.request.title}"
         context_type_label = f"Request: {message.request.title}"
+    elif message.is_circle_message:
+        context_label = f"circle: {message.circle.name}"
+        context_type_label = f"Circle: {message.circle.name}"
     else:
-        current_app.logger.error(f"Message {message.id} has no item or request context")
+        current_app.logger.error(f"Message {message.id} has no item, request, or circle context")
         return False
 
     # Determine the subject and email content based on message type

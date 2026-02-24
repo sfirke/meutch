@@ -1840,6 +1840,7 @@ def messages():
         func.greatest(Message.sender_id, Message.recipient_id).label('user2_id'),
         Message.item_id,
         Message.request_id,
+        Message.circle_id,
         func.max(Message.timestamp).label('latest_timestamp')
     ).filter(
         or_(Message.sender_id == current_user.id, Message.recipient_id == current_user.id)
@@ -1847,7 +1848,8 @@ def messages():
         func.least(Message.sender_id, Message.recipient_id),
         func.greatest(Message.sender_id, Message.recipient_id),
         Message.item_id,
-        Message.request_id
+        Message.request_id,
+        Message.circle_id
     ).subquery()
 
     # Join the subquery with the Message table to get the latest message per conversation
@@ -1864,6 +1866,10 @@ def messages():
                 and_(Message.request_id.is_(None), latest_messages_subquery.c.request_id.is_(None)),
                 Message.request_id == latest_messages_subquery.c.request_id,
             ),
+            or_(
+                and_(Message.circle_id.is_(None), latest_messages_subquery.c.circle_id.is_(None)),
+                Message.circle_id == latest_messages_subquery.c.circle_id,
+            ),
             Message.timestamp == latest_messages_subquery.c.latest_timestamp
         )
     ).order_by(Message.timestamp.desc()).all()
@@ -1879,19 +1885,33 @@ def messages():
         
         # Calculate unread messages where current_user is the recipient
         if not convo.is_request_message:
-            target_filter = and_(
-                Message.item_id == convo.item_id,
-                Message.request_id.is_(None),
-            )
-            item = db.session.get(Item, convo.item_id)
-            item_request = None
+            if convo.is_circle_message:
+                target_filter = and_(
+                    Message.circle_id == convo.circle_id,
+                    Message.item_id.is_(None),
+                    Message.request_id.is_(None),
+                )
+                item = None
+                item_request = None
+                circle = convo.circle
+            else:
+                target_filter = and_(
+                    Message.item_id == convo.item_id,
+                    Message.request_id.is_(None),
+                    Message.circle_id.is_(None),
+                )
+                item = db.session.get(Item, convo.item_id)
+                item_request = None
+                circle = None
         else:
             target_filter = and_(
                 Message.request_id == convo.request_id,
                 Message.item_id.is_(None),
+                Message.circle_id.is_(None),
             )
             item = None
             item_request = db.session.get(ItemRequest, convo.request_id)
+            circle = None
 
         unread_count = Message.query.filter(
             target_filter,
@@ -1901,10 +1921,11 @@ def messages():
         ).count()
         
         conversation_summaries.append({
-            'conversation_id': f"{min(convo.sender_id, convo.recipient_id)}_{max(convo.sender_id, convo.recipient_id)}_{convo.item_id}_{convo.request_id}",
+            'conversation_id': f"{min(convo.sender_id, convo.recipient_id)}_{max(convo.sender_id, convo.recipient_id)}_{convo.item_id}_{convo.request_id}_{convo.circle_id}",
             'other_user': other_user,
             'item': item,
             'item_request': item_request,
+            'circle': circle,
             'latest_message': convo,
             'unread_count': unread_count
         })
@@ -1927,14 +1948,23 @@ def view_conversation(message_id):
         return redirect(url_for('main.messages'))
     
     if not message.is_request_message:
-        target_filter = and_(
-            Message.item_id == message.item_id,
-            Message.request_id.is_(None),
-        )
+        if message.is_circle_message:
+            target_filter = and_(
+                Message.circle_id == message.circle_id,
+                Message.item_id.is_(None),
+                Message.request_id.is_(None),
+            )
+        else:
+            target_filter = and_(
+                Message.item_id == message.item_id,
+                Message.request_id.is_(None),
+                Message.circle_id.is_(None),
+            )
     else:
         target_filter = and_(
             Message.request_id == message.request_id,
             Message.item_id.is_(None),
+            Message.circle_id.is_(None),
         )
 
     # Fetch thread messages
@@ -1998,6 +2028,7 @@ def view_conversation(message_id):
             recipient_id=other_user.id,
             item_id=message.item_id,
             request_id=message.request_id,
+            circle_id=message.circle_id,
 
             body=form.body.data,
             is_read=False,
