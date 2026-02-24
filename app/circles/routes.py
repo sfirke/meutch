@@ -1,7 +1,7 @@
 from flask import render_template, redirect, url_for, flash, request, current_app
 from flask_login import current_user, login_required
 from app.circles import bp as circles_bp
-from app.models import Circle, db, circle_members, CircleJoinRequest, User
+from app.models import Circle, db, circle_members, CircleJoinRequest, User, Message
 from app.forms import CircleCreateForm, EmptyForm, CircleSearchForm, CircleJoinRequestForm, CircleUuidSearchForm
 from app.utils.storage import upload_circle_image, delete_file, is_valid_file_upload
 from app.utils.geocoding import geocode_address, build_address_string, GeocodingError
@@ -309,6 +309,28 @@ def join_circle(circle_id):
                 message=form.message.data
             )
             db.session.add(join_request)
+
+            admin_users = User.query.join(
+                circle_members,
+                and_(
+                    User.id == circle_members.c.user_id,
+                    circle_members.c.circle_id == circle.id,
+                    circle_members.c.is_admin == True
+                )
+            ).all()
+
+            for admin_user in admin_users:
+                notification_message = Message(
+                    sender_id=current_user.id,
+                    recipient_id=admin_user.id,
+                    circle_id=circle.id,
+                    body=(
+                        f"{current_user.full_name} requested to join the circle '{circle.name}'."
+                        + (f" Message: {form.message.data}" if form.message.data else "")
+                    )
+                )
+                db.session.add(notification_message)
+
             db.session.commit()
             
             # Send email notification to circle admins
@@ -409,11 +431,25 @@ def handle_join_request(circle_id, request_id, action):
         )
         db.session.execute(stmt)
         join_request.status = 'approved'
+        decision_message = Message(
+            sender_id=current_user.id,
+            recipient_id=join_request.user_id,
+            circle_id=circle.id,
+            body=f"Your request to join '{circle.name}' has been approved."
+        )
+        db.session.add(decision_message)
         flash('User has been approved to join the circle.', 'success')
         
     elif action == 'reject':
         join_request.status = 'rejected'
-        flash('User request has been rejected.', 'info')
+        decision_message = Message(
+            sender_id=current_user.id,
+            recipient_id=join_request.user_id,
+            circle_id=circle.id,
+            body=f"Your request to join '{circle.name}' has been denied."
+        )
+        db.session.add(decision_message)
+        flash('User request has been denied.', 'info')
     else:
         flash('Invalid action.', 'danger')
         return redirect(url_for('circles.view_circle', circle_id=circle_id))

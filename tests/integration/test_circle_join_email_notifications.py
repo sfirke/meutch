@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import patch
 from tests.factories import UserFactory, CircleFactory
-from app.models import db, circle_members, CircleJoinRequest
+from app.models import db, circle_members, CircleJoinRequest, Message
 from datetime import datetime, UTC
 from conftest import login_user
 
@@ -53,6 +53,16 @@ class TestCircleJoinRequestEmailIntegration:
                 
                 # Verify email was sent to both admins
                 assert mock_send_email.call_count == 2
+
+                # Verify in-app messages were created for both admins
+                admin_messages = Message.query.filter_by(
+                    sender_id=requesting_user.id,
+                    circle_id=circle.id
+                ).all()
+                assert len(admin_messages) == 2
+                admin_recipient_ids = {msg.recipient_id for msg in admin_messages}
+                assert admin_recipient_ids == {admin1.id, admin2.id}
+                assert all("requested to join the circle" in msg.body for msg in admin_messages)
                 
                 # Check that both admins received emails
                 call_args_list = mock_send_email.call_args_list
@@ -65,6 +75,21 @@ class TestCircleJoinRequestEmailIntegration:
                 to_email, subject, text_content, html_content = call_args[0]
                 assert 'New Join Request for Test Circle' in subject
                 assert 'I would like to join this circle please!' in text_content
+
+                # Verify circle conversations are visible in existing inbox/thread UX
+                login_user(client, admin1.email)
+                inbox_response = client.get('/messages')
+                assert inbox_response.status_code == 200
+                assert b'Circle: Test Circle' in inbox_response.data
+
+                thread_message = Message.query.filter_by(
+                    sender_id=requesting_user.id,
+                    recipient_id=admin1.id,
+                    circle_id=circle.id
+                ).first()
+                thread_response = client.get(f'/message/{thread_message.id}')
+                assert thread_response.status_code == 200
+                assert b'Circle: Test Circle' in thread_response.data
 
     def test_approve_join_request_sends_email_notification(self, client, app):
         """Test that approving a join request sends email notification to the requesting user."""
@@ -116,6 +141,15 @@ class TestCircleJoinRequestEmailIntegration:
                 assert 'Join Request Approved for Test Circle' in subject
                 assert 'approved' in text_content.lower()
 
+                # Verify in-app decision message was created
+                decision_message = Message.query.filter_by(
+                    sender_id=admin.id,
+                    recipient_id=requesting_user.id,
+                    circle_id=circle.id
+                ).order_by(Message.timestamp.desc()).first()
+                assert decision_message is not None
+                assert 'approved' in decision_message.body.lower()
+
     def test_reject_join_request_sends_email_notification(self, client, app):
         """Test that rejecting a join request sends email notification to the requesting user."""
         with app.app_context():
@@ -165,6 +199,15 @@ class TestCircleJoinRequestEmailIntegration:
                 assert to_email == requesting_user.email
                 assert 'Join Request Denied for Test Circle' in subject
                 assert 'denied' in text_content.lower()
+
+                # Verify in-app decision message was created
+                decision_message = Message.query.filter_by(
+                    sender_id=admin.id,
+                    recipient_id=requesting_user.id,
+                    circle_id=circle.id
+                ).order_by(Message.timestamp.desc()).first()
+                assert decision_message is not None
+                assert 'denied' in decision_message.body.lower()
 
     def test_circle_without_approval_no_email(self, client, app):
         """Test that joining a circle without approval requirement doesn't send emails."""

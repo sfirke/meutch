@@ -3,6 +3,7 @@
 {% block content %}
     {% set conversation_item = thread_messages[0].item if thread_messages else None %}
     {% set conversation_request = thread_messages[0].request if thread_messages else None %}
+    {% set conversation_circle = thread_messages[0].circle if thread_messages else None %}
 
     <!-- Conversation Header -->
     <div class="mb-4">
@@ -23,6 +24,11 @@
                 <i class="fas fa-hand-holding-heart"></i>
                 <a href="{{ url_for('requests.detail', request_id=conversation_request.id) }}" class="text-decoration-none text-secondary">
                     <span class="item-name">Re: {{ conversation_request.title }}</span>
+                </a>
+            {% elif conversation_circle %}
+                <i class="fas fa-users"></i>
+                <a href="{{ url_for('circles.view_circle', circle_id=conversation_circle.id) }}" class="text-decoration-none text-secondary">
+                    <span class="item-name">Circle: {{ conversation_circle.name }}</span>
                 </a>
             {% endif %}
         </div>
