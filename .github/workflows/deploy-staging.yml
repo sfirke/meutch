@@ -16,7 +16,7 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_DB: meutch_dev
+          POSTGRES_DB: meutch_test
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
         options: >-
@@ -51,8 +51,12 @@ jobs:
     - name: Set up environment variables
       run: |
         echo "FLASK_ENV=testing" >> $GITHUB_ENV
-        echo "TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5432/meutch_dev" >> $GITHUB_ENV
+        echo "TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5432/meutch_test" >> $GITHUB_ENV
         echo "SECRET_KEY=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> $GITHUB_ENV
+
+    - name: Validate Alembic revision IDs
+      run: |
+        python local_scripts/check_alembic_revision_ids.py
     
     - name: Run tests with pytest
       run: |
