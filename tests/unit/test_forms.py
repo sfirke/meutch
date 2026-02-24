@@ -45,6 +45,18 @@ class TestLoginForm:
             assert form.validate() is False
             assert 'Password is required.' in form.password.errors
 
+    def test_login_form_with_remember_device(self, app):
+        """Test valid login form with remember_device checked."""
+        with app.app_context():
+            form_data = {
+                'email': 'test@example.com',
+                'password': 'password123',
+                'remember_device': True
+            }
+            form = LoginForm(data=form_data)
+            assert form.validate() is True
+            assert form.remember_device.data is True
+
 class TestRegistrationForm:
     """Test RegistrationForm."""
     

@@ -106,7 +106,7 @@ def login():
                 user.last_login = datetime.now(UTC)
                 db.session.commit()
                 
-                login_user(user)
+                login_user(user, remember=form.remember_device.data)
                 # Handle redirect to 'next' page if provided
                 next_page = request.args.get('next')
                 if next_page and _is_safe_url(next_page):

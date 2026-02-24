@@ -25,6 +25,33 @@ class TestAuthenticationRoutes:
             
             assert response.status_code == 200
             assert b'Welcome to Meutch' in response.data  # Redirected to home
+
+    def test_login_with_remember_device_sets_cookie(self, client, app, auth_user):
+        """Test login with remember_device sets remember cookie."""
+        with app.app_context():
+            user = auth_user()
+            response = client.post('/auth/login', data={
+                'email': user.email,
+                'password': TEST_PASSWORD,
+                'remember_device': 'y'
+            }, follow_redirects=False)
+
+            assert response.status_code == 302
+            set_cookie_headers = response.headers.getlist('Set-Cookie')
+            assert any('remember_token=' in header for header in set_cookie_headers)
+
+    def test_login_without_remember_device_no_remember_cookie(self, client, app, auth_user):
+        """Test login without remember_device does not set remember cookie."""
+        with app.app_context():
+            user = auth_user()
+            response = client.post('/auth/login', data={
+                'email': user.email,
+                'password': TEST_PASSWORD
+            }, follow_redirects=False)
+
+            assert response.status_code == 302
+            set_cookie_headers = response.headers.getlist('Set-Cookie')
+            assert not any('remember_token=' in header for header in set_cookie_headers)
     
     def test_login_invalid_credentials(self, client, app, auth_user):
         """Test login with invalid credentials."""

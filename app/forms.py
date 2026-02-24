@@ -45,6 +45,7 @@ class LoginForm(FlaskForm):
         DataRequired(message="Password is required."),
         Length(min=6, message="Password must be at least 6 characters long.")
     ])
+    remember_device = BooleanField('Remember this device for 30 days')
     submit = SubmitField('Log In')
 
 class RegistrationForm(FlaskForm):

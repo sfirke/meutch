@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 import logging
+from datetime import timedelta
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv()
@@ -52,6 +53,13 @@ def parse_server_name(raw_string):
     else:
         # No scheme provided, assume https for safety
         return raw_string, 'https'
+
+
+def parse_bool_env(raw_value, default=False):
+    """Parse a boolean environment variable with a safe default."""
+    if raw_value is None:
+        return default
+    return str(raw_value).strip().lower() in ('1', 'true', 'yes', 'on')
 
 
 class Config:
@@ -145,6 +153,20 @@ class Config:
     LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     LOG_FILE = 'app.log'
 
+    # Session and persistent-login cookie configuration
+    _flask_env = os.environ.get('FLASK_ENV', 'production').lower()
+    _secure_cookie_default = _flask_env in ('production', 'staging')
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SECURE = parse_bool_env(os.environ.get('SESSION_COOKIE_SECURE'), _secure_cookie_default)
+    SESSION_COOKIE_SAMESITE = os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax')
+    PERMANENT_SESSION_LIFETIME = timedelta(days=31)
+
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SECURE = parse_bool_env(os.environ.get('REMEMBER_COOKIE_SECURE'), _secure_cookie_default)
+    REMEMBER_COOKIE_SAMESITE = os.environ.get('REMEMBER_COOKIE_SAMESITE', 'Lax')
+    REMEMBER_COOKIE_DURATION = timedelta(days=30)
+    REMEMBER_COOKIE_REFRESH_EACH_REQUEST = False
+
 class TestingConfig(Config):
     """Configuration for testing environment"""
     TESTING = True
@@ -154,6 +176,8 @@ class TestingConfig(Config):
     STORAGE_BACKEND = 'local'  # Tests always use local storage
     SERVER_NAME = 'localhost:5000'
     PREFERRED_URL_SCHEME = 'http'
+    SESSION_COOKIE_SECURE = False
+    REMEMBER_COOKIE_SECURE = False
 
 class StagingConfig(Config):
     """Configuration for staging environment"""
