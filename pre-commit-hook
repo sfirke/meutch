@@ -86,7 +86,7 @@ fi
 
 # Run a quick subset of tests (unit tests only for speed)
 print_color $BLUE "🔎 Validating Alembic revision IDs..."
-if ! python local_scripts/check_alembic_revision_ids.py; then
+if ! python scripts/check_alembic_revision_ids.py; then
     print_color $RED "❌ Alembic revision validation failed."
     exit 1
 fi
