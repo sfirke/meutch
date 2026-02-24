@@ -1,6 +1,6 @@
 """add_circle_id_to_messages
 
-Revision ID: 20260223_add_circle_id_to_messages
+Revision ID: 20260223_circle_id_messages
 Revises: 6f5d0efb9c31
 Create Date: 2026-02-23 12:00:00.000000
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '20260223_add_circle_id_to_messages'
+revision = '20260223_circle_id_messages'
 down_revision = '6f5d0efb9c31'
 branch_labels = None
 depends_on = None

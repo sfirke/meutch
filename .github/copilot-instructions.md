@@ -28,7 +28,7 @@ docker start meutch-test-db || docker compose -f docker-compose.test.yml up -d  
 # NEVER CANCEL: Wait for database to fully start
 
 # Set environment variables for testing
-export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
+export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_test
 export SECRET_KEY=test-secret-key
 export FLASK_APP=app.py
 ```
@@ -55,7 +55,7 @@ When you write a test, use factories from `tests/factories.py` to create test da
 
 ```bash
 # CRITICAL: Always set TEST_DATABASE_URL before running tests
-export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
+export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_test
 
 # Unit tests (fastest)
 ./run_tests.sh -u -c  # Takes ~5 seconds - NEVER CANCEL
@@ -85,7 +85,7 @@ export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meu
 ### Build and Test Pipeline
 ```bash
 # Complete validation pipeline (run this before every commit)
-export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
+export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_test
 
 # 1. Start database if needed
 docker ps | grep meutch-test-db || docker compose -f docker-compose.test.yml up -d

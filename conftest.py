@@ -26,8 +26,28 @@ def is_port_open(host, port):
 
 def ensure_test_database():
     """Ensure the test database is running."""
+    def ensure_database_exists(database_name):
+        """Ensure a specific PostgreSQL database exists inside the container."""
+        check_cmd = [
+            'docker', 'exec', 'meutch-test-db', 'psql',
+            '-U', 'test_user', '-d', 'postgres', '-tAc',
+            f"SELECT 1 FROM pg_database WHERE datname='{database_name}'"
+        ]
+        create_cmd = [
+            'docker', 'exec', 'meutch-test-db', 'psql',
+            '-U', 'test_user', '-d', 'postgres', '-c',
+            f"CREATE DATABASE {database_name}"
+        ]
+
+        result = subprocess.run(check_cmd, capture_output=True, text=True, check=False)
+        if result.stdout.strip() == '1':
+            return
+
+        subprocess.run(create_cmd, check=True, capture_output=True, text=True)
+
     # Check if the test database is already running
     if is_port_open('localhost', 5433):
+        ensure_database_exists('meutch_test')
         return
     
     print("🚀 Starting test database...")
@@ -46,6 +66,7 @@ def ensure_test_database():
             if is_port_open('localhost', 5433):
                 # Give it an extra second to fully initialize
                 time.sleep(1)
+                ensure_database_exists('meutch_test')
                 print("✅ Test database is ready!")
                 return
             time.sleep(1)
@@ -69,7 +90,7 @@ class TestConfig(Config):
     TESTING = True
     WTF_CSRF_ENABLED = False
     # Use separate test database to avoid wiping development data
-    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or 'postgresql://test_user:test_password@localhost:5433/meutch_dev'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or 'postgresql://test_user:test_password@localhost:5433/meutch_test'
     SECRET_KEY = 'test-secret-key'
     
     # File storage - always use local for tests
