@@ -32,10 +32,18 @@ def index():
         if has_circles:
             shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
             # Query items from those users, excluding own items and vacation mode users, ordered by newest first
+            # Exclude claimed/pending giveaways - show only unclaimed giveaways or regular items
             base_query = Item.query.join(User, Item.owner_id == User.id).filter(
                 Item.owner_id.in_(shared_circle_user_ids),
                 Item.owner_id != current_user.id,
-                User.vacation_mode == False
+                User.vacation_mode == False,
+                or_(
+                    Item.is_giveaway == False,
+                    and_(
+                        Item.is_giveaway == True,
+                        or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                    )
+                )
             ).order_by(Item.created_at.desc())
             
             # Paginate results
@@ -58,7 +66,7 @@ def index():
             Item.is_giveaway == False
         )
         
-        # Public giveaways (visibility='public', unclaimed) - also exclude vacation mode
+        # Public giveaways (visibility='public', unclaimed only) - also exclude vacation mode
         giveaway_query = Item.query.join(User, Item.owner_id == User.id).filter(
             Item.is_giveaway == True,
             Item.giveaway_visibility == 'public',
@@ -69,14 +77,14 @@ def index():
         # Show limited items with count
         preview_limit = 6  # Items to show for each section
         
-        # Count ALL items in the database (excluding claimed giveaways) to show true scope
+        # Count ALL items in the database (excluding claimed/pending giveaways) to show true scope
         # Do include vacation mode users here to reflect total available items
         total_items = Item.query.filter(
             or_(
                 Item.is_giveaway == False,
                 and_(
                     Item.is_giveaway == True,
-                    Item.claim_status != 'claimed'
+                    or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
                 )
             )
         ).count()
@@ -325,7 +333,16 @@ def search():
             Item.is_giveaway == True,
             or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
         )
-    # 'both' - no additional filtering needed
+    else:  # 'both'
+        items_query = items_query.filter(
+            or_(
+                Item.is_giveaway == False,
+                and_(
+                    Item.is_giveaway == True,
+                    or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                )
+            )
+        )
     
     items_query = items_query.distinct()
     
@@ -1507,7 +1524,16 @@ def tag_items(tag_id):
             Item.is_giveaway == True,
             or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
         )
-    # 'both' - no additional filtering needed
+    else:  # 'both'
+        items_query = items_query.filter(
+            or_(
+                Item.is_giveaway == False,
+                and_(
+                    Item.is_giveaway == True,
+                    or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                )
+            )
+        )
     
     # Perform a paginated query to retrieve items
     items_pagination = (
@@ -1575,7 +1601,16 @@ def category_items(category_id):
             Item.is_giveaway == True,
             or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
         )
-    # 'both' - no additional filtering needed
+    else:  # 'both'
+        items_query = items_query.filter(
+            or_(
+                Item.is_giveaway == False,
+                and_(
+                    Item.is_giveaway == True,
+                    or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                )
+            )
+        )
     
     # Perform a paginated query to retrieve items
     items_pagination = (
