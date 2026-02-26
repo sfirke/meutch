@@ -23,6 +23,11 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
+
+        <div class="form-check mb-3">
+            {{ form.remember_device(class="form-check-input") }}
+            {{ form.remember_device.label(class="form-check-label") }}
+        </div>
         
         <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
     </form>

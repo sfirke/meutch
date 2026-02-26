@@ -94,9 +94,9 @@ def create_app(config_class=None):
     from app.template_filters import register_filters
     register_filters(app)
     
-    # Auto-seed development database if empty
+    # Optional auto-seed for development (disabled by default)
     with app.app_context():
-        if app.config.get('FLASK_ENV') == 'development':
+        if app.config.get('FLASK_ENV') == 'development' and os.environ.get('AUTO_SEED_ON_STARTUP', '').lower() in ('1', 'true', 'yes', 'on'):
             try:
                 from app.models import User
                 # First check if tables exist by trying a simple query

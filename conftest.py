@@ -217,15 +217,19 @@ def auth_user(app):
     
     return get_user
 
-def login_user(client, email='test@example.com', password=None):
+def login_user(client, email='test@example.com', password=None, remember=False):
     """Helper function to log in a user."""
     if password is None:
         password = TEST_PASSWORD  # Use constant instead of hardcoded string
-    
-    return client.post('/auth/login', data={
+
+    login_data = {
         'email': email,
         'password': password
-    }, follow_redirects=True)
+    }
+    if remember:
+        login_data['remember_device'] = 'y'
+
+    return client.post('/auth/login', data=login_data, follow_redirects=True)
 
 def logout_user(client):
     """Helper function to log out a user."""

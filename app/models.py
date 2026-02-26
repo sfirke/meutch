@@ -146,7 +146,7 @@ class User(UserMixin, db.Model):
     
     def confirm_email(self, token):
         """Confirm email with the provided token"""
-        if self.email_confirmation_token == token:
+        if self.email_confirmation_token and secrets.compare_digest(self.email_confirmation_token, token):
             self.email_confirmed = True
             self.email_confirmation_token = None
             self.email_confirmation_sent_at = None
@@ -165,7 +165,7 @@ class User(UserMixin, db.Model):
     
     def reset_password(self, token, new_password):
         """Reset password with the provided token"""
-        if self.password_reset_token == token:
+        if self.password_reset_token and secrets.compare_digest(self.password_reset_token, token):
             # Check if token is not too old (1 hour)
             if self.password_reset_sent_at:
                 from datetime import timedelta
