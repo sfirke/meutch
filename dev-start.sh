@@ -73,11 +73,15 @@ echo "📦 Activating virtual environment..."
 source venv/bin/activate
 
 # Simple CLI flags
-# Usage: ./dev-start.sh [seed|--seed]
+# Usage: ./dev-start.sh [seed]
 SEED=false
-if [ "${1:-}" = "seed" ] || [ "${1:-}" = "--seed" ]; then
+if [ "${1:-}" = "seed" ]; then
     SEED=true
 fi
+
+# Prevent .env AUTO_SEED_ON_STARTUP from overriding the seed flag decision.
+# The --seed flag here is the single source of truth for dev seeding.
+export AUTO_SEED_ON_STARTUP=0
 
 # Check if .env file exists (Flask will load it via python-dotenv)
 if [ ! -f ".env" ]; then

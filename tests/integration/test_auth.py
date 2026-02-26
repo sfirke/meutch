@@ -26,6 +26,7 @@ class TestAuthenticationRoutes:
             assert response.status_code == 200
             assert b'Welcome to Meutch' in response.data  # Redirected to home
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning:flask_login")
     def test_login_with_remember_device_sets_cookie(self, client, app, auth_user):
         """Test login with remember_device sets remember cookie."""
         with app.app_context():
