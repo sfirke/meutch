@@ -163,18 +163,168 @@ class TestGiveawaySharePreview:
         response = client.get(f'/share/giveaway/{uuid.uuid4()}')
         assert response.status_code == 404
 
-    def test_claimed_giveaway_still_accessible(self, client, app):
-        """Test that a claimed giveaway preview is still accessible."""
+    def test_claimed_giveaway_preview_unavailable_to_anonymous_user(self, client, app):
+        """Claimed giveaway preview should be unavailable to anonymous users."""
         with app.app_context():
-            user = UserFactory()
+            owner = UserFactory()
+            recipient = UserFactory()
             item = ItemFactory(
-                owner=user, is_giveaway=True,
-                giveaway_visibility='public', claim_status='claimed'
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='claimed',
+                claimed_at=datetime.now(UTC) - timedelta(days=10)
             )
             db.session.commit()
-            
+
             response = client.get(f'/share/giveaway/{item.id}')
             assert response.status_code == 200
+            assert b'This item is no longer available.' in response.data
+            assert item.name.encode() not in response.data
+
+    def test_claimed_giveaway_preview_unavailable_to_unrelated_authenticated_user(self, client, app, auth_user):
+        """Claimed giveaway preview should be unavailable to unrelated logged-in users."""
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            unrelated = auth_user()
+            item = ItemFactory(
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='claimed',
+                claimed_at=datetime.now(UTC) - timedelta(days=10)
+            )
+            db.session.commit()
+
+            login_user(client, email=unrelated.email)
+            response = client.get(f'/share/giveaway/{item.id}')
+            assert response.status_code == 200
+            assert b'This item is no longer available.' in response.data
+            assert item.name.encode() not in response.data
+
+    def test_claimed_giveaway_preview_owner_and_recipient_can_reach_within_90_days(self, client, app):
+        """Owner and recipient should still be redirected to details within 90 days."""
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='claimed',
+                claimed_at=datetime.now(UTC) - timedelta(days=10)
+            )
+            db.session.commit()
+
+            login_user(client, email=owner.email)
+            owner_response = client.get(f'/share/giveaway/{item.id}')
+            assert owner_response.status_code == 302
+            assert f'/item/{item.id}'.encode() in owner_response.headers['Location'].encode()
+
+            client.get('/logout', follow_redirects=True)
+            login_user(client, email=recipient.email)
+            recipient_response = client.get(f'/share/giveaway/{item.id}')
+            assert recipient_response.status_code == 302
+            assert f'/item/{item.id}'.encode() in recipient_response.headers['Location'].encode()
+
+    def test_claimed_giveaway_preview_unavailable_after_90_days_for_everyone(self, client, app):
+        """Claimed giveaway preview should be unavailable after 90 days for all users."""
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='claimed',
+                claimed_at=datetime.now(UTC) - timedelta(days=91)
+            )
+            db.session.commit()
+
+            anonymous_response = client.get(f'/share/giveaway/{item.id}')
+            assert anonymous_response.status_code == 200
+            assert b'This item is no longer available.' in anonymous_response.data
+
+            login_user(client, email=owner.email)
+            owner_response = client.get(f'/share/giveaway/{item.id}')
+            assert owner_response.status_code == 200
+            assert b'This item is no longer available.' in owner_response.data
+
+            client.get('/logout', follow_redirects=True)
+            login_user(client, email=recipient.email)
+            recipient_response = client.get(f'/share/giveaway/{item.id}')
+            assert recipient_response.status_code == 200
+            assert b'This item is no longer available.' in recipient_response.data
+
+    def test_pending_pickup_giveaway_preview_unavailable_to_anonymous_user(self, client, app):
+        """Pending pickup giveaway preview should be unavailable to anonymous users."""
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='pending_pickup'
+            )
+            db.session.commit()
+
+            response = client.get(f'/share/giveaway/{item.id}')
+            assert response.status_code == 200
+            assert b'This item is no longer available.' in response.data
+            assert item.name.encode() not in response.data
+
+    def test_pending_pickup_giveaway_preview_unavailable_to_unrelated_authenticated_user(self, client, app, auth_user):
+        """Pending pickup giveaway preview should be unavailable to unrelated users."""
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            unrelated = auth_user()
+            item = ItemFactory(
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='pending_pickup'
+            )
+            db.session.commit()
+
+            login_user(client, email=unrelated.email)
+            response = client.get(f'/share/giveaway/{item.id}')
+            assert response.status_code == 200
+            assert b'This item is no longer available.' in response.data
+            assert item.name.encode() not in response.data
+
+    def test_pending_pickup_giveaway_preview_owner_and_recipient_can_reach_when_authenticated(self, client, app):
+        """Pending pickup owner and recipient should still be redirected to item details."""
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='pending_pickup'
+            )
+            db.session.commit()
+
+            login_user(client, email=owner.email)
+            owner_response = client.get(f'/share/giveaway/{item.id}')
+            assert owner_response.status_code == 302
+            assert f'/item/{item.id}'.encode() in owner_response.headers['Location'].encode()
+
+            client.get('/logout', follow_redirects=True)
+            login_user(client, email=recipient.email)
+            recipient_response = client.get(f'/share/giveaway/{item.id}')
+            assert recipient_response.status_code == 302
+            assert f'/item/{item.id}'.encode() in recipient_response.headers['Location'].encode()
 
 
 class TestRequestSharePreview:

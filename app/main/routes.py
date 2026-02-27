@@ -13,6 +13,7 @@ from app.utils.storage import delete_file, upload_item_image, upload_profile_ima
 from app.utils.geocoding import sort_items_by_owner_distance
 from app.utils.pagination import ListPagination
 from app.utils.email import send_message_notification_email
+from app.utils.giveaway_visibility import can_view_claimed_giveaway, get_unavailable_giveaway_suggestions
 
 @main_bp.route('/')
 def index():
@@ -361,6 +362,11 @@ def search():
 @login_required
 def item_detail(item_id):
     item = db.get_or_404(Item, item_id)
+
+    if item.is_giveaway and item.claim_status == 'claimed':
+        if not can_view_claimed_giveaway(item, current_user):
+            suggestions = get_unavailable_giveaway_suggestions(current_user, exclude_item_id=item.id)
+            return render_template('main/item_unavailable.html', suggestions=suggestions)
     
     # Initialize forms
     form = MessageForm()

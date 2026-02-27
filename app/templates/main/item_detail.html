@@ -172,7 +172,7 @@
                                         </div>
                                     {% elif item.claim_status == 'claimed' %}
                                         <div class="alert alert-info mb-0" role="alert">
-                                            <i class="fas fa-check-circle me-2"></i>This giveaway has been claimed{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}.
+                                            <i class="fas fa-check-circle me-2"></i>This giveaway was claimed{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}.
                                         </div>
                                     {% endif %}
                                 {% else %}
