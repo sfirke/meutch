@@ -11,10 +11,33 @@
                             <i class="fas fa-box-open fs-3 text-secondary"></i>
                         </div>
                         <h1 class="h3 mb-2">This item is no longer available.</h1>
-                        <p class="text-muted mb-0">Good news: there are more freebies to discover in your community.</p>
+                        <p class="text-muted mb-0">But there are still great giveaways in the community, like these.</p>
                     </div>
 
-                    <div class="d-flex flex-column flex-sm-row justify-content-center gap-2 mb-4">
+                    {% if suggestions %}
+                        <hr class="my-4">
+                        {% set link_to_share_preview = not current_user.is_authenticated %}
+                        {% set show_owner_controls = false %}
+                        {% set delete_forms = None %}
+                        <div class="row row-cols-1 row-cols-md-2 g-3">
+                            {% for item in suggestions %}
+                                <div class="col">
+                                    {% include 'main/_item_card.html' %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% elif current_user.is_authenticated and current_user.circles|length == 0 %}
+                        <hr class="my-4">
+                        <div class="alert alert-info mb-0 text-center" role="alert">
+                            <p class="mb-3">Join a circle to discover nearby giveaways from trusted community members.</p>
+                            <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
+                                <i class="fas fa-users me-2"></i>Find Circles to Join
+                            </a>
+                        </div>
+                    {% endif %}
+
+                    <hr class="my-4">
+                    <div class="d-flex flex-column flex-sm-row justify-content-center gap-2">
                         {% if current_user.is_authenticated %}
                             <a href="{{ url_for('main.giveaways') }}" class="btn btn-primary btn-lg">
                                 <i class="fas fa-gift me-2"></i>Browse Giveaways
@@ -31,42 +54,6 @@
                             </a>
                         {% endif %}
                     </div>
-
-                    {% if suggestions %}
-                        <hr class="my-4">
-                        <div>
-                            <div class="d-flex align-items-center mb-3">
-                                <h2 class="h5 mb-0">Available right now</h2>
-                                <span class="badge bg-success-subtle text-success-emphasis ms-2">Fresh picks</span>
-                            </div>
-                            <div class="row row-cols-1 row-cols-md-2 g-3">
-                                {% for suggestion in suggestions %}
-                                    <div class="col">
-                                        <div class="card h-100 border-0 bg-light-subtle">
-                                            <div class="card-body d-flex flex-column">
-                                                <div class="d-flex align-items-start justify-content-between mb-2">
-                                                    <h3 class="h6 mb-0 me-2">{{ suggestion.name }}</h3>
-                                                    <span class="badge bg-success">FREE</span>
-                                                </div>
-                                                <p class="text-muted small mb-3">From {{ suggestion.owner.first_name }}</p>
-                                                <div class="mt-auto">
-                                                    {% if current_user.is_authenticated %}
-                                                        <a href="{{ url_for('main.item_detail', item_id=suggestion.id) }}" class="btn btn-sm btn-outline-primary">
-                                                            View Item
-                                                        </a>
-                                                    {% else %}
-                                                        <a href="{{ url_for('share.giveaway_preview', item_id=suggestion.id) }}" class="btn btn-sm btn-outline-primary">
-                                                            Preview
-                                                        </a>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    {% endif %}
                 </div>
             </div>
         </div>

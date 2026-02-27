@@ -105,7 +105,7 @@
                 </div>
             {% else %}
                 <!-- Default: View Details only -->
-                <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="btn btn-primary w-100">
+                <a href="{% if link_to_share_preview|default(false) and item.is_giveaway %}{{ url_for('share.giveaway_preview', item_id=item.id) }}{% else %}{{ url_for('main.item_detail', item_id=item.id) }}{% endif %}" class="btn btn-primary w-100">
                     <i class="fas fa-eye me-1"></i>View Details
                 </a>
             {% endif %}
