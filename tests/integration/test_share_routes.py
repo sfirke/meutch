@@ -180,7 +180,7 @@ class TestGiveawaySharePreview:
 
             response = client.get(f'/share/giveaway/{item.id}')
             assert response.status_code == 200
-            assert b'This item is no longer available.' in response.data
+            assert b'This item has found its new home.' in response.data
             assert item.name.encode() not in response.data
 
     def test_claimed_giveaway_preview_unavailable_to_unrelated_authenticated_user(self, client, app, auth_user):
@@ -202,7 +202,7 @@ class TestGiveawaySharePreview:
             login_user(client, email=unrelated.email)
             response = client.get(f'/share/giveaway/{item.id}')
             assert response.status_code == 200
-            assert b'This item is no longer available.' in response.data
+            assert b'This item has found its new home.' in response.data
             assert item.name.encode() not in response.data
 
     def test_claimed_giveaway_preview_owner_and_recipient_can_reach_within_90_days(self, client, app):
@@ -248,18 +248,18 @@ class TestGiveawaySharePreview:
 
             anonymous_response = client.get(f'/share/giveaway/{item.id}')
             assert anonymous_response.status_code == 200
-            assert b'This item is no longer available.' in anonymous_response.data
+            assert b'This item has found its new home.' in anonymous_response.data
 
             login_user(client, email=owner.email)
             owner_response = client.get(f'/share/giveaway/{item.id}')
             assert owner_response.status_code == 200
-            assert b'This item is no longer available.' in owner_response.data
+            assert b'This item has found its new home.' in owner_response.data
 
             client.get('/logout', follow_redirects=True)
             login_user(client, email=recipient.email)
             recipient_response = client.get(f'/share/giveaway/{item.id}')
             assert recipient_response.status_code == 200
-            assert b'This item is no longer available.' in recipient_response.data
+            assert b'This item has found its new home.' in recipient_response.data
 
     def test_pending_pickup_giveaway_preview_unavailable_to_anonymous_user(self, client, app):
         """Pending pickup giveaway preview should be unavailable to anonymous users."""
@@ -277,7 +277,7 @@ class TestGiveawaySharePreview:
 
             response = client.get(f'/share/giveaway/{item.id}')
             assert response.status_code == 200
-            assert b'This item is no longer available.' in response.data
+            assert b'This item has found its new home.' in response.data
             assert item.name.encode() not in response.data
 
     def test_pending_pickup_giveaway_preview_unavailable_to_unrelated_authenticated_user(self, client, app, auth_user):
@@ -298,7 +298,7 @@ class TestGiveawaySharePreview:
             login_user(client, email=unrelated.email)
             response = client.get(f'/share/giveaway/{item.id}')
             assert response.status_code == 200
-            assert b'This item is no longer available.' in response.data
+            assert b'This item has found its new home.' in response.data
             assert item.name.encode() not in response.data
 
     def test_pending_pickup_giveaway_preview_owner_and_recipient_can_reach_when_authenticated(self, client, app):

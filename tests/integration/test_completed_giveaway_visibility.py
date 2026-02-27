@@ -556,7 +556,7 @@ class TestClaimedGiveawayDirectUrlVisibility:
             login_user(client, email=unrelated_user.email)
             response = client.get(f'/item/{claimed.id}')
             assert response.status_code == 200
-            assert b'This item is no longer available.' in response.data
+            assert b'This item has found its new home.' in response.data
             assert claimed.name.encode() not in response.data
 
     def test_claimed_giveaway_direct_url_visible_to_owner_and_recipient_within_90_days(self, client, app):
@@ -579,14 +579,14 @@ class TestClaimedGiveawayDirectUrlVisibility:
             owner_response = client.get(f'/item/{claimed.id}')
             assert owner_response.status_code == 200
             assert claimed.name.encode() in owner_response.data
-            assert b'This item is no longer available.' not in owner_response.data
+            assert b'This item has found its new home.' not in owner_response.data
 
             client.get('/logout', follow_redirects=True)
             login_user(client, email=recipient.email)
             recipient_response = client.get(f'/item/{claimed.id}')
             assert recipient_response.status_code == 200
             assert claimed.name.encode() in recipient_response.data
-            assert b'This item is no longer available.' not in recipient_response.data
+            assert b'This item has found its new home.' not in recipient_response.data
 
     def test_claimed_giveaway_direct_url_unavailable_after_90_days_for_everyone(self, client, app):
         """No user, including owner/recipient, can view claimed giveaway after 90 days."""
@@ -607,12 +607,12 @@ class TestClaimedGiveawayDirectUrlVisibility:
             login_user(client, email=owner.email)
             owner_response = client.get(f'/item/{claimed.id}')
             assert owner_response.status_code == 200
-            assert b'This item is no longer available.' in owner_response.data
+            assert b'This item has found its new home.' in owner_response.data
             assert claimed.name.encode() not in owner_response.data
 
             client.get('/logout', follow_redirects=True)
             login_user(client, email=recipient.email)
             recipient_response = client.get(f'/item/{claimed.id}')
             assert recipient_response.status_code == 200
-            assert b'This item is no longer available.' in recipient_response.data
+            assert b'This item has found its new home.' in recipient_response.data
             assert claimed.name.encode() not in recipient_response.data
