@@ -31,7 +31,7 @@
                     {% elif current_user.is_authenticated and current_user.circles|length == 0 %}
                         <hr class="my-4">
                         <div class="alert alert-info mb-0 text-center" role="alert">
-                            <p class="mb-3">Join a circle to discover nearby giveaways from trusted community members.</p>
+                            <p class="mb-3">Join a circle to discover nearby giveaways from your communities.</p>
                             <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
                                 <i class="fas fa-users me-2"></i>Find Circles to Join
                             </a>
