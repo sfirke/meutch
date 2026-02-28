@@ -340,7 +340,7 @@
         <div class="tab-pane fade {% if active_tab == 'about-me' %}show active{% endif %}" id="about-me" role="tabpanel" aria-labelledby="about-me-tab">
 
             <!-- Read-only profile view -->
-            <div id="profile-view" {% if show_edit %}style="display: none;"{% endif %}>
+            <div id="profile-view" {% if show_edit %}class="d-none"{% endif %}>
                 <div class="row">
                     <div class="col-md-4 text-center">
                         <img src="{{ current_user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
@@ -379,7 +379,7 @@
             </div>
 
             <!-- Edit profile form (hidden by default) -->
-            <div id="profile-edit" {% if not show_edit %}style="display: none;"{% endif %}>
+            <div id="profile-edit" {% if not show_edit %}class="d-none"{% endif %}>
                 <form method="post" enctype="multipart/form-data">
                     {{ form.csrf_token }}
                     <div class="row">
@@ -563,15 +563,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (editBtn) {
         editBtn.addEventListener('click', function() {
-            profileView.style.display = 'none';
-            profileEdit.style.display = 'block';
+            profileView.classList.add('d-none');
+            profileEdit.classList.remove('d-none');
         });
     }
 
     if (cancelBtn) {
         cancelBtn.addEventListener('click', function() {
-            profileEdit.style.display = 'none';
-            profileView.style.display = 'block';
+            profileEdit.classList.add('d-none');
+            profileView.classList.remove('d-none');
         });
     }
 

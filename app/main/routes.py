@@ -1696,7 +1696,7 @@ def profile():
     
     # Determine active tab (for maintaining tab state across pagination/form submissions)
     active_tab = request.args.get('tab', 'my-items')
-    show_edit = request.method == 'POST' and not form.validate()
+    show_edit = request.method == 'POST' and form.errors
     if show_edit:
         active_tab = 'about-me'
     
