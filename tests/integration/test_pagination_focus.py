@@ -4,6 +4,8 @@ from app.models import Circle
 from conftest import login_user
 from tests.factories import CategoryFactory, ItemFactory, ItemRequestFactory, UserFactory
 
+ITEMS_PER_PAGE = 12
+
 
 class TestPaginationFocus:
     """Test pagination links preserve section focus."""
@@ -15,7 +17,7 @@ class TestPaginationFocus:
             category = CategoryFactory()
 
             ItemFactory(owner=user, category=category, is_giveaway=True, claim_status='unclaimed')
-            for _ in range(13):
+            for _ in range(ITEMS_PER_PAGE + 1):
                 ItemFactory(owner=user, category=category, is_giveaway=False)
 
             login_user(client, user.email)
@@ -39,7 +41,7 @@ class TestPaginationFocus:
             db.session.commit()
 
             ItemFactory(owner=user, category=category, is_giveaway=True, claim_status='unclaimed')
-            for _ in range(13):
+            for _ in range(ITEMS_PER_PAGE + 1):
                 ItemFactory(owner=other_user, category=category, is_giveaway=True, claim_status='unclaimed')
 
             login_user(client, user.email)
@@ -62,7 +64,7 @@ class TestPaginationFocus:
             db.session.commit()
 
             ItemRequestFactory(user=user, visibility='circles')
-            for _ in range(13):
+            for _ in range(ITEMS_PER_PAGE + 1):
                 ItemRequestFactory(user=other_user, visibility='circles')
 
             login_user(client, user.email)
