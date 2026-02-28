@@ -181,6 +181,20 @@ class TestAuthenticationRoutes:
             assert user.email_confirmed is False  # Should require confirmation
             assert user.latitude is None
             assert user.longitude is None
+
+    def test_register_redirects_to_resend_confirmation(self, client):
+        """Test registration redirects to confirmation guidance page, not login."""
+        response = client.post('/auth/register', data={
+            'email': 'redirectuser@example.com',
+            'first_name': 'Redirect',
+            'last_name': 'User',
+            'location_method': 'skip',
+            'password': 'redirectpassword123',
+            'confirm_password': 'redirectpassword123'
+        }, follow_redirects=False)
+
+        assert response.status_code == 302
+        assert '/auth/resend-confirmation' in response.location
     
     def test_register_duplicate_email(self, client, app, auth_user):
         """Test registration with duplicate email."""

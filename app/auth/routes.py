@@ -86,11 +86,7 @@ def register():
         else:
             flash('Error sending confirmation email. Please try again.', 'error')
         
-        # Preserve 'next' parameter through registration → login flow
-        next_page = request.args.get('next')
-        if next_page and _is_safe_url(next_page):
-            return redirect(url_for('auth.login', next=next_page))
-        return redirect(url_for('auth.login'))
+        return redirect(url_for('auth.resend_confirmation'))
     
     return render_template('auth/register.html', title='Register', form=form)
 
