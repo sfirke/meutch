@@ -1,6 +1,6 @@
 /**
  * Pagination scroll utility for Meutch
- * Automatically scrolls to items section when navigating to page > 1
+ * Automatically scrolls to the relevant section when navigating to page > 1
  */
 
 (function() {
@@ -14,11 +14,11 @@
         const page = urlParams.get('page');
         
         if (page && parseInt(page) > 1) {
-            // Find the items section and scroll to it
-            const itemsSection = document.getElementById('items-section');
-            if (itemsSection) {
+            const anchorTarget = window.location.hash ? document.querySelector(window.location.hash) : null;
+            const sectionTarget = anchorTarget || document.getElementById('items-section');
+            if (sectionTarget) {
                 setTimeout(function() {
-                    itemsSection.scrollIntoView({ 
+                    sectionTarget.scrollIntoView({ 
                         behavior: 'smooth', 
                         block: 'start' 
                     });

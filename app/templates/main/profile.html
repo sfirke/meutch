@@ -202,7 +202,7 @@
     {% endif %}
     
     <!-- My Items -->
-    <div class="mt-5">
+    <div class="mt-5" id="my-items-section">
         <h2>My Items</h2>
         
         <!-- My Active Giveaways Section -->
@@ -256,7 +256,7 @@
                 <ul class="pagination justify-content-center">
                     {% if pagination.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('main.profile', page=pagination.prev_num) }}" aria-label="Previous">
+                            <a class="page-link" href="{{ url_for('main.profile', page=pagination.prev_num, _anchor='my-items-section') }}" aria-label="Previous">
                                 <span aria-hidden="true">&laquo;</span>
                             </a>
                         </li>
@@ -271,7 +271,7 @@
                             {% if p == pagination.page %}
                                 <li class="page-item active"><span class="page-link">{{ p }}</span></li>
                             {% else %}
-                                <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', page=p) }}">{{ p }}</a></li>
+                                <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', page=p, _anchor='my-items-section') }}">{{ p }}</a></li>
                             {% endif %}
                         {% else %}
                             <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -280,7 +280,7 @@
 
                     {% if pagination.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('main.profile', page=pagination.next_num) }}" aria-label="Next">
+                            <a class="page-link" href="{{ url_for('main.profile', page=pagination.next_num, _anchor='my-items-section') }}" aria-label="Next">
                                 <span aria-hidden="true">&raquo;</span>
                             </a>
                         </li>
