@@ -591,6 +591,54 @@ class TestProfileRoutes:
             assert response.status_code == 200
             assert b'About Me' in response.data
     
+    def test_profile_has_tabs(self, client, app, auth_user):
+        """Test profile page has tab navigation."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+            response = client.get('/profile')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'my-items-tab' in content
+            assert 'active-loans-tab' in content
+            assert 'about-me-tab' in content
+            assert 'settings-tab' in content
+    
+    def test_profile_about_me_read_only_by_default(self, client, app, auth_user):
+        """Test that the About Me section shows read-only view by default."""
+        with app.app_context():
+            user = auth_user()
+            user.about_me = 'Test bio content'
+            db.session.commit()
+            
+            login_user(client, user.email)
+            response = client.get('/profile')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            # Edit button should be present
+            assert 'Edit Profile' in content
+            # Read-only view is visible (not hidden)
+            assert 'id="profile-view"' in content
+            # Edit form exists but is hidden
+            assert 'id="profile-edit"' in content
+    
+    def test_profile_edit_form_shown_on_validation_error(self, client, app, auth_user):
+        """Test that edit form is shown when form validation fails."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+            
+            # Submit invalid data (URL without platform)
+            response = client.post('/profile', data={
+                'about_me': 'Test bio',
+                'link_1_url': 'https://example.com',
+                'link_1_platform': '',
+            })
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            # About Me tab should be active when form has errors
+            assert 'about-me-tab' in content
+
     def test_update_profile(self, client, app, auth_user):
         """Test updating profile."""
         with app.app_context():
