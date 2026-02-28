@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import patch, MagicMock
-from app.context_processors import inject_unread_messages_count, inject_distance_utils
+from app.context_processors import inject_unread_messages_count, inject_distance_utils, inject_static_url_for
 from tests.factories import (
     UserFactory,
     MessageFactory,
@@ -544,3 +544,80 @@ class TestDistanceUtils:
                     
                     result = get_distance(circle)
                     assert result is None
+
+
+class TestStaticUrlFor:
+    """Test static_url_for cache-busting context processor."""
+
+    def test_inject_static_url_for_returns_function(self, app):
+        """Test that inject_static_url_for provides a callable."""
+        with app.app_context():
+            result = inject_static_url_for()
+            assert 'static_url_for' in result
+            assert callable(result['static_url_for'])
+
+    def test_static_url_for_appends_hash(self, app):
+        """Test that static_url_for appends a version hash query parameter."""
+        with app.app_context():
+            context = inject_static_url_for()
+            url = context['static_url_for']('css/style.css')
+            assert '?v=' in url
+            assert 'css/style.css' in url
+
+    def test_static_url_for_hash_is_deterministic(self, app):
+        """Test that the same file produces the same hash."""
+        with app.app_context():
+            context = inject_static_url_for()
+            url1 = context['static_url_for']('css/style.css')
+            url2 = context['static_url_for']('css/style.css')
+            assert url1 == url2
+
+    def test_static_url_for_different_files_different_hashes(self, app):
+        """Test that different files produce different hashes."""
+        with app.app_context():
+            context = inject_static_url_for()
+            css_url = context['static_url_for']('css/style.css')
+            js_url = context['static_url_for']('js/notifications.js')
+            css_hash = css_url.split('?v=')[1]
+            js_hash = js_url.split('?v=')[1]
+            assert css_hash != js_hash
+
+    def test_static_url_for_missing_file_falls_back(self, app):
+        """Test that a missing file returns a plain url_for without hash."""
+        with app.app_context():
+            context = inject_static_url_for()
+            url = context['static_url_for']('nonexistent/file.css')
+            assert '?v=' not in url
+            assert 'nonexistent/file.css' in url
+
+    def test_static_url_for_hash_changes_with_content(self, app, tmp_path):
+        """Test that the hash changes when file content changes."""
+        import app.context_processors as cp
+
+        with app.app_context():
+            # Create a temporary file in the static folder
+            import os
+            test_file = os.path.join(app.static_folder, '_test_cache_bust.css')
+            try:
+                with open(test_file, 'w') as f:
+                    f.write('body { color: red; }')
+
+                # Clear module-level cache so fresh hashes are computed
+                cp._static_hash_cache.clear()
+                app.debug = True  # Force recompute each call
+
+                context = inject_static_url_for()
+                url1 = context['static_url_for']('_test_cache_bust.css')
+
+                # Change the file content
+                with open(test_file, 'w') as f:
+                    f.write('body { color: blue; }')
+
+                url2 = context['static_url_for']('_test_cache_bust.css')
+
+                assert '?v=' in url1
+                assert '?v=' in url2
+                assert url1 != url2
+            finally:
+                if os.path.exists(test_file):
+                    os.remove(test_file)
