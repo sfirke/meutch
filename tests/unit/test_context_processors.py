@@ -1,5 +1,6 @@
 """Test context processors functionality."""
 
+import os
 import pytest
 from unittest.mock import patch, MagicMock
 from app.context_processors import inject_unread_messages_count, inject_distance_utils, inject_static_url_for
@@ -596,7 +597,6 @@ class TestStaticUrlFor:
 
         with app.app_context():
             # Create a temporary file in the static folder
-            import os
             test_file = os.path.join(app.static_folder, '_test_cache_bust.css')
             try:
                 with open(test_file, 'w') as f:
