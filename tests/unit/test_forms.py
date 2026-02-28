@@ -372,6 +372,40 @@ class TestLoanRequestForm:
                 assert form.validate() is False
                 assert any('End date must be after start date' in str(error) for error in form.end_date.errors)
 
+    def test_empty_message_fails_validation(self, app):
+        """Test that an empty message fails validation with an informative error."""
+        with app.app_context():
+            with app.test_request_context():
+                start_date = date.today() + timedelta(days=1)
+                end_date = date.today() + timedelta(days=7)
+
+                form_data = {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'message': '',
+                    'csrf_token': 'test_token'
+                }
+                form = LoanRequestForm(data=form_data)
+                assert form.validate() is False
+                assert any('Please include a message with your request' in str(error) for error in form.message.errors)
+
+    def test_message_too_short_fails_validation(self, app):
+        """Test that a message shorter than 10 characters fails validation."""
+        with app.app_context():
+            with app.test_request_context():
+                start_date = date.today() + timedelta(days=1)
+                end_date = date.today() + timedelta(days=7)
+
+                form_data = {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'message': 'Hi',
+                    'csrf_token': 'test_token'
+                }
+                form = LoanRequestForm(data=form_data)
+                assert form.validate() is False
+                assert any('Message must be between 10 and 1000 characters' in str(error) for error in form.message.errors)
+
 class TestOptionalFileAllowed:
     """Test OptionalFileAllowed validator."""
     
