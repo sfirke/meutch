@@ -521,6 +521,9 @@ class TestSearchFiltering:
             assert b'Free Drill' in response.data
             response_text = response.data.decode('utf-8')
             assert response_text.count('giveaway-ribbon') == 1
+            loan_index = response_text.index('Drill for Loan')
+            loan_card_snippet = response_text[max(0, loan_index - 500):loan_index + 200]
+            assert 'giveaway-ribbon' not in loan_card_snippet
 
 
 class TestCategoryAndTagFiltering:

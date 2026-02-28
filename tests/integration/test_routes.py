@@ -123,7 +123,10 @@ class TestMainRoutes:
             response_text = response.data.decode('utf-8')
             assert 'Loan Drill' in response_text
             assert 'Free Drill' in response_text
-            assert response_text.count('giveaway-ribbon') >= 1
+            assert response_text.count('giveaway-ribbon') == 1
+            loan_index = response_text.index('Loan Drill')
+            loan_card_snippet = response_text[max(0, loan_index - 500):loan_index + 200]
+            assert 'giveaway-ribbon' not in loan_card_snippet
     
     def test_about_page(self, client):
         """Test about page loads correctly."""
