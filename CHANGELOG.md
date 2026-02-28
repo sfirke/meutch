@@ -24,6 +24,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Speed up creation of seed data by caching hashed passwords ([#167](https://github.com/sfirke/meutch/pull/167)).
 - Edit item form submit button now says "Save" instead of "List Item" for better clarity on the edit action.
 - Making a claim request on a giveaway now triggers a email message and in-app notification to the item owner. Circle join requests + the decision reply messages now appear as in-app messages in addition to emails ([#205](https://github.com/sfirke/meutch/pull/205)).
+- Make giveaway cards easier to distinguish from loans by using a diagonal FREE ribbon in feed/search item cards.
 
 ### Developer Experience
 - Create separate dev (sample data) vs. test databases so they stop stepping on each others' toes ([#206](https://github.com/sfirke/meutch/pull/206)).

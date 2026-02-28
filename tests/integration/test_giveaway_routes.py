@@ -519,6 +519,8 @@ class TestSearchFiltering:
             assert response.status_code == 200
             assert b'Drill for Loan' in response.data
             assert b'Free Drill' in response.data
+            response_text = response.data.decode('utf-8')
+            assert response_text.count('giveaway-ribbon') == 1
 
 
 class TestCategoryAndTagFiltering:

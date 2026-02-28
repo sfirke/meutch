@@ -4,8 +4,8 @@
             <img src="{{ item.image }}" class="card-img-top" alt="{{ item.name }}">
             <!-- Giveaway badge -->
             {% if item.is_giveaway %}
-                <span class="position-absolute top-0 start-0 m-2 badge bg-success">
-                    <i class="fas fa-gift me-1"></i>FREE
+                <span class="giveaway-ribbon">
+                    FREE
                 </span>
             {% endif %}
             <!-- Availability status badge -->
@@ -20,8 +20,8 @@
             <i class="fas fa-image text-muted" style="font-size: 3rem;"></i>
             <!-- Giveaway badge for items without images -->
             {% if item.is_giveaway %}
-                <span class="position-absolute top-0 start-0 m-2 badge bg-success">
-                    <i class="fas fa-gift me-1"></i>FREE
+                <span class="giveaway-ribbon">
+                    FREE
                 </span>
             {% endif %}
             <!-- Availability status badge for items without images -->
