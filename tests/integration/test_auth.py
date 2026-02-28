@@ -107,6 +107,7 @@ class TestAuthenticationRoutes:
         response = client.get('/auth/register')
         assert response.status_code == 200
         assert b'Register' in response.data
+        assert b'id="location-info"' in response.data
     
     def test_register_valid_data_with_address(self, client, app):
         """Test registration with valid data using address input."""
