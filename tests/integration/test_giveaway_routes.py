@@ -814,9 +814,7 @@ class TestRecipientSelection:
             db.session.add_all([interest1, interest2])
             db.session.commit()
             
-            with client.session_transaction() as sess:
-                sess['_user_id'] = str(owner.id)
-                sess['_fresh'] = True
+            login_user(client, owner.email)
             
             response = client.get(f'/item/{giveaway.id}/select-recipient')
             
