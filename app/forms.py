@@ -375,7 +375,7 @@ class ListItemForm(FlaskForm):
             rv = False
         
         if self.is_giveaway.data and self.giveaway_visibility.data == 'public':
-            if hasattr(current_user, 'is_geocoded') and not current_user.is_geocoded:
+            if current_user.is_authenticated and not current_user.is_geocoded:
                 self.giveaway_visibility.errors.append(
                     'You must set your location before making a giveaway public. '
                     'Public giveaways are visible to everyone on Meutch and users '
@@ -641,7 +641,7 @@ class ItemRequestForm(FlaskForm):
     def validate_visibility(self, field):
         """Public visibility requires user to have a location set."""
         if field.data == 'public':
-            if hasattr(current_user, 'is_geocoded') and not current_user.is_geocoded:
+            if current_user.is_authenticated and not current_user.is_geocoded:
                 raise ValidationError(
                     'You must set your location before making a request public. '
                     'Public requests are visible to everyone on Meutch and users '
