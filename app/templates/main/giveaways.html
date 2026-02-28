@@ -60,74 +60,76 @@
             <hr class="my-4">
         {% endif %}
         
-        <!-- Available Giveaways from Others (only show heading if user has their own giveaways) -->
-        {% if my_giveaways %}
-            <h3 class="mb-3"><i class="fas fa-users me-2"></i>Available from Others</h3>
-        {% endif %}
-        
-        {% if no_circles %}
-            <div class="alert alert-info">
-                <h5><i class="fas fa-info-circle me-2"></i>Join a circle to see giveaways</h5>
-                <p>You need to join at least one lending circle to browse giveaways from other members.</p>
-                <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">Find Circles to Join</a>
-            </div>
-        {% elif items %}
-            <div class="items-grid">
-                {% for item in items %}
-                    {% include 'main/_item_card.html' %}
-                {% endfor %}
-            </div>
-            
-            <!-- Pagination Controls -->
-            {% if pagination.pages > 1 %}
-                <nav aria-label="Giveaways pages" class="mt-4">
-                    <ul class="pagination justify-content-center">
-                        {% if pagination.has_prev %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('main.giveaways', page=pagination.prev_num, sort=sort_by, distance=max_distance) }}" aria-label="Previous">
-                                    <span aria-hidden="true">&laquo;</span>
-                                </a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link" aria-hidden="true">&laquo;</span>
-                            </li>
-                        {% endif %}
-                        
-                        {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
-                            {% if p %}
-                                {% if p == pagination.page %}
-                                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
-                                {% else %}
-                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.giveaways', page=p, sort=sort_by, distance=max_distance) }}">{{ p }}</a></li>
-                                {% endif %}
-                            {% else %}
-                                <li class="page-item disabled"><span class="page-link">…</span></li>
-                            {% endif %}
-                        {% endfor %}
-                        
-                        {% if pagination.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('main.giveaways', page=pagination.next_num, sort=sort_by, distance=max_distance) }}" aria-label="Next">
-                                    <span aria-hidden="true">&raquo;</span>
-                                </a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link" aria-hidden="true">&raquo;</span>
-                            </li>
-                        {% endif %}
-                    </ul>
-                </nav>
+        <div id="available-giveaways-section">
+            <!-- Available Giveaways from Others (only show heading if user has their own giveaways) -->
+            {% if my_giveaways %}
+                <h3 class="mb-3"><i class="fas fa-users me-2"></i>Available from Others</h3>
             {% endif %}
-        {% else %}
-            <div class="alert alert-secondary">
-                <i class="fas fa-search me-2"></i>No giveaways found matching your filters.
-                {% if max_distance %}
-                    <p class="mb-0 mt-2">Try expanding your distance filter or <a href="{{ url_for('main.giveaways') }}">view all giveaways</a>.</p>
+            
+            {% if no_circles %}
+                <div class="alert alert-info">
+                    <h5><i class="fas fa-info-circle me-2"></i>Join a circle to see giveaways</h5>
+                    <p>You need to join at least one lending circle to browse giveaways from other members.</p>
+                    <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">Find Circles to Join</a>
+                </div>
+            {% elif items %}
+                <div class="items-grid">
+                    {% for item in items %}
+                        {% include 'main/_item_card.html' %}
+                    {% endfor %}
+                </div>
+                
+                <!-- Pagination Controls -->
+                {% if pagination.pages > 1 %}
+                    <nav aria-label="Giveaways pages" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if pagination.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('main.giveaways', page=pagination.prev_num, sort=sort_by, distance=max_distance, _anchor='available-giveaways-section') }}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link" aria-hidden="true">&laquo;</span>
+                                </li>
+                            {% endif %}
+                            
+                            {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+                                {% if p %}
+                                    {% if p == pagination.page %}
+                                        <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                    {% else %}
+                                        <li class="page-item"><a class="page-link" href="{{ url_for('main.giveaways', page=p, sort=sort_by, distance=max_distance, _anchor='available-giveaways-section') }}">{{ p }}</a></li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if pagination.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('main.giveaways', page=pagination.next_num, sort=sort_by, distance=max_distance, _anchor='available-giveaways-section') }}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link" aria-hidden="true">&raquo;</span>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
                 {% endif %}
-            </div>
-        {% endif %}
+            {% else %}
+                <div class="alert alert-secondary">
+                    <i class="fas fa-search me-2"></i>No giveaways found matching your filters.
+                    {% if max_distance %}
+                        <p class="mb-0 mt-2">Try expanding your distance filter or <a href="{{ url_for('main.giveaways') }}">view all giveaways</a>.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}
