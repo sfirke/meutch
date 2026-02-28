@@ -1,6 +1,6 @@
 import logging
 import os
-from flask import Flask
+from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
@@ -93,6 +93,11 @@ def create_app(config_class=None):
     # Register custom Jinja filters
     from app.template_filters import register_filters
     register_filters(app)
+
+    # Register error handlers
+    @app.errorhandler(404)
+    def page_not_found(e):
+        return render_template('errors/404.html'), 404
     
     # Optional auto-seed for development (disabled by default)
     with app.app_context():
