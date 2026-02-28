@@ -4,374 +4,550 @@
 
 {% block content %}
 <div class="container mt-5">
-    <form method="post" enctype="multipart/form-data">
-        {{ form.csrf_token }}
-        <div class="row">
-            <!-- Left Column -->
-            <div class="col-md-6">
-                <div class="text-center mb-4">
-                    <img src="{{ current_user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
-                </div>
-                
-                <div class="mb-3">
-                    {{ form.about_me.label(class="form-label") }}
-                    <small class="text-muted d-block mb-2">A bio with specific details will help make connections to others in the community.</small>
-                    {{ form.about_me(class="form-control", rows="5") }}
-                </div>
-                
-                <div class="mb-3">
-                    {{ form.profile_image.label(class="form-label") }}
-                    {{ form.profile_image(class="form-control", accept="image/*") }}
-                </div>
-                
-                {% if current_user.profile_image_url %}
-                    <div class="mb-3 form-check">
-                        {{ form.delete_image(class="form-check-input") }}
-                        {{ form.delete_image.label(class="form-check-label") }}
-                    </div>
+    <h1 class="mb-4">My Profile</h1>
+
+    <!-- Tabbed Navigation -->
+    <ul class="nav nav-tabs mb-4" id="profileTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'my-items' %}active{% endif %}" id="my-items-tab" data-bs-toggle="tab" data-bs-target="#my-items" type="button" role="tab" aria-controls="my-items" aria-selected="{{ 'true' if active_tab == 'my-items' else 'false' }}">
+                <i class="fas fa-boxes me-2"></i>My Items
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'active-loans' %}active{% endif %}" id="active-loans-tab" data-bs-toggle="tab" data-bs-target="#active-loans" type="button" role="tab" aria-controls="active-loans" aria-selected="{{ 'true' if active_tab == 'active-loans' else 'false' }}">
+                <i class="fas fa-exchange-alt me-2"></i>Active Loans
+                {% if borrowing or lending %}
+                    <span class="badge bg-secondary ms-1">{{ (borrowing|length) + (lending|length) }}</span>
                 {% endif %}
-            </div>
-            
-            <!-- Right Column - Web Links -->
-            <div class="col-md-6">
-                <h5 class="mb-3">Where else can you be found on the web?</h5>
-                <small class="text-muted mb-3 d-block">Add up to 5 links to help establish your identity.</small>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'about-me' %}active{% endif %}" id="about-me-tab" data-bs-toggle="tab" data-bs-target="#about-me" type="button" role="tab" aria-controls="about-me" aria-selected="{{ 'true' if active_tab == 'about-me' else 'false' }}">
+                <i class="fas fa-user me-2"></i>About Me
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'settings' %}active{% endif %}" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab" aria-controls="settings" aria-selected="{{ 'true' if active_tab == 'settings' else 'false' }}">
+                <i class="fas fa-cog me-2"></i>Settings
+            </button>
+        </li>
+    </ul>
 
-                {% for i in range(1, 6) %}
-                <div class="web-link-group mb-3 p-3 border rounded" data-link-index="{{ i }}">
-                    <div class="row g-2">
-                        <div class="col-5">
-                            {% set platform_field = form['link_' + i|string + '_platform'] %}
-                            <label class="form-label small">
-                                <i class="platform-icon me-1" id="icon_{{ i }}"></i>Platform {{ i }}
-                            </label>
-                            {{ platform_field(class="form-select form-select-sm") }}
-                            {% if platform_field.errors %}
-                                <div class="text-danger small">
-                                    {% for error in platform_field.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                        <div class="col-7">
-                            {% set url_field = form['link_' + i|string + '_url'] %}
-                            <label class="form-label small">URL {{ i }}</label>
-                            {{ url_field(class="form-control form-control-sm", placeholder="https://") }}
-                            {% if url_field.errors %}
-                                <div class="text-danger small">
-                                    {% for error in url_field.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <!-- Custom name field for "other" platform -->
-                    <div class="custom-name-row mt-2" style="display: none;">
-                        <div class="col-12">
-                            {% set custom_name_field = form['link_' + i|string + '_custom_name'] %}
-                            <label class="form-label small">Name of other site</label>
-                            {{ custom_name_field(class="form-control form-control-sm", placeholder="e.g., My Portfolio, Company Website") }}
-                            {% if custom_name_field.errors %}
-                                <div class="text-danger small">
-                                    {% for error in custom_name_field.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        
-        <div class="text-center mt-4 mb-5">
-            {{ form.submit(class="btn btn-primary") }}
-        </div>
-    </form>
+    <!-- Tab Content -->
+    <div class="tab-content" id="profileTabContent">
 
-    {% if current_user == user %}
-        <!-- Currently Borrowing -->
-        <div class="mt-5">
-            <h2>Items I'm Borrowing</h2>
-            {% if borrowing %}
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Thumbnail</th>
-                            <th>Item Name</th>
-                            <th>Owner</th>
-                            <th>Start Date</th>
-                            <th>End Date</th>
-                            <th>Conversation</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in borrowing %}
-                            <tr>
-                                <td>
-                                    {% if item.image_url %}
-                                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                                <td>{{ item.name }}</td>
-                                <td>{{ item.owner.full_name }}</td>
-                                <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
-                                <td>
-                                    {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
-                                    {% if item.current_loan.is_overdue() %}
-                                        <span class="badge bg-danger ms-2">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
-                                    {% elif item.current_loan.is_due_soon() %}
-                                        {% if item.current_loan.days_until_due() == 0 %}
-                                            <span class="badge bg-warning text-dark ms-2">Due today</span>
-                                        {% else %}
-                                            <span class="badge bg-warning text-dark ms-2">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if item.messages %}
-                                        <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
-                                    {% else %}
-                                        <span class="text-muted">No messages</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
+        <!-- ======================== MY ITEMS TAB ======================== -->
+        <div class="tab-pane fade {% if active_tab == 'my-items' %}show active{% endif %}" id="my-items" role="tabpanel" aria-labelledby="my-items-tab">
+
+            <!-- My Active Giveaways Section -->
+            {% if active_giveaways %}
+                <div class="mb-4">
+                    <h4 class="mb-3"><i class="fas fa-gift me-2"></i>My Active Giveaways</h4>
+                    <p class="text-muted small">Items available for claiming or pending pickup</p>
+                    <div class="items-grid">
+                        {% for item in active_giveaways %}
+                            {% set show_owner_controls = true %}
+                            {% include 'main/_item_card.html' %}
                         {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>You are not currently borrowing any items.</p>
-            {% endif %}
-        </div>
+                    </div>
 
-        <!-- Currently Lending -->
-        <div class="mt-5">
-            <h2>Items I'm Lending</h2>
-            {% if lending %}
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Thumbnail</th>
-                            <th>Item Name</th>
-                            <th>Borrower</th>
-                            <th>Start Date</th>
-                            <th>End Date</th>
-                            <th>Conversation</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in lending %}
-                            <tr>
-                                <td>
-                                    {% if item.image_url %}
-                                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                                <td>{{ item.name }}</td>
-                                <td>{{ item.current_loan.borrower.full_name }}</td>
-                                <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
-                                <td>
-                                    {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
-                                    {% if item.current_loan.is_overdue() %}
-                                        <span class="badge bg-danger ms-2">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
-                                    {% elif item.current_loan.is_due_soon() %}
-                                        {% if item.current_loan.days_until_due() == 0 %}
-                                            <span class="badge bg-warning text-dark ms-2">Due today</span>
-                                        {% else %}
-                                            <span class="badge bg-warning text-dark ms-2">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if item.messages %}
-                                        <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
-                                    {% else %}
-                                        <span class="text-muted">No messages</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>You are not currently lending any items.</p>
-            {% endif %}
-        </div>
-    {% endif %}
-    
-    <!-- My Items -->
-    <div class="mt-5">
-        <h2>My Items</h2>
-        
-        <!-- My Active Giveaways Section -->
-        {% if active_giveaways %}
-            <div class="mb-4">
-                <h4 class="mb-3"><i class="fas fa-gift me-2"></i>My Active Giveaways</h4>
-                <p class="text-muted small">Items available for claiming or pending pickup</p>
-                <div class="items-grid">
-                    {% for item in active_giveaways %}
-                        {% set show_owner_controls = true %}
-                        {% include 'main/_item_card.html' %}
-                    {% endfor %}
-                </div>
-            </div>
-        {% endif %}
-        
-        <!-- My Past Giveaways Section -->
-        {% if past_giveaways %}
-            <div class="mb-4">
-                <h4 class="mb-3"><i class="fas fa-history me-2"></i>My Past Giveaways</h4>
-                <p class="text-muted small">Items claimed within the last 90 days</p>
-                <div class="items-grid">
-                    {% for item in past_giveaways %}
-                        {% set show_owner_controls = true %}
-                        {% include 'main/_item_card.html' %}
-                    {% endfor %}
-                </div>
-            </div>
-        {% endif %}
-        
-        <!-- Regular Items Section -->
-        {% if items %}
-            {% if active_giveaways or past_giveaways %}
-                <h4 class="mb-3 mt-4"><i class="fas fa-handshake me-2"></i>Items for Lending</h4>
-            {% endif %}
-            <div class="items-grid">
-                {% for item in items %}
-                    {% set show_owner_controls = true %}
-                    {% include 'main/_item_card.html' %}
-                {% endfor %}
-            </div>
-        {% else %}
-            {% if not active_giveaways and not past_giveaways %}
-                <p>No items found.</p>
-            {% endif %}
-        {% endif %}
-        
-        <!-- Pagination for items -->
-        {% if pagination and pagination.pages > 1 %}
-            <nav aria-label="Items pages" class="mt-4">
-                <ul class="pagination justify-content-center">
-                    {% if pagination.has_prev %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('main.profile', page=pagination.prev_num) }}" aria-label="Previous">
-                                <span aria-hidden="true">&laquo;</span>
-                            </a>
-                        </li>
-                    {% else %}
-                        <li class="page-item disabled">
-                            <span class="page-link" aria-hidden="true">&laquo;</span>
-                        </li>
-                    {% endif %}
-
-                    {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
-                        {% if p %}
-                            {% if p == pagination.page %}
-                                <li class="page-item active"><span class="page-link">{{ p }}</span></li>
-                            {% else %}
-                                <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', page=p) }}">{{ p }}</a></li>
-                            {% endif %}
-                        {% else %}
-                            <li class="page-item disabled"><span class="page-link">…</span></li>
-                        {% endif %}
-                    {% endfor %}
-
-                    {% if pagination.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('main.profile', page=pagination.next_num) }}" aria-label="Next">
-                                <span aria-hidden="true">&raquo;</span>
-                            </a>
-                        </li>
-                    {% else %}
-                        <li class="page-item disabled">
-                            <span class="page-link" aria-hidden="true">&raquo;</span>
-                        </li>
-                    {% endif %}
-                </ul>
-            </nav>
-        {% endif %}
-    </div>
-    
-    <!-- Admin options - Location Status, Vacation Mode, Danger Zone - at the very bottom -->
-    <div class="row mt-5 pt-4 border-top">
-        <div class="col-md-4">
-            <!-- Address Information -->
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title"><i class="fas fa-map-marker-alt me-2"></i>Location Status</h6>
-                    {% if current_user.is_geocoded %}
-                        <div class="alert alert-success alert-sm">
-                            <i class="fas fa-check-circle me-1"></i>
-                            <small>Your location is set and distances will be shown to other users.</small>
-                        </div>
-                    {% elif current_user.geocoding_failed %}
-                        <div class="alert alert-warning alert-sm">
-                            <i class="fas fa-exclamation-triangle me-1"></i>
-                            <small>We couldn't determine your location. <a href="{{ url_for('main.update_location') }}">Update your address</a> to see distances.</small>
-                        </div>
-                    {% else %}
-                        <div class="alert alert-info alert-sm">
-                            <i class="fas fa-info-circle me-1"></i>
-                            <small>Your location hasn't been processed yet. You won't be able to see which circles and items are near you until this is resolved.</small>
-                        </div>
-                    {% endif %}
-                    
-                    {% if current_user.can_update_location() %}
-                        <a href="{{ url_for('main.update_location') }}" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-edit me-1"></i>Update Location
-                        </a>
-                    {% else %}
-                        <div class="text-muted small mb-2">
-                            <i class="fas fa-clock me-1"></i>You can update your location once per successful update per day.
-                        </div>
-                        <button class="btn btn-outline-secondary btn-sm" disabled>
-                            <i class="fas fa-edit me-1"></i>Update Location (Available Tomorrow)
-                        </button>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <!-- Vacation Mode -->
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title"><i class="fas fa-umbrella-beach me-2"></i>Vacation Mode</h6>
-                    <small class="text-muted d-block mb-2">
-                        When enabled, your items will be hidden from other users. Active loans and borrows will continue.
-                    </small>
-                    <form method="POST" action="{{ url_for('main.toggle_vacation_mode') }}">
-                        {{ vacation_form.csrf_token }}
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" role="switch" id="vacationModeSwitch" 
-                                   name="vacation_mode" {% if current_user.vacation_mode %}checked{% endif %}
-                                   onchange="this.form.submit()">
-                            <label class="form-check-label" for="vacationModeSwitch">
-                                {% if current_user.vacation_mode %}
-                                    <span class="text-warning">Vacation Mode is ON</span>
+                    <!-- Pagination for active giveaways -->
+                    {% if active_giveaways_pagination and active_giveaways_pagination.pages > 1 %}
+                        <nav aria-label="Active giveaways pages" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if active_giveaways_pagination.has_prev %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('main.profile', giveaway_page=active_giveaways_pagination.prev_num, tab='my-items') }}" aria-label="Previous">
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </a>
+                                    </li>
                                 {% else %}
-                                    Vacation Mode is OFF
+                                    <li class="page-item disabled">
+                                        <span class="page-link" aria-hidden="true">&laquo;</span>
+                                    </li>
                                 {% endif %}
-                            </label>
+
+                                {% for p in active_giveaways_pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+                                    {% if p %}
+                                        {% if p == active_giveaways_pagination.page %}
+                                            <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                        {% else %}
+                                            <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', giveaway_page=p, tab='my-items') }}">{{ p }}</a></li>
+                                        {% endif %}
+                                    {% else %}
+                                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if active_giveaways_pagination.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('main.profile', giveaway_page=active_giveaways_pagination.next_num, tab='my-items') }}" aria-label="Next">
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link" aria-hidden="true">&raquo;</span>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- My Past Giveaways Section -->
+            {% if past_giveaways %}
+                <div class="mb-4">
+                    <h4 class="mb-3"><i class="fas fa-history me-2"></i>My Past Giveaways</h4>
+                    <p class="text-muted small">Items claimed within the last 90 days</p>
+                    <div class="items-grid">
+                        {% for item in past_giveaways %}
+                            {% set show_owner_controls = true %}
+                            {% include 'main/_item_card.html' %}
+                        {% endfor %}
+                    </div>
+
+                    <!-- Pagination for past giveaways -->
+                    {% if past_giveaways_pagination and past_giveaways_pagination.pages > 1 %}
+                        <nav aria-label="Past giveaways pages" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if past_giveaways_pagination.has_prev %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('main.profile', past_giveaway_page=past_giveaways_pagination.prev_num, tab='my-items') }}" aria-label="Previous">
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link" aria-hidden="true">&laquo;</span>
+                                    </li>
+                                {% endif %}
+
+                                {% for p in past_giveaways_pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+                                    {% if p %}
+                                        {% if p == past_giveaways_pagination.page %}
+                                            <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                        {% else %}
+                                            <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', past_giveaway_page=p, tab='my-items') }}">{{ p }}</a></li>
+                                        {% endif %}
+                                    {% else %}
+                                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if past_giveaways_pagination.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('main.profile', past_giveaway_page=past_giveaways_pagination.next_num, tab='my-items') }}" aria-label="Next">
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link" aria-hidden="true">&raquo;</span>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- Regular Items Section -->
+            {% if items %}
+                {% if active_giveaways or past_giveaways %}
+                    <h4 class="mb-3 mt-4"><i class="fas fa-handshake me-2"></i>Items for Lending</h4>
+                {% endif %}
+                <div class="items-grid">
+                    {% for item in items %}
+                        {% set show_owner_controls = true %}
+                        {% include 'main/_item_card.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                {% if not active_giveaways and not past_giveaways %}
+                    <p>No items found.</p>
+                {% endif %}
+            {% endif %}
+
+            <!-- Pagination for regular items -->
+            {% if pagination and pagination.pages > 1 %}
+                <nav aria-label="Items pages" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.profile', page=pagination.prev_num, tab='my-items') }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&laquo;</span>
+                            </li>
+                        {% endif %}
+
+                        {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+                            {% if p %}
+                                {% if p == pagination.page %}
+                                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', page=p, tab='my-items') }}">{{ p }}</a></li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.profile', page=pagination.next_num, tab='my-items') }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&raquo;</span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        </div>
+
+        <!-- ======================== ACTIVE LOANS TAB ======================== -->
+        <div class="tab-pane fade {% if active_tab == 'active-loans' %}show active{% endif %}" id="active-loans" role="tabpanel" aria-labelledby="active-loans-tab">
+
+            {% if current_user == user %}
+                <!-- Currently Borrowing -->
+                <div class="mb-5">
+                    <h4><i class="fas fa-arrow-down me-2"></i>Items I'm Borrowing</h4>
+                    {% if borrowing %}
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Thumbnail</th>
+                                        <th>Item Name</th>
+                                        <th>Owner</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Conversation</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in borrowing %}
+                                        <tr>
+                                            <td>
+                                                {% if item.image_url %}
+                                                    <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ item.name }}</td>
+                                            <td>{{ item.owner.full_name }}</td>
+                                            <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
+                                            <td>
+                                                {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
+                                                {% if item.current_loan.is_overdue() %}
+                                                    <span class="badge bg-danger ms-2">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
+                                                {% elif item.current_loan.is_due_soon() %}
+                                                    {% if item.current_loan.days_until_due() == 0 %}
+                                                        <span class="badge bg-warning text-dark ms-2">Due today</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning text-dark ms-2">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if item.messages %}
+                                                    <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
+                                                {% else %}
+                                                    <span class="text-muted">No messages</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
-                    </form>
+                    {% else %}
+                        <p>You are not currently borrowing any items.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Currently Lending -->
+                <div class="mb-5">
+                    <h4><i class="fas fa-arrow-up me-2"></i>Items I'm Lending</h4>
+                    {% if lending %}
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Thumbnail</th>
+                                        <th>Item Name</th>
+                                        <th>Borrower</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Conversation</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in lending %}
+                                        <tr>
+                                            <td>
+                                                {% if item.image_url %}
+                                                    <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ item.name }}</td>
+                                            <td>{{ item.current_loan.borrower.full_name }}</td>
+                                            <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
+                                            <td>
+                                                {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
+                                                {% if item.current_loan.is_overdue() %}
+                                                    <span class="badge bg-danger ms-2">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
+                                                {% elif item.current_loan.is_due_soon() %}
+                                                    {% if item.current_loan.days_until_due() == 0 %}
+                                                        <span class="badge bg-warning text-dark ms-2">Due today</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning text-dark ms-2">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if item.messages %}
+                                                    <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
+                                                {% else %}
+                                                    <span class="text-muted">No messages</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p>You are not currently lending any items.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- ======================== ABOUT ME TAB ======================== -->
+        <div class="tab-pane fade {% if active_tab == 'about-me' %}show active{% endif %}" id="about-me" role="tabpanel" aria-labelledby="about-me-tab">
+
+            <!-- Read-only profile view -->
+            <div id="profile-view" {% if show_edit %}style="display: none;"{% endif %}>
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <img src="{{ current_user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
+                    </div>
+                    <div class="col-md-8">
+                        <h5 class="mb-3">About Me</h5>
+                        {% if current_user.about_me %}
+                            <p>{{ current_user.about_me }}</p>
+                        {% else %}
+                            <p class="text-muted">No bio set yet. Click "Edit Profile" to add one.</p>
+                        {% endif %}
+
+                        {% if current_user.web_links %}
+                            <h6 class="mt-4 mb-2"><i class="fas fa-external-link-alt me-2"></i>Where to find me on the web</h6>
+                            <div class="row">
+                                {% for link in current_user.web_links %}
+                                    <div class="col-md-6 mb-2">
+                                        <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
+                                            <div class="d-flex align-items-center p-2 bg-light rounded">
+                                                <i class="{{ link.icon_class }} me-2 text-primary" style="width: 20px;"></i>
+                                                <span class="small">{{ link.url|replace('https://', '')|replace('http://', '')|replace('www.', '') }}</span>
+                                            </div>
+                                        </a>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button type="button" class="btn btn-outline-primary" id="edit-profile-btn">
+                        <i class="fas fa-pencil-alt me-2"></i>Edit Profile
+                    </button>
+                </div>
+            </div>
+
+            <!-- Edit profile form (hidden by default) -->
+            <div id="profile-edit" {% if not show_edit %}style="display: none;"{% endif %}>
+                <form method="post" enctype="multipart/form-data">
+                    {{ form.csrf_token }}
+                    <div class="row">
+                        <!-- Left Column -->
+                        <div class="col-md-6">
+                            <div class="text-center mb-4">
+                                <img src="{{ current_user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
+                            </div>
+
+                            <div class="mb-3">
+                                {{ form.about_me.label(class="form-label") }}
+                                <small class="text-muted d-block mb-2">A bio with specific details will help make connections to others in the community.</small>
+                                {{ form.about_me(class="form-control", rows="5") }}
+                            </div>
+
+                            <div class="mb-3">
+                                {{ form.profile_image.label(class="form-label") }}
+                                {{ form.profile_image(class="form-control", accept="image/*") }}
+                            </div>
+
+                            {% if current_user.profile_image_url %}
+                                <div class="mb-3 form-check">
+                                    {{ form.delete_image(class="form-check-input") }}
+                                    {{ form.delete_image.label(class="form-check-label") }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Right Column - Web Links -->
+                        <div class="col-md-6">
+                            <h5 class="mb-3">Where else can you be found on the web?</h5>
+                            <small class="text-muted mb-3 d-block">Add up to 5 links to help establish your identity.</small>
+
+                            {% for i in range(1, 6) %}
+                            <div class="web-link-group mb-3 p-3 border rounded" data-link-index="{{ i }}">
+                                <div class="row g-2">
+                                    <div class="col-5">
+                                        {% set platform_field = form['link_' + i|string + '_platform'] %}
+                                        <label class="form-label small">
+                                            <i class="platform-icon me-1" id="icon_{{ i }}"></i>Platform {{ i }}
+                                        </label>
+                                        {{ platform_field(class="form-select form-select-sm") }}
+                                        {% if platform_field.errors %}
+                                            <div class="text-danger small">
+                                                {% for error in platform_field.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-7">
+                                        {% set url_field = form['link_' + i|string + '_url'] %}
+                                        <label class="form-label small">URL {{ i }}</label>
+                                        {{ url_field(class="form-control form-control-sm", placeholder="https://") }}
+                                        {% if url_field.errors %}
+                                            <div class="text-danger small">
+                                                {% for error in url_field.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Custom name field for "other" platform -->
+                                <div class="custom-name-row mt-2" style="display: none;">
+                                    <div class="col-12">
+                                        {% set custom_name_field = form['link_' + i|string + '_custom_name'] %}
+                                        <label class="form-label small">Name of other site</label>
+                                        {{ custom_name_field(class="form-control form-control-sm", placeholder="e.g., My Portfolio, Company Website") }}
+                                        {% if custom_name_field.errors %}
+                                            <div class="text-danger small">
+                                                {% for error in custom_name_field.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4 mb-3">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <button type="button" class="btn btn-outline-secondary ms-2" id="cancel-edit-btn">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ======================== SETTINGS TAB ======================== -->
+        <div class="tab-pane fade {% if active_tab == 'settings' %}show active{% endif %}" id="settings" role="tabpanel" aria-labelledby="settings-tab">
+            <div class="row">
+                <div class="col-md-4">
+                    <!-- Address Information -->
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title"><i class="fas fa-map-marker-alt me-2"></i>Location Status</h6>
+                            {% if current_user.is_geocoded %}
+                                <div class="alert alert-success alert-sm">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    <small>Your location is set and distances will be shown to other users.</small>
+                                </div>
+                            {% elif current_user.geocoding_failed %}
+                                <div class="alert alert-warning alert-sm">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    <small>We couldn't determine your location. <a href="{{ url_for('main.update_location') }}">Update your address</a> to see distances.</small>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info alert-sm">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    <small>Your location hasn't been processed yet. You won't be able to see which circles and items are near you until this is resolved.</small>
+                                </div>
+                            {% endif %}
+
+                            {% if current_user.can_update_location() %}
+                                <a href="{{ url_for('main.update_location') }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-edit me-1"></i>Update Location
+                                </a>
+                            {% else %}
+                                <div class="text-muted small mb-2">
+                                    <i class="fas fa-clock me-1"></i>You can update your location once per successful update per day.
+                                </div>
+                                <button class="btn btn-outline-secondary btn-sm" disabled>
+                                    <i class="fas fa-edit me-1"></i>Update Location (Available Tomorrow)
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <!-- Vacation Mode -->
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title"><i class="fas fa-umbrella-beach me-2"></i>Vacation Mode</h6>
+                            <small class="text-muted d-block mb-2">
+                                When enabled, your items will be hidden from other users. Active loans and borrows will continue.
+                            </small>
+                            <form method="POST" action="{{ url_for('main.toggle_vacation_mode') }}">
+                                {{ vacation_form.csrf_token }}
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="vacationModeSwitch"
+                                           name="vacation_mode" {% if current_user.vacation_mode %}checked{% endif %}
+                                           onchange="this.form.submit()">
+                                    <label class="form-check-label" for="vacationModeSwitch">
+                                        {% if current_user.vacation_mode %}
+                                            <span class="text-warning">Vacation Mode is ON</span>
+                                        {% else %}
+                                            Vacation Mode is OFF
+                                        {% endif %}
+                                    </label>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <!-- Account Deletion -->
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title text-danger">Danger Zone</h6>
+                            <a href="{{ url_for('main.delete_account') }}" class="btn btn-outline-danger btn-sm">
+                                <i class="fas fa-trash"></i> Delete Account
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-4">
-            <!-- Account Deletion -->
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title text-danger">Danger Zone</h6>
-                    <a href="{{ url_for('main.delete_account') }}" class="btn btn-outline-danger btn-sm">
-                        <i class="fas fa-trash"></i> Delete Account
-                    </a>
-                </div>
-            </div>
-        </div>
+
     </div>
 </div>
 {% endblock %}
@@ -379,6 +555,26 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Toggle between read-only profile view and edit form
+    const profileView = document.getElementById('profile-view');
+    const profileEdit = document.getElementById('profile-edit');
+    const editBtn = document.getElementById('edit-profile-btn');
+    const cancelBtn = document.getElementById('cancel-edit-btn');
+
+    if (editBtn) {
+        editBtn.addEventListener('click', function() {
+            profileView.style.display = 'none';
+            profileEdit.style.display = 'block';
+        });
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function() {
+            profileEdit.style.display = 'none';
+            profileView.style.display = 'block';
+        });
+    }
+
     // Platform icon mapping
     const platformIcons = {
         'facebook': 'fab fa-facebook',
@@ -399,18 +595,18 @@ document.addEventListener('DOMContentLoaded', function() {
     for (let i = 1; i <= 5; i++) {
         const platformSelect = document.getElementById('link_' + i + '_platform');
         const iconElement = document.getElementById('icon_' + i);
-        
+
         if (platformSelect) {
             // Find the parent web-link-group and then the custom-name-row within it
             const webLinkGroup = platformSelect.closest('.web-link-group');
             const customNameRow = webLinkGroup ? webLinkGroup.querySelector('.custom-name-row') : null;
-            
+
             function updatePlatform() {
                 // Update icon
                 if (iconElement) {
                     iconElement.className = 'platform-icon me-1 text-primary ' + (platformIcons[platformSelect.value] || '');
                 }
-                
+
                 // Toggle custom name field for "other"
                 if (customNameRow) {
                     if (platformSelect.value === 'other') {
@@ -420,10 +616,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             }
-            
+
             // Check initial state
             updatePlatform();
-            
+
             // Listen for changes
             platformSelect.addEventListener('change', updatePlatform);
         }
