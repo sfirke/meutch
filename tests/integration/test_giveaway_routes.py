@@ -2079,7 +2079,7 @@ class TestItemDetailPageForGiveaways:
             
             assert response.status_code == 200
             assert b'Jane Smith' in response.data
-            assert b'June 15, 2025' in response.data
+            assert b'data-utc-timestamp="2025-06-15T12:00:00"' in response.data
             # Should NOT show action buttons for claimed items
             assert b'Change Recipient' not in response.data
             assert b'Release to Everyone' not in response.data

@@ -567,3 +567,28 @@ class TestRedirectAfterLogin:
             # This ensures the parameter survives the form POST
             assert b'action="/auth/login?next=' in response.data or \
                    b'action="/auth/login?next=%2Fprofile' in response.data
+
+
+class TestCSRFErrorHandler:
+    """Test that CSRF errors are handled gracefully."""
+
+    def test_csrf_error_redirects_to_login_with_message(self, app):
+        """Test that a CSRF error shows a user-friendly message and redirects to login."""
+        from conftest import TestConfig
+        from app import create_app, db
+
+        class CSRFEnabledConfig(TestConfig):
+            WTF_CSRF_ENABLED = True
+            WTF_CSRF_CHECK_DEFAULT = True
+
+        csrf_app = create_app(CSRFEnabledConfig)
+        with csrf_app.app_context():
+            db.create_all()
+            client = csrf_app.test_client()
+            # POST without a valid CSRF token triggers CSRFError; follow redirect to login page
+            response = client.post('/auth/login', data={
+                'email': 'test@example.com',
+                'password': 'password',
+            }, follow_redirects=True)
+            assert response.status_code == 200
+            assert b'session has expired' in response.data or b'log in again' in response.data

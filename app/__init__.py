@@ -1,10 +1,11 @@
 import logging
 import os
-from flask import Flask
+from flask import Flask, flash, redirect, render_template, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
+from flask_wtf.csrf import CSRFError
 from config import config
 from uuid import UUID
 from app.context_processors import (
@@ -93,7 +94,17 @@ def create_app(config_class=None):
     # Register custom Jinja filters
     from app.template_filters import register_filters
     register_filters(app)
+
+    # Register error handlers
+    @app.errorhandler(404)
+    def page_not_found(e):
+        return render_template('errors/404.html'), 404
     
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        flash('Your session has expired. Please log in again to continue.', 'warning')
+        return redirect(url_for('auth.login'))
+
     # Optional auto-seed for development (disabled by default)
     with app.app_context():
         if app.config.get('FLASK_ENV') == 'development' and os.environ.get('AUTO_SEED_ON_STARTUP', '').lower() in ('1', 'true', 'yes', 'on'):
