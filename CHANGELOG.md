@@ -25,7 +25,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Edit item form submit button now says "Save" instead of "List Item" for better clarity on the edit action.
 - Making a claim request on a giveaway now triggers a email message and in-app notification to the item owner. Circle join requests + the decision reply messages now appear as in-app messages in addition to emails ([#205](https://github.com/sfirke/meutch/pull/205)).
 - Item detail images now keep their full height on mobile instead of being constrained to a cropped-looking 300px frame([#221](https://github.com/sfirke/meutch/pull/221)).
-- Add a custom 404 page([#218](https://github.com/sfirke/meutch/pull/218)).
+- Add a custom 404 page ([#218](https://github.com/sfirke/meutch/pull/218)) and CSRFError handler([#220](https://github.com/sfirke/meutch/pull/220)).
 - No longer include original filename on images ([#219](https://github.com/sfirke/meutch/pull/219)).
 
 ### Developer Experience
