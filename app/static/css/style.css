@@ -844,7 +844,7 @@ footer h6 {
     }
     
     .item-detail-image {
-        max-height: 300px;
+        max-height: none;
     }
     
     .item-detail-image-placeholder {
