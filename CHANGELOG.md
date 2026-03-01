@@ -27,6 +27,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Item detail images now keep their full height on mobile instead of being constrained to a cropped-looking 300px frame([#221](https://github.com/sfirke/meutch/pull/221)).
 - Add a custom 404 page ([#218](https://github.com/sfirke/meutch/pull/218)) and CSRFError handler([#220](https://github.com/sfirke/meutch/pull/220)).
 - No longer include original filename on images ([#219](https://github.com/sfirke/meutch/pull/219)).
+- After registration, users are redirected to the email-confirmation guidance page instead of the login page (since unconfirmed accounts cannot sign in yet). A `?next=` URL present at registration is saved and restored after email confirmation, so users who follow a share link and register are returned to that page once they log in.
 
 ### Developer Experience
 - Create separate dev (sample data) vs. test databases so they stop stepping on each others' toes ([#206](https://github.com/sfirke/meutch/pull/206)).

@@ -1,4 +1,4 @@
-from flask import render_template, redirect, request, url_for, flash
+from flask import render_template, redirect, request, url_for, flash, session
 from flask_login import login_user, logout_user, current_user, login_required
 from app.auth import bp as auth_bp
 from app.auth import bp as auth
@@ -85,7 +85,13 @@ def register():
             flash('A confirmation email has been sent to you by email.', 'info')
         else:
             flash('Error sending confirmation email. Please try again.', 'error')
-        
+
+        # Preserve ?next so the user lands back on the page that sent them here
+        # after they confirm their email and log in.
+        next_page = request.args.get('next')
+        if next_page and _is_safe_url(next_page):
+            session['post_login_next'] = next_page
+
         return redirect(url_for('auth.resend_confirmation'))
     
     return render_template('auth/register.html', title='Register', form=form)
@@ -142,6 +148,9 @@ def confirm_email(token):
     if user.confirm_email(token):
         db.session.commit()
         flash('Your email has been confirmed! You can now log in.', 'success')
+        next_page = session.pop('post_login_next', None)
+        if next_page and _is_safe_url(next_page):
+            return redirect(url_for('auth.login', next=next_page))
         return redirect(url_for('auth.login'))
     else:
         flash('Invalid confirmation link.', 'danger')
