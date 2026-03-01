@@ -661,7 +661,8 @@ class TestRegisterNextParam:
     """Test that the register route preserves the next parameter."""
 
     def test_register_preserves_next_param(self, client, app):
-        """Test that after registration, redirect to login includes next param."""
+        """Test that after registration, next param is stored in session
+        and later restored in the post-confirmation login redirect."""
         with app.app_context():
             response = client.post('/auth/register?next=/circles/some-id', data={
                 'email': 'newuser@example.com',
@@ -671,9 +672,11 @@ class TestRegisterNextParam:
                 'last_name': 'User',
                 'location_method': 'skip'
             })
-            # Should redirect to login with next param preserved
+            # Should redirect to resend-confirmation page
             assert response.status_code == 302
             location = response.headers['Location']
-            assert '/auth/login' in location
-            # Check both url-encoded and raw forms of the next parameter in the Location header
-            assert ('next=%2Fcircles%2Fsome-id' in location) or ('next=/circles/some-id' in location)
+            assert '/auth/resend-confirmation' in location
+            
+            # Verify the next param was stored in the session
+            with client.session_transaction() as sess:
+                assert sess.get('post_login_next') == '/circles/some-id'
