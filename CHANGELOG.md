@@ -6,6 +6,14 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 
+### Fixes
+- Pass `?next` parameter through registration and login
+
+
+## Feb 2026
+
+### Features
+
 **Major**
 - Implement user requests ([#192](https://github.com/sfirke/meutch/pull/192))
 - Add "vacation mode" toggle to user profile ([#147](https://github.com/sfirke/meutch/pull/147)). When enabled, it hides user's items from being discovered (existing loans persist).
