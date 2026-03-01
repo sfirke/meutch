@@ -7,7 +7,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Features
 
 ### Fixes
-- Pass `?next` parameter through registration and login
 
 
 ## Feb 2026
