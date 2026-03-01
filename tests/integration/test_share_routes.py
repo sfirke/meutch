@@ -661,22 +661,25 @@ class TestRegisterNextParam:
     """Test that the register route preserves the next parameter."""
 
     def test_register_preserves_next_param(self, client, app):
-        """Test that after registration, next param is stored in session
-        and later restored in the post-confirmation login redirect."""
+        """Test that after registration, ?next is passed through to
+        send_confirmation_email so it can be embedded in the confirmation link."""
+        from unittest.mock import patch
         with app.app_context():
-            response = client.post('/auth/register?next=/circles/some-id', data={
-                'email': 'newuser@example.com',
-                'password': 'testpassword123',
-                'confirm_password': 'testpassword123',
-                'first_name': 'New',
-                'last_name': 'User',
-                'location_method': 'skip'
-            })
+            with patch('app.auth.routes.send_confirmation_email') as mock_send:
+                mock_send.return_value = True
+                response = client.post('/auth/register?next=/circles/some-id', data={
+                    'email': 'newuser@example.com',
+                    'password': 'testpassword123',
+                    'confirm_password': 'testpassword123',
+                    'first_name': 'New',
+                    'last_name': 'User',
+                    'location_method': 'skip'
+                })
             # Should redirect to resend-confirmation page
             assert response.status_code == 302
-            location = response.headers['Location']
-            assert '/auth/resend-confirmation' in location
-            
-            # Verify the next param was stored in the session
-            with client.session_transaction() as sess:
-                assert sess.get('post_login_next') == '/circles/some-id'
+            assert '/auth/resend-confirmation' in response.headers['Location']
+
+            # next_url must have been forwarded to the email utility
+            mock_send.assert_called_once()
+            _, kwargs = mock_send.call_args
+            assert kwargs.get('next_url') == '/circles/some-id'

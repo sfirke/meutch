@@ -197,49 +197,29 @@ class TestAuthenticationRoutes:
         assert response.status_code == 302
         assert '/auth/resend-confirmation' in response.location
 
-    def test_register_with_next_stores_in_session(self, client):
-        """?next param on /auth/register is persisted in the session so the user
-        is returned to the originating page after email confirmation + login."""
-        with client.session_transaction() as sess:
-            sess.clear()
-
-        response = client.post('/auth/register?next=/share/giveaway/abc123', data={
-            'email': 'nextuser@example.com',
-            'first_name': 'Next',
-            'last_name': 'User',
-            'location_method': 'skip',
-            'password': 'nextpassword123',
-            'confirm_password': 'nextpassword123'
-        }, follow_redirects=False)
+    def test_register_with_next_embeds_in_confirmation_url(self, app, client):
+        """?next param on /auth/register is embedded in the confirmation link so
+        it survives cross-device / cross-browser email opens."""
+        with patch('app.auth.routes.send_confirmation_email') as mock_send:
+            mock_send.return_value = True
+            response = client.post('/auth/register?next=/share/giveaway/abc123', data={
+                'email': 'nextuser@example.com',
+                'first_name': 'Next',
+                'last_name': 'User',
+                'location_method': 'skip',
+                'password': 'nextpassword123',
+                'confirm_password': 'nextpassword123'
+            }, follow_redirects=False)
 
         assert response.status_code == 302
         assert '/auth/resend-confirmation' in response.location
-        with client.session_transaction() as sess:
-            assert sess.get('post_login_next') == '/share/giveaway/abc123'
+        mock_send.assert_called_once()
+        _, kwargs = mock_send.call_args
+        assert kwargs.get('next_url') == '/share/giveaway/abc123'
 
-    def test_confirm_email_redirects_to_login_with_next_from_session(self, client, app):
+    def test_confirm_email_redirects_to_login_with_next_from_url(self, client, app):
         """After email confirmation, the user is redirected to /auth/login?next=<url>
-        when post_login_next was stored in the session during registration."""
-        with app.app_context():
-            user = UserFactory(email_confirmed=False)
-            token = user.generate_confirmation_token()
-            from app import db as _db
-            _db.session.commit()
-            token_value = user.email_confirmation_token
-
-        with client.session_transaction() as sess:
-            sess['post_login_next'] = '/share/giveaway/abc123'
-
-        response = client.get(f'/auth/confirm/{token_value}', follow_redirects=False)
-
-        assert response.status_code == 302
-        assert '/auth/login' in response.location
-        assert 'next=' in response.location
-        assert 'abc123' in response.location
-
-    def test_confirm_email_without_next_redirects_to_plain_login(self, client, app):
-        """After email confirmation with no post_login_next in session, redirect is
-        the plain /auth/login without a next param."""
+        when ?next is embedded in the confirmation link URL."""
         with app.app_context():
             user = UserFactory(email_confirmed=False)
             user.generate_confirmation_token()
@@ -247,8 +227,25 @@ class TestAuthenticationRoutes:
             _db.session.commit()
             token_value = user.email_confirmation_token
 
-        with client.session_transaction() as sess:
-            sess.pop('post_login_next', None)
+        response = client.get(
+            f'/auth/confirm/{token_value}?next=/share/giveaway/abc123',
+            follow_redirects=False
+        )
+
+        assert response.status_code == 302
+        assert '/auth/login' in response.location
+        assert 'next=' in response.location
+        assert 'abc123' in response.location
+
+    def test_confirm_email_without_next_redirects_to_plain_login(self, client, app):
+        """After email confirmation with no next param, redirect is the plain
+        /auth/login without a next param."""
+        with app.app_context():
+            user = UserFactory(email_confirmed=False)
+            user.generate_confirmation_token()
+            from app import db as _db
+            _db.session.commit()
+            token_value = user.email_confirmation_token
 
         response = client.get(f'/auth/confirm/{token_value}', follow_redirects=False)
 
