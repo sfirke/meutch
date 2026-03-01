@@ -11,7 +11,8 @@ from uuid import UUID
 from app.context_processors import (
     inject_unread_messages_count, 
     inject_total_pending,
-    inject_distance_utils
+    inject_distance_utils,
+    inject_static_url_for
 )
 
 
@@ -90,6 +91,7 @@ def create_app(config_class=None):
     app.context_processor(inject_unread_messages_count)
     app.context_processor(inject_total_pending)
     app.context_processor(inject_distance_utils)
+    app.context_processor(inject_static_url_for)
     
     # Register custom Jinja filters
     from app.template_filters import register_filters

@@ -1,9 +1,16 @@
 # app/context_processors.py
 
+import hashlib
+import os
+
+from flask import current_app, url_for
 from flask_login import current_user
 from sqlalchemy import select
 from app.utils.geocoding import format_distance
 # Remove model imports from top level
+
+# Module-level cache for file content hashes (populated once per process in production)
+_static_hash_cache = {}
 
 def inject_unread_messages_count():
     # Import models at function level to avoid circular imports
@@ -125,3 +132,27 @@ def inject_distance_utils():
         'get_distance_to_circle': get_distance_to_circle,
         'get_distance_to_user': get_distance_to_user
     }
+
+def inject_static_url_for():
+    """Provide a static_url_for function that appends a content hash for cache-busting."""
+
+    def static_url_for(filename, **kwargs):
+        """Generate a URL for a static file with a content hash query parameter.
+
+        When the file content changes the hash changes, causing browsers to
+        fetch the new version instead of serving a stale cached copy.
+        """
+        filepath = os.path.join(current_app.static_folder, filename)
+
+        # In debug mode, always recompute; in production, use cached hash
+        if current_app.debug or filepath not in _static_hash_cache:
+            try:
+                with open(filepath, 'rb') as f:
+                    file_hash = hashlib.md5(f.read()).hexdigest()[:12]
+                _static_hash_cache[filepath] = file_hash
+            except FileNotFoundError:
+                return url_for('static', filename=filename, **kwargs)
+
+        return url_for('static', filename=filename, **kwargs) + '?v=' + _static_hash_cache[filepath]
+
+    return dict(static_url_for=static_url_for)
