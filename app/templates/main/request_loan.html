@@ -51,18 +51,12 @@
 
                         <!-- Message Section -->
                         <div class="mb-3">
-                            <!-- Label on its own line -->
-                            {{ form.message.label(class="form-label d-block") }}
-                        </div>
-                        <div class="mb-3">
-                            <!-- Textbox on a new line -->
-                            {{ form.message(class="form-control mb-2", rows="8") }}
+                            {{ form.message.label(class="form-label") }}
+                            <span class="text-danger">*</span>
+                            {{ form.message(class="form-control" + (" is-invalid" if form.message.errors else ""), rows="8", required=True) }}
                             {% for error in form.message.errors %}
-                                <div class="text-danger">{{ error }}</div>
+                                <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
-                        </div>
-                        <div class="mb-3">
-                            <!-- Helper text below the textbox -->
                             <small class="text-muted">
                                 Please include any relevant details about pickup/return and preferred contact method.
                             </small>
