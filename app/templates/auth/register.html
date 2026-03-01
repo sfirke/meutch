@@ -4,7 +4,7 @@
 
 {% block content %}
     <h1>Register</h1>
-    <form method="post" action="{{ url_for('auth.register') }}">
+    <form method="post" action="{{ url_for('auth.register', next=request.args.get('next')) }}">
         {{ form.csrf_token }}
 
         <!-- Email -->

@@ -107,6 +107,17 @@ class TestAuthenticationRoutes:
         response = client.get('/auth/register')
         assert response.status_code == 200
         assert b'Register' in response.data
+
+    def test_register_page_form_action_preserves_next(self, client):
+        """The register form's action URL must include ?next so the parameter
+        survives the GET → POST round-trip. Without this, ?next is present on
+        the page load but silently dropped when the form is submitted."""
+        response = client.get('/auth/register?next=/share/giveaway/abc123')
+        assert response.status_code == 200
+        # The form action must carry ?next so the POST lands on
+        # /auth/register?next=... (matching the login template pattern).
+        assert (b'action="/auth/register?next=%2Fshare%2Fgiveaway%2Fabc123"' in response.data or
+                b'action="/auth/register?next=/share/giveaway/abc123"' in response.data)
         assert b'id="location-info"' in response.data
     
     def test_register_valid_data_with_address(self, client, app):
