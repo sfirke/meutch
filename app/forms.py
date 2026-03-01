@@ -2,6 +2,7 @@ from flask_wtf import FlaskForm
 from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField, FloatField, RadioField, FieldList, FormField
 from flask_wtf.file import FileField, FileAllowed
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError, NumberRange, URL
+from flask_login import current_user
 from app.models import Category, User, ItemRequest
 from datetime import datetime
 
@@ -373,6 +374,16 @@ class ListItemForm(FlaskForm):
             self.giveaway_visibility.errors.append('Please select a visibility option for this giveaway.')
             rv = False
         
+        if self.is_giveaway.data and self.giveaway_visibility.data == 'public':
+            if current_user.is_authenticated and not current_user.is_geocoded:
+                self.giveaway_visibility.errors.append(
+                    'You must set your location before making a giveaway public. '
+                    'Public giveaways are visible to everyone on Meutch and users '
+                    'will have no idea where the item is located. '
+                    'Please update your location in your profile settings.'
+                )
+                rv = False
+        
         return rv
     
 class EditProfileForm(FlaskForm):
@@ -626,3 +637,14 @@ class ItemRequestForm(FlaskForm):
             raise ValidationError('Expiration date cannot be in the past.')
         if field.data > max_date:
             raise ValidationError('Expiration date cannot be more than 6 months from today.')
+
+    def validate_visibility(self, field):
+        """Public visibility requires user to have a location set."""
+        if field.data == 'public':
+            if current_user.is_authenticated and not current_user.is_geocoded:
+                raise ValidationError(
+                    'You must set your location before making a request public. '
+                    'Public requests are visible to everyone on Meutch and users '
+                    'will have no idea where you are located. '
+                    'Please update your location in your profile settings.'
+                )

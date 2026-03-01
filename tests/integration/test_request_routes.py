@@ -360,6 +360,44 @@ class TestRequestCreation:
         assert response.status_code == 302
         assert '/auth/login' in response.headers['Location']
 
+    def test_create_public_request_without_location_blocked(self, client, app):
+        """Test that a user without location cannot create a public request."""
+        with app.app_context():
+            from datetime import date
+            user = UserFactory(latitude=None, longitude=None)
+            login_user(client, user.email)
+
+            response = client.post('/requests/new', data={
+                'title': 'Need a ladder',
+                'description': 'For painting',
+                'expires_at': (date.today() + timedelta(days=30)).isoformat(),
+                'seeking': 'either',
+                'visibility': 'public',
+            })
+
+            assert response.status_code == 200
+            assert b'You must set your location' in response.data
+            assert ItemRequest.query.filter_by(title='Need a ladder').first() is None
+
+    def test_create_circles_request_without_location_allowed(self, client, app):
+        """Test that a user without location can create a circles-only request."""
+        with app.app_context():
+            from datetime import date
+            user = UserFactory(latitude=None, longitude=None)
+            login_user(client, user.email)
+
+            response = client.post('/requests/new', data={
+                'title': 'Need a ladder',
+                'description': 'For painting',
+                'expires_at': (date.today() + timedelta(days=30)).isoformat(),
+                'seeking': 'either',
+                'visibility': 'circles',
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'Your request has been posted!' in response.data
+            assert ItemRequest.query.filter_by(title='Need a ladder').first() is not None
+
 
 class TestRequestEditing:
     """Test editing requests."""
@@ -424,6 +462,29 @@ class TestRequestEditing:
             login_user(client, user.email)
             response = client.get(f'/requests/{req.id}/edit')
             assert response.status_code == 404
+
+    def test_edit_request_to_public_without_location_blocked(self, client, app):
+        """Test that editing a request to public is blocked without location."""
+        with app.app_context():
+            from datetime import date
+            user = UserFactory(latitude=None, longitude=None)
+            req = ItemRequestFactory(user=user, visibility='circles')
+            db.session.commit()
+            req_id = req.id
+
+            login_user(client, user.email)
+            response = client.post(f'/requests/{req_id}/edit', data={
+                'title': 'Updated title',
+                'expires_at': (date.today() + timedelta(days=60)).isoformat(),
+                'seeking': 'either',
+                'visibility': 'public',
+            })
+
+            assert response.status_code == 200
+            assert b'You must set your location' in response.data
+            # Verify request was NOT updated to public
+            updated_req = db.session.get(ItemRequest, req_id)
+            assert updated_req.visibility == 'circles'
 
 
 class TestRequestDeletion:
