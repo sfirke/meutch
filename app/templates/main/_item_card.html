@@ -10,9 +10,15 @@
             {% endif %}
             <!-- Availability status badge -->
             {% if not item.available %}
-                <span class="position-absolute top-0 end-0 m-2 badge bg-warning">
-                    <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Claimed{% else %}Borrowed{% endif %}
-                </span>
+                {% if item.is_giveaway and item.claim_status == 'claimed' %}
+                    <span class="position-absolute top-0 end-0 m-2 badge bg-success">
+                        <i class="fas fa-heart me-1"></i>Rehomed
+                    </span>
+                {% else %}
+                    <span class="position-absolute top-0 end-0 m-2 badge bg-warning">
+                        <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Pending Pickup{% else %}Borrowed{% endif %}
+                    </span>
+                {% endif %}
             {% endif %}
         </div>
     {% else %}
@@ -26,9 +32,15 @@
             {% endif %}
             <!-- Availability status badge for items without images -->
             {% if not item.available %}
-                <span class="position-absolute top-0 end-0 m-2 badge bg-warning">
-                    <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Claimed{% else %}Borrowed{% endif %}
-                </span>
+                {% if item.is_giveaway and item.claim_status == 'claimed' %}
+                    <span class="position-absolute top-0 end-0 m-2 badge bg-success">
+                        <i class="fas fa-heart me-1"></i>Rehomed
+                    </span>
+                {% else %}
+                    <span class="position-absolute top-0 end-0 m-2 badge bg-warning">
+                        <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Pending Pickup{% else %}Borrowed{% endif %}
+                    </span>
+                {% endif %}
             {% endif %}
         </div>
     {% endif %}
@@ -93,7 +105,7 @@
                 </div>
             {% else %}
                 <!-- Default: View Details only -->
-                <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="btn btn-primary w-100">
+                <a href="{% if link_to_share_preview|default(false) and item.is_giveaway %}{{ url_for('share.giveaway_preview', item_id=item.id) }}{% else %}{{ url_for('main.item_detail', item_id=item.id) }}{% endif %}" class="btn btn-primary w-100">
                     <i class="fas fa-eye me-1"></i>View Details
                 </a>
             {% endif %}

@@ -5,6 +5,7 @@ from flask_login import current_user
 from app.share import bp as share
 from app.models import Item, ItemRequest, Circle
 from app import db
+from app.utils.giveaway_visibility import can_view_claimed_giveaway, is_giveaway_party, get_unavailable_giveaway_suggestions
 import random
 
 
@@ -23,6 +24,15 @@ def giveaway_preview(item_id):
     item = db.session.get(Item, item_id)
     if not item or not item.is_giveaway or item.giveaway_visibility != 'public':
         abort(404)
+
+    if item.claim_status == 'claimed' and not can_view_claimed_giveaway(item, current_user):
+        suggestions = get_unavailable_giveaway_suggestions(current_user, exclude_item_id=item.id)
+        return render_template('main/item_unavailable.html', suggestions=suggestions)
+
+    if item.claim_status == 'pending_pickup':
+        if not is_giveaway_party(item, current_user):
+            suggestions = get_unavailable_giveaway_suggestions(current_user, exclude_item_id=item.id)
+            return render_template('main/item_unavailable.html', suggestions=suggestions)
 
     if current_user.is_authenticated:
         return redirect(url_for('main.item_detail', item_id=item_id))

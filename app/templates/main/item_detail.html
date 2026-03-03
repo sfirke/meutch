@@ -24,9 +24,15 @@
                 
                 <!-- Status indicator -->
                 {% if not item.available %}
-                    <span class="position-absolute top-0 end-0 m-3 badge bg-warning">
-                        <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Claimed{% else %}Borrowed{% endif %}
-                    </span>
+                    {% if item.is_giveaway and item.claim_status == 'claimed' %}
+                        <span class="position-absolute top-0 end-0 m-3 badge bg-success">
+                            <i class="fas fa-heart me-1"></i>Rehomed
+                        </span>
+                    {% else %}
+                        <span class="position-absolute top-0 end-0 m-3 badge bg-warning">
+                            <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Pending Pickup{% else %}Borrowed{% endif %}
+                        </span>
+                    {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -166,7 +172,7 @@
                                         </div>
                                     {% elif item.claim_status == 'claimed' %}
                                         <div class="alert alert-info mb-0" role="alert">
-                                            <i class="fas fa-check-circle me-2"></i>This giveaway has been claimed{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}.
+                                            <i class="fas fa-check-circle me-2"></i>This giveaway was claimed{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}.
                                         </div>
                                     {% endif %}
                                 {% else %}
