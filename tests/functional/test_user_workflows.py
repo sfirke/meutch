@@ -95,6 +95,29 @@ class TestItemManagementWorkflow:
 
 class TestLoanRequestWorkflow:
     """Test loan request workflow."""
+
+    def test_blank_message_shows_validation_error(self, client, app):
+        """Test that submitting a loan request with a blank message shows validation feedback."""
+        with app.app_context():
+            borrower = UserFactory(email='borrower-blank-message@test.com')
+            lender = UserFactory(email='lender-blank-message@test.com')
+
+            from tests.factories import ItemFactory
+            item = ItemFactory(owner=lender)
+
+            login_user(client, borrower.email)
+
+            start_date = (date.today() + timedelta(days=3)).strftime('%Y-%m-%d')
+            end_date = (date.today() + timedelta(days=8)).strftime('%Y-%m-%d')
+
+            response = client.post(f'/items/{item.id}/request', data={
+                'start_date': start_date,
+                'end_date': end_date,
+                'message': ''
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'Please include a message with your request.' in response.data
     
     def test_complete_loan_request_flow(self, client, app):
         """Test complete loan request from request to completion."""
