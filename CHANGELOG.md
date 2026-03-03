@@ -1,6 +1,14 @@
 # Changelog
 
-Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in. 
+Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
+
+## Mar 2026
+
+### Features
+
+**Minor**
+- Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
+
 
 ## Feb 2026
 
@@ -18,7 +26,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Add drag & drop support for image uploads ([#143](https://github.com/sfirke/meutch/pull/143)) — Desktop users can drag images onto upload fields; accessibility and validation included.
 - Add mobile keyboard auto-capitalization for item title fields ([#163](https://github.com/sfirke/meutch/pull/163)).
 - Add opt-in "Remember this device for 30 days" at login with explicit secure cookie/session policy defaults for better sign-in persistence.
-- Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
 
 ### Fixes
 - The admin panel no longer freezes on page load - there had been an infinite JavaScript loop ([#170](https://github.com/sfirke/meutch/pull/170))
