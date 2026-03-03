@@ -2,6 +2,11 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in. 
 
+## March 2026
+
+### Bug Fixes
+- Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/issues/213)).
+
 ## Feb 2026
 
 ### Features

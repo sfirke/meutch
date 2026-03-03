@@ -53,7 +53,7 @@
                         <div class="mb-3">
                             {{ form.message.label(class="form-label") }}
                             <span class="text-danger">*</span>
-                            {{ form.message(class="form-control" + (" is-invalid" if form.message.errors else ""), rows="8", required=True) }}
+                            {{ form.message(class="form-control" + (" is-invalid" if form.message.errors else ""), rows="8") }}
                             {% for error in form.message.errors %}
                                 <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
