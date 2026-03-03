@@ -107,6 +107,18 @@ class TestAuthenticationRoutes:
         response = client.get('/auth/register')
         assert response.status_code == 200
         assert b'Register' in response.data
+
+    def test_register_page_form_action_preserves_next(self, client):
+        """The register form's action URL must include ?next so the parameter
+        survives the GET → POST round-trip. Without this, ?next is present on
+        the page load but silently dropped when the form is submitted."""
+        response = client.get('/auth/register?next=/share/giveaway/abc123')
+        assert response.status_code == 200
+        # The form action must carry ?next so the POST lands on
+        # /auth/register?next=... (matching the login template pattern).
+        assert (b'action="/auth/register?next=%2Fshare%2Fgiveaway%2Fabc123"' in response.data or
+                b'action="/auth/register?next=/share/giveaway/abc123"' in response.data)
+        assert b'id="location-info"' in response.data
     
     def test_register_valid_data_with_address(self, client, app):
         """Test registration with valid data using address input."""
@@ -181,7 +193,77 @@ class TestAuthenticationRoutes:
             assert user.email_confirmed is False  # Should require confirmation
             assert user.latitude is None
             assert user.longitude is None
-    
+
+    def test_register_redirects_to_resend_confirmation(self, client):
+        """Test registration redirects to confirmation guidance page, not login."""
+        response = client.post('/auth/register', data={
+            'email': 'redirectuser@example.com',
+            'first_name': 'Redirect',
+            'last_name': 'User',
+            'location_method': 'skip',
+            'password': 'redirectpassword123',
+            'confirm_password': 'redirectpassword123'
+        }, follow_redirects=False)
+
+        assert response.status_code == 302
+        assert '/auth/resend-confirmation' in response.location
+
+    def test_register_with_next_embeds_in_confirmation_url(self, app, client):
+        """?next param on /auth/register is embedded in the confirmation link so
+        it survives cross-device / cross-browser email opens."""
+        with patch('app.auth.routes.send_confirmation_email') as mock_send:
+            mock_send.return_value = True
+            response = client.post('/auth/register?next=/share/giveaway/abc123', data={
+                'email': 'nextuser@example.com',
+                'first_name': 'Next',
+                'last_name': 'User',
+                'location_method': 'skip',
+                'password': 'nextpassword123',
+                'confirm_password': 'nextpassword123'
+            }, follow_redirects=False)
+
+        assert response.status_code == 302
+        assert '/auth/resend-confirmation' in response.location
+        mock_send.assert_called_once()
+        _, kwargs = mock_send.call_args
+        assert kwargs.get('next_url') == '/share/giveaway/abc123'
+
+    def test_confirm_email_redirects_to_login_with_next_from_url(self, client, app):
+        """After email confirmation, the user is redirected to /auth/login?next=<url>
+        when ?next is embedded in the confirmation link URL."""
+        with app.app_context():
+            user = UserFactory(email_confirmed=False)
+            user.generate_confirmation_token()
+            from app import db as _db
+            _db.session.commit()
+            token_value = user.email_confirmation_token
+
+        response = client.get(
+            f'/auth/confirm/{token_value}?next=/share/giveaway/abc123',
+            follow_redirects=False
+        )
+
+        assert response.status_code == 302
+        assert '/auth/login' in response.location
+        assert 'next=' in response.location
+        assert 'abc123' in response.location
+
+    def test_confirm_email_without_next_redirects_to_plain_login(self, client, app):
+        """After email confirmation with no next param, redirect is the plain
+        /auth/login without a next param."""
+        with app.app_context():
+            user = UserFactory(email_confirmed=False)
+            user.generate_confirmation_token()
+            from app import db as _db
+            _db.session.commit()
+            token_value = user.email_confirmation_token
+
+        response = client.get(f'/auth/confirm/{token_value}', follow_redirects=False)
+
+        assert response.status_code == 302
+        assert '/auth/login' in response.location
+        assert 'next=' not in response.location
+
     def test_register_duplicate_email(self, client, app, auth_user):
         """Test registration with duplicate email."""
         with app.app_context():
@@ -567,3 +649,28 @@ class TestRedirectAfterLogin:
             # This ensures the parameter survives the form POST
             assert b'action="/auth/login?next=' in response.data or \
                    b'action="/auth/login?next=%2Fprofile' in response.data
+
+
+class TestCSRFErrorHandler:
+    """Test that CSRF errors are handled gracefully."""
+
+    def test_csrf_error_redirects_to_login_with_message(self, app):
+        """Test that a CSRF error shows a user-friendly message and redirects to login."""
+        from conftest import TestConfig
+        from app import create_app, db
+
+        class CSRFEnabledConfig(TestConfig):
+            WTF_CSRF_ENABLED = True
+            WTF_CSRF_CHECK_DEFAULT = True
+
+        csrf_app = create_app(CSRFEnabledConfig)
+        with csrf_app.app_context():
+            db.create_all()
+            client = csrf_app.test_client()
+            # POST without a valid CSRF token triggers CSRFError; follow redirect to login page
+            response = client.post('/auth/login', data={
+                'email': 'test@example.com',
+                'password': 'password',
+            }, follow_redirects=True)
+            assert response.status_code == 200
+            assert b'session has expired' in response.data or b'log in again' in response.data

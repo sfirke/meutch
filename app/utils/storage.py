@@ -290,9 +290,8 @@ def upload_file(file, folder='items', max_width=800, max_height=600, quality=85)
             current_app.logger.warning(f"Rejected non-image file upload: {filename}")
             return None
         
-        # Generate unique filename (always JPEG since we process all uploads as images)
-        base_name = os.path.splitext(filename)[0]
-        unique_filename = f"{uuid.uuid4()}-{base_name}.jpg"
+        # Generate unique filename using UUID only (previously retained filename)
+        unique_filename = f"{uuid.uuid4()}.jpg"
         
         # Process the image
         processed_file = process_image(file, max_width, max_height, quality)

@@ -81,16 +81,18 @@ def register():
             flash('Your account has been created, but we couldn\'t determine your location from the address provided. '
                   'You can try the option to enter coordinates directly, or update your location later on your profile page to see distances to items.', 'warning')
         
-        if send_confirmation_email(user):
+        # Preserve ?next so the user lands back on the page that sent them here
+        # after they confirm their email and log in. Embed it in the confirmation
+        # link so it survives cross-device / cross-browser email opens.
+        next_page = request.args.get('next')
+        safe_next = next_page if (next_page and _is_safe_url(next_page)) else None
+
+        if send_confirmation_email(user, next_url=safe_next):
             flash('A confirmation email has been sent to you by email.', 'info')
         else:
             flash('Error sending confirmation email. Please try again.', 'error')
-        
-        # Preserve 'next' parameter through registration → login flow
-        next_page = request.args.get('next')
-        if next_page and _is_safe_url(next_page):
-            return redirect(url_for('auth.login', next=next_page))
-        return redirect(url_for('auth.login'))
+
+        return redirect(url_for('auth.resend_confirmation'))
     
     return render_template('auth/register.html', title='Register', form=form)
 
@@ -146,6 +148,9 @@ def confirm_email(token):
     if user.confirm_email(token):
         db.session.commit()
         flash('Your email has been confirmed! You can now log in.', 'success')
+        next_page = request.args.get('next')
+        if next_page and _is_safe_url(next_page):
+            return redirect(url_for('auth.login', next=next_page))
         return redirect(url_for('auth.login'))
     else:
         flash('Invalid confirmation link.', 'danger')

@@ -50,7 +50,7 @@ def send_email(to_email, subject, text_content, html_content=None):
         return False
 
 
-def send_confirmation_email(user):
+def send_confirmation_email(user, next_url=None):
     """Send email confirmation to user"""
     from app import db  # Import db here to avoid circular imports
     
@@ -58,7 +58,10 @@ def send_confirmation_email(user):
     
     db.session.commit()
     
-    confirmation_url = url_for('auth.confirm_email', token=token, _external=True)
+    url_kwargs = dict(token=token, _external=True)
+    if next_url:
+        url_kwargs['next'] = next_url
+    confirmation_url = url_for('auth.confirm_email', **url_kwargs)
     
     print(f"Confirmation URL: {confirmation_url}")
     

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center text-center py-5">
+    <div class="col-md-8 col-lg-6">
+        <img src="{{ url_for('static', filename='img/logo_handshake.png') }}" alt="Meutch handshake" class="hero-logo mb-4">
+        <h1 class="display-4 fw-bold mb-3">Page Not Found</h1>
+        <p class="lead text-muted mb-4">
+            Looks like this page wandered off — maybe it's out on loan.<br>
+            Let's get you back to the community.
+        </p>
+        <a href="{{ url_for('main.index') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-home me-2"></i>Go Home
+        </a>
+    </div>
+</div>
+{% endblock %}

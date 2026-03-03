@@ -98,6 +98,35 @@ class TestMainRoutes:
             # Should NOT show the "more" message since we have <= 12 items
             response_text = response.data.decode('utf-8')
             assert 'more</strong> available items' not in response_text
+
+    def test_index_anonymous_user_shows_distinct_giveaway_ribbon(self, client, app):
+        """Test anonymous index uses giveaway ribbon styling for free items."""
+        with app.app_context():
+            category = CategoryFactory()
+            user = UserFactory(is_public_showcase=True)
+            db.session.commit()
+
+            ItemFactory(owner=user, category=category, name='Loan Drill', is_giveaway=False, available=True)
+            ItemFactory(
+                owner=user,
+                category=category,
+                name='Free Drill',
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed',
+                available=True
+            )
+            db.session.commit()
+
+            response = client.get('/')
+            assert response.status_code == 200
+            response_text = response.data.decode('utf-8')
+            assert 'Loan Drill' in response_text
+            assert 'Free Drill' in response_text
+            assert response_text.count('giveaway-ribbon') == 1
+            loan_index = response_text.index('Loan Drill')
+            loan_card_snippet = response_text[max(0, loan_index - 500):loan_index + 200]
+            assert 'giveaway-ribbon' not in loan_card_snippet
     
     def test_about_page(self, client):
         """Test about page loads correctly."""
