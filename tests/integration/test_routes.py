@@ -687,8 +687,8 @@ class TestProfileRoutes:
             UserWebLinkFactory(
                 user=user,
                 platform_type='other',
-                platform_name='Company Website',
-                url='https://samfirke.com/',
+                platform_name='GitHub',
+                url='https://github.com/example_user',
                 display_order=1
             )
             db.session.commit()
@@ -697,8 +697,8 @@ class TestProfileRoutes:
             response = client.get('/profile')
             assert response.status_code == 200
             content = response.data.decode('utf-8')
-            assert 'Company Website' in content
-            assert 'samfirke.com/' in content
+            assert 'GitHub' in content
+            assert 'https://github.com/example_user' in content
 
     def test_update_profile(self, client, app, auth_user):
         """Test updating profile."""
