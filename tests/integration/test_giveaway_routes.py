@@ -342,7 +342,7 @@ class TestGiveawaysFeed:
             db.session.commit()
             
             # Search for giveaways
-            response = client.get('/search?q=Searchable&item_type=giveaways')
+            response = client.get('/?q=Searchable&item_type=giveaways')
             
             assert response.status_code == 200
             assert b'Searchable Public Giveaway' in response.data, "Public giveaway should appear in search for all circle members"
@@ -440,7 +440,7 @@ class TestSearchFiltering:
             )
             db.session.commit()
             
-            response = client.get('/search?q=Drill&item_type=loans')
+            response = client.get('/?q=Drill&item_type=loans')
             
             assert response.status_code == 200
             assert b'Drill for Loan' in response.data
@@ -477,7 +477,7 @@ class TestSearchFiltering:
             )
             db.session.commit()
             
-            response = client.get('/search?q=Drill&item_type=giveaways')
+            response = client.get('/?q=Drill&item_type=giveaways')
             
             assert response.status_code == 200
             assert b'Drill for Loan' not in response.data
@@ -514,7 +514,7 @@ class TestSearchFiltering:
             )
             db.session.commit()
             
-            response = client.get('/search?q=Drill&item_type=both')
+            response = client.get('/?q=Drill&item_type=both')
             
             assert response.status_code == 200
             assert b'Drill for Loan' in response.data

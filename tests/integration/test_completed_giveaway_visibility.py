@@ -174,7 +174,7 @@ class TestCompletedGiveawayVisibility:
             
             login_user(client, email=current_user.email)
             # Search for both items
-            response = client.get('/search?q=Searchable&item_type=both')
+            response = client.get('/?q=Searchable&item_type=both')
             assert response.status_code == 200
             html = response.data.decode()
             
@@ -460,7 +460,7 @@ class TestCompletedGiveawayVisibility:
         assert response.status_code == 200
         assert pending_name not in response.data.decode()
         
-        response = client.get(f'/search?q={pending_name}&item_type=both')
+        response = client.get(f'/?q={pending_name}&item_type=both')
         assert response.status_code == 200
         assert f'/item/{pending_id}'.encode() not in response.data
 

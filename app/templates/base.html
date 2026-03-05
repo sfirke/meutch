@@ -52,15 +52,14 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.index') }}">
-                            <i class="fas fa-home me-1"></i>Home
+                            {% if current_user.is_authenticated %}
+                                <i class="fas fa-search me-1"></i>Find
+                            {% else %}
+                                <i class="fas fa-home me-1"></i>Home
+                            {% endif %}
                         </a>
                     </li>
                     {% if current_user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.search') }}">
-                                <i class="fas fa-search me-1"></i>Search
-                            </a>
-                        </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('main.giveaways') }}">
                                 <i class="fas fa-gift me-1"></i>Giveaways

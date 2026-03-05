@@ -1,94 +1,160 @@
-<!-- app/templates/main/index.html -->
-
 {% extends "base.html" %}
 
-{% block title %}Home{% endblock %}
+{% block title %}Find{% endblock %}
 
 {% block content %}
-    <!-- Hero Section -->
-    <div class="row mb-5">
-        <div class="col-12">
-            <div class="text-center">
-                <img src="{{ url_for('static', filename='img/logo_handshake.png') }}" alt="Meutch - Share with your community" class="hero-logo mb-3">
-                <h1 class="display-4 mb-3">Welcome to Meutch</h1>
-                <p class="lead text-muted mb-4">Help a neighbor, help the world.</p>
-                {% if not current_user.is_authenticated %}
-                    <div class="d-flex gap-3 justify-content-center">
-                        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">
-                            <i class="fas fa-user-plus me-2"></i>Get Started
-                        </a>
-                        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-lg">
-                            <i class="fas fa-sign-in-alt me-2"></i>Sign In
-                        </a>
-                    </div>
-
-                    <!-- Prominent quick overview card for logged-out users (colored, centered) -->
-                    <div class="card shadow-sm mt-4 mx-auto text-white bg-primary" style="max-width:900px;">
-                        <div class="card-body py-3 px-4 text-center">
-                            <h4 class="mb-1 text-white">Quick Start</h4>
-                            <p class="mb-2 text-white-75">Join a circle, list items you can lend, search for what you need nearby, and request it. Helping friends beats having a home full of stuff sitting unused.</p>
-                            <a href="{{ url_for('main.how_it_works') }}" class="btn btn-light text-primary">Learn more about how it works</a>
-                        </div>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    
-    {% if current_user.is_authenticated %}
-        <!-- User Circles Section -->
-        <section class="user-circles mb-5">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2><i class="fas fa-users me-2 text-primary"></i>Your Circles</h2>
-                <a href="{{ url_for('circles.create_circle') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-plus me-1"></i>Create Circle
+    <!-- Compact Hero Section -->
+    <div class="text-center mb-4">
+        <img src="{{ url_for('static', filename='img/logo_handshake.png') }}" alt="Meutch" class="mb-2" style="height: {% if current_user.is_authenticated %}48px{% else %}64px{% endif %}; width: auto;">
+        <h1 class="{% if current_user.is_authenticated %}h4{% else %}h3{% endif %} mb-1">Welcome to Meutch</h1>
+        <p class="text-muted mb-3">Help a neighbor, help the world.</p>
+        {% if not current_user.is_authenticated %}
+            <div class="d-flex gap-2 justify-content-center mb-3">
+                <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
+                    <i class="fas fa-user-plus me-1"></i>Get Started
+                </a>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-sign-in-alt me-1"></i>Sign In
                 </a>
             </div>
-            
-            {% if circles %}
-                <div class="circles-grid">
-                    {% for circle in circles %}
-                        <div class="circle-card">
-                            <h3>
-                                {% if circle.visibility == 'private' %}
-                                    <i class="fas fa-lock text-muted me-2" title="Private Circle"></i>
-                                {% elif circle.visibility == 'unlisted' %}
-                                    <i class="fas fa-eye-slash text-muted me-2" title="Unlisted Circle"></i>
-                                {% endif %}
-                                {{ circle.name }}
-                            </h3>
-                            <p>{{ circle.description[:100] }}{% if circle.description|length > 100 %}...{% endif %}</p>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <small class="text-muted">
-                                    <i class="fas fa-users me-1"></i>{{ circle.members|length if circle.members else 0 }} members
-                                </small>
-                                <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-sm btn-primary">
-                                    <i class="fas fa-eye me-1"></i>View Circle
-                                </a>
-                            </div>
+            <div class="card shadow-sm mx-auto text-white bg-primary mb-4" style="max-width: 700px;">
+                <div class="card-body py-2 px-3 text-center">
+                    <p class="mb-1"><strong>Quick Start:</strong> Join a circle, list items you can lend, search for what you need nearby.</p>
+                    <a href="{{ url_for('main.how_it_works') }}" class="btn btn-sm btn-light text-primary">Learn more</a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if current_user.is_authenticated %}
+    <!-- Search & Filter Section -->
+    <section class="mb-4" id="search-section">
+        {% if has_circles %}
+        <form method="get" action="{{ url_for('main.index') }}" id="find-form">
+            <!-- Search bar -->
+            <div class="input-group mb-2">
+                <input type="text" name="q" class="form-control" placeholder="Search items by name, description, or tag..." value="{{ query }}" aria-label="Search items">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i>Search
+                </button>
+            </div>
+
+            <!-- Filter row -->
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                <!-- Categories dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <i class="fas fa-th-large me-1"></i>Categories
+                        <span id="categories-badge" class="badge bg-primary ms-1 {% if not selected_categories %}d-none{% endif %}">{{ selected_categories|length }}</span>
+                    </button>
+                    <div class="dropdown-menu p-3" style="min-width: 220px; max-height: 300px; overflow-y: auto;">
+                        <div class="form-check border-bottom pb-2 mb-2">
+                            <input class="form-check-input" type="checkbox" id="categories-all" {% if not selected_categories %}checked{% endif %}>
+                            <label class="form-check-label" for="categories-all">All categories</label>
                         </div>
-                    {% endfor %}
+                        {% for cat in categories %}
+                        <div class="form-check">
+                            <input class="form-check-input category-checkbox" type="checkbox" name="categories" value="{{ cat.id }}" id="cat-{{ cat.id }}" {% if cat.id|string in selected_categories %}checked{% endif %}>
+                            <label class="form-check-label" for="cat-{{ cat.id }}">{{ cat.name }}</label>
+                        </div>
+                        {% endfor %}
+                        {% if not categories %}
+                        <span class="text-muted small">No categories yet</span>
+                        {% else %}
+                        <div class="small text-muted mt-2">No category selected means all categories.</div>
+                        {% endif %}
+                    </div>
                 </div>
-            {% else %}
-                <div class="empty-state">
-                    <i class="fas fa-users-slash"></i>
-                    <h4>No circles yet</h4>
-                    <p>You're not a member of any circles yet. Join a circle near you to start sharing resources with your community!</p>
-                    <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
-                        <i class="fas fa-search me-1"></i>Find Circles to Join
-                    </a>
+
+                <!-- Circles dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <i class="fas fa-users me-1"></i>Circles
+                        <span id="circles-badge" class="badge bg-primary ms-1 {% if not selected_circles %}d-none{% endif %}">{{ selected_circles|length }}</span>
+                    </button>
+                    <div class="dropdown-menu p-3" style="min-width: 220px; max-height: 300px; overflow-y: auto;">
+                        <div class="form-check border-bottom pb-2 mb-2">
+                            <input class="form-check-input" type="checkbox" id="circles-all" {% if not selected_circles %}checked{% endif %}>
+                            <label class="form-check-label" for="circles-all">All circles</label>
+                        </div>
+                        {% for circle in user_circles %}
+                        <div class="form-check">
+                            <input class="form-check-input circle-checkbox" type="checkbox" name="circles" value="{{ circle.id }}" id="circle-{{ circle.id }}" {% if circle.id|string in selected_circles %}checked{% endif %}>
+                            <label class="form-check-label" for="circle-{{ circle.id }}">{{ circle.name }}</label>
+                        </div>
+                        {% endfor %}
+                        <div class="small text-muted mt-2">No circle selected means all your circles.</div>
+                    </div>
                 </div>
-            {% endif %}
-        </section>
+
+                <!-- Item type select -->
+                <select name="item_type" class="form-select form-select-sm" style="width: auto;" aria-label="Item type">
+                    <option value="both" {% if item_type == 'both' %}selected{% endif %}>All Items</option>
+                    <option value="loans" {% if item_type == 'loans' %}selected{% endif %}>Loans Only</option>
+                    <option value="giveaways" {% if item_type == 'giveaways' %}selected{% endif %}>Giveaways Only</option>
+                </select>
+
+                {% if selected_categories %}
+                <a href="{{ url_for('main.index', q=query, circles=selected_circles, item_type=item_type) }}" class="btn btn-sm btn-outline-secondary">
+                    All categories
+                </a>
+                {% endif %}
+                {% if selected_circles %}
+                <a href="{{ url_for('main.index', q=query, categories=selected_categories, item_type=item_type) }}" class="btn btn-sm btn-outline-secondary">
+                    All circles
+                </a>
+                {% endif %}
+            </div>
+
+            {# Preserve hidden fields for non-default item_type when submitting via enter key in search box #}
+        </form>
+
+        {% if query or selected_categories or selected_circles or item_type != 'both' %}
+        <div class="d-flex align-items-center mb-3">
+            <span class="text-muted">
+                <i class="fas fa-filter me-1"></i>
+                {% if query %}
+                    Showing results for "<strong>{{ query }}</strong>"
+                {% else %}
+                    Filters applied
+                {% endif %}
+                {% if selected_categories or selected_circles or item_type != 'both' %}
+                    with filters applied
+                {% endif %}
+            </span>
+            <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-outline-secondary ms-2">
+                <i class="fas fa-times me-1"></i>Clear
+            </a>
+        </div>
+        {% endif %}
+
+        {% if query %}
+        <p class="text-muted small mb-3">
+            {{ result_count }} result{% if result_count != 1 %}s{% endif %} found.
+        </p>
+        {% endif %}
+        {% else %}
+        <!-- No circles: show prompt instead of search -->
+        <div class="card border-info mb-4">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-users text-info mb-2" style="font-size: 2rem;"></i>
+                <h5>Join a circle to start finding items</h5>
+                <p class="text-muted mb-3">Circles connect you with nearby people who share tools, books, kitchen gear, and more.</p>
+                <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i>Find Circles to Join
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </section>
     {% endif %}
-    
+
     {% if not current_user.is_authenticated and giveaway_items %}
     <!-- Giveaways Section for unauthenticated users -->
     <section class="items-section mb-5" id="giveaways-section">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2><i class="fas fa-gift me-2 text-primary"></i>Giveaways</h2>
         </div>
-        
         <div class="items-grid">
             {% for item in giveaway_items %}
                 {% include 'main/_item_card.html' %}
@@ -96,46 +162,34 @@
         </div>
     </section>
     {% endif %}
-    
+
     <!-- Available Items Section -->
     <section class="items-section" id="items-section">
+        {% if not current_user.is_authenticated %}
         <div class="d-flex justify-content-between align-items-center mb-4">
-            {% if current_user.is_authenticated %}
-                <h2><i class="fas fa-box-open me-2 text-primary"></i>Available Items</h2>
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('main.search') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-search me-1"></i>Search
-                    </a>
-                    <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-1"></i>List Item
-                    </a>
-                </div>
-            {% else %}
-                <h2><i class="fas fa-handshake me-2 text-primary"></i>Available to borrow</h2>
-            {% endif %}
+            <h2><i class="fas fa-handshake me-2 text-primary"></i>Available to borrow</h2>
         </div>
-        
+        {% endif %}
+
         {% if items %}
             <div class="items-grid">
                 {% for item in items %}
                     {% include 'main/_item_card.html' %}
                 {% endfor %}
             </div>
-            
+
             {% if not current_user.is_authenticated and remaining_items > 0 %}
-                <!-- Show remaining items count for anonymous users -->
                 <div class="text-center mt-4">
                     <p class="mb-3">Join Meutch to see <strong>{{ remaining_items }} more</strong> available items, add your own, and start sharing!</p>
                     <a href="{{ url_for('auth.register') }}" class="btn btn-primary me-2">Sign Up</a>
                     <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary">Log In</a>
                 </div>
             {% elif current_user.is_authenticated and pagination and pagination.pages > 1 %}
-                <!-- Pagination for logged-in users -->
                 <nav aria-label="Items pages" class="mt-4">
                     <ul class="pagination justify-content-center">
                         {% if pagination.has_prev %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('main.index', page=pagination.prev_num) }}" aria-label="Previous">
+                                <a class="page-link" href="{{ url_for('main.index', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, page=pagination.prev_num) }}" aria-label="Previous">
                                     <span aria-hidden="true">&laquo;</span>
                                 </a>
                             </li>
@@ -150,7 +204,7 @@
                                 {% if p == pagination.page %}
                                     <li class="page-item active"><span class="page-link">{{ p }}</span></li>
                                 {% else %}
-                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.index', page=p) }}">{{ p }}</a></li>
+                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.index', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, page=p) }}">{{ p }}</a></li>
                                 {% endif %}
                             {% else %}
                                 <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -159,7 +213,7 @@
 
                         {% if pagination.has_next %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('main.index', page=pagination.next_num) }}" aria-label="Next">
+                                <a class="page-link" href="{{ url_for('main.index', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, page=pagination.next_num) }}" aria-label="Next">
                                     <span aria-hidden="true">&raquo;</span>
                                 </a>
                             </li>
@@ -174,15 +228,18 @@
         {% else %}
             <div class="empty-state">
                 <i class="fas fa-box"></i>
-                {% if current_user.is_authenticated and not circles %}
+                {% if current_user.is_authenticated and not has_circles %}
                     <h4>Join a circle to see items</h4>
                     <p>You're not a member of any circles yet. Join a circle near you to see items from your community!</p>
                     <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
                         <i class="fas fa-search me-1"></i>Find Circles to Join
                     </a>
+                {% elif current_user.is_authenticated and query %}
+                    <h4>No results found</h4>
+                    <p>No items match your search. Try different keywords or <a href="{{ url_for('main.index') }}">clear your search</a>.</p>
                 {% elif current_user.is_authenticated %}
                     <h4>No items available</h4>
-                    <p>No items are currently available for sharing in the circles you belong to. Join other circles or invite friends to join yours!</p>
+                    <p>No items are currently available for sharing in your circles. Be the first to share!</p>
                     <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
                         <i class="fas fa-plus me-1"></i>List Your First Item
                     </a>
@@ -195,4 +252,11 @@
             </div>
         {% endif %}
     </section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if current_user.is_authenticated and has_circles %}
+<script src="{{ url_for('static', filename='js/find-filters.js') }}"></script>
+{% endif %}
 {% endblock %}
