@@ -6,6 +6,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 
+**Major**
+- Overhaul user's view of own profile ([#228](https://github.com/sfirke/meutch/pull/228)).
+
 **Minor**
 - Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
 
