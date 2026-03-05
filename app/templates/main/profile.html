@@ -239,13 +239,15 @@
                                         <tr>
                                             <td>
                                                 {% if item.image_url %}
-                                                    <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
+                                                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}">
+                                                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
+                                                    </a>
                                                 {% else %}
                                                     N/A
                                                 {% endif %}
                                             </td>
-                                            <td>{{ item.name }}</td>
-                                            <td>{{ item.owner.full_name }}</td>
+                                            <td><a href="{{ url_for('main.item_detail', item_id=item.id) }}">{{ item.name }}</a></td>
+                                            <td><a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}">{{ item.owner.full_name }}</a></td>
                                             <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
                                             <td>
                                                 {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
@@ -297,13 +299,15 @@
                                         <tr>
                                             <td>
                                                 {% if item.image_url %}
-                                                    <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
+                                                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}">
+                                                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
+                                                    </a>
                                                 {% else %}
                                                     N/A
                                                 {% endif %}
                                             </td>
-                                            <td>{{ item.name }}</td>
-                                            <td>{{ item.current_loan.borrower.full_name }}</td>
+                                            <td><a href="{{ url_for('main.item_detail', item_id=item.id) }}">{{ item.name }}</a></td>
+                                            <td><a href="{{ url_for('main.user_profile', user_id=item.current_loan.borrower.id) }}">{{ item.current_loan.borrower.full_name }}</a></td>
                                             <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
                                             <td>
                                                 {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
@@ -361,7 +365,10 @@
                                         <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
                                             <div class="d-flex align-items-center p-2 bg-light rounded">
                                                 <i class="{{ link.icon_class }} me-2 text-primary" style="width: 20px;"></i>
-                                                <span class="small">{{ link.url|replace('https://', '')|replace('http://', '')|replace('www.', '') }}</span>
+                                                <div class="small">
+                                                    <div class="fw-semibold">{{ link.display_name }}</div>
+                                                    <div class="text-muted">{{ link.url|replace('https://', '')|replace('http://', '')|replace('www.', '') }}</div>
+                                                </div>
                                             </div>
                                         </a>
                                     </div>
@@ -391,7 +398,7 @@
 
                             <div class="mb-3">
                                 {{ form.about_me.label(class="form-label") }}
-                                <small class="text-muted d-block mb-2">A bio with specific details will help make connections to others in the community.</small>
+                                <small class="text-muted d-block mb-2">A bio with specifics will help others in the community connect with you.</small>
                                 {{ form.about_me(class="form-control", rows="5") }}
                             </div>
 

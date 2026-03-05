@@ -2,7 +2,7 @@
 import pytest
 from app import db
 from app.models import Item, User, Category, Circle
-from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory
+from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory, LoanRequestFactory, UserWebLinkFactory
 from conftest import login_user
 from unittest.mock import patch
 import io
@@ -619,8 +619,10 @@ class TestProfileRoutes:
             assert 'Edit Profile' in content
             # Read-only view is visible (not hidden)
             assert 'id="profile-view"' in content
+            assert 'id="profile-view" class="d-none"' not in content
             # Edit form exists but is hidden
             assert 'id="profile-edit"' in content
+            assert 'id="profile-edit" class="d-none"' in content
     
     def test_profile_edit_form_shown_on_validation_error(self, client, app, auth_user):
         """Test that edit form is shown when form validation fails."""
@@ -638,6 +640,65 @@ class TestProfileRoutes:
             content = response.data.decode('utf-8')
             # About Me tab should be active when form has errors
             assert 'about-me-tab' in content
+            # Edit view should be visible and read-only view hidden on validation errors
+            assert 'id="profile-view" class="d-none"' in content
+            assert 'id="profile-edit" class="d-none"' not in content
+
+    def test_profile_active_loans_have_clickable_user_and_item_links(self, client, app, auth_user):
+        """Test active loans tab links borrower/lender names and item thumbnail/name."""
+        with app.app_context():
+            user = auth_user()
+            lender = UserFactory()
+            borrower = UserFactory()
+            category = CategoryFactory()
+
+            # Shared circle ensures profile links are accessible
+            circle = CircleFactory()
+            circle.members.append(user)
+            circle.members.append(lender)
+            circle.members.append(borrower)
+
+            borrowed_item = ItemFactory(owner=lender, category=category, name='Borrowed Item', image_url='https://example.com/borrowed.jpg')
+            lent_item = ItemFactory(owner=user, category=category, name='Lent Item', image_url='https://example.com/lent.jpg')
+
+            LoanRequestFactory(item=borrowed_item, borrower=user, status='approved')
+            LoanRequestFactory(item=lent_item, borrower=borrower, status='approved')
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/profile?tab=active-loans')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+
+            # Borrowing section: lender profile + item links (name + thumbnail)
+            assert f'href="/user/{lender.id}"' in content
+            borrowed_item_href = f'href="/item/{borrowed_item.id}"'
+            assert content.count(borrowed_item_href) >= 2
+
+            # Lending section: borrower profile + item links (name + thumbnail)
+            assert f'href="/user/{borrower.id}"' in content
+            lent_item_href = f'href="/item/{lent_item.id}"'
+            assert content.count(lent_item_href) >= 2
+
+    def test_profile_displays_custom_other_site_name(self, client, app, auth_user):
+        """Test that custom name for 'Other' web links is shown in read-only profile view."""
+        with app.app_context():
+            user = auth_user()
+            UserWebLinkFactory(
+                user=user,
+                platform_type='other',
+                platform_name='Company Website',
+                url='https://samfirke.com/',
+                display_order=1
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/profile')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'Company Website' in content
+            assert 'samfirke.com/' in content
 
     def test_update_profile(self, client, app, auth_user):
         """Test updating profile."""
