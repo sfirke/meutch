@@ -32,7 +32,7 @@ def index():
     result_count = 0
     
     if current_user.is_authenticated:
-        user_circles = list(current_user.circles)
+        user_circles = sorted(list(current_user.circles), key=lambda circle: (circle.name or '').lower())
         has_circles = len(user_circles) > 0
         all_categories = Category.query.order_by(Category.name).all()
         
