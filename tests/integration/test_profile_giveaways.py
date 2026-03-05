@@ -284,3 +284,74 @@ class TestProfileGiveawaysSeparation:
             newer_pos = content.find('Newer Claimed Item')
             older_pos = content.find('Older Claimed Item')
             assert newer_pos < older_pos
+
+
+class TestProfileGiveawayPagination:
+    """Test that profile paginates giveaway items."""
+
+    def test_active_giveaways_paginate_at_12(self, client, app, auth_user):
+        """Test that active giveaways paginate in pages of 12."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+
+            # Create 14 active giveaways
+            for i in range(14):
+                ItemFactory(
+                    owner=user,
+                    category=category,
+                    is_giveaway=True,
+                    claim_status='unclaimed',
+                    name=f'Giveaway {i}'
+                )
+            db.session.commit()
+
+            login_user(client, user.email)
+
+            # First page should show 12 items
+            response = client.get('/profile')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'My Active Giveaways' in content
+            assert 'giveaway_page=2' in content
+
+            # Second page should show remaining 2 items
+            response = client.get('/profile?giveaway_page=2&tab=my-items')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'My Active Giveaways' in content
+
+    def test_past_giveaways_paginate_at_12(self, client, app, auth_user):
+        """Test that past giveaways paginate in pages of 12."""
+        with app.app_context():
+            user = auth_user()
+            recipient = UserFactory()
+            category = CategoryFactory()
+
+            # Create 14 past giveaways
+            for i in range(14):
+                ItemFactory(
+                    owner=user,
+                    category=category,
+                    is_giveaway=True,
+                    claim_status='claimed',
+                    claimed_by=recipient,
+                    claimed_at=datetime.now(UTC) - timedelta(days=5),
+                    name=f'Past Giveaway {i}'
+                )
+            db.session.commit()
+
+            login_user(client, user.email)
+
+            # First page should show 12 items and pagination
+            response = client.get('/profile')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'My Past Giveaways' in content
+            assert 'past_giveaway_page=2' in content
+
+            # Second page should show remaining items
+            response = client.get('/profile?past_giveaway_page=2&tab=my-items')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'My Past Giveaways' in content
