@@ -54,15 +54,12 @@ class TestCircleJoinRequestEmailIntegration:
                 # Verify email was sent to both admins
                 assert mock_send_email.call_count == 2
 
-                # Verify in-app messages were created for both admins
+                # Verify no in-app messages were created for admins
                 admin_messages = Message.query.filter_by(
                     sender_id=requesting_user.id,
                     circle_id=circle.id
                 ).all()
-                assert len(admin_messages) == 2
-                admin_recipient_ids = {msg.recipient_id for msg in admin_messages}
-                assert admin_recipient_ids == {admin1.id, admin2.id}
-                assert all("requested to join the circle" in msg.body for msg in admin_messages)
+                assert len(admin_messages) == 0
                 
                 # Check that both admins received emails
                 call_args_list = mock_send_email.call_args_list
@@ -76,20 +73,77 @@ class TestCircleJoinRequestEmailIntegration:
                 assert 'New Join Request for Test Circle' in subject
                 assert 'I would like to join this circle please!' in text_content
 
-                # Verify circle conversations are visible in existing inbox/thread UX
-                login_user(client, admin1.email)
-                inbox_response = client.get('/messages')
-                assert inbox_response.status_code == 200
-                assert b'Circle: Test Circle' in inbox_response.data
+    def test_second_admin_action_on_handled_request_is_ignored(self, client, app):
+        """A handled join request should not be handled again by another admin."""
+        with app.app_context():
+            requesting_user = UserFactory()
+            admin1 = UserFactory()
+            admin2 = UserFactory()
+            circle = CircleFactory(name='Test Circle', requires_approval=True)
 
-                thread_message = Message.query.filter_by(
-                    sender_id=requesting_user.id,
-                    recipient_id=admin1.id,
+            db.session.execute(
+                circle_members.insert().values(
+                    user_id=admin1.id,
+                    circle_id=circle.id,
+                    joined_at=datetime.now(UTC),
+                    is_admin=True
+                )
+            )
+            db.session.execute(
+                circle_members.insert().values(
+                    user_id=admin2.id,
+                    circle_id=circle.id,
+                    joined_at=datetime.now(UTC),
+                    is_admin=True
+                )
+            )
+
+            join_request = CircleJoinRequest(
+                circle_id=circle.id,
+                user_id=requesting_user.id,
+                message='Please let me join',
+                status='pending'
+            )
+            db.session.add(join_request)
+            db.session.commit()
+
+            with patch('app.utils.email.send_email') as mock_send_email:
+                mock_send_email.return_value = True
+
+                login_user(client, admin1.email)
+                first_response = client.post(
+                    f'/circles/{circle.id}/request/{join_request.id}/approve',
+                    follow_redirects=True
+                )
+                assert first_response.status_code == 200
+
+                join_request = db.session.get(CircleJoinRequest, join_request.id)
+                assert join_request.status == 'approved'
+                assert mock_send_email.call_count == 1
+
+                first_decision_count = Message.query.filter_by(
+                    recipient_id=requesting_user.id,
                     circle_id=circle.id
-                ).first()
-                thread_response = client.get(f'/message/{thread_message.id}')
-                assert thread_response.status_code == 200
-                assert b'Circle: Test Circle' in thread_response.data
+                ).count()
+                assert first_decision_count == 1
+
+                login_user(client, admin2.email)
+                second_response = client.post(
+                    f'/circles/{circle.id}/request/{join_request.id}/reject',
+                    follow_redirects=True
+                )
+                assert second_response.status_code == 200
+                assert b'already been handled' in second_response.data
+
+                join_request = db.session.get(CircleJoinRequest, join_request.id)
+                assert join_request.status == 'approved'
+                assert mock_send_email.call_count == 1
+
+                second_decision_count = Message.query.filter_by(
+                    recipient_id=requesting_user.id,
+                    circle_id=circle.id
+                ).count()
+                assert second_decision_count == 1
 
     def test_approve_join_request_sends_email_notification(self, client, app):
         """Test that approving a join request sends email notification to the requesting user."""
