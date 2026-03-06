@@ -166,5 +166,5 @@ class ItemRequestFactory(SQLAlchemyModelFactory):
     description = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=200))
     expires_at = factory.LazyAttribute(lambda obj: datetime.now(UTC) + timedelta(days=30))
     seeking = 'either'
-    visibility = 'circles'
+    visibility = 'public'
     status = 'open'

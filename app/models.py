@@ -676,7 +676,7 @@ class ItemRequest(db.Model):
     description = db.Column(db.Text, nullable=True)
     expires_at = db.Column(db.DateTime, nullable=False)
     seeking = db.Column(db.String(20), nullable=False, default='either')  # 'loan', 'giveaway', 'either'
-    visibility = db.Column(db.String(20), nullable=False, default='circles')  # 'circles', 'public'
+    visibility = db.Column(db.String(20), nullable=False, default='public')  # 'circles', 'public'
     status = db.Column(db.String(20), nullable=False, default='open')  # 'open', 'fulfilled', 'deleted'
     fulfilled_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=func.now())

@@ -25,6 +25,8 @@ class TestRequestsFeedAccess:
             response = client.get('/requests/')
             assert response.status_code == 200
             assert b'Community Requests' in response.data
+            assert b'All' in response.data
+            assert b'Everyone' not in response.data
 
     def test_feed_shows_no_circles_message(self, client, app, auth_user):
         """Test feed shows message when user has no circles and views circles scope."""
@@ -38,6 +40,73 @@ class TestRequestsFeedAccess:
 
 class TestRequestsFeedFiltering:
     """Test feed filtering and visibility."""
+
+    def test_feed_default_scope_uses_all(self, client, app, auth_user):
+        """Test default feed shows all-scope results (public + shared-circle requests)."""
+        with app.app_context():
+            user = auth_user()
+            shared_circle_user = UserFactory(latitude=40.7140, longitude=-74.0070)
+            public_user = UserFactory(latitude=40.7135, longitude=-74.0050)
+
+            circle = CircleFactory()
+            circle.members.extend([user, shared_circle_user])
+            db.session.commit()
+
+            ItemRequestFactory(
+                user=shared_circle_user,
+                title='Shared circles request',
+                visibility='circles',
+            )
+            ItemRequestFactory(
+                user=public_user,
+                title='Public all-scope request',
+                visibility='public',
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/requests/')
+            assert response.status_code == 200
+            assert b'Shared circles request' in response.data
+            assert b'Public all-scope request' in response.data
+
+    def test_all_scope_includes_public_and_shared_circles_only(self, client, app, auth_user):
+        """Test all scope includes public requests plus shared-circle circles requests."""
+        with app.app_context():
+            user = auth_user()
+            shared_circle_user = UserFactory(latitude=40.7140, longitude=-74.0070)
+            public_user = UserFactory(latitude=40.7135, longitude=-74.0050)
+            isolated_circle_user = UserFactory(latitude=40.7130, longitude=-74.0065)
+
+            shared_circle = CircleFactory()
+            shared_circle.members.extend([user, shared_circle_user])
+            isolated_circle = CircleFactory()
+            isolated_circle.members.append(isolated_circle_user)
+            db.session.commit()
+
+            ItemRequestFactory(
+                user=shared_circle_user,
+                title='Visible circles request',
+                visibility='circles',
+            )
+            ItemRequestFactory(
+                user=public_user,
+                title='Visible public request',
+                visibility='public',
+            )
+            ItemRequestFactory(
+                user=isolated_circle_user,
+                title='Hidden isolated circles request',
+                visibility='circles',
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/requests/?scope=all&distance=')
+            assert response.status_code == 200
+            assert b'Visible circles request' in response.data
+            assert b'Visible public request' in response.data
+            assert b'Hidden isolated circles request' not in response.data
 
     def test_feed_shows_circle_members_requests(self, client, app, auth_user):
         """Test that requests from circle members are visible."""
@@ -86,14 +155,10 @@ class TestRequestsFeedFiltering:
             assert b'Hidden request' not in response.data
 
     def test_feed_shows_public_requests(self, client, app, auth_user):
-        """Test that public requests are visible to any circle member."""
+        """Test that public requests are visible in all scope."""
         with app.app_context():
             user = auth_user()
             other_user = UserFactory()
-            # User needs to be in a circle to access the feed
-            circle = CircleFactory()
-            circle.members.append(user)
-            db.session.commit()
 
             ItemRequestFactory(
                 user=other_user,
@@ -103,7 +168,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=public&distance=')
+            response = client.get('/requests/?scope=all&distance=')
             assert response.status_code == 200
             assert b'Public screwdriver request' in response.data
 
@@ -293,7 +358,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=public&distance=5')
+            response = client.get('/requests/?scope=all&distance=5')
             assert response.status_code == 200
             assert b'Nearby request' in response.data
             assert b'Far away request' not in response.data
@@ -335,6 +400,17 @@ class TestRequestCreation:
             assert req.seeking == 'either'
             assert req.visibility == 'circles'
             assert req.status == 'open'
+
+    def test_new_request_form_defaults_visibility_to_public(self, client, app, auth_user):
+        """Test new request form renders public as the default visibility."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+
+            response = client.get('/requests/new')
+
+            assert response.status_code == 200
+            assert b'<option selected value="public">Public</option>' in response.data
 
     def test_create_request_validation_error(self, client, app, auth_user):
         """Test creating a request with validation errors."""
