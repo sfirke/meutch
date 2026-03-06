@@ -18,24 +18,22 @@ class TestRequestsFeedAccess:
         assert '/auth/login' in response.headers['Location']
 
     def test_feed_loads_for_authenticated_user(self, client, app, auth_user):
-        """Test that the feed loads for authenticated users."""
+        """Test that requests feed redirects authenticated users to homepage feed."""
         with app.app_context():
             user = auth_user()
             login_user(client, user.email)
-            response = client.get('/requests/')
-            assert response.status_code == 200
-            assert b'Community Requests' in response.data
-            assert b'All' in response.data
-            assert b'Everyone' not in response.data
+            response = client.get('/requests/', follow_redirects=False)
+            assert response.status_code == 302
+            assert response.headers['Location'].endswith('/')
 
     def test_feed_shows_no_circles_message(self, client, app, auth_user):
-        """Test feed shows message when user has no circles and views circles scope."""
+        """Test homepage feed shows no-circles message for users with no circles."""
         with app.app_context():
             user = auth_user()
             login_user(client, user.email)
-            response = client.get('/requests/?scope=circles')
+            response = client.get('/')
             assert response.status_code == 200
-            assert b'Join a circle to see requests' in response.data
+            assert b'Join a circle to see activity' in response.data
 
 
 class TestRequestsFeedFiltering:
@@ -65,7 +63,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Shared circles request' in response.data
             assert b'Public all-scope request' in response.data
@@ -102,7 +100,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=all&distance=')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Visible circles request' in response.data
             assert b'Visible public request' in response.data
@@ -126,7 +124,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=circles')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Need a screwdriver' in response.data
 
@@ -150,7 +148,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=circles')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Hidden request' not in response.data
 
@@ -168,7 +166,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=all&distance=')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Public screwdriver request' in response.data
 
@@ -190,7 +188,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Expired request' not in response.data
 
@@ -213,7 +211,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=circles')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Got my screwdriver' in response.data
 
@@ -236,7 +234,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Old fulfilled request' not in response.data
 
@@ -256,9 +254,9 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=circles')
+            response = client.get('/')
             assert response.status_code == 200
-            assert b'My request from 30 days ago' in response.data
+            assert b'My request from 30 days ago' not in response.data
 
     def test_feed_shows_own_expired_request_within_90_days(self, client, app, auth_user):
         """Test that user's own expired requests within 90 days are shown."""
@@ -276,9 +274,9 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=circles')
+            response = client.get('/')
             assert response.status_code == 200
-            assert b'My request that expired 30 days ago' in response.data
+            assert b'My request that expired 30 days ago' not in response.data
 
     def test_feed_hides_deleted_requests(self, client, app, auth_user):
         """Test that deleted requests are never shown."""
@@ -298,7 +296,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Deleted request' not in response.data
 
@@ -319,12 +317,12 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Vacation request' not in response.data
 
     def test_feed_own_requests_section(self, client, app, auth_user):
-        """Test that user's own requests appear in My Requests section."""
+        """Test homepage feed has no dedicated My Requests section."""
         with app.app_context():
             user = auth_user()
             circle = CircleFactory()
@@ -335,13 +333,13 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/')
             assert response.status_code == 200
-            assert b'My own request' in response.data
-            assert b'My Requests' in response.data
+            assert b'My own request' not in response.data
+            assert b'My Requests' not in response.data
 
     def test_feed_public_distance_filter(self, client, app, auth_user):
-        """Test distance filtering on public requests."""
+        """Test homepage distance controls can narrow and expand visible public requests."""
         with app.app_context():
             user = auth_user()
             # auth_user has coordinates (40.7128, -74.0060) - NYC
@@ -358,10 +356,15 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=all&distance=5')
-            assert response.status_code == 200
-            assert b'Nearby request' in response.data
-            assert b'Far away request' not in response.data
+            default_response = client.get('/')
+            assert default_response.status_code == 200
+            assert b'Nearby request' in default_response.data
+            assert b'Far away request' not in default_response.data
+
+            no_limit_response = client.get('/?distance=none')
+            assert no_limit_response.status_code == 200
+            assert b'Nearby request' in no_limit_response.data
+            assert b'Far away request' in no_limit_response.data
 
 
 class TestRequestCreation:
@@ -789,17 +792,21 @@ class TestRequestConversations:
 
 
 class TestRequestNavigation:
-    """Test that the Requests nav link is present."""
+    """Test top-level nav links relevant to requests and find."""
 
-    def test_nav_link_for_authenticated_user(self, client, app, auth_user):
-        """Test that Requests nav link is visible to authenticated users."""
+    def test_nav_links_for_authenticated_user(self, client, app, auth_user):
+        """Test updated authenticated nav shows Home and Find but not Requests/Giveaways/List Item."""
         with app.app_context():
             user = auth_user()
             login_user(client, user.email)
             response = client.get('/')
             assert response.status_code == 200
-            assert b'Requests' in response.data
-            assert b'/requests/' in response.data
+            assert b'Home' in response.data
+            assert b'Find' in response.data
+            assert b'/find' in response.data
+            assert b'href="/giveaways"' not in response.data
+            assert b'href="/requests/"' not in response.data
+            assert b'class="nav-link" href="/list-item"' not in response.data
 
     def test_nav_link_not_for_anonymous(self, client, app):
         """Test that Requests nav link is not shown to anonymous users."""

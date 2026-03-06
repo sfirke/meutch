@@ -9,6 +9,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 **Major**
 - Overhaul user's view of own profile ([#228](https://github.com/sfirke/meutch/pull/228)).
 - Improve search capabilities and combine search into the home page (now "Find") ([#251](https://github.com/sfirke/meutch/pull/251)).
+- Introduce a social-style activity homepage for logged-in users, move item discovery to a dedicated Find page, and redirect legacy Giveaways/Requests feed routes to Home.
 
 **Minor**
 - Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
