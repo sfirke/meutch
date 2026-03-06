@@ -110,13 +110,12 @@
         <div class="d-flex align-items-center mb-3">
             <span class="text-muted">
                 <i class="fas fa-filter me-1"></i>
-                {% if query %}
+                {% if query and (selected_categories or selected_circles or item_type != 'both') %}
+                    Showing results for "<strong>{{ query }}</strong>" with filters applied
+                {% elif query %}
                     Showing results for "<strong>{{ query }}</strong>"
                 {% else %}
                     Filters applied
-                {% endif %}
-                {% if selected_categories or selected_circles or item_type != 'both' %}
-                    with filters applied
                 {% endif %}
             </span>
             <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-outline-secondary ms-2">
