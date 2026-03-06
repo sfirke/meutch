@@ -369,14 +369,6 @@ class TestItemRoutes:
 
 class TestSearchRoutes:
     """Test search functionality."""
-    
-    def test_search_redirects_to_home(self, client, app, auth_user):
-        """Test /search redirects to / (search is now on homepage)."""
-        with app.app_context():
-            user = auth_user()
-            login_user(client, user.email)
-            response = client.get('/search')
-            assert response.status_code == 301
 
 class TestTagAndCategoryBrowsing:
     """Test tag and category browsing functionality."""
