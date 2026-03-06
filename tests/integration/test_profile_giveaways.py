@@ -355,3 +355,192 @@ class TestProfileGiveawayPagination:
             assert response.status_code == 200
             content = response.data.decode('utf-8')
             assert 'My Past Giveaways' in content
+
+
+class TestProfileMyItemsSearch:
+    """Test searching within My Items on profile page."""
+
+    def test_profile_search_filters_matching_own_item_names(self, client, app, auth_user):
+        """Search should filter to current user's matching item names only."""
+        with app.app_context():
+            user = auth_user()
+            other_user = UserFactory()
+            category = CategoryFactory()
+
+            ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=False,
+                name='Blue Ladder',
+                description='Useful ladder'
+            )
+            ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=False,
+                name='Red Drill',
+                description='Power tool'
+            )
+            ItemFactory(
+                owner=other_user,
+                category=category,
+                is_giveaway=False,
+                name='Blue Saw',
+                description='Should not show in my profile results'
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/profile?tab=my-items&search=  Blue  ')
+
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'Blue Ladder' in content
+            assert 'Red Drill' not in content
+            assert 'Blue Saw' not in content
+
+    def test_profile_search_matches_description(self, client, app, auth_user):
+        """Search should match item description, not just name."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+
+            ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=False,
+                name='Toolbox',
+                description='Contains a rare cobalt wrench'
+            )
+            ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=False,
+                name='Hammer',
+                description='Basic hardware tool'
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/profile?tab=my-items&search=cobalt')
+
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'Toolbox' in content
+            assert 'Hammer' not in content
+
+    def test_profile_search_applies_to_active_past_and_regular_items(self, client, app, auth_user):
+        """Search should filter all three My Items sections."""
+        with app.app_context():
+            user = auth_user()
+            recipient = UserFactory()
+            category = CategoryFactory()
+
+            ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed',
+                name='Needle Active Giveaway',
+                description='Active section match'
+            )
+            ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=True,
+                claim_status='claimed',
+                claimed_by=recipient,
+                claimed_at=datetime.now(UTC) - timedelta(days=2),
+                name='Needle Past Giveaway',
+                description='Past section match'
+            )
+            ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=False,
+                name='Needle Lending Item',
+                description='Regular items section match'
+            )
+
+            ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed',
+                name='Other Active',
+                description='Not a match'
+            )
+            ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=True,
+                claim_status='claimed',
+                claimed_by=recipient,
+                claimed_at=datetime.now(UTC) - timedelta(days=2),
+                name='Other Past',
+                description='Not a match'
+            )
+            ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=False,
+                name='Other Lending Item',
+                description='Not a match'
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/profile?tab=my-items&search=Needle')
+
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'Needle Active Giveaway' in content
+            assert 'Needle Past Giveaway' in content
+            assert 'Needle Lending Item' in content
+            assert 'Other Active' not in content
+            assert 'Other Past' not in content
+            assert 'Other Lending Item' not in content
+
+    def test_profile_search_pagination_links_include_search_param(self, client, app, auth_user):
+        """When searching, all My Items pagination links should preserve search query."""
+        with app.app_context():
+            user = auth_user()
+            recipient = UserFactory()
+            category = CategoryFactory()
+
+            for i in range(13):
+                ItemFactory(
+                    owner=user,
+                    category=category,
+                    is_giveaway=True,
+                    claim_status='unclaimed',
+                    name=f'Needle Active {i}',
+                    description='Active pagination'
+                )
+                ItemFactory(
+                    owner=user,
+                    category=category,
+                    is_giveaway=True,
+                    claim_status='claimed',
+                    claimed_by=recipient,
+                    claimed_at=datetime.now(UTC) - timedelta(days=3),
+                    name=f'Needle Past {i}',
+                    description='Past pagination'
+                )
+                ItemFactory(
+                    owner=user,
+                    category=category,
+                    is_giveaway=False,
+                    name=f'Needle Lending {i}',
+                    description='Regular pagination'
+                )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/profile?tab=my-items&search=needle')
+
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'giveaway_page=2&amp;tab=my-items&amp;search=needle' in content
+            assert 'past_giveaway_page=2&amp;tab=my-items&amp;search=needle' in content
+            assert 'page=2&amp;tab=my-items&amp;search=needle' in content

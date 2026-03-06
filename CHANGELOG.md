@@ -12,6 +12,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 **Minor**
 - Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
+- Add search bar for own items ([#252](https://github.com/sfirke/meutch/pull/252)).
 
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/issues/213)).

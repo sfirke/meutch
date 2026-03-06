@@ -39,6 +39,25 @@
         <!-- ======================== MY ITEMS TAB ======================== -->
         <div class="tab-pane fade {% if active_tab == 'my-items' %}show active{% endif %}" id="my-items" role="tabpanel" aria-labelledby="my-items-tab">
 
+            <form method="GET" action="{{ url_for('main.profile') }}" class="mb-4">
+                <input type="hidden" name="tab" value="my-items">
+                <label for="my-items-search" class="visually-hidden">Search my items</label>
+                <div class="input-group">
+                    <input
+                        id="my-items-search"
+                        type="search"
+                        name="search"
+                        class="form-control"
+                        placeholder="Search my items"
+                        value="{{ search_query or '' }}"
+                    >
+                    <button class="btn btn-primary" type="submit">Search</button>
+                    {% if search_query %}
+                        <a class="btn btn-outline-secondary" href="{{ url_for('main.profile', tab='my-items') }}">Clear</a>
+                    {% endif %}
+                </div>
+            </form>
+
             <!-- My Active Giveaways Section -->
             {% if active_giveaways %}
                 <div class="mb-4">
@@ -57,7 +76,7 @@
                             <ul class="pagination justify-content-center">
                                 {% if active_giveaways_pagination.has_prev %}
                                     <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('main.profile', giveaway_page=active_giveaways_pagination.prev_num, tab='my-items') }}" aria-label="Previous">
+                                        <a class="page-link" href="{{ url_for('main.profile', giveaway_page=active_giveaways_pagination.prev_num, tab='my-items', search=search_query) }}" aria-label="Previous">
                                             <span aria-hidden="true">&laquo;</span>
                                         </a>
                                     </li>
@@ -72,7 +91,7 @@
                                         {% if p == active_giveaways_pagination.page %}
                                             <li class="page-item active"><span class="page-link">{{ p }}</span></li>
                                         {% else %}
-                                            <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', giveaway_page=p, tab='my-items') }}">{{ p }}</a></li>
+                                            <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', giveaway_page=p, tab='my-items', search=search_query) }}">{{ p }}</a></li>
                                         {% endif %}
                                     {% else %}
                                         <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -81,7 +100,7 @@
 
                                 {% if active_giveaways_pagination.has_next %}
                                     <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('main.profile', giveaway_page=active_giveaways_pagination.next_num, tab='my-items') }}" aria-label="Next">
+                                        <a class="page-link" href="{{ url_for('main.profile', giveaway_page=active_giveaways_pagination.next_num, tab='my-items', search=search_query) }}" aria-label="Next">
                                             <span aria-hidden="true">&raquo;</span>
                                         </a>
                                     </li>
@@ -114,7 +133,7 @@
                             <ul class="pagination justify-content-center">
                                 {% if past_giveaways_pagination.has_prev %}
                                     <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('main.profile', past_giveaway_page=past_giveaways_pagination.prev_num, tab='my-items') }}" aria-label="Previous">
+                                        <a class="page-link" href="{{ url_for('main.profile', past_giveaway_page=past_giveaways_pagination.prev_num, tab='my-items', search=search_query) }}" aria-label="Previous">
                                             <span aria-hidden="true">&laquo;</span>
                                         </a>
                                     </li>
@@ -129,7 +148,7 @@
                                         {% if p == past_giveaways_pagination.page %}
                                             <li class="page-item active"><span class="page-link">{{ p }}</span></li>
                                         {% else %}
-                                            <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', past_giveaway_page=p, tab='my-items') }}">{{ p }}</a></li>
+                                            <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', past_giveaway_page=p, tab='my-items', search=search_query) }}">{{ p }}</a></li>
                                         {% endif %}
                                     {% else %}
                                         <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -138,7 +157,7 @@
 
                                 {% if past_giveaways_pagination.has_next %}
                                     <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('main.profile', past_giveaway_page=past_giveaways_pagination.next_num, tab='my-items') }}" aria-label="Next">
+                                        <a class="page-link" href="{{ url_for('main.profile', past_giveaway_page=past_giveaways_pagination.next_num, tab='my-items', search=search_query) }}" aria-label="Next">
                                             <span aria-hidden="true">&raquo;</span>
                                         </a>
                                     </li>
@@ -166,7 +185,9 @@
                 </div>
             {% else %}
                 {% if not active_giveaways and not past_giveaways %}
-                    <p>No items found.</p>
+                    {% if not search_query %}
+                        <p>No items found.</p>
+                    {% endif %}
                 {% endif %}
             {% endif %}
 
@@ -176,7 +197,7 @@
                     <ul class="pagination justify-content-center">
                         {% if pagination.has_prev %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('main.profile', page=pagination.prev_num, tab='my-items') }}" aria-label="Previous">
+                                <a class="page-link" href="{{ url_for('main.profile', page=pagination.prev_num, tab='my-items', search=search_query) }}" aria-label="Previous">
                                     <span aria-hidden="true">&laquo;</span>
                                 </a>
                             </li>
@@ -191,7 +212,7 @@
                                 {% if p == pagination.page %}
                                     <li class="page-item active"><span class="page-link">{{ p }}</span></li>
                                 {% else %}
-                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', page=p, tab='my-items') }}">{{ p }}</a></li>
+                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', page=p, tab='my-items', search=search_query) }}">{{ p }}</a></li>
                                 {% endif %}
                             {% else %}
                                 <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -200,7 +221,7 @@
 
                         {% if pagination.has_next %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('main.profile', page=pagination.next_num, tab='my-items') }}" aria-label="Next">
+                                <a class="page-link" href="{{ url_for('main.profile', page=pagination.next_num, tab='my-items', search=search_query) }}" aria-label="Next">
                                     <span aria-hidden="true">&raquo;</span>
                                 </a>
                             </li>
@@ -211,6 +232,10 @@
                         {% endif %}
                     </ul>
                 </nav>
+            {% endif %}
+
+            {% if search_query and not active_giveaways and not past_giveaways and not items %}
+                <p>No items found for "{{ search_query }}".</p>
             {% endif %}
         </div>
 
