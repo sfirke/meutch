@@ -8,15 +8,14 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 **Major**
 - Overhaul user's view of own profile ([#228](https://github.com/sfirke/meutch/pull/228)).
+- Improve search capabilities and combine search into the home page (now "Find") ([#251](https://github.com/sfirke/meutch/pull/251)).
 
 **Minor**
 - Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
 
-
-## March 2026
-
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/issues/213)).
+- Fix: users without location set now can't create public giveaways or requests ([#231](https://github.com/sfirke/meutch/issues/231)). 
 
 ## Feb 2026
 

@@ -151,7 +151,7 @@ class TestVacationModeItemVisibility:
         
         # Login as user1 and search for "Hammer"
         login_user(client, user1.email)
-        response = client.get(url_for('main.search', q='Hammer'))
+        response = client.get(url_for('main.index', q='Hammer'))
         
         assert response.status_code == 200
         # Visible item should be shown

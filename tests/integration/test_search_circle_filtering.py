@@ -19,7 +19,7 @@ class TestSearchCircleFiltering:
         
         login_user(client, user.email)
         
-        response = client.get(url_for('main.search'))
+        response = client.get(url_for('main.index'))
         assert response.status_code == 200
 
     def test_search_returns_only_shared_circle_items(self, client):
@@ -47,7 +47,7 @@ class TestSearchCircleFiltering:
 
         # Login as user1 and search
         login_user(client, user1.email)
-        response = client.get(url_for('main.search', q='Hammer'))
+        response = client.get(url_for('main.index', q='Hammer'))
         
         assert response.status_code == 200
         # Should see item from user2 (shared circle)
@@ -56,7 +56,7 @@ class TestSearchCircleFiltering:
         assert b'Other Circle Hammer' not in response.data
 
     def test_search_does_not_return_own_items(self, client):
-        """Test that search includes user's own items (unlike homepage)."""
+        """Test that search excludes user's own items (consistent with browse mode)."""
         category = CategoryFactory()
         user = UserFactory()
         other_user = UserFactory()
@@ -73,12 +73,12 @@ class TestSearchCircleFiltering:
         db.session.commit()
 
         login_user(client, user.email)
-        response = client.get(url_for('main.search', q='Drill'))
+        response = client.get(url_for('main.index', q='Drill'))
         
         assert response.status_code == 200
-        # Search DOES include the user's own items (unlike the homepage)
-        assert b'My Own Drill' in response.data
-        # Also includes items from circle members
+        # Search excludes the user's own items (same as browse mode)
+        assert b'My Own Drill' not in response.data
+        # Includes items from circle members
         assert b'Shared Drill' in response.data
 
     def test_search_shows_join_circle_prompt_when_no_circles(self, client):
@@ -91,9 +91,9 @@ class TestSearchCircleFiltering:
         # Test both search form page and search results page
         for url_params in [None, {'q': 'anything'}]:
             if url_params:
-                response = client.get(url_for('main.search', **url_params))
+                response = client.get(url_for('main.index', **url_params))
             else:
-                response = client.get(url_for('main.search'))
+                response = client.get(url_for('main.index'))
             
             assert response.status_code == 200
             assert b'Join a circle' in response.data
@@ -116,10 +116,10 @@ class TestSearchCircleFiltering:
         db.session.commit()
 
         login_user(client, user1.email)
-        response = client.get(url_for('main.search', q='Nonexistent'))
+        response = client.get(url_for('main.index', q='Nonexistent'))
         
         assert response.status_code == 200
-        assert b'No items found matching your search' in response.data
+        assert b'No items match your search' in response.data
 
     def test_search_multiple_circles_returns_items_from_all(self, client):
         """Test that search returns items from all circles user is in."""
@@ -146,7 +146,7 @@ class TestSearchCircleFiltering:
         db.session.commit()
 
         login_user(client, user1.email)
-        response = client.get(url_for('main.search', q='Wrench'))
+        response = client.get(url_for('main.index', q='Wrench'))
         
         assert response.status_code == 200
         # Should see items from both circles
@@ -184,7 +184,7 @@ class TestSearchDistanceDisplay:
             db.session.commit()
 
             login_user(client, viewer.email)
-            response = client.get(url_for('main.search', q='Distance'))
+            response = client.get(url_for('main.index', q='Distance'))
             assert response.status_code == 200
             
             html = response.data.decode('utf-8')

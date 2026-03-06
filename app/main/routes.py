@@ -17,57 +17,152 @@ from app.utils.giveaway_visibility import can_view_claimed_giveaway, get_unavail
 
 @main_bp.route('/')
 def index():
-    circles = []
     items = []
     giveaway_items = []
     pagination = None
     total_items = 0
     remaining_items = 0
+    query = ''
+    all_categories = []
+    user_circles = []
+    selected_categories = []
+    selected_circles = []
+    item_type = 'both'
+    has_circles = False
+    result_count = 0
     
     if current_user.is_authenticated:
-        circles = current_user.circles
+        user_circles = sorted(list(current_user.circles), key=lambda circle: (circle.name or '').lower())
+        has_circles = len(user_circles) > 0
+        all_categories = Category.query.order_by(Category.name).all()
         
-        # For logged-in users: show items from users who share circles with them
-        has_circles = len(current_user.circles) > 0
+        # Read search/filter params
+        query = request.args.get('q', '').strip()
+        selected_categories = request.args.getlist('categories')
+        selected_circles = request.args.getlist('circles')
+        item_type = request.args.get('item_type', 'both')
+        page = request.args.get('page', 1, type=int)
+        per_page = 12
         
         if has_circles:
-            shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
-            # Query items from those users, excluding own items and vacation mode users, ordered by newest first
-            # Exclude claimed/pending giveaways - show only unclaimed giveaways or regular items
-            base_query = Item.query.join(User, Item.owner_id == User.id).filter(
-                Item.owner_id.in_(shared_circle_user_ids),
-                Item.owner_id != current_user.id,
-                User.vacation_mode == False,
-                or_(
-                    Item.is_giveaway == False,
+            if query:
+                # --- Search mode: text search with filters, distance-sorted ---
+                shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
+                
+                # If specific circles selected, narrow to those circles' members
+                if selected_circles:
+                    shared_circle_user_ids = select(circle_members.c.user_id).where(
+                        circle_members.c.circle_id.in_(selected_circles)
+                    ).distinct()
+                
+                # Get all users who belong to any circle (for public giveaways)
+                all_circle_user_ids = select(circle_members.c.user_id).distinct()
+                
+                items_query = Item.query.join(User, Item.owner_id == User.id).outerjoin(Item.tags).outerjoin(Item.category).filter(
+                    User.vacation_mode == False,
+                    Item.owner_id != current_user.id,
                     and_(
+                        or_(
+                            and_(
+                                or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
+                                Item.owner_id.in_(shared_circle_user_ids)
+                            ),
+                            and_(
+                                Item.giveaway_visibility == 'public',
+                                Item.owner_id.in_(all_circle_user_ids)
+                            )
+                        ),
+                        or_(
+                            Item.name.ilike(f'%{query}%'),
+                            Item.description.ilike(f'%{query}%'),
+                            Tag.name.ilike(f'%{query}%')
+                        )
+                    )
+                )
+                
+                # Category filter
+                if selected_categories:
+                    items_query = items_query.filter(Item.category_id.in_(selected_categories))
+                
+                # Item type filter
+                if item_type == 'loans':
+                    items_query = items_query.filter(Item.is_giveaway == False)
+                elif item_type == 'giveaways':
+                    items_query = items_query.filter(
                         Item.is_giveaway == True,
                         or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
                     )
+                else:
+                    items_query = items_query.filter(
+                        or_(
+                            Item.is_giveaway == False,
+                            and_(
+                                Item.is_giveaway == True,
+                                or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                            )
+                        )
+                    )
+                
+                items_query = items_query.distinct()
+                all_items = items_query.all()
+                sorted_items = sort_items_by_owner_distance(all_items, current_user)
+                pagination = ListPagination(items=sorted_items, page=page, per_page=per_page)
+                items = pagination.items
+                result_count = pagination.total
+            else:
+                # --- Browse mode: newest first, optionally filtered by category/circle/type ---
+                shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
+                
+                # If specific circles selected, narrow to those circles' members
+                if selected_circles:
+                    shared_circle_user_ids = select(circle_members.c.user_id).where(
+                        circle_members.c.circle_id.in_(selected_circles)
+                    ).distinct()
+                
+                base_query = Item.query.join(User, Item.owner_id == User.id).filter(
+                    Item.owner_id.in_(shared_circle_user_ids),
+                    Item.owner_id != current_user.id,
+                    User.vacation_mode == False,
+                    or_(
+                        Item.is_giveaway == False,
+                        and_(
+                            Item.is_giveaway == True,
+                            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                        )
+                    )
                 )
-            ).order_by(Item.created_at.desc())
-            
-            # Paginate results
-            page = request.args.get('page', 1, type=int)
-            per_page = 12  # Items per page for logged-in users
-            pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
-            items = pagination.items
-        # else: user has no circles, items list stays empty
+                
+                # Category filter
+                if selected_categories:
+                    base_query = base_query.filter(Item.category_id.in_(selected_categories))
+                
+                # Item type filter
+                if item_type == 'loans':
+                    base_query = base_query.filter(Item.is_giveaway == False)
+                elif item_type == 'giveaways':
+                    base_query = base_query.filter(
+                        Item.is_giveaway == True,
+                        or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                    )
+                
+                base_query = base_query.order_by(Item.created_at.desc())
+                pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
+                items = pagination.items
+                result_count = pagination.total
+        # else: no circles, items stays empty
         
     else:
-        # For anonymous users: show items from public showcase users only (excluding vacation mode)
+        # Anonymous users: show preview items (unchanged logic)
         showcase_user_ids = select(User.id).where(
             User.is_public_showcase == True,
             User.vacation_mode == False
         )
         
-        # Regular items (non-giveaways) from showcase users
         base_query = Item.query.filter(
             Item.owner_id.in_(showcase_user_ids),
             Item.is_giveaway == False
         )
         
-        # Public giveaways (visibility='public', unclaimed only) - also exclude vacation mode
         giveaway_query = Item.query.join(User, Item.owner_id == User.id).filter(
             Item.is_giveaway == True,
             Item.giveaway_visibility == 'public',
@@ -75,11 +170,8 @@ def index():
             User.vacation_mode == False
         )
         
-        # Show limited items with count
-        preview_limit = 6  # Items to show for each section
+        preview_limit = 6
         
-        # Count ALL items in the database (excluding claimed/pending giveaways) to show true scope
-        # Do include vacation mode users here to reflect total available items
         total_items = Item.query.filter(
             or_(
                 Item.is_giveaway == False,
@@ -90,21 +182,26 @@ def index():
             )
         ).count()
         
-        # Random selection for variety
         items = base_query.order_by(func.random()).limit(preview_limit).all()
         giveaway_items = giveaway_query.order_by(func.random()).limit(preview_limit).all()
         
-        # Calculate remaining: total minus what's actually displayed
         displayed_count = len(items) + len(giveaway_items)
         remaining_items = max(0, total_items - displayed_count)
-        
-    return render_template('main/index.html', 
+    
+    return render_template('main/index.html',
                          items=items,
                          giveaway_items=giveaway_items,
-                         circles=circles, 
                          pagination=pagination,
                          total_items=total_items,
-                         remaining_items=remaining_items)
+                         remaining_items=remaining_items,
+                         query=query,
+                         categories=all_categories,
+                         user_circles=user_circles,
+                         selected_categories=selected_categories,
+                         selected_circles=selected_circles,
+                         item_type=item_type,
+                         has_circles=has_circles,
+                         result_count=result_count)
 
 @main_bp.route('/list-item', methods=['GET', 'POST'])
 @login_required
@@ -270,93 +367,6 @@ def giveaways():
                          no_circles=False,
                          sort_by=sort_by,
                          max_distance=max_distance)
-
-@main_bp.route('/search', methods=['GET', 'POST'])
-@login_required
-def search():
-    query = request.args.get('q', '').strip()
-    page = request.args.get('page', 1, type=int)
-    item_type = request.args.get('item_type', 'both')  # 'loans', 'giveaways', or 'both'
-    per_page = 12  # Number of items per page (consistent with other pages)
-
-    # Check if user has any circles
-    has_circles = len(current_user.circles) > 0
-    shared_circle_user_ids = current_user.get_shared_circle_user_ids_query() if has_circles else None
-
-    if request.method == 'GET' and not query:
-        # Display the search form
-        return render_template('search_items.html', has_circles=has_circles, item_type=item_type)
-
-    if not query:
-        flash('Please enter a search term.', 'warning')
-        return redirect(url_for('main.search'))
-    
-    # If user has no circles, show empty results with prompt
-    if not has_circles:
-        return render_template('search_results.html', items=[], query=query, pagination=None, has_circles=False, item_type=item_type)
-    
-    # Get all users who belong to any circle (for public giveaways)
-    all_circle_user_ids = select(circle_members.c.user_id).distinct()
-    
-    # Perform case-insensitive search on name, description, and tags
-    # Include items that meet search criteria AND either:
-    # 1. Are from shared circle users (for default visibility items and loans)
-    # 2. Are public giveaways from any circle member
-    # Also exclude items from users in vacation mode
-    items_query = Item.query.join(User, Item.owner_id == User.id).outerjoin(Item.tags).outerjoin(Item.category).filter(
-        User.vacation_mode == False,
-        and_(
-            or_(
-                # Default items (loans and default-visibility giveaways): must share circles
-                and_(
-                    or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
-                    Item.owner_id.in_(shared_circle_user_ids)
-                ),
-                # Public giveaways: owner just needs to be in any circle
-                and_(
-                    Item.giveaway_visibility == 'public',
-                    Item.owner_id.in_(all_circle_user_ids)
-                )
-            ),
-            or_(
-                Item.name.ilike(f'%{query}%'),
-                Item.description.ilike(f'%{query}%'),
-                Tag.name.ilike(f'%{query}%')
-            )
-        )
-    )
-    
-    # Apply item_type filter
-    if item_type == 'loans':
-        items_query = items_query.filter(Item.is_giveaway == False)
-    elif item_type == 'giveaways':
-        items_query = items_query.filter(
-            Item.is_giveaway == True,
-            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
-        )
-    else:  # 'both'
-        items_query = items_query.filter(
-            or_(
-                Item.is_giveaway == False,
-                and_(
-                    Item.is_giveaway == True,
-                    or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
-                )
-            )
-        )
-    
-    items_query = items_query.distinct()
-    
-    # Get all matching items for distance sorting
-    all_items = items_query.all()
-    
-    # Sort by distance from current user
-    sorted_items = sort_items_by_owner_distance(all_items, current_user)
-    
-    # Paginate the sorted results
-    pagination = ListPagination(items=sorted_items, page=page, per_page=per_page)
-
-    return render_template('search_results.html', items=pagination.items, query=query, pagination=pagination, has_circles=True, item_type=item_type)
 
 @main_bp.route('/item/<uuid:item_id>', methods=['GET', 'POST'])
 @login_required
