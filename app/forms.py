@@ -623,7 +623,7 @@ class ItemRequestForm(FlaskForm):
     )
     visibility = SelectField('Who can see this?',
         choices=ItemRequest.VISIBILITY_CHOICES,
-        default='circles',
+        default='public',
         validators=[DataRequired()]
     )
     submit = SubmitField('Post Request')

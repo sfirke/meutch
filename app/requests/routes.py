@@ -16,11 +16,13 @@ from app.utils.email import send_message_notification_email
 def feed():
     """Display the requests feed with filtering options."""
     page = request.args.get('page', 1, type=int)
-    scope = request.args.get('scope', 'public')  # 'circles' or 'public' (default: 'public')
-    # Default distance to 25 miles for public scope if not specified at all
+    scope = request.args.get('scope', 'all')
+    if scope not in ('all', 'circles'):
+        scope = 'all'
+    # Default distance to 25 miles for all scope if not specified at all
     # If distance param is present but empty, max_distance will be None (no filter)
     max_distance = request.args.get('distance', type=int)
-    if scope == 'public' and max_distance is None and 'distance' not in request.args:
+    if scope == 'all' and max_distance is None and 'distance' not in request.args:
         max_distance = 25
     per_page = 12
 
@@ -67,12 +69,7 @@ def feed():
         ),
     )
 
-    if scope == 'public':
-        # Public requests from any user
-        base_query = base_query.filter(
-            ItemRequest.visibility == 'public',
-        )
-    else:
+    if scope == 'circles':
         # Circles scope: requests from users who share circles with current user
         if not has_circles:
             return render_template('requests/feed.html',
@@ -89,9 +86,26 @@ def feed():
         base_query = base_query.filter(
             ItemRequest.user_id.in_(shared_circle_user_ids),
         )
+    else:
+        # All scope: public requests from any user + circles requests from shared circles
+        shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
+        if shared_circle_user_ids is None:
+            base_query = base_query.filter(
+                ItemRequest.visibility == 'public',
+            )
+        else:
+            base_query = base_query.filter(
+                or_(
+                    ItemRequest.visibility == 'public',
+                    and_(
+                        ItemRequest.visibility == 'circles',
+                        ItemRequest.user_id.in_(shared_circle_user_ids),
+                    ),
+                )
+            )
 
-    # Distance filtering (only for public scope when user is geocoded)
-    if scope == 'public' and max_distance and current_user.is_geocoded:
+    # Distance filtering (only for all scope when user is geocoded)
+    if scope == 'all' and max_distance and current_user.is_geocoded:
         all_requests = base_query.all()
 
         filtered = []
@@ -106,13 +120,13 @@ def feed():
 
         pagination = ListPagination(filtered, page, per_page)
         requests_list = pagination.items
-    elif scope == 'public' and current_user.is_geocoded:
-        # Public, no distance filter — still sort by date via DB
+    elif scope == 'all' and current_user.is_geocoded:
+        # All, no distance filter — still sort by date via DB
         base_query = base_query.order_by(ItemRequest.created_at.desc())
         pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
         requests_list = pagination.items
     else:
-        # Circles scope or non-geocoded public — sort by date
+        # Circles scope or non-geocoded all — sort by date
         base_query = base_query.order_by(ItemRequest.created_at.desc())
         pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
         requests_list = pagination.items

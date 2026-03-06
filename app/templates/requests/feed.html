@@ -20,13 +20,13 @@
                 <div class="col-md-4">
                     <label for="scope" class="form-label">Show requests from</label>
                     <select name="scope" id="scope" class="form-select" onchange="toggleDistanceFilter(); this.form.submit();">
-                        <option value="public" {% if scope == 'public' %}selected{% endif %}>Everyone</option>
+                        <option value="all" {% if scope == 'all' %}selected{% endif %}>All</option>
                         <option value="circles" {% if scope == 'circles' %}selected{% endif %}>My Circles</option>
                     </select>
                 </div>
 
-                <!-- Distance Filter (only for public scope) -->
-                <div class="col-md-4" id="distance-filter" {% if scope != 'public' %}style="display: none;"{% endif %}>
+                <!-- Distance Filter (only for all scope) -->
+                <div class="col-md-4" id="distance-filter" {% if scope != 'all' %}style="display: none;"{% endif %}>
                     <label for="distance" class="form-label">Distance</label>
                     <select name="distance" id="distance" class="form-select" onchange="this.form.submit()">
                         <option value="" {% if not max_distance %}selected{% endif %}>Any distance</option>
@@ -134,7 +134,7 @@
 function toggleDistanceFilter() {
     const scope = document.getElementById('scope').value;
     const distanceFilter = document.getElementById('distance-filter');
-    if (scope === 'public') {
+    if (scope === 'all') {
         distanceFilter.style.display = '';
     } else {
         distanceFilter.style.display = 'none';

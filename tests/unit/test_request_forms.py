@@ -10,6 +10,13 @@ from app.models import ItemRequest
 class TestItemRequestForm:
     """Test ItemRequestForm validation."""
 
+    def test_default_visibility_is_public(self, app):
+        """Test request form defaults to public visibility."""
+        with app.app_context():
+            with app.test_request_context():
+                form = ItemRequestForm()
+                assert form.visibility.data == 'public'
+
     def test_valid_form(self, app):
         """Test valid form with all fields."""
         with app.app_context():
