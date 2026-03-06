@@ -310,27 +310,6 @@ def join_circle(circle_id):
             )
             db.session.add(join_request)
 
-            admin_users = User.query.join(
-                circle_members,
-                and_(
-                    User.id == circle_members.c.user_id,
-                    circle_members.c.circle_id == circle.id,
-                    circle_members.c.is_admin == True
-                )
-            ).all()
-
-            for admin_user in admin_users:
-                notification_message = Message(
-                    sender_id=current_user.id,
-                    recipient_id=admin_user.id,
-                    circle_id=circle.id,
-                    body=(
-                        f"{current_user.full_name} requested to join the circle '{circle.name}'."
-                        + (f" Message: {form.message.data}" if form.message.data else "")
-                    )
-                )
-                db.session.add(notification_message)
-
             db.session.commit()
             
             # Send email notification to circle admins
@@ -419,6 +398,10 @@ def handle_join_request(circle_id, request_id, action):
     
     if join_request.circle_id != circle.id:
         flash('Invalid join request.', 'danger')
+        return redirect(url_for('circles.view_circle', circle_id=circle_id))
+
+    if join_request.status != 'pending':
+        flash('This join request has already been handled.', 'info')
         return redirect(url_for('circles.view_circle', circle_id=circle_id))
     
     if action == 'approve':
