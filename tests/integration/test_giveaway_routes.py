@@ -144,6 +144,76 @@ class TestGiveawayItemCreation:
             assert updated_item.claim_status is None
 
 
+class TestGiveawayPublicVisibilityLocationRequirement:
+    """Test that public giveaway visibility requires user to have location set."""
+
+    def test_create_public_giveaway_without_location_blocked(self, client, app):
+        """Test that a user without location cannot create a public giveaway."""
+        with app.app_context():
+            user = UserFactory(latitude=None, longitude=None)
+            category = CategoryFactory()
+            login_user(client, user.email)
+
+            response = client.post('/list-item', data={
+                'name': 'Free Books',
+                'description': 'Collection of old textbooks',
+                'category': str(category.id),
+                'is_giveaway': True,
+                'giveaway_visibility': 'public',
+                'tags': ''
+            })
+
+            assert response.status_code == 200
+            assert b'You must set your location' in response.data
+            # Verify item was NOT created
+            assert Item.query.filter_by(name='Free Books').first() is None
+
+    def test_create_circles_giveaway_without_location_allowed(self, client, app):
+        """Test that a user without location can create a circles-only giveaway."""
+        with app.app_context():
+            user = UserFactory(latitude=None, longitude=None)
+            category = CategoryFactory()
+            login_user(client, user.email)
+
+            response = client.post('/list-item', data={
+                'name': 'Free Books',
+                'description': 'Collection of old textbooks',
+                'category': str(category.id),
+                'is_giveaway': True,
+                'giveaway_visibility': 'default',
+                'tags': ''
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            item = Item.query.filter_by(name='Free Books').first()
+            assert item is not None
+            assert item.giveaway_visibility == 'default'
+
+    def test_edit_item_to_public_giveaway_without_location_blocked(self, client, app):
+        """Test that editing to public giveaway is blocked without location."""
+        with app.app_context():
+            user = UserFactory(latitude=None, longitude=None)
+            category = CategoryFactory()
+            item = ItemFactory(owner=user, category=category, is_giveaway=False)
+            db.session.commit()
+            login_user(client, user.email)
+
+            response = client.post(f'/item/{item.id}/edit', data={
+                'name': item.name,
+                'description': item.description,
+                'category': str(category.id),
+                'is_giveaway': True,
+                'giveaway_visibility': 'public',
+                'tags': ''
+            })
+
+            assert response.status_code == 200
+            assert b'You must set your location' in response.data
+            # Verify item was NOT updated to public giveaway
+            updated_item = db.session.get(Item, item.id)
+            assert updated_item.is_giveaway is False
+
+
 class TestGiveawaysFeed:
     """Test the giveaway feed page."""
     
