@@ -6,58 +6,68 @@
 (function() {
     'use strict';
 
-    function updateGroup(allSelector, itemSelector, badgeSelector) {
-        const allCheckbox = document.querySelector(allSelector);
-        const itemCheckboxes = document.querySelectorAll(itemSelector);
-        const badge = document.querySelector(badgeSelector);
+    function getCheckedCount(itemCheckboxes) {
+        return Array.from(itemCheckboxes).filter((checkbox) => checkbox.checked).length;
+    }
 
-        if (!allCheckbox || !badge) {
+    function updateBadge(badge, checkedCount) {
+        if (!badge) {
             return;
         }
-
-        const checkedCount = Array.from(itemCheckboxes).filter((checkbox) => checkbox.checked).length;
-
-        allCheckbox.checked = checkedCount === 0;
 
         if (checkedCount > 0) {
             badge.textContent = String(checkedCount);
             badge.classList.remove('d-none');
-        } else {
-            badge.textContent = '0';
-            badge.classList.add('d-none');
+            badge.setAttribute('aria-hidden', 'false');
+            return;
         }
+
+        badge.textContent = '0';
+        badge.classList.add('d-none');
+        badge.setAttribute('aria-hidden', 'true');
+    }
+
+    function updateGroup(group) {
+        const checkedCount = getCheckedCount(group.itemCheckboxes);
+
+        group.allCheckbox.checked = checkedCount === 0;
+        updateBadge(group.badge, checkedCount);
     }
 
     function setupGroup(allSelector, itemSelector, badgeSelector) {
         const allCheckbox = document.querySelector(allSelector);
         const itemCheckboxes = document.querySelectorAll(itemSelector);
+        const badge = document.querySelector(badgeSelector);
 
         if (!allCheckbox) {
             return;
         }
+
+        const group = {
+            allCheckbox,
+            itemCheckboxes,
+            badge
+        };
 
         allCheckbox.addEventListener('change', function() {
             if (allCheckbox.checked) {
                 itemCheckboxes.forEach((checkbox) => {
                     checkbox.checked = false;
                 });
-            } else {
-                const anyChecked = Array.from(itemCheckboxes).some((checkbox) => checkbox.checked);
-                if (!anyChecked) {
-                    allCheckbox.checked = true;
-                }
+            } else if (getCheckedCount(itemCheckboxes) === 0) {
+                allCheckbox.checked = true;
             }
 
-            updateGroup(allSelector, itemSelector, badgeSelector);
+            updateGroup(group);
         });
 
         itemCheckboxes.forEach((checkbox) => {
             checkbox.addEventListener('change', function() {
-                updateGroup(allSelector, itemSelector, badgeSelector);
+                updateGroup(group);
             });
         });
 
-        updateGroup(allSelector, itemSelector, badgeSelector);
+        updateGroup(group);
     }
 
     function init() {
