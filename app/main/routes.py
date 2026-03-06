@@ -1717,22 +1717,39 @@ def profile():
     page = request.args.get('page', 1, type=int)
     giveaway_page = request.args.get('giveaway_page', 1, type=int)
     past_giveaway_page = request.args.get('past_giveaway_page', 1, type=int)
+    search_query = request.args.get('search', '').strip()
     per_page = 12  # Items per page for logged-in users (same as index page)
+
+    my_items_search_filter = None
+    if search_query:
+        my_items_search_filter = or_(
+            Item.name.ilike(f'%{search_query}%'),
+            Item.description.ilike(f'%{search_query}%')
+        )
     
     # Fetch user's active giveaways with pagination (unclaimed or pending_pickup)
-    active_giveaways_pagination = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
+    active_giveaways_query = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
         or_(Item.claim_status == 'unclaimed', Item.claim_status == 'pending_pickup', Item.claim_status.is_(None))
-    ).order_by(Item.created_at.desc()).paginate(page=giveaway_page, per_page=per_page, error_out=False)
+    )
+    if my_items_search_filter is not None:
+        active_giveaways_query = active_giveaways_query.filter(my_items_search_filter)
+    active_giveaways_pagination = active_giveaways_query.order_by(Item.created_at.desc()).paginate(page=giveaway_page, per_page=per_page, error_out=False)
     
     # Fetch user's past giveaways with pagination (claimed within last 90 days)
     ninety_days_ago = datetime.now(UTC) - timedelta(days=90)
-    past_giveaways_pagination = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
+    past_giveaways_query = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
         Item.claim_status == 'claimed',
         Item.claimed_at >= ninety_days_ago
-    ).order_by(Item.claimed_at.desc()).paginate(page=past_giveaway_page, per_page=per_page, error_out=False)
+    )
+    if my_items_search_filter is not None:
+        past_giveaways_query = past_giveaways_query.filter(my_items_search_filter)
+    past_giveaways_pagination = past_giveaways_query.order_by(Item.claimed_at.desc()).paginate(page=past_giveaway_page, per_page=per_page, error_out=False)
     
     # Fetch user's regular items with pagination (newest first)
-    items_pagination = Item.query.filter_by(owner_id=current_user.id, is_giveaway=False).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    items_query = Item.query.filter_by(owner_id=current_user.id, is_giveaway=False)
+    if my_items_search_filter is not None:
+        items_query = items_query.filter(my_items_search_filter)
+    items_pagination = items_query.order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     user_items = items_pagination.items
     
     # Create a DeleteItemForm for each item (exclude claimed giveaways since they can't be deleted)
@@ -1765,6 +1782,7 @@ def profile():
                          past_giveaways_pagination=past_giveaways_pagination,
                          vacation_form=vacation_form,
                          active_tab=active_tab,
+                         search_query=search_query,
                          show_edit=show_edit)
 
 @main_bp.route('/update-location', methods=['GET', 'POST'])
