@@ -368,12 +368,6 @@ def giveaways():
                          sort_by=sort_by,
                          max_distance=max_distance)
 
-@main_bp.route('/search')
-@login_required
-def search():
-    """Redirect legacy /search URLs to the Find page."""
-    return redirect(url_for('main.index', **request.args), code=301)
-
 @main_bp.route('/item/<uuid:item_id>', methods=['GET', 'POST'])
 @login_required
 def item_detail(item_id):
