@@ -3,50 +3,67 @@
 {% block title %}{% if current_user.is_authenticated %}Home{% else %}Find{% endif %}{% endblock %}
 
 {% block content %}
-    <!-- Compact Hero Section -->
+    {% if not current_user.is_authenticated %}
+    <!-- Hero Section -->
     <div class="text-center mb-4">
-        <img src="{{ url_for('static', filename='img/logo_handshake.png') }}" alt="Meutch" class="mb-2" style="height: {% if current_user.is_authenticated %}48px{% else %}80px{% endif %}; width: auto;">
-        <h1 class="{% if current_user.is_authenticated %}h4{% else %}h2{% endif %} mb-1">Welcome to Meutch</h1>
+        <img src="{{ url_for('static', filename='img/logo_handshake.png') }}" alt="Meutch" class="mb-2" style="height: 80px; width: auto;">
+        <h1 class="h2 mb-1">Welcome to Meutch</h1>
         <p class="text-muted mb-3">Help a neighbor, help the world.</p>
-        {% if not current_user.is_authenticated %}
-            <div class="d-flex gap-2 justify-content-center mb-3">
-                <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
-                    <i class="fas fa-user-plus me-1"></i>Get Started
-                </a>
-                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-sign-in-alt me-1"></i>Sign In
-                </a>
+        <div class="d-flex gap-2 justify-content-center mb-3">
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
+                <i class="fas fa-user-plus me-1"></i>Get Started
+            </a>
+            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary">
+                <i class="fas fa-sign-in-alt me-1"></i>Sign In
+            </a>
+        </div>
+        <div class="card shadow-sm mx-auto text-white bg-primary mb-4" style="max-width: 700px;">
+            <div class="card-body py-2 px-3 text-center">
+                <p class="mb-1"><strong>Quick Start:</strong> Join a circle, list items you can lend, search for what you need nearby.</p>
+                <a href="{{ url_for('main.how_it_works') }}" class="btn btn-sm btn-light text-primary">Learn more</a>
             </div>
-            <div class="card shadow-sm mx-auto text-white bg-primary mb-4" style="max-width: 700px;">
-                <div class="card-body py-2 px-3 text-center">
-                    <p class="mb-1"><strong>Quick Start:</strong> Join a circle, list items you can lend, search for what you need nearby.</p>
-                    <a href="{{ url_for('main.how_it_works') }}" class="btn btn-sm btn-light text-primary">Learn more</a>
-                </div>
-            </div>
-        {% endif %}
+        </div>
     </div>
+    {% endif %}
 
     {% if current_user.is_authenticated %}
-    <div class="activity-feed-page">
-    <section class="activity-feed-header mb-4">
-        <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3">
+    <div class="activity-feed-page position-relative">
+    <section class="activity-feed-header mb-3">
+        <div class="d-flex flex-row justify-content-between align-items-center mb-1">
             <div>
-                <h1 class="h3 mb-1">Community Activity</h1>
-                <p class="text-muted mb-0">Recent requests, giveaways, lending activity, and circle joins.</p>
+                <h1 class="h3 mb-0">Community Activity</h1>
             </div>
-            <div class="d-flex gap-2 activity-feed-actions">
-                <a href="{{ url_for('requests.new') }}" class="btn btn-outline-primary activity-feed-cta">
+            <div class="d-none d-md-flex gap-2">
+                <a href="{{ url_for('requests.new') }}" class="btn btn-sm btn-outline-primary">
                     <i class="fas fa-hand-holding-heart me-1"></i>Create Request
                 </a>
-                <a href="{{ url_for('main.list_item') }}" class="btn btn-primary activity-feed-cta">
+                <a href="{{ url_for('main.list_item') }}" class="btn btn-sm btn-primary">
                     <i class="fas fa-plus me-1"></i>List Item
                 </a>
             </div>
         </div>
+        
+        <div class="d-flex justify-content-between align-items-center">
+            <p class="text-muted mb-0 small">Recent requests, giveaways, and lending activity.</p>
+            <button class="btn btn-link btn-sm text-decoration-none p-0 d-flex align-items-center gap-1" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
+                <i class="fas fa-filter"></i> Filters
+            </button>
+        </div>
     </section>
 
-    <section class="activity-feed-filters card shadow-sm mb-4">
-        <div class="card-body">
+    <!-- Mobile FAB -->
+    <div class="d-md-none position-fixed flex-column gap-2 z-3" style="bottom: 20px; right: 20px; display: flex;">
+        <a href="{{ url_for('requests.new') }}" class="btn btn-light rounded-circle shadow p-3 ms-auto text-primary" title="Create Request">
+            <i class="fas fa-hand-holding-heart"></i>
+        </a>
+        <a href="{{ url_for('main.list_item') }}" class="btn btn-primary rounded-circle shadow p-3 ms-auto" title="List Item">
+            <i class="fas fa-plus"></i>
+        </a>
+    </div>
+
+    <section class="collapse mb-3" id="feedFiltersCollapse">
+        <div class="activity-feed-filters card shadow-sm">
+            <div class="card-body py-3">
             <form method="get" action="{{ url_for('main.index') }}" class="row g-3 align-items-end">
                 <div class="col-12 col-lg-4">
                     <label for="feed-scope" class="form-label fw-semibold">Scope</label>
@@ -93,6 +110,7 @@
                     </div>
                 </div>
             </form>
+            </div>
         </div>
     </section>
 
@@ -112,39 +130,48 @@
     {% if feed_events %}
         <div class="d-grid gap-3 mb-4 activity-feed-list">
             {% for event in feed_events %}
-                {% set actor_name = event.requester_name or event.owner_name or event.user_name or 'Community Member' %}
-                {% set actor_initials = (actor_name|replace(' ', ''))[:2]|upper %}
+                {% set actor_initials = (event.actor_name|replace(' ', ''))[:2]|upper %}
                 <article class="card shadow-sm border-0 activity-feed-card">
-                    <div class="card-body">
-                        <div class="activity-feed-actor-chip mb-2">
-                            <span class="activity-feed-avatar-fallback" aria-hidden="true">{{ actor_initials or 'CM' }}</span>
-                            <span class="activity-feed-actor-name">{{ actor_name }}</span>
-                        </div>
-
-                        <div class="d-flex justify-content-between align-items-start gap-2">
-                            <div>
-                                {% if event.event_type == 'request' %}
-                                    <span class="badge text-bg-primary mb-2 activity-feed-badge"><i class="fas fa-hand-holding-heart me-1"></i>Request</span>
-                                {% elif event.event_type == 'giveaway' %}
-                                    <span class="badge text-bg-success mb-2 activity-feed-badge"><i class="fas fa-gift me-1"></i>Giveaway</span>
-                                {% elif event.event_type == 'lent' %}
-                                    <span class="badge text-bg-secondary mb-2 activity-feed-badge"><i class="fas fa-handshake me-1"></i>Lent</span>
-                                {% elif event.event_type == 'circle_join' %}
-                                    <span class="badge text-bg-info mb-2 activity-feed-badge"><i class="fas fa-users me-1"></i>Circle Join</span>
-                                {% endif %}
-                                <h2 class="h5 mb-1">{{ event.headline }}</h2>
+                    <div class="card-body py-3">
+                        <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
+                            <span class="activity-feed-avatar-fallback flex-shrink-0" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true">{{ actor_initials or 'CM' }}</span>
+                            <div class="text-truncate">
+                                <strong class="text-body">{{ event.actor_name }}</strong> 
+                                {{ event.action }}
+                            </div>
+                            <div class="ms-auto text-nowrap" style="font-size: 0.8rem;">
+                                {{ event.created_at|utc_timestamp('timeago') }}
                             </div>
                         </div>
 
-                        <div class="mt-3">
+                        <div class="d-block mb-1">
+                            <h2 class="h5 mb-1 d-inline">{{ event.title }}</h2>
+                            {% if event.event_type == 'request' %}
+                                <span class="badge rounded-pill text-bg-light border text-primary ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-hand-holding-heart me-1"></i>Request</span>
+                            {% elif event.event_type == 'giveaway' %}
+                                <span class="badge rounded-pill text-bg-light border text-success ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-gift me-1"></i>Giveaway</span>
+                            {% elif event.event_type == 'lent' %}
+                                <span class="badge rounded-pill text-bg-light border text-secondary ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-handshake me-1"></i>Lent</span>
+                            {% elif event.event_type == 'circle_join' %}
+                                <span class="badge rounded-pill text-bg-light border text-info ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-users me-1"></i>Circle</span>
+                            {% endif %}
+                        </div>
+                        
+                        {% if event.description %}
+                            <p class="text-muted small mb-2 text-break" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                {{ event.description }}
+                            </p>
+                        {% endif %}
+
+                        <div class="mt-2">
                             {% if event.event_type == 'request' and event.request_id %}
-                                <a href="{{ url_for('requests.detail', request_id=event.request_id) }}" class="btn btn-sm btn-outline-primary activity-feed-link">View Request</a>
+                                <a href="{{ url_for('requests.detail', request_id=event.request_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Request <i class="fas fa-chevron-right small ms-1"></i></a>
                             {% elif event.event_type == 'giveaway' and event.item_id %}
-                                <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm btn-outline-primary activity-feed-link">View Giveaway</a>
+                                <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
                             {% elif event.event_type == 'lent' and event.item_id %}
-                                <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm btn-outline-primary activity-feed-link">View Item</a>
+                                <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
                             {% elif event.event_type == 'circle_join' and event.circle_id %}
-                                <a href="{{ url_for('circles.view_circle', circle_id=event.circle_id) }}" class="btn btn-sm btn-outline-primary activity-feed-link">View Circle</a>
+                                <a href="{{ url_for('circles.view_circle', circle_id=event.circle_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Circle <i class="fas fa-chevron-right small ms-1"></i></a>
                             {% endif %}
                         </div>
                     </div>

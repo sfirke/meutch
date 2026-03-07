@@ -139,10 +139,11 @@ def build_visible_requests_events(user, scoped_circle_ids=None, scope='all', max
             'created_at': event_time,
             'request_id': item_request.id,
             'title': item_request.title,
+            'description': item_request.description,
             'status': item_request.status,
-            'requester_name': item_request.user.full_name if item_request.user else 'Deleted User',
+            'actor_name': item_request.user.full_name if item_request.user else 'Deleted User',
+            'action': 'requested',
             'visibility': item_request.visibility,
-            'headline': f"{item_request.user.full_name if item_request.user else 'Deleted User'} requested: {item_request.title}",
         })
     return events
 
@@ -190,8 +191,9 @@ def build_visible_giveaway_events(user, scoped_circle_ids=None, scope='all', max
             'created_at': _utc(item.created_at),
             'item_id': item.id,
             'title': item.name,
-            'owner_name': item.owner.full_name if item.owner else 'Deleted User',
-            'headline': f"{item.owner.full_name if item.owner else 'Deleted User'} posted a giveaway: {item.name}",
+            'description': item.description,
+            'actor_name': item.owner.full_name if item.owner else 'Deleted User',
+            'action': 'posted a giveaway',
         })
     return events
 
@@ -224,8 +226,9 @@ def build_recent_lent_events(user, scoped_circle_ids=None, days=30):
             'loan_request_id': loan.id,
             'item_id': item.id,
             'title': item.name,
-            'owner_name': owner_name,
-            'headline': f"{owner_name} lent out {item.name}",
+            'description': item.description,
+            'actor_name': owner_name,
+            'action': 'lent out',
         })
     return events
 
@@ -245,22 +248,22 @@ def consolidate_circle_join_activity(join_rows, circle_sizes):
         extra_count = len(user_rows) - 1
 
         if extra_count > 0:
-            headline = (
-                f"{primary_circle['user_name']} joined {primary_circle['circle_name']} "
-                f"+ {extra_count} more of your circles"
-            )
+            action = "joined"
+            title = f"{primary_circle['circle_name']} + {extra_count} more of your circles"
         else:
-            headline = f"{primary_circle['user_name']} joined {primary_circle['circle_name']}"
+            action = "joined"
+            title = primary_circle['circle_name']
 
         events.append({
             'event_type': 'circle_join',
             'created_at': primary_circle['created_at'],
             'user_id': primary_circle['user_id'],
-            'user_name': primary_circle['user_name'],
+            'actor_name': primary_circle['user_name'],
             'circle_id': primary_circle['circle_id'],
-            'circle_name': primary_circle['circle_name'],
+            'title': title,
+            'description': None,
             'extra_circle_count': extra_count,
-            'headline': headline,
+            'action': action,
         })
 
     return events

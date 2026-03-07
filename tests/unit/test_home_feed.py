@@ -38,7 +38,7 @@ def test_consolidate_circle_join_activity_merges_by_user():
     assert len(events) == 1
     assert events[0]['circle_id'] == 'circle-small'
     assert events[0]['extra_circle_count'] == 1
-    assert ' + 1 more of your circles' in events[0]['headline']
+    assert ' + 1 more of your circles' in events[0]['title']
 
 
 def test_build_visible_giveaway_events_defaults_to_20_miles(app):
@@ -118,7 +118,7 @@ def test_build_recent_lent_events_hides_borrower_identity(app):
         event = events[0]
         assert event['event_type'] == 'lent'
         assert 'borrower_name' not in event
-        assert 'VeryUniqueBorrower' not in event['headline']
+        assert 'VeryUniqueBorrower' not in event['actor_name']
 
 
 def test_build_visible_requests_events_defaults_to_20_miles_for_geocoded_user(app):
