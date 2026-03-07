@@ -1333,13 +1333,6 @@ footer h6 {
     padding: 1rem 1.25rem;
 }
 
-.activity-feed-filters .form-check {
-    padding: 0.35rem 0.6rem;
-    border: 1px solid var(--border-color);
-    border-radius: 9999px;
-    background: white;
-}
-
 .activity-feed-card {
     border-radius: calc(var(--border-radius) * 2.25) !important;
     border: 1px solid var(--border-color);
@@ -1414,4 +1407,98 @@ footer h6 {
     .activity-feed-card {
         border-radius: calc(var(--border-radius) * 1.75) !important;
     }
+}
+
+/* Meutch orange — matches the logo background (#f6ad55) */
+.btn-meutch-orange {
+    background-color: var(--warning-color) !important;
+    border-color: var(--warning-color) !important;
+    color: white !important;
+    font-weight: 500;
+}
+
+.btn-meutch-orange:hover,
+.btn-meutch-orange:focus {
+    background-color: #e09333 !important;
+    border-color: #e09333 !important;
+    color: white !important;
+}
+
+/* Mobile speed-dial FAB */
+.fab-speed-dial {
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    z-index: 1030;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+.fab-main {
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 9999px;
+    background-color: var(--warning-color) !important;
+    border-color: var(--warning-color) !important;
+    color: white !important;
+    font-size: 1.15rem;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.fab-main:hover,
+.fab-main:focus {
+    background-color: #e09333 !important;
+    border-color: #e09333 !important;
+    color: white !important;
+    transform: scale(1.07);
+}
+
+.fab-main .fab-icon {
+    transition: transform 0.25s ease;
+}
+
+.fab-main.is-open .fab-icon {
+    transform: rotate(45deg);
+}
+
+.fab-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+}
+
+.fab-actions.is-open {
+    max-height: 12rem;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.fab-action {
+    background-color: var(--warning-color) !important;
+    border-color: var(--warning-color) !important;
+    color: white !important;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+}
+
+.fab-action:hover,
+.fab-action:focus {
+    background-color: #e09333 !important;
+    border-color: #e09333 !important;
+    color: white !important;
 }

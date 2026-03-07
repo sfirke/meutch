@@ -34,7 +34,7 @@
                 <h1 class="h3 mb-0">Community Activity</h1>
             </div>
             <div class="d-none d-md-flex gap-2">
-                <a href="{{ url_for('requests.new') }}" class="btn btn-sm btn-outline-primary">
+                <a href="{{ url_for('requests.new') }}" class="btn btn-sm btn-meutch-orange">
                     <i class="fas fa-hand-holding-heart me-1"></i>Create Request
                 </a>
                 <a href="{{ url_for('main.list_item') }}" class="btn btn-sm btn-primary">
@@ -51,14 +51,19 @@
         </div>
     </section>
 
-    <!-- Mobile FAB -->
-    <div class="d-md-none position-fixed flex-column gap-2 z-3" style="bottom: 20px; right: 20px; display: flex;">
-        <a href="{{ url_for('requests.new') }}" class="btn btn-light rounded-circle shadow p-3 ms-auto text-primary" title="Create Request">
-            <i class="fas fa-hand-holding-heart"></i>
-        </a>
-        <a href="{{ url_for('main.list_item') }}" class="btn btn-primary rounded-circle shadow p-3 ms-auto" title="List Item">
-            <i class="fas fa-plus"></i>
-        </a>
+    <!-- Mobile speed-dial FAB -->
+    <div class="d-md-none fab-speed-dial" id="feedFab" aria-label="Create" role="group">
+        <div class="fab-actions" id="fabActions">
+            <a href="{{ url_for('requests.new') }}" class="fab-action btn rounded-pill px-3 py-2">
+                <i class="fas fa-hand-holding-heart me-2"></i>Request
+            </a>
+            <a href="{{ url_for('main.list_item') }}" class="fab-action btn rounded-pill px-3 py-2">
+                <i class="fas fa-plus me-2"></i>Item
+            </a>
+        </div>
+        <button class="fab-main btn" id="fabToggle" type="button" aria-label="Create" aria-expanded="false" aria-controls="fabActions">
+            <i class="fas fa-plus fab-icon"></i>
+        </button>
     </div>
 
     <section class="collapse mb-3" id="feedFiltersCollapse">
@@ -91,22 +96,17 @@
                     <input type="hidden" name="types_present" value="1">
                     <span class="form-label d-block fw-semibold mb-2">Show activity types</span>
                     <div class="d-flex flex-wrap gap-2">
-                        <div class="form-check form-check-inline mb-0">
-                            <input class="form-check-input" type="checkbox" id="feed-type-requests" name="types" value="requests" {% if 'requests' in selected_feed_types %}checked{% endif %}>
-                            <label class="form-check-label" for="feed-type-requests">Requests</label>
-                        </div>
-                        <div class="form-check form-check-inline mb-0">
-                            <input class="form-check-input" type="checkbox" id="feed-type-giveaways" name="types" value="giveaways" {% if 'giveaways' in selected_feed_types %}checked{% endif %}>
-                            <label class="form-check-label" for="feed-type-giveaways">Giveaways</label>
-                        </div>
-                        <div class="form-check form-check-inline mb-0">
-                            <input class="form-check-input" type="checkbox" id="feed-type-circle-joins" name="types" value="circle_joins" {% if 'circle_joins' in selected_feed_types %}checked{% endif %}>
-                            <label class="form-check-label" for="feed-type-circle-joins">Circle Joins</label>
-                        </div>
-                        <div class="form-check form-check-inline mb-0">
-                            <input class="form-check-input" type="checkbox" id="feed-type-loans" name="types" value="loans" {% if 'loans' in selected_feed_types %}checked{% endif %}>
-                            <label class="form-check-label" for="feed-type-loans">Loans</label>
-                        </div>
+                        <input class="btn-check" type="checkbox" id="feed-type-requests" name="types" value="requests" autocomplete="off" {% if 'requests' in selected_feed_types %}checked{% endif %}>
+                        <label class="btn btn-sm btn-outline-primary rounded-pill" for="feed-type-requests"><i class="fas fa-hand-holding-heart me-1"></i>Requests</label>
+
+                        <input class="btn-check" type="checkbox" id="feed-type-giveaways" name="types" value="giveaways" autocomplete="off" {% if 'giveaways' in selected_feed_types %}checked{% endif %}>
+                        <label class="btn btn-sm btn-outline-success rounded-pill" for="feed-type-giveaways"><i class="fas fa-gift me-1"></i>Giveaways</label>
+
+                        <input class="btn-check" type="checkbox" id="feed-type-circle-joins" name="types" value="circle_joins" autocomplete="off" {% if 'circle_joins' in selected_feed_types %}checked{% endif %}>
+                        <label class="btn btn-sm btn-outline-info rounded-pill" for="feed-type-circle-joins"><i class="fas fa-users me-1"></i>Circle Joins</label>
+
+                        <input class="btn-check" type="checkbox" id="feed-type-loans" name="types" value="loans" autocomplete="off" {% if 'loans' in selected_feed_types %}checked{% endif %}>
+                        <label class="btn btn-sm btn-outline-secondary rounded-pill" for="feed-type-loans"><i class="fas fa-handshake me-1"></i>Loans</label>
                     </div>
                 </div>
             </form>
@@ -268,4 +268,28 @@
 
 {% block scripts %}
 {{ super() }}
+<script>
+(function () {
+    'use strict';
+    var fab = document.getElementById('feedFab');
+    if (!fab) return;
+    var toggle = document.getElementById('fabToggle');
+    var actions = document.getElementById('fabActions');
+
+    toggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var isOpen = actions.classList.toggle('is-open');
+        toggle.classList.toggle('is-open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!fab.contains(e.target)) {
+            actions.classList.remove('is-open');
+            toggle.classList.remove('is-open');
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+    });
+}());
+</script>
 {% endblock %}

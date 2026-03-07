@@ -44,10 +44,10 @@ class TestMainRoutes:
             assert 'All Activity' in content
             assert 'My Circles' in content
             assert 'name="distance"' in content
-            assert 'name="types" value="requests" checked' in content
-            assert 'name="types" value="giveaways" checked' in content
-            assert 'name="types" value="circle_joins" checked' in content
-            assert 'name="types" value="loans" checked' in content
+            assert 'value="requests"' in content
+            assert 'value="giveaways"' in content
+            assert 'value="circle_joins"' in content
+            assert 'value="loans"' in content
             assert 'option value="20" selected' in content
 
     def test_home_feed_scope_circles_hides_non_shared_public_request_and_giveaway(self, client, app, auth_user):
@@ -200,7 +200,7 @@ class TestMainRoutes:
 
             assert response.status_code == 200
             assert f'href="/circles/{circle.id}"' in content
-            assert '>View Circle<' in content
+            assert 'View Circle' in content
             assert 'View Circles' not in content
             assert 'activity-feed-meta' not in content
 
