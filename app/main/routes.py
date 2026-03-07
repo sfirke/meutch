@@ -14,10 +14,9 @@ from app.utils.geocoding import sort_items_by_owner_distance
 from app.utils.pagination import ListPagination
 from app.utils.email import send_message_notification_email
 from app.utils.giveaway_visibility import can_view_claimed_giveaway, get_unavailable_giveaway_suggestions
-from app.utils.home_feed import build_homepage_feed_events
+from app.utils.home_feed import build_homepage_feed_events, HOMEPAGE_FEED_EVENT_TYPES
 
 
-HOMEPAGE_FEED_TYPES = {'requests', 'giveaways', 'loans', 'circle_joins'}
 HOMEPAGE_DISTANCE_OPTIONS = {5, 10, 20, 25, 50}
 
 
@@ -29,7 +28,7 @@ def _parse_homepage_feed_filters(user):
     selected_types_raw = request.args.getlist('types')
     types_explicit = 'types_present' in request.args
     if types_explicit:
-        selected_feed_types = [event_type for event_type in selected_types_raw if event_type in HOMEPAGE_FEED_TYPES]
+        selected_feed_types = [event_type for event_type in selected_types_raw if event_type in HOMEPAGE_FEED_EVENT_TYPES]
     else:
         selected_feed_types = ['requests', 'giveaways', 'circle_joins', 'loans']
 

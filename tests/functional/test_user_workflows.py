@@ -38,7 +38,7 @@ class TestUserRegistrationWorkflow:
             response = login_user(client, 'newuser@example.com', 'newpassword123')
             
             assert response.status_code == 200
-            assert b'Welcome' in response.data or b'Your Items' in response.data
+            assert b'Community Activity' in response.data or b'Find Circles' in response.data
 
 class TestItemManagementWorkflow:
     """Test complete item management workflow."""
