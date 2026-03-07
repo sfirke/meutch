@@ -142,6 +142,8 @@ def build_visible_requests_events(user, scoped_circle_ids=None, scope='all', max
             'description': item_request.description,
             'status': item_request.status,
             'actor_name': item_request.user.full_name if item_request.user else 'Deleted User',
+            'actor_avatar_url': item_request.user.profile_image_url if item_request.user else None,
+            'image_url': None,
             'action': 'requested',
             'visibility': item_request.visibility,
         })
@@ -193,6 +195,8 @@ def build_visible_giveaway_events(user, scoped_circle_ids=None, scope='all', max
             'title': item.name,
             'description': item.description,
             'actor_name': item.owner.full_name if item.owner else 'Deleted User',
+            'actor_avatar_url': item.owner.profile_image_url if item.owner else None,
+            'image_url': item.image_url,
             'action': 'posted a giveaway',
         })
     return events
@@ -228,6 +232,8 @@ def build_recent_lent_events(user, scoped_circle_ids=None, days=30):
             'title': item.name,
             'description': item.description,
             'actor_name': owner_name,
+            'actor_avatar_url': item.owner.profile_image_url if item.owner else None,
+            'image_url': item.image_url,
             'action': 'lent out',
         })
     return events
@@ -259,6 +265,8 @@ def consolidate_circle_join_activity(join_rows, circle_sizes):
             'created_at': primary_circle['created_at'],
             'user_id': primary_circle['user_id'],
             'actor_name': primary_circle['user_name'],
+            'actor_avatar_url': primary_circle.get('user_avatar_url'),
+            'image_url': primary_circle.get('circle_image_url'),
             'circle_id': primary_circle['circle_id'],
             'title': title,
             'description': None,
@@ -300,8 +308,10 @@ def build_circle_join_events(user, scoped_circle_ids=None, days=30):
         join_rows.append({
             'user_id': join_request.user_id,
             'user_name': join_request.user.full_name if join_request.user else 'Deleted User',
+            'user_avatar_url': join_request.user.profile_image_url if join_request.user else None,
             'circle_id': join_request.circle_id,
             'circle_name': join_request.circle.name if join_request.circle else 'Unknown Circle',
+            'circle_image_url': join_request.circle.image_url if join_request.circle else None,
             'created_at': _utc(join_request.created_at),
         })
 

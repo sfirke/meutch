@@ -131,10 +131,24 @@
         <div class="d-grid gap-3 mb-4 activity-feed-list">
             {% for event in feed_events %}
                 {% set actor_initials = (event.actor_name|replace(' ', ''))[:2]|upper %}
-                <article class="card shadow-sm border-0 activity-feed-card">
+                {% set border_class = '' %}
+                {% if event.event_type == 'request' %}
+                    {% set border_class = 'border-start border-4 border-primary' %}
+                {% elif event.event_type == 'giveaway' %}
+                    {% set border_class = 'border-start border-4 border-success' %}
+                {% elif event.event_type == 'lent' %}
+                    {% set border_class = 'border-start border-4 border-secondary' %}
+                {% elif event.event_type == 'circle_join' %}
+                    {% set border_class = 'border-start border-4 border-info' %}
+                {% endif %}
+                <article class="card shadow-sm border-0 activity-feed-card {{ border_class }}">
                     <div class="card-body py-3">
                         <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
-                            <span class="activity-feed-avatar-fallback flex-shrink-0" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true">{{ actor_initials or 'CM' }}</span>
+                            {% if event.actor_avatar_url %}
+                                <img src="{{ event.actor_avatar_url }}" alt="{{ event.actor_name }}" class="rounded-circle flex-shrink-0" style="width: 28px; height: 28px; object-fit: cover;">
+                            {% else %}
+                                <span class="activity-feed-avatar-fallback flex-shrink-0" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true">{{ actor_initials or 'CM' }}</span>
+                            {% endif %}
                             <div class="text-truncate">
                                 <strong class="text-body">{{ event.actor_name }}</strong> 
                                 {{ event.action }}
@@ -144,39 +158,49 @@
                             </div>
                         </div>
 
-                        <div class="d-block mb-1">
-                            <h2 class="h5 mb-1 d-inline">{{ event.title }}</h2>
-                            {% if event.event_type == 'request' %}
-                                <span class="badge rounded-pill text-bg-light border text-primary ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-hand-holding-heart me-1"></i>Request</span>
-                            {% elif event.event_type == 'giveaway' %}
-                                <span class="badge rounded-pill text-bg-light border text-success ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-gift me-1"></i>Giveaway</span>
-                            {% elif event.event_type == 'lent' %}
-                                <span class="badge rounded-pill text-bg-light border text-secondary ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-handshake me-1"></i>Lent</span>
-                            {% elif event.event_type == 'circle_join' %}
-                                <span class="badge rounded-pill text-bg-light border text-info ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-users me-1"></i>Circle</span>
-                            {% endif %}
-                        </div>
-                        
-                        {% if event.description %}
-                            <p class="text-muted small mb-2 text-break" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                {{ event.description }}
-                            </p>
-                        {% endif %}
+                        <div class="d-flex w-100">
+                            <div class="flex-grow-1" style="min-width: 0;">
+                                <div class="d-block mb-1">
+                                    <h2 class="h5 mb-1 d-inline">{{ event.title }}</h2>
+                                    {% if event.event_type == 'request' %}
+                                        <span class="badge rounded-pill text-bg-light border text-primary ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-hand-holding-heart me-1"></i>Request</span>
+                                    {% elif event.event_type == 'giveaway' %}
+                                        <span class="badge rounded-pill text-bg-light border text-success ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-gift me-1"></i>Giveaway</span>
+                                    {% elif event.event_type == 'lent' %}
+                                        <span class="badge rounded-pill text-bg-light border text-secondary ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-handshake me-1"></i>Lent</span>
+                                    {% elif event.event_type == 'circle_join' %}
+                                        <span class="badge rounded-pill text-bg-light border text-info ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-users me-1"></i>Circle</span>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if event.description %}
+                                    <p class="text-muted small mb-2 text-break" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                        {{ event.description }}
+                                    </p>
+                                {% endif %}
 
-                        <div class="mt-2">
-                            {% if event.event_type == 'request' and event.request_id %}
-                                <a href="{{ url_for('requests.detail', request_id=event.request_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Request <i class="fas fa-chevron-right small ms-1"></i></a>
-                            {% elif event.event_type == 'giveaway' and event.item_id %}
-                                <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
-                            {% elif event.event_type == 'lent' and event.item_id %}
-                                <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
-                            {% elif event.event_type == 'circle_join' and event.circle_id %}
-                                <a href="{{ url_for('circles.view_circle', circle_id=event.circle_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Circle <i class="fas fa-chevron-right small ms-1"></i></a>
+                                <div class="mt-2">
+                                    {% if event.event_type == 'request' and event.request_id %}
+                                        <a href="{{ url_for('requests.detail', request_id=event.request_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Request <i class="fas fa-chevron-right small ms-1"></i></a>
+                                    {% elif event.event_type == 'giveaway' and event.item_id %}
+                                        <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
+                                    {% elif event.event_type == 'lent' and event.item_id %}
+                                        <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
+                                    {% elif event.event_type == 'circle_join' and event.circle_id %}
+                                        <a href="{{ url_for('circles.view_circle', circle_id=event.circle_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Circle <i class="fas fa-chevron-right small ms-1"></i></a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if event.image_url %}
+                            <div class="flex-shrink-0 ms-3">
+                                <img src="{{ event.image_url }}" alt="" class="rounded border" style="width: 72px; height: 72px; object-fit: cover;">
+                            </div>
                             {% endif %}
                         </div>
                     </div>
                 </article>
             {% endfor %}
+
         </div>
     {% elif has_circles %}
         <div class="empty-state">
