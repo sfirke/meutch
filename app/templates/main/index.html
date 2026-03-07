@@ -112,17 +112,6 @@
     {% if feed_events %}
         <div class="d-grid gap-3 mb-4 activity-feed-list">
             {% for event in feed_events %}
-                {% if event.event_type == 'request' %}
-                    {% set event_label = 'Request' %}
-                {% elif event.event_type == 'giveaway' %}
-                    {% set event_label = 'Giveaway' %}
-                {% elif event.event_type == 'lent' %}
-                    {% set event_label = 'Lent' %}
-                {% elif event.event_type == 'circle_join' %}
-                    {% set event_label = 'Circle Join' %}
-                {% else %}
-                    {% set event_label = 'Activity' %}
-                {% endif %}
                 {% set actor_name = event.requester_name or event.owner_name or event.user_name or 'Community Member' %}
                 {% set actor_initials = (actor_name|replace(' ', ''))[:2]|upper %}
                 <article class="card shadow-sm border-0 activity-feed-card">
@@ -144,11 +133,6 @@
                                     <span class="badge text-bg-info mb-2 activity-feed-badge"><i class="fas fa-users me-1"></i>Circle Join</span>
                                 {% endif %}
                                 <h2 class="h5 mb-1">{{ event.headline }}</h2>
-                                <div class="activity-feed-meta text-muted small">
-                                    <span>{{ event_label }}</span>
-                                    <span class="activity-feed-meta-separator">•</span>
-                                    <span>{{ event.created_at|utc_timestamp('short-datetime') }}</span>
-                                </div>
                             </div>
                         </div>
 
@@ -159,8 +143,8 @@
                                 <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm btn-outline-primary activity-feed-link">View Giveaway</a>
                             {% elif event.event_type == 'lent' and event.item_id %}
                                 <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm btn-outline-primary activity-feed-link">View Item</a>
-                            {% elif event.event_type == 'circle_join' %}
-                                <a href="{{ url_for('circles.manage_circles') }}" class="btn btn-sm btn-outline-primary activity-feed-link">View Circles</a>
+                            {% elif event.event_type == 'circle_join' and event.circle_id %}
+                                <a href="{{ url_for('circles.view_circle', circle_id=event.circle_id) }}" class="btn btn-sm btn-outline-primary activity-feed-link">View Circle</a>
                             {% endif %}
                         </div>
                     </div>

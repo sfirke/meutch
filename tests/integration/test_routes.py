@@ -182,6 +182,28 @@ class TestMainRoutes:
             assert 'Type Filter Lent Item' not in content
             assert f'{joiner.full_name} joined {circle.name}' not in content
 
+    def test_home_feed_circle_join_links_to_specific_circle_and_hides_combined_metadata_row(self, client, app, auth_user):
+        """Circle-join feed cards should link to the joined circle and not render the combined metadata row."""
+        with app.app_context():
+            viewer = auth_user()
+            joiner = UserFactory(first_name='Circle', last_name='Joiner')
+            circle = CircleFactory(name='Neighborhood Circle')
+            circle.members.append(viewer)
+
+            join_event = CircleJoinRequestFactory(circle=circle, user=joiner, status='approved')
+            db.session.add(join_event)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get('/')
+            content = response.data.decode('utf-8')
+
+            assert response.status_code == 200
+            assert f'href="/circles/{circle.id}"' in content
+            assert '>View Circle<' in content
+            assert 'View Circles' not in content
+            assert 'activity-feed-meta' not in content
+
     def test_find_page_requires_login(self, client):
         """Test /find requires authentication."""
         response = client.get('/find')
