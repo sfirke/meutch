@@ -2,7 +2,7 @@
 import pytest
 from app import db
 from app.models import Item, User, Category, Circle
-from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory, LoanRequestFactory, UserWebLinkFactory
+from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory, LoanRequestFactory, UserWebLinkFactory, ItemRequestFactory, CircleJoinRequestFactory
 from conftest import login_user
 from unittest.mock import patch
 import io
@@ -23,7 +23,212 @@ class TestMainRoutes:
             login_user(client, user.email)
             response = client.get('/')
             assert response.status_code == 200
+            assert b'Community Activity' in response.data
+            assert b'Create Request' in response.data
+            assert b'List Item' in response.data
+
+    def test_index_with_authenticated_user_renders_feed_filter_controls(self, client, app, auth_user):
+        """Test authenticated homepage renders feed filter controls with smart defaults."""
+        with app.app_context():
+            user = auth_user()
+            user.latitude = 0.0
+            user.longitude = 0.0
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/')
+
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'name="scope"' in content
+            assert 'All Activity' in content
+            assert 'My Circles' in content
+            assert 'name="distance"' in content
+            assert 'name="types" value="requests" checked' in content
+            assert 'name="types" value="giveaways" checked' in content
+            assert 'name="types" value="circle_joins" checked' in content
+            assert 'name="types" value="loans" checked' in content
+            assert 'option value="20" selected' in content
+
+    def test_home_feed_scope_circles_hides_non_shared_public_request_and_giveaway(self, client, app, auth_user):
+        """Test scope=circles hides public request and giveaway from users without a shared circle."""
+        with app.app_context():
+            viewer = auth_user()
+            shared_user = UserFactory()
+            outsider = UserFactory()
+            category = CategoryFactory()
+
+            shared_circle = CircleFactory()
+            shared_circle.members.extend([viewer, shared_user])
+
+            outsider_circle = CircleFactory()
+            outsider_circle.members.append(outsider)
+
+            ItemRequestFactory(user=shared_user, title='Shared Scope Request', visibility='public')
+            ItemRequestFactory(user=outsider, title='Outsider Scope Request', visibility='public')
+
+            ItemFactory(
+                owner=shared_user,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed',
+                name='Shared Scope Giveaway',
+            )
+            ItemFactory(
+                owner=outsider,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed',
+                name='Outsider Scope Giveaway',
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+
+            all_scope_response = client.get('/')
+            all_scope_content = all_scope_response.data.decode('utf-8')
+            assert 'Shared Scope Request' in all_scope_content
+            assert 'Outsider Scope Request' in all_scope_content
+            assert 'Shared Scope Giveaway' in all_scope_content
+            assert 'Outsider Scope Giveaway' in all_scope_content
+
+            circles_scope_response = client.get('/?scope=circles')
+            circles_scope_content = circles_scope_response.data.decode('utf-8')
+            assert 'Shared Scope Request' in circles_scope_content
+            assert 'Outsider Scope Request' not in circles_scope_content
+            assert 'Shared Scope Giveaway' in circles_scope_content
+            assert 'Outsider Scope Giveaway' not in circles_scope_content
+
+    def test_home_feed_distance_filter_hides_far_requests_and_giveaways(self, client, app, auth_user):
+        """Test distance filter applies to request and giveaway activity."""
+        with app.app_context():
+            viewer = auth_user()
+            viewer.latitude = 0.0
+            viewer.longitude = 0.0
+
+            near_user = UserFactory(latitude=0.0, longitude=0.02)
+            far_user = UserFactory(latitude=0.0, longitude=0.5)
+            category = CategoryFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, near_user, far_user])
+
+            ItemRequestFactory(user=near_user, title='Near Distance Request', visibility='public')
+            ItemRequestFactory(user=far_user, title='Far Distance Request', visibility='public')
+
+            ItemFactory(
+                owner=near_user,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed',
+                name='Near Distance Giveaway',
+            )
+            ItemFactory(
+                owner=far_user,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed',
+                name='Far Distance Giveaway',
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get('/?distance=5')
+            content = response.data.decode('utf-8')
+
+            assert 'Near Distance Request' in content
+            assert 'Far Distance Request' not in content
+            assert 'Near Distance Giveaway' in content
+            assert 'Far Distance Giveaway' not in content
+
+    def test_home_feed_type_checkboxes_hide_unchecked_event_types(self, client, app, auth_user):
+        """Test type checkbox filters hide unchecked activity event types."""
+        with app.app_context():
+            viewer = auth_user()
+            owner = UserFactory()
+            borrower = UserFactory()
+            joiner = UserFactory(first_name='Joiner', last_name='Person')
+            category = CategoryFactory()
+
+            circle = CircleFactory()
+            circle.members.extend([viewer, owner, borrower])
+
+            ItemRequestFactory(user=owner, title='Type Filter Request', visibility='public')
+            ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed',
+                name='Type Filter Giveaway',
+            )
+
+            lent_item = ItemFactory(owner=owner, category=category, name='Type Filter Lent Item')
+            LoanRequestFactory(item=lent_item, borrower=borrower, status='approved')
+
+            join_event = CircleJoinRequestFactory(circle=circle, user=joiner, status='approved')
+            db.session.add(join_event)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get('/?types_present=1&types=requests&types=giveaways')
+            content = response.data.decode('utf-8')
+
+            assert 'Type Filter Request' in content
+            assert 'Type Filter Giveaway' in content
+            assert 'Type Filter Lent Item' not in content
+            assert f'{joiner.full_name} joined {circle.name}' not in content
+
+    def test_home_feed_circle_join_links_to_specific_circle_and_hides_combined_metadata_row(self, client, app, auth_user):
+        """Circle-join feed cards should link to the joined circle and not render the combined metadata row."""
+        with app.app_context():
+            viewer = auth_user()
+            joiner = UserFactory(first_name='Circle', last_name='Joiner')
+            circle = CircleFactory(name='Neighborhood Circle')
+            circle.members.append(viewer)
+
+            join_event = CircleJoinRequestFactory(circle=circle, user=joiner, status='approved')
+            db.session.add(join_event)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get('/')
+            content = response.data.decode('utf-8')
+
+            assert response.status_code == 200
+            assert f'href="/circles/{circle.id}"' in content
+            assert '>View Circle<' in content
+            assert 'View Circles' not in content
+            assert 'activity-feed-meta' not in content
+
+    def test_find_page_requires_login(self, client):
+        """Test /find requires authentication."""
+        response = client.get('/find')
+        assert response.status_code == 302
+        assert '/auth/login' in response.headers['Location']
+
+    def test_find_page_with_authenticated_user(self, client, app, auth_user):
+        """Test /find shows the search/find experience for authenticated users."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+            response = client.get('/find')
+            assert response.status_code == 200
+            assert b'Find Items' in response.data
             assert b'Join a circle to start finding items' in response.data
+
+    def test_giveaways_redirects_to_home_for_authenticated_user(self, client, app, auth_user):
+        """Test /giveaways redirects authenticated users to homepage feed."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+
+            response = client.get('/giveaways', follow_redirects=False)
+            assert response.status_code == 302
+            assert response.headers['Location'].endswith('/')
     
     def test_index_anonymous_user_limited_items(self, client, app):
         """Test that anonymous users see limited items with 'more' message."""
@@ -44,8 +249,8 @@ class TestMainRoutes:
             assert 'more</strong> available items' in response_text
             assert b'Sign Up' in response.data
     
-    def test_index_authenticated_user_pagination(self, client, app, auth_user):
-        """Test that authenticated users get pagination controls."""
+    def test_find_authenticated_user_pagination(self, client, app, auth_user):
+        """Test that authenticated users get pagination controls on /find."""
         with app.app_context():
             user = auth_user()
             other_user = UserFactory()
@@ -63,7 +268,7 @@ class TestMainRoutes:
                 ItemFactory(owner=other_user, category=category, available=True)
             
             login_user(client, user.email)
-            response = client.get('/')
+            response = client.get('/find')
             assert response.status_code == 200
             
             # Should have pagination controls since we have 15 items (> 12 per page)
@@ -72,7 +277,7 @@ class TestMainRoutes:
             assert 'Page 1 of 2' in response_text or 'page-item' in response_text  # Pagination indicators
             
             # Test that page 2 exists and works
-            page2_response = client.get('/?page=2')
+            page2_response = client.get('/find?page=2')
             assert page2_response.status_code == 200
             page2_text = page2_response.data.decode('utf-8')
             assert 'aria-label="Items pages"' in page2_text

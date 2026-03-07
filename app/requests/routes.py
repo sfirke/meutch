@@ -7,139 +7,14 @@ from app import db
 from app.models import ItemRequest, User, Message
 from app.forms import ItemRequestForm, EmptyForm, MessageForm
 from app.requests import bp as requests_bp
-from app.utils.pagination import ListPagination
 from app.utils.email import send_message_notification_email
 
 
 @requests_bp.route('/')
 @login_required
 def feed():
-    """Display the requests feed with filtering options."""
-    page = request.args.get('page', 1, type=int)
-    scope = request.args.get('scope', 'all')
-    if scope not in ('all', 'circles'):
-        scope = 'all'
-    # Default distance to 25 miles for all scope if not specified at all
-    # If distance param is present but empty, max_distance will be None (no filter)
-    max_distance = request.args.get('distance', type=int)
-    if scope == 'all' and max_distance is None and 'distance' not in request.args:
-        max_distance = 25
-    per_page = 12
-
-    now = datetime.now(UTC)
-    seven_days_ago = now - timedelta(days=7)
-    ninety_days_ago = now - timedelta(days=90)
-
-    has_circles = len(current_user.circles) > 0
-
-    # My own requests (open, recently fulfilled, or recently expired within 90 days) — always shown at top
-    my_requests = ItemRequest.query.filter(
-        ItemRequest.user_id == current_user.id,
-        ItemRequest.status != 'deleted',
-        or_(
-            # Open and not expired, or expired within the last 90 days
-            and_(
-                ItemRequest.status == 'open',
-                ItemRequest.expires_at > ninety_days_ago,
-            ),
-            # Fulfilled within the last 90 days
-            and_(
-                ItemRequest.status == 'fulfilled',
-                ItemRequest.fulfilled_at > ninety_days_ago,
-            ),
-        ),
-    ).order_by(ItemRequest.created_at.desc()).all()
-
-    # Build the base query for others' requests
-    base_query = ItemRequest.query.join(User, ItemRequest.user_id == User.id).filter(
-        ItemRequest.user_id != current_user.id,
-        User.is_deleted == False,
-        User.vacation_mode == False,
-        or_(
-            # Open and not expired
-            and_(
-                ItemRequest.status == 'open',
-                ItemRequest.expires_at > now,
-            ),
-            # Fulfilled within the last 7 days
-            and_(
-                ItemRequest.status == 'fulfilled',
-                ItemRequest.fulfilled_at > seven_days_ago,
-            ),
-        ),
-    )
-
-    if scope == 'circles':
-        # Circles scope: requests from users who share circles with current user
-        if not has_circles:
-            return render_template('requests/feed.html',
-                                   requests_list=[],
-                                   my_requests=my_requests,
-                                   pagination=None,
-                                   scope=scope,
-                                   max_distance=max_distance,
-                                   no_circles=True,
-                                   fulfill_form=EmptyForm(),
-                                   delete_form=EmptyForm())
-
-        shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
-        base_query = base_query.filter(
-            ItemRequest.user_id.in_(shared_circle_user_ids),
-        )
-    else:
-        # All scope: public requests from any user + circles requests from shared circles
-        shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
-        if shared_circle_user_ids is None:
-            base_query = base_query.filter(
-                ItemRequest.visibility == 'public',
-            )
-        else:
-            base_query = base_query.filter(
-                or_(
-                    ItemRequest.visibility == 'public',
-                    and_(
-                        ItemRequest.visibility == 'circles',
-                        ItemRequest.user_id.in_(shared_circle_user_ids),
-                    ),
-                )
-            )
-
-    # Distance filtering (only for all scope when user is geocoded)
-    if scope == 'all' and max_distance and current_user.is_geocoded:
-        all_requests = base_query.all()
-
-        filtered = []
-        for req in all_requests:
-            if req.user.is_geocoded:
-                distance = current_user.distance_to(req.user)
-                if distance is not None and distance <= max_distance:
-                    filtered.append(req)
-
-        # Sort by newest first
-        filtered.sort(key=lambda r: r.created_at, reverse=True)
-
-        pagination = ListPagination(filtered, page, per_page)
-        requests_list = pagination.items
-    elif scope == 'all' and current_user.is_geocoded:
-        # All, no distance filter — still sort by date via DB
-        base_query = base_query.order_by(ItemRequest.created_at.desc())
-        pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
-        requests_list = pagination.items
-    else:
-        # Circles scope or non-geocoded all — sort by date
-        base_query = base_query.order_by(ItemRequest.created_at.desc())
-        pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
-        requests_list = pagination.items
-
-    return render_template('requests/feed.html',
-                           requests_list=requests_list,
-                           my_requests=my_requests,
-                           pagination=pagination,
-                           scope=scope,
-                           max_distance=max_distance,
-                           no_circles=False,
-                           fulfill_form=EmptyForm(),
-                           delete_form=EmptyForm())
+    """Requests feed now redirects to the homepage activity feed."""
+    return redirect(url_for('main.index'))
 
 
 @requests_bp.route('/new', methods=['GET', 'POST'])

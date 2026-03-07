@@ -50,6 +50,26 @@ def utc_timestamp(value, format='datetime'):
             fallback = value.strftime('%Y-%m-%d %H:%M UTC')
         elif format == 'short-datetime':
             fallback = value.strftime('%b %d, %I:%M %p UTC')
+        elif format == 'timeago':
+            from datetime import datetime, UTC
+            now = datetime.now(UTC)
+            # If value is naive, assume UTC but make it aware for comparison
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=UTC)
+            delta = now - value
+            if delta.total_seconds() < 60:
+                fallback = "just now"
+            elif delta.total_seconds() < 3600:
+                mins = int(delta.total_seconds() / 60)
+                fallback = f"{mins} minute{'s' if mins > 1 else ''} ago"
+            elif delta.total_seconds() < 86400:
+                hours = int(delta.total_seconds() / 3600)
+                fallback = f"{hours} hour{'s' if hours > 1 else ''} ago"
+            elif delta.total_seconds() < 604800:
+                days = int(delta.total_seconds() / 86400)
+                fallback = f"{days} day{'s' if days > 1 else ''} ago"
+            else:
+                fallback = value.strftime('%b %d, %Y')
         else:
             fallback = value.strftime('%B %d, %Y at %I:%M %p UTC')
     except Exception:

@@ -19,7 +19,7 @@ class TestSearchCircleFiltering:
         
         login_user(client, user.email)
         
-        response = client.get(url_for('main.index'))
+        response = client.get(url_for('main.find'))
         assert response.status_code == 200
 
     def test_search_returns_only_shared_circle_items(self, client):
@@ -47,7 +47,7 @@ class TestSearchCircleFiltering:
 
         # Login as user1 and search
         login_user(client, user1.email)
-        response = client.get(url_for('main.index', q='Hammer'))
+        response = client.get(url_for('main.find', q='Hammer'))
         
         assert response.status_code == 200
         # Should see item from user2 (shared circle)
@@ -73,7 +73,7 @@ class TestSearchCircleFiltering:
         db.session.commit()
 
         login_user(client, user.email)
-        response = client.get(url_for('main.index', q='Drill'))
+        response = client.get(url_for('main.find', q='Drill'))
         
         assert response.status_code == 200
         # Search excludes the user's own items (same as browse mode)
@@ -91,9 +91,9 @@ class TestSearchCircleFiltering:
         # Test both search form page and search results page
         for url_params in [None, {'q': 'anything'}]:
             if url_params:
-                response = client.get(url_for('main.index', **url_params))
+                response = client.get(url_for('main.find', **url_params))
             else:
-                response = client.get(url_for('main.index'))
+                response = client.get(url_for('main.find'))
             
             assert response.status_code == 200
             assert b'Join a circle' in response.data
@@ -116,7 +116,7 @@ class TestSearchCircleFiltering:
         db.session.commit()
 
         login_user(client, user1.email)
-        response = client.get(url_for('main.index', q='Nonexistent'))
+        response = client.get(url_for('main.find', q='Nonexistent'))
         
         assert response.status_code == 200
         assert b'No items match your search' in response.data
@@ -146,7 +146,7 @@ class TestSearchCircleFiltering:
         db.session.commit()
 
         login_user(client, user1.email)
-        response = client.get(url_for('main.index', q='Wrench'))
+        response = client.get(url_for('main.find', q='Wrench'))
         
         assert response.status_code == 200
         # Should see items from both circles
@@ -184,7 +184,7 @@ class TestSearchDistanceDisplay:
             db.session.commit()
 
             login_user(client, viewer.email)
-            response = client.get(url_for('main.index', q='Distance'))
+            response = client.get(url_for('main.find', q='Distance'))
             assert response.status_code == 200
             
             html = response.data.decode('utf-8')

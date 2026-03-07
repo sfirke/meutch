@@ -69,8 +69,8 @@ class TestVacationModeToggle:
 class TestVacationModeItemVisibility:
     """Test that vacation mode hides items from other users."""
     
-    def test_homepage_hides_items_from_vacation_mode_user(self, client):
-        """Test that items from users in vacation mode are hidden on the homepage."""
+    def test_find_page_hides_items_from_vacation_mode_user(self, client):
+        """Test that items from users in vacation mode are hidden on the find page."""
         category = CategoryFactory()
         user1 = UserFactory()  # Viewer
         user2 = UserFactory(vacation_mode=False)  # Normal user
@@ -87,9 +87,9 @@ class TestVacationModeItemVisibility:
         item_hidden = ItemFactory(owner=user3, category=category, name="Hidden Item XYZ789")
         db.session.commit()
         
-        # Login as user1 and visit homepage
+        # Login as user1 and visit find page
         login_user(client, user1.email)
-        response = client.get(url_for('main.index'))
+        response = client.get(url_for('main.find', q='Item'))
         
         assert response.status_code == 200
         # Visible item should be shown
@@ -97,8 +97,8 @@ class TestVacationModeItemVisibility:
         # Hidden item should NOT be shown
         assert b'Hidden Item XYZ789' not in response.data
     
-    def test_giveaways_feed_hides_items_from_vacation_mode_user(self, client):
-        """Test that giveaway items from users in vacation mode are hidden."""
+    def test_homepage_feed_hides_giveaways_from_vacation_mode_user(self, client):
+        """Test that giveaway events from users in vacation mode are hidden on homepage feed."""
         category = CategoryFactory()
         user1 = UserFactory()  # Viewer
         user2 = UserFactory(vacation_mode=False)  # Normal user
@@ -121,9 +121,9 @@ class TestVacationModeItemVisibility:
         )
         db.session.commit()
         
-        # Login as user1 and visit giveaways page
+        # Login as user1 and visit homepage feed
         login_user(client, user1.email)
-        response = client.get(url_for('main.giveaways'))
+        response = client.get(url_for('main.index'))
         
         assert response.status_code == 200
         # Visible giveaway should be shown
@@ -151,7 +151,7 @@ class TestVacationModeItemVisibility:
         
         # Login as user1 and search for "Hammer"
         login_user(client, user1.email)
-        response = client.get(url_for('main.index', q='Hammer'))
+        response = client.get(url_for('main.find', q='Hammer'))
         
         assert response.status_code == 200
         # Visible item should be shown

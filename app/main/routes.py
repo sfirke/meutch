@@ -14,11 +14,180 @@ from app.utils.geocoding import sort_items_by_owner_distance
 from app.utils.pagination import ListPagination
 from app.utils.email import send_message_notification_email
 from app.utils.giveaway_visibility import can_view_claimed_giveaway, get_unavailable_giveaway_suggestions
+from app.utils.home_feed import build_homepage_feed_events
+
+
+HOMEPAGE_FEED_TYPES = {'requests', 'giveaways', 'loans', 'circle_joins'}
+HOMEPAGE_DISTANCE_OPTIONS = {5, 10, 20, 25, 50}
+
+
+def _parse_homepage_feed_filters(user):
+    scope = request.args.get('scope', 'all')
+    if scope not in {'all', 'circles'}:
+        scope = 'all'
+
+    selected_types_raw = request.args.getlist('types')
+    types_explicit = 'types_present' in request.args
+    if types_explicit:
+        selected_feed_types = [event_type for event_type in selected_types_raw if event_type in HOMEPAGE_FEED_TYPES]
+    else:
+        selected_feed_types = ['requests', 'giveaways', 'circle_joins', 'loans']
+
+    distance_explicit = 'distance' in request.args
+    distance_value_raw = request.args.get('distance')
+    selected_distance = None
+    if distance_value_raw and distance_value_raw != 'none':
+        try:
+            parsed_distance = int(distance_value_raw)
+        except (TypeError, ValueError):
+            parsed_distance = None
+        if parsed_distance in HOMEPAGE_DISTANCE_OPTIONS:
+            selected_distance = parsed_distance
+
+    if not distance_explicit and user.is_geocoded:
+        selected_distance = 20
+
+    distance_param_value = 'none' if selected_distance is None else str(selected_distance)
+
+    return {
+        'scope': scope,
+        'selected_feed_types': selected_feed_types,
+        'distance': selected_distance,
+        'distance_explicit': distance_explicit,
+        'distance_param_value': distance_param_value,
+    }
+
+
+def _build_find_context(user):
+    items = []
+    pagination = None
+    query = request.args.get('q', '').strip()
+    selected_categories = request.args.getlist('categories')
+    selected_circles = request.args.getlist('circles')
+    item_type = request.args.get('item_type', 'both')
+    page = request.args.get('page', 1, type=int)
+    per_page = 12
+    result_count = 0
+
+    user_circles = sorted(list(user.circles), key=lambda circle: (circle.name or '').lower())
+    has_circles = len(user_circles) > 0
+    all_categories = Category.query.order_by(Category.name).all()
+
+    if has_circles:
+        if query:
+            shared_circle_user_ids = user.get_shared_circle_user_ids_query()
+
+            if selected_circles:
+                shared_circle_user_ids = select(circle_members.c.user_id).where(
+                    circle_members.c.circle_id.in_(selected_circles)
+                ).distinct()
+
+            all_circle_user_ids = select(circle_members.c.user_id).distinct()
+
+            items_query = Item.query.join(User, Item.owner_id == User.id).outerjoin(Item.tags).outerjoin(Item.category).filter(
+                User.vacation_mode == False,
+                Item.owner_id != user.id,
+                and_(
+                    or_(
+                        and_(
+                            or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
+                            Item.owner_id.in_(shared_circle_user_ids)
+                        ),
+                        and_(
+                            Item.giveaway_visibility == 'public',
+                            Item.owner_id.in_(all_circle_user_ids)
+                        )
+                    ),
+                    or_(
+                        Item.name.ilike(f'%{query}%'),
+                        Item.description.ilike(f'%{query}%'),
+                        Tag.name.ilike(f'%{query}%')
+                    )
+                )
+            )
+
+            if selected_categories:
+                items_query = items_query.filter(Item.category_id.in_(selected_categories))
+
+            if item_type == 'loans':
+                items_query = items_query.filter(Item.is_giveaway == False)
+            elif item_type == 'giveaways':
+                items_query = items_query.filter(
+                    Item.is_giveaway == True,
+                    or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                )
+            else:
+                items_query = items_query.filter(
+                    or_(
+                        Item.is_giveaway == False,
+                        and_(
+                            Item.is_giveaway == True,
+                            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                        )
+                    )
+                )
+
+            items_query = items_query.distinct()
+            all_items = items_query.all()
+            sorted_items = sort_items_by_owner_distance(all_items, user)
+            pagination = ListPagination(items=sorted_items, page=page, per_page=per_page)
+            items = pagination.items
+            result_count = pagination.total
+        else:
+            shared_circle_user_ids = user.get_shared_circle_user_ids_query()
+
+            if selected_circles:
+                shared_circle_user_ids = select(circle_members.c.user_id).where(
+                    circle_members.c.circle_id.in_(selected_circles)
+                ).distinct()
+
+            base_query = Item.query.join(User, Item.owner_id == User.id).filter(
+                Item.owner_id.in_(shared_circle_user_ids),
+                Item.owner_id != user.id,
+                User.vacation_mode == False,
+                or_(
+                    Item.is_giveaway == False,
+                    and_(
+                        Item.is_giveaway == True,
+                        or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                    )
+                )
+            )
+
+            if selected_categories:
+                base_query = base_query.filter(Item.category_id.in_(selected_categories))
+
+            if item_type == 'loans':
+                base_query = base_query.filter(Item.is_giveaway == False)
+            elif item_type == 'giveaways':
+                base_query = base_query.filter(
+                    Item.is_giveaway == True,
+                    or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                )
+
+            base_query = base_query.order_by(Item.created_at.desc())
+            pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
+            items = pagination.items
+            result_count = pagination.total
+
+    return {
+        'items': items,
+        'pagination': pagination,
+        'query': query,
+        'categories': all_categories,
+        'user_circles': user_circles,
+        'selected_categories': selected_categories,
+        'selected_circles': selected_circles,
+        'item_type': item_type,
+        'has_circles': has_circles,
+        'result_count': result_count,
+    }
 
 @main_bp.route('/')
 def index():
     items = []
     giveaway_items = []
+    feed_events = []
     pagination = None
     total_items = 0
     remaining_items = 0
@@ -30,126 +199,28 @@ def index():
     item_type = 'both'
     has_circles = False
     result_count = 0
+    selected_feed_scope = 'all'
+    selected_feed_types = ['requests', 'giveaways', 'circle_joins', 'loans']
+    selected_feed_distance = 'none'
+    feed_distance_options = [5, 10, 20, 25, 50]
     
     if current_user.is_authenticated:
         user_circles = sorted(list(current_user.circles), key=lambda circle: (circle.name or '').lower())
         has_circles = len(user_circles) > 0
-        all_categories = Category.query.order_by(Category.name).all()
-        
-        # Read search/filter params
-        query = request.args.get('q', '').strip()
-        selected_categories = request.args.getlist('categories')
         selected_circles = request.args.getlist('circles')
-        item_type = request.args.get('item_type', 'both')
-        page = request.args.get('page', 1, type=int)
-        per_page = 12
-        
-        if has_circles:
-            if query:
-                # --- Search mode: text search with filters, distance-sorted ---
-                shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
-                
-                # If specific circles selected, narrow to those circles' members
-                if selected_circles:
-                    shared_circle_user_ids = select(circle_members.c.user_id).where(
-                        circle_members.c.circle_id.in_(selected_circles)
-                    ).distinct()
-                
-                # Get all users who belong to any circle (for public giveaways)
-                all_circle_user_ids = select(circle_members.c.user_id).distinct()
-                
-                items_query = Item.query.join(User, Item.owner_id == User.id).outerjoin(Item.tags).outerjoin(Item.category).filter(
-                    User.vacation_mode == False,
-                    Item.owner_id != current_user.id,
-                    and_(
-                        or_(
-                            and_(
-                                or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
-                                Item.owner_id.in_(shared_circle_user_ids)
-                            ),
-                            and_(
-                                Item.giveaway_visibility == 'public',
-                                Item.owner_id.in_(all_circle_user_ids)
-                            )
-                        ),
-                        or_(
-                            Item.name.ilike(f'%{query}%'),
-                            Item.description.ilike(f'%{query}%'),
-                            Tag.name.ilike(f'%{query}%')
-                        )
-                    )
-                )
-                
-                # Category filter
-                if selected_categories:
-                    items_query = items_query.filter(Item.category_id.in_(selected_categories))
-                
-                # Item type filter
-                if item_type == 'loans':
-                    items_query = items_query.filter(Item.is_giveaway == False)
-                elif item_type == 'giveaways':
-                    items_query = items_query.filter(
-                        Item.is_giveaway == True,
-                        or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
-                    )
-                else:
-                    items_query = items_query.filter(
-                        or_(
-                            Item.is_giveaway == False,
-                            and_(
-                                Item.is_giveaway == True,
-                                or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
-                            )
-                        )
-                    )
-                
-                items_query = items_query.distinct()
-                all_items = items_query.all()
-                sorted_items = sort_items_by_owner_distance(all_items, current_user)
-                pagination = ListPagination(items=sorted_items, page=page, per_page=per_page)
-                items = pagination.items
-                result_count = pagination.total
-            else:
-                # --- Browse mode: newest first, optionally filtered by category/circle/type ---
-                shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
-                
-                # If specific circles selected, narrow to those circles' members
-                if selected_circles:
-                    shared_circle_user_ids = select(circle_members.c.user_id).where(
-                        circle_members.c.circle_id.in_(selected_circles)
-                    ).distinct()
-                
-                base_query = Item.query.join(User, Item.owner_id == User.id).filter(
-                    Item.owner_id.in_(shared_circle_user_ids),
-                    Item.owner_id != current_user.id,
-                    User.vacation_mode == False,
-                    or_(
-                        Item.is_giveaway == False,
-                        and_(
-                            Item.is_giveaway == True,
-                            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
-                        )
-                    )
-                )
-                
-                # Category filter
-                if selected_categories:
-                    base_query = base_query.filter(Item.category_id.in_(selected_categories))
-                
-                # Item type filter
-                if item_type == 'loans':
-                    base_query = base_query.filter(Item.is_giveaway == False)
-                elif item_type == 'giveaways':
-                    base_query = base_query.filter(
-                        Item.is_giveaway == True,
-                        or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
-                    )
-                
-                base_query = base_query.order_by(Item.created_at.desc())
-                pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
-                items = pagination.items
-                result_count = pagination.total
-        # else: no circles, items stays empty
+        filter_state = _parse_homepage_feed_filters(current_user)
+        selected_feed_scope = filter_state['scope']
+        selected_feed_types = filter_state['selected_feed_types']
+        selected_feed_distance = filter_state['distance_param_value']
+
+        feed_events = build_homepage_feed_events(
+            current_user,
+            selected_circle_ids=selected_circles,
+            scope=selected_feed_scope,
+            giveaway_distance=filter_state['distance'],
+            giveaway_distance_explicit=filter_state['distance_explicit'],
+            included_event_types=selected_feed_types,
+        )
         
     else:
         # Anonymous users: show preview items (unchanged logic)
@@ -191,6 +262,7 @@ def index():
     return render_template('main/index.html',
                          items=items,
                          giveaway_items=giveaway_items,
+                         feed_events=feed_events,
                          pagination=pagination,
                          total_items=total_items,
                          remaining_items=remaining_items,
@@ -201,7 +273,18 @@ def index():
                          selected_circles=selected_circles,
                          item_type=item_type,
                          has_circles=has_circles,
-                         result_count=result_count)
+                         result_count=result_count,
+                         selected_feed_scope=selected_feed_scope,
+                         selected_feed_types=selected_feed_types,
+                         selected_feed_distance=selected_feed_distance,
+                         feed_distance_options=feed_distance_options)
+
+
+@main_bp.route('/find')
+@login_required
+def find():
+    find_context = _build_find_context(current_user)
+    return render_template('main/find.html', **find_context)
 
 @main_bp.route('/list-item', methods=['GET', 'POST'])
 @login_required
@@ -260,113 +343,7 @@ def list_item():
 @main_bp.route('/giveaways')
 @login_required
 def giveaways():
-    """Display feed of available giveaways with sorting and filtering options"""
-    page = request.args.get('page', 1, type=int)
-    sort_by = request.args.get('sort', 'date')  # 'date' or 'distance'
-    max_distance = request.args.get('distance', type=int)  # Optional distance filter in miles
-    per_page = 12
-    
-    # Check if user has any circles
-    has_circles = len(current_user.circles) > 0
-    
-    # Get user's own active giveaways (unclaimed or pending_pickup, always show these regardless of circle status)
-    my_giveaways = Item.query.filter(
-        Item.owner_id == current_user.id,
-        Item.is_giveaway == True,
-        or_(Item.claim_status == 'unclaimed', Item.claim_status == 'pending_pickup', Item.claim_status.is_(None))
-    ).order_by(Item.created_at.desc()).all()
-    
-    if not has_circles:
-        return render_template('main/giveaways.html', 
-                             items=[], 
-                             my_giveaways=my_giveaways,
-                             pagination=None, 
-                             no_circles=True,
-                             sort_by=sort_by,
-                             max_distance=max_distance)
-    
-    # Get users who share circles with current user
-    shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
-    
-    # Get all users who belong to any circle (for public giveaways)
-    all_circle_user_ids = select(circle_members.c.user_id).distinct()
-    
-    # Base query: giveaways that are unclaimed, excluding own items and vacation mode users
-    # Include items that meet either condition:
-    # 1. Default visibility from shared circle users
-    # 2. Public visibility from any circle member
-    base_query = Item.query.join(User, Item.owner_id == User.id).filter(
-        Item.is_giveaway == True,
-        User.vacation_mode == False,
-        and_(
-            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None)),
-            or_(
-                # Default visibility: must share circles with owner
-                and_(
-                    or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
-                    Item.owner_id.in_(shared_circle_user_ids)
-                ),
-                # Public visibility: owner just needs to be in any circle
-                and_(
-                    Item.giveaway_visibility == 'public',
-                    Item.owner_id.in_(all_circle_user_ids)
-                )
-            ),
-            Item.owner_id != current_user.id
-        )
-    )
-    
-    # Apply distance filtering if requested and both users are geocoded
-    if max_distance and current_user.is_geocoded:
-        # We need to filter after getting all items since distance calculation requires
-        # comparing user coordinates. Get all matching items first.
-        all_items = base_query.all()
-        
-        # Filter by distance
-        filtered_items = []
-        for item in all_items:
-            if item.owner.is_geocoded:
-                distance = current_user.distance_to(item.owner)
-                if distance and distance <= max_distance:
-                    filtered_items.append(item)
-        
-        # Sort based on sort_by parameter
-        if sort_by == 'distance':
-            # Sort by distance (already calculated)
-            filtered_items.sort(key=lambda item: current_user.distance_to(item.owner) or float('inf'))
-        else:  # sort_by == 'date'
-            # Sort by newest first
-            filtered_items.sort(key=lambda item: item.created_at, reverse=True)
-        
-        # Manual pagination for distance-filtered results
-        # ListPagination handles slicing internally
-        pagination = ListPagination(filtered_items, page, per_page)
-        items = pagination.items
-    
-    else:
-        # No distance filter - can use database sorting and pagination
-        if sort_by == 'distance' and current_user.is_geocoded:
-            # Get all items and sort by distance
-            all_items = base_query.all()
-            sorted_items = sort_items_by_owner_distance(all_items, current_user)
-            
-            # Manual pagination
-            # ListPagination handles slicing internally
-            pagination = ListPagination(sorted_items, page, per_page)
-            items = pagination.items
-        else:
-            # Date sort - use database ordering
-            base_query = base_query.order_by(Item.created_at.desc())
-            pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
-            items = pagination.items
-    
-    return render_template('main/giveaways.html',
-                         items=items,
-                         my_giveaways=my_giveaways,
-                         pagination=pagination,
-                         no_circles=False,
-                         sort_by=sort_by,
-                         max_distance=max_distance)
+    return redirect(url_for('main.index'))
 
 @main_bp.route('/item/<uuid:item_id>', methods=['GET', 'POST'])
 @login_required

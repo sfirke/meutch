@@ -66,7 +66,7 @@ class TestCompletedGiveawayVisibility:
         login_user(client, email=user_email)
             
         # Test as authenticated user
-        response = client.get('/')
+        response = client.get('/?distance=')
         assert response.status_code == 200
         html = response.data.decode()
         
@@ -79,8 +79,8 @@ class TestCompletedGiveawayVisibility:
         # Pending pickup should NOT appear to other users
         assert pending_name not in html
     
-    def test_claimed_giveaway_not_in_giveaways_feed(self, client, app, auth_user):
-        """Test that claimed giveaways don't appear in giveaways feed."""
+    def test_claimed_giveaway_not_in_authenticated_home_feed(self, client, app, auth_user):
+        """Test that claimed giveaways don't appear in the authenticated homepage feed."""
         with app.app_context():
             circle = CircleFactory()
             owner = UserFactory()
@@ -118,7 +118,7 @@ class TestCompletedGiveawayVisibility:
             db.session.commit()
             
             login_user(client, email=current_user.email)
-            response = client.get('/giveaways')
+            response = client.get('/?distance=')
             assert response.status_code == 200
             html = response.data.decode()
             
@@ -174,7 +174,7 @@ class TestCompletedGiveawayVisibility:
             
             login_user(client, email=current_user.email)
             # Search for both items
-            response = client.get('/?q=Searchable&item_type=both')
+            response = client.get('/find?q=Searchable&item_type=both')
             assert response.status_code == 200
             html = response.data.decode()
             
@@ -438,15 +438,15 @@ class TestCompletedGiveawayVisibility:
             
             db.session.commit()
         
-        # Owner should see pending pickup in profile and my_giveaways section on /giveaways
+        # Owner should see pending pickup in profile
         login_user(client, email=owner_email)
         response = client.get('/profile')
         assert response.status_code == 200
         assert pending_name in response.data.decode()
 
-        response = client.get('/giveaways')
-        assert response.status_code == 200
-        assert pending_name in response.data.decode()
+        response = client.get('/giveaways', follow_redirects=False)
+        assert response.status_code == 302
+        assert response.headers['Location'].endswith('/')
 
         # Other users should not see pending pickup in discovery views
         client.get('/logout', follow_redirects=True)
@@ -456,11 +456,11 @@ class TestCompletedGiveawayVisibility:
         assert response.status_code == 200
         assert pending_name not in response.data.decode()
         
-        response = client.get('/giveaways')
-        assert response.status_code == 200
-        assert pending_name not in response.data.decode()
+        response = client.get('/giveaways', follow_redirects=False)
+        assert response.status_code == 302
+        assert response.headers['Location'].endswith('/')
         
-        response = client.get(f'/?q={pending_name}&item_type=both')
+        response = client.get(f'/find?q={pending_name}&item_type=both')
         assert response.status_code == 200
         assert f'/item/{pending_id}'.encode() not in response.data
 

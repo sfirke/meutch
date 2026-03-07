@@ -267,13 +267,13 @@ class TestSearchAndBrowsingWorkflow:
             login_user(client, user1.email)
             
             # Search for items
-            response = client.get('/?q=laptop')
+            response = client.get('/find?q=laptop')
             assert response.status_code == 200
             assert b'Gaming Laptop' in response.data
             assert b'Office Monitor' not in response.data
             
             # Tag string shows up in search results
-            response = client.get('/?q=computer')
+            response = client.get('/find?q=computer')
             assert response.status_code == 200
 
 class TestMessagingWorkflow:
