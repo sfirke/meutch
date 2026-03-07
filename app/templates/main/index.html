@@ -97,16 +97,16 @@
                     <span class="form-label d-block fw-semibold mb-2">Show activity types</span>
                     <div class="d-flex flex-wrap gap-2">
                         <input class="btn-check" type="checkbox" id="feed-type-requests" name="types" value="requests" autocomplete="off" {% if 'requests' in selected_feed_types %}checked{% endif %}>
-                        <label class="btn btn-sm btn-outline-primary rounded-pill" for="feed-type-requests"><i class="fas fa-hand-holding-heart me-1"></i>Requests</label>
+                        <label class="btn btn-sm feed-type-pill feed-type-pill--requests rounded-pill" for="feed-type-requests"><i class="fas fa-hand-holding-heart me-1"></i>Requests</label>
 
                         <input class="btn-check" type="checkbox" id="feed-type-giveaways" name="types" value="giveaways" autocomplete="off" {% if 'giveaways' in selected_feed_types %}checked{% endif %}>
-                        <label class="btn btn-sm btn-outline-success rounded-pill" for="feed-type-giveaways"><i class="fas fa-gift me-1"></i>Giveaways</label>
+                        <label class="btn btn-sm feed-type-pill feed-type-pill--giveaways rounded-pill" for="feed-type-giveaways"><i class="fas fa-gift me-1"></i>Giveaways</label>
 
                         <input class="btn-check" type="checkbox" id="feed-type-circle-joins" name="types" value="circle_joins" autocomplete="off" {% if 'circle_joins' in selected_feed_types %}checked{% endif %}>
-                        <label class="btn btn-sm btn-outline-info rounded-pill" for="feed-type-circle-joins"><i class="fas fa-users me-1"></i>Circle Joins</label>
+                        <label class="btn btn-sm feed-type-pill feed-type-pill--circle-joins rounded-pill" for="feed-type-circle-joins"><i class="fas fa-users me-1"></i>Circle Joins</label>
 
                         <input class="btn-check" type="checkbox" id="feed-type-loans" name="types" value="loans" autocomplete="off" {% if 'loans' in selected_feed_types %}checked{% endif %}>
-                        <label class="btn btn-sm btn-outline-secondary rounded-pill" for="feed-type-loans"><i class="fas fa-handshake me-1"></i>Loans</label>
+                        <label class="btn btn-sm feed-type-pill feed-type-pill--loans rounded-pill" for="feed-type-loans"><i class="fas fa-handshake me-1"></i>Loans</label>
                     </div>
                 </div>
             </form>
