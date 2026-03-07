@@ -334,12 +334,6 @@ h1 {
     color: white !important;
 }
 
-.btn-check:checked + .btn-outline-primary {
-    background: var(--primary-color) !important;
-    border-color: var(--primary-color) !important;
-    color: white !important;
-}
-
 /* Badges */
 .badge {
     font-weight: 500;
@@ -1507,4 +1501,44 @@ footer h6 {
     background-color: #e09333 !important;
     border-color: #e09333 !important;
     color: white !important;
+}
+
+/* Feed-type filter pills — completely self-contained to avoid btn-outline-primary conflicts */
+.feed-type-pill {
+    background: white;
+    border: 1px solid var(--border-color);
+    color: var(--muted-text);
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.feed-type-pill:hover,
+.feed-type-pill:focus {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: var(--dark-text);
+}
+
+/* Checked states per type */
+.btn-check:checked + .feed-type-pill--requests {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.btn-check:checked + .feed-type-pill--giveaways {
+    background: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.btn-check:checked + .feed-type-pill--circle-joins {
+    background: #0dcaf0;
+    border-color: #0dcaf0;
+    color: white;
+}
+
+.btn-check:checked + .feed-type-pill--loans {
+    background: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: white;
 }
