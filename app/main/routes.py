@@ -140,10 +140,21 @@ def _build_find_context(user):
                     circle_members.c.circle_id.in_(selected_circles)
                 ).distinct()
 
+            all_circle_user_ids = select(circle_members.c.user_id).distinct()
+
             base_query = Item.query.join(User, Item.owner_id == User.id).filter(
-                Item.owner_id.in_(shared_circle_user_ids),
                 Item.owner_id != user.id,
                 User.vacation_mode == False,
+                or_(
+                    and_(
+                        or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
+                        Item.owner_id.in_(shared_circle_user_ids)
+                    ),
+                    and_(
+                        Item.giveaway_visibility == 'public',
+                        Item.owner_id.in_(all_circle_user_ids)
+                    )
+                ),
                 or_(
                     Item.is_giveaway == False,
                     and_(

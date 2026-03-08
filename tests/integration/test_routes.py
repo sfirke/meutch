@@ -281,7 +281,66 @@ class TestMainRoutes:
             assert page2_response.status_code == 200
             page2_text = page2_response.data.decode('utf-8')
             assert 'aria-label="Items pages"' in page2_text
-    
+
+    def test_find_public_giveaway_visible_without_query(self, client, app, auth_user):
+        """Public giveaways from any circle member should appear on /find even without a search query."""
+        with app.app_context():
+            user = auth_user()
+            # owner is in a separate circle from the viewer — not a shared circle
+            owner = UserFactory()
+            category = CategoryFactory()
+
+            # Put each user in their own circle (no shared circles)
+            user_circle = Circle(name="User Circle", description="", requires_approval=False)
+            owner_circle = Circle(name="Owner Circle", description="", requires_approval=False)
+            db.session.add_all([user_circle, owner_circle])
+            user_circle.members.append(user)
+            owner_circle.members.append(owner)
+            db.session.commit()
+
+            public_giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed',
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/find')
+            assert response.status_code == 200
+            assert public_giveaway.name.encode() in response.data
+
+    def test_find_public_giveaway_visible_with_query(self, client, app, auth_user):
+        """Public giveaways from any circle member should appear on /find with a search query."""
+        with app.app_context():
+            user = auth_user()
+            owner = UserFactory()
+            category = CategoryFactory()
+
+            user_circle = Circle(name="User Circle 2", description="", requires_approval=False)
+            owner_circle = Circle(name="Owner Circle 2", description="", requires_approval=False)
+            db.session.add_all([user_circle, owner_circle])
+            user_circle.members.append(user)
+            owner_circle.members.append(owner)
+            db.session.commit()
+
+            public_giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                name="UniquePublicGiveawayItem",
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed',
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/find?q=UniquePublicGiveawayItem')
+            assert response.status_code == 200
+            assert public_giveaway.name.encode() in response.data
+
     def test_index_anonymous_user_few_items_no_more_message(self, client, app):
         """Test that anonymous users don't see 'more' message when items <= 12."""
         with app.app_context():
