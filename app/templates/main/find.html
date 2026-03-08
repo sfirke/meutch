@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Find{% endblock %}
+
+{% block content %}
+    <div class="text-center mb-4">
+        <img src="{{ url_for('static', filename='img/logo_handshake.png') }}" alt="Meutch" class="mb-2" style="height: 48px; width: auto;">
+        <h1 class="h4 mb-1">Find Items</h1>
+        <p class="text-muted mb-0">Browse and search items from your circles.</p>
+    </div>
+
+    <section class="mb-4" id="search-section">
+        {% if has_circles %}
+        <form method="get" action="{{ url_for('main.find') }}" id="find-form">
+            <div class="input-group mb-2">
+                <input type="text" name="q" class="form-control" placeholder="Search items by name, description, or tag..." value="{{ query }}" aria-label="Search items">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i>Search
+                </button>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <i class="fas fa-th-large me-1"></i>Categories
+                        <span id="categories-badge" class="badge bg-primary ms-1 {% if not selected_categories %}d-none{% endif %}">{{ selected_categories|length }}</span>
+                    </button>
+                    <div class="dropdown-menu p-3" style="min-width: 220px; max-height: 300px; overflow-y: auto;">
+                        <div class="form-check border-bottom pb-2 mb-2">
+                            <input class="form-check-input" type="checkbox" id="categories-all" {% if not selected_categories %}checked{% endif %}>
+                            <label class="form-check-label" for="categories-all">All categories</label>
+                        </div>
+                        {% for cat in categories %}
+                        <div class="form-check">
+                            <input class="form-check-input category-checkbox" type="checkbox" name="categories" value="{{ cat.id }}" id="cat-{{ cat.id }}" {% if cat.id|string in selected_categories %}checked{% endif %}>
+                            <label class="form-check-label" for="cat-{{ cat.id }}">{{ cat.name }}</label>
+                        </div>
+                        {% endfor %}
+                        {% if not categories %}
+                        <span class="text-muted small">No categories yet</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <i class="fas fa-users me-1"></i>Circles
+                        <span id="circles-badge" class="badge bg-primary ms-1 {% if not selected_circles %}d-none{% endif %}">{{ selected_circles|length }}</span>
+                    </button>
+                    <div class="dropdown-menu p-3" style="min-width: 220px; max-height: 300px; overflow-y: auto;">
+                        <div class="form-check border-bottom pb-2 mb-2">
+                            <input class="form-check-input" type="checkbox" id="circles-all" {% if not selected_circles %}checked{% endif %}>
+                            <label class="form-check-label" for="circles-all">All circles</label>
+                        </div>
+                        {% for circle in user_circles %}
+                        <div class="form-check">
+                            <input class="form-check-input circle-checkbox" type="checkbox" name="circles" value="{{ circle.id }}" id="circle-{{ circle.id }}" {% if circle.id|string in selected_circles %}checked{% endif %}>
+                            <label class="form-check-label" for="circle-{{ circle.id }}">{{ circle.name }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <select name="item_type" class="form-select form-select-sm" style="width: auto;" aria-label="Item type">
+                    <option value="both" {% if item_type == 'both' %}selected{% endif %}>All Items</option>
+                    <option value="loans" {% if item_type == 'loans' %}selected{% endif %}>Loans Only</option>
+                    <option value="giveaways" {% if item_type == 'giveaways' %}selected{% endif %}>Giveaways Only</option>
+                </select>
+
+                {% if selected_categories %}
+                <a href="{{ url_for('main.find', q=query, circles=selected_circles, item_type=item_type) }}" class="btn btn-sm btn-outline-secondary">
+                    All categories
+                </a>
+                {% endif %}
+                {% if selected_circles %}
+                <a href="{{ url_for('main.find', q=query, categories=selected_categories, item_type=item_type) }}" class="btn btn-sm btn-outline-secondary">
+                    All circles
+                </a>
+                {% endif %}
+            </div>
+        </form>
+
+        {% if query or selected_categories or selected_circles or item_type != 'both' %}
+        <div class="d-flex align-items-center mb-3">
+            <span class="text-muted">
+                <i class="fas fa-filter me-1"></i>
+                {% if query and (selected_categories or selected_circles or item_type != 'both') %}
+                    Showing results for "<strong>{{ query }}</strong>" with filters applied
+                {% elif query %}
+                    Showing results for "<strong>{{ query }}</strong>"
+                {% else %}
+                    Filters applied
+                {% endif %}
+            </span>
+            <a href="{{ url_for('main.find') }}" class="btn btn-sm btn-outline-secondary ms-2">
+                <i class="fas fa-times me-1"></i>Clear
+            </a>
+        </div>
+        {% endif %}
+
+        {% if query or selected_categories or selected_circles %}
+        <p class="text-muted small mb-3">
+            {{ result_count }} result{% if result_count != 1 %}s{% endif %} found.
+        </p>
+        {% endif %}
+        {% else %}
+        <div class="card border-info mb-4">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-users text-info mb-2" style="font-size: 2rem;"></i>
+                <h5>Join a circle to start finding items</h5>
+                <p class="text-muted mb-3">Circles connect you with nearby people who share tools, books, kitchen gear, and more.</p>
+                <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i>Find Circles to Join
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="items-section" id="items-section">
+        {% if items %}
+            <div class="items-grid">
+                {% for item in items %}
+                    {% include 'main/_item_card.html' %}
+                {% endfor %}
+            </div>
+
+            {% if pagination and pagination.pages > 1 %}
+                <nav aria-label="Items pages" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, page=pagination.prev_num) }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&laquo;</span>
+                            </li>
+                        {% endif %}
+
+                        {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+                            {% if p %}
+                                {% if p == pagination.page %}
+                                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, page=p) }}">{{ p }}</a></li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, page=pagination.next_num) }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&raquo;</span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-box"></i>
+                {% if not has_circles %}
+                    <h4>Join a circle to see items</h4>
+                    <p>You're not a member of any circles yet. Join a circle near you to see items from your community!</p>
+                    <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>Find Circles to Join
+                    </a>
+                {% elif query %}
+                    <h4>No results found</h4>
+                    <p>No items match your search. Try different keywords or <a href="{{ url_for('main.find') }}">clear your search</a>.</p>
+                {% else %}
+                    <h4>No items available</h4>
+                    <p>No items are currently available for sharing in your circles. Be the first to share!</p>
+                    <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>List Your First Item
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if has_circles %}
+<script src="{{ url_for('static', filename='js/find-filters.js') }}"></script>
+{% endif %}
+{% endblock %}

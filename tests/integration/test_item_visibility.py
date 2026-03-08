@@ -69,7 +69,7 @@ class TestItemVisibility:
         assert item.name.encode() not in response.data
 
     def test_authenticated_user_sees_items_from_shared_circle(self, client):
-        """Test that authenticated users see items from users in shared circles."""
+        """Test that authenticated users see items from users in shared circles on Find."""
         category = CategoryFactory()
         user1 = UserFactory()
         user2 = UserFactory()
@@ -88,13 +88,13 @@ class TestItemVisibility:
         # Login as user1
         login_user(client, user1.email)
         
-        response = client.get(url_for('main.index'))
+        response = client.get(url_for('main.find'))
         assert response.status_code == 200
         # User1 should see user2's item
         assert item.name.encode() in response.data
 
     def test_authenticated_user_does_not_see_items_from_non_circle_members(self, client):
-        """Test that authenticated users don't see items from users not in their circles."""
+        """Test that authenticated users don't see items from users not in their circles on Find."""
         category = CategoryFactory()
         user1 = UserFactory()
         user2 = UserFactory()
@@ -118,14 +118,14 @@ class TestItemVisibility:
         # Login as user1
         login_user(client, user1.email)
         
-        response = client.get(url_for('main.index'))
+        response = client.get(url_for('main.find'))
         assert response.status_code == 200
         # User1 should NOT see items from user2 or user3
         assert item2.name.encode() not in response.data
         assert item3.name.encode() not in response.data
 
     def test_authenticated_user_sees_items_from_multiple_circles(self, client):
-        """Test that authenticated users see items from all their circles."""
+        """Test that authenticated users see items from all their circles on Find."""
         category = CategoryFactory()
         user1 = UserFactory()
         user2 = UserFactory()
@@ -151,29 +151,29 @@ class TestItemVisibility:
         # Login as user1
         login_user(client, user1.email)
         
-        response = client.get(url_for('main.index'))
+        response = client.get(url_for('main.find'))
         assert response.status_code == 200
         # User1 should see items from both circles
         assert item2.name.encode() in response.data
         assert item3.name.encode() in response.data
 
     def test_authenticated_user_with_no_circles_sees_empty_state(self, client):
-        """Test that authenticated users with no circles see the 'Join a circle' message."""
+        """Test that authenticated users with no circles see the Find empty-state prompt."""
         user = UserFactory()
         db.session.commit()
         
         # Login as user (who is not in any circles)
         login_user(client, user.email)
         
-        response = client.get(url_for('main.index'))
+        response = client.get(url_for('main.find'))
         assert response.status_code == 200
         response_text = response.data.decode('utf-8')
         # Should see the join circle message
-        assert 'Join a circle to see items' in response_text
+        assert 'Join a circle to start finding items' in response_text
         assert 'Find Circles to Join' in response_text
 
     def test_authenticated_user_in_circle_with_no_other_members(self, client):
-        """Test authenticated user in a circle alone sees empty state."""
+        """Test authenticated user in a circle alone sees Find empty state."""
         category = CategoryFactory()
         user = UserFactory()
         db.session.commit()
@@ -186,7 +186,7 @@ class TestItemVisibility:
         # Login as user
         login_user(client, user.email)
         
-        response = client.get(url_for('main.index'))
+        response = client.get(url_for('main.find'))
         assert response.status_code == 200
         response_text = response.data.decode('utf-8')
         # Should see empty state (no items from circle-mates)

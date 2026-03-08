@@ -24,7 +24,7 @@ class TestAuthenticationRoutes:
             }, follow_redirects=True)
             
             assert response.status_code == 200
-            assert b'Welcome to Meutch' in response.data  # Redirected to home
+            assert b'Community Activity' in response.data  # Redirected to home
 
     @pytest.mark.filterwarnings("ignore::DeprecationWarning:flask_login")
     def test_login_with_remember_device_sets_cookie(self, client, app, auth_user):
@@ -329,7 +329,7 @@ class TestAuthenticationRoutes:
                 }, follow_redirects=True)
                 
                 assert response.status_code == 200, f"Failed for email: {email}"
-                assert b'Welcome to Meutch' in response.data, f"Failed for email: {email}"
+                assert b'Community Activity' in response.data, f"Failed for email: {email}"
                 
                 # Logout after each test
                 client.get('/auth/logout')
@@ -546,7 +546,7 @@ class TestRedirectAfterLogin:
             }, follow_redirects=True)
             
             assert response.status_code == 200
-            assert b'Welcome to Meutch' in response.data
+            assert b'Community Activity' in response.data
     
     def test_login_with_valid_next_redirects_correctly(self, client, app, auth_user):
         """Test login with valid 'next' parameter redirects to intended page."""
@@ -572,7 +572,7 @@ class TestRedirectAfterLogin:
             
             assert response.status_code == 200
             # Should redirect to home page instead of external URL
-            assert b'Welcome to Meutch' in response.data
+            assert b'Community Activity' in response.data
     
     def test_login_with_protocol_relative_url_ignores_next(self, client, app, auth_user):
         """Test that protocol-relative URLs are ignored for security."""
@@ -585,7 +585,7 @@ class TestRedirectAfterLogin:
             
             assert response.status_code == 200
             # Should redirect to home page instead
-            assert b'Welcome to Meutch' in response.data
+            assert b'Community Activity' in response.data
     
     def test_full_redirect_flow_after_unauthorized_access(self, client, app, auth_user):
         """Test complete flow: unauthorized access -> login -> redirect back.

@@ -53,7 +53,7 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.index') }}">
                             {% if current_user.is_authenticated %}
-                                <i class="fas fa-search me-1"></i>Find
+                                <i class="fas fa-home me-1"></i>Home
                             {% else %}
                                 <i class="fas fa-home me-1"></i>Home
                             {% endif %}
@@ -61,18 +61,8 @@
                     </li>
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.giveaways') }}">
-                                <i class="fas fa-gift me-1"></i>Giveaways
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('requests.feed') }}">
-                                <i class="fas fa-hand-holding-heart me-1"></i>Requests
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.list_item') }}">
-                                <i class="fas fa-plus me-1"></i>List Item
+                            <a class="nav-link" href="{{ url_for('main.find') }}">
+                                <i class="fas fa-search me-1"></i>Find
                             </a>
                         </li>
                     {% endif %}

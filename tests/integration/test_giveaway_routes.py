@@ -218,15 +218,15 @@ class TestGiveawaysFeed:
     """Test the giveaway feed page."""
     
     def test_giveaways_page_with_no_circles(self, client, app, auth_user):
-        """Test giveaways page shows prompt when user has no circles."""
+        """Test giveaways route redirects authenticated users to homepage feed."""
         with app.app_context():
             user = auth_user()
             login_user(client, user.email)
             
-            response = client.get('/giveaways')
+            response = client.get('/giveaways', follow_redirects=False)
             
-            assert response.status_code == 200
-            assert b'join at least one lending circle' in response.data.lower()
+            assert response.status_code == 302
+            assert response.headers['Location'].endswith('/')
     
     def test_giveaways_page_shows_unclaimed_items(self, client, app, auth_user):
         """Test giveaways page shows only unclaimed giveaway items."""
@@ -270,7 +270,7 @@ class TestGiveawaysFeed:
                 is_giveaway=False
             )
             
-            response = client.get('/giveaways')
+            response = client.get('/?distance=')
             
             assert response.status_code == 200
             assert b'Free Lamp' in response.data
@@ -278,7 +278,7 @@ class TestGiveawaysFeed:
             assert b'Power Tools' not in response.data
     
     def test_giveaways_sorting_by_date(self, client, app, auth_user):
-        """Test giveaways page sorts by date correctly."""
+        """Test homepage feed sorts giveaway events by date correctly."""
         with app.app_context():
             user = auth_user()
             circle = CircleFactory()
@@ -314,7 +314,7 @@ class TestGiveawaysFeed:
             db.session.commit()
             
             # Test date sorting (newest first)
-            response = client.get('/giveaways?sort_by=date')
+            response = client.get('/?distance=')
             
             assert response.status_code == 200
             # Newest should appear before oldest in HTML (lower byte position)
@@ -363,7 +363,7 @@ class TestGiveawaysFeed:
             
             db.session.commit()
             
-            response = client.get('/giveaways')
+            response = client.get('/?distance=')
             
             assert response.status_code == 200
             assert b'Public Free Item' in response.data, "Public giveaway should be visible to all circle members"
@@ -412,14 +412,14 @@ class TestGiveawaysFeed:
             db.session.commit()
             
             # Search for giveaways
-            response = client.get('/?q=Searchable&item_type=giveaways')
+            response = client.get('/find?q=Searchable&item_type=giveaways')
             
             assert response.status_code == 200
             assert b'Searchable Public Giveaway' in response.data, "Public giveaway should appear in search for all circle members"
             assert b'Searchable Default Giveaway' not in response.data, "Default visibility giveaway should not appear in search without shared circles"
 
     def test_my_giveaways_section_only_shows_active(self, client, app, auth_user):
-        """Test that 'My Giveaways' section on feed page only shows active giveaways, not claimed ones."""
+        """Test old /giveaways page no longer renders a dedicated My Giveaways section."""
         
         with app.app_context():
             user = auth_user()
@@ -466,14 +466,14 @@ class TestGiveawaysFeed:
             
             db.session.commit()
             
-            response = client.get('/giveaways')
-            
-            assert response.status_code == 200
-            # Active giveaways should appear
-            assert b'My Active Unclaimed' in response.data, "Unclaimed giveaway should appear in My Giveaways"
-            assert b'My Active Pending' in response.data, "Pending pickup giveaway should appear in My Giveaways"
-            # Past giveaway should NOT appear
-            assert b'My Past Claimed' not in response.data, "Claimed giveaway should NOT appear in My Giveaways"
+            response = client.get('/giveaways', follow_redirects=False)
+
+            assert response.status_code == 302
+            assert response.headers['Location'].endswith('/')
+
+            home_response = client.get('/')
+            assert home_response.status_code == 200
+            assert b'My Giveaways' not in home_response.data
 
 
 class TestSearchFiltering:
@@ -510,7 +510,7 @@ class TestSearchFiltering:
             )
             db.session.commit()
             
-            response = client.get('/?q=Drill&item_type=loans')
+            response = client.get('/find?q=Drill&item_type=loans')
             
             assert response.status_code == 200
             assert b'Drill for Loan' in response.data
@@ -547,7 +547,7 @@ class TestSearchFiltering:
             )
             db.session.commit()
             
-            response = client.get('/?q=Drill&item_type=giveaways')
+            response = client.get('/find?q=Drill&item_type=giveaways')
             
             assert response.status_code == 200
             assert b'Drill for Loan' not in response.data
@@ -584,7 +584,7 @@ class TestSearchFiltering:
             )
             db.session.commit()
             
-            response = client.get('/?q=Drill&item_type=both')
+            response = client.get('/find?q=Drill&item_type=both')
             
             assert response.status_code == 200
             assert b'Drill for Loan' in response.data
@@ -2039,14 +2039,14 @@ class TestConfirmHandoff:
             
             login_user(client, user.email)
             
-            response = client.get('/giveaways')
+            response = client.get('/?distance=')
             
             assert response.status_code == 200
             assert b'Available Item' in response.data
             assert b'Claimed Item' not in response.data
     
     def test_pending_pickup_items_not_visible_to_others(self, client, app, auth_user):
-        """Test pending_pickup items (even public ones) don't appear to other users in giveaway feed."""
+        """Test pending_pickup items (even public ones) don't appear to other users in homepage feed."""
         with app.app_context():
             user = auth_user()
             owner = UserFactory()
@@ -2088,7 +2088,7 @@ class TestConfirmHandoff:
             
             login_user(client, user.email)
             
-            response = client.get('/giveaways')
+            response = client.get('/?distance=')
             
             assert response.status_code == 200
             assert b'Available Public Item' in response.data, "Unclaimed public giveaway should appear"
