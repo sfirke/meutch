@@ -217,19 +217,8 @@ class TestGiveawayPublicVisibilityLocationRequirement:
 class TestGiveawaysFeed:
     """Test the giveaway feed page."""
     
-    def test_giveaways_page_with_no_circles(self, client, app, auth_user):
-        """Test giveaways route redirects authenticated users to homepage feed."""
-        with app.app_context():
-            user = auth_user()
-            login_user(client, user.email)
-            
-            response = client.get('/giveaways', follow_redirects=False)
-            
-            assert response.status_code == 302
-            assert response.headers['Location'].endswith('/')
-    
     def test_giveaways_page_shows_unclaimed_items(self, client, app, auth_user):
-        """Test giveaways page shows only unclaimed giveaway items."""
+        """Test giveaways feed shows only unclaimed giveaway items."""
         with app.app_context():
             user = auth_user()
             circle = CircleFactory()
@@ -417,64 +406,6 @@ class TestGiveawaysFeed:
             assert response.status_code == 200
             assert b'Searchable Public Giveaway' in response.data, "Public giveaway should appear in search for all circle members"
             assert b'Searchable Default Giveaway' not in response.data, "Default visibility giveaway should not appear in search without shared circles"
-
-    def test_my_giveaways_section_only_shows_active(self, client, app, auth_user):
-        """Test old /giveaways page no longer renders a dedicated My Giveaways section."""
-        
-        with app.app_context():
-            user = auth_user()
-            recipient = UserFactory()
-            circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(recipient)
-            db.session.commit()
-            login_user(client, user.email)
-            
-            category = CategoryFactory()
-            
-            # Create active giveaways (should appear in "My Giveaways")
-            active_unclaimed = ItemFactory(
-                owner=user,
-                category=category,
-                name='My Active Unclaimed',
-                is_giveaway=True,
-                giveaway_visibility='default',
-                claim_status='unclaimed'
-            )
-            
-            active_pending = ItemFactory(
-                owner=user,
-                category=category,
-                name='My Active Pending',
-                is_giveaway=True,
-                giveaway_visibility='default',
-                claim_status='pending_pickup',
-                claimed_by=recipient
-            )
-            
-            # Create past giveaway (should NOT appear in "My Giveaways")
-            past_claimed = ItemFactory(
-                owner=user,
-                category=category,
-                name='My Past Claimed',
-                is_giveaway=True,
-                giveaway_visibility='default',
-                claim_status='claimed',
-                claimed_by=recipient,
-                claimed_at=datetime.now(UTC) - timedelta(days=5)
-            )
-            
-            db.session.commit()
-            
-            response = client.get('/giveaways', follow_redirects=False)
-
-            assert response.status_code == 302
-            assert response.headers['Location'].endswith('/')
-
-            home_response = client.get('/')
-            assert home_response.status_code == 200
-            assert b'My Giveaways' not in home_response.data
-
 
 class TestSearchFiltering:
     """Test search filtering by item type."""
