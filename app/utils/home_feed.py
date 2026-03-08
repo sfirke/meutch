@@ -1,7 +1,5 @@
 from datetime import datetime, UTC, timedelta
-
 from sqlalchemy import and_, func, or_, select
-
 from app import db
 from app.models import Circle, CircleJoinRequest, Item, ItemRequest, LoanRequest, User, circle_members
 
