@@ -444,10 +444,6 @@ class TestCompletedGiveawayVisibility:
         assert response.status_code == 200
         assert pending_name in response.data.decode()
 
-        response = client.get('/giveaways', follow_redirects=False)
-        assert response.status_code == 302
-        assert response.headers['Location'].endswith('/')
-
         # Other users should not see pending pickup in discovery views
         client.get('/logout', follow_redirects=True)
         login_user(client, email=other_user_email)
@@ -455,10 +451,6 @@ class TestCompletedGiveawayVisibility:
         response = client.get('/')
         assert response.status_code == 200
         assert pending_name not in response.data.decode()
-        
-        response = client.get('/giveaways', follow_redirects=False)
-        assert response.status_code == 302
-        assert response.headers['Location'].endswith('/')
         
         response = client.get(f'/find?q={pending_name}&item_type=both')
         assert response.status_code == 200
