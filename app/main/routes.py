@@ -89,7 +89,7 @@ def _build_find_context(user):
                 and_(
                     or_(
                         and_(
-                            or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
+                            or_(Item.is_giveaway == False, Item.giveaway_visibility == 'default'),
                             Item.owner_id.in_(shared_circle_user_ids)
                         ),
                         and_(
@@ -147,7 +147,7 @@ def _build_find_context(user):
                 User.vacation_mode == False,
                 or_(
                     and_(
-                        or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
+                        or_(Item.is_giveaway == False, Item.giveaway_visibility == 'default'),
                         Item.owner_id.in_(shared_circle_user_ids)
                     ),
                     and_(
