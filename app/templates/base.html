@@ -83,20 +83,24 @@
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link position-relative" href="{{ url_for('main.messages') }}">
-                                <i class="fas fa-envelope me-1"></i>Messages
+                            <a class="nav-link d-inline-flex align-items-center gap-2" href="{{ url_for('main.messages') }}">
+                                <span class="d-inline-flex align-items-center">
+                                    <i class="fas fa-envelope me-1"></i>Messages
+                                </span>
                                 {% if unread_messages_count > 0 %}
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    <span class="badge rounded-pill bg-danger">
                                         {{ unread_messages_count }}
                                     </span>
                                 {% endif %}
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link position-relative" href="{{ url_for('circles.manage_circles') }}">
-                                <i class="fas fa-users me-1"></i>Circles
+                            <a class="nav-link d-inline-flex align-items-center gap-2" href="{{ url_for('circles.manage_circles') }}">
+                                <span class="d-inline-flex align-items-center">
+                                    <i class="fas fa-users me-1"></i>Circles
+                                </span>
                                 {% if total_pending > 0 %}
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
+                                    <span class="badge rounded-pill bg-warning text-dark">
                                         {{ total_pending }}
                                     </span>
                                 {% endif %}
