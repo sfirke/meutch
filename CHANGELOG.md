@@ -18,6 +18,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Requests feed now defaults to an "All" view that combines public requests and shared-circle requests, keeps a "My Circles" filter, and defaults new requests to public visibility ([#255](https://github.com/sfirke/meutch/pull/255)).
 - Make all text adjacent to a radio button or checkbox tappable ([#263](https://github.com/sfirke/meutch/pull/263)).
 - Improve conversation view about an item (image formatting, say "pending pickup" instead of "borrowed") ([#264](https://github.com/sfirke/meutch/pull/264)).
+- Fix unread message badge alignment on mobile and desktop for clarity ([#265](https://github.com/sfirke/meutch/pull/265)).
 
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/issues/213)).
