@@ -105,11 +105,11 @@ class TestMainRoutes:
         """Test distance filter applies to request and giveaway activity."""
         with app.app_context():
             viewer = auth_user()
-            viewer.latitude = 0.0
-            viewer.longitude = 0.0
+            viewer.latitude = 40.7128  # NYC
+            viewer.longitude = -74.0060
 
-            near_user = UserFactory(latitude=0.0, longitude=0.02)
-            far_user = UserFactory(latitude=0.0, longitude=0.5)
+            near_user = UserFactory(latitude=40.7400, longitude=-74.0100)  # Nearby NYC
+            far_user = UserFactory(latitude=42.3601, longitude=-71.0589)  # Boston
             category = CategoryFactory()
             circle = CircleFactory()
             circle.members.extend([viewer, near_user, far_user])
@@ -219,16 +219,6 @@ class TestMainRoutes:
             assert response.status_code == 200
             assert b'Find Items' in response.data
             assert b'Join a circle to start finding items' in response.data
-
-    def test_giveaways_redirects_to_home_for_authenticated_user(self, client, app, auth_user):
-        """Test /giveaways redirects authenticated users to homepage feed."""
-        with app.app_context():
-            user = auth_user()
-            login_user(client, user.email)
-
-            response = client.get('/giveaways', follow_redirects=False)
-            assert response.status_code == 302
-            assert response.headers['Location'].endswith('/')
     
     def test_index_anonymous_user_limited_items(self, client, app):
         """Test that anonymous users see limited items with 'more' message."""

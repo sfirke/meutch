@@ -43,9 +43,9 @@ def test_consolidate_circle_join_activity_merges_by_user():
 
 def test_build_visible_giveaway_events_defaults_to_20_miles(app):
     with app.app_context():
-        viewer = UserFactory(latitude=0.0, longitude=0.0)
-        near_owner = UserFactory(latitude=0.0, longitude=0.1)
-        far_owner = UserFactory(latitude=0.0, longitude=0.5)
+        viewer = UserFactory(latitude=40.7128, longitude=-74.0060)  # NYC
+        near_owner = UserFactory(latitude=40.7400, longitude=-74.0100)  # Nearby NYC
+        far_owner = UserFactory(latitude=42.3601, longitude=-71.0589)  # Boston
         category = CategoryFactory()
         circle = CircleFactory()
         circle.members.extend([viewer, near_owner, far_owner])
@@ -123,9 +123,9 @@ def test_build_recent_lent_events_hides_borrower_identity(app):
 
 def test_build_visible_requests_events_defaults_to_20_miles_for_geocoded_user(app):
     with app.app_context():
-        viewer = UserFactory(latitude=0.0, longitude=0.0)
-        near_requester = UserFactory(latitude=0.0, longitude=0.1)
-        far_requester = UserFactory(latitude=0.0, longitude=0.5)
+        viewer = UserFactory(latitude=40.7128, longitude=-74.0060)  # NYC
+        near_requester = UserFactory(latitude=40.7400, longitude=-74.0100)  # Nearby NYC
+        far_requester = UserFactory(latitude=42.3601, longitude=-71.0589)  # Boston
         circle = CircleFactory()
         circle.members.extend([viewer, near_requester, far_requester])
 

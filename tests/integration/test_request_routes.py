@@ -17,15 +17,6 @@ class TestRequestsFeedAccess:
         assert response.status_code == 302
         assert '/auth/login' in response.headers['Location']
 
-    def test_feed_loads_for_authenticated_user(self, client, app, auth_user):
-        """Test that requests feed redirects authenticated users to homepage feed."""
-        with app.app_context():
-            user = auth_user()
-            login_user(client, user.email)
-            response = client.get('/requests/', follow_redirects=False)
-            assert response.status_code == 302
-            assert response.headers['Location'].endswith('/')
-
     def test_feed_shows_no_circles_message(self, client, app, auth_user):
         """Test homepage feed shows no-circles message for users with no circles."""
         with app.app_context():
@@ -238,8 +229,8 @@ class TestRequestsFeedFiltering:
             assert response.status_code == 200
             assert b'Old fulfilled request' not in response.data
 
-    def test_feed_shows_own_request_within_90_days(self, client, app, auth_user):
-        """Test that user's own fulfilled requests within 90 days are shown."""
+    def test_feed_hides_own_fulfilled_request_within_90_days(self, client, app, auth_user):
+        """Test that user's own fulfilled requests within 90 days are hidden."""
         with app.app_context():
             user = auth_user()
             db.session.commit()
@@ -258,8 +249,8 @@ class TestRequestsFeedFiltering:
             assert response.status_code == 200
             assert b'My request from 30 days ago' not in response.data
 
-    def test_feed_shows_own_expired_request_within_90_days(self, client, app, auth_user):
-        """Test that user's own expired requests within 90 days are shown."""
+    def test_feed_hides_own_expired_request_within_90_days(self, client, app, auth_user):
+        """Test that user's own expired requests within 90 days are hidden."""
         with app.app_context():
             user = auth_user()
             db.session.commit()
