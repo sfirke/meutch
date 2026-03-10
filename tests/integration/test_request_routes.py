@@ -4,7 +4,7 @@ from datetime import datetime, UTC, timedelta
 from unittest.mock import patch
 from app import db
 from app.models import ItemRequest, Circle, Message
-from tests.factories import UserFactory, ItemRequestFactory, CircleFactory, MessageFactory
+from tests.factories import UserFactory, ItemFactory, ItemRequestFactory, CircleFactory, MessageFactory
 from conftest import login_user
 
 
@@ -780,6 +780,32 @@ class TestRequestConversations:
             assert reply is not None
             assert reply.request_id == item_request.id
             assert reply.item_id is None
+
+    def test_view_conversation_pending_pickup_giveaway_shows_pending_pickup(self, client, app):
+        """Pending-pickup giveaways should show Pending Pickup, not Borrowed, in conversation header."""
+        with app.app_context():
+            owner = UserFactory()
+            claimant = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                available=False,
+            )
+            first_message = MessageFactory(
+                sender=owner,
+                recipient=claimant,
+                item=giveaway,
+                body='Ready for pickup when you are.',
+            )
+            db.session.commit()
+
+            login_user(client, claimant.email)
+            response = client.get(f'/message/{first_message.id}')
+
+            assert response.status_code == 200
+            assert b'Pending Pickup' in response.data
+            assert b'Borrowed' not in response.data
 
 
 class TestRequestNavigation:

@@ -41,7 +41,7 @@
                 <div class="col-md-4">
                     {% if conversation_item.image %}
                         <img src="{{ conversation_item.image }}" 
-                             class="img-fluid rounded-start item-thumbnail" 
+                             class="img-fluid rounded-start card-img-top"
                              alt="{{ conversation_item.name }}">
                     {% endif %}
                 </div>
@@ -55,9 +55,15 @@
                         {% if conversation_item.current_loan and conversation_item.current_loan.borrower == current_user %}
                             <span class="badge bg-info">You are currently borrowing this item</span>
                         {% elif not conversation_item.available %}
-                            <span class="badge bg-warning">
-                                <i class="fas fa-clock me-1"></i>Borrowed
-                            </span>
+                            {% if conversation_item.is_giveaway and conversation_item.claim_status == 'pending_pickup' %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-clock me-1"></i>Pending Pickup
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-clock me-1"></i>Borrowed
+                                </span>
+                            {% endif %}
                         {% endif %}
                     </div>
                 </div>
