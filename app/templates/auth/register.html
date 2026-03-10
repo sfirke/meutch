@@ -53,8 +53,8 @@
             </div>
             {% for subfield in form.location_method %}
                 <div class="form-check">
-                    {{ subfield(class="form-check-input") }}
-                    {{ subfield.label(class="form-check-label") }}
+                    {{ subfield(class="form-check-input", id=subfield.id) }}
+                    {{ subfield.label(class="form-check-label", for_=subfield.id) }}
                 </div>
             {% endfor %}
             {% for error in form.location_method.errors %}

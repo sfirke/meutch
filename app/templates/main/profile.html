@@ -434,8 +434,8 @@
 
                             {% if current_user.profile_image_url %}
                                 <div class="mb-3 form-check">
-                                    {{ form.delete_image(class="form-check-input") }}
-                                    {{ form.delete_image.label(class="form-check-label") }}
+                                    {{ form.delete_image(class="form-check-input", id="deleteProfileImage") }}
+                                    {{ form.delete_image.label(class="form-check-label", for_="deleteProfileImage") }}
                                 </div>
                             {% endif %}
                         </div>

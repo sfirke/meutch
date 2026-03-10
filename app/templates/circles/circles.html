@@ -252,8 +252,8 @@
             {{ circle_form.location_method.label(class="form-label") }}
             {% for subfield in circle_form.location_method %}
                 <div class="form-check">
-                    {{ subfield(class="form-check-input location-method-radio") }}
-                    {{ subfield.label(class="form-check-label") }}
+                    {{ subfield(class="form-check-input location-method-radio", id=subfield.id) }}
+                    {{ subfield.label(class="form-check-label", for_=subfield.id) }}
                 </div>
             {% endfor %}
             {% for error in circle_form.location_method.errors %}

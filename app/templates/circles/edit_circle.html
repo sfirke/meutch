@@ -46,8 +46,8 @@
                 </div>
                 <!-- Delete Image -->
                 <div class="mb-3 form-check">
-                    {{ form.delete_image(class="form-check-input") }}
-                    {{ form.delete_image.label(class="form-check-label") }}
+                    {{ form.delete_image(class="form-check-input", id="deleteCircleImage") }}
+                    {{ form.delete_image.label(class="form-check-label", for_="deleteCircleImage") }}
                 </div>
                 {% endif %}
                 <!-- Image Upload -->
@@ -74,8 +74,8 @@
                     {{ form.location_method.label(class="form-label") }}
                     {% for subfield in form.location_method %}
                         <div class="form-check">
-                            {{ subfield(class="form-check-input edit-location-method-radio") }}
-                            {{ subfield.label(class="form-check-label") }}
+                            {{ subfield(class="form-check-input edit-location-method-radio", id=subfield.id) }}
+                            {{ subfield.label(class="form-check-label", for_=subfield.id) }}
                         </div>
                     {% endfor %}
                     {% for error in form.location_method.errors %}

@@ -25,8 +25,8 @@
         </div>
 
         <div class="form-check mb-3">
-            {{ form.remember_device(class="form-check-input") }}
-            {{ form.remember_device.label(class="form-check-label") }}
+            {{ form.remember_device(class="form-check-input", id="rememberDevice") }}
+            {{ form.remember_device.label(class="form-check-label", for_="rememberDevice") }}
         </div>
         
         <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
