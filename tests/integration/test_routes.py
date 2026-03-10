@@ -218,7 +218,7 @@ class TestMainRoutes:
             response = client.get('/find')
             assert response.status_code == 200
             assert b'Find Items' in response.data
-            assert b'Join a circle to start finding items' in response.data
+            assert b'Join a circle to get started' in response.data
     
     def test_index_anonymous_user_limited_items(self, client, app):
         """Test that anonymous users see limited items with 'more' message."""

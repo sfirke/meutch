@@ -1,5 +1,6 @@
 """Integration tests for share link routes."""
 from datetime import datetime, UTC, timedelta
+from unittest.mock import patch
 
 import pytest
 from app import db
@@ -683,6 +684,21 @@ class TestCircleSharePreview:
             response = client.get(f'/share/circle/{circle.id}')
             assert response.status_code == 200
             assert b'5 members' in response.data
+
+    def test_public_circle_preview_uses_shared_sampling_helper(self, client, app):
+        """Public circle preview should delegate member sampling to shared helper."""
+        with app.app_context():
+            circle = CircleFactory(visibility='public')
+            user = UserFactory(first_name='Sampled Member', profile_image_url='https://cdn.example.com/member.jpg')
+            circle.members.append(user)
+            db.session.commit()
+
+            with patch('app.share.routes.sample_circle_members', return_value=[user]) as mock_sampler:
+                response = client.get(f'/share/circle/{circle.id}')
+
+            assert response.status_code == 200
+            mock_sampler.assert_called_once_with(circle.members, limit=8)
+            assert b'share-member-avatar' in response.data
 
 
 class TestShareButtonVisibility:

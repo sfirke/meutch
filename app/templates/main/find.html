@@ -103,17 +103,6 @@
             {{ result_count }} result{% if result_count != 1 %}s{% endif %} found.
         </p>
         {% endif %}
-        {% else %}
-        <div class="card border-info mb-4">
-            <div class="card-body text-center py-4">
-                <i class="fas fa-users text-info mb-2" style="font-size: 2rem;"></i>
-                <h5>Join a circle to start finding items</h5>
-                <p class="text-muted mb-3">Circles connect you with nearby people who share tools, books, kitchen gear, and more.</p>
-                <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
-                    <i class="fas fa-search me-1"></i>Find Circles to Join
-                </a>
-            </div>
-        </div>
         {% endif %}
     </section>
 
@@ -168,17 +157,14 @@
             {% endif %}
         {% else %}
             <div class="empty-state">
-                <i class="fas fa-box"></i>
                 {% if not has_circles %}
-                    <h4>Join a circle to see items</h4>
-                    <p>You're not a member of any circles yet. Join a circle near you to see items from your community!</p>
-                    <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
-                        <i class="fas fa-search me-1"></i>Find Circles to Join
-                    </a>
+                    {% include 'main/_join_circle_prompt.html' %}
                 {% elif query %}
+                    <i class="fas fa-box"></i>
                     <h4>No results found</h4>
                     <p>No items match your search. Try different keywords or <a href="{{ url_for('main.find') }}">clear your search</a>.</p>
                 {% else %}
+                    <i class="fas fa-box"></i>
                     <h4>No items available</h4>
                     <p>No items are currently available for sharing in your circles. Be the first to share!</p>
                     <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">

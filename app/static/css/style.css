@@ -1294,6 +1294,43 @@ footer h6 {
     flex-shrink: 0;
 }
 
+.circle-result-thumbnail {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid var(--border-color, #dee2e6);
+}
+
+.circle-result-content {
+    min-width: 0;
+}
+
+@media (max-width: 575.98px) {
+    .circle-result-row {
+        gap: 0.75rem;
+    }
+
+    .circle-result-thumbnail {
+        width: 48px;
+        height: 48px;
+    }
+
+    .circle-result-actions {
+        width: 100%;
+    }
+
+    .circle-result-actions .btn {
+        width: 100%;
+    }
+}
+
+@media (min-width: 576px) {
+    .circle-result-actions {
+        width: auto;
+    }
+}
+
 /* ===========================================
    Homepage Activity Feed (rounded app style)
    =========================================== */

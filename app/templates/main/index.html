@@ -115,16 +115,7 @@
     </section>
 
     {% if not has_circles %}
-    <div class="card border-info mb-4">
-        <div class="card-body text-center py-4">
-            <i class="fas fa-users text-info mb-2" style="font-size: 2rem;"></i>
-            <h5>Join a circle to see activity</h5>
-            <p class="text-muted mb-3">Circles connect you with nearby people who share and lend items.</p>
-            <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
-                <i class="fas fa-search me-1"></i>Find Circles to Join
-            </a>
-        </div>
-    </div>
+        {% include 'main/_join_circle_prompt.html' %}
     {% endif %}
 
     {% if feed_events %}

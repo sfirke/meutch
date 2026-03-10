@@ -24,7 +24,7 @@ class TestRequestsFeedAccess:
             login_user(client, user.email)
             response = client.get('/')
             assert response.status_code == 200
-            assert b'Join a circle to see activity' in response.data
+            assert b'Join a circle to get started' in response.data
 
 
 class TestRequestsFeedFiltering:

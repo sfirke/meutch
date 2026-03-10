@@ -6,7 +6,7 @@ from app.share import bp as share
 from app.models import Item, ItemRequest, Circle
 from app import db
 from app.utils.giveaway_visibility import can_view_claimed_giveaway, is_giveaway_party, get_unavailable_giveaway_suggestions
-import random
+from app.utils.circle_members import sample_circle_members
 
 
 def _absolute_image_url(image_url):
@@ -89,17 +89,9 @@ def circle_preview(circle_id):
 
     auth_next_url = url_for('circles.view_circle', circle_id=circle.id)
 
-    # For public circles, get a sample of members to show avatars
-    # Prioritize members who have uploaded a custom avatar
     sample_members = []
     if circle.visibility == 'public' and circle.members:
-        members_list = list(circle.members)
-        with_avatar = [m for m in members_list if m.profile_image_url]
-        without_avatar = [m for m in members_list if not m.profile_image_url]
-        random.shuffle(with_avatar)
-        random.shuffle(without_avatar)
-        prioritized = with_avatar + without_avatar
-        sample_members = prioritized[:8]
+        sample_members = sample_circle_members(circle.members, limit=8)
 
     return render_template(
         'share/circle_preview.html',
