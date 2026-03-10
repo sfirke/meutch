@@ -7,6 +7,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Features
 
 **Major**
+- Implement an activity feed for the home page ([#259](https://github.com/sfirke/meutch/pull/259)).
 - Overhaul user's view of own profile ([#228](https://github.com/sfirke/meutch/pull/228)).
 - Improve search capabilities and combine search into the home page (now "Find") ([#251](https://github.com/sfirke/meutch/pull/251)).
 
@@ -14,6 +15,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
 - Add search bar for own items ([#252](https://github.com/sfirke/meutch/pull/252)).
 - Requests feed now defaults to an "All" view that combines public requests and shared-circle requests, keeps a "My Circles" filter, and defaults new requests to public visibility ([#255](https://github.com/sfirke/meutch/pull/255)).
+- Make all text adjacent to a radio button or checkbox tappable ([#263](https://github.com/sfirke/meutch/pull/263)).
 
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/issues/213)).

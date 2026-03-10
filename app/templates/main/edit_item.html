@@ -71,6 +71,10 @@
             <div class="form-check">
                 {{ form.delete_image(class="form-check-input", id="deleteImage") }}
                 {{ form.delete_image.label(class="form-check-label", for_="deleteImage") }}
+            </div>
+        </div>
+        {% endif %}
+        
         <div class="mb-3">
             {{ form.image.label }}
             {{ form.image(class="form-control drag-drop-upload photo-preview", accept="image/*") }}
