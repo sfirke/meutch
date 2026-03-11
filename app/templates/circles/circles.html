@@ -5,6 +5,48 @@
 {% block title %}Circles{% endblock %}
 
 {% block content %}
+<style>
+    .circle-result-rail {
+        width: 72px;
+        min-width: 72px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+    }
+
+    .circle-result-thumbnail,
+    .circle-result-thumbnail-placeholder {
+        width: 64px;
+        height: 64px;
+        border-radius: 0.5rem;
+    }
+
+    .circle-result-thumbnail {
+        object-fit: cover;
+    }
+
+    .circle-result-thumbnail-placeholder {
+        background: var(--bs-light);
+        border: 1px solid var(--bs-border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--bs-secondary-color);
+    }
+
+    .circle-result-title {
+        margin-bottom: 0.25rem;
+    }
+
+    .circle-result-title-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1rem;
+        margin-right: 0.5rem;
+        color: var(--bs-secondary-color);
+    }
+</style>
 <div class="container mt-5">
     <h1 class="mb-4">Circles</h1>
     
@@ -124,16 +166,24 @@
                 <li class="list-group-item{% if circle.id in user_circle_ids %} bg-light border-success{% endif %}">
                     <div class="circle-result-row d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3">
                         <div class="circle-result-main d-flex align-items-start gap-3 flex-grow-1">
+                            <div class="circle-result-rail">
                             {% if circle.image_url %}
                                 <img src="{{ circle.image_url }}" alt="{{ circle.name }}" class="circle-result-thumbnail rounded" loading="lazy">
+                            {% else %}
+                                <div class="circle-result-thumbnail-placeholder" aria-hidden="true">
+                                    <i class="fas fa-users"></i>
+                                </div>
                             {% endif %}
+                            </div>
                             <div class="circle-result-content">
-                            <h5>
+                            <h5 class="circle-result-title">
+                                <span class="circle-result-title-icon">
                                 {% if circle.circle_type == 'closed' %}
-                                    <i class="fas fa-lock text-muted me-2" title="Closed Circle"></i>
+                                    <i class="fas fa-lock" title="Closed Circle"></i>
                                 {% elif circle.circle_type == 'secret' %}
-                                    <i class="fas fa-eye-slash text-muted me-2" title="Secret Circle"></i>
+                                    <i class="fas fa-eye-slash" title="Secret Circle"></i>
                                 {% endif %}
+                                </span>
                                 <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
                                     {{ circle.name }}
                                 </a>
@@ -141,9 +191,6 @@
                                     <span class="badge bg-success ms-2">
                                         <i class="fas fa-check-circle me-1"></i>Member
                                     </span>
-                                {% endif %}
-                                {% if circle.circle_type == 'closed' %}
-                                    <span class="badge bg-secondary ms-2">Closed</span>
                                 {% endif %}
                             </h5>
                             <p class="mb-1">{{ circle.description }}</p>
@@ -187,14 +234,24 @@
                 <li class="list-group-item{% if circle.id in user_circle_ids %} bg-light border-success{% endif %}">
                     <div class="circle-result-row d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3">
                         <div class="circle-result-main d-flex align-items-start gap-3 flex-grow-1">
+                            <div class="circle-result-rail">
                             {% if circle.image_url %}
                                 <img src="{{ circle.image_url }}" alt="{{ circle.name }}" class="circle-result-thumbnail rounded" loading="lazy">
+                            {% else %}
+                                <div class="circle-result-thumbnail-placeholder" aria-hidden="true">
+                                    <i class="fas fa-users"></i>
+                                </div>
                             {% endif %}
+                            </div>
                             <div class="circle-result-content">
-                            <h5>
+                            <h5 class="circle-result-title">
+                                <span class="circle-result-title-icon">
                                 {% if circle.circle_type == 'closed' %}
-                                    <i class="fas fa-lock text-muted me-2" title="Closed Circle"></i>
+                                    <i class="fas fa-lock" title="Closed Circle"></i>
+                                {% elif circle.circle_type == 'secret' %}
+                                    <i class="fas fa-eye-slash" title="Secret Circle"></i>
                                 {% endif %}
+                                </span>
                                 <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
                                     {{ circle.name }}
                                 </a>
@@ -202,9 +259,6 @@
                                     <span class="badge bg-success ms-2">
                                         <i class="fas fa-check-circle me-1"></i>Member
                                     </span>
-                                {% endif %}
-                                {% if circle.circle_type == 'closed' %}
-                                    <span class="badge bg-secondary ms-2">Closed</span>
                                 {% endif %}
                             </h5>
                             <p class="mb-1">{{ circle.description }}</p>
