@@ -40,8 +40,8 @@ def test_unlisted_circle_not_found_by_name_but_found_by_uuid(client, app):
         db.session.commit()
 
 
-def test_browse_shows_private_not_unlisted_and_defaults_radius_20(client, app):
-    """Browse mode should show listed circles (public/private), hide unlisted, and default to 20 miles."""
+def test_browse_shows_private_not_unlisted_and_defaults_radius_25(client, app):
+    """Browse mode should show listed circles (public/private), hide unlisted, and default to 25 miles."""
     with app.app_context():
         user = UserFactory(latitude=40.7128, longitude=-74.0060)
         login_user(client, user.email)
@@ -81,7 +81,7 @@ def test_browse_shows_private_not_unlisted_and_defaults_radius_20(client, app):
         assert 'Visible Public Circle' in html
         assert 'Visible Private Circle' in html
         assert 'Hidden Unlisted Circle' not in html
-        assert re.search(r'<option[^>]*value="20"[^>]*selected|<option[^>]*selected[^>]*value="20"', html)
+        assert re.search(r'<option[^>]*value="25"[^>]*selected|<option[^>]*selected[^>]*value="25"', html)
 
 
 def test_distance_filter_results_sorted_by_membership_desc(client, app):
@@ -122,7 +122,7 @@ def test_distance_filter_results_sorted_by_membership_desc(client, app):
 
         response = client.post(
             '/circles',
-            data={'search_circles': True, 'search_query': '', 'radius': '20'},
+            data={'search_circles': True, 'search_query': '', 'radius': '25'},
             follow_redirects=True,
         )
         assert response.status_code == 200
