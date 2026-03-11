@@ -70,7 +70,7 @@ class CircleFactory(SQLAlchemyModelFactory):
     
     name = factory.LazyAttribute(lambda obj: f"{fake.company()} {uuid.uuid4().hex[:8]}")
     description = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=200))
-    requires_approval = False
+    circle_type = 'open'
 
 class LoanRequestFactory(SQLAlchemyModelFactory):
     """Factory for LoanRequest model."""

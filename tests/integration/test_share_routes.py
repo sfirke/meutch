@@ -534,7 +534,7 @@ class TestCircleSharePreview:
         """Test that a public circle preview loads for unauthenticated users."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='public', name='Board Gamers Club'
+                circle_type='open', name='Board Gamers Club'
             )
             db.session.commit()
             
@@ -546,7 +546,7 @@ class TestCircleSharePreview:
         """Test that a private circle preview loads for unauthenticated users."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='private', name='Work Friends'
+                circle_type='closed', name='Work Friends'
             )
             db.session.commit()
             
@@ -554,19 +554,19 @@ class TestCircleSharePreview:
             assert response.status_code == 200
             assert b'Work Friends' in response.data
 
-    def test_unlisted_circle_returns_404(self, client, app):
-        """Test that an unlisted circle returns 404."""
+    def test_secret_circle_returns_404(self, client, app):
+        """Test that a secret circle returns 404."""
         with app.app_context():
-            circle = CircleFactory(visibility='unlisted')
+            circle = CircleFactory(circle_type='secret')
             db.session.commit()
             
             response = client.get(f'/share/circle/{circle.id}')
             assert response.status_code == 404
 
-    def test_public_circle_shows_member_avatars(self, client, app):
-        """Test that a public circle shows member avatars."""
+    def test_open_circle_shows_member_avatars(self, client, app):
+        """Test that an open circle shows member avatars."""
         with app.app_context():
-            circle = CircleFactory(visibility='public')
+            circle = CircleFactory(circle_type='open')
             user1 = UserFactory(first_name='Member1')
             user2 = UserFactory(first_name='Member2')
             circle.members.append(user1)
@@ -578,10 +578,10 @@ class TestCircleSharePreview:
             assert b'share-member-avatar' in response.data
             assert b'2 members' in response.data
 
-    def test_private_circle_hides_member_avatars(self, client, app):
-        """Test that a private circle does NOT show member avatars."""
+    def test_closed_circle_hides_member_avatars(self, client, app):
+        """Test that a closed circle does NOT show member avatars."""
         with app.app_context():
-            circle = CircleFactory(visibility='private')
+            circle = CircleFactory(circle_type='closed')
             user1 = UserFactory()
             circle.members.append(user1)
             db.session.commit()
@@ -589,13 +589,13 @@ class TestCircleSharePreview:
             response = client.get(f'/share/circle/{circle.id}')
             assert response.status_code == 200
             assert b'share-member-avatar' not in response.data
-            assert b'private circle' in response.data.lower()
+            assert b'closed circle' in response.data.lower()
 
     def test_circle_preview_shows_description(self, client, app):
         """Test that the preview shows the circle description."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='public',
+                circle_type='open',
                 description='A circle for board game lovers'
             )
             db.session.commit()
@@ -607,7 +607,7 @@ class TestCircleSharePreview:
     def test_circle_preview_has_cta(self, client, app):
         """Test that preview has sign up and login CTAs."""
         with app.app_context():
-            circle = CircleFactory(visibility='public')
+            circle = CircleFactory(circle_type='open')
             db.session.commit()
             
             response = client.get(f'/share/circle/{circle.id}')
@@ -619,7 +619,7 @@ class TestCircleSharePreview:
         """Test that preview includes Open Graph meta tags."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='public', name='Neighbors Circle'
+                circle_type='open', name='Neighbors Circle'
             )
             db.session.commit()
             
@@ -631,7 +631,7 @@ class TestCircleSharePreview:
         """Test that preview metadata uses circle image when present."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='public',
+                circle_type='open',
                 image_url='https://cdn.example.com/circle.jpg'
             )
             db.session.commit()
@@ -644,7 +644,7 @@ class TestCircleSharePreview:
         """Test that circle preview uses summary_large_image when image exists."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='public',
+                circle_type='open',
                 image_url='https://cdn.example.com/circle-card.jpg'
             )
             db.session.commit()
@@ -657,7 +657,7 @@ class TestCircleSharePreview:
         """Test that circle preview uses summary when no image exists."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='public',
+                circle_type='open',
                 image_url=None
             )
             db.session.commit()
@@ -675,7 +675,7 @@ class TestCircleSharePreview:
     def test_circle_member_count_shown(self, client, app):
         """Test that member count is displayed correctly."""
         with app.app_context():
-            circle = CircleFactory(visibility='public')
+            circle = CircleFactory(circle_type='open')
             for _ in range(5):
                 user = UserFactory()
                 circle.members.append(user)
@@ -685,10 +685,10 @@ class TestCircleSharePreview:
             assert response.status_code == 200
             assert b'5 members' in response.data
 
-    def test_public_circle_preview_uses_shared_sampling_helper(self, client, app):
-        """Public circle preview should delegate member sampling to shared helper."""
+    def test_open_circle_preview_uses_shared_sampling_helper(self, client, app):
+        """Open circle preview should delegate member sampling to shared helper."""
         with app.app_context():
-            circle = CircleFactory(visibility='public')
+            circle = CircleFactory(circle_type='open')
             user = UserFactory(first_name='Sampled Member', profile_image_url='https://cdn.example.com/member.jpg')
             circle.members.append(user)
             db.session.commit()
@@ -782,11 +782,11 @@ class TestShareButtonVisibility:
             assert response.status_code == 200
             assert b'/share/request/' not in response.data
 
-    def test_share_button_shown_on_public_circle(self, client, app, auth_user):
-        """Test that share button appears on public circle detail page."""
+    def test_share_button_shown_on_open_circle(self, client, app, auth_user):
+        """Test that share button appears on open circle detail page."""
         with app.app_context():
             user = auth_user()
-            circle = CircleFactory(visibility='public')
+            circle = CircleFactory(circle_type='open')
             circle.members.append(user)
             db.session.commit()
             
@@ -796,11 +796,11 @@ class TestShareButtonVisibility:
             assert b'share-btn' in response.data
             assert b'/share/circle/' in response.data
 
-    def test_share_button_shown_on_private_circle(self, client, app, auth_user):
-        """Test that share button appears on private circle detail page."""
+    def test_share_button_shown_on_closed_circle(self, client, app, auth_user):
+        """Test that share button appears on closed circle detail page."""
         with app.app_context():
             user = auth_user()
-            circle = CircleFactory(visibility='private', requires_approval=True)
+            circle = CircleFactory(circle_type='closed')
             circle.members.append(user)
             db.session.commit()
             
@@ -809,11 +809,11 @@ class TestShareButtonVisibility:
             assert response.status_code == 200
             assert b'share-btn' in response.data
 
-    def test_share_button_not_shown_on_unlisted_circle(self, client, app, auth_user):
-        """Test that share button does NOT appear on unlisted circle."""
+    def test_share_button_not_shown_on_secret_circle(self, client, app, auth_user):
+        """Test that share button does NOT appear on secret circle."""
         with app.app_context():
             user = auth_user()
-            circle = CircleFactory(visibility='unlisted', requires_approval=True)
+            circle = CircleFactory(circle_type='secret')
             circle.members.append(user)
             db.session.commit()
             

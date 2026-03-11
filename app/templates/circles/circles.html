@@ -41,10 +41,10 @@
                 {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}bg-light border-warning{% endif %}">
                 <div>
                     <h5>
-                        {% if circle.visibility == 'private' %}
-                            <i class="fas fa-lock text-muted me-2" title="Private Circle"></i>
-                        {% elif circle.visibility == 'unlisted' %}
-                            <i class="fas fa-eye-slash text-muted me-2" title="Unlisted Circle"></i>
+                        {% if circle.circle_type == 'closed' %}
+                            <i class="fas fa-lock text-muted me-2" title="Closed Circle"></i>
+                        {% elif circle.circle_type == 'secret' %}
+                            <i class="fas fa-eye-slash text-muted me-2" title="Secret Circle"></i>
                         {% endif %}
                         <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" 
                            class="text-decoration-none {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}text-dark{% endif %}">
@@ -129,10 +129,10 @@
                             {% endif %}
                             <div class="circle-result-content">
                             <h5>
-                                {% if circle.visibility == 'private' %}
-                                    <i class="fas fa-lock text-muted me-2" title="Private Circle"></i>
-                                {% elif circle.visibility == 'unlisted' %}
-                                    <i class="fas fa-eye-slash text-muted me-2" title="Unlisted Circle"></i>
+                                {% if circle.circle_type == 'closed' %}
+                                    <i class="fas fa-lock text-muted me-2" title="Closed Circle"></i>
+                                {% elif circle.circle_type == 'secret' %}
+                                    <i class="fas fa-eye-slash text-muted me-2" title="Secret Circle"></i>
                                 {% endif %}
                                 <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
                                     {{ circle.name }}
@@ -142,8 +142,8 @@
                                         <i class="fas fa-check-circle me-1"></i>Member
                                     </span>
                                 {% endif %}
-                                {% if circle.visibility == 'private' %}
-                                    <span class="badge bg-secondary ms-2">Private</span>
+                                {% if circle.circle_type == 'closed' %}
+                                    <span class="badge bg-secondary ms-2">Closed</span>
                                 {% endif %}
                             </h5>
                             <p class="mb-1">{{ circle.description }}</p>
@@ -192,8 +192,8 @@
                             {% endif %}
                             <div class="circle-result-content">
                             <h5>
-                                {% if circle.visibility == 'private' %}
-                                    <i class="fas fa-lock text-muted me-2" title="Private Circle"></i>
+                                {% if circle.circle_type == 'closed' %}
+                                    <i class="fas fa-lock text-muted me-2" title="Closed Circle"></i>
                                 {% endif %}
                                 <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
                                     {{ circle.name }}
@@ -203,8 +203,8 @@
                                         <i class="fas fa-check-circle me-1"></i>Member
                                     </span>
                                 {% endif %}
-                                {% if circle.visibility == 'private' %}
-                                    <span class="badge bg-secondary ms-2">Private</span>
+                                {% if circle.circle_type == 'closed' %}
+                                    <span class="badge bg-secondary ms-2">Closed</span>
                                 {% endif %}
                             </h5>
                             <p class="mb-1">{{ circle.description }}</p>
@@ -247,8 +247,8 @@
                 </div>
             {% endif %}
 
-            <!-- Find Unlisted Circle by UUID -->
-            <h3 class="mb-3 mt-4"><i class="fas fa-key me-2"></i>Find Unlisted Circle</h3>
+            <!-- Find Secret Circle by UUID -->
+            <h3 class="mb-3 mt-4"><i class="fas fa-key me-2"></i>Find Secret Circle</h3>
             <form method="post" class="mb-4">
         {{ uuid_search_form.csrf_token }}
         <div class="input-group">
@@ -259,7 +259,7 @@
             <div class="text-danger">{{ error }}</div>
         {% endfor %}
         <small class="form-text text-muted">
-            To find an unlisted circle, you need its exact UUID. Ask a circle member for this information.
+            To find a secret circle, you need its exact UUID. Ask a circle member for this information.
             </small>
             </form>
         </div>
@@ -289,11 +289,11 @@
             {% endfor %}
         </div>
         
-        <!-- Visibility -->
+        <!-- Circle Type -->
         <div class="mb-3">
-            {{ circle_form.visibility.label(class="form-label") }}
-            {{ circle_form.visibility(class="form-select") }}
-            {% for error in circle_form.visibility.errors %}
+            {{ circle_form.circle_type.label(class="form-label") }}
+            {{ circle_form.circle_type(class="form-select") }}
+            {% for error in circle_form.circle_type.errors %}
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>

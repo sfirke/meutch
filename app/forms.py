@@ -227,14 +227,13 @@ class CircleCreateForm(FlaskForm):
         description = TextAreaField('Description', validators=[
             Length(max=500, message="Description must be under 500 characters.")
         ])
-        # Visibility replaces older requires_approval boolean to allow three states
-        visibility = SelectField('Circle Visibility',
+        circle_type = SelectField('Circle Type',
             choices=[
-                ('public', 'Public - Anyone can find and join'),
-                ('private', 'Private - Anyone can find it, but requires approval to join.'),
-                ('unlisted', 'Unlisted - Cannot be found by search, requires UUID and approval to join.')
+                ('open', 'Open - Anyone can find and join'),
+                ('closed', 'Closed - Anyone can find it, but requires approval to join.'),
+                ('secret', 'Secret - Cannot be found by search, requires UUID and approval to join.')
             ],
-            default='public',
+            default='open',
             validators=[DataRequired()]
         )
         image = FileField('Circle Image', validators=[

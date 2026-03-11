@@ -188,7 +188,7 @@ class TestCircleWorkflow:
                 'create_circle': True,
                 'name': 'Test Circle',
                 'description': 'A test circle',
-                'visibility': 'private'
+                'circle_type': 'closed'
             }, follow_redirects=True)
             
             assert response.status_code == 200

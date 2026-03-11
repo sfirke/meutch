@@ -20,6 +20,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Improve conversation view about an item (image formatting, say "pending pickup" instead of "borrowed") ([#264](https://github.com/sfirke/meutch/pull/264)).
 - Fix unread message badge alignment on mobile and desktop for clarity ([#265](https://github.com/sfirke/meutch/pull/265)).
 - DRY the new-user no-circle empty state across Home and Find, remove duplicate join-circle prompt on Find, and improve Circle discovery UX (default 25-mile filter, membership-first ordering after distance filter, private circles included in browse results, unlisted search moved lower, and member facepiles on circle results) ([#268](https://github.com/sfirke/meutch/pull/268)).
+- Refactor circles to use `circle_type` (`open`/`closed`/`secret`) as the single behavior source, replacing legacy visibility labels (`public`/`private`/`unlisted`) and removing `requires_approval` usage in app logic.
 
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/issues/213)).

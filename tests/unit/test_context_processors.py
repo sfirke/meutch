@@ -201,7 +201,7 @@ class TestUnreadMessagesCount:
             admin = UserFactory()
             requester1 = UserFactory()
             requester2 = UserFactory()
-            circle = CircleFactory(requires_approval=True)
+            circle = CircleFactory(circle_type='closed')
 
             # Make admin an admin member of the circle
             db.session.execute(
@@ -227,7 +227,7 @@ class TestUnreadMessagesCount:
         with app.app_context():
             member = UserFactory()
             requester = UserFactory()
-            circle = CircleFactory(requires_approval=True)
+            circle = CircleFactory(circle_type='closed')
 
             # Add as non-admin member
             db.session.execute(
@@ -247,7 +247,7 @@ class TestUnreadMessagesCount:
         """Users with no admin circle membership should not have pending join count."""
         with app.app_context():
             user = UserFactory()
-            circle = CircleFactory(requires_approval=True)
+            circle = CircleFactory(circle_type='closed')
             CircleJoinRequestFactory(circle=circle, user=UserFactory(), status='pending')
 
             with patch('app.context_processors.current_user', user):

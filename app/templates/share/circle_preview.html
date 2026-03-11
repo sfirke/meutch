@@ -23,15 +23,15 @@
                 {% endif %}
                 
                 <div class="card-body">
-                    <!-- Visibility Badge -->
+                    <!-- Circle Type Badge -->
                     <div class="mb-3">
-                        {% if circle.visibility == 'public' %}
+                        {% if circle.circle_type == 'open' %}
                             <span class="badge bg-primary">
-                                <i class="fas fa-globe me-1"></i>Public Circle
+                                <i class="fas fa-globe me-1"></i>Open Circle
                             </span>
                         {% else %}
                             <span class="badge bg-secondary">
-                                <i class="fas fa-lock me-1"></i>Private Circle
+                                <i class="fas fa-lock me-1"></i>Closed Circle
                             </span>
                         {% endif %}
                         <span class="badge bg-light text-dark border ms-1">
@@ -47,8 +47,8 @@
                         <p class="fs-5 text-muted mb-4">{{ circle.description }}</p>
                     {% endif %}
 
-                    <!-- Member Avatars (public circles only) -->
-                    {% if circle.visibility == 'public' and sample_members %}
+                    <!-- Member Avatars (open circles only) -->
+                    {% if circle.circle_type == 'open' and sample_members %}
                         <div class="mb-4">
                             <h6 class="text-muted mb-3"><i class="fas fa-users"></i></h6>
                             <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -69,11 +69,11 @@
                         </div>
                     {% endif %}
 
-                    <!-- Private circle note -->
-                    {% if circle.visibility == 'private' %}
+                    <!-- Closed circle note -->
+                    {% if circle.circle_type == 'closed' %}
                         <div class="alert alert-light border mb-4">
                             <i class="fas fa-lock me-2 text-muted"></i>
-                            This is a private circle. Join to see its members and shared items. Membership requires approval.
+                            This is a closed circle. Join to see its members and shared items. Membership requires approval.
                         </div>
                     {% endif %}
 

@@ -340,7 +340,7 @@ class TestCircleCreateForm:
             form_data = {
                 'name': 'Test Circle',
                 'description': 'A test circle description',
-                'requires_approval': False
+                'circle_type': 'open'
             }
             form = CircleCreateForm(data=form_data)
             assert form.validate() is True
@@ -351,7 +351,7 @@ class TestCircleCreateForm:
             form_data = {
                 'name': '',
                 'description': 'A test circle description',
-                'requires_approval': False
+                'circle_type': 'open'
             }
             form = CircleCreateForm(data=form_data)
             assert form.validate() is False

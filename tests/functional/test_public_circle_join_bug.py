@@ -12,14 +12,14 @@ def test_public_circle_join_flow(client, app):
         creator = UserFactory(email='creator_public@test.com')
         joiner = UserFactory(email='joiner_public@test.com')
 
-        # Creator logs in and creates a public circle (requires_approval=False)
+        # Creator logs in and creates an open circle
         login_user(client, creator.email)
 
         response = client.post('/circles', data={
             'create_circle': True,
             'name': 'Public Circle Test',
             'description': 'A public circle for testing',
-            # requires_approval unchecked / False
+            'circle_type': 'open',
         }, follow_redirects=True)
 
         assert response.status_code == 200
@@ -27,7 +27,7 @@ def test_public_circle_join_flow(client, app):
 
         circle = Circle.query.filter_by(name='Public Circle Test').first()
         assert circle is not None
-        assert circle.requires_approval is False
+        assert circle.circle_type == 'open'
 
         # Logout creator
         client.get('/auth/logout', follow_redirects=True)

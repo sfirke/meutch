@@ -230,32 +230,30 @@ def _seed_development_data():
     circles = []
     circle_data = [
         # Public circles for browsing
-        {'name': 'Neighborhood Share', 'desc': 'Share with your neighbors', 'lat': 40.7128, 'lon': -74.0060, 'visibility': 'public'},  # Manhattan
-        {'name': 'Tech Enthusiasts', 'desc': 'For tech lovers and gadget sharers', 'lat': 40.7589, 'lon': -73.9851, 'visibility': 'public'},  # Upper West Side
-        {'name': 'Book Club', 'desc': 'Share and discuss books', 'lat': 40.7282, 'lon': -73.7949, 'visibility': 'public'},  # Queens
-        {'name': 'Outdoor Adventures', 'desc': 'Outdoor gear sharing community', 'lat': 40.6782, 'lon': -73.9442, 'visibility': 'public'},  # Brooklyn
-        {'name': 'Cooking Circle', 'desc': 'Kitchen tools and recipe sharing', 'lat': 40.7489, 'lon': -73.9680, 'visibility': 'public'},  # Midtown East
-        {'name': 'Gardening Friends', 'desc': 'Share gardening tools and tips', 'lat': 40.7280, 'lon': -74.0020, 'visibility': 'public'},  # Lower Manhattan
-        {'name': 'DIY Workshop', 'desc': 'Tools and knowledge for DIY projects', 'lat': 40.7050, 'lon': -73.9970, 'visibility': 'public'},  # Lower East Side
-        {'name': 'Sports Equipment Share', 'desc': 'Share sports gear and equipment', 'lat': 40.7580, 'lon': -73.9680, 'visibility': 'public'},  # Upper East Side
+        {'name': 'Neighborhood Share', 'desc': 'Share with your neighbors', 'lat': 40.7128, 'lon': -74.0060, 'circle_type': 'open'},  # Manhattan
+        {'name': 'Tech Enthusiasts', 'desc': 'For tech lovers and gadget sharers', 'lat': 40.7589, 'lon': -73.9851, 'circle_type': 'open'},  # Upper West Side
+        {'name': 'Book Club', 'desc': 'Share and discuss books', 'lat': 40.7282, 'lon': -73.7949, 'circle_type': 'open'},  # Queens
+        {'name': 'Outdoor Adventures', 'desc': 'Outdoor gear sharing community', 'lat': 40.6782, 'lon': -73.9442, 'circle_type': 'open'},  # Brooklyn
+        {'name': 'Cooking Circle', 'desc': 'Kitchen tools and recipe sharing', 'lat': 40.7489, 'lon': -73.9680, 'circle_type': 'open'},  # Midtown East
+        {'name': 'Gardening Friends', 'desc': 'Share gardening tools and tips', 'lat': 40.7280, 'lon': -74.0020, 'circle_type': 'open'},  # Lower Manhattan
+        {'name': 'DIY Workshop', 'desc': 'Tools and knowledge for DIY projects', 'lat': 40.7050, 'lon': -73.9970, 'circle_type': 'open'},  # Lower East Side
+        {'name': 'Sports Equipment Share', 'desc': 'Share sports gear and equipment', 'lat': 40.7580, 'lon': -73.9680, 'circle_type': 'open'},  # Upper East Side
         # Public circle with no location set
-        {'name': 'Unlocated Public Circle', 'desc': 'A public circle with no location set yet', 'lat': None, 'lon': None, 'visibility': 'public'},
-        # Private/unlisted circles
-        {'name': 'Family Circle', 'desc': 'Private family lending circle', 'lat': 40.7420, 'lon': -73.9890, 'visibility': 'private'},  # Midtown
-        {'name': 'Office Supplies', 'desc': 'Unlisted circle for office equipment', 'lat': 40.7510, 'lon': -73.9930, 'visibility': 'unlisted'},  # Midtown West
+        {'name': 'Unlocated Public Circle', 'desc': 'A public circle with no location set yet', 'lat': None, 'lon': None, 'circle_type': 'open'},
+        # Closed/secret circles
+        {'name': 'Family Circle', 'desc': 'Private family lending circle', 'lat': 40.7420, 'lon': -73.9890, 'circle_type': 'closed'},  # Midtown
+        {'name': 'Office Supplies', 'desc': 'Unlisted circle for office equipment', 'lat': 40.7510, 'lon': -73.9930, 'circle_type': 'secret'},  # Midtown West
     ]
     
     for circle_info in circle_data:
         existing = Circle.query.filter_by(name=circle_info['name']).first()
         if not existing:
-            visibility = circle_info['visibility']
-            requires_approval = visibility in ['private', 'unlisted']
+            circle_type = circle_info['circle_type']
 
             circle = Circle(
                 name=circle_info['name'],
                 description=circle_info['desc'],
-                visibility=visibility,
-                requires_approval=requires_approval,
+                circle_type=circle_type,
                 latitude=circle_info['lat'],
                 longitude=circle_info['lon']
             )
@@ -269,7 +267,7 @@ def _seed_development_data():
             
             circles.append(circle)
             location_status = "location set" if circle.is_geocoded else "no location"
-            click.echo(f"  ✓ Circle: {circle.name} ({len(circle_users)} members) [visibility={visibility}, {location_status}]")
+            click.echo(f"  ✓ Circle: {circle.name} ({len(circle_users)} members) [circle_type={circle_type}, {location_status}]")
         else:
             # Circle already exists, skip it
             click.echo(f"  ≈ Circle exists: {existing.name} ({len(existing.members)} members)")

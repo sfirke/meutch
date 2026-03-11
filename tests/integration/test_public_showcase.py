@@ -25,8 +25,8 @@ class TestHomepageShowcaseItems:
         regular_user = UserFactory(is_public_showcase=False)
         regular_item = ItemFactory(owner=regular_user, category=category, name="Regular Item Hidden")
         
-        # Add regular user to a public circle
-        public_circle = CircleFactory(requires_approval=False)
+        # Add regular user to an open circle
+        public_circle = CircleFactory(circle_type='open')
         public_circle.members.append(regular_user)
         db_session.commit()
         

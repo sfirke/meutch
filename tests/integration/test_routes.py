@@ -247,7 +247,7 @@ class TestMainRoutes:
             category = CategoryFactory()
             
             # Create a circle and add both users to it so auth_user can see other_user's items
-            circle = Circle(name="Test Circle", description="Test", requires_approval=False)
+            circle = Circle(name="Test Circle", description="Test", circle_type='open')
             db.session.add(circle)
             circle.members.append(user)
             circle.members.append(other_user)
@@ -281,8 +281,8 @@ class TestMainRoutes:
             category = CategoryFactory()
 
             # Put each user in their own circle (no shared circles)
-            user_circle = Circle(name="User Circle", description="", requires_approval=False)
-            owner_circle = Circle(name="Owner Circle", description="", requires_approval=False)
+            user_circle = Circle(name="User Circle", description="", circle_type='open')
+            owner_circle = Circle(name="Owner Circle", description="", circle_type='open')
             db.session.add_all([user_circle, owner_circle])
             user_circle.members.append(user)
             owner_circle.members.append(owner)
@@ -309,8 +309,8 @@ class TestMainRoutes:
             owner = UserFactory()
             category = CategoryFactory()
 
-            user_circle = Circle(name="User Circle 2", description="", requires_approval=False)
-            owner_circle = Circle(name="Owner Circle 2", description="", requires_approval=False)
+            user_circle = Circle(name="User Circle 2", description="", circle_type='open')
+            owner_circle = Circle(name="Owner Circle 2", description="", circle_type='open')
             db.session.add_all([user_circle, owner_circle])
             user_circle.members.append(user)
             owner_circle.members.append(owner)
@@ -339,7 +339,7 @@ class TestMainRoutes:
             user = UserFactory()
             
             # Create a public circle and add the user to it
-            circle = Circle(name="Test Public Circle", description="Test", requires_approval=False)
+            circle = Circle(name="Test Public Circle", description="Test", circle_type='open')
             db.session.add(circle)
             circle.members.append(user)
             db.session.commit()

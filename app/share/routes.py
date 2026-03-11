@@ -79,9 +79,9 @@ def request_preview(request_id):
 
 @share.route('/circle/<uuid:circle_id>')
 def circle_preview(circle_id):
-    """Public preview page for a searchable circle (public or private, not unlisted)."""
+    """Public preview page for a searchable circle (open or closed, not secret)."""
     circle = db.session.get(Circle, circle_id)
-    if not circle or circle.visibility == 'unlisted':
+    if not circle or circle.circle_type == 'secret':
         abort(404)
 
     if current_user.is_authenticated:
@@ -90,7 +90,7 @@ def circle_preview(circle_id):
     auth_next_url = url_for('circles.view_circle', circle_id=circle.id)
 
     sample_members = []
-    if circle.visibility == 'public' and circle.members:
+    if circle.circle_type == 'open' and circle.members:
         sample_members = sample_circle_members(circle.members, limit=8)
 
     return render_template(

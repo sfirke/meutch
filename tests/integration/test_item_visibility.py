@@ -17,7 +17,7 @@ class TestItemVisibility:
         db.session.commit()
 
         # Create a private circle and add the user as a member
-        private_circle = CircleFactory(requires_approval=True)
+        private_circle = CircleFactory(circle_type='closed')
         private_circle.members.append(user)
         db.session.commit()
 
@@ -52,7 +52,7 @@ class TestItemVisibility:
         db.session.commit()
         
         # Create a circle and add user
-        circle = CircleFactory(requires_approval=False)
+        circle = CircleFactory(circle_type='open')
         circle.members.append(user)
         db.session.commit()
         
@@ -76,7 +76,7 @@ class TestItemVisibility:
         db.session.commit()
         
         # Create a circle and add both users
-        circle = CircleFactory(requires_approval=False)
+        circle = CircleFactory(circle_type='open')
         circle.members.append(user1)
         circle.members.append(user2)
         db.session.commit()
@@ -102,8 +102,8 @@ class TestItemVisibility:
         db.session.commit()
         
         # Create two separate circles
-        circle1 = CircleFactory(requires_approval=False)
-        circle2 = CircleFactory(requires_approval=False)
+        circle1 = CircleFactory(circle_type='open')
+        circle2 = CircleFactory(circle_type='open')
         
         # Add user1 to circle1, user3 to circle2 (no overlap)
         circle1.members.append(user1)
@@ -133,8 +133,8 @@ class TestItemVisibility:
         db.session.commit()
         
         # Create two circles
-        circle1 = CircleFactory(requires_approval=False, name="Circle 1")
-        circle2 = CircleFactory(requires_approval=False, name="Circle 2")
+        circle1 = CircleFactory(circle_type='open', name="Circle 1")
+        circle2 = CircleFactory(circle_type='open', name="Circle 2")
         
         # Add user1 to both circles, user2 to circle1, user3 to circle2
         circle1.members.append(user1)
@@ -179,7 +179,7 @@ class TestItemVisibility:
         db.session.commit()
         
         # Create a circle with only this user
-        circle = CircleFactory(requires_approval=False)
+        circle = CircleFactory(circle_type='open')
         circle.members.append(user)
         db.session.commit()
         

@@ -28,8 +28,34 @@ table_exists() {
     docker exec meutch-test-db psql -U test_user -d meutch_dev -tAc "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='${table_name}'" 2>/dev/null | tr -d ' '
 }
 
+alembic_revision() {
+    docker exec meutch-test-db psql -U test_user -d meutch_dev -tAc "SELECT version_num FROM alembic_version LIMIT 1" 2>/dev/null | tr -d ' '
+}
+
+repair_inconsistent_schema_state() {
+    local -a required_tables=("users" "category" "item" "circle")
+    local -a missing_tables=()
+
+    for table_name in "${required_tables[@]}"; do
+        if [ "$(table_exists "$table_name")" != "1" ]; then
+            missing_tables+=("$table_name")
+        fi
+    done
+
+    if [ ${#missing_tables[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    current_revision="$(alembic_revision)"
+    if [ -n "${current_revision}" ]; then
+        echo "⚠️ Found incomplete schema with alembic revision ${current_revision} (missing: ${missing_tables[*]})."
+        echo "🔧 Repairing migration state by stamping base before upgrade..."
+        flask db stamp base
+    fi
+}
+
 ensure_dev_schema() {
-    local -a required_tables=("users" "category" "item")
+    local -a required_tables=("users" "category" "item" "circle")
     local -a missing_tables=()
 
     for table_name in "${required_tables[@]}"; do
@@ -118,6 +144,7 @@ done
 
 # Run database migrations
 echo "📊 Applying database migrations..."
+repair_inconsistent_schema_state
 flask db upgrade
 ensure_dev_schema
 

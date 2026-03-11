@@ -17,8 +17,7 @@ def test_unlisted_circle_not_found_by_name_but_found_by_uuid(client, app):
         circle = Circle(
             name='Hidden Gems Club',
             description='A club for rare finds',
-            visibility='unlisted',
-            requires_approval=True
+            circle_type='secret',
         )
         db.session.add(circle)
         db.session.commit()
@@ -49,24 +48,21 @@ def test_browse_shows_private_not_unlisted_and_defaults_radius_25(client, app):
         public_circle = Circle(
             name='Visible Public Circle',
             description='Public listing',
-            visibility='public',
-            requires_approval=False,
+            circle_type='open',
             latitude=40.7130,
             longitude=-74.0062,
         )
         private_circle = Circle(
             name='Visible Private Circle',
             description='Private listing',
-            visibility='private',
-            requires_approval=True,
+            circle_type='closed',
             latitude=40.7131,
             longitude=-74.0061,
         )
         unlisted_circle = Circle(
             name='Hidden Unlisted Circle',
             description='Should not appear in browse',
-            visibility='unlisted',
-            requires_approval=True,
+            circle_type='secret',
             latitude=40.7132,
             longitude=-74.0063,
         )
@@ -93,24 +89,21 @@ def test_distance_filter_results_sorted_by_membership_desc(client, app):
         large_circle = Circle(
             name='Large Nearby Circle',
             description='Many members',
-            visibility='public',
-            requires_approval=False,
+            circle_type='open',
             latitude=40.7130,
             longitude=-74.0062,
         )
         small_circle = Circle(
             name='Small Nearby Circle',
             description='Few members',
-            visibility='private',
-            requires_approval=True,
+            circle_type='closed',
             latitude=40.7131,
             longitude=-74.0061,
         )
         far_circle = Circle(
             name='Far Circle',
             description='Outside radius',
-            visibility='public',
-            requires_approval=False,
+            circle_type='open',
             latitude=41.7128,
             longitude=-75.0060,
         )
@@ -143,8 +136,7 @@ def test_browse_results_render_circle_thumbnail_and_precomputed_facepile(client,
         circle = Circle(
             name='Thumbnail Circle',
             description='Circle with image and members',
-            visibility='public',
-            requires_approval=False,
+            circle_type='open',
             image_url='https://cdn.example.com/circle-thumb.jpg',
             latitude=40.7130,
             longitude=-74.0062,

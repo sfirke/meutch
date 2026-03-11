@@ -18,7 +18,7 @@ class TestCircleJoinRequestEmailIntegration:
             requesting_user = UserFactory()
             admin1 = UserFactory()
             admin2 = UserFactory()
-            circle = CircleFactory(name='Test Circle', requires_approval=True)
+            circle = CircleFactory(name='Test Circle', circle_type='closed')
             
             # Add admins to circle
             stmt1 = circle_members.insert().values(
@@ -79,7 +79,7 @@ class TestCircleJoinRequestEmailIntegration:
             requesting_user = UserFactory()
             admin1 = UserFactory()
             admin2 = UserFactory()
-            circle = CircleFactory(name='Test Circle', requires_approval=True)
+            circle = CircleFactory(name='Test Circle', circle_type='closed')
 
             db.session.execute(
                 circle_members.insert().values(
@@ -151,7 +151,7 @@ class TestCircleJoinRequestEmailIntegration:
             # Create users and circle - use factory-generated unique emails
             requesting_user = UserFactory()
             admin = UserFactory()
-            circle = CircleFactory(name='Test Circle', requires_approval=True)
+            circle = CircleFactory(name='Test Circle', circle_type='closed')
             
             # Add admin to circle
             stmt = circle_members.insert().values(
@@ -210,7 +210,7 @@ class TestCircleJoinRequestEmailIntegration:
             # Create users and circle - use factory-generated unique emails
             requesting_user = UserFactory()
             admin = UserFactory()
-            circle = CircleFactory(name='Test Circle', requires_approval=True)
+            circle = CircleFactory(name='Test Circle', circle_type='closed')
             
             # Add admin to circle
             stmt = circle_members.insert().values(
@@ -269,7 +269,7 @@ class TestCircleJoinRequestEmailIntegration:
             # Create users and circle - use factory-generated unique emails
             requesting_user = UserFactory()
             admin = UserFactory()
-            circle = CircleFactory(name='Test Circle', requires_approval=False)  # No approval required
+            circle = CircleFactory(name='Test Circle', circle_type='open')  # No approval required
             
             # Add admin to circle
             stmt = circle_members.insert().values(

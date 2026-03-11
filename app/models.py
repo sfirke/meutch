@@ -406,8 +406,7 @@ class Circle(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.Text, nullable=True)
-    visibility = db.Column(db.String(20), default='public', nullable=False)  # public, private, unlisted
-    requires_approval = db.Column(db.Boolean, default=False)
+    circle_type = db.Column(db.String(20), default='open', nullable=False)  # open, closed, secret
     created_at = db.Column(db.DateTime, default=func.now())
     image_url = db.Column(db.String(500), nullable=True)
     latitude = db.Column(db.Float, nullable=True)
@@ -441,6 +440,10 @@ class Circle(db.Model):
         
         from app.utils.geocoding import calculate_distance
         return calculate_distance(self.latitude, self.longitude, user.latitude, user.longitude)
+
+    @property
+    def requires_join_approval(self):
+        return self.circle_type in ['closed', 'secret']
     
 class Category(db.Model):
     __tablename__ = 'category'

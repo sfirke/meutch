@@ -8,14 +8,14 @@
 <div class="container mt-5">
     <div class="d-flex justify-content-between align-items-start">
         <h2>
-            {% if circle.visibility == 'private' %}
-                <i class="fas fa-lock text-muted me-2" title="Private Circle"></i>
-            {% elif circle.visibility == 'unlisted' %}
-                <i class="fas fa-eye-slash text-muted me-2" title="Unlisted Circle"></i>
+            {% if circle.circle_type == 'closed' %}
+                <i class="fas fa-lock text-muted me-2" title="Closed Circle"></i>
+            {% elif circle.circle_type == 'secret' %}
+                <i class="fas fa-eye-slash text-muted me-2" title="Secret Circle"></i>
             {% endif %}
             {{ circle.name }}
         </h2>
-        {% if circle.visibility != 'unlisted' %}
+        {% if circle.circle_type != 'secret' %}
             {% set share_url = url_for('share.circle_preview', circle_id=circle.id, _external=True) %}
             {% set share_title = circle.name + ' Circle' %}
             {% set share_text = 'Join the ' + circle.name + ' circle on Meutch' %}
@@ -34,20 +34,20 @@
         <p><strong>Location:</strong> Not set</p>
     {% endif %}
     
-    <p><strong>Visibility:</strong> 
-        {% if circle.visibility == 'public' %}
-            Public
-        {% elif circle.visibility == 'private' %}
-            Private (requires approval)
-        {% elif circle.visibility == 'unlisted' %}
-            Unlisted (requires approval)
+    <p><strong>Circle Type:</strong> 
+        {% if circle.circle_type == 'open' %}
+            Open
+        {% elif circle.circle_type == 'closed' %}
+            Closed (requires approval)
+        {% elif circle.circle_type == 'secret' %}
+            Secret (requires approval)
         {% endif %}
     </p>
     
-    {% if circle.visibility == 'unlisted' and is_member %}
+    {% if circle.circle_type == 'secret' and is_member %}
         <div class="alert alert-info">
             <h5><i class="fas fa-info-circle me-2"></i>Share this circle</h5>
-            <p class="mb-2">This is an unlisted circle. To invite others, share this UUID with them:</p>
+            <p class="mb-2">This is a secret circle. To invite others, share this UUID with them:</p>
             <div class="input-group">
                 <input type="text" class="form-control" value="{{ circle.id }}" readonly id="circle-uuid">
                 <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard()">
@@ -94,7 +94,7 @@
         </div>
     {% endif %}
 
-    {% if not circle.requires_approval or is_member %}
+    {% if not circle.requires_join_approval or is_member %}
         <!-- Members section with Admin Controls -->
         <h3>Members ({{ circle.members|length }})</h3>
         <ul class="list-group mb-4">
@@ -143,7 +143,7 @@
     {% else %}
         <div class="alert alert-info">
             <i class="fas fa-lock me-2"></i>
-            This is a private circle. Join to see its members.
+            This is a closed circle. Join to see its members.
         </div>
     {% endif %}
     {% if circle.is_admin(current_user) %}
@@ -228,7 +228,7 @@
         {% else %}
             <form method="post" action="{{ url_for('circles.join_circle', circle_id=circle.id) }}">
                 {{ join_form.hidden_tag() if join_form else form.hidden_tag() }}
-                {% if circle.requires_approval %}
+                {% if circle.requires_join_approval %}
                     <div class="form-group">
                         {{ join_form.message.label }} {{ join_form.message(class="form-control") }}
                     </div>
