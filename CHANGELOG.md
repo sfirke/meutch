@@ -25,7 +25,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/pull/213)).
 - Fix: users without location set now can't create public giveaways or requests ([#231](https://github.com/sfirke/meutch/pull/231)). 
 - Fix: pending private-circle join approvals no longer count as unread messages; circles pending badge remains the admin signal, and already-handled join requests can no longer be re-processed by another admin ([#257](https://github.com/sfirke/meutch/pull/257)).
-- Fix: hide members of a closed circle from being viewable in search results ([#231](https://github.com/sfirke/meutch/pull/273)).
+- Fix: hide members of a closed circle from being viewable in search results ([#273](https://github.com/sfirke/meutch/pull/273)).
 
 ## Feb 2026
 

@@ -67,6 +67,8 @@ def manage_circles():
     # Convert to dictionary with pre-converted string IDs
     user_admin_circles = {circle_id: count for circle_id, count in admin_circle_counts}
 
+    # Compute once — used for facepile visibility and template membership checks
+    user_circle_ids = {circle.id for circle in current_user.circles}
 
     if request.method == 'POST':
         if 'create_circle' in request.form and circle_form.validate_on_submit():
@@ -141,9 +143,6 @@ def manage_circles():
             query = search_form.search_query.data.strip() if search_form.search_query.data else ''
             radius = search_form.radius.data
             
-            # Get user's circle IDs for membership indicator
-            user_circle_ids = [circle.id for circle in current_user.circles]
-            
             # Base query - if no search term, browse all listed circles (excluding secret)
             if query:
                 circles_query = Circle.query.filter(
@@ -162,8 +161,7 @@ def manage_circles():
             searched_circles = circles_query.all()
             searched_circles = filter_circles_by_distance(searched_circles, current_user, radius)
             searched_circles = sort_circles_by_membership(searched_circles)
-            user_circle_ids = {circle.id for circle in current_user.circles}
-            searched_circle_samples = build_circle_member_samples(searched_circles, limit=5, current_user=current_user, user_circle_ids=user_circle_ids)
+            searched_circle_samples = build_circle_member_samples(searched_circles, limit=5, user_circle_ids=user_circle_ids)
             
             if not searched_circles:
                 if radius and current_user.is_geocoded:
@@ -184,8 +182,7 @@ def manage_circles():
                 found_circle = Circle.query.filter_by(id=circle_uuid).first()
                 if found_circle:
                     searched_circles = [found_circle]
-                    user_circle_ids = {circle.id for circle in current_user.circles}
-                    searched_circle_samples = build_circle_member_samples(searched_circles, limit=5, current_user=current_user, user_circle_ids=user_circle_ids)
+                    searched_circle_samples = build_circle_member_samples(searched_circles, limit=5, user_circle_ids=user_circle_ids)
                 else:
                     flash('No circle found with that UUID.', 'warning')
             except Exception:
@@ -193,7 +190,7 @@ def manage_circles():
 
     # Fetch user's circles and sort by member count (descending)
     user_circles = sorted(current_user.circles, key=lambda x: len(x.members), reverse=True)
-    
+
     # If no search was performed on GET request, show browse results (all listed circles)
     if request.method == 'GET':
         selected_radius = search_form.radius.data or search_form.radius.default
@@ -206,14 +203,10 @@ def manage_circles():
 
         browse_circles = filter_circles_by_distance(browse_circles, current_user, selected_radius)
         browse_circles = sort_circles_by_membership(browse_circles)
-        user_circle_ids = {circle.id for circle in current_user.circles}
-        browse_circle_samples = build_circle_member_samples(browse_circles, limit=5, current_user=current_user, user_circle_ids=user_circle_ids)
+        browse_circle_samples = build_circle_member_samples(browse_circles, limit=5, user_circle_ids=user_circle_ids)
         
         show_browse = True
 
-    # Get user's circle IDs for membership indicators in templates
-    user_circle_ids = [circle.id for circle in user_circles]
-    
     return render_template('circles/circles.html', 
                            circle_form=circle_form, 
                            search_form=search_form,
