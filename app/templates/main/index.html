@@ -162,6 +162,9 @@
                                     {% elif event.event_type == 'circle_join' %}
                                         <span class="badge rounded-pill text-bg-light border text-info ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-users me-1"></i>Circle</span>
                                     {% endif %}
+                                    {% if event.distance and event.event_type in ('request', 'giveaway') %}
+                                        <span class="badge bg-info ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-map-marker-alt me-1"></i>{{ event.distance }}</span>
+                                    {% endif %}
                                 </div>
                                 
                                 {% if event.description %}

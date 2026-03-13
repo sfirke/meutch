@@ -2,6 +2,7 @@ from datetime import datetime, UTC, timedelta
 from sqlalchemy import and_, func, or_, select
 from app import db
 from app.models import Circle, CircleJoinRequest, Item, ItemRequest, LoanRequest, User, circle_members
+from app.utils.geocoding import format_distance
 
 
 DEFAULT_GIVEAWAY_DISTANCE_MILES = 20
@@ -132,6 +133,10 @@ def build_visible_requests_events(user, scoped_circle_ids=None, scope='all', max
     events = []
     for item_request in visible_requests:
         event_time = _utc(item_request.fulfilled_at) if item_request.status == 'fulfilled' else _utc(item_request.created_at)
+        distance = None
+        if user.is_geocoded and item_request.user and item_request.user.is_geocoded:
+            raw = user.distance_to(item_request.user)
+            distance = format_distance(raw) if raw is not None else None
         events.append({
             'event_type': 'request',
             'created_at': event_time,
@@ -144,6 +149,7 @@ def build_visible_requests_events(user, scoped_circle_ids=None, scope='all', max
             'image_url': None,
             'action': 'requested',
             'visibility': item_request.visibility,
+            'distance': distance,
         })
     return events
 
@@ -186,6 +192,10 @@ def build_visible_giveaway_events(user, scoped_circle_ids=None, scope='all', max
 
     events = []
     for item in giveaway_items:
+        distance = None
+        if user.is_geocoded and item.owner and item.owner.is_geocoded:
+            raw = user.distance_to(item.owner)
+            distance = format_distance(raw) if raw is not None else None
         events.append({
             'event_type': 'giveaway',
             'created_at': _utc(item.created_at),
@@ -196,6 +206,7 @@ def build_visible_giveaway_events(user, scoped_circle_ids=None, scope='all', max
             'actor_avatar_url': item.owner.profile_image_url if item.owner else None,
             'image_url': item.image_url,
             'action': 'posted a giveaway',
+            'distance': distance,
         })
     return events
 
