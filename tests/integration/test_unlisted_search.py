@@ -205,12 +205,11 @@ def test_closed_circle_facepile_hidden_for_non_members(client, app):
         assert 'Closed Mystery Circle' in html
         assert 'Closed circle with mystery members' in html
 
-        # Should NOT see member facepiles for this closed circle
-        # (Note: We're being conservative here - there should be NO facepiles in the response
-        # or if there are any, they shouldn't belong to this circle's member avatars)
+        # Should NOT see members or any facepiles for this closed circle
         assert 'Secret Member One' not in html
         assert 'Secret Member Two' not in html
         assert 'Secret Member Three' not in html
+        assert html.count('share-member-avatar') == 0
 
 
 def test_closed_circle_facepile_shown_for_members(client, app):
@@ -232,8 +231,8 @@ def test_closed_circle_facepile_shown_for_members(client, app):
 
         # Add members including the browser user
         other_members = [
-            UserFactory(first_name='Other Member One'),
-            UserFactory(first_name='Other Member Two'),
+            UserFactory(first_name='John Doe Member'),
+            UserFactory(first_name='Jane Doe Member'),
         ]
         closed_circle.members.append(member_user)  # Add the browsing user
         for member in other_members:
@@ -247,7 +246,7 @@ def test_closed_circle_facepile_shown_for_members(client, app):
 
         # Should see the circle name and that user is a member
         assert 'Closed Member Circle' in html
-        assert 'Member' in html  # Badge showing user is member
+        assert 'John Doe' in html  # Badge showing user is member
 
         # SHOULD see member facepiles for this closed circle since user is a member
         assert html.count('share-member-avatar') >= 2
