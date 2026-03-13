@@ -355,16 +355,16 @@ h1 {
 
 .giveaway-ribbon {
     position: absolute;
-    top: 0.85rem;
-    left: -2.35rem;
-    width: 8rem;
-    padding: 0.2rem 0;
+    top: 1.1rem;
+    left: -3.1rem;
+    width: 11rem;
+    padding: 0.3rem 0;
     background-color: #198754;
     color: #fff;
     text-align: center;
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     transform: rotate(-45deg);
     z-index: 1;
 }
