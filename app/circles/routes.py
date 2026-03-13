@@ -162,7 +162,8 @@ def manage_circles():
             searched_circles = circles_query.all()
             searched_circles = filter_circles_by_distance(searched_circles, current_user, radius)
             searched_circles = sort_circles_by_membership(searched_circles)
-            searched_circle_samples = build_circle_member_samples(searched_circles, limit=5)
+            user_circle_ids = {circle.id for circle in current_user.circles}
+            searched_circle_samples = build_circle_member_samples(searched_circles, limit=5, current_user=current_user, user_circle_ids=user_circle_ids)
             
             if not searched_circles:
                 if radius and current_user.is_geocoded:
@@ -183,7 +184,8 @@ def manage_circles():
                 found_circle = Circle.query.filter_by(id=circle_uuid).first()
                 if found_circle:
                     searched_circles = [found_circle]
-                    searched_circle_samples = build_circle_member_samples(searched_circles, limit=5)
+                    user_circle_ids = {circle.id for circle in current_user.circles}
+                    searched_circle_samples = build_circle_member_samples(searched_circles, limit=5, current_user=current_user, user_circle_ids=user_circle_ids)
                 else:
                     flash('No circle found with that UUID.', 'warning')
             except Exception:
@@ -204,7 +206,8 @@ def manage_circles():
 
         browse_circles = filter_circles_by_distance(browse_circles, current_user, selected_radius)
         browse_circles = sort_circles_by_membership(browse_circles)
-        browse_circle_samples = build_circle_member_samples(browse_circles, limit=5)
+        user_circle_ids = {circle.id for circle in current_user.circles}
+        browse_circle_samples = build_circle_member_samples(browse_circles, limit=5, current_user=current_user, user_circle_ids=user_circle_ids)
         
         show_browse = True
 

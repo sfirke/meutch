@@ -22,12 +22,28 @@ def sample_circle_members(members, limit=8, rng=None):
     return prioritized_members[:limit]
 
 
-def build_circle_member_samples(circles, limit=5):
-    """Build sampled member lists keyed by circle ID for template rendering."""
+def build_circle_member_samples(circles, limit=5, current_user=None, user_circle_ids=None):
+    """Build sampled member lists keyed by circle ID for template rendering.
+    
+    Only includes member samples for:
+    - Open circles (public membership)
+    - Circles where the current user is a member
+    
+    Args:
+        circles: List of Circle objects
+        limit: Max members to sample per circle
+        current_user: Current user object (used to check if authenticated)
+        user_circle_ids: Set/list of circle IDs the user is a member of
+    """
     if not circles:
         return {}
 
-    return {
-        circle.id: sample_circle_members(circle.members, limit=limit)
-        for circle in circles
-    }
+    user_circle_ids = user_circle_ids or set()
+    
+    samples = {}
+    for circle in circles:
+        # Only show member samples for open circles or if user is a member
+        if circle.circle_type == 'open' or circle.id in user_circle_ids:
+            samples[circle.id] = sample_circle_members(circle.members, limit=limit)
+    
+    return samples
