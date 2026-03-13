@@ -7,10 +7,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Features
 
 **Major**
-- Implement an activity feed for the home page ([#259](https://github.com/sfirke/meutch/pull/259)).
+- Implement an activity feed for the home page, replacing Giveaways and Requests dedicated pages ([#259](https://github.com/sfirke/meutch/pull/259)).
 - Overhaul user's view of own profile ([#228](https://github.com/sfirke/meutch/pull/228)).
 - Improve search capabilities and combine search into the home page (now "Find") ([#251](https://github.com/sfirke/meutch/pull/251)).
-- Introduce a social-style activity homepage for logged-in users, move item discovery to a dedicated Find page, and redirect legacy Giveaways/Requests feed routes to Home ([#259](https://github.com/sfirke/meutch/pull/259)).
 
 **Minor**
 - Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
@@ -20,12 +19,13 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Improve conversation view about an item (image formatting, say "pending pickup" instead of "borrowed") ([#264](https://github.com/sfirke/meutch/pull/264)).
 - Fix unread message badge alignment on mobile and desktop for clarity ([#265](https://github.com/sfirke/meutch/pull/265)).
 - DRY the new-user no-circle empty state across Home and Find, remove duplicate join-circle prompt on Find, and improve Circle discovery UX (default 25-mile filter, membership-first ordering after distance filter, private circles included in browse results, unlisted search moved lower, and member facepiles on circle results) ([#268](https://github.com/sfirke/meutch/pull/268)).
-- Refactor circles to use `circle_type` (`open`/`closed`/`secret`) as the single behavior source, replacing legacy visibility labels (`public`/`private`/`unlisted`) and removing `requires_approval` usage in app logic.
+- Refactor circles to use `circle_type` (`open`/`closed`/`secret`) as the single behavior source, replacing legacy visibility labels (`public`/`private`/`unlisted`) ([#271](https://github.com/sfirke/meutch/pull/271)).
 
 ### Bug Fixes
-- Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/issues/213)).
-- Fix: users without location set now can't create public giveaways or requests ([#231](https://github.com/sfirke/meutch/issues/231)). 
-- Fix: pending private-circle join approvals no longer count as unread messages; circles pending badge remains the admin signal, and already-handled join requests can no longer be re-processed by another admin.
+- Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/pull/213)).
+- Fix: users without location set now can't create public giveaways or requests ([#231](https://github.com/sfirke/meutch/pull/231)). 
+- Fix: pending private-circle join approvals no longer count as unread messages; circles pending badge remains the admin signal, and already-handled join requests can no longer be re-processed by another admin ([#257](https://github.com/sfirke/meutch/pull/257)).
+- Fix: hide members of a closed circle from being viewable in search results ([#231](https://github.com/sfirke/meutch/pull/273)).
 
 ## Feb 2026
 
