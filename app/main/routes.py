@@ -64,6 +64,9 @@ def _build_find_context(user):
     selected_categories = request.args.getlist('categories')
     selected_circles = request.args.getlist('circles')
     item_type = request.args.get('item_type', 'both')
+    sort_by = request.args.get('sort', 'date')
+    if sort_by not in ('date', 'distance'):
+        sort_by = 'date'
     page = request.args.get('page', 1, type=int)
     per_page = 12
     result_count = 0
@@ -128,7 +131,10 @@ def _build_find_context(user):
 
             items_query = items_query.distinct()
             all_items = items_query.all()
-            sorted_items = sort_items_by_owner_distance(all_items, user)
+            if sort_by == 'distance':
+                sorted_items = sort_items_by_owner_distance(all_items, user)
+            else:
+                sorted_items = sorted(all_items, key=lambda x: x.created_at or datetime.min, reverse=True)
             pagination = ListPagination(items=sorted_items, page=page, per_page=per_page)
             items = pagination.items
             result_count = pagination.total
@@ -175,8 +181,13 @@ def _build_find_context(user):
                     or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
                 )
 
-            base_query = base_query.order_by(Item.created_at.desc())
-            pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
+            if sort_by == 'distance':
+                all_items = base_query.all()
+                sorted_items = sort_items_by_owner_distance(all_items, user)
+                pagination = ListPagination(items=sorted_items, page=page, per_page=per_page)
+            else:
+                base_query = base_query.order_by(Item.created_at.desc())
+                pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
             items = pagination.items
             result_count = pagination.total
 
@@ -189,6 +200,7 @@ def _build_find_context(user):
         'selected_categories': selected_categories,
         'selected_circles': selected_circles,
         'item_type': item_type,
+        'sort_by': sort_by,
         'has_circles': has_circles,
         'result_count': result_count,
     }
