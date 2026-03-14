@@ -21,6 +21,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - DRY the new-user no-circle empty state across Home and Find, remove duplicate join-circle prompt on Find, and improve Circle discovery UX (default 25-mile filter, membership-first ordering after distance filter, private circles included in browse results, unlisted search moved lower, and member facepiles on circle results) ([#268](https://github.com/sfirke/meutch/pull/268)).
 - Refactor circles to use `circle_type` (`open`/`closed`/`secret`) as the single behavior source, replacing legacy visibility labels (`public`/`private`/`unlisted`) ([#271](https://github.com/sfirke/meutch/pull/271)).
 - Show distance (if available) to giveaways and requests on activity feed ([#275](https://github.com/sfirke/meutch/pull/275)).
+- Add button to sort items on Find page by distance or date created ([#276](https://github.com/sfirke/meutch/pull/276)).
 
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/pull/213)).
