@@ -12,6 +12,7 @@
     <section class="mb-4" id="search-section">
         {% if has_circles %}
         <form method="get" action="{{ url_for('main.find') }}" id="find-form">
+            <input type="hidden" name="sort" value="{{ sort_by }}">
             <div class="input-group mb-2">
                 <input type="text" name="q" class="form-control" placeholder="Search items by name, description, or tag..." value="{{ query }}" aria-label="Search items">
                 <button type="submit" class="btn btn-primary">
@@ -69,7 +70,7 @@
 
                 <div class="dropdown">
                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-sort me-1"></i>{% if sort_by == 'distance' %}Nearest first{% else %}Newest first{% endif %}
+                        <i class="fas fa-sort me-1"></i>{% if sort_by == 'distance' %}Closest first{% else %}Newest first{% endif %}
                     </button>
                     <ul class="dropdown-menu">
                         <li>
@@ -81,7 +82,7 @@
                         <li>
                             <a class="dropdown-item {% if sort_by == 'distance' %}active{% endif %}"
                                href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, sort='distance') }}">
-                                Nearest first
+                                Closest first
                             </a>
                         </li>
                     </ul>
