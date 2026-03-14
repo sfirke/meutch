@@ -2,12 +2,32 @@ from datetime import datetime, UTC, timedelta
 from unittest.mock import patch
 
 from app import db
-from app.cli import check_digest_sends_logic, _to_utc
+from app.cli import check_digest_sends_logic, _to_utc, _digest_cadence_boundary_utc
 from app.models import User
 from tests.factories import UserFactory
 
 
 class TestCliDigestScheduler:
+    def test_digest_scheduler_prefers_tz_over_digest_timezone(self, app):
+        with app.app_context():
+            app.config['DIGEST_TIMEZONE'] = 'UTC'
+            now_utc = datetime(2026, 3, 15, 5, 0, tzinfo=UTC)
+
+            with patch.dict('os.environ', {'TZ': 'America/New_York'}, clear=False):
+                boundary = _digest_cadence_boundary_utc(User.DIGEST_FREQUENCY_DAILY, now_utc)
+
+            assert boundary == datetime(2026, 3, 15, 4, 0, tzinfo=UTC)
+
+    def test_digest_scheduler_falls_back_to_digest_timezone_when_tz_invalid(self, app):
+        with app.app_context():
+            app.config['DIGEST_TIMEZONE'] = 'America/Los_Angeles'
+            now_utc = datetime(2026, 3, 15, 12, 0, tzinfo=UTC)
+
+            with patch.dict('os.environ', {'TZ': 'Invalid/Timezone'}, clear=False):
+                boundary = _digest_cadence_boundary_utc(User.DIGEST_FREQUENCY_DAILY, now_utc)
+
+            assert boundary == datetime(2026, 3, 15, 7, 0, tzinfo=UTC)
+
     def test_digest_scheduler_sends_daily_and_weekly_and_skips_none(self, app):
         with app.app_context():
             now_utc = datetime(2026, 3, 15, 14, 0, tzinfo=UTC)  # Sunday

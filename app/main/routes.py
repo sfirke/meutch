@@ -1848,6 +1848,54 @@ def digest_manage(token):
         token_valid=True,
         token_error=None,
         unsubscribed=False,
+        frequency_updated=None,
+        user=user,
+        token=token,
+    )
+
+
+@main_bp.route('/digest/frequency/<token>/<frequency>')
+def digest_set_frequency(token, frequency):
+    """One-click anonymous digest frequency update for daily/weekly options."""
+    user, token_error = verify_digest_manage_token(token)
+
+    if token_error:
+        status_code = 410 if token_error == 'expired' else 400
+        return render_template(
+            'main/digest_manage.html',
+            token_valid=False,
+            token_error=token_error,
+            unsubscribed=False,
+            frequency_updated=None,
+            user=None,
+            token=token,
+        ), status_code
+
+    allowed_frequencies = {
+        User.DIGEST_FREQUENCY_DAILY,
+        User.DIGEST_FREQUENCY_WEEKLY,
+    }
+    if frequency not in allowed_frequencies:
+        return render_template(
+            'main/digest_manage.html',
+            token_valid=True,
+            token_error='invalid-frequency',
+            unsubscribed=False,
+            frequency_updated=None,
+            user=user,
+            token=token,
+        ), 400
+
+    if user.digest_frequency != frequency:
+        user.digest_frequency = frequency
+        db.session.commit()
+
+    return render_template(
+        'main/digest_manage.html',
+        token_valid=True,
+        token_error=None,
+        unsubscribed=False,
+        frequency_updated=frequency,
         user=user,
         token=token,
     )
@@ -1865,6 +1913,7 @@ def digest_unsubscribe(token):
             token_valid=False,
             token_error=token_error,
             unsubscribed=False,
+            frequency_updated=None,
             user=None,
             token=token,
         ), status_code
@@ -1878,6 +1927,7 @@ def digest_unsubscribe(token):
         token_valid=True,
         token_error=None,
         unsubscribed=True,
+        frequency_updated=None,
         user=user,
         token=token,
     )

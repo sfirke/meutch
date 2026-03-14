@@ -920,12 +920,22 @@ def _to_utc(dt_value):
 
 
 def _digest_timezone():
-    timezone_name = current_app.config.get('DIGEST_TIMEZONE', 'UTC')
-    try:
-        return ZoneInfo(timezone_name)
-    except Exception:
-        current_app.logger.warning('Invalid DIGEST_TIMEZONE %s; falling back to UTC', timezone_name)
-        return ZoneInfo('UTC')
+    timezone_sources = [
+        ('TZ', os.environ.get('TZ') or current_app.config.get('TZ')),
+        ('DIGEST_TIMEZONE', current_app.config.get('DIGEST_TIMEZONE')),
+        ('default', 'UTC'),
+    ]
+
+    for source_name, timezone_name in timezone_sources:
+        if not timezone_name:
+            continue
+        try:
+            return ZoneInfo(timezone_name)
+        except Exception:
+            if source_name != 'default':
+                current_app.logger.warning('Invalid %s %s; trying fallback timezone', source_name, timezone_name)
+
+    return ZoneInfo('UTC')
 
 
 def _digest_cadence_boundary_utc(cadence, now_utc):

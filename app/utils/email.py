@@ -467,44 +467,69 @@ def _digest_event_title(event):
     return event.get('title') or 'Community activity'
 
 
+def _digest_cadence_label(user):
+    cadence = (getattr(user, 'digest_frequency', None) or '').lower()
+    if cadence == 'daily':
+        return 'daily'
+    if cadence == 'weekly':
+        return 'weekly'
+    return 'off'
+
+
 def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url):
-    summary = digest_payload.get('summary_stats', {})
     giveaways = digest_payload.get('giveaways', [])
     requests = digest_payload.get('requests', [])
     circle_joins = digest_payload.get('circle_joins', [])
     loans = digest_payload.get('loans', [])
 
-    total_new_items = summary.get('total_new_items', 0)
-    giveaways_count = summary.get('giveaways_count', 0)
-    borrow_requests_count = summary.get('borrow_requests_count', 0)
+    events = digest_payload.get('events')
+    if events is None:
+        events = giveaways + requests + circle_joins + loans
 
-    subject = f"Meutch Digest — {total_new_items} new items in your circles"
+    total_activities = len(events)
+    cadence_label = _digest_cadence_label(user)
+    subject = f"Meutch Digest - {total_activities} new activities"
+
+    summary_entries = [
+        ("new activities", total_activities),
+        ("giveaways", len(giveaways)),
+        ("requests", len(requests)),
+        ("circle joins", len(circle_joins)),
+        ("loans", len(loans)),
+    ]
+    summary_lines = [f"- {count} {label}" for label, count in summary_entries if count > 0]
 
     text_lines = [
         f"Hello {user.first_name},",
         "",
-        "Here is your Meutch digest.",
-        "",
-        "Summary:",
-        f"- {total_new_items} new items were added by users in your circles",
-        f"- {giveaways_count} giveaways",
-        f"- {borrow_requests_count} requests to borrow",
+        f"Here is your {cadence_label} Meutch digest.",
+        f"Digest cadence: {cadence_label}.",
         "",
     ]
 
-    def append_text_section(section_title, events):
+    if summary_lines:
+        text_lines.append("Summary:")
+        text_lines.extend(summary_lines)
+        text_lines.append("")
+
+    def append_text_section(section_title, events, include_description=False):
         if not events:
             return
         text_lines.append(f"{section_title}:")
         for event in events:
             actor = event.get('actor_name') or 'Someone'
             title = _digest_event_title(event)
-            text_lines.append(f"- {actor}: {title}")
+            action = event.get('action') or 'shared'
+            text_lines.append(f"- {actor} {action}: {title}")
+            if include_description and event.get('description'):
+                text_lines.append(f"  {event['description']}")
+            if event.get('image_url'):
+                text_lines.append(f"  Image: {event['image_url']}")
             text_lines.append(f"  {_digest_event_url(event)}")
         text_lines.append("")
 
-    append_text_section('Giveaways', giveaways)
-    append_text_section('Requests', requests)
+    append_text_section('Giveaways', giveaways, include_description=True)
+    append_text_section('Requests', requests, include_description=True)
     append_text_section('Circle Joins', circle_joins)
     append_text_section('Loans', loans)
 
@@ -517,7 +542,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         "The Meutch Team",
     ])
 
-    def build_html_section(title, events):
+    def build_html_section(title, events, include_description=False):
         if not events:
             return ''
 
@@ -527,10 +552,25 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             item_title = _digest_event_title(event)
             action = event.get('action') or 'shared'
             link = _digest_event_url(event)
+            description_html = ''
+            if include_description and event.get('description'):
+                description_html = f"<p style=\"margin: 6px 0 0 0; color: #555;\">{event['description']}</p>"
+
+            image_html = ''
+            if event.get('image_url'):
+                image_html = (
+                    f"<div style=\"margin: 8px 0;\">"
+                    f"<img src=\"{event['image_url']}\" alt=\"Activity image\" "
+                    f"style=\"max-width: 100%; width: 220px; height: auto; border-radius: 8px;\">"
+                    f"</div>"
+                )
+
             items_html.append(
                 f"""
                 <li style=\"margin-bottom: 10px;\">
                     <strong>{actor}</strong> {action}: {item_title}<br>
+                    {description_html}
+                    {image_html}
                     <a href=\"{link}\" style=\"color: #007bff; text-decoration: none;\">View activity</a>
                 </li>
                 """
@@ -543,19 +583,30 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         </ul>
         """
 
+    summary_html = ''
+    if summary_lines:
+        summary_items_html = ''.join(
+            [f"<li style=\"margin: 0 0 4px 16px;\">{line[2:]}</li>" for line in summary_lines]
+        )
+        summary_html = f"""
+        <div style=\"background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin: 18px 0;\">
+            <p style=\"margin: 0 0 8px 0;\"><strong>Summary</strong></p>
+            <ul style=\"margin: 0; padding: 0;\">{summary_items_html}</ul>
+        </div>
+        """
+
     html_content = f"""
     <html>
     <body style=\"font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;\">
         <h2 style=\"color: #333;\">Your Meutch Digest</h2>
         <p>Hello {user.first_name},</p>
+        <p style=\"margin: 0 0 8px 0;\">This is your <strong>{cadence_label}</strong> digest.</p>
+        <p style=\"margin: 0 0 16px 0; color: #666;\">Digest cadence: {cadence_label}.</p>
 
-        <div style=\"background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin: 18px 0;\">
-            <p style=\"margin: 0 0 8px 0;\"><strong>{total_new_items}</strong> new items were added by users in your circles.</p>
-            <p style=\"margin: 0;\">{giveaways_count} giveaways · {borrow_requests_count} requests to borrow</p>
-        </div>
+        {summary_html}
 
-        {build_html_section('Giveaways', giveaways)}
-        {build_html_section('Requests', requests)}
+        {build_html_section('Giveaways', giveaways, include_description=True)}
+        {build_html_section('Requests', requests, include_description=True)}
         {build_html_section('Circle Joins', circle_joins)}
         {build_html_section('Loans', loans)}
 

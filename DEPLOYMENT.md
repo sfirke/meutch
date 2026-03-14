@@ -44,10 +44,13 @@ MAILGUN_DOMAIN=<your-mailgun-domain>
 
 ### Optional: Digest Scheduler Timezone
 
-Digest cadence boundaries are evaluated in one app timezone:
+Digest cadence boundaries are evaluated in one app timezone. The scheduler now prefers `TZ` (same timezone setting used by the server/runtime), then falls back to `DIGEST_TIMEZONE`, then UTC.
 
 ```bash
-# IANA timezone name (default: UTC)
+# Preferred: server/runtime timezone
+TZ=America/New_York
+
+# Backward-compatible fallback (used when TZ is missing/invalid)
 DIGEST_TIMEZONE=America/New_York
 ```
 
@@ -80,7 +83,7 @@ Digest cadence behavior:
 - **daily** users: evaluated every day (including Sunday)
 - **weekly** users: evaluated on Sunday only
 - **none** users: skipped
-- **Idempotency**: `digest_last_sent_at` is checked against cadence period boundary in `DIGEST_TIMEZONE` and updated only after successful send
+- **Idempotency**: `digest_last_sent_at` is checked against cadence period boundary in resolved scheduler timezone (`TZ` first, then `DIGEST_TIMEZONE`, then UTC) and updated only after successful send
 - **Fault isolation**: one user send failure does not abort the rest of the run
 
 
@@ -117,6 +120,8 @@ jobs:
       - key: MAILGUN_DOMAIN
         scope: RUN_TIME
       - key: SERVER_NAME
+        scope: RUN_TIME
+      - key: TZ
         scope: RUN_TIME
       - key: DIGEST_TIMEZONE
         scope: RUN_TIME

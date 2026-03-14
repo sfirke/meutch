@@ -1110,6 +1110,8 @@ class TestDigestManageRoutes:
             assert response.status_code == 200
             assert b'Manage Digest Emails' in response.data
             assert b'One-click unsubscribe' in response.data
+            assert b'Switch to daily' in response.data
+            assert b'Switch to weekly' in response.data
 
     def test_digest_manage_invalid_token(self, client):
         response = client.get('/digest/manage/not-a-valid-token')
@@ -1135,3 +1137,42 @@ class TestDigestManageRoutes:
 
             updated_user = db.session.get(User, user.id)
             assert updated_user.digest_frequency == User.DIGEST_FREQUENCY_NONE
+
+    def test_digest_set_frequency_updates_to_daily(self, client, app):
+        with app.app_context():
+            user = UserFactory(digest_frequency='weekly')
+            db.session.commit()
+            token = generate_digest_manage_token(user)
+
+            response = client.get(f'/digest/frequency/{token}/daily')
+            assert response.status_code == 200
+            assert b'Digest frequency updated to' in response.data
+
+            updated_user = db.session.get(User, user.id)
+            assert updated_user.digest_frequency == User.DIGEST_FREQUENCY_DAILY
+
+    def test_digest_set_frequency_updates_to_weekly(self, client, app):
+        with app.app_context():
+            user = UserFactory(digest_frequency='daily')
+            db.session.commit()
+            token = generate_digest_manage_token(user)
+
+            response = client.get(f'/digest/frequency/{token}/weekly')
+            assert response.status_code == 200
+            assert b'Digest frequency updated to' in response.data
+
+            updated_user = db.session.get(User, user.id)
+            assert updated_user.digest_frequency == User.DIGEST_FREQUENCY_WEEKLY
+
+    def test_digest_set_frequency_rejects_invalid_frequency(self, client, app):
+        with app.app_context():
+            user = UserFactory(digest_frequency='weekly')
+            db.session.commit()
+            token = generate_digest_manage_token(user)
+
+            response = client.get(f'/digest/frequency/{token}/none')
+            assert response.status_code == 400
+            assert b'Invalid digest frequency option' in response.data
+
+            updated_user = db.session.get(User, user.id)
+            assert updated_user.digest_frequency == User.DIGEST_FREQUENCY_WEEKLY

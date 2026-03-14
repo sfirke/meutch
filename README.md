@@ -81,7 +81,7 @@ flask check-loan-reminders --force-loan-reminders
 # Simulate loan reminder date rules for a specific day
 flask check-loan-reminders --today 2026-03-14
 
-# Simulate digest cadence evaluation time in UTC
+# Simulate the digest scheduler evaluation timestamp in UTC
 flask check-loan-reminders --digest-now "2026-03-16 12:00:00"
 
 # Combine overrides for repeated end-to-end testing
@@ -90,6 +90,9 @@ flask check-loan-reminders --force-digest --force-loan-reminders --today 2026-03
 
 Notes:
 - Use overrides only in development/staging.
+- `--digest-now` sets the scheduler's evaluation timestamp used for digest cadence/day-boundary checks (daily/weekly send windows).
+- `--today` only affects loan reminder date logic (due soon / due today / overdue checks).
+- You can combine both when testing both systems in one run.
 - If `EMAIL_ALLOWLIST` is set, only allowlisted addresses receive emails.
 - If Mailgun is not configured locally, this command still helps validate scheduling logic and CLI summaries.
 

@@ -30,6 +30,18 @@
             </div>
         {% endif %}
 
+        {% if frequency_updated %}
+            <div class="alert alert-success">
+                Digest frequency updated to <strong>{{ frequency_updated }}</strong>.
+            </div>
+        {% endif %}
+
+        {% if token_error == 'invalid-frequency' %}
+            <div class="alert alert-danger">
+                Invalid digest frequency option. Please choose daily or weekly.
+            </div>
+        {% endif %}
+
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">Digest preference</h5>
@@ -40,6 +52,11 @@
                         Digest emails are currently {{ user.digest_frequency }}.
                     {% endif %}
                 </p>
+
+                <div class="mb-3 d-flex flex-wrap gap-2">
+                    <a class="btn btn-outline-primary" href="{{ url_for('main.digest_set_frequency', token=token, frequency='daily') }}">Switch to daily</a>
+                    <a class="btn btn-outline-primary" href="{{ url_for('main.digest_set_frequency', token=token, frequency='weekly') }}">Switch to weekly</a>
+                </div>
 
                 {% if user.digest_frequency != 'none' %}
                     <a class="btn btn-warning" href="{{ url_for('main.digest_unsubscribe', token=token) }}">One-click unsubscribe</a>

@@ -56,7 +56,7 @@ class TestEmailUtils:
 
     def test_build_digest_email_content_includes_sections_and_manage_links(self, app):
         with app.app_context():
-            user = UserFactory(first_name='Digest')
+            user = UserFactory(first_name='Digest', digest_frequency='daily')
             payload = {
                 'summary_stats': {
                     'total_new_items': 2,
@@ -69,6 +69,8 @@ class TestEmailUtils:
                         'item_id': uuid.uuid4(),
                         'actor_name': 'Alex',
                         'title': 'Free Chair',
+                        'description': 'Great chair in good condition',
+                        'image_url': 'https://example.com/chair.jpg',
                         'action': 'posted a giveaway',
                     }
                 ],
@@ -78,9 +80,58 @@ class TestEmailUtils:
                         'request_id': uuid.uuid4(),
                         'actor_name': 'Taylor',
                         'title': 'Need a ladder',
+                        'description': 'Need for one weekend project',
+                        'image_url': 'https://example.com/ladder.jpg',
                         'action': 'requested',
                     }
                 ],
+                'circle_joins': [],
+                'loans': [
+                    {
+                        'event_type': 'lent',
+                        'item_id': uuid.uuid4(),
+                        'actor_name': 'Morgan',
+                        'title': 'Power Drill',
+                        'image_url': 'https://example.com/drill.jpg',
+                        'action': 'lent out',
+                    }
+                ],
+            }
+
+            content = build_digest_email_content(
+                user,
+                payload,
+                manage_url='https://example.com/digest/manage/token123',
+                unsubscribe_url='https://example.com/digest/unsubscribe/token123',
+            )
+
+            assert content['subject'] == 'Meutch Digest - 3 new activities'
+            assert 'Digest cadence: daily.' in content['text']
+            assert 'This is your <strong>daily</strong> digest.' in content['html']
+            assert 'Great chair in good condition' in content['text']
+            assert 'Need for one weekend project' in content['text']
+            assert 'https://example.com/chair.jpg' in content['text']
+            assert 'https://example.com/ladder.jpg' in content['text']
+            assert 'https://example.com/drill.jpg' in content['text']
+            assert 'Giveaways' in content['text']
+            assert 'Requests' in content['text']
+            assert 'https://example.com/digest/manage/token123' in content['text']
+            assert 'https://example.com/digest/unsubscribe/token123' in content['text']
+            assert 'One-click unsubscribe' in content['html']
+            assert '0 circle joins' not in content['text']
+
+    def test_build_digest_email_content_omits_summary_when_all_counts_zero(self, app):
+        with app.app_context():
+            user = UserFactory(first_name='Digest', digest_frequency='weekly')
+            payload = {
+                'summary_stats': {
+                    'total_new_items': 0,
+                    'giveaways_count': 0,
+                    'borrow_requests_count': 0,
+                },
+                'events': [],
+                'giveaways': [],
+                'requests': [],
                 'circle_joins': [],
                 'loans': [],
             }
@@ -92,12 +143,10 @@ class TestEmailUtils:
                 unsubscribe_url='https://example.com/digest/unsubscribe/token123',
             )
 
-            assert 'Meutch Digest' in content['subject']
-            assert 'Giveaways' in content['text']
-            assert 'Requests' in content['text']
-            assert 'https://example.com/digest/manage/token123' in content['text']
-            assert 'https://example.com/digest/unsubscribe/token123' in content['text']
-            assert 'One-click unsubscribe' in content['html']
+            assert content['subject'] == 'Meutch Digest - 0 new activities'
+            assert 'Summary:' not in content['text']
+            assert '<strong>Summary</strong>' not in content['html']
+            assert 'Digest cadence: weekly.' in content['text']
 
     def test_send_digest_email_calls_send_email_with_rendered_content(self, app):
         with app.app_context():
@@ -122,6 +171,6 @@ class TestEmailUtils:
                 mock_send_email.assert_called_once()
                 args = mock_send_email.call_args[0]
                 assert args[0] == user.email
-                assert 'Meutch Digest' in args[1]
+                assert args[1] == 'Meutch Digest - 0 new activities'
                 assert '/digest/manage/' in args[2]
                 assert '/digest/unsubscribe/' in args[2]
