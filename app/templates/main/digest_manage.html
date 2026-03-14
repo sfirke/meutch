@@ -22,7 +22,7 @@
             <a class="btn btn-outline-secondary" href="{{ url_for('main.profile', tab='settings') }}">Digest settings</a>
         </div>
     {% else %}
-        <p class="text-muted">This page lets you quickly manage digest emails for {{ user.email }}.</p>
+        <p class="text-muted">Manage digest emails for {{ user.email }}.</p>
 
         {% if unsubscribed %}
             <div class="alert alert-success">

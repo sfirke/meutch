@@ -491,7 +491,6 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     subject = f"Meutch Digest - {total_activities} new activities"
 
     summary_entries = [
-        ("new activities", total_activities),
         ("giveaways", len(giveaways)),
         ("requests", len(requests)),
         ("circle joins", len(circle_joins)),
@@ -502,8 +501,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     text_lines = [
         f"Hello {user.first_name},",
         "",
-        f"Here is your {cadence_label} Meutch digest.",
-        f"Digest cadence: {cadence_label}.",
+        f"This is your {cadence_label} Meutch digest.",
         "",
     ]
 
@@ -600,8 +598,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     <body style=\"font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;\">
         <h2 style=\"color: #333;\">Your Meutch Digest</h2>
         <p>Hello {user.first_name},</p>
-        <p style=\"margin: 0 0 8px 0;\">This is your <strong>{cadence_label}</strong> digest.</p>
-        <p style=\"margin: 0 0 16px 0; color: #666;\">Digest cadence: {cadence_label}.</p>
+        <p style=\"margin: 0 0 16px 0;\">This is your <strong>{cadence_label}</strong> Meutch digest.</p>
 
         {summary_html}
 

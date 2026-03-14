@@ -106,8 +106,8 @@ class TestEmailUtils:
             )
 
             assert content['subject'] == 'Meutch Digest - 3 new activities'
-            assert 'Digest cadence: daily.' in content['text']
-            assert 'This is your <strong>daily</strong> digest.' in content['html']
+            assert 'This is your daily Meutch digest.' in content['text']
+            assert 'This is your <strong>daily</strong> Meutch digest.' in content['html']
             assert 'Great chair in good condition' in content['text']
             assert 'Need for one weekend project' in content['text']
             assert 'https://example.com/chair.jpg' in content['text']
@@ -119,6 +119,7 @@ class TestEmailUtils:
             assert 'https://example.com/digest/unsubscribe/token123' in content['text']
             assert 'One-click unsubscribe' in content['html']
             assert '0 circle joins' not in content['text']
+            assert '3 new activities' not in content['text']
 
     def test_build_digest_email_content_omits_summary_when_all_counts_zero(self, app):
         with app.app_context():
@@ -146,7 +147,7 @@ class TestEmailUtils:
             assert content['subject'] == 'Meutch Digest - 0 new activities'
             assert 'Summary:' not in content['text']
             assert '<strong>Summary</strong>' not in content['html']
-            assert 'Digest cadence: weekly.' in content['text']
+            assert 'This is your weekly Meutch digest.' in content['text']
 
     def test_send_digest_email_calls_send_email_with_rendered_content(self, app):
         with app.app_context():
