@@ -501,6 +501,79 @@
         <!-- ======================== SETTINGS TAB ======================== -->
         <div class="tab-pane fade {% if active_tab == 'settings' %}show active{% endif %}" id="settings" role="tabpanel" aria-labelledby="settings-tab">
             <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title"><i class="fas fa-envelope-open-text me-2"></i>Email Digest Settings</h6>
+                            <small class="text-muted d-block mb-3">Choose what activity appears in your digest emails.</small>
+
+                            <form method="POST" action="{{ url_for('main.update_digest_settings') }}">
+                                {{ digest_form.csrf_token }}
+
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        {{ digest_form.digest_frequency.label(class="form-label") }}
+                                        {{ digest_form.digest_frequency(class="form-select") }}
+                                        {% for error in digest_form.digest_frequency.errors %}
+                                            <div class="text-danger small">{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ digest_form.digest_radius_miles.label(class="form-label") }}
+                                        {{ digest_form.digest_radius_miles(class="form-control", min="1", max="500") }}
+                                        {% for error in digest_form.digest_radius_miles.errors %}
+                                            <div class="text-danger small">{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch mb-2">
+                                            {{ digest_form.digest_include_giveaways(class="form-check-input", id="digestIncludeGiveaways") }}
+                                            <label class="form-check-label" for="digestIncludeGiveaways">Include giveaways</label>
+                                        </div>
+                                        <div class="form-check form-switch mb-2">
+                                            {{ digest_form.digest_include_requests(class="form-check-input", id="digestIncludeRequests") }}
+                                            <label class="form-check-label" for="digestIncludeRequests">Include requests</label>
+                                        </div>
+                                        <div class="form-check form-switch mb-2">
+                                            {{ digest_form.digest_include_circle_joins(class="form-check-input", id="digestIncludeCircleJoins") }}
+                                            <label class="form-check-label" for="digestIncludeCircleJoins">Include circle joins</label>
+                                        </div>
+                                        <div class="form-check form-switch mb-2">
+                                            {{ digest_form.digest_include_loans(class="form-check-input", id="digestIncludeLoans") }}
+                                            <label class="form-check-label" for="digestIncludeLoans">Include loans</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label d-block">Giveaways scope</label>
+                                        <div class="d-flex flex-wrap gap-2 mb-3">
+                                            <input class="btn-check" type="radio" name="digest_giveaways_include_public" id="digest-giveaways-circles-only" value="" autocomplete="off" {% if not digest_form.digest_giveaways_include_public.data %}checked{% endif %}>
+                                            <label class="btn btn-sm btn-outline-secondary rounded-pill" for="digest-giveaways-circles-only">Circles only</label>
+                                            <input class="btn-check" type="radio" name="digest_giveaways_include_public" id="digest-giveaways-include-public" value="y" autocomplete="off" {% if digest_form.digest_giveaways_include_public.data %}checked{% endif %}>
+                                            <label class="btn btn-sm btn-outline-secondary rounded-pill" for="digest-giveaways-include-public">Include public within radius</label>
+                                        </div>
+
+                                        <label class="form-label d-block">Requests scope</label>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <input class="btn-check" type="radio" name="digest_requests_include_public" id="digest-requests-circles-only" value="" autocomplete="off" {% if not digest_form.digest_requests_include_public.data %}checked{% endif %}>
+                                            <label class="btn btn-sm btn-outline-secondary rounded-pill" for="digest-requests-circles-only">Circles only</label>
+                                            <input class="btn-check" type="radio" name="digest_requests_include_public" id="digest-requests-include-public" value="y" autocomplete="off" {% if digest_form.digest_requests_include_public.data %}checked{% endif %}>
+                                            <label class="btn btn-sm btn-outline-secondary rounded-pill" for="digest-requests-include-public">Include public within radius</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{ digest_form.submit(class="btn btn-primary btn-sm") }}
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
                 <div class="col-md-4">
                     <!-- Address Information -->
                     <div class="card">

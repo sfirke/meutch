@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import date, datetime, UTC, timedelta
 
 from app import db
 from app.models import LoanRequest
 from app.utils.home_feed import (
     build_recent_lent_events,
+    build_digest_payload,
     build_visible_requests_events,
     build_visible_giveaway_events,
     consolidate_circle_join_activity,
@@ -157,3 +158,96 @@ def test_build_visible_requests_events_defaults_to_20_miles_for_geocoded_user(ap
         assert far_request.id not in default_request_ids
         assert near_request.id in explicit_request_ids
         assert far_request.id in explicit_request_ids
+
+
+def test_build_digest_payload_respects_window_and_include_toggles(app):
+    with app.app_context():
+        viewer = UserFactory(
+            digest_include_giveaways=True,
+            digest_include_requests=False,
+            digest_include_circle_joins=False,
+            digest_include_loans=False,
+            digest_giveaways_include_public=False,
+            digest_radius_miles=25,
+        )
+        owner = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner])
+
+        now = datetime.now(UTC)
+        in_window_item = ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility='default',
+            claim_status='unclaimed',
+            name='In Window Giveaway',
+            created_at=now - timedelta(hours=2),
+        )
+        ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility='default',
+            claim_status='unclaimed',
+            name='Old Giveaway',
+            created_at=now - timedelta(days=5),
+        )
+        ItemRequestFactory(
+            user=owner,
+            title='Borrow Saw',
+            visibility='circles',
+            created_at=now - timedelta(hours=1),
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(
+            viewer,
+            since=now - timedelta(days=1),
+            until=now,
+        )
+
+        assert len(payload['giveaways']) == 1
+        assert payload['giveaways'][0]['item_id'] == in_window_item.id
+        assert payload['requests'] == []
+        assert payload['circle_joins'] == []
+        assert payload['loans'] == []
+
+
+def test_build_digest_payload_summary_stats_counts_requests_and_giveaways(app):
+    with app.app_context():
+        viewer = UserFactory(
+            digest_include_giveaways=True,
+            digest_include_requests=True,
+            digest_include_circle_joins=False,
+            digest_include_loans=False,
+            digest_giveaways_include_public=False,
+            digest_requests_include_public=False,
+        )
+        owner = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner])
+
+        now = datetime.now(UTC)
+        ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility='default',
+            claim_status='unclaimed',
+            created_at=now - timedelta(hours=2),
+        )
+        ItemRequestFactory(
+            user=owner,
+            visibility='circles',
+            created_at=now - timedelta(hours=1),
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(viewer, since=now - timedelta(days=1), until=now)
+
+        assert payload['summary_stats']['giveaways_count'] == 1
+        assert payload['summary_stats']['borrow_requests_count'] == 1
+        assert payload['summary_stats']['total_new_items'] == 2

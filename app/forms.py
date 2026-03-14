@@ -1,10 +1,17 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField, FloatField, RadioField, FieldList, FormField
+from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField, FloatField, RadioField, FieldList, FormField, IntegerField
 from flask_wtf.file import FileField, FileAllowed
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError, NumberRange, URL
 from flask_login import current_user
 from app.models import Category, User, ItemRequest
 from datetime import datetime
+
+
+DIGEST_FREQUENCY_CHOICES = [
+    (User.DIGEST_FREQUENCY_DAILY, 'Daily'),
+    (User.DIGEST_FREQUENCY_WEEKLY, 'Weekly'),
+    (User.DIGEST_FREQUENCY_NONE, 'No digest emails'),
+]
 
 def OptionalURL(message=None):
     """
@@ -63,6 +70,12 @@ class RegistrationForm(FlaskForm):
         DataRequired(message="Last name is required."),
         Length(max=50, message="Last name must be under 50 characters.")
     ])
+    digest_frequency = SelectField(
+        'Email Digest Frequency',
+        choices=DIGEST_FREQUENCY_CHOICES,
+        default=User.DIGEST_FREQUENCY_WEEKLY,
+        validators=[DataRequired()]
+    )
     
     # Location input method choice
     location_method = RadioField('How would you like to set your location?', 
@@ -543,6 +556,26 @@ class DeleteAccountForm(FlaskForm):
 class VacationModeForm(FlaskForm):
     vacation_mode = BooleanField('Vacation Mode')
     submit = SubmitField('Update')
+
+
+class DigestSettingsForm(FlaskForm):
+    digest_frequency = SelectField(
+        'Digest Frequency',
+        choices=DIGEST_FREQUENCY_CHOICES,
+        validators=[DataRequired()]
+    )
+    digest_radius_miles = IntegerField(
+        'Digest Radius (miles)',
+        validators=[DataRequired(), NumberRange(min=1, max=500, message='Radius must be between 1 and 500 miles.')],
+        default=10
+    )
+    digest_include_giveaways = BooleanField('Include giveaways')
+    digest_include_requests = BooleanField('Include requests')
+    digest_include_circle_joins = BooleanField('Include circle joins')
+    digest_include_loans = BooleanField('Include loans')
+    digest_giveaways_include_public = BooleanField('Include public giveaways within radius')
+    digest_requests_include_public = BooleanField('Include public requests within radius')
+    submit = SubmitField('Save Digest Settings')
 
 class ExpressInterestForm(FlaskForm):
     message = TextAreaField(

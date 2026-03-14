@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC, timedelta
 from app import db
 from app.models import Item, ItemRequest, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm, VacationModeForm
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm, VacationModeForm, DigestSettingsForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 from app.utils.geocoding import sort_items_by_owner_distance
@@ -15,6 +15,7 @@ from app.utils.pagination import ListPagination
 from app.utils.email import send_message_notification_email
 from app.utils.giveaway_visibility import can_view_claimed_giveaway, get_unavailable_giveaway_suggestions
 from app.utils.home_feed import build_homepage_feed_events, HOMEPAGE_FEED_EVENT_TYPES
+from app.utils.digest_tokens import verify_digest_manage_token
 
 
 HOMEPAGE_DISTANCE_OPTIONS = {5, 10, 20, 25, 50}
@@ -1656,6 +1657,7 @@ def category_items(category_id):
 def profile():
     
     form = EditProfileForm()
+    digest_form = DigestSettingsForm()
     if form.validate_on_submit():
         # Handle profile image deletion
         if form.delete_image.data and current_user.profile_image_url:
@@ -1760,6 +1762,16 @@ def profile():
     # Create vacation mode form with current state
     vacation_form = VacationModeForm()
     vacation_form.vacation_mode.data = current_user.vacation_mode
+
+    # Populate digest settings form
+    digest_form.digest_frequency.data = current_user.digest_frequency
+    digest_form.digest_radius_miles.data = current_user.digest_radius_miles
+    digest_form.digest_include_giveaways.data = current_user.digest_include_giveaways
+    digest_form.digest_include_requests.data = current_user.digest_include_requests
+    digest_form.digest_include_circle_joins.data = current_user.digest_include_circle_joins
+    digest_form.digest_include_loans.data = current_user.digest_include_loans
+    digest_form.digest_giveaways_include_public.data = current_user.digest_giveaways_include_public
+    digest_form.digest_requests_include_public.data = current_user.digest_requests_include_public
     
     # Determine active tab (for maintaining tab state across pagination/form submissions)
     active_tab = request.args.get('tab', 'my-items')
@@ -1780,9 +1792,95 @@ def profile():
                          active_giveaways_pagination=active_giveaways_pagination,
                          past_giveaways_pagination=past_giveaways_pagination,
                          vacation_form=vacation_form,
+                         digest_form=digest_form,
                          active_tab=active_tab,
                          search_query=search_query,
                          show_edit=show_edit)
+
+
+@main_bp.route('/profile/digest-settings', methods=['POST'])
+@login_required
+def update_digest_settings():
+    """Update digest settings for the current user."""
+    form = DigestSettingsForm()
+
+    if not form.validate_on_submit():
+        flash('Unable to save digest settings. Please check your selections and try again.', 'warning')
+        return redirect(url_for('main.profile', tab='settings'))
+
+    current_user.digest_frequency = form.digest_frequency.data
+    current_user.digest_radius_miles = form.digest_radius_miles.data
+    current_user.digest_include_giveaways = form.digest_include_giveaways.data
+    current_user.digest_include_requests = form.digest_include_requests.data
+    current_user.digest_include_circle_joins = form.digest_include_circle_joins.data
+    current_user.digest_include_loans = form.digest_include_loans.data
+    current_user.digest_giveaways_include_public = form.digest_giveaways_include_public.data
+    current_user.digest_requests_include_public = form.digest_requests_include_public.data
+
+    db.session.commit()
+
+    if current_user.digest_frequency == User.DIGEST_FREQUENCY_NONE:
+        flash('You turned off digest emails. Please consider staying subscribed so you do not miss activity in your community.', 'warning')
+    else:
+        flash('Digest settings updated.', 'success')
+
+    return redirect(url_for('main.profile', tab='settings'))
+
+
+@main_bp.route('/digest/manage/<token>')
+def digest_manage(token):
+    """Anonymous digest management page via signed token."""
+    user, token_error = verify_digest_manage_token(token)
+
+    if token_error:
+        status_code = 410 if token_error == 'expired' else 400
+        return render_template(
+            'main/digest_manage.html',
+            token_valid=False,
+            token_error=token_error,
+            unsubscribed=False,
+            user=None,
+            token=token,
+        ), status_code
+
+    return render_template(
+        'main/digest_manage.html',
+        token_valid=True,
+        token_error=None,
+        unsubscribed=False,
+        user=user,
+        token=token,
+    )
+
+
+@main_bp.route('/digest/unsubscribe/<token>')
+def digest_unsubscribe(token):
+    """One-click anonymous unsubscribe for digest emails."""
+    user, token_error = verify_digest_manage_token(token)
+
+    if token_error:
+        status_code = 410 if token_error == 'expired' else 400
+        return render_template(
+            'main/digest_manage.html',
+            token_valid=False,
+            token_error=token_error,
+            unsubscribed=False,
+            user=None,
+            token=token,
+        ), status_code
+
+    if user.digest_frequency != User.DIGEST_FREQUENCY_NONE:
+        user.digest_frequency = User.DIGEST_FREQUENCY_NONE
+        db.session.commit()
+
+    return render_template(
+        'main/digest_manage.html',
+        token_valid=True,
+        token_error=None,
+        unsubscribed=True,
+        user=user,
+        token=token,
+    )
 
 @main_bp.route('/update-location', methods=['GET', 'POST'])
 @login_required

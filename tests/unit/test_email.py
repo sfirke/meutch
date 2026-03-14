@@ -1,7 +1,9 @@
 """Unit tests for email utilities."""
 import pytest
+import uuid
 from unittest.mock import patch, Mock
-from app.utils.email import send_account_deletion_email
+from app.utils.email import send_account_deletion_email, build_digest_email_content, send_digest_email
+from tests.factories import UserFactory
 
 
 class TestEmailUtils:
@@ -51,3 +53,75 @@ class TestEmailUtils:
             # Should raise the exception (not caught in this function)
             with pytest.raises(Exception, match="Network error"):
                 send_account_deletion_email("test@example.com", "John")
+
+    def test_build_digest_email_content_includes_sections_and_manage_links(self, app):
+        with app.app_context():
+            user = UserFactory(first_name='Digest')
+            payload = {
+                'summary_stats': {
+                    'total_new_items': 2,
+                    'giveaways_count': 1,
+                    'borrow_requests_count': 1,
+                },
+                'giveaways': [
+                    {
+                        'event_type': 'giveaway',
+                        'item_id': uuid.uuid4(),
+                        'actor_name': 'Alex',
+                        'title': 'Free Chair',
+                        'action': 'posted a giveaway',
+                    }
+                ],
+                'requests': [
+                    {
+                        'event_type': 'request',
+                        'request_id': uuid.uuid4(),
+                        'actor_name': 'Taylor',
+                        'title': 'Need a ladder',
+                        'action': 'requested',
+                    }
+                ],
+                'circle_joins': [],
+                'loans': [],
+            }
+
+            content = build_digest_email_content(
+                user,
+                payload,
+                manage_url='https://example.com/digest/manage/token123',
+                unsubscribe_url='https://example.com/digest/unsubscribe/token123',
+            )
+
+            assert 'Meutch Digest' in content['subject']
+            assert 'Giveaways' in content['text']
+            assert 'Requests' in content['text']
+            assert 'https://example.com/digest/manage/token123' in content['text']
+            assert 'https://example.com/digest/unsubscribe/token123' in content['text']
+            assert 'One-click unsubscribe' in content['html']
+
+    def test_send_digest_email_calls_send_email_with_rendered_content(self, app):
+        with app.app_context():
+            user = UserFactory(first_name='Digest')
+            payload = {
+                'summary_stats': {
+                    'total_new_items': 0,
+                    'giveaways_count': 0,
+                    'borrow_requests_count': 0,
+                },
+                'giveaways': [],
+                'requests': [],
+                'circle_joins': [],
+                'loans': [],
+            }
+
+            with patch('app.utils.email.send_email') as mock_send_email:
+                mock_send_email.return_value = True
+                result = send_digest_email(user, payload)
+
+                assert result is True
+                mock_send_email.assert_called_once()
+                args = mock_send_email.call_args[0]
+                assert args[0] == user.email
+                assert 'Meutch Digest' in args[1]
+                assert '/digest/manage/' in args[2]
+                assert '/digest/unsubscribe/' in args[2]

@@ -33,7 +33,8 @@ def register():
         user = User(
             email=form.email.data.lower(),
             first_name=form.first_name.data,
-            last_name=form.last_name.data
+            last_name=form.last_name.data,
+            digest_frequency=form.digest_frequency.data
         )
         user.set_password(form.password.data)
         

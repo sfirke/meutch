@@ -107,6 +107,8 @@ class TestAuthenticationRoutes:
         response = client.get('/auth/register')
         assert response.status_code == 200
         assert b'Register' in response.data
+        assert b'Email Digest Frequency' in response.data
+        assert b'digest-none-warning' in response.data
 
     def test_register_page_form_action_preserves_next(self, client):
         """The register form's action URL must include ?next so the parameter
@@ -193,6 +195,25 @@ class TestAuthenticationRoutes:
             assert user.email_confirmed is False  # Should require confirmation
             assert user.latitude is None
             assert user.longitude is None
+            assert user.digest_frequency == 'weekly'
+
+    def test_register_persists_selected_digest_frequency(self, client, app):
+        """Test registration persists explicit digest frequency selection."""
+        with app.app_context():
+            response = client.post('/auth/register', data={
+                'email': 'digestnone@example.com',
+                'first_name': 'Digest',
+                'last_name': 'None',
+                'location_method': 'skip',
+                'digest_frequency': 'none',
+                'password': 'digestpassword123',
+                'confirm_password': 'digestpassword123'
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            user = User.query.filter_by(email='digestnone@example.com').first()
+            assert user is not None
+            assert user.digest_frequency == 'none'
 
     def test_register_redirects_to_resend_confirmation(self, client):
         """Test registration redirects to confirmation guidance page, not login."""

@@ -6,6 +6,7 @@ from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFac
 from conftest import login_user
 from unittest.mock import patch
 import io
+from app.utils.digest_tokens import generate_digest_manage_token
 
 class TestMainRoutes:
     """Test main application routes."""
@@ -994,6 +995,74 @@ class TestProfileRoutes:
             updated_user = db.session.get(User, user.id)
             assert updated_user.about_me == 'Updated bio information'
 
+    def test_profile_digest_settings_load_current_values(self, client, app, auth_user):
+        """Test profile settings shows current digest values."""
+        with app.app_context():
+            user = auth_user()
+            user.digest_frequency = 'daily'
+            user.digest_radius_miles = 25
+            user.digest_include_requests = False
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/profile?tab=settings')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'Email Digest Settings' in content
+            assert 'value="daily"' in content
+            assert 'selected' in content
+            assert 'name="digest_radius_miles"' in content
+            assert 'value="25"' in content
+
+    def test_profile_digest_settings_save(self, client, app, auth_user):
+        """Test saving digest settings from profile page."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+
+            response = client.post('/profile/digest-settings', data={
+                'digest_frequency': 'daily',
+                'digest_radius_miles': '30',
+                'digest_include_giveaways': 'y',
+                'digest_include_requests': 'y',
+                'digest_include_circle_joins': 'y',
+                'digest_giveaways_include_public': 'y',
+                # intentionally omit loans + requests public so they become False
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'Digest settings updated.' in response.data
+
+            updated_user = db.session.get(User, user.id)
+            assert updated_user.digest_frequency == 'daily'
+            assert updated_user.digest_radius_miles == 30
+            assert updated_user.digest_include_giveaways is True
+            assert updated_user.digest_include_requests is True
+            assert updated_user.digest_include_circle_joins is True
+            assert updated_user.digest_include_loans is False
+            assert updated_user.digest_giveaways_include_public is True
+            assert updated_user.digest_requests_include_public is False
+
+    def test_profile_digest_settings_opt_out_warning(self, client, app, auth_user):
+        """Test warning flash when user opts out of digest emails."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+
+            response = client.post('/profile/digest-settings', data={
+                'digest_frequency': 'none',
+                'digest_radius_miles': '10',
+                'digest_include_giveaways': 'y',
+                'digest_include_requests': 'y',
+                'digest_include_circle_joins': 'y',
+                'digest_include_loans': 'y',
+                'digest_giveaways_include_public': 'y',
+                'digest_requests_include_public': 'y',
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'You turned off digest emails' in response.data
+
 
 class TestAccountDeletion:
     """Test account deletion functionality."""
@@ -1025,3 +1094,44 @@ class TestAccountDeletion:
             assert soft_deleted_user.deleted_at is not None
             assert "deleted_" in soft_deleted_user.email  # Email should be anonymized
             assert soft_deleted_user.email != user_email  # Email changed
+
+
+class TestDigestManageRoutes:
+    """Integration tests for anonymous digest manage links."""
+
+    def test_digest_manage_valid_token(self, client, app):
+        with app.app_context():
+            user = UserFactory(digest_frequency='weekly')
+            db.session.commit()
+
+            token = generate_digest_manage_token(user)
+            response = client.get(f'/digest/manage/{token}')
+
+            assert response.status_code == 200
+            assert b'Manage Digest Emails' in response.data
+            assert b'One-click unsubscribe' in response.data
+
+    def test_digest_manage_invalid_token(self, client):
+        response = client.get('/digest/manage/not-a-valid-token')
+        assert response.status_code == 400
+        assert b'invalid' in response.data.lower()
+
+    def test_digest_manage_expired_token(self, client):
+        with patch('app.main.routes.verify_digest_manage_token', return_value=(None, 'expired')):
+            response = client.get('/digest/manage/expired-token')
+
+        assert response.status_code == 410
+        assert b'expired' in response.data.lower()
+
+    def test_digest_unsubscribe_sets_frequency_none(self, client, app):
+        with app.app_context():
+            user = UserFactory(digest_frequency='daily')
+            db.session.commit()
+            token = generate_digest_manage_token(user)
+
+            response = client.get(f'/digest/unsubscribe/{token}')
+            assert response.status_code == 200
+            assert b'unsubscribed' in response.data.lower()
+
+            updated_user = db.session.get(User, user.id)
+            assert updated_user.digest_frequency == User.DIGEST_FREQUENCY_NONE

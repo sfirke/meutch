@@ -14,6 +14,8 @@ import click
 import os
 import random
 from datetime import date, datetime, UTC, timedelta
+from zoneinfo import ZoneInfo
+from flask import current_app
 from flask.cli import with_appcontext
 from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, Feedback, CircleJoinRequest, ItemRequest, UserWebLink, GiveawayInterest
 from app import db
@@ -805,7 +807,7 @@ def _get_database_info():
             return "Remote database"
 
 
-def check_loan_reminders_logic():
+def check_loan_reminders_logic(today=None, force_loan_reminders=False, force_digest=False, digest_now_utc=None):
     """
     Core logic for checking and sending loan reminder emails.
     Extracted as a separate function so it can be called from both
@@ -822,7 +824,7 @@ def check_loan_reminders_logic():
         send_loan_overdue_owner_email
     )
     
-    today = date.today()
+    today = today or date.today()
     
     # Get all approved loans
     approved_loans = LoanRequest.query.filter_by(status='approved').all()
@@ -836,14 +838,11 @@ def check_loan_reminders_logic():
         'errors': []
     }
     
-    if not approved_loans:
-        return stats
-    
     for loan in approved_loans:
         days_until = (loan.end_date - today).days
         
         # 1. Check for 3-day reminders
-        if days_until == 3 and not loan.due_soon_reminder_sent:
+        if days_until == 3 and (force_loan_reminders or not loan.due_soon_reminder_sent):
             try:
                 if send_loan_due_soon_email(loan):
                     loan.due_soon_reminder_sent = datetime.now(UTC)
@@ -856,7 +855,7 @@ def check_loan_reminders_logic():
                 db.session.rollback()
         
         # 2. Check for due date reminders
-        elif days_until == 0 and not loan.due_date_reminder_sent:
+        elif days_until == 0 and (force_loan_reminders or not loan.due_date_reminder_sent):
             try:
                 borrower_sent = send_loan_due_today_borrower_email(loan)
                 owner_sent = send_loan_due_today_owner_email(loan)
@@ -876,11 +875,11 @@ def check_loan_reminders_logic():
             days_overdue = abs(days_until)
             
             # Only send on specific days: 1, 3, 7, 14
-            if days_overdue not in [1, 3, 7, 14]:
+            if not force_loan_reminders and days_overdue not in [1, 3, 7, 14]:
                 continue
             
             # Check if we've already sent a reminder today
-            if loan.last_overdue_reminder_sent:
+            if not force_loan_reminders and loan.last_overdue_reminder_sent:
                 # Ensure last_overdue_reminder_sent is timezone-aware for comparison
                 last_sent_utc = loan.last_overdue_reminder_sent.replace(tzinfo=UTC) if loan.last_overdue_reminder_sent.tzinfo is None else loan.last_overdue_reminder_sent
                 if last_sent_utc.date() == today:
@@ -888,7 +887,7 @@ def check_loan_reminders_logic():
                     continue
             
             # Don't send more than 4 overdue reminders
-            if loan.overdue_reminder_count >= 4:
+            if not force_loan_reminders and loan.overdue_reminder_count >= 4:
                 stats['skipped'] += 1
                 continue
             
@@ -906,7 +905,141 @@ def check_loan_reminders_logic():
             except Exception as e:
                 stats['errors'].append(f'Error sending overdue reminders for loan {loan.id}: {str(e)}')
                 db.session.rollback()
+
+    stats['digest'] = check_digest_sends_logic(now_utc=digest_now_utc, force_send=force_digest)
     
+    return stats
+
+
+def _to_utc(dt_value):
+    if dt_value is None:
+        return None
+    if dt_value.tzinfo is None:
+        return dt_value.replace(tzinfo=UTC)
+    return dt_value.astimezone(UTC)
+
+
+def _digest_timezone():
+    timezone_name = current_app.config.get('DIGEST_TIMEZONE', 'UTC')
+    try:
+        return ZoneInfo(timezone_name)
+    except Exception:
+        current_app.logger.warning('Invalid DIGEST_TIMEZONE %s; falling back to UTC', timezone_name)
+        return ZoneInfo('UTC')
+
+
+def _digest_cadence_boundary_utc(cadence, now_utc):
+    now_utc = _to_utc(now_utc) or datetime.now(UTC)
+    now_local = now_utc.astimezone(_digest_timezone())
+    period_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    if cadence == User.DIGEST_FREQUENCY_DAILY:
+        return period_start_local.astimezone(UTC)
+
+    if cadence == User.DIGEST_FREQUENCY_WEEKLY:
+        if now_local.weekday() != 6:  # Sunday
+            return None
+        return period_start_local.astimezone(UTC)
+
+    return None
+
+
+def _should_send_digest_for_user(user, now_utc):
+    cadence = user.digest_frequency
+    if cadence not in User.DIGEST_FREQUENCY_CHOICES:
+        return False, 'invalid-cadence'
+
+    if cadence == User.DIGEST_FREQUENCY_NONE:
+        return False, 'cadence-none'
+
+    cadence_boundary_utc = _digest_cadence_boundary_utc(cadence, now_utc)
+    if cadence_boundary_utc is None:
+        return False, 'not-cadence-day'
+
+    last_sent_utc = _to_utc(user.digest_last_sent_at)
+    if last_sent_utc and last_sent_utc >= cadence_boundary_utc:
+        return False, 'already-sent-this-period'
+
+    return True, 'eligible'
+
+
+def _empty_digest_counters():
+    return {
+        'sent': 0,
+        'skipped': 0,
+        'errors': 0,
+    }
+
+
+def _record_digest_count(stats, cadence, counter):
+    if cadence not in stats['by_cadence']:
+        stats['by_cadence'][cadence] = _empty_digest_counters()
+    stats['by_cadence'][cadence][counter] += 1
+
+
+def check_digest_sends_logic(now_utc=None, force_send=False):
+    from app.utils.email import send_digest_email
+    from app.utils.home_feed import build_digest_payload
+
+    now_utc = _to_utc(now_utc) or datetime.now(UTC)
+    users = User.query.filter_by(is_deleted=False).all()
+
+    stats = {
+        'total_users': len(users),
+        'sent': 0,
+        'skipped': 0,
+        'errors': [],
+        'by_cadence': {
+            User.DIGEST_FREQUENCY_DAILY: _empty_digest_counters(),
+            User.DIGEST_FREQUENCY_WEEKLY: _empty_digest_counters(),
+            User.DIGEST_FREQUENCY_NONE: _empty_digest_counters(),
+        },
+    }
+
+    current_app.logger.info('Digest scheduler evaluating %s user(s)', len(users))
+
+    for user in users:
+        cadence = user.digest_frequency
+        if force_send:
+            should_send = cadence in {
+                User.DIGEST_FREQUENCY_DAILY,
+                User.DIGEST_FREQUENCY_WEEKLY,
+            }
+            reason = 'force-send' if should_send else 'cadence-none'
+        else:
+            should_send, reason = _should_send_digest_for_user(user, now_utc)
+
+        if not should_send:
+            stats['skipped'] += 1
+            _record_digest_count(stats, cadence, 'skipped')
+            continue
+
+        try:
+            digest_payload = build_digest_payload(user, until=now_utc)
+            email_sent = send_digest_email(user, digest_payload)
+            if email_sent:
+                user.digest_last_sent_at = now_utc
+                db.session.commit()
+                stats['sent'] += 1
+                _record_digest_count(stats, cadence, 'sent')
+            else:
+                db.session.rollback()
+                stats['errors'].append(f'Failed to send digest for user {user.id}')
+                _record_digest_count(stats, cadence, 'errors')
+        except Exception as e:
+            db.session.rollback()
+            stats['errors'].append(f'Error sending digest for user {user.id}: {str(e)}')
+            _record_digest_count(stats, cadence, 'errors')
+            current_app.logger.warning('Digest send failed for user %s: %s', user.id, str(e))
+
+    current_app.logger.info(
+        'Digest scheduler summary: sent=%s skipped=%s errors=%s cadence=%s',
+        stats['sent'],
+        stats['skipped'],
+        len(stats['errors']),
+        stats['by_cadence'],
+    )
+
     return stats
 
 
@@ -1035,12 +1168,53 @@ def disable_showcase(email):
 
 
 @click.command()
+@click.option(
+    '--force-digest',
+    is_flag=True,
+    help='Send digest emails for daily/weekly users regardless of cadence windows (testing only).'
+)
+@click.option(
+    '--force-loan-reminders',
+    is_flag=True,
+    help='Bypass loan reminder sent/day/count guards so reminders can be re-tested (testing only).'
+)
+@click.option(
+    '--today',
+    'today_override',
+    type=click.DateTime(formats=['%Y-%m-%d']),
+    help='Evaluate loan reminder logic using this date (YYYY-MM-DD) instead of today.'
+)
+@click.option(
+    '--digest-now',
+    'digest_now_override',
+    type=click.DateTime(formats=['%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S']),
+    help='Evaluate digest cadence using this UTC datetime (or YYYY-MM-DD at 00:00:00 UTC).'
+)
 @with_appcontext
-def check_loan_reminders():
+def check_loan_reminders(force_digest, force_loan_reminders, today_override, digest_now_override):
     """Check and send loan reminder emails (3-day, due date, overdue)."""
     click.echo('🔔 Checking loan reminders...')
+
+    today = today_override.date() if today_override else None
+    digest_now_utc = None
+    if digest_now_override:
+        digest_now_utc = digest_now_override.replace(tzinfo=UTC) if digest_now_override.tzinfo is None else digest_now_override.astimezone(UTC)
+
+    if today:
+        click.echo(f'  • Testing override: today={today.isoformat()}')
+    if digest_now_utc:
+        click.echo(f'  • Testing override: digest_now_utc={digest_now_utc.isoformat()}')
+    if force_loan_reminders:
+        click.echo('  • Testing override: forcing loan reminders (ignoring sent/day/count guards)')
+    if force_digest:
+        click.echo('  • Testing override: forcing digest sends (ignoring cadence windows)')
     
-    stats = check_loan_reminders_logic()
+    stats = check_loan_reminders_logic(
+        today=today,
+        force_loan_reminders=force_loan_reminders,
+        force_digest=force_digest,
+        digest_now_utc=digest_now_utc,
+    )
     
     if stats['total_loans'] == 0:
         click.echo('  No approved loans found.')
@@ -1058,6 +1232,31 @@ def check_loan_reminders():
     click.echo(f'  • Skipped (already sent): {stats["skipped"]}')
     if stats['errors']:
         click.echo(f'  • Errors: {len(stats["errors"])}')
+
+    digest_stats = stats['digest']
+    click.echo('\n📰 Digest Summary:')
+    click.echo(f'  • Users evaluated: {digest_stats["total_users"]}')
+    click.echo(f'  • Sent: {digest_stats["sent"]}')
+    click.echo(f'  • Skipped: {digest_stats["skipped"]}')
+    click.echo(f'  • Errors: {len(digest_stats["errors"])}')
+    click.echo(
+        '  • Daily (sent/skipped/errors): '
+        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_DAILY]["sent"]}/'
+        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_DAILY]["skipped"]}/'
+        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_DAILY]["errors"]}'
+    )
+    click.echo(
+        '  • Weekly (sent/skipped/errors): '
+        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_WEEKLY]["sent"]}/'
+        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_WEEKLY]["skipped"]}/'
+        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_WEEKLY]["errors"]}'
+    )
+    click.echo(
+        '  • None (sent/skipped/errors): '
+        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_NONE]["sent"]}/'
+        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_NONE]["skipped"]}/'
+        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_NONE]["errors"]}'
+    )
     click.echo('✅ Done!')
 
 

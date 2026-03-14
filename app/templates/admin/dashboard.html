@@ -89,6 +89,7 @@
                                         {% endif %}
                                     </a>
                                 </th>
+                                <th>Digest</th>
                                 <th>Items</th>
                                 <th>Status</th>
                                 <th class="text-end">Actions</th>
@@ -121,6 +122,15 @@
                                             </small>
                                         {% else %}
                                             <small class="text-muted">Never</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.digest_frequency == 'daily' %}
+                                            <span class="badge bg-primary">Daily</span>
+                                        {% elif user.digest_frequency == 'weekly' %}
+                                            <span class="badge bg-success">Weekly</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">None</span>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -186,6 +196,15 @@
                                                     <i class="fas fa-star"></i> Disable Showcase
                                                 </button>
                                             {% endif %}
+
+                                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#digestFrequencyModal"
+                                                    data-user-name="{{ user.full_name }}"
+                                                    data-current-frequency="{{ user.digest_frequency }}"
+                                                    data-action-url="{{ url_for('admin.update_digest_frequency', user_id=user.id) }}">
+                                                <i class="fas fa-envelope"></i> Digest
+                                            </button>
 
                                             {% if user.id != current_user.id %}
                                                 <button type="button" class="btn btn-sm btn-outline-danger"
@@ -372,6 +391,38 @@
     </div>
 </div>
 
+<!-- Digest Frequency Modal -->
+<div class="modal fade" id="digestFrequencyModal" tabindex="-1" aria-labelledby="digestFrequencyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="digestFrequencyModalLabel">Update Digest Frequency</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Set digest frequency for <strong class="modal-user-name"></strong>.</p>
+                <div class="mb-2">
+                    <label for="digest-frequency-select" class="form-label">Frequency</label>
+                    <select class="form-select" id="digest-frequency-select" name="digest_frequency" form="digest-frequency-form">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="none">None</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="" class="d-inline modal-action-form" id="digest-frequency-form">
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {# Populate shared modals dynamically when opened #}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -393,6 +444,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    var digestModal = document.getElementById('digestFrequencyModal');
+    if (digestModal) {
+        digestModal.addEventListener('show.bs.modal', function(event) {
+            var button = event.relatedTarget;
+            if (!button) return;
+
+            var currentFrequency = button.getAttribute('data-current-frequency') || 'weekly';
+            var frequencySelect = digestModal.querySelector('#digest-frequency-select');
+            if (frequencySelect) {
+                frequencySelect.value = currentFrequency;
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

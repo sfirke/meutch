@@ -1,6 +1,7 @@
 import requests
 import os
 from flask import current_app, url_for
+from app.utils.digest_tokens import generate_digest_manage_token
 
 
 def send_email(to_email, subject, text_content, html_content=None):
@@ -446,6 +447,141 @@ The Meutch Team
     """.strip()
     
     return send_email(user_email, subject, text_content)
+
+
+def _digest_event_url(event):
+    event_type = event.get('event_type')
+    if event_type in {'giveaway', 'lent'} and event.get('item_id'):
+        return url_for('main.item_detail', item_id=event['item_id'], _external=True)
+    if event_type == 'request' and event.get('request_id'):
+        return url_for('requests.detail', request_id=event['request_id'], _external=True)
+    if event_type == 'circle_join' and event.get('circle_id'):
+        return url_for('circles.view_circle', circle_id=event['circle_id'], _external=True)
+    return url_for('main.index', _external=True)
+
+
+def _digest_event_title(event):
+    event_type = event.get('event_type')
+    if event_type == 'circle_join':
+        return event.get('title') or 'Circle activity'
+    return event.get('title') or 'Community activity'
+
+
+def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url):
+    summary = digest_payload.get('summary_stats', {})
+    giveaways = digest_payload.get('giveaways', [])
+    requests = digest_payload.get('requests', [])
+    circle_joins = digest_payload.get('circle_joins', [])
+    loans = digest_payload.get('loans', [])
+
+    total_new_items = summary.get('total_new_items', 0)
+    giveaways_count = summary.get('giveaways_count', 0)
+    borrow_requests_count = summary.get('borrow_requests_count', 0)
+
+    subject = f"Meutch Digest — {total_new_items} new items in your circles"
+
+    text_lines = [
+        f"Hello {user.first_name},",
+        "",
+        "Here is your Meutch digest.",
+        "",
+        "Summary:",
+        f"- {total_new_items} new items were added by users in your circles",
+        f"- {giveaways_count} giveaways",
+        f"- {borrow_requests_count} requests to borrow",
+        "",
+    ]
+
+    def append_text_section(section_title, events):
+        if not events:
+            return
+        text_lines.append(f"{section_title}:")
+        for event in events:
+            actor = event.get('actor_name') or 'Someone'
+            title = _digest_event_title(event)
+            text_lines.append(f"- {actor}: {title}")
+            text_lines.append(f"  {_digest_event_url(event)}")
+        text_lines.append("")
+
+    append_text_section('Giveaways', giveaways)
+    append_text_section('Requests', requests)
+    append_text_section('Circle Joins', circle_joins)
+    append_text_section('Loans', loans)
+
+    text_lines.extend([
+        "Manage your digest emails:",
+        f"- Manage settings: {manage_url}",
+        f"- One-click unsubscribe: {unsubscribe_url}",
+        "",
+        "Best regards,",
+        "The Meutch Team",
+    ])
+
+    def build_html_section(title, events):
+        if not events:
+            return ''
+
+        items_html = []
+        for event in events:
+            actor = event.get('actor_name') or 'Someone'
+            item_title = _digest_event_title(event)
+            action = event.get('action') or 'shared'
+            link = _digest_event_url(event)
+            items_html.append(
+                f"""
+                <li style=\"margin-bottom: 10px;\">
+                    <strong>{actor}</strong> {action}: {item_title}<br>
+                    <a href=\"{link}\" style=\"color: #007bff; text-decoration: none;\">View activity</a>
+                </li>
+                """
+            )
+
+        return f"""
+        <h3 style=\"margin-top: 24px; color: #333;\">{title}</h3>
+        <ul style=\"padding-left: 20px;\">
+            {''.join(items_html)}
+        </ul>
+        """
+
+    html_content = f"""
+    <html>
+    <body style=\"font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;\">
+        <h2 style=\"color: #333;\">Your Meutch Digest</h2>
+        <p>Hello {user.first_name},</p>
+
+        <div style=\"background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin: 18px 0;\">
+            <p style=\"margin: 0 0 8px 0;\"><strong>{total_new_items}</strong> new items were added by users in your circles.</p>
+            <p style=\"margin: 0;\">{giveaways_count} giveaways · {borrow_requests_count} requests to borrow</p>
+        </div>
+
+        {build_html_section('Giveaways', giveaways)}
+        {build_html_section('Requests', requests)}
+        {build_html_section('Circle Joins', circle_joins)}
+        {build_html_section('Loans', loans)}
+
+        <hr style=\"margin: 28px 0; border: none; border-top: 1px solid #ddd;\">
+        <p style=\"font-size: 14px; color: #666;\">
+            Manage your digest emails: <a href=\"{manage_url}\" style=\"color: #007bff;\">Manage settings</a> ·
+            <a href=\"{unsubscribe_url}\" style=\"color: #007bff;\">One-click unsubscribe</a>
+        </p>
+        <p style=\"font-size: 12px; color: #999;\">Best regards,<br>The Meutch Team</p>
+    </body>
+    </html>
+    """
+
+    return {
+        'subject': subject,
+        'text': '\n'.join(text_lines),
+        'html': html_content,
+    }
+
+
+def send_digest_email(user, digest_payload):
+    token = generate_digest_manage_token(user)
+    manage_url = url_for('main.digest_manage', token=token, _external=True)
+    unsubscribe_url = url_for('main.digest_unsubscribe', token=token, _external=True)
+    content = build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url)
+    return send_email(user.email, content['subject'], content['text'], content['html'])
 
 
 def send_loan_due_soon_email(loan):

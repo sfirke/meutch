@@ -23,6 +23,15 @@ item_tags = db.Table('item_tags',
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
+    DIGEST_FREQUENCY_NONE = 'none'
+    DIGEST_FREQUENCY_DAILY = 'daily'
+    DIGEST_FREQUENCY_WEEKLY = 'weekly'
+    DIGEST_FREQUENCY_CHOICES = [
+        DIGEST_FREQUENCY_NONE,
+        DIGEST_FREQUENCY_DAILY,
+        DIGEST_FREQUENCY_WEEKLY,
+    ]
+
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
@@ -47,6 +56,15 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     is_public_showcase = db.Column(db.Boolean, default=False, nullable=False)
     vacation_mode = db.Column(db.Boolean, default=False, nullable=False)
+    digest_frequency = db.Column(db.String(20), default=DIGEST_FREQUENCY_WEEKLY, nullable=False)
+    digest_radius_miles = db.Column(db.Integer, default=10, nullable=False)
+    digest_include_giveaways = db.Column(db.Boolean, default=True, nullable=False)
+    digest_include_requests = db.Column(db.Boolean, default=True, nullable=False)
+    digest_include_circle_joins = db.Column(db.Boolean, default=True, nullable=False)
+    digest_include_loans = db.Column(db.Boolean, default=True, nullable=False)
+    digest_giveaways_include_public = db.Column(db.Boolean, default=True, nullable=False)
+    digest_requests_include_public = db.Column(db.Boolean, default=True, nullable=False)
+    digest_last_sent_at = db.Column(db.DateTime, nullable=True)
     
     @property
     def profile_image(self):

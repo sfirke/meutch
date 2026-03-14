@@ -187,6 +187,27 @@ class TestRegistrationForm:
             form = RegistrationForm(data=form_data)
             assert form.validate() is True
 
+    def test_registration_digest_frequency_default_weekly(self, app):
+        """Test registration form defaults digest frequency to weekly."""
+        with app.app_context():
+            form = RegistrationForm()
+            assert form.digest_frequency.data == 'weekly'
+
+    def test_registration_digest_frequency_none_is_valid(self, app):
+        """Test registration form accepts explicit digest opt-out."""
+        with app.app_context():
+            form_data = {
+                'email': 'digestnone@example.com',
+                'first_name': 'Digest',
+                'last_name': 'None',
+                'location_method': 'skip',
+                'digest_frequency': 'none',
+                'password': 'password123',
+                'confirm_password': 'password123'
+            }
+            form = RegistrationForm(data=form_data)
+            assert form.validate() is True
+
 
 class TestListItemForm:
     """Test ListItemForm."""
