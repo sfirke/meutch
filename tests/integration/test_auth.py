@@ -107,7 +107,7 @@ class TestAuthenticationRoutes:
         response = client.get('/auth/register')
         assert response.status_code == 200
         assert b'Register' in response.data
-        assert b'Email Digest Frequency' in response.data
+        assert b'Email Updates' in response.data
         assert b'digest-none-warning' in response.data
 
     def test_register_page_form_action_preserves_next(self, client):
