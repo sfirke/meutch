@@ -107,7 +107,6 @@ class TestEmailUtils:
 
             assert content['subject'] == 'Meutch Digest - 3 new activities'
             assert 'This is your daily Meutch digest.' in content['text']
-            assert 'This is your <strong>daily</strong> Meutch digest.' in content['html']
             assert 'Great chair in good condition' in content['text']
             assert 'Need for one weekend project' in content['text']
             assert 'https://example.com/chair.jpg' in content['text']

@@ -598,7 +598,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     <body style=\"font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;\">
         <h2 style=\"color: #333;\">Your Meutch Digest</h2>
         <p>Hello {user.first_name},</p>
-        <p style=\"margin: 0 0 16px 0;\">This is your <strong>{cadence_label}</strong> Meutch digest.</p>
+        <p style=\"margin: 0 0 16px 0;\">This is your {cadence_label} Meutch digest.</p>
 
         {summary_html}
 
