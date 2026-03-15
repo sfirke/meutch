@@ -569,10 +569,10 @@ class DigestSettingsForm(FlaskForm):
         validators=[DataRequired(), NumberRange(min=1, max=50, message='Radius must be between 1 and 50 miles.')],
         default=10
     )
-    digest_include_giveaways = BooleanField('Include giveaways')
-    digest_include_requests = BooleanField('Include requests')
-    digest_include_circle_joins = BooleanField('Include circle joins')
-    digest_include_loans = BooleanField('Include loans')
+    digest_include_giveaways = BooleanField('Giveaways')
+    digest_include_requests = BooleanField('Requests')
+    digest_include_circle_joins = BooleanField('Users joining my circles')
+    digest_include_loans = BooleanField('Loans in my circles')
     digest_giveaways_include_public = BooleanField('Include public giveaways within radius')
     digest_requests_include_public = BooleanField('Include public requests within radius')
     submit = SubmitField('Save Digest Settings')
