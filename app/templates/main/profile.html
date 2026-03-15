@@ -531,19 +531,19 @@
                                     <div class="col-md-6">
                                         <div class="form-check form-switch mb-2">
                                             {{ digest_form.digest_include_giveaways(class="form-check-input", id="digestIncludeGiveaways") }}
-                                            <label class="form-check-label" for="digestIncludeGiveaways">Giveaways</label>
+                                            {{ digest_form.digest_include_giveaways.label(class="form-check-label", for_="digestIncludeGiveaways") }}
                                         </div>
                                         <div class="form-check form-switch mb-2">
                                             {{ digest_form.digest_include_requests(class="form-check-input", id="digestIncludeRequests") }}
-                                            <label class="form-check-label" for="digestIncludeRequests">Requests</label>
+                                            {{ digest_form.digest_include_requests.label(class="form-check-label", for_="digestIncludeRequests") }}
                                         </div>
                                         <div class="form-check form-switch mb-2">
                                             {{ digest_form.digest_include_circle_joins(class="form-check-input", id="digestIncludeCircleJoins") }}
-                                            <label class="form-check-label" for="digestIncludeCircleJoins">Users joining my circles</label>
+                                            {{ digest_form.digest_include_circle_joins.label(class="form-check-label", for_="digestIncludeCircleJoins") }}
                                         </div>
                                         <div class="form-check form-switch mb-2">
                                             {{ digest_form.digest_include_loans(class="form-check-input", id="digestIncludeLoans") }}
-                                            <label class="form-check-label" for="digestIncludeLoans">Loans in my circles</label>
+                                            {{ digest_form.digest_include_loans.label(class="form-check-label", for_="digestIncludeLoans") }}
                                         </div>
                                     </div>
 

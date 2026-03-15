@@ -571,7 +571,7 @@ class DigestSettingsForm(FlaskForm):
     )
     digest_include_giveaways = BooleanField('Giveaways')
     digest_include_requests = BooleanField('Requests')
-    digest_include_circle_joins = BooleanField('Users joining my circles')
+    digest_include_circle_joins = BooleanField('People joining my closed circles')
     digest_include_loans = BooleanField('Loans in my circles')
     digest_giveaways_include_public = BooleanField('Include public giveaways within radius')
     digest_requests_include_public = BooleanField('Include public requests within radius')
