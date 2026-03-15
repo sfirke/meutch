@@ -1026,6 +1026,12 @@ def check_digest_sends_logic(now_utc=None, force_send=False):
 
         try:
             digest_payload = build_digest_payload(user, until=now_utc)
+            payload_events = digest_payload.get('events') or []
+            if not payload_events:
+                stats['skipped'] += 1
+                _record_digest_count(stats, cadence, 'skipped')
+                continue
+
             email_sent = send_digest_email(user, digest_payload)
             if email_sent:
                 user.digest_last_sent_at = now_utc

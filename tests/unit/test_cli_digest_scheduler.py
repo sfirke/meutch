@@ -30,14 +30,14 @@ class TestCliDigestScheduler:
 
     def test_digest_scheduler_sends_daily_and_weekly_and_skips_none(self, app):
         with app.app_context():
-            now_utc = datetime(2026, 3, 15, 14, 0, tzinfo=UTC)  # Sunday
+            now_utc = datetime(2026, 3, 15, 14, 0, tzinfo=UTC)
 
             daily_user = UserFactory(digest_frequency=User.DIGEST_FREQUENCY_DAILY)
             weekly_user = UserFactory(digest_frequency=User.DIGEST_FREQUENCY_WEEKLY)
             none_user = UserFactory(digest_frequency=User.DIGEST_FREQUENCY_NONE)
             db.session.commit()
 
-            with patch('app.utils.home_feed.build_digest_payload', return_value={'events': []}), \
+            with patch('app.utils.home_feed.build_digest_payload', return_value={'events': [{'event_type': 'request'}]}), \
                  patch('app.utils.email.send_digest_email', return_value=True) as send_mock:
                 stats = check_digest_sends_logic(now_utc=now_utc)
 
@@ -55,13 +55,36 @@ class TestCliDigestScheduler:
             assert weekly_user.digest_last_sent_at is not None
             assert none_user.digest_last_sent_at is None
 
-    def test_digest_scheduler_weekly_only_sends_on_sunday(self, app):
+    def test_digest_scheduler_skips_email_when_no_matching_activity(self, app):
         with app.app_context():
-            monday_utc = datetime(2026, 3, 16, 14, 0, tzinfo=UTC)  # Monday
+            now_utc = datetime(2026, 3, 15, 14, 0, tzinfo=UTC)
+
+            daily_user = UserFactory(digest_frequency=User.DIGEST_FREQUENCY_DAILY)
             weekly_user = UserFactory(digest_frequency=User.DIGEST_FREQUENCY_WEEKLY)
             db.session.commit()
 
             with patch('app.utils.home_feed.build_digest_payload', return_value={'events': []}), \
+                 patch('app.utils.email.send_digest_email', return_value=True) as send_mock:
+                stats = check_digest_sends_logic(now_utc=now_utc)
+
+            db.session.refresh(daily_user)
+            db.session.refresh(weekly_user)
+
+            assert send_mock.call_count == 0
+            assert stats['sent'] == 0
+            assert stats['skipped'] == 2
+            assert stats['by_cadence'][User.DIGEST_FREQUENCY_DAILY]['skipped'] == 1
+            assert stats['by_cadence'][User.DIGEST_FREQUENCY_WEEKLY]['skipped'] == 1
+            assert daily_user.digest_last_sent_at is None
+            assert weekly_user.digest_last_sent_at is None
+
+    def test_digest_scheduler_weekly_only_sends_on_sunday(self, app):
+        with app.app_context():
+            monday_utc = datetime(2026, 3, 16, 14, 0, tzinfo=UTC)
+            weekly_user = UserFactory(digest_frequency=User.DIGEST_FREQUENCY_WEEKLY)
+            db.session.commit()
+
+            with patch('app.utils.home_feed.build_digest_payload', return_value={'events': [{'event_type': 'request'}]}), \
                  patch('app.utils.email.send_digest_email', return_value=True) as send_mock:
                 stats = check_digest_sends_logic(now_utc=monday_utc)
 
@@ -86,7 +109,7 @@ class TestCliDigestScheduler:
             )
             db.session.commit()
 
-            with patch('app.utils.home_feed.build_digest_payload', return_value={'events': []}), \
+            with patch('app.utils.home_feed.build_digest_payload', return_value={'events': [{'event_type': 'request'}]}), \
                  patch('app.utils.email.send_digest_email', return_value=True) as send_mock:
                 stats = check_digest_sends_logic(now_utc=sunday_utc)
 
@@ -100,24 +123,15 @@ class TestCliDigestScheduler:
         with app.app_context():
             sunday_utc = datetime(2026, 3, 15, 14, 0, tzinfo=UTC)
 
-            daily_ok = UserFactory(
-                email='daily_ok@example.com',
-                digest_frequency=User.DIGEST_FREQUENCY_DAILY,
-            )
-            weekly_fail = UserFactory(
-                email='weekly_fail@example.com',
-                digest_frequency=User.DIGEST_FREQUENCY_WEEKLY,
-            )
-            daily_ok_2 = UserFactory(
-                email='daily_ok_2@example.com',
-                digest_frequency=User.DIGEST_FREQUENCY_DAILY,
-            )
+            daily_ok = UserFactory(email='daily_ok@example.com', digest_frequency=User.DIGEST_FREQUENCY_DAILY)
+            weekly_fail = UserFactory(email='weekly_fail@example.com', digest_frequency=User.DIGEST_FREQUENCY_WEEKLY)
+            daily_ok_2 = UserFactory(email='daily_ok_2@example.com', digest_frequency=User.DIGEST_FREQUENCY_DAILY)
             db.session.commit()
 
             def send_side_effect(user, _payload):
                 return user.email != 'weekly_fail@example.com'
 
-            with patch('app.utils.home_feed.build_digest_payload', return_value={'events': []}), \
+            with patch('app.utils.home_feed.build_digest_payload', return_value={'events': [{'event_type': 'request'}]}), \
                  patch('app.utils.email.send_digest_email', side_effect=send_side_effect) as send_mock:
                 stats = check_digest_sends_logic(now_utc=sunday_utc)
 
@@ -135,7 +149,7 @@ class TestCliDigestScheduler:
 
     def test_digest_scheduler_force_send_bypasses_cadence_window_checks(self, app):
         with app.app_context():
-            monday_utc = datetime(2026, 3, 16, 14, 0, tzinfo=UTC)  # Monday
+            monday_utc = datetime(2026, 3, 16, 14, 0, tzinfo=UTC)
 
             daily_user = UserFactory(
                 digest_frequency=User.DIGEST_FREQUENCY_DAILY,
@@ -148,7 +162,7 @@ class TestCliDigestScheduler:
             none_user = UserFactory(digest_frequency=User.DIGEST_FREQUENCY_NONE)
             db.session.commit()
 
-            with patch('app.utils.home_feed.build_digest_payload', return_value={'events': []}), \
+            with patch('app.utils.home_feed.build_digest_payload', return_value={'events': [{'event_type': 'request'}]}), \
                  patch('app.utils.email.send_digest_email', return_value=True) as send_mock:
                 stats = check_digest_sends_logic(now_utc=monday_utc, force_send=True)
 
