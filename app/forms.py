@@ -8,9 +8,9 @@ from datetime import datetime
 
 
 DIGEST_FREQUENCY_CHOICES = [
-    (User.DIGEST_FREQUENCY_DAILY, 'Daily'),
-    (User.DIGEST_FREQUENCY_WEEKLY, 'Weekly'),
-    (User.DIGEST_FREQUENCY_NONE, 'No digest emails'),
+    (User.DIGEST_FREQUENCY_WEEKLY, 'Weekly (stay in the loop)'),
+    (User.DIGEST_FREQUENCY_DAILY, 'Daily (respond promptly to requests and giveaways)'),
+    (User.DIGEST_FREQUENCY_NONE, 'Never (must log in to follow activity)'),
 ]
 
 def OptionalURL(message=None):

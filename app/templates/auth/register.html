@@ -7,15 +7,9 @@
     <form method="post" action="{{ url_for('auth.register', next=request.args.get('next')) }}">
         {{ form.csrf_token }}
 
-        <!-- Email -->
-        <p>
-            {{ form.email.label }}<br>
-            {{ form.email(size=32) }}<br>
-            {% for error in form.email.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-        </p>
-        
+        <h2>Who You Are</h2>
+        <p class="text-muted">Meutch uses real names for sharing within communities.</p>
+
         <!-- First Name -->
         <p>
             {{ form.first_name.label }}<br>
@@ -34,10 +28,37 @@
             {% endfor %}
         </p>
 
-        <!-- Digest Frequency -->
+        <!-- Email -->
+        <p>
+            {{ form.email.label }}<br>
+            {{ form.email(size=32) }}<br>
+            {% for error in form.email.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
+        </p>
+
+        <!-- Password -->
+        <p>
+            {{ form.password.label }}<br>
+            {{ form.password(size=32) }}<br>
+            {% for error in form.password.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
+        </p>
+        
+        <!-- Confirm Password -->
+        <p>
+            {{ form.confirm_password.label }}<br>
+            {{ form.confirm_password(size=32) }}<br>
+            {% for error in form.confirm_password.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
+        </p>
+
+        <!-- Email Updates -->
         <div class="mb-4">
-            <h5>{{ form.digest_frequency.label }}</h5>
-            <p class="text-muted mb-2">Choose how often you'd like updates from your community.</p>
+            <h5>Email Updates</h5>
+            <p class="text-muted mb-2">Meutch sends digest emails with a recap of activity in your circles. How often would you like to receive it?</p>
             {{ form.digest_frequency(class="form-select") }}
             {% for error in form.digest_frequency.errors %}
                 <span style="color: red;">{{ error }}</span>
@@ -46,7 +67,7 @@
 
         <div id="digest-none-warning" class="alert alert-warning" style="display: none;">
             <h6><i class="fas fa-exclamation-triangle me-2"></i>Heads up</h6>
-            <p class="mb-0">If you choose no digest emails, you may miss nearby requests, giveaways, and circle activity.</p>
+            <p class="mb-0">If you choose never, you may miss nearby requests, giveaways, and circle activity.</p>
         </div>
         
         <!-- Location Method Choice -->
@@ -176,24 +197,6 @@
                 <strong>Note:</strong> You can always add your location later from your profile page.
             </p>
         </div>
-        
-        <!-- Password -->
-        <p>
-            {{ form.password.label }}<br>
-            {{ form.password(size=32) }}<br>
-            {% for error in form.password.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-        </p>
-        
-        <!-- Confirm Password -->
-        <p>
-            {{ form.confirm_password.label }}<br>
-            {{ form.confirm_password(size=32) }}<br>
-            {% for error in form.confirm_password.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-        </p>
         
         <!-- Submit Button -->
         <p>{{ form.submit() }}</p>

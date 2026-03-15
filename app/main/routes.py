@@ -1820,7 +1820,7 @@ def update_digest_settings():
     db.session.commit()
 
     if current_user.digest_frequency == User.DIGEST_FREQUENCY_NONE:
-        flash('You turned off digest emails. Please consider staying subscribed so you do not miss activity in your community.', 'warning')
+        flash('You turned off digest emails. Please consider staying subscribed to keep up with activity in your circles.', 'warning')
     else:
         flash('Digest settings updated.', 'success')
 
