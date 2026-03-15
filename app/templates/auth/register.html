@@ -73,7 +73,6 @@
         <!-- Location Method Choice -->
         <div class="mb-4">
             <h5>Location</h5>
-            <p class="text-muted mb-3">How would you like to set your location?</p>
             <div id="location-info" class="alert alert-info mb-3">
                 <h6><i class="fas fa-shield-alt me-2"></i>Your Privacy is Protected</h6>
                 <p class="mb-2">
@@ -88,6 +87,7 @@
                     Other users will only see approximate distances like "2.3 miles away" - never your exact location.
                 </p>
             </div>
+            <p class="text-muted mb-3">How would you like to set your location?</p>
             {% for subfield in form.location_method %}
                 <div class="form-check">
                     {{ subfield(class="form-check-input", id=subfield.id) }}
