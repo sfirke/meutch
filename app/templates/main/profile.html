@@ -520,7 +520,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         {{ digest_form.digest_radius_miles.label(class="form-label") }}
-                                        {{ digest_form.digest_radius_miles(class="form-control", min="1", max="500") }}
+                                        {{ digest_form.digest_radius_miles(class="form-control", min="1", max="50") }}
                                         {% for error in digest_form.digest_radius_miles.errors %}
                                             <div class="text-danger small">{{ error }}</div>
                                         {% endfor %}

@@ -566,7 +566,7 @@ class DigestSettingsForm(FlaskForm):
     )
     digest_radius_miles = IntegerField(
         'Digest Radius (miles)',
-        validators=[DataRequired(), NumberRange(min=1, max=500, message='Radius must be between 1 and 500 miles.')],
+        validators=[DataRequired(), NumberRange(min=1, max=50, message='Radius must be between 1 and 50 miles.')],
         default=10
     )
     digest_include_giveaways = BooleanField('Include giveaways')
