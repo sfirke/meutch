@@ -1111,7 +1111,20 @@ class TestDigestManageRoutes:
             assert b'Manage Digest Emails' in response.data
             assert b'One-click unsubscribe' in response.data
             assert b'Switch to daily' in response.data
+            assert b'Switch to weekly' not in response.data  # Already on weekly
+
+    def test_digest_manage_shows_only_alternative_frequency(self, client, app):
+        """Test that only the alternative frequency button is shown."""
+        with app.app_context():
+            user = UserFactory(digest_frequency='daily')
+            db.session.commit()
+
+            token = generate_digest_manage_token(user)
+            response = client.get(f'/digest/manage/{token}')
+
+            assert response.status_code == 200
             assert b'Switch to weekly' in response.data
+            assert b'Switch to daily' not in response.data  # Already on daily
 
     def test_digest_manage_invalid_token(self, client):
         response = client.get('/digest/manage/not-a-valid-token')

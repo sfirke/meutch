@@ -54,8 +54,12 @@
                 </p>
 
                 <div class="mb-3 d-flex flex-wrap gap-2">
-                    <a class="btn btn-outline-primary" href="{{ url_for('main.digest_set_frequency', token=token, frequency='daily') }}">Switch to daily</a>
-                    <a class="btn btn-outline-primary" href="{{ url_for('main.digest_set_frequency', token=token, frequency='weekly') }}">Switch to weekly</a>
+                    {% if user.digest_frequency != 'daily' %}
+                        <a class="btn btn-outline-primary" href="{{ url_for('main.digest_set_frequency', token=token, frequency='daily') }}">Switch to daily</a>
+                    {% endif %}
+                    {% if user.digest_frequency != 'weekly' %}
+                        <a class="btn btn-outline-primary" href="{{ url_for('main.digest_set_frequency', token=token, frequency='weekly') }}">Switch to weekly</a>
+                    {% endif %}
 
                     {% if user.digest_frequency != 'none' %}
                         <a class="btn btn-warning" href="{{ url_for('main.digest_unsubscribe', token=token) }}">One-click unsubscribe</a>
