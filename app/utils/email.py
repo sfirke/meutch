@@ -625,6 +625,15 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
 
 
 def send_digest_email(user, digest_payload):
+    """Send digest email only if there are events to report.
+    
+    Returns False if payload has no events (should not send).
+    """
+    events = digest_payload.get('events', [])
+    if not events:
+        current_app.logger.debug(f'Digest email skipped for user {user.id}: no events')
+        return False
+    
     token = generate_digest_manage_token(user)
     manage_url = url_for('main.digest_manage', token=token, _external=True)
     unsubscribe_url = url_for('main.digest_unsubscribe', token=token, _external=True)

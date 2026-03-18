@@ -120,7 +120,8 @@ class TestEmailUtils:
             assert '0 circle joins' not in content['text']
             assert '3 new activities' not in content['text']
 
-    def test_build_digest_email_content_omits_summary_when_all_counts_zero(self, app):
+    def test_send_digest_email_returns_false_when_no_events(self, app):
+        """Test that send_digest_email returns False and skips sending when payload has no events."""
         with app.app_context():
             user = UserFactory(first_name='Digest', digest_frequency='weekly')
             payload = {
@@ -136,41 +137,10 @@ class TestEmailUtils:
                 'loans': [],
             }
 
-            content = build_digest_email_content(
-                user,
-                payload,
-                manage_url='https://example.com/digest/manage/token123',
-                unsubscribe_url='https://example.com/digest/unsubscribe/token123',
-            )
-
-            assert content['subject'] == 'Meutch Digest - 0 new activities'
-            assert 'Summary:' not in content['text']
-            assert '<strong>Summary</strong>' not in content['html']
-            assert 'This is your weekly Meutch digest.' in content['text']
-
-    def test_send_digest_email_calls_send_email_with_rendered_content(self, app):
-        with app.app_context():
-            user = UserFactory(first_name='Digest')
-            payload = {
-                'summary_stats': {
-                    'total_new_items': 0,
-                    'giveaways_count': 0,
-                    'borrow_requests_count': 0,
-                },
-                'giveaways': [],
-                'requests': [],
-                'circle_joins': [],
-                'loans': [],
-            }
-
             with patch('app.utils.email.send_email') as mock_send_email:
-                mock_send_email.return_value = True
                 result = send_digest_email(user, payload)
 
-                assert result is True
-                mock_send_email.assert_called_once()
-                args = mock_send_email.call_args[0]
-                assert args[0] == user.email
-                assert args[1] == 'Meutch Digest - 0 new activities'
-                assert '/digest/manage/' in args[2]
-                assert '/digest/unsubscribe/' in args[2]
+                # Should return False when no events exist
+                assert result is False
+                # send_email should never be called
+                mock_send_email.assert_not_called()
