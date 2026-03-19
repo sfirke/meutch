@@ -878,7 +878,7 @@ class TestProfileRoutes:
             assert response.status_code == 200
             content = response.data.decode('utf-8')
             assert 'my-items-tab' in content
-            assert 'active-loans-tab' in content
+            assert 'my-activity-tab' in content
             assert 'about-me-tab' in content
             assert 'settings-tab' in content
     
@@ -944,7 +944,7 @@ class TestProfileRoutes:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/profile?tab=active-loans')
+            response = client.get('/profile?tab=my-activity')
             assert response.status_code == 200
             content = response.data.decode('utf-8')
 

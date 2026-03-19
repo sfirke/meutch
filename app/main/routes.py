@@ -1758,7 +1758,28 @@ def profile():
     
     borrowing = current_user.get_active_loans_as_borrower()
     lending = current_user.get_active_loans_as_owner()
-    
+
+    # Active requests (open, not expired)
+    active_requests_page = request.args.get('active_requests_page', 1, type=int)
+    active_requests = ItemRequest.query.filter(
+        ItemRequest.user_id == current_user.id,
+        ItemRequest.status == 'open',
+        ItemRequest.expires_at > datetime.now(UTC)
+    ).order_by(ItemRequest.created_at.desc()).paginate(
+        page=active_requests_page, per_page=12, error_out=False
+    )
+
+    # Recently fulfilled requests (within 90 days)
+    past_requests_page = request.args.get('past_requests_page', 1, type=int)
+    ninety_days_ago_requests = datetime.now(UTC) - timedelta(days=90)
+    past_requests = ItemRequest.query.filter(
+        ItemRequest.user_id == current_user.id,
+        ItemRequest.status == 'fulfilled',
+        ItemRequest.fulfilled_at >= ninety_days_ago_requests
+    ).order_by(ItemRequest.fulfilled_at.desc()).paginate(
+        page=past_requests_page, per_page=12, error_out=False
+    )
+
     # Create vacation mode form with current state
     vacation_form = VacationModeForm()
     vacation_form.vacation_mode.data = current_user.vacation_mode
@@ -1795,7 +1816,9 @@ def profile():
                          digest_form=digest_form,
                          active_tab=active_tab,
                          search_query=search_query,
-                         show_edit=show_edit)
+                         show_edit=show_edit,
+                         active_requests=active_requests,
+                         past_requests=past_requests)
 
 
 @main_bp.route('/profile/digest-settings', methods=['POST'])
