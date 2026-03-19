@@ -364,65 +364,97 @@
                 </div>
 
                 <!-- My Requests -->
-                <hr>
-                <h5 class="mt-4">My Requests</h5>
-
-                {% if active_requests.items or past_requests.items %}
-                  {% if active_requests.items %}
-                  <h6 class="text-muted mt-3">Active</h6>
-                  <div class="list-group mb-3">
-                    {% for req in active_requests.items %}
-                    <div class="list-group-item">
-                      <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                          <strong>{{ req.title }}</strong>
-                          <span class="badge bg-secondary ms-1">{{ req.seeking }}</span>
-                          <small class="text-muted d-block">Expires {{ req.expires_at.strftime('%b %-d, %Y') }}</small>
-                        </div>
-                        <div class="btn-group btn-group-sm">
-                          <a href="{{ url_for('requests.edit', request_id=req.id) }}" class="btn btn-outline-secondary">Edit</a>
-                          <form method="POST" action="{{ url_for('requests.delete', request_id=req.id) }}" class="d-inline">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
-                          </form>
-                        </div>
-                      </div>
-                    </div>
-                    {% endfor %}
-                  </div>
-                  {% if active_requests.pages > 1 %}
-                  <nav>
-                    <ul class="pagination pagination-sm">
-                      {% for p in active_requests.iter_pages() %}
-                        {% if p %}
-                          <li class="page-item {% if p == active_requests.page %}active{% endif %}">
-                            <a class="page-link" href="?active_tab=my-activity&active_requests_page={{ p }}">{{ p }}</a>
-                          </li>
-                        {% else %}
-                          <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                <div class="mb-5">
+                    <h4><i class="fas fa-clipboard-list me-2"></i>My Requests</h4>
+                    {% if active_requests.items or past_requests.items %}
+                        {% if active_requests.items %}
+                            <h6 class="text-muted mb-3">Active</h6>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <colgroup>
+                                        <col style="width:55%">
+                                        <col style="width:15%">
+                                        <col style="width:15%">
+                                        <col style="width:15%">
+                                    </colgroup>
+                                    <thead>
+                                        <tr>
+                                            <th>Request</th>
+                                            <th>Visibility</th>
+                                            <th>Expires</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for req in active_requests.items %}
+                                            <tr>
+                                                <td><a href="{{ url_for('requests.detail', request_id=req.id) }}">{{ req.title }}</a></td>
+                                                <td>{{ 'My Circles' if req.visibility == 'circles' else 'Public' }}</td>
+                                                <td>{{ req.expires_at.strftime('%Y-%m-%d') }}</td>
+                                                <td>
+                                                    <a href="{{ url_for('requests.edit', request_id=req.id) }}" class="btn btn-sm btn-info">Edit</a>
+                                                    <form method="POST" action="{{ url_for('requests.delete', request_id=req.id) }}" class="d-inline">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% if active_requests.pages > 1 %}
+                            <nav>
+                                <ul class="pagination pagination-sm">
+                                    {% for p in active_requests.iter_pages() %}
+                                        {% if p %}
+                                            <li class="page-item {% if p == active_requests.page %}active{% endif %}">
+                                                <a class="page-link" href="?active_tab=my-activity&active_requests_page={{ p }}">{{ p }}</a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            </nav>
+                            {% endif %}
                         {% endif %}
-                      {% endfor %}
-                    </ul>
-                  </nav>
-                  {% endif %}
-                  {% endif %}
 
-                  {% if past_requests.items %}
-                  <h6 class="text-muted mt-3">Recently Fulfilled</h6>
-                  <div class="list-group mb-3">
-                    {% for req in past_requests.items %}
-                    <div class="list-group-item">
-                      <strong>{{ req.title }}</strong>
-                      <span class="badge bg-secondary ms-1">{{ req.seeking }}</span>
-                      <small class="text-muted d-block">Fulfilled {{ req.fulfilled_at.strftime('%b %-d, %Y') }}</small>
-                    </div>
-                    {% endfor %}
-                  </div>
-                  {% endif %}
-
-                {% else %}
-                  <p class="text-muted mt-3">You have no active or recently fulfilled requests.</p>
-                {% endif %}
+                        {% if past_requests.items %}
+                            <h6 class="text-muted mb-3 {% if active_requests.items %}mt-4{% endif %}">Recently Fulfilled</h6>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <colgroup>
+                                        <col style="width:55%">
+                                        <col style="width:15%">
+                                        <col style="width:15%">
+                                        <col style="width:15%">
+                                    </colgroup>
+                                    <thead>
+                                        <tr>
+                                            <th>Request</th>
+                                            <th>Visibility</th>
+                                            <th>Fulfilled</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for req in past_requests.items %}
+                                            <tr>
+                                                <td><a href="{{ url_for('requests.detail', request_id=req.id) }}">{{ req.title }}</a></td>
+                                                <td>{{ 'My Circles' if req.visibility == 'circles' else 'Public' }}</td>
+                                                <td>{{ req.fulfilled_at.strftime('%Y-%m-%d') }}</td>
+                                                <td></td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <p>You have no active or recently fulfilled requests.</p>
+                    {% endif %}
+                </div>
 
             {% endif %}
         </div>
