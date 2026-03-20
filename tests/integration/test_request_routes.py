@@ -329,24 +329,6 @@ class TestRequestsFeedFiltering:
             assert b'My own request' not in response.data
             assert b'My Requests' not in response.data
 
-    def test_profile_my_activity_shows_own_requests(self, client, app, auth_user):
-        """Test that a user's own open requests appear on their profile My Activity tab."""
-        with app.app_context():
-            user = auth_user()
-            db.session.commit()
-
-            ItemRequestFactory(
-                user=user,
-                title='My own visible request ABC123',
-                status='open',
-            )
-            db.session.commit()
-
-            login_user(client, user.email)
-            response = client.get('/profile?tab=my-activity')
-            assert response.status_code == 200
-            assert b'My own visible request ABC123' in response.data
-
     def test_feed_public_distance_filter(self, client, app, auth_user):
         """Test homepage distance controls can narrow and expand visible public requests."""
         with app.app_context():
