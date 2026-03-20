@@ -3,7 +3,7 @@ import pytest
 from datetime import date, timedelta
 from flask import url_for
 from app.models import User, Item, Category, db
-from tests.factories import UserFactory, CategoryFactory
+from tests.factories import UserFactory, CategoryFactory, CircleFactory
 from conftest import login_user
 
 class TestUserRegistrationWorkflow:
@@ -101,9 +101,12 @@ class TestLoanRequestWorkflow:
         with app.app_context():
             borrower = UserFactory(email='borrower-blank-message@test.com')
             lender = UserFactory(email='lender-blank-message@test.com')
+            circle = CircleFactory()
+            circle.members.extend([borrower, lender])
 
             from tests.factories import ItemFactory
             item = ItemFactory(owner=lender)
+            db.session.commit()
 
             login_user(client, borrower.email)
 
@@ -125,10 +128,13 @@ class TestLoanRequestWorkflow:
             # Create two users
             borrower = UserFactory(email='borrower@test.com')
             lender = UserFactory(email='lender@test.com')
+            circle = CircleFactory()
+            circle.members.extend([borrower, lender])
             
             # Create an item
             from tests.factories import ItemFactory
             item = ItemFactory(owner=lender)
+            db.session.commit()
             
             # Borrower logs in and requests item
             login_user(client, borrower.email)
@@ -285,9 +291,12 @@ class TestMessagingWorkflow:
             # Create users and item
             sender = UserFactory(email='sender@test.com')
             recipient = UserFactory(email='recipient@test.com')
+            circle = CircleFactory()
+            circle.members.extend([sender, recipient])
             
             from tests.factories import ItemFactory
             item = ItemFactory(owner=recipient)
+            db.session.commit()
             
             # Sender logs in and sends message
             login_user(client, sender.email)

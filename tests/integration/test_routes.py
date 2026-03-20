@@ -460,7 +460,11 @@ class TestItemRoutes:
         """Test item detail page for authenticated user."""
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
-            item = ItemFactory()
+            owner = UserFactory()
+            circle = CircleFactory()
+            circle.members.append(user)
+            circle.members.append(owner)
+            item = ItemFactory(owner=owner)
             login_user(client, user.email)
             
             response = client.get(f'/item/{item.id}')

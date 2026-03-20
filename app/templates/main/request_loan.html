@@ -28,7 +28,7 @@
                     </div>
 
                     <!-- Loan Request Form -->
-                    <form method="post" novalidate>
+                    <form method="post" action="{{ url_for('main.request_item', item_id=item.id, share_token=share_token) if share_token else url_for('main.request_item', item_id=item.id) }}" novalidate>
                         {{ form.hidden_tag() }}
 
                         <!-- Date Fields -->
@@ -64,7 +64,7 @@
 
                         <!-- Form Buttons -->
                         <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
-                        <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="btn btn-secondary">Cancel</a>
+                        <a href="{{ url_for('main.item_detail', item_id=item.id, share_token=share_token) if share_token else url_for('main.item_detail', item_id=item.id) }}" class="btn btn-secondary">Cancel</a>
                     </form>
                 </div>
             </div>

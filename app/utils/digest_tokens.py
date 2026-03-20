@@ -14,20 +14,39 @@ def _get_serializer():
     return URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
 
 
-def generate_digest_manage_token(user):
+def generate_signed_token(payload, *, salt):
     serializer = _get_serializer()
-    return serializer.dumps({'user_id': str(user.id), 'email': user.email}, salt=DIGEST_MANAGE_TOKEN_SALT)
+    return serializer.dumps(payload, salt=salt)
 
 
-def verify_digest_manage_token(token, max_age_seconds=DIGEST_MANAGE_TOKEN_MAX_AGE_SECONDS):
+def verify_signed_token(token, *, salt, max_age_seconds):
     serializer = _get_serializer()
 
     try:
-        payload = serializer.loads(token, salt=DIGEST_MANAGE_TOKEN_SALT, max_age=max_age_seconds)
+        payload = serializer.loads(token, salt=salt, max_age=max_age_seconds)
     except SignatureExpired:
         return None, 'expired'
     except BadSignature:
         return None, 'invalid'
+
+    return payload, None
+
+
+def generate_digest_manage_token(user):
+    return generate_signed_token(
+        {'user_id': str(user.id), 'email': user.email},
+        salt=DIGEST_MANAGE_TOKEN_SALT,
+    )
+
+
+def verify_digest_manage_token(token, max_age_seconds=DIGEST_MANAGE_TOKEN_MAX_AGE_SECONDS):
+    payload, error = verify_signed_token(
+        token,
+        salt=DIGEST_MANAGE_TOKEN_SALT,
+        max_age_seconds=max_age_seconds,
+    )
+    if error:
+        return None, error
 
     user_id = payload.get('user_id')
     email = payload.get('email')

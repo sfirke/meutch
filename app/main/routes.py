@@ -1,5 +1,5 @@
 import random
-from flask import render_template, current_app, request, flash, redirect, url_for
+from flask import render_template, current_app, request, flash, redirect, url_for, abort, session
 from flask_login import login_required, current_user, logout_user
 from sqlalchemy import or_, and_, func, select
 from sqlalchemy.orm import joinedload
@@ -16,9 +16,30 @@ from app.utils.email import send_message_notification_email
 from app.utils.giveaway_visibility import can_view_claimed_giveaway, get_unavailable_giveaway_suggestions
 from app.utils.home_feed import build_homepage_feed_events, HOMEPAGE_FEED_EVENT_TYPES
 from app.utils.digest_tokens import verify_digest_manage_token
+from app.utils.item_share import token_grants_item_access, ITEM_SHARE_TOKEN_MAX_AGE_DAYS
 
 
 HOMEPAGE_DISTANCE_OPTIONS = {5, 10, 20, 25, 50}
+
+
+def _build_item_detail_url(item_id, share_token=None):
+    if share_token:
+        return url_for('main.item_detail', item_id=item_id, share_token=share_token)
+    return url_for('main.item_detail', item_id=item_id)
+
+
+def _generated_item_share_link(item_id):
+    return session.get(f'generated-item-share-link:{item_id}')
+
+
+def _shares_circle_or_has_item_token_access(item, share_token=None):
+    if item.owner_id == current_user.id:
+        return True
+
+    if current_user.shares_circle_with(item.owner):
+        return True
+
+    return token_grants_item_access(share_token, item)
 
 
 def _parse_homepage_feed_filters(user):
@@ -372,6 +393,13 @@ def giveaways():
 @login_required
 def item_detail(item_id):
     item = db.get_or_404(Item, item_id)
+    share_token = (request.args.get('share_token') or request.form.get('share_token') or '').strip() or None
+    has_token_access = False
+
+    if not item.is_giveaway and item.owner_id != current_user.id:
+        has_token_access = token_grants_item_access(share_token, item)
+        if not current_user.shares_circle_with(item.owner) and not has_token_access:
+            abort(403)
 
     if item.is_giveaway and item.claim_status == 'claimed':
         if not can_view_claimed_giveaway(item, current_user):
@@ -403,7 +431,7 @@ def item_detail(item_id):
             current_app.logger.error(f"Failed to send email notification for message {message.id}: {str(e)}")
         
         flash("Your message has been sent.", "success")
-        return redirect(url_for('main.item_detail', item_id=item.id))
+        return redirect(_build_item_detail_url(item.id, share_token))
     
     # Retrieve messages related to this item (optional)
     messages = Message.query.filter_by(item_id=item.id, recipient_id=current_user.id).order_by(Message.timestamp.desc()).all()
@@ -425,6 +453,7 @@ def item_detail(item_id):
         ).count()
     
     delete_form = DeleteItemForm()
+    generate_share_link_form = EmptyForm()
     release_to_all_form = ReleaseToAllForm()
     confirm_handoff_form = ConfirmHandoffForm()
     return render_template('main/item_detail.html', 
@@ -436,6 +465,11 @@ def item_detail(item_id):
                          interested_count=interested_count,
                          express_interest_form=express_interest_form,
                          withdraw_interest_form=withdraw_interest_form,
+                         share_token=share_token,
+                         has_token_access=has_token_access,
+                         item_share_valid_days=ITEM_SHARE_TOKEN_MAX_AGE_DAYS,
+                         generated_share_url=_generated_item_share_link(item.id),
+                         generate_share_link_form=generate_share_link_form,
                          release_to_all_form=release_to_all_form,
                          confirm_handoff_form=confirm_handoff_form)
 
@@ -1034,10 +1068,22 @@ def confirm_handoff(item_id):
 @login_required
 def request_item(item_id):
     item = db.get_or_404(Item, item_id)
+    share_token = (request.args.get('share_token') or '').strip() or None
     
     if item.owner == current_user:
         flash('You cannot request your own items.', 'warning')
-        return redirect(url_for('main.item_detail', item_id=item.id))
+        return redirect(_build_item_detail_url(item.id, share_token))
+
+    if item.is_giveaway:
+        flash('This item is being offered as a giveaway, not a loan.', 'warning')
+        return redirect(_build_item_detail_url(item.id, share_token))
+
+    if not item.available:
+        flash('This item is not currently available to borrow.', 'warning')
+        return redirect(_build_item_detail_url(item.id, share_token))
+
+    if not _shares_circle_or_has_item_token_access(item, share_token):
+        abort(403)
     
     existing_request = LoanRequest.query.filter_by(
         item_id=item.id,
@@ -1047,7 +1093,7 @@ def request_item(item_id):
     
     if existing_request:
         flash('You already have a pending request for this item.', 'info')
-        return redirect(url_for('main.item_detail', item_id=item.id))
+        return redirect(_build_item_detail_url(item.id, share_token))
 
     form = LoanRequestForm()
     if form.validate_on_submit():
@@ -1086,7 +1132,7 @@ def request_item(item_id):
             db.session.rollback()
             flash('An error occurred. Please try again.', 'danger')
     
-    return render_template('main/request_loan.html', form=form, item=item)
+    return render_template('main/request_loan.html', form=form, item=item, share_token=share_token)
 
 @main_bp.route('/item/<uuid:item_id>/edit', methods=['GET', 'POST'])
 @login_required

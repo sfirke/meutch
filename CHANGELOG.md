@@ -23,6 +23,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Refactor circles to use `circle_type` (`open`/`closed`/`secret`) as the single behavior source, replacing legacy visibility labels (`public`/`private`/`unlisted`) ([#271](https://github.com/sfirke/meutch/pull/271)).
 - Show distance (if available) to giveaways and requests on activity feed ([#275](https://github.com/sfirke/meutch/pull/275)).
 - Add button to sort items on Find page by distance or date created ([#276](https://github.com/sfirke/meutch/pull/276)).
+- Add owner-generated 30-day share links for regular items, including anonymous preview pages and token-backed borrow requests for recipients outside the owner's circles.
 
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/pull/213)).
