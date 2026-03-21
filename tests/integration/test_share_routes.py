@@ -881,6 +881,21 @@ class TestItemSharePreview:
             assert response.status_code == 302
             assert f'/item/{item.id}?share_token={token}'.encode() in response.headers['Location'].encode()
 
+    def test_item_share_preview_redirects_circle_member_without_token(self, client, app):
+        with app.app_context():
+            viewer = UserFactory()
+            item = ItemFactory(is_giveaway=False)
+            circle = CircleFactory()
+            circle.members.extend([viewer, item.owner])
+            token = generate_item_share_token(item)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f'/share/item/{token}')
+
+            assert response.status_code == 302
+            assert response.headers['Location'] == f'/item/{item.id}'
+
     def test_item_share_preview_404_for_invalid_token(self, client):
         response = client.get('/share/item/not-a-real-token')
         assert response.status_code == 404

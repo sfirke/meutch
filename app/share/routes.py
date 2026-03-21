@@ -117,6 +117,8 @@ def item_preview(token):
         abort(404)
 
     if current_user.is_authenticated:
+        if current_user.id == item.owner_id or current_user.shares_circle_with(item.owner):
+            return redirect(url_for('main.item_detail', item_id=item.id))
         return redirect(url_for('main.item_detail', item_id=item.id, share_token=token))
 
     auth_next_url = url_for('share.item_preview', token=token)
