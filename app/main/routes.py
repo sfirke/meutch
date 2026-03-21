@@ -395,10 +395,12 @@ def item_detail(item_id):
     item = db.get_or_404(Item, item_id)
     share_token = (request.args.get('share_token') or request.form.get('share_token') or '').strip() or None
     has_token_access = False
+    shares_circle_with_owner = False
 
     if not item.is_giveaway and item.owner_id != current_user.id:
         has_token_access = token_grants_item_access(share_token, item)
-        if not current_user.shares_circle_with(item.owner) and not has_token_access:
+        shares_circle_with_owner = current_user.shares_circle_with(item.owner)
+        if not shares_circle_with_owner and not has_token_access:
             abort(403)
 
     if item.is_giveaway and item.claim_status == 'claimed':
@@ -467,6 +469,7 @@ def item_detail(item_id):
                          withdraw_interest_form=withdraw_interest_form,
                          share_token=share_token,
                          has_token_access=has_token_access,
+                         shares_circle_with_owner=shares_circle_with_owner,
                          item_share_valid_days=ITEM_SHARE_TOKEN_MAX_AGE_DAYS,
                          generated_share_url=_generated_item_share_link(item.id),
                          generate_share_link_form=generate_share_link_form,
