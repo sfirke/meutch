@@ -1,9 +1,8 @@
 """End-to-end functional tests for user workflows."""
 import pytest
 from datetime import date, timedelta
-from flask import url_for
-from app.models import User, Item, Category, db
-from tests.factories import UserFactory, CategoryFactory, CircleFactory
+from app.models import User, Item, db, Circle, CircleJoinRequest, LoanRequest, Message
+from tests.factories import UserFactory, CategoryFactory, CircleFactory, ItemFactory, TagFactory
 from conftest import login_user
 
 class TestUserRegistrationWorkflow:
@@ -104,7 +103,6 @@ class TestLoanRequestWorkflow:
             circle = CircleFactory()
             circle.members.extend([borrower, lender])
 
-            from tests.factories import ItemFactory
             item = ItemFactory(owner=lender)
             db.session.commit()
 
@@ -132,7 +130,7 @@ class TestLoanRequestWorkflow:
             circle.members.extend([borrower, lender])
             
             # Create an item
-            from tests.factories import ItemFactory
+
             item = ItemFactory(owner=lender)
             db.session.commit()
             
@@ -160,7 +158,6 @@ class TestLoanRequestWorkflow:
             assert response.status_code == 200
             
             # Find the loan request and approve it
-            from app.models import LoanRequest
             loan_request = LoanRequest.query.filter_by(
                 item_id=item.id,
                 borrower_id=borrower.id
@@ -201,7 +198,6 @@ class TestCircleWorkflow:
             assert b'Test Circle' in response.data
             
             # Find created circle
-            from app.models import Circle
             circle = Circle.query.filter_by(name='Test Circle').first()
             assert circle is not None
             assert circle.is_admin(admin_user)
@@ -221,7 +217,6 @@ class TestCircleWorkflow:
             login_user(client, admin_user.email)
             
             # Find join request
-            from app.models import CircleJoinRequest
             join_request = CircleJoinRequest.query.filter_by(
                 circle_id=circle.id,
                 user_id=member_user.id
@@ -246,9 +241,7 @@ class TestSearchAndBrowsingWorkflow:
             user1 = UserFactory()  # searcher
             user2 = UserFactory()  # item owner
             category = CategoryFactory()
-            
-            from tests.factories import ItemFactory, TagFactory, CircleFactory
-            
+                        
             # Create a shared circle
             circle = CircleFactory()
             circle.members.append(user1)
@@ -294,7 +287,6 @@ class TestMessagingWorkflow:
             circle = CircleFactory()
             circle.members.extend([sender, recipient])
             
-            from tests.factories import ItemFactory
             item = ItemFactory(owner=recipient)
             db.session.commit()
             
@@ -317,7 +309,6 @@ class TestMessagingWorkflow:
             assert b'interested in this item' in response.data
             
             # Check unread count - recipient should have 1 unread message
-            from app.models import Message
             unread_count = Message.query.filter_by(
                 recipient_id=recipient.id,
                 is_read=False
