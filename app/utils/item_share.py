@@ -17,10 +17,7 @@ def generate_item_share_token(item):
         raise ValueError('Only regular items can be shared with item share links.')
 
     return generate_signed_token(
-        {
-            'item_id': str(item.id),
-            'owner_id': str(item.owner_id),
-        },
+        {'item_id': str(item.id)},
         salt=ITEM_SHARE_TOKEN_SALT,
     )
 
@@ -35,15 +32,11 @@ def verify_item_share_token(token, max_age_seconds=ITEM_SHARE_TOKEN_MAX_AGE_SECO
         return None, error
 
     item_id = payload.get('item_id')
-    owner_id = payload.get('owner_id')
-    if not item_id or not owner_id:
+    if not item_id:
         return None, 'invalid'
 
     item = db.session.get(Item, item_id)
     if not item or not item_supports_share_links(item):
-        return None, 'invalid'
-
-    if str(item.owner_id) != owner_id:
         return None, 'invalid'
 
     return item, None
