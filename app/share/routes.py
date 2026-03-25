@@ -1,4 +1,5 @@
 from urllib.parse import urljoin
+from datetime import datetime, timezone
 
 from flask import render_template, abort, redirect, url_for, request, flash, session
 from flask_login import current_user, login_required
@@ -146,7 +147,13 @@ def generate_item_link(item_id):
         abort(403)
 
     token = generate_item_share_token(item)
-    session[_item_share_session_key(item.id)] = url_for('share.item_preview', token=token, _external=True)
+    share_url = url_for('share.item_preview', token=token, _external=True)
+    expires_at = (datetime.now(timezone.utc).timestamp() + ITEM_SHARE_TOKEN_MAX_AGE_DAYS * 86400)
+    session[_item_share_session_key(item.id)] = {'url': share_url, 'expires_at': expires_at}
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {'url': share_url}
+
     flash(
         f'Share link generated. Anyone with this link can view this item for {ITEM_SHARE_TOKEN_MAX_AGE_DAYS} days.',
         'warning',

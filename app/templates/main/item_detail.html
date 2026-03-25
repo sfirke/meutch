@@ -258,24 +258,30 @@
                                             <p class="text-muted mb-3">
                                                 Anyone with this link can view this item on the web for {{ item_share_valid_days }} days, even if they are not in your circles.
                                             </p>
-                                            <form action="{{ url_for('share.generate_item_link', item_id=item.id) }}" method="post" class="mb-3">
+                                            <form id="generate-share-form-{{ item.id }}" action="{{ url_for('share.generate_item_link', item_id=item.id) }}" method="post" class="d-none">
                                                 {{ generate_share_link_form.hidden_tag() }}
-                                                <button type="submit" class="btn btn-outline-primary">
-                                                    <i class="fas fa-link me-1"></i>Generate new {{ item_share_valid_days }}-day link
-                                                </button>
                                             </form>
+                                            <div class="mb-3">
+                                                <button type="button"
+                                                        class="btn btn-outline-primary"
+                                                        data-form-id="generate-share-form-{{ item.id }}"
+                                                        data-item-id="{{ item.id }}"
+                                                        onclick="generateAndCopyShareLink(this)">
+                                                    <i class="fas fa-link me-1"></i>Generate & copy {% if generated_share_url %}new {% endif %}{{ item_share_valid_days }}-day link
+                                                </button>
+                                            </div>
 
-                                            {% if generated_share_url %}
-                                                <label for="item-share-link" class="form-label fw-bold">Current share link</label>
+                                            <div id="share-link-section-{{ item.id }}" {% if not generated_share_url %}class="d-none"{% endif %}>
+                                                <label for="item-share-link-{{ item.id }}" class="form-label fw-bold">Current share link</label>
                                                 <div class="input-group mb-2">
-                                                    <input id="item-share-link" type="text" class="form-control" value="{{ generated_share_url }}" readonly onclick="this.select();">
-                                                    {% set share_url = generated_share_url %}
+                                                    <input id="item-share-link-{{ item.id }}" type="text" class="form-control" value="{{ generated_share_url or '' }}" readonly onclick="this.select();">
+                                                    {% set share_url = generated_share_url or '' %}
                                                     {% set share_title = item.name %}
                                                     {% set share_text = item.owner.first_name + ' shared an item on Meutch: ' + item.name %}
                                                     {% include 'share/_share_button.html' %}
                                                 </div>
                                                 <p class="small text-muted mb-0">Generating another link does not turn off earlier links. Each generated link stays valid for {{ item_share_valid_days }} days.</p>
-                                            {% endif %}
+                                            </div>
                                         </div>
                                     </div>
                                 {% endif %}

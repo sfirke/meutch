@@ -1,5 +1,48 @@
 // Shared utility functions for sharing links via Web Share API or clipboard fallback
 
+function generateAndCopyShareLink(button) {
+    var formId = button.dataset.formId;
+    var itemId = button.dataset.itemId;
+    var form = document.getElementById(formId);
+    if (!form) return;
+
+    var formData = new FormData(form);
+    var originalHTML = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating…';
+
+    fetch(form.action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData,
+    })
+    .then(function(r) {
+        if (!r.ok) throw new Error('Request failed');
+        return r.json();
+    })
+    .then(function(data) {
+        var url = data.url;
+
+        var section = document.getElementById('share-link-section-' + itemId);
+        var linkInput = document.getElementById('item-share-link-' + itemId);
+        var shareBtn = section ? section.querySelector('.share-btn') : null;
+
+        if (linkInput) linkInput.value = url;
+        if (shareBtn) shareBtn.setAttribute('data-share-url', url);
+        if (section) section.classList.remove('d-none');
+
+        button.disabled = false;
+        button.innerHTML = originalHTML;
+        copyToClipboardFallback(url, button);
+    })
+    .catch(function() {
+        // Fall back to full-page form submit on any error
+        button.disabled = false;
+        button.innerHTML = originalHTML;
+        form.submit();
+    });
+}
+
 function shareLink(button) {
     if (!button) {
         return;
