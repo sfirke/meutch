@@ -29,7 +29,13 @@ def _build_item_detail_url(item_id, share_token=None):
 
 
 def _generated_item_share_link(item_id):
-    return session.get(f'generated-item-share-link:{item_id}')
+    entry = session.get(f'generated-item-share-link:{item_id}')
+    if not entry:
+        return None
+    if datetime.now(UTC).timestamp() > entry.get('expires_at', 0):
+        session.pop(f'generated-item-share-link:{item_id}', None)
+        return None
+    return entry['url']
 
 
 def _shares_circle_or_has_item_token_access(item, share_token=None):
