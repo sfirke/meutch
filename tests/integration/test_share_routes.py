@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from app import db
 from app.utils.item_share import generate_item_share_token
-from tests.factories import UserFactory, ItemFactory, CircleFactory, ItemRequestFactory
+from tests.factories import UserFactory, ItemFactory, CircleFactory, ItemRequestFactory, LoanRequestFactory
 from conftest import login_user
 
 
@@ -987,3 +987,17 @@ class TestItemSharePreview:
 
             assert response.status_code == 200
             assert b'Your loan request has been submitted.' in response.data
+
+    def test_item_detail_accessible_to_active_borrower_after_token_expiry(self, client, app):
+        """A borrower with an approved loan can view item_detail even without a valid token."""
+        with app.app_context():
+            borrower = UserFactory()
+            item = ItemFactory(is_giveaway=False, available=False)
+            LoanRequestFactory(item=item, borrower=borrower, status='approved')
+            db.session.commit()
+
+            login_user(client, borrower.email)
+            response = client.get(f'/item/{item.id}')
+
+            assert response.status_code == 200
+            assert item.name.encode() in response.data

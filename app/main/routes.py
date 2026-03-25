@@ -406,7 +406,12 @@ def item_detail(item_id):
     if not item.is_giveaway and item.owner_id != current_user.id:
         has_token_access = token_grants_item_access(share_token, item)
         shares_circle_with_owner = current_user.shares_circle_with(item.owner)
-        if not shares_circle_with_owner and not has_token_access:
+        is_active_borrower = LoanRequest.query.filter_by(
+            item_id=item.id,
+            borrower_id=current_user.id,
+            status='approved',
+        ).first() is not None
+        if not shares_circle_with_owner and not has_token_access and not is_active_borrower:
             abort(403)
 
     if item.is_giveaway and item.claim_status == 'claimed':
