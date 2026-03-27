@@ -1,5 +1,5 @@
 """Integration tests for share link routes."""
-from datetime import datetime, UTC, timedelta
+from datetime import date, datetime, UTC, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -7,7 +7,7 @@ from app import db
 from app.utils.item_share import generate_item_share_token
 from tests.factories import UserFactory, ItemFactory, CircleFactory, ItemRequestFactory, LoanRequestFactory
 from conftest import login_user
-
+import uuid
 
 class TestGiveawaySharePreview:
     """Tests for the giveaway share preview page."""
@@ -161,7 +161,6 @@ class TestGiveawaySharePreview:
 
     def test_nonexistent_giveaway_returns_404(self, client, app):
         """Test that a non-existent item ID returns 404."""
-        import uuid
         response = client.get(f'/share/giveaway/{uuid.uuid4()}')
         assert response.status_code == 404
 
@@ -451,7 +450,6 @@ class TestRequestSharePreview:
 
     def test_nonexistent_request_returns_404(self, client, app):
         """Test that a non-existent request ID returns 404."""
-        import uuid
         response = client.get(f'/share/request/{uuid.uuid4()}')
         assert response.status_code == 404
 
@@ -669,7 +667,6 @@ class TestCircleSharePreview:
 
     def test_nonexistent_circle_returns_404(self, client, app):
         """Test that a non-existent circle ID returns 404."""
-        import uuid
         response = client.get(f'/share/circle/{uuid.uuid4()}')
         assert response.status_code == 404
 
@@ -971,7 +968,6 @@ class TestItemSharePreview:
 
             login_user(client, borrower.email)
 
-            from datetime import date, timedelta
             start_date = date.today() + timedelta(days=1)
             end_date = date.today() + timedelta(days=5)
 
