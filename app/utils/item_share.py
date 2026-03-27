@@ -4,8 +4,8 @@ from app.utils.digest_tokens import generate_signed_token, verify_signed_token
 
 
 ITEM_SHARE_TOKEN_SALT = 'item-share'
-ITEM_SHARE_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 ITEM_SHARE_TOKEN_MAX_AGE_DAYS = 30
+ITEM_SHARE_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * ITEM_SHARE_TOKEN_MAX_AGE_DAYS
 
 
 def item_supports_share_links(item):
