@@ -54,16 +54,17 @@
     <!-- Mobile speed-dial FAB -->
     <div class="d-md-none fab-speed-dial" id="feedFab" aria-label="Create" role="group">
         <div class="fab-actions" id="fabActions">
-            <a href="{{ url_for('requests.new') }}" class="fab-action btn rounded-pill px-3 py-2">
-                <i class="fas fa-hand-holding-heart me-2"></i>Request
-            </a>
             <a href="{{ url_for('main.list_item') }}" class="fab-action btn rounded-pill px-3 py-2">
                 <i class="fas fa-plus me-2"></i>Item
             </a>
+            <a href="{{ url_for('requests.new') }}" class="fab-action btn rounded-pill px-3 py-2">
+                <i class="fas fa-hand-holding-heart me-2"></i>Request
+            </a>
         </div>
-        <button class="fab-main btn" id="fabToggle" type="button" aria-label="Create" aria-expanded="false" aria-controls="fabActions">
+        <button class="fab-main btn" id="fabToggle" type="button" aria-label="Create options" aria-expanded="false" aria-controls="fabActions">
             <i class="fas fa-plus fab-icon"></i>
         </button>
+        <span class="fab-label" aria-hidden="true">Create</span>
     </div>
 
     <section class="collapse mb-3" id="feedFiltersCollapse">
@@ -279,6 +280,14 @@
 
     document.addEventListener('click', function (e) {
         if (!fab.contains(e.target)) {
+            actions.classList.remove('is-open');
+            toggle.classList.remove('is-open');
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
             actions.classList.remove('is-open');
             toggle.classList.remove('is-open');
             toggle.setAttribute('aria-expanded', 'false');
