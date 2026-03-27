@@ -1,81 +1,10 @@
-"""Integration tests for public showcase feature.
-
-Tests that unauthenticated visitors only see items from users marked as 
-is_public_showcase=True, and that the admin panel can manage this flag.
-"""
+"""Integration tests for public showcase feature — admin panel routes."""
 import pytest
 from flask import url_for
 from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory
 from app.models import AdminAction
 from conftest import login_user
 
-
-class TestHomepageShowcaseItems:
-    """Tests for homepage item visibility for unauthenticated users"""
-    
-    def test_unauthenticated_user_sees_only_showcase_items(self, client, db_session):
-        """Test that unauthenticated users only see items from showcase users"""
-        category = CategoryFactory()
-        
-        # Create a showcase user with items
-        showcase_user = UserFactory(is_public_showcase=True)
-        showcase_item = ItemFactory(owner=showcase_user, category=category, name="Showcase Item Visible")
-        
-        # Create a non-showcase user with items (even in public circle)
-        regular_user = UserFactory(is_public_showcase=False)
-        regular_item = ItemFactory(owner=regular_user, category=category, name="Regular Item Hidden")
-        
-        # Add regular user to an open circle
-        public_circle = CircleFactory(circle_type='open')
-        public_circle.members.append(regular_user)
-        db_session.commit()
-        
-        response = client.get(url_for('main.index'))
-        assert response.status_code == 200
-        
-        # Showcase item should be visible
-        assert showcase_item.name.encode() in response.data
-        # Regular item should NOT be visible (even though user is in public circle)
-        assert regular_item.name.encode() not in response.data
-    
-    def test_unauthenticated_user_sees_empty_state_when_no_showcase_users(self, client, db_session):
-        """Test friendly message when no showcase items exist"""
-        category = CategoryFactory()
-        
-        # Create items but from non-showcase users
-        regular_user = UserFactory(is_public_showcase=False)
-        ItemFactory(owner=regular_user, category=category)
-        db_session.commit()
-        
-        response = client.get(url_for('main.index'))
-        assert response.status_code == 200
-        
-        # Should see empty state message
-        assert b'Join our community' in response.data
-        assert b'Join Meutch' in response.data
-    
-    def test_unauthenticated_user_sees_remaining_items_teaser(self, client, db_session):
-        """Test that 'X more' teaser shows correct count based on all items in database"""
-        category = CategoryFactory()
-        showcase_user = UserFactory(is_public_showcase=True)
-        non_showcase_user = UserFactory(is_public_showcase=False)
-        db_session.commit()
-        
-        # Create 6 non-giveaway items from showcase user (fills the preview limit)
-        for i in range(6):
-            ItemFactory(owner=showcase_user, category=category, name=f"Showcase Item {i}", is_giveaway=False)
-        
-        # Create 4 items from non-showcase user (not displayed but counted in total)
-        for i in range(4):
-            ItemFactory(owner=non_showcase_user, category=category, name=f"Hidden Item {i}", is_giveaway=False)
-        db_session.commit()
-        
-        response = client.get(url_for('main.index'))
-        assert response.status_code == 200
-        
-        # Should show "4 more" (10 total items - 6 displayed = 4)
-        # This proves non-showcase items are included in the total count
-        assert b'4 more' in response.data
 
 class TestAdminShowcaseRoutes:
     """Tests for admin panel showcase enable/disable routes"""

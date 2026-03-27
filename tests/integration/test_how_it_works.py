@@ -7,4 +7,4 @@ def test_how_it_works_page_and_home_anonymous(client):
     # GET the homepage as anonymous and verify the prominent CTA exists
     r2 = client.get('/')
     assert r2.status_code == 200
-    assert b"Learn more" in r2.data
+    assert b"Get Started" in r2.data

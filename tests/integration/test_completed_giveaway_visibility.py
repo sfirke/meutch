@@ -362,52 +362,6 @@ class TestCompletedGiveawayVisibility:
             # Should NOT appear (too old)
             assert old_claimed.name not in html
     
-    def test_public_claimed_giveaway_not_in_anonymous_home_page(self, client, app):
-        """Test that claimed public giveaways don't show to anonymous users."""
-        with app.app_context():
-            owner = UserFactory(is_public_showcase=True)
-            claimer = UserFactory()
-            
-            unclaimed = ItemFactory(
-                owner=owner,
-                is_giveaway=True,
-                giveaway_visibility='public',
-                claim_status='unclaimed'
-            )
-            
-            claimed = ItemFactory(
-                owner=owner,
-                is_giveaway=True,
-                giveaway_visibility='public',
-                claim_status='claimed',
-                claimed_by=claimer,
-                claimed_at=datetime.now(UTC) - timedelta(days=5)
-            )
-
-            pending = ItemFactory(
-                owner=owner,
-                is_giveaway=True,
-                giveaway_visibility='public',
-                claim_status='pending_pickup',
-                claimed_by=claimer
-            )
-            
-            db.session.commit()
-            
-            # Anonymous user should see unclaimed but not claimed
-            response = client.get('/')
-            assert response.status_code == 200
-            html = response.data.decode()
-            
-            # Unclaimed should appear
-            assert unclaimed.name in html
-            
-            # Claimed should NOT appear
-            assert claimed.name not in html
-
-            # Pending pickup should NOT appear to anonymous users
-            assert pending.name not in html
-    
     def test_pending_pickup_giveaway_visible_to_owner_only(self, client, app, auth_user):
         """Test pending_pickup giveaways are visible to owner but hidden from others."""
         owner_email = None

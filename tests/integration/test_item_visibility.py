@@ -6,45 +6,6 @@ from conftest import login_user
 
 @pytest.mark.usefixtures('app')
 class TestItemVisibility:
-    def test_logged_out_user_cannot_see_items_from_private_circle_only_member(self, client):
-        # Create a category
-        category = CategoryFactory()
-        db.session.commit()
-
-        # Create a user and an item
-        user = UserFactory()
-        item = ItemFactory(owner=user, category=category)
-        db.session.commit()
-
-        # Create a private circle and add the user as a member
-        private_circle = CircleFactory(circle_type='closed')
-        private_circle.members.append(user)
-        db.session.commit()
-
-        # Ensure user is NOT in any public circle
-        # Now, as a logged-out user, visit the homepage
-        response = client.get(url_for('main.index'))
-        assert response.status_code == 200
-        # The item should NOT be visible
-        assert item.name.encode() not in response.data
-
-    def test_logged_out_user_can_see_items_from_public_showcase_user(self, client):
-        """Test that logged-out users can see items from public showcase users."""
-        # Create a category
-        category = CategoryFactory()
-        db.session.commit()
-
-        # Create a user marked as public showcase and an item
-        user = UserFactory(is_public_showcase=True)
-        item = ItemFactory(owner=user, category=category)
-        db.session.commit()
-
-        # Now, as a logged-out user, visit the homepage
-        response = client.get(url_for('main.index'))
-        assert response.status_code == 200
-        # The item should be visible because user is a showcase user
-        assert item.name.encode() in response.data
-
     def test_authenticated_user_does_not_see_own_items(self, client):
         """Test that authenticated users don't see their own items on homepage."""
         category = CategoryFactory()

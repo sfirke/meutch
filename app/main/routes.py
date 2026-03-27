@@ -235,6 +235,9 @@ def _build_find_context(user):
 
 @main_bp.route('/')
 def index():
+    if not current_user.is_authenticated:
+        return render_template('main/landing.html')
+
     items = []
     giveaway_items = []
     feed_events = []
@@ -254,60 +257,22 @@ def index():
     selected_feed_distance = 'none'
     feed_distance_options = [5, 10, 20, 25, 50]
     
-    if current_user.is_authenticated:
-        user_circles = sorted(list(current_user.circles), key=lambda circle: (circle.name or '').lower())
-        has_circles = len(user_circles) > 0
-        selected_circles = request.args.getlist('circles')
-        filter_state = _parse_homepage_feed_filters(current_user)
-        selected_feed_scope = filter_state['scope']
-        selected_feed_types = filter_state['selected_feed_types']
-        selected_feed_distance = filter_state['distance_param_value']
+    user_circles = sorted(list(current_user.circles), key=lambda circle: (circle.name or '').lower())
+    has_circles = len(user_circles) > 0
+    selected_circles = request.args.getlist('circles')
+    filter_state = _parse_homepage_feed_filters(current_user)
+    selected_feed_scope = filter_state['scope']
+    selected_feed_types = filter_state['selected_feed_types']
+    selected_feed_distance = filter_state['distance_param_value']
 
-        feed_events = build_homepage_feed_events(
-            current_user,
-            selected_circle_ids=selected_circles,
-            scope=selected_feed_scope,
-            giveaway_distance=filter_state['distance'],
-            giveaway_distance_explicit=filter_state['distance_explicit'],
-            included_event_types=selected_feed_types,
-        )
-        
-    else:
-        # Anonymous users: show preview items (unchanged logic)
-        showcase_user_ids = select(User.id).where(
-            User.is_public_showcase == True,
-            User.vacation_mode == False
-        )
-        
-        base_query = Item.query.filter(
-            Item.owner_id.in_(showcase_user_ids),
-            Item.is_giveaway == False
-        )
-        
-        giveaway_query = Item.query.join(User, Item.owner_id == User.id).filter(
-            Item.is_giveaway == True,
-            Item.giveaway_visibility == 'public',
-            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None)),
-            User.vacation_mode == False
-        )
-        
-        preview_limit = 6
-        
-        total_items = Item.query.filter(
-            or_(
-                Item.is_giveaway == False,
-                and_(
-                    Item.is_giveaway == True,
-                    or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
-                )
-            )
-        ).count()
-        
-        items = base_query.order_by(func.random()).limit(preview_limit).all()
-        giveaway_items = giveaway_query.order_by(func.random()).limit(preview_limit).all()
-        
-        displayed_count = len(items) + len(giveaway_items)
-        remaining_items = max(0, total_items - displayed_count)
+    feed_events = build_homepage_feed_events(
+        current_user,
+        selected_circle_ids=selected_circles,
+        scope=selected_feed_scope,
+        giveaway_distance=filter_state['distance'],
+        giveaway_distance_explicit=filter_state['distance_explicit'],
+        included_event_types=selected_feed_types,
+    )
     
     return render_template('main/index.html',
                          items=items,

@@ -248,33 +248,3 @@ class TestVacationModeOwnItemsStillVisible:
         assert response.status_code == 200
         # User should see their own item
         assert b'My Own Item' in response.data
-
-
-@pytest.mark.usefixtures('app')
-class TestVacationModeAnonymousUsers:
-    """Test that vacation mode affects items shown to anonymous users."""
-    
-    def test_anonymous_homepage_hides_public_showcase_items_from_vacation_mode_user(self, client):
-        """Test that public showcase items from vacation mode users are hidden."""
-        category = CategoryFactory()
-        
-        # Create a public showcase user in vacation mode
-        showcase_user_vacation = UserFactory(is_public_showcase=True, vacation_mode=True)
-        # Create a public showcase user not in vacation mode
-        showcase_user_normal = UserFactory(is_public_showcase=True, vacation_mode=False)
-        db.session.commit()
-        
-        # Create items
-        item_hidden = ItemFactory(owner=showcase_user_vacation, category=category, name="Hidden Showcase Item")
-        item_visible = ItemFactory(owner=showcase_user_normal, category=category, name="Visible Showcase Item")
-        db.session.commit()
-        
-        # Visit homepage as anonymous user
-        response = client.get(url_for('main.index'))
-        
-        assert response.status_code == 200
-        # Visible item should be shown
-        # Could be subject to random selection but here there are just two items so should always show
-        # Noting this in case someday it starts flaky failing (e.g. because we add more showcase items)
-        assert b'Visible Showcase Item' in response.data
-        assert b'Hidden Showcase Item' not in response.data

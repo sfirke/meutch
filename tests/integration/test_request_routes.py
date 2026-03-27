@@ -829,7 +829,9 @@ class TestRequestNavigation:
         """Test that Requests nav link is not shown to anonymous users."""
         response = client.get('/')
         assert response.status_code == 200
-        assert b'hand-holding-heart' not in response.data
+        # The navbar should not contain a Requests nav link for anonymous users
+        # (the landing page mock feed uses the icon but NOT as a nav link)
+        assert b'href="/requests/"' not in response.data
 
 
 class TestRequestEmailNotifications:

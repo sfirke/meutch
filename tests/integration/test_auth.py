@@ -99,8 +99,8 @@ class TestAuthenticationRoutes:
             # Then logout
             response = client.get('/auth/logout', follow_redirects=True)
             assert response.status_code == 200
-            # Just verify we're redirected to main page instead of looking for logout message
-            assert b'Welcome to Meutch' in response.data
+            # Just verify we're redirected to main page (landing page for anonymous)
+            assert b'Borrowing from a neighbor' in response.data
     
     def test_register_page(self, client):
         """Test registration page loads correctly."""

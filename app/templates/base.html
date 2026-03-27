@@ -35,7 +35,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
+<body {% block body_attrs %}{% endblock %}>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm fixed-top">
         <div class="container">
@@ -177,10 +177,12 @@
         {% endwith %}
 
         <!-- Page Content -->
+        {% block page_content %}
         <div class="container">
             {% block content %}
             {% endblock %}
         </div>
+        {% endblock %}
     </main>
 
     <!-- Footer -->

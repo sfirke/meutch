@@ -1644,3 +1644,254 @@ footer h6 {
     border-color: var(--secondary-color);
     color: white;
 }
+
+/* ===================================================================
+   Landing Page  (anonymous homepage)
+   =================================================================== */
+
+.landing-page {
+    padding-top: 0;
+    scroll-behavior: smooth;
+}
+
+/* --- transparent → solid navbar transition --- */
+.landing-page .navbar {
+    background-color: rgba(12, 50, 49, 0.5) !important;
+    backdrop-filter: blur(6px);
+    box-shadow: none !important;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, backdrop-filter 0.3s ease;
+}
+
+.landing-page .navbar.scrolled {
+    background-color: rgba(248, 250, 252, 0.97) !important;
+    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-sm) !important;
+}
+
+.landing-page .navbar:not(.scrolled) .navbar-brand span,
+.landing-page .navbar:not(.scrolled) .nav-link {
+    color: rgba(255, 255, 255, 0.92) !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.landing-page .navbar:not(.scrolled) .nav-link:hover {
+    color: #fff !important;
+}
+
+.landing-page .navbar:not(.scrolled) .btn-primary {
+    background-color: #fff !important;
+    border-color: #fff !important;
+    color: var(--primary-dark) !important;
+}
+
+.landing-page .navbar:not(.scrolled) .btn-primary:hover {
+    background-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.landing-page .navbar:not(.scrolled) .navbar-toggler {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.landing-page .navbar:not(.scrolled) .navbar-toggler-icon {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* mobile hamburger menu on transparent nav */
+.landing-page .navbar:not(.scrolled) .navbar-collapse.show,
+.landing-page .navbar:not(.scrolled) .navbar-collapse.collapsing {
+    background-color: rgba(49, 151, 149, 0.95);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-top: 0.5rem;
+}
+
+/* --- Hero --- */
+.landing-hero {
+    min-height: 100vh;
+    background: linear-gradient(150deg, #0d3b3a 0%, #195756 45%, #267a78 100%);
+    color: #fff;
+    padding: 120px 0 80px;
+    position: relative;
+    overflow: hidden;
+}
+
+.landing-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+}
+
+.landing-hero-logo {
+    width: 260px;
+    height: 260px;
+    object-fit: contain;
+    opacity: 0.92;
+    filter: drop-shadow(0 8px 24px rgba(0,0,0,0.4));
+    animation: landing-logo-float 4s ease-in-out infinite;
+}
+
+@keyframes landing-logo-float {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-10px); }
+}
+
+.landing-headline {
+    font-size: clamp(1.85rem, 4vw, 3rem);
+    font-weight: 800;
+    line-height: 1.15;
+    max-width: 620px;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+}
+
+.landing-subheadline {
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    color: rgba(255, 255, 255, 0.85);
+    max-width: 480px;
+}
+
+.landing-btn-primary {
+    background-color: #fff !important;
+    border-color: #fff !important;
+    color: var(--primary-dark) !important;
+    font-weight: 600;
+    padding: 0.75rem 2rem;
+    border-radius: 50px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.landing-btn-primary:hover {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.landing-btn-outline {
+    background-color: transparent !important;
+    border: 2px solid rgba(255, 255, 255, 0.7) !important;
+    color: #fff !important;
+    font-weight: 600;
+    padding: 0.75rem 2rem;
+    border-radius: 50px;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.landing-btn-outline:hover {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    border-color: #fff !important;
+    color: #fff !important;
+}
+
+/* --- Sections --- */
+.landing-section {
+    padding: 5rem 0;
+}
+
+.landing-section-alt {
+    background-color: #f7fafc;
+}
+
+.landing-section-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--dark-text);
+}
+
+/* --- How-It-Works steps --- */
+.landing-step-number {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+}
+
+/* --- Why Meutch icon circles --- */
+.landing-icon-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(79,209,199,0.15), rgba(49,151,149,0.15));
+    color: var(--primary-dark);
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+/* --- Mock feed --- */
+.landing-mock-feed {
+    background: var(--light-bg);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-color);
+}
+
+.landing-avatar-mock {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--dark-text);
+    flex-shrink: 0;
+}
+
+/* --- Quote / image section --- */
+.landing-quote p.h4 {
+    color: var(--dark-text);
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+/* --- Final CTA --- */
+.landing-cta {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+    padding: 5rem 0;
+}
+
+.landing-btn-cta {
+    background-color: #fff !important;
+    border-color: #fff !important;
+    color: var(--primary-dark) !important;
+    font-weight: 600;
+    padding: 0.75rem 2rem;
+    border-radius: 50px;
+    font-size: 1.1rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.landing-btn-cta:hover {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+    .landing-hero {
+        min-height: auto;
+        padding: 100px 0 60px;
+    }
+
+    .landing-section {
+        padding: 3rem 0;
+    }
+
+    .landing-cta {
+        padding: 3rem 0;
+    }
+}

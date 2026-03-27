@@ -12,10 +12,10 @@ class TestMainRoutes:
     """Test main application routes."""
     
     def test_index_page(self, client, app):
-        """Test index page loads correctly."""
+        """Test index page loads correctly for anonymous users (landing page)."""
         response = client.get('/')
         assert response.status_code == 200
-        assert b'Welcome to Meutch' in response.data
+        assert b'Borrowing from a neighbor' in response.data
     
     def test_index_with_authenticated_user(self, client, app, auth_user):
         """Test index page with authenticated user."""
@@ -221,25 +221,15 @@ class TestMainRoutes:
             assert b'Find Items' in response.data
             assert b'Join a circle to get started' in response.data
     
-    def test_index_anonymous_user_limited_items(self, client, app):
-        """Test that anonymous users see limited items with 'more' message."""
-        with app.app_context():
-            # Create more than 12 items to test the limit
-            category = CategoryFactory()
-            # User must be marked as public showcase for items to be visible to anonymous users
-            user = UserFactory(is_public_showcase=True)
-            db.session.commit()
-            
-            for i in range(15):
-                ItemFactory(owner=user, category=category, available=True)
-            
-            response = client.get('/')
-            assert response.status_code == 200
-            # Should show the "more" message since we have more than 12 items
-            response_text = response.data.decode('utf-8')
-            assert 'more</strong> available items' in response_text
-            assert b'Sign Up' in response.data
-    
+    def test_index_anonymous_user_sees_landing_page(self, client, app):
+        """Test that anonymous users see the landing page with CTAs."""
+        response = client.get('/')
+        assert response.status_code == 200
+        response_text = response.data.decode('utf-8')
+        assert 'Get Started' in response_text
+        assert 'How Meutch Works' in response_text
+        assert 'See It In Action' in response_text
+
     def test_find_authenticated_user_pagination(self, client, app, auth_user):
         """Test that authenticated users get pagination controls on /find."""
         with app.app_context():
@@ -332,57 +322,6 @@ class TestMainRoutes:
             assert response.status_code == 200
             assert public_giveaway.name.encode() in response.data
 
-    def test_index_anonymous_user_few_items_no_more_message(self, client, app):
-        """Test that anonymous users don't see 'more' message when items <= 12."""
-        with app.app_context():
-            # Create only a few items
-            category = CategoryFactory()
-            user = UserFactory()
-            
-            # Create a public circle and add the user to it
-            circle = Circle(name="Test Public Circle", description="Test", circle_type='open')
-            db.session.add(circle)
-            circle.members.append(user)
-            db.session.commit()
-            
-            for i in range(5):
-                ItemFactory(owner=user, category=category, available=True)
-            
-            response = client.get('/')
-            assert response.status_code == 200
-            # Should NOT show the "more" message since we have <= 12 items
-            response_text = response.data.decode('utf-8')
-            assert 'more</strong> available items' not in response_text
-
-    def test_index_anonymous_user_shows_distinct_giveaway_ribbon(self, client, app):
-        """Test anonymous index uses giveaway ribbon styling for free items."""
-        with app.app_context():
-            category = CategoryFactory()
-            user = UserFactory(is_public_showcase=True)
-            db.session.commit()
-
-            ItemFactory(owner=user, category=category, name='Loan Drill', is_giveaway=False, available=True)
-            ItemFactory(
-                owner=user,
-                category=category,
-                name='Free Drill',
-                is_giveaway=True,
-                giveaway_visibility='public',
-                claim_status='unclaimed',
-                available=True
-            )
-            db.session.commit()
-
-            response = client.get('/')
-            assert response.status_code == 200
-            response_text = response.data.decode('utf-8')
-            assert 'Loan Drill' in response_text
-            assert 'Free Drill' in response_text
-            assert response_text.count('giveaway-ribbon') == 1
-            loan_index = response_text.index('Loan Drill')
-            loan_card_snippet = response_text[max(0, loan_index - 500):loan_index + 200]
-            assert 'giveaway-ribbon' not in loan_card_snippet
-    
     def test_about_page(self, client):
         """Test about page loads correctly."""
         response = client.get('/about')

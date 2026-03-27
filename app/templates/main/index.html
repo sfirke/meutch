@@ -1,32 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}{% if current_user.is_authenticated %}Home{% else %}Find{% endif %}{% endblock %}
+{% block title %}Home{% endblock %}
 
 {% block content %}
-    {% if not current_user.is_authenticated %}
-    <!-- Hero Section -->
-    <div class="text-center mb-4">
-        <img src="{{ url_for('static', filename='img/logo_handshake.png') }}" alt="Meutch" class="mb-2" style="height: 80px; width: auto;">
-        <h1 class="h2 mb-1">Welcome to Meutch</h1>
-        <p class="text-muted mb-3">Help a neighbor, help the world.</p>
-        <div class="d-flex gap-2 justify-content-center mb-3">
-            <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
-                <i class="fas fa-user-plus me-1"></i>Get Started
-            </a>
-            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary">
-                <i class="fas fa-sign-in-alt me-1"></i>Sign In
-            </a>
-        </div>
-        <div class="card shadow-sm mx-auto text-white bg-primary mb-4" style="max-width: 700px;">
-            <div class="card-body py-2 px-3 text-center">
-                <p class="mb-1"><strong>Quick Start:</strong> Join a circle, list items you can lend, search for what you need nearby.</p>
-                <a href="{{ url_for('main.how_it_works') }}" class="btn btn-sm btn-light text-primary">Learn more</a>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if current_user.is_authenticated %}
     <div class="activity-feed-page position-relative">
     <section class="activity-feed-header mb-3">
         <div class="d-flex flex-row justify-content-between align-items-center mb-1">
@@ -211,54 +187,6 @@
         </div>
     {% endif %}
     </div>
-    {% endif %}
-
-    {% if not current_user.is_authenticated and giveaway_items %}
-    <!-- Giveaways Section for unauthenticated users -->
-    <section class="items-section mb-5" id="giveaways-section">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="fas fa-gift me-2 text-primary"></i>Giveaways</h2>
-        </div>
-        <div class="items-grid">
-            {% for item in giveaway_items %}
-                {% include 'main/_item_card.html' %}
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-
-    <!-- Available Items Section -->
-    <section class="items-section" id="items-section">
-        {% if not current_user.is_authenticated %}
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="fas fa-handshake me-2 text-primary"></i>Available to borrow</h2>
-        </div>
-        {% endif %}
-
-        {% if not current_user.is_authenticated and items %}
-            <div class="items-grid">
-                {% for item in items %}
-                    {% include 'main/_item_card.html' %}
-                {% endfor %}
-            </div>
-
-            {% if not current_user.is_authenticated and remaining_items > 0 %}
-                <div class="text-center mt-4">
-                    <p class="mb-3">Join Meutch to see <strong>{{ remaining_items }} more</strong> available items, add your own, and start sharing!</p>
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary me-2">Sign Up</a>
-                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary">Log In</a>
-                </div>
-            {% endif %}
-        {% elif not current_user.is_authenticated %}
-            <div class="empty-state">
-                <i class="fas fa-box"></i>
-                <p>Join our community to see what your neighbors are sharing and list your own items.</p>
-                <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
-                    <i class="fas fa-user-plus me-1"></i>Join Meutch
-                </a>
-            </div>
-        {% endif %}
-    </section>
 {% endblock %}
 
 {% block scripts %}
