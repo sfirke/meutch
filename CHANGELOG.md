@@ -25,7 +25,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Show distance (if available) to giveaways and requests on activity feed ([#275](https://github.com/sfirke/meutch/pull/275)).
 - Add button to sort items on Find page by distance or date created ([#276](https://github.com/sfirke/meutch/pull/276)).
 
-
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/pull/213)).
 - Fix: users without location set now can't create public giveaways or requests ([#231](https://github.com/sfirke/meutch/pull/231)). 
@@ -64,7 +63,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Developer Experience
 - Add manual testing overrides for scheduled email job (`flask check-loan-reminders`) so developers can repeatedly test digest and loan reminder email flows without waiting for natural cadence windows.
-nce
 - Create separate dev (sample data) vs. test databases so they stop stepping on each others' toes ([#206](https://github.com/sfirke/meutch/pull/206)).
 
 ## Jan 2026
