@@ -11,6 +11,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Overhaul user's view of own profile ([#228](https://github.com/sfirke/meutch/pull/228)).
 - Improve search capabilities and combine search into the home page (now "Find") ([#251](https://github.com/sfirke/meutch/pull/251)).
 - Add configurable email digest system (daily/weekly/none), including signup/profile/admin controls, digest content based on feed activity, and shared daily scheduler integration with loan reminder job ([#280](https://github.com/sfirke/meutch/pull/280)).
+- Add owner-generated 30-day share links for regular items, including anonymous preview pages and token-backed borrow requests for recipients outside the owner's circles ([#294](https://github.com/sfirke/meutch/pull/294)).
 
 **Minor**
 - Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
@@ -23,7 +24,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Refactor circles to use `circle_type` (`open`/`closed`/`secret`) as the single behavior source, replacing legacy visibility labels (`public`/`private`/`unlisted`) ([#271](https://github.com/sfirke/meutch/pull/271)).
 - Show distance (if available) to giveaways and requests on activity feed ([#275](https://github.com/sfirke/meutch/pull/275)).
 - Add button to sort items on Find page by distance or date created ([#276](https://github.com/sfirke/meutch/pull/276)).
-- Add owner-generated 30-day share links for regular items, including anonymous preview pages and token-backed borrow requests for recipients outside the owner's circles.
+
 
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/pull/213)).
@@ -31,12 +32,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Fix: pending private-circle join approvals no longer count as unread messages; circles pending badge remains the admin signal, and already-handled join requests can no longer be re-processed by another admin ([#257](https://github.com/sfirke/meutch/pull/257)).
 - Fix: hide members of a closed circle from being viewable in search results ([#273](https://github.com/sfirke/meutch/pull/273)).
 - Fix: consolidate digest display/change UI in the admin panel to eliminate scrollbar ([#291](https://github.com/sfirke/meutch/pull/291)).
-
-## Feb 2026
-
-### Features
-
-### Fixes
 
 
 ## Feb 2026
@@ -69,6 +64,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Developer Experience
 - Add manual testing overrides for scheduled email job (`flask check-loan-reminders`) so developers can repeatedly test digest and loan reminder email flows without waiting for natural cadence windows.
+nce
 - Create separate dev (sample data) vs. test databases so they stop stepping on each others' toes ([#206](https://github.com/sfirke/meutch/pull/206)).
 
 ## Jan 2026
