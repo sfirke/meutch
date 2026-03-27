@@ -399,7 +399,7 @@ def giveaways():
 @login_required
 def item_detail(item_id):
     item = db.get_or_404(Item, item_id)
-    share_token = (request.args.get('share_token') or request.form.get('share_token') or '').strip() or None
+    share_token = request.values.get('share_token', '').strip() or None
     has_token_access = False
     shares_circle_with_owner = False
 
