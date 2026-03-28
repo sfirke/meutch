@@ -1652,6 +1652,7 @@ footer h6 {
 .landing-page {
     padding-top: 0;
     scroll-behavior: smooth;
+    overflow-x: hidden;
 }
 
 /* --- transparent → solid navbar transition --- */
@@ -1678,14 +1679,32 @@ footer h6 {
     color: #fff !important;
 }
 
-.landing-page .navbar:not(.scrolled) .btn-primary {
+.landing-page .navbar:not(.scrolled) .btn-primary,
+.landing-page .navbar:not(.scrolled) .nav-register {
     background-color: #fff !important;
     border-color: #fff !important;
     color: var(--primary-dark) !important;
 }
 
-.landing-page .navbar:not(.scrolled) .btn-primary:hover {
+.landing-page .navbar:not(.scrolled) .btn-primary:hover,
+.landing-page .navbar:not(.scrolled) .nav-register:hover {
     background-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* Register pill button in navbar (desktop, scrolled / non-landing pages) */
+@media (min-width: 992px) {
+    .nav-register {
+        border: 1.5px solid var(--primary-color) !important;
+        border-radius: 50px !important;
+        padding: 0.3rem 1rem !important;
+        color: var(--primary-color) !important;
+        font-weight: 600 !important;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .nav-register:hover {
+        background-color: var(--primary-color) !important;
+        color: #fff !important;
+    }
 }
 
 .landing-page .navbar:not(.scrolled) .navbar-toggler {
@@ -1708,7 +1727,7 @@ footer h6 {
 /* --- Hero --- */
 .landing-hero {
     min-height: 100vh;
-    background: linear-gradient(150deg, #0d3b3a 0%, #195756 45%, #267a78 100%);
+    background: linear-gradient(150deg, #155e5c 0%, #1e7874 45%, #2a9490 100%);
     color: #fff;
     padding: 120px 0 80px;
     position: relative;
@@ -1885,6 +1904,11 @@ footer h6 {
     .landing-hero {
         min-height: auto;
         padding: 100px 0 60px;
+        background: linear-gradient(160deg, #1e8480 0%, #2aadaa 100%);
+    }
+
+    .landing-hero::before {
+        background: rgba(0, 0, 0, 0.1);
     }
 
     .landing-section {
