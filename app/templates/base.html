@@ -45,7 +45,7 @@
             </a>
 
             {% if not current_user.is_authenticated %}
-            <a class="nav-link d-flex d-lg-none align-items-center me-1 px-2" href="{{ url_for('auth.login') }}">
+            <a class="nav-link navbar-mobile-login d-flex d-lg-none align-items-center me-1 px-2" href="{{ url_for('auth.login') }}">
                 <i class="fas fa-sign-in-alt me-1"></i><span class="small fw-semibold">Login</span>
             </a>
             {% endif %}
