@@ -1762,6 +1762,11 @@ footer h6 {
     line-height: 1.15;
     max-width: 620px;
     color: #ffffff;
+    /* Override the global h1 gradient-clip that makes text transparent on teal bg */
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    background-clip: unset !important;
+    -webkit-text-fill-color: #ffffff !important;
     letter-spacing: -0.01em;
 }
 
