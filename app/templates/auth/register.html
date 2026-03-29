@@ -4,18 +4,12 @@
 
 {% block content %}
     <h1>Register</h1>
-    <form method="post" action="{{ url_for('auth.register') }}">
+    <form method="post" action="{{ url_for('auth.register', next=request.args.get('next')) }}">
         {{ form.csrf_token }}
 
-        <!-- Email -->
-        <p>
-            {{ form.email.label }}<br>
-            {{ form.email(size=32) }}<br>
-            {% for error in form.email.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-        </p>
-        
+        <h5>Who You Are</h5>
+        <p class="text-muted">Meutch uses real names for sharing within communities.</p>
+
         <!-- First Name -->
         <p>
             {{ form.first_name.label }}<br>
@@ -33,11 +27,53 @@
                 <span style="color: red;">{{ error }}</span>
             {% endfor %}
         </p>
+
+        <!-- Email -->
+        <p>
+            {{ form.email.label }}<br>
+            {{ form.email(size=32) }}<br>
+            {% for error in form.email.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
+        </p>
+
+        <!-- Password -->
+        <p>
+            {{ form.password.label }}<br>
+            {{ form.password(size=32) }}<br>
+            {% for error in form.password.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
+        </p>
+        
+        <!-- Confirm Password -->
+        <p>
+            {{ form.confirm_password.label }}<br>
+            {{ form.confirm_password(size=32) }}<br>
+            {% for error in form.confirm_password.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
+        </p>
+
+        <!-- Email Updates -->
+        <div class="mb-4">
+            <h5>Email Updates</h5>
+            <p class="text-muted mb-2">Meutch sends digest emails with a recap of activity in your circles. How often would you like to receive it?</p>
+            {{ form.digest_frequency(class="form-select") }}
+            {% for error in form.digest_frequency.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <div id="digest-none-warning" class="alert alert-warning" style="display: none;">
+            <h6><i class="fas fa-exclamation-triangle me-2"></i>Heads up</h6>
+            <p class="mb-0">If you choose never, you may miss nearby requests, giveaways, and circle activity.</p>
+        </div>
         
         <!-- Location Method Choice -->
         <div class="mb-4">
-            <h5>{{ form.location_method.label }}</h5>
-            <div class="alert alert-info mb-3">
+            <h5>Location</h5>
+            <div id="location-info" class="alert alert-info mb-3">
                 <h6><i class="fas fa-shield-alt me-2"></i>Your Privacy is Protected</h6>
                 <p class="mb-2">
                     <strong>We never share your location with anyone.</strong> We only use your coordinates to:
@@ -51,10 +87,11 @@
                     Other users will only see approximate distances like "2.3 miles away" - never your exact location.
                 </p>
             </div>
+            <p class="text-muted mb-3">How would you like to set your location?</p>
             {% for subfield in form.location_method %}
                 <div class="form-check">
-                    {{ subfield(class="form-check-input") }}
-                    {{ subfield.label(class="form-check-label") }}
+                    {{ subfield(class="form-check-input", id=subfield.id) }}
+                    {{ subfield.label(class="form-check-label", for_=subfield.id) }}
                 </div>
             {% endfor %}
             {% for error in form.location_method.errors %}
@@ -162,24 +199,6 @@
             </p>
         </div>
         
-        <!-- Password -->
-        <p>
-            {{ form.password.label }}<br>
-            {{ form.password(size=32) }}<br>
-            {% for error in form.password.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-        </p>
-        
-        <!-- Confirm Password -->
-        <p>
-            {{ form.confirm_password.label }}<br>
-            {{ form.confirm_password(size=32) }}<br>
-            {% for error in form.confirm_password.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-        </p>
-        
         <!-- Submit Button -->
         <p>{{ form.submit() }}</p>
     </form>
@@ -194,6 +213,8 @@
         const coordinateFields = document.getElementById('coordinate-fields');
         const skipWarning = document.getElementById('skip-warning');
         const locationInfo = document.getElementById('location-info');
+        const digestFrequency = document.getElementById('digest_frequency');
+        const digestNoneWarning = document.getElementById('digest-none-warning');
         
         function toggleFields() {
             if (coordinateRadio.checked) {
@@ -221,6 +242,18 @@
         addressRadio.addEventListener('change', toggleFields);
         coordinateRadio.addEventListener('change', toggleFields);
         skipRadio.addEventListener('change', toggleFields);
+
+        function toggleDigestWarning() {
+            if (!digestFrequency || !digestNoneWarning) {
+                return;
+            }
+            digestNoneWarning.style.display = digestFrequency.value === 'none' ? 'block' : 'none';
+        }
+
+        toggleDigestWarning();
+        if (digestFrequency) {
+            digestFrequency.addEventListener('change', toggleDigestWarning);
+        }
     });
     </script>
 {% endblock %}

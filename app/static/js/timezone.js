@@ -108,6 +108,23 @@
                     hour12: false
                 });
             
+            case 'timeago':
+                const now = new Date();
+                const seconds = Math.floor((now - date) / 1000);
+                
+                if (seconds < 60) return 'just now';
+                const minutes = Math.floor(seconds / 60);
+                if (minutes < 60) return minutes + ' minute' + (minutes > 1 ? 's' : '') + ' ago';
+                const hours = Math.floor(minutes / 60);
+                if (hours < 24) return hours + ' hour' + (hours > 1 ? 's' : '') + ' ago';
+                const days = Math.floor(hours / 24);
+                if (days < 7) return days + ' day' + (days > 1 ? 's' : '') + ' ago';
+                
+                return date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                });
+            
             default:
                 // Default to full datetime format
                 return formatDate(date, 'datetime');
@@ -115,10 +132,12 @@
     }
 
     /**
-     * Convert all elements with data-utc-timestamp attribute
+     * Convert all elements with data-utc-timestamp attribute.
+     * Marks each element with data-tz-converted after processing
+     * so the MutationObserver doesn't re-trigger an infinite loop.
      */
     function convertTimestamps() {
-        const elements = document.querySelectorAll('[data-utc-timestamp]');
+        const elements = document.querySelectorAll('[data-utc-timestamp]:not([data-tz-converted])');
         
         elements.forEach(function(el) {
             const timestamp = el.getAttribute('data-utc-timestamp');
@@ -155,6 +174,9 @@
                     console.warn('Failed to parse timestamp:', timestamp, e);
                 }
             }
+            
+            // Mark as converted so it won't be processed again
+            el.setAttribute('data-tz-converted', '');
         });
     }
 

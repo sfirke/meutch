@@ -101,7 +101,7 @@ fi
 # Set up environment
 export FLASK_ENV=testing
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-export TEST_DATABASE_URL="postgresql://test_user:test_password@localhost:5433/meutch_dev"
+export TEST_DATABASE_URL="postgresql://test_user:test_password@localhost:5433/meutch_test"
 
 print_color $BLUE "🧪 Running Meutch Test Suite"
 print_color $BLUE "================================"
@@ -113,12 +113,20 @@ check_test_db() {
         return 1
     fi
     
-    # Check if database is actually ready to accept connections
-    if ! docker compose -f docker-compose.test.yml exec -T test-postgres pg_isready -U test_user -d meutch_dev > /dev/null 2>&1; then
+    # Check if PostgreSQL is ready to accept connections
+    if ! docker compose -f docker-compose.test.yml exec -T test-postgres pg_isready -U test_user -d postgres > /dev/null 2>&1; then
         return 1
     fi
     
     return 0
+}
+
+ensure_test_db_exists() {
+    DB_EXISTS=$(docker exec meutch-test-db psql -U test_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='meutch_test'" 2>/dev/null | tr -d ' ')
+    if [ "$DB_EXISTS" != "1" ]; then
+        print_color $BLUE "🆕 Creating test database (meutch_test)..."
+        docker exec meutch-test-db psql -U test_user -d postgres -c "CREATE DATABASE meutch_test" > /dev/null
+    fi
 }
 
 if ! check_test_db; then
@@ -142,6 +150,8 @@ if ! check_test_db; then
     
     print_color $GREEN "✅ Test database is now ready!"
 fi
+
+ensure_test_db_exists
 
 # Build pytest command
 PYTEST_CMD="pytest"

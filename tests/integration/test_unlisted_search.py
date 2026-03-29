@@ -1,4 +1,6 @@
 import pytest
+import re
+from unittest.mock import patch
 from app.models import Circle, db
 from tests.factories import UserFactory
 from conftest import login_user
@@ -15,8 +17,7 @@ def test_unlisted_circle_not_found_by_name_but_found_by_uuid(client, app):
         circle = Circle(
             name='Hidden Gems Club',
             description='A club for rare finds',
-            visibility='unlisted',
-            requires_approval=True
+            circle_type='secret',
         )
         db.session.add(circle)
         db.session.commit()
@@ -36,3 +37,254 @@ def test_unlisted_circle_not_found_by_name_but_found_by_uuid(client, app):
         # Cleanup
         db.session.delete(circle)
         db.session.commit()
+
+
+def test_browse_shows_private_not_unlisted_and_defaults_radius_25(client, app):
+    """Browse mode should show listed circles (public/private), hide unlisted, and default to 25 miles."""
+    with app.app_context():
+        user = UserFactory(latitude=40.7128, longitude=-74.0060)
+        login_user(client, user.email)
+
+        public_circle = Circle(
+            name='Visible Public Circle',
+            description='Public listing',
+            circle_type='open',
+            latitude=40.7130,
+            longitude=-74.0062,
+        )
+        private_circle = Circle(
+            name='Visible Private Circle',
+            description='Private listing',
+            circle_type='closed',
+            latitude=40.7131,
+            longitude=-74.0061,
+        )
+        unlisted_circle = Circle(
+            name='Hidden Unlisted Circle',
+            description='Should not appear in browse',
+            circle_type='secret',
+            latitude=40.7132,
+            longitude=-74.0063,
+        )
+
+        db.session.add_all([public_circle, private_circle, unlisted_circle])
+        db.session.commit()
+
+        response = client.get('/circles', follow_redirects=True)
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+
+        assert 'Visible Public Circle' in html
+        assert 'Visible Private Circle' in html
+        assert 'Hidden Unlisted Circle' not in html
+        assert re.search(r'<option[^>]*value="25"[^>]*selected|<option[^>]*selected[^>]*value="25"', html)
+
+
+def test_distance_filter_results_sorted_by_membership_desc(client, app):
+    """Distance filter should apply first, then circles should be ordered by membership descending."""
+    with app.app_context():
+        user = UserFactory(latitude=40.7128, longitude=-74.0060)
+        login_user(client, user.email)
+
+        large_circle = Circle(
+            name='Large Nearby Circle',
+            description='Many members',
+            circle_type='open',
+            latitude=40.7130,
+            longitude=-74.0062,
+        )
+        small_circle = Circle(
+            name='Small Nearby Circle',
+            description='Few members',
+            circle_type='closed',
+            latitude=40.7131,
+            longitude=-74.0061,
+        )
+        far_circle = Circle(
+            name='Far Circle',
+            description='Outside radius',
+            circle_type='open',
+            latitude=41.7128,
+            longitude=-75.0060,
+        )
+
+        db.session.add_all([large_circle, small_circle, far_circle])
+        large_circle.members.extend([UserFactory(), UserFactory(), UserFactory()])
+        small_circle.members.append(UserFactory())
+        db.session.commit()
+
+        response = client.post(
+            '/circles',
+            data={'search_circles': True, 'search_query': '', 'radius': '25'},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+
+        assert 'Large Nearby Circle' in html
+        assert 'Small Nearby Circle' in html
+        assert 'Far Circle' not in html
+        assert html.index('Large Nearby Circle') < html.index('Small Nearby Circle')
+
+
+def test_browse_results_render_circle_thumbnail_and_precomputed_facepile(client, app):
+    """Browse list should show circle image thumbnails and use precomputed member samples."""
+    with app.app_context():
+        user = UserFactory(latitude=40.7128, longitude=-74.0060)
+        login_user(client, user.email)
+
+        circle = Circle(
+            name='Thumbnail Circle',
+            description='Circle with image and members',
+            circle_type='open',
+            image_url='https://cdn.example.com/circle-thumb.jpg',
+            latitude=40.7130,
+            longitude=-74.0062,
+        )
+        db.session.add(circle)
+
+        members = [
+            UserFactory(first_name='Member One', profile_image_url='https://cdn.example.com/one.jpg'),
+            UserFactory(first_name='Member Two', profile_image_url='https://cdn.example.com/two.jpg'),
+            UserFactory(first_name='Member Three'),
+            UserFactory(first_name='Member Four'),
+        ]
+        for member in members:
+            circle.members.append(member)
+        db.session.commit()
+
+        sampled_members = members[:2]
+
+        with patch('app.circles.routes.build_circle_member_samples', return_value={circle.id: sampled_members}) as mock_sampler:
+            response = client.get('/circles', follow_redirects=True)
+
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+
+        assert 'Thumbnail Circle' in html
+        assert 'circle-result-thumbnail' in html
+        assert 'https://cdn.example.com/circle-thumb.jpg' in html
+        assert html.count('share-member-avatar') >= 2
+        assert '+2 more' in html
+        mock_sampler.assert_called_once()
+
+
+def test_closed_circle_facepile_hidden_for_non_members(client, app):
+    """Membership facepile should be hidden for closed circles where user is not a member."""
+    with app.app_context():
+        # Create a user who will be browsing
+        browser_user = UserFactory(latitude=40.7128, longitude=-74.0060)
+        login_user(client, browser_user.email)
+
+        # Create a closed circle with members
+        closed_circle = Circle(
+            name='Closed Mystery Circle',
+            description='Closed circle with mystery members',
+            circle_type='closed',
+            latitude=40.7130,
+            longitude=-74.0062,
+        )
+        db.session.add(closed_circle)
+
+        # Add members to the circle (browser_user is NOT a member)
+        members = [
+            UserFactory(first_name='Secret Member One'),
+            UserFactory(first_name='Secret Member Two'),
+            UserFactory(first_name='Secret Member Three'),
+        ]
+        for member in members:
+            closed_circle.members.append(member)
+        db.session.commit()
+
+        # Browse circles
+        response = client.get('/circles', follow_redirects=True)
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+
+        # Should see the circle name and description
+        assert 'Closed Mystery Circle' in html
+        assert 'Closed circle with mystery members' in html
+
+        # Should NOT see members or any facepiles for this closed circle
+        assert 'Secret Member One' not in html
+        assert 'Secret Member Two' not in html
+        assert 'Secret Member Three' not in html
+        assert html.count('share-member-avatar') == 0
+
+
+def test_closed_circle_facepile_shown_for_members(client, app):
+    """Membership facepile SHOULD be shown for closed circles where user IS a member."""
+    with app.app_context():
+        # Create a user who will be browsing and is a member
+        member_user = UserFactory(latitude=40.7128, longitude=-74.0060, first_name='Member User')
+        login_user(client, member_user.email)
+
+        # Create a closed circle
+        closed_circle = Circle(
+            name='Closed Member Circle',
+            description='Closed circle with visible members',
+            circle_type='closed',
+            latitude=40.7130,
+            longitude=-74.0062,
+        )
+        db.session.add(closed_circle)
+
+        # Add members including the browser user
+        other_members = [
+            UserFactory(first_name='John Doe Member'),
+            UserFactory(first_name='Jane Doe Member'),
+        ]
+        closed_circle.members.append(member_user)  # Add the browsing user
+        for member in other_members:
+            closed_circle.members.append(member)
+        db.session.commit()
+
+        # Browse circles
+        response = client.get('/circles', follow_redirects=True)
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+
+        # Should see the circle name and that user is a member
+        assert 'Closed Member Circle' in html
+        assert 'John Doe' in html  # Badge showing user is member
+
+        # SHOULD see member facepiles for this closed circle since user is a member
+        assert html.count('share-member-avatar') >= 2
+
+
+def test_open_circle_facepile_always_shown(client, app):
+    """Membership facepile should always be shown for open circles."""
+    with app.app_context():
+        # Create a user who will be browsing
+        browser_user = UserFactory(latitude=40.7128, longitude=-74.0060)
+        login_user(client, browser_user.email)
+
+        # Create an open circle with members
+        open_circle = Circle(
+            name='Open Public Circle',
+            description='Open circle with public members',
+            circle_type='open',
+            latitude=40.7130,
+            longitude=-74.0062,
+        )
+        db.session.add(open_circle)
+
+        # Add members to the circle (browser_user is NOT a member)
+        members = [
+            UserFactory(first_name='Public Member One'),
+            UserFactory(first_name='Public Member Two'),
+        ]
+        for member in members:
+            open_circle.members.append(member)
+        db.session.commit()
+
+        # Browse circles
+        response = client.get('/circles', follow_redirects=True)
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+
+        # Should see the circle and its public members
+        assert 'Open Public Circle' in html
+        
+        # Should see member facepiles for open circles even when not a member
+        assert html.count('share-member-avatar') >= 2

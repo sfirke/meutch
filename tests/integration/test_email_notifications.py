@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 from app import db
-from tests.factories import UserFactory, ItemFactory
+from tests.factories import UserFactory, ItemFactory, CircleFactory
 from conftest import login_user
 
 
@@ -14,6 +14,9 @@ class TestEmailNotificationIntegration:
             # Create users and item
             sender = UserFactory(email='sender@test.com')
             recipient = UserFactory(email='recipient@test.com')
+            circle = CircleFactory()
+            circle.members.append(sender)
+            circle.members.append(recipient)
             item = ItemFactory(owner=recipient, name='Test Item')
             
             db.session.commit()
@@ -46,6 +49,9 @@ class TestEmailNotificationIntegration:
             # Create users and item
             borrower = UserFactory(email='borrower@test.com')
             owner = UserFactory(email='owner@test.com')
+            circle = CircleFactory()
+            circle.members.append(borrower)
+            circle.members.append(owner)
             item = ItemFactory(owner=owner, name='Test Item')
             
             db.session.commit()

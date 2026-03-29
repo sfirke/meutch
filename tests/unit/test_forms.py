@@ -45,6 +45,18 @@ class TestLoginForm:
             assert form.validate() is False
             assert 'Password is required.' in form.password.errors
 
+    def test_login_form_with_remember_device(self, app):
+        """Test valid login form with remember_device checked."""
+        with app.app_context():
+            form_data = {
+                'email': 'test@example.com',
+                'password': 'password123',
+                'remember_device': True
+            }
+            form = LoginForm(data=form_data)
+            assert form.validate() is True
+            assert form.remember_device.data is True
+
 class TestRegistrationForm:
     """Test RegistrationForm."""
     
@@ -175,6 +187,27 @@ class TestRegistrationForm:
             form = RegistrationForm(data=form_data)
             assert form.validate() is True
 
+    def test_registration_digest_frequency_default_weekly(self, app):
+        """Test registration form defaults digest frequency to weekly."""
+        with app.app_context():
+            form = RegistrationForm()
+            assert form.digest_frequency.data == 'weekly'
+
+    def test_registration_digest_frequency_none_is_valid(self, app):
+        """Test registration form accepts explicit digest opt-out."""
+        with app.app_context():
+            form_data = {
+                'email': 'digestnone@example.com',
+                'first_name': 'Digest',
+                'last_name': 'None',
+                'location_method': 'skip',
+                'digest_frequency': 'none',
+                'password': 'password123',
+                'confirm_password': 'password123'
+            }
+            form = RegistrationForm(data=form_data)
+            assert form.validate() is True
+
 
 class TestListItemForm:
     """Test ListItemForm."""
@@ -220,6 +253,61 @@ class TestListItemForm:
             form = ListItemForm(data=form_data)
             assert form.validate() is False
             assert 'Please select a visibility option for this giveaway.' in form.giveaway_visibility.errors
+
+    def test_public_giveaway_without_location(self, app):
+        """Test that public giveaway fails validation when user has no location set."""
+        with app.app_context():
+            import flask_login
+            user = UserFactory(latitude=None, longitude=None)
+            category = CategoryFactory()
+            with app.test_request_context():
+                flask_login.login_user(user)
+                form_data = {
+                    'name': 'Free Item',
+                    'description': 'A giveaway item',
+                    'category': str(category.id),
+                    'is_giveaway': True,
+                    'giveaway_visibility': 'public',
+                }
+                form = ListItemForm(data=form_data)
+                assert form.validate() is False
+                assert any('You must set your location' in e for e in form.giveaway_visibility.errors)
+
+    def test_public_giveaway_with_location(self, app):
+        """Test that public giveaway passes validation when user has location set."""
+        with app.app_context():
+            import flask_login
+            user = UserFactory(latitude=40.7128, longitude=-74.0060)
+            category = CategoryFactory()
+            with app.test_request_context():
+                flask_login.login_user(user)
+                form_data = {
+                    'name': 'Free Item',
+                    'description': 'A giveaway item',
+                    'category': str(category.id),
+                    'is_giveaway': True,
+                    'giveaway_visibility': 'public',
+                }
+                form = ListItemForm(data=form_data)
+                assert form.validate() is True
+
+    def test_circles_giveaway_without_location(self, app):
+        """Test that circles-only giveaway passes validation even without location."""
+        with app.app_context():
+            import flask_login
+            user = UserFactory(latitude=None, longitude=None)
+            category = CategoryFactory()
+            with app.test_request_context():
+                flask_login.login_user(user)
+                form_data = {
+                    'name': 'Free Item',
+                    'description': 'A giveaway item',
+                    'category': str(category.id),
+                    'is_giveaway': True,
+                    'giveaway_visibility': 'default',
+                }
+                form = ListItemForm(data=form_data)
+                assert form.validate() is True
 
 class TestEditProfileForm:
     """Test EditProfileForm."""
@@ -273,7 +361,7 @@ class TestCircleCreateForm:
             form_data = {
                 'name': 'Test Circle',
                 'description': 'A test circle description',
-                'requires_approval': False
+                'circle_type': 'open'
             }
             form = CircleCreateForm(data=form_data)
             assert form.validate() is True
@@ -284,7 +372,7 @@ class TestCircleCreateForm:
             form_data = {
                 'name': '',
                 'description': 'A test circle description',
-                'requires_approval': False
+                'circle_type': 'open'
             }
             form = CircleCreateForm(data=form_data)
             assert form.validate() is False
@@ -359,6 +447,40 @@ class TestLoanRequestForm:
                 form = LoanRequestForm(data=form_data)
                 assert form.validate() is False
                 assert any('End date must be after start date' in str(error) for error in form.end_date.errors)
+
+    def test_empty_message_fails_validation(self, app):
+        """Test that an empty message fails validation with an informative error."""
+        with app.app_context():
+            with app.test_request_context():
+                start_date = date.today() + timedelta(days=1)
+                end_date = date.today() + timedelta(days=7)
+
+                form_data = {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'message': '',
+                    'csrf_token': 'test_token'
+                }
+                form = LoanRequestForm(data=form_data)
+                assert form.validate() is False
+                assert any('Please include a message with your request' in str(error) for error in form.message.errors)
+
+    def test_message_too_short_fails_validation(self, app):
+        """Test that a message shorter than 10 characters fails validation."""
+        with app.app_context():
+            with app.test_request_context():
+                start_date = date.today() + timedelta(days=1)
+                end_date = date.today() + timedelta(days=7)
+
+                form_data = {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'message': 'Hi',
+                    'csrf_token': 'test_token'
+                }
+                form = LoanRequestForm(data=form_data)
+                assert form.validate() is False
+                assert any('Message must be between 10 and 1000 characters' in str(error) for error in form.message.errors)
 
 class TestOptionalFileAllowed:
     """Test OptionalFileAllowed validator."""

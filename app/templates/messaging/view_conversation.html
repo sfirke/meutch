@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
+    {% set conversation_item = thread_messages[0].item if thread_messages else None %}
+    {% set conversation_request = thread_messages[0].request if thread_messages else None %}
+    {% set conversation_circle = thread_messages[0].circle if thread_messages else None %}
+
     <!-- Conversation Header -->
     <div class="mb-4">
         <div class="d-flex align-items-center gap-3 mb-2">
@@ -11,41 +15,80 @@
             </h1>
         </div>
         <div class="d-flex align-items-center gap-2 text-muted">
-            <i class="fas fa-box"></i>
-            <a href="{{ url_for('main.item_detail', item_id=thread_messages[0].item.id) }}" class="text-decoration-none text-secondary">
-                <span class="item-name">{{ thread_messages[0].item.name }}</span>
-            </a>
+            {% if conversation_item %}
+                <i class="fas fa-box"></i>
+                <a href="{{ url_for('main.item_detail', item_id=conversation_item.id) }}" class="text-decoration-none text-secondary">
+                    <span class="item-name">{{ conversation_item.name }}</span>
+                </a>
+            {% elif conversation_request %}
+                <i class="fas fa-hand-holding-heart"></i>
+                <a href="{{ url_for('requests.detail', request_id=conversation_request.id) }}" class="text-decoration-none text-secondary">
+                    <span class="item-name">Re: {{ conversation_request.title }}</span>
+                </a>
+            {% elif conversation_circle %}
+                <i class="fas fa-users"></i>
+                <a href="{{ url_for('circles.view_circle', circle_id=conversation_circle.id) }}" class="text-decoration-none text-secondary">
+                    <span class="item-name">Circle: {{ conversation_circle.name }}</span>
+                </a>
+            {% endif %}
         </div>
     </div>
 
     <!-- Item Details Card -->
-    <div class="card mb-4">
-        <div class="row g-0">
-            <div class="col-md-4">
-                {% if thread_messages[0].item.image %}
-                    <img src="{{ thread_messages[0].item.image }}" 
-                         class="img-fluid rounded-start item-thumbnail" 
-                         alt="{{ thread_messages[0].item.name }}">
-                {% endif %}
-            </div>
-            <div class="col-md-8">
-                <div class="card-body">
-                    <h5 class="card-title">{{ thread_messages[0].item.name }}</h5>
-                    <p class="card-text">{{ thread_messages[0].item.description }}</p>
-                    <p class="card-text">
-                        <strong>Owner:</strong> {{ thread_messages[0].item.owner.full_name }}
-                    </p>
-                    {% if thread_messages[0].item.current_loan and thread_messages[0].item.current_loan.borrower == current_user %}
-                        <span class="badge bg-info">You are currently borrowing this item</span>
-                    {% elif not thread_messages[0].item.available %}
-                        <span class="badge bg-warning">
-                            <i class="fas fa-clock me-1"></i>Borrowed
-                        </span>
+    {% if conversation_item %}
+        <div class="card mb-4">
+            <div class="row g-0">
+                <div class="col-md-4">
+                    {% if conversation_item.image %}
+                        <img src="{{ conversation_item.image }}" 
+                             class="img-fluid rounded-start card-img-top"
+                             alt="{{ conversation_item.name }}">
                     {% endif %}
+                </div>
+                <div class="col-md-8">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ conversation_item.name }}</h5>
+                        <p class="card-text">{{ conversation_item.description }}</p>
+                        <p class="card-text">
+                            <strong>Owner:</strong> {{ conversation_item.owner.full_name }}
+                        </p>
+                        {% if conversation_item.current_loan and conversation_item.current_loan.borrower == current_user %}
+                            <span class="badge bg-info">You are currently borrowing this item</span>
+                        {% elif not conversation_item.available %}
+                            {% if conversation_item.is_giveaway and conversation_item.claim_status == 'pending_pickup' %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-clock me-1"></i>Pending Pickup
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-clock me-1"></i>Borrowed
+                                </span>
+                            {% endif %}
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    {% elif conversation_request %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-2">
+                    <a href="{{ url_for('requests.detail', request_id=conversation_request.id) }}" class="text-decoration-none text-dark">
+                        {{ conversation_request.title }}
+                    </a>
+                </h5>
+                {% if conversation_request.description %}
+                    <p class="card-text mb-2">{{ conversation_request.description }}</p>
+                {% endif %}
+                <p class="card-text text-muted mb-0">
+                    <small>
+                        <i class="fas fa-hourglass-half me-1"></i>
+                        Expires {{ conversation_request.expires_at.strftime('%B %d, %Y') }}
+                    </small>
+                </p>
+            </div>
+        </div>
+    {% endif %}
 
     <!-- Active Loan Management Panel -->
     {% if active_loan %}
@@ -83,7 +126,11 @@
                             {% if active_loan.is_overdue() %}
                                 <span class="badge bg-danger ms-2">Overdue by {{ active_loan.days_overdue() }} day{{ 's' if active_loan.days_overdue() != 1 else '' }}</span>
                             {% elif active_loan.is_due_soon() %}
-                                <span class="badge bg-warning text-dark ms-2">Due in {{ active_loan.days_until_due() }} day{{ 's' if active_loan.days_until_due() != 1 else '' }}</span>
+                                {% if active_loan.days_until_due() == 0 %}
+                                    <span class="badge bg-warning text-dark ms-2">Due today</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark ms-2">Due in {{ active_loan.days_until_due() }} day{{ 's' if active_loan.days_until_due() != 1 else '' }}</span>
+                                {% endif %}
                             {% endif %}
                         {% endif %}
                     </p>
@@ -198,7 +245,11 @@
                                 {% if msg.loan_request.is_overdue() %}
                                     <span class="badge bg-danger ms-2">Overdue by {{ msg.loan_request.days_overdue() }} day{{ 's' if msg.loan_request.days_overdue() != 1 else '' }}</span>
                                 {% elif msg.loan_request.is_due_soon() %}
-                                    <span class="badge bg-warning text-dark ms-2">Due in {{ msg.loan_request.days_until_due() }} day{{ 's' if msg.loan_request.days_until_due() != 1 else '' }}</span>
+                                    {% if msg.loan_request.days_until_due() == 0 %}
+                                        <span class="badge bg-warning text-dark ms-2">Due today</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark ms-2">Due in {{ msg.loan_request.days_until_due() }} day{{ 's' if msg.loan_request.days_until_due() != 1 else '' }}</span>
+                                    {% endif %}
                                 {% endif %}
                             {% endif %}
                         </p>

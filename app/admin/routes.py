@@ -308,3 +308,46 @@ def disable_showcase(user_id):
     logger.info(f'Admin {current_user.email} disabled showcase for {user.email}')
     
     return redirect(url_for('admin.dashboard'))
+
+
+@bp.route('/users/<uuid:user_id>/digest-frequency', methods=['POST'])
+@admin_required
+def update_digest_frequency(user_id):
+    """Update digest frequency for a user."""
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash('Invalid request', 'danger')
+        return redirect(url_for('admin.dashboard'))
+
+    user = db.get_or_404(User, user_id)
+
+    if user.is_deleted:
+        flash('Cannot update digest settings for a deleted user', 'admin-error')
+        return redirect(url_for('admin.dashboard'))
+
+    digest_frequency = request.form.get('digest_frequency')
+    if digest_frequency not in User.DIGEST_FREQUENCY_CHOICES:
+        flash('Invalid digest frequency', 'admin-error')
+        return redirect(url_for('admin.dashboard'))
+
+    previous_frequency = user.digest_frequency
+    user.digest_frequency = digest_frequency
+
+    action = AdminAction(
+        action_type='set_digest_frequency',
+        target_user_id=user.id,
+        admin_user_id=current_user.id,
+        details={
+            'target_email': user.email,
+            'target_name': user.full_name,
+            'from': previous_frequency,
+            'to': digest_frequency,
+        }
+    )
+    db.session.add(action)
+    db.session.commit()
+
+    flash(f'Digest frequency updated for {user.full_name}', 'admin-success')
+    logger.info(f'Admin {current_user.email} changed digest frequency for {user.email} from {previous_frequency} to {digest_frequency}')
+
+    return redirect(url_for('admin.dashboard'))

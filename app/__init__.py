@@ -1,16 +1,18 @@
 import logging
 import os
-from flask import Flask
+from flask import Flask, flash, redirect, render_template, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
+from flask_wtf.csrf import CSRFError
 from config import config
 from uuid import UUID
 from app.context_processors import (
     inject_unread_messages_count, 
     inject_total_pending,
-    inject_distance_utils
+    inject_distance_utils,
+    inject_static_url_for
 )
 
 
@@ -60,6 +62,12 @@ def create_app(config_class=None):
     from app.admin import bp as admin_bp
     app.register_blueprint(admin_bp, url_prefix='/admin')
 
+    from app.requests import bp as requests_bp
+    app.register_blueprint(requests_bp, url_prefix='/requests')
+
+    from app.share import bp as share_bp
+    app.register_blueprint(share_bp, url_prefix='/share')
+
     # Register CLI commands
     try:
         from app.cli import seed, user, check_loan_reminders
@@ -83,14 +91,29 @@ def create_app(config_class=None):
     app.context_processor(inject_unread_messages_count)
     app.context_processor(inject_total_pending)
     app.context_processor(inject_distance_utils)
+    app.context_processor(inject_static_url_for)
     
     # Register custom Jinja filters
     from app.template_filters import register_filters
     register_filters(app)
+
+    # Register error handlers
+    @app.errorhandler(403)
+    def forbidden(e):
+        return render_template('errors/403.html'), 403
+
+    @app.errorhandler(404)
+    def page_not_found(e):
+        return render_template('errors/404.html'), 404
     
-    # Auto-seed development database if empty
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        flash('Your session has expired. Please log in again to continue.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    # Optional auto-seed for development (disabled by default)
     with app.app_context():
-        if app.config.get('FLASK_ENV') == 'development':
+        if app.config.get('FLASK_ENV') == 'development' and os.environ.get('AUTO_SEED_ON_STARTUP', '').lower() in ('1', 'true', 'yes', 'on'):
             try:
                 from app.models import User
                 # First check if tables exist by trying a simple query

@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %} - Meutch</title>
     
+    <!-- Meta Description -->
+    <meta name="description" content="The actual sharing economy, uncommercialized. Help a neighbor, help the world.">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:title" content="{% block og_title %}Meutch - The actual sharing economy, uncommercialized{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Help a neighbor, help the world. Join Meutch to share and borrow items with your community.{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='img/logo_m.png', _external=True) }}{% endblock %}">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="{% block twitter_card %}summary{% endblock %}">
+    <meta name="twitter:url" content="{{ request.url }}">
+    <meta name="twitter:title" content="{% block twitter_title %}Meutch - The actual sharing economy, uncommercialized{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Help a neighbor, help the world. Join Meutch to share and borrow items with your community.{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ url_for('static', filename='img/logo_m.png', _external=True) }}{% endblock %}">
+    
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/logo_m.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/logo_m.png') }}">
@@ -16,9 +33,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ static_url_for('css/style.css') }}">
 </head>
-<body>
+<body {% block body_attrs %}{% endblock %}>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm fixed-top">
         <div class="container">
@@ -26,6 +43,12 @@
                 <img src="{{ url_for('static', filename='img/logo_m.png') }}" alt="Meutch Logo" class="navbar-logo me-2" width="36" height="36">
                 <span class="fw-bold">Meutch</span>
             </a>
+
+            {% if not current_user.is_authenticated %}
+            <a class="nav-link navbar-mobile-login d-flex d-lg-none align-items-center me-1 px-2" href="{{ url_for('auth.login') }}">
+                <i class="fas fa-sign-in-alt me-1"></i><span class="small fw-semibold">Login</span>
+            </a>
+            {% endif %}
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -35,29 +58,23 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.index') }}">
-                            <i class="fas fa-home me-1"></i>Home
+                            {% if current_user.is_authenticated %}
+                                <i class="fas fa-home me-1"></i>Home
+                            {% else %}
+                                <i class="fas fa-home me-1"></i>Home
+                            {% endif %}
                         </a>
                     </li>
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.search') }}">
-                                <i class="fas fa-search me-1"></i>Search
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.giveaways') }}">
-                                <i class="fas fa-gift me-1"></i>Giveaways
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.list_item') }}">
-                                <i class="fas fa-plus me-1"></i>List Item
+                            <a class="nav-link" href="{{ url_for('main.find') }}">
+                                <i class="fas fa-search me-1"></i>Find
                             </a>
                         </li>
                     {% endif %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.about') }}">
-                            <i class="fas fa-info-circle me-1"></i>About
+                        <a class="nav-link" href="{{ url_for('main.how_it_works') }}">
+                            <i class="fas fa-question-circle me-1"></i>How it Works
                         </a>
                     </li>
                     {% if current_user.is_authenticated and current_user.is_admin %}
@@ -72,20 +89,24 @@
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link position-relative" href="{{ url_for('main.messages') }}">
-                                <i class="fas fa-envelope me-1"></i>Messages
+                            <a class="nav-link d-flex align-items-center gap-2" href="{{ url_for('main.messages') }}">
+                                <span class="d-flex align-items-center">
+                                    <i class="fas fa-envelope me-1"></i>Messages
+                                </span>
                                 {% if unread_messages_count > 0 %}
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    <span class="badge rounded-pill bg-danger">
                                         {{ unread_messages_count }}
                                     </span>
                                 {% endif %}
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link position-relative" href="{{ url_for('circles.manage_circles') }}">
-                                <i class="fas fa-users me-1"></i>Circles
+                            <a class="nav-link d-flex align-items-center gap-2" href="{{ url_for('circles.manage_circles') }}">
+                                <span class="d-flex align-items-center">
+                                    <i class="fas fa-users me-1"></i>Circles
+                                </span>
                                 {% if total_pending > 0 %}
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
+                                    <span class="badge rounded-pill bg-warning text-dark">
                                         {{ total_pending }}
                                     </span>
                                 {% endif %}
@@ -117,7 +138,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="btn btn-primary ms-2" href="{{ url_for('auth.register') }}">
+                            <a class="nav-link nav-register" href="{{ url_for('auth.register') }}">
                                 <i class="fas fa-user-plus me-1"></i>Register
                             </a>
                         </li>
@@ -126,6 +147,10 @@
             </div>
         </div>
     </nav>
+    
+    <!-- Toast Container for JavaScript notifications -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
+    
     <!-- Main Content -->
     <main class="main-content">
         <!-- Flash Messages -->
@@ -158,26 +183,60 @@
         {% endwith %}
 
         <!-- Page Content -->
+        {% block page_content %}
         <div class="container">
             {% block content %}
             {% endblock %}
         </div>
+        {% endblock %}
     </main>
 
     <!-- Footer -->
     <footer class="bg-light mt-5 py-4 border-top">
         <div class="container">
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-4 mb-3 mb-md-0">
                     <div class="d-flex align-items-center mb-2">
                         <img src="{{ url_for('static', filename='img/logo_m.png') }}" alt="Meutch Logo" class="footer-logo me-2" width="28" height="28">
                         <h6 class="fw-bold text-primary mb-0">Meutch</h6>
                     </div>
                     <p class="text-muted small">The actual sharing economy, uncommercialized.</p>
                 </div>
-                <div class="col-md-6 text-md-end">
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <h6 class="fw-bold">Learn More</h6>
+                    <ul class="list-unstyled small">
+                        <li class="mb-2">
+                            <a href="{{ url_for('main.how_it_works') }}" class="text-muted text-decoration-none">
+                                <i class="fas fa-question-circle me-1"></i>How it Works
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="{{ url_for('main.about') }}" class="text-muted text-decoration-none">
+                                <i class="fas fa-info-circle me-1"></i>About Us
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="https://github.com/sfirke/meutch/" target="_blank" rel="noopener noreferrer" class="text-muted text-decoration-none">
+                                <i class="fab fa-github me-1"></i>Open Source on GitHub
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="fw-bold">Connect</h6>
+                    <p class="text-muted small mb-2">
+                        Questions? Suggestions? Found a bug?
+                    </p>
+                    <a href="https://github.com/sfirke/meutch/issues" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
+                        <i class="fab fa-github me-1"></i>Report an Issue
+                    </a>
+                </div>
+            </div>
+            <hr class="my-3">
+            <div class="row">
+                <div class="col-12 text-center">
                     <small class="text-muted">
-                        © 2025 Meutch.
+                        © 2026 Meutch. A nonprofit, community-driven project.
                     </small>
                 </div>
             </div>
@@ -187,8 +246,10 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
     
     <!-- Core JavaScript utilities -->
-    <script src="{{ url_for('static', filename='js/timezone.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/pagination.js') }}"></script>
+    <script src="{{ static_url_for('js/notifications.js') }}"></script>
+    <script src="{{ static_url_for('js/timezone.js') }}"></script>
+    <script src="{{ static_url_for('js/pagination.js') }}"></script>
+    <script src="{{ static_url_for('js/share.js') }}"></script>
 
     <!-- Page-specific scripts -->
     {% block scripts %}{% endblock %}

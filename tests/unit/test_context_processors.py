@@ -1,8 +1,9 @@
 """Test context processors functionality."""
 
+import os
 import pytest
 from unittest.mock import patch, MagicMock
-from app.context_processors import inject_unread_messages_count, inject_distance_utils
+from app.context_processors import inject_unread_messages_count, inject_distance_utils, inject_static_url_for
 from tests.factories import (
     UserFactory,
     MessageFactory,
@@ -10,6 +11,7 @@ from tests.factories import (
     LoanRequestFactory,
     CircleFactory,
     CircleJoinRequestFactory,
+    ItemRequestFactory,
 )
 from app.models import circle_members, db
 
@@ -194,13 +196,13 @@ class TestUnreadMessagesCount:
             # Both counts should be identical
             assert context_count == conversation_count == 2
 
-    def test_inject_unread_messages_count_includes_pending_circle_requests_for_admin(self, app):
-        """Admins should see pending circle join requests counted."""
+    def test_inject_unread_messages_count_excludes_pending_circle_requests_for_admin(self, app):
+        """Pending circle join requests should not contribute to unread message count."""
         with app.app_context():
             admin = UserFactory()
             requester1 = UserFactory()
             requester2 = UserFactory()
-            circle = CircleFactory(requires_approval=True)
+            circle = CircleFactory(circle_type='closed')
 
             # Make admin an admin member of the circle
             db.session.execute(
@@ -219,14 +221,14 @@ class TestUnreadMessagesCount:
 
             with patch('app.context_processors.current_user', admin):
                 result = inject_unread_messages_count()
-                assert result == {'unread_messages_count': 2}
+                assert result == {'unread_messages_count': 0}
 
     def test_inject_unread_messages_count_excludes_circle_requests_for_non_admin(self, app):
         """Non-admin members should not see pending join requests counted."""
         with app.app_context():
             member = UserFactory()
             requester = UserFactory()
-            circle = CircleFactory(requires_approval=True)
+            circle = CircleFactory(circle_type='closed')
 
             # Add as non-admin member
             db.session.execute(
@@ -246,12 +248,62 @@ class TestUnreadMessagesCount:
         """Users with no admin circle membership should not have pending join count."""
         with app.app_context():
             user = UserFactory()
-            circle = CircleFactory(requires_approval=True)
+            circle = CircleFactory(circle_type='closed')
             CircleJoinRequestFactory(circle=circle, user=UserFactory(), status='pending')
 
             with patch('app.context_processors.current_user', user):
                 result = inject_unread_messages_count()
                 assert result == {'unread_messages_count': 0}
+
+    def test_inject_unread_messages_count_request_messages(self, app):
+        """Test counting item request conversation messages."""
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            item_request = ItemRequestFactory(user=recipient)
+
+            # Create request conversation message (unread) - no item, just request
+            MessageFactory(sender=sender, recipient=recipient, item=None, request=item_request, is_read=False)
+
+            # Create another unread request message
+            MessageFactory(sender=sender, recipient=recipient, item=None, request=item_request, is_read=False)
+
+            # Create read request message (should not be counted)
+            MessageFactory(sender=sender, recipient=recipient, item=None, request=item_request, is_read=True)
+
+            with patch('app.context_processors.current_user', recipient):
+                result = inject_unread_messages_count()
+                # Should count both unread request messages
+                assert result == {'unread_messages_count': 2}
+
+    def test_inject_unread_messages_count_all_message_types(self, app):
+        """Test counting all message types together: items, loan requests, and requests."""
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+
+            # Regular item message
+            item = ItemFactory(owner=recipient)
+            MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
+
+            # Item request message (no item, just request)
+            item_request = ItemRequestFactory(user=recipient)
+            MessageFactory(sender=sender, recipient=recipient, item=None, request=item_request, is_read=False)
+
+            # Loan request message
+            loan_request = LoanRequestFactory(item=item, borrower=sender, status='pending')
+            MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                item=item,
+                loan_request=loan_request,
+                is_read=False
+            )
+
+            with patch('app.context_processors.current_user', recipient):
+                result = inject_unread_messages_count()
+                # Should count all three types of unread messages
+                assert result == {'unread_messages_count': 3}
 
 
 class TestDistanceUtils:
@@ -493,3 +545,79 @@ class TestDistanceUtils:
                     
                     result = get_distance(circle)
                     assert result is None
+
+
+class TestStaticUrlFor:
+    """Test static_url_for cache-busting context processor."""
+
+    def test_inject_static_url_for_returns_function(self, app):
+        """Test that inject_static_url_for provides a callable."""
+        with app.app_context():
+            result = inject_static_url_for()
+            assert 'static_url_for' in result
+            assert callable(result['static_url_for'])
+
+    def test_static_url_for_appends_hash(self, app):
+        """Test that static_url_for appends a version hash query parameter."""
+        with app.app_context():
+            context = inject_static_url_for()
+            url = context['static_url_for']('css/style.css')
+            assert '?v=' in url
+            assert 'css/style.css' in url
+
+    def test_static_url_for_hash_is_deterministic(self, app):
+        """Test that the same file produces the same hash."""
+        with app.app_context():
+            context = inject_static_url_for()
+            url1 = context['static_url_for']('css/style.css')
+            url2 = context['static_url_for']('css/style.css')
+            assert url1 == url2
+
+    def test_static_url_for_different_files_different_hashes(self, app):
+        """Test that different files produce different hashes."""
+        with app.app_context():
+            context = inject_static_url_for()
+            css_url = context['static_url_for']('css/style.css')
+            js_url = context['static_url_for']('js/notifications.js')
+            css_hash = css_url.split('?v=')[1]
+            js_hash = js_url.split('?v=')[1]
+            assert css_hash != js_hash
+
+    def test_static_url_for_missing_file_falls_back(self, app):
+        """Test that a missing file returns a plain url_for without hash."""
+        with app.app_context():
+            context = inject_static_url_for()
+            url = context['static_url_for']('nonexistent/file.css')
+            assert '?v=' not in url
+            assert 'nonexistent/file.css' in url
+
+    def test_static_url_for_hash_changes_with_content(self, app, tmp_path):
+        """Test that the hash changes when file content changes."""
+        import app.context_processors as cp
+
+        with app.app_context():
+            # Create a temporary file in the static folder
+            test_file = os.path.join(app.static_folder, '_test_cache_bust.css')
+            try:
+                with open(test_file, 'w') as f:
+                    f.write('body { color: red; }')
+
+                # Clear module-level cache so fresh hashes are computed
+                cp._static_hash_cache.clear()
+                app.debug = True  # Force recompute each call
+
+                context = inject_static_url_for()
+                url1 = context['static_url_for']('_test_cache_bust.css')
+
+                # Change the file content
+                with open(test_file, 'w') as f:
+                    f.write('body { color: blue; }')
+
+                url2 = context['static_url_for']('_test_cache_bust.css')
+
+                assert '?v=' in url1
+                assert '?v=' in url2
+                assert url1 != url2
+            finally:
+                if os.path.exists(test_file):
+                    os.remove(test_file)

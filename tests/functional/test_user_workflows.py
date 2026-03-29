@@ -1,9 +1,8 @@
 """End-to-end functional tests for user workflows."""
 import pytest
 from datetime import date, timedelta
-from flask import url_for
-from app.models import User, Item, Category, db
-from tests.factories import UserFactory, CategoryFactory
+from app.models import User, Item, db, Circle, CircleJoinRequest, LoanRequest, Message
+from tests.factories import UserFactory, CategoryFactory, CircleFactory, ItemFactory, TagFactory
 from conftest import login_user
 
 class TestUserRegistrationWorkflow:
@@ -38,7 +37,7 @@ class TestUserRegistrationWorkflow:
             response = login_user(client, 'newuser@example.com', 'newpassword123')
             
             assert response.status_code == 200
-            assert b'Welcome' in response.data or b'Your Items' in response.data
+            assert b'Community Activity' in response.data or b'Find Circles' in response.data
 
 class TestItemManagementWorkflow:
     """Test complete item management workflow."""
@@ -95,6 +94,31 @@ class TestItemManagementWorkflow:
 
 class TestLoanRequestWorkflow:
     """Test loan request workflow."""
+
+    def test_blank_message_shows_validation_error(self, client, app):
+        """Test that submitting a loan request with a blank message shows validation feedback."""
+        with app.app_context():
+            borrower = UserFactory(email='borrower-blank-message@test.com')
+            lender = UserFactory(email='lender-blank-message@test.com')
+            circle = CircleFactory()
+            circle.members.extend([borrower, lender])
+
+            item = ItemFactory(owner=lender)
+            db.session.commit()
+
+            login_user(client, borrower.email)
+
+            start_date = (date.today() + timedelta(days=3)).strftime('%Y-%m-%d')
+            end_date = (date.today() + timedelta(days=8)).strftime('%Y-%m-%d')
+
+            response = client.post(f'/items/{item.id}/request', data={
+                'start_date': start_date,
+                'end_date': end_date,
+                'message': ''
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'Please include a message with your request.' in response.data
     
     def test_complete_loan_request_flow(self, client, app):
         """Test complete loan request from request to completion."""
@@ -102,10 +126,13 @@ class TestLoanRequestWorkflow:
             # Create two users
             borrower = UserFactory(email='borrower@test.com')
             lender = UserFactory(email='lender@test.com')
+            circle = CircleFactory()
+            circle.members.extend([borrower, lender])
             
             # Create an item
-            from tests.factories import ItemFactory
+
             item = ItemFactory(owner=lender)
+            db.session.commit()
             
             # Borrower logs in and requests item
             login_user(client, borrower.email)
@@ -131,7 +158,6 @@ class TestLoanRequestWorkflow:
             assert response.status_code == 200
             
             # Find the loan request and approve it
-            from app.models import LoanRequest
             loan_request = LoanRequest.query.filter_by(
                 item_id=item.id,
                 borrower_id=borrower.id
@@ -165,14 +191,13 @@ class TestCircleWorkflow:
                 'create_circle': True,
                 'name': 'Test Circle',
                 'description': 'A test circle',
-                'visibility': 'private'
+                'circle_type': 'closed'
             }, follow_redirects=True)
             
             assert response.status_code == 200
             assert b'Test Circle' in response.data
             
             # Find created circle
-            from app.models import Circle
             circle = Circle.query.filter_by(name='Test Circle').first()
             assert circle is not None
             assert circle.is_admin(admin_user)
@@ -192,7 +217,6 @@ class TestCircleWorkflow:
             login_user(client, admin_user.email)
             
             # Find join request
-            from app.models import CircleJoinRequest
             join_request = CircleJoinRequest.query.filter_by(
                 circle_id=circle.id,
                 user_id=member_user.id
@@ -217,9 +241,7 @@ class TestSearchAndBrowsingWorkflow:
             user1 = UserFactory()  # searcher
             user2 = UserFactory()  # item owner
             category = CategoryFactory()
-            
-            from tests.factories import ItemFactory, TagFactory, CircleFactory
-            
+                        
             # Create a shared circle
             circle = CircleFactory()
             circle.members.append(user1)
@@ -244,13 +266,13 @@ class TestSearchAndBrowsingWorkflow:
             login_user(client, user1.email)
             
             # Search for items
-            response = client.get('/search?q=laptop')
+            response = client.get('/find?q=laptop')
             assert response.status_code == 200
             assert b'Gaming Laptop' in response.data
             assert b'Office Monitor' not in response.data
             
             # Tag string shows up in search results
-            response = client.get('/search?q=computer')
+            response = client.get('/find?q=computer')
             assert response.status_code == 200
 
 class TestMessagingWorkflow:
@@ -262,9 +284,11 @@ class TestMessagingWorkflow:
             # Create users and item
             sender = UserFactory(email='sender@test.com')
             recipient = UserFactory(email='recipient@test.com')
+            circle = CircleFactory()
+            circle.members.extend([sender, recipient])
             
-            from tests.factories import ItemFactory
             item = ItemFactory(owner=recipient)
+            db.session.commit()
             
             # Sender logs in and sends message
             login_user(client, sender.email)
@@ -285,7 +309,6 @@ class TestMessagingWorkflow:
             assert b'interested in this item' in response.data
             
             # Check unread count - recipient should have 1 unread message
-            from app.models import Message
             unread_count = Message.query.filter_by(
                 recipient_id=recipient.id,
                 is_read=False

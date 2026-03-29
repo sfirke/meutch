@@ -144,22 +144,81 @@ class TestGiveawayItemCreation:
             assert updated_item.claim_status is None
 
 
+class TestGiveawayPublicVisibilityLocationRequirement:
+    """Test that public giveaway visibility requires user to have location set."""
+
+    def test_create_public_giveaway_without_location_blocked(self, client, app):
+        """Test that a user without location cannot create a public giveaway."""
+        with app.app_context():
+            user = UserFactory(latitude=None, longitude=None)
+            category = CategoryFactory()
+            login_user(client, user.email)
+
+            response = client.post('/list-item', data={
+                'name': 'Free Books',
+                'description': 'Collection of old textbooks',
+                'category': str(category.id),
+                'is_giveaway': True,
+                'giveaway_visibility': 'public',
+                'tags': ''
+            })
+
+            assert response.status_code == 200
+            assert b'You must set your location' in response.data
+            # Verify item was NOT created
+            assert Item.query.filter_by(name='Free Books').first() is None
+
+    def test_create_circles_giveaway_without_location_allowed(self, client, app):
+        """Test that a user without location can create a circles-only giveaway."""
+        with app.app_context():
+            user = UserFactory(latitude=None, longitude=None)
+            category = CategoryFactory()
+            login_user(client, user.email)
+
+            response = client.post('/list-item', data={
+                'name': 'Free Books',
+                'description': 'Collection of old textbooks',
+                'category': str(category.id),
+                'is_giveaway': True,
+                'giveaway_visibility': 'default',
+                'tags': ''
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            item = Item.query.filter_by(name='Free Books').first()
+            assert item is not None
+            assert item.giveaway_visibility == 'default'
+
+    def test_edit_item_to_public_giveaway_without_location_blocked(self, client, app):
+        """Test that editing to public giveaway is blocked without location."""
+        with app.app_context():
+            user = UserFactory(latitude=None, longitude=None)
+            category = CategoryFactory()
+            item = ItemFactory(owner=user, category=category, is_giveaway=False)
+            db.session.commit()
+            login_user(client, user.email)
+
+            response = client.post(f'/item/{item.id}/edit', data={
+                'name': item.name,
+                'description': item.description,
+                'category': str(category.id),
+                'is_giveaway': True,
+                'giveaway_visibility': 'public',
+                'tags': ''
+            })
+
+            assert response.status_code == 200
+            assert b'You must set your location' in response.data
+            # Verify item was NOT updated to public giveaway
+            updated_item = db.session.get(Item, item.id)
+            assert updated_item.is_giveaway is False
+
+
 class TestGiveawaysFeed:
     """Test the giveaway feed page."""
     
-    def test_giveaways_page_with_no_circles(self, client, app, auth_user):
-        """Test giveaways page shows prompt when user has no circles."""
-        with app.app_context():
-            user = auth_user()
-            login_user(client, user.email)
-            
-            response = client.get('/giveaways')
-            
-            assert response.status_code == 200
-            assert b'join at least one lending circle' in response.data.lower()
-    
     def test_giveaways_page_shows_unclaimed_items(self, client, app, auth_user):
-        """Test giveaways page shows only unclaimed giveaway items."""
+        """Test giveaways feed shows only unclaimed giveaway items."""
         with app.app_context():
             user = auth_user()
             circle = CircleFactory()
@@ -200,7 +259,7 @@ class TestGiveawaysFeed:
                 is_giveaway=False
             )
             
-            response = client.get('/giveaways')
+            response = client.get('/?distance=')
             
             assert response.status_code == 200
             assert b'Free Lamp' in response.data
@@ -208,7 +267,7 @@ class TestGiveawaysFeed:
             assert b'Power Tools' not in response.data
     
     def test_giveaways_sorting_by_date(self, client, app, auth_user):
-        """Test giveaways page sorts by date correctly."""
+        """Test homepage feed sorts giveaway events by date correctly."""
         with app.app_context():
             user = auth_user()
             circle = CircleFactory()
@@ -244,7 +303,7 @@ class TestGiveawaysFeed:
             db.session.commit()
             
             # Test date sorting (newest first)
-            response = client.get('/giveaways?sort_by=date')
+            response = client.get('/?distance=')
             
             assert response.status_code == 200
             # Newest should appear before oldest in HTML (lower byte position)
@@ -293,7 +352,7 @@ class TestGiveawaysFeed:
             
             db.session.commit()
             
-            response = client.get('/giveaways')
+            response = client.get('/?distance=')
             
             assert response.status_code == 200
             assert b'Public Free Item' in response.data, "Public giveaway should be visible to all circle members"
@@ -342,69 +401,11 @@ class TestGiveawaysFeed:
             db.session.commit()
             
             # Search for giveaways
-            response = client.get('/search?q=Searchable&item_type=giveaways')
+            response = client.get('/find?q=Searchable&item_type=giveaways')
             
             assert response.status_code == 200
             assert b'Searchable Public Giveaway' in response.data, "Public giveaway should appear in search for all circle members"
             assert b'Searchable Default Giveaway' not in response.data, "Default visibility giveaway should not appear in search without shared circles"
-
-    def test_my_giveaways_section_only_shows_active(self, client, app, auth_user):
-        """Test that 'My Giveaways' section on feed page only shows active giveaways, not claimed ones."""
-        
-        with app.app_context():
-            user = auth_user()
-            recipient = UserFactory()
-            circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(recipient)
-            db.session.commit()
-            login_user(client, user.email)
-            
-            category = CategoryFactory()
-            
-            # Create active giveaways (should appear in "My Giveaways")
-            active_unclaimed = ItemFactory(
-                owner=user,
-                category=category,
-                name='My Active Unclaimed',
-                is_giveaway=True,
-                giveaway_visibility='default',
-                claim_status='unclaimed'
-            )
-            
-            active_pending = ItemFactory(
-                owner=user,
-                category=category,
-                name='My Active Pending',
-                is_giveaway=True,
-                giveaway_visibility='default',
-                claim_status='pending_pickup',
-                claimed_by=recipient
-            )
-            
-            # Create past giveaway (should NOT appear in "My Giveaways")
-            past_claimed = ItemFactory(
-                owner=user,
-                category=category,
-                name='My Past Claimed',
-                is_giveaway=True,
-                giveaway_visibility='default',
-                claim_status='claimed',
-                claimed_by=recipient,
-                claimed_at=datetime.now(UTC) - timedelta(days=5)
-            )
-            
-            db.session.commit()
-            
-            response = client.get('/giveaways')
-            
-            assert response.status_code == 200
-            # Active giveaways should appear
-            assert b'My Active Unclaimed' in response.data, "Unclaimed giveaway should appear in My Giveaways"
-            assert b'My Active Pending' in response.data, "Pending pickup giveaway should appear in My Giveaways"
-            # Past giveaway should NOT appear
-            assert b'My Past Claimed' not in response.data, "Claimed giveaway should NOT appear in My Giveaways"
-
 
 class TestSearchFiltering:
     """Test search filtering by item type."""
@@ -440,7 +441,7 @@ class TestSearchFiltering:
             )
             db.session.commit()
             
-            response = client.get('/search?q=Drill&item_type=loans')
+            response = client.get('/find?q=Drill&item_type=loans')
             
             assert response.status_code == 200
             assert b'Drill for Loan' in response.data
@@ -477,7 +478,7 @@ class TestSearchFiltering:
             )
             db.session.commit()
             
-            response = client.get('/search?q=Drill&item_type=giveaways')
+            response = client.get('/find?q=Drill&item_type=giveaways')
             
             assert response.status_code == 200
             assert b'Drill for Loan' not in response.data
@@ -514,11 +515,16 @@ class TestSearchFiltering:
             )
             db.session.commit()
             
-            response = client.get('/search?q=Drill&item_type=both')
+            response = client.get('/find?q=Drill&item_type=both')
             
             assert response.status_code == 200
             assert b'Drill for Loan' in response.data
             assert b'Free Drill' in response.data
+            response_text = response.data.decode('utf-8')
+            assert response_text.count('giveaway-ribbon') == 1
+            loan_index = response_text.index('Drill for Loan')
+            loan_card_snippet = response_text[max(0, loan_index - 500):loan_index + 200]
+            assert 'giveaway-ribbon' not in loan_card_snippet
 
 
 class TestCategoryAndTagFiltering:
@@ -1964,14 +1970,14 @@ class TestConfirmHandoff:
             
             login_user(client, user.email)
             
-            response = client.get('/giveaways')
+            response = client.get('/?distance=')
             
             assert response.status_code == 200
             assert b'Available Item' in response.data
             assert b'Claimed Item' not in response.data
     
     def test_pending_pickup_items_not_visible_to_others(self, client, app, auth_user):
-        """Test pending_pickup items (even public ones) don't appear to other users in giveaway feed."""
+        """Test pending_pickup items (even public ones) don't appear to other users in homepage feed."""
         with app.app_context():
             user = auth_user()
             owner = UserFactory()
@@ -2013,7 +2019,7 @@ class TestConfirmHandoff:
             
             login_user(client, user.email)
             
-            response = client.get('/giveaways')
+            response = client.get('/?distance=')
             
             assert response.status_code == 200
             assert b'Available Public Item' in response.data, "Unclaimed public giveaway should appear"
@@ -2065,7 +2071,8 @@ class TestItemDetailPageForGiveaways:
                 claim_status='claimed',
                 claimed_by=requester
             )
-            giveaway.claimed_at = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
+            # Use a recent date within the 90-day visibility window
+            giveaway.claimed_at = datetime.now(UTC)
             db.session.commit()
             
             login_user(client, owner.email)
@@ -2074,7 +2081,8 @@ class TestItemDetailPageForGiveaways:
             
             assert response.status_code == 200
             assert b'Jane Smith' in response.data
-            assert b'June 15, 2025' in response.data
+            # Check the alert message shows the recipient name
+            assert b'Given to' in response.data
             # Should NOT show action buttons for claimed items
             assert b'Change Recipient' not in response.data
             assert b'Release to Everyone' not in response.data

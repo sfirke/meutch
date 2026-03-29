@@ -1,6 +1,7 @@
 import requests
 import os
 from flask import current_app, url_for
+from app.utils.digest_tokens import generate_digest_manage_token
 
 
 def send_email(to_email, subject, text_content, html_content=None):
@@ -50,7 +51,7 @@ def send_email(to_email, subject, text_content, html_content=None):
         return False
 
 
-def send_confirmation_email(user):
+def send_confirmation_email(user, next_url=None):
     """Send email confirmation to user"""
     from app import db  # Import db here to avoid circular imports
     
@@ -58,7 +59,10 @@ def send_confirmation_email(user):
     
     db.session.commit()
     
-    confirmation_url = url_for('auth.confirm_email', token=token, _external=True)
+    url_kwargs = dict(token=token, _external=True)
+    if next_url:
+        url_kwargs['next'] = next_url
+    confirmation_url = url_for('auth.confirm_email', **url_kwargs)
     
     print(f"Confirmation URL: {confirmation_url}")
     
@@ -129,6 +133,21 @@ def send_message_notification_email(message):
     # Generate the conversation URL
     conversation_url = url_for('main.view_conversation', message_id=message.id, _external=True)
     
+    context_label = None
+    context_type_label = None  # User-facing label for email
+    if message.item is not None:
+        context_label = message.item.name
+        context_type_label = f"Item: {message.item.name}"
+    elif message.is_request_message:
+        context_label = f"request: {message.request.title}"
+        context_type_label = f"Request: {message.request.title}"
+    elif message.is_circle_message:
+        context_label = f"circle: {message.circle.name}"
+        context_type_label = f"Circle: {message.circle.name}"
+    else:
+        current_app.logger.error(f"Message {message.id} has no item, request, or circle context")
+        return False
+
     # Determine the subject and email content based on message type
     if message.is_loan_request_message:
         # Check if this is a loan extension message (owner extending the due date)
@@ -155,7 +174,7 @@ def send_message_notification_email(message):
             raise ValueError(f"Unknown loan request status '{message.loan_request.status}' for message {message.id}. "
                            f"Valid statuses are: pending, approved, denied, completed, canceled")
     else:
-        subject = f"Meutch - New Message about {message.item.name}"
+        subject = f"Meutch - New Message about {context_label}"
         email_type = "message"
     
     text_content = f"""
@@ -163,7 +182,7 @@ Hello {recipient.first_name},
 
 You have received a new {email_type} on Meutch from {sender.first_name} {sender.last_name}.
 
-Item: {message.item.name}
+{context_type_label}
 From: {sender.first_name} {sender.last_name}
 
 Message:
@@ -186,7 +205,7 @@ The Meutch Team
         
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p><strong>From:</strong> {sender.first_name} {sender.last_name}</p>
-            <p><strong>Item:</strong> {message.item.name}</p>
+            <p>{context_type_label}</p>
         </div>
         
         <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">
@@ -428,6 +447,198 @@ The Meutch Team
     """.strip()
     
     return send_email(user_email, subject, text_content)
+
+
+def _digest_event_url(event):
+    event_type = event.get('event_type')
+    if event_type in {'giveaway', 'lent'} and event.get('item_id'):
+        return url_for('main.item_detail', item_id=event['item_id'], _external=True)
+    if event_type == 'request' and event.get('request_id'):
+        return url_for('requests.detail', request_id=event['request_id'], _external=True)
+    if event_type == 'circle_join' and event.get('circle_id'):
+        return url_for('circles.view_circle', circle_id=event['circle_id'], _external=True)
+    return url_for('main.index', _external=True)
+
+
+def _digest_event_title(event):
+    event_type = event.get('event_type')
+    if event_type == 'circle_join':
+        return event.get('title') or 'Circle activity'
+    return event.get('title') or 'Community activity'
+
+
+def _digest_cadence_label(user):
+    cadence = (getattr(user, 'digest_frequency', None) or '').lower()
+    if cadence == 'daily':
+        return 'daily'
+    if cadence == 'weekly':
+        return 'weekly'
+    return 'off'
+
+
+def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url):
+    giveaways = digest_payload.get('giveaways', [])
+    requests = digest_payload.get('requests', [])
+    circle_joins = digest_payload.get('circle_joins', [])
+    loans = digest_payload.get('loans', [])
+
+    events = digest_payload.get('events')
+    if events is None:
+        events = giveaways + requests + circle_joins + loans
+
+    total_activities = len(events)
+    cadence_label = _digest_cadence_label(user)
+    subject = f"Meutch Digest - {total_activities} new activities"
+
+    summary_entries = [
+        ("giveaways", len(giveaways)),
+        ("requests", len(requests)),
+        ("circle joins", len(circle_joins)),
+        ("loans", len(loans)),
+    ]
+    summary_lines = [f"- {count} {label}" for label, count in summary_entries if count > 0]
+
+    text_lines = [
+        f"Hello {user.first_name},",
+        "",
+        f"This is your {cadence_label} Meutch digest.",
+        "",
+    ]
+
+    if summary_lines:
+        text_lines.append("Summary:")
+        text_lines.extend(summary_lines)
+        text_lines.append("")
+
+    def append_text_section(section_title, events, include_description=False):
+        if not events:
+            return
+        text_lines.append(f"{section_title}:")
+        for event in events:
+            actor = event.get('actor_name') or 'Someone'
+            title = _digest_event_title(event)
+            action = event.get('action') or 'shared'
+            text_lines.append(f"- {actor} {action}: {title}")
+            if include_description and event.get('description'):
+                text_lines.append(f"  {event['description']}")
+            if event.get('image_url'):
+                text_lines.append(f"  Image: {event['image_url']}")
+            text_lines.append(f"  {_digest_event_url(event)}")
+        text_lines.append("")
+
+    append_text_section('Giveaways', giveaways, include_description=True)
+    append_text_section('Requests', requests, include_description=True)
+    append_text_section('Circle Joins', circle_joins)
+    append_text_section('Loans', loans)
+
+    text_lines.extend([
+        "Manage your digest emails:",
+        f"- Manage settings: {manage_url}",
+        f"- One-click unsubscribe: {unsubscribe_url}",
+        "",
+        "Best regards,",
+        "The Meutch Team",
+    ])
+
+    def build_html_section(title, events, include_description=False):
+        if not events:
+            return ''
+
+        items_html = []
+        for event in events:
+            actor = event.get('actor_name') or 'Someone'
+            item_title = _digest_event_title(event)
+            action = event.get('action') or 'shared'
+            link = _digest_event_url(event)
+            description_html = ''
+            if include_description and event.get('description'):
+                description_html = f"<p style=\"margin: 6px 0 0 0; color: #555;\">{event['description']}</p>"
+
+            image_html = ''
+            if event.get('image_url'):
+                image_html = (
+                    f"<div style=\"margin: 8px 0;\">"
+                    f"<img src=\"{event['image_url']}\" alt=\"Activity image\" "
+                    f"style=\"max-width: 100%; width: 220px; height: auto; border-radius: 8px;\">"
+                    f"</div>"
+                )
+
+            items_html.append(
+                f"""
+                <li style=\"margin-bottom: 10px;\">
+                    <strong>{actor}</strong> {action}: {item_title}<br>
+                    {description_html}
+                    {image_html}
+                    <a href=\"{link}\" style=\"color: #007bff; text-decoration: none;\">View activity</a>
+                </li>
+                """
+            )
+
+        return f"""
+        <h3 style=\"margin-top: 24px; color: #333;\">{title}</h3>
+        <ul style=\"padding-left: 20px;\">
+            {''.join(items_html)}
+        </ul>
+        """
+
+    summary_html = ''
+    if summary_lines:
+        summary_items_html = ''.join(
+            [f"<li style=\"margin: 0 0 4px 16px;\">{line[2:]}</li>" for line in summary_lines]
+        )
+        summary_html = f"""
+        <div style=\"background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin: 18px 0;\">
+            <p style=\"margin: 0 0 8px 0;\"><strong>Summary</strong></p>
+            <ul style=\"margin: 0; padding: 0;\">{summary_items_html}</ul>
+        </div>
+        """
+
+    html_content = f"""
+    <html>
+    <body style=\"font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;\">
+        <h2 style=\"color: #333;\">Your Meutch Digest</h2>
+        <p>Hello {user.first_name},</p>
+        <p style=\"margin: 0 0 16px 0;\">This is your {cadence_label} Meutch digest.</p>
+
+        {summary_html}
+
+        {build_html_section('Giveaways', giveaways, include_description=True)}
+        {build_html_section('Requests', requests, include_description=True)}
+        {build_html_section('Circle Joins', circle_joins)}
+        {build_html_section('Loans', loans)}
+
+        <hr style=\"margin: 28px 0; border: none; border-top: 1px solid #ddd;\">
+        <p style=\"font-size: 14px; color: #666;\">
+            Manage your digest emails: <a href=\"{manage_url}\" style=\"color: #007bff;\">Manage settings</a> ·
+            <a href=\"{unsubscribe_url}\" style=\"color: #007bff;\">One-click unsubscribe</a>
+        </p>
+        <p style=\"font-size: 12px; color: #999;\">Best regards,<br>The Meutch Team</p>
+    </body>
+    </html>
+    """
+
+    return {
+        'subject': subject,
+        'text': '\n'.join(text_lines),
+        'html': html_content,
+    }
+
+
+def send_digest_email(user, digest_payload):
+    """Send digest email only if there are events to report.
+    
+    Returns False if payload has no events (should not send).
+    """
+    events = digest_payload.get('events', [])
+    if not events:
+        current_app.logger.debug(f'Digest email skipped for user {user.id}: no events')
+        return False
+    
+    token = generate_digest_manage_token(user)
+    manage_url = url_for('main.digest_manage', token=token, _external=True)
+    unsubscribe_url = url_for('main.digest_unsubscribe', token=token, _external=True)
+    content = build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url)
+    return send_email(user.email, content['subject'], content['text'], content['html'])
 
 
 def send_loan_due_soon_email(loan):

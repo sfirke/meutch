@@ -253,7 +253,7 @@ class TestCircle:
             circle = CircleFactory()
             assert circle.id is not None
             assert circle.name is not None
-            assert circle.requires_approval is False
+            assert circle.circle_type == 'open'
     
     def test_circle_repr(self, app):
         """Test circle string representation."""

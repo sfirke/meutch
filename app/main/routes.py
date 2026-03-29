@@ -1,95 +1,305 @@
 import random
-from flask import render_template, current_app, request, flash, redirect, url_for
+from flask import render_template, current_app, request, flash, redirect, url_for, abort, session
 from flask_login import login_required, current_user, logout_user
 from sqlalchemy import or_, and_, func, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC, timedelta
 from app import db
-from app.models import Item, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm
+from app.models import Item, ItemRequest, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm, VacationModeForm, DigestSettingsForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 from app.utils.geocoding import sort_items_by_owner_distance
 from app.utils.pagination import ListPagination
 from app.utils.email import send_message_notification_email
+from app.utils.giveaway_visibility import can_view_claimed_giveaway, get_unavailable_giveaway_suggestions
+from app.utils.home_feed import build_homepage_feed_events, HOMEPAGE_FEED_EVENT_TYPES
+from app.utils.digest_tokens import verify_digest_manage_token
+from app.utils.item_share import token_grants_item_access, ITEM_SHARE_TOKEN_MAX_AGE_DAYS
+
+
+HOMEPAGE_DISTANCE_OPTIONS = {5, 10, 20, 25, 50}
+
+
+def _build_item_detail_url(item_id, share_token=None):
+    if share_token:
+        return url_for('main.item_detail', item_id=item_id, share_token=share_token)
+    return url_for('main.item_detail', item_id=item_id)
+
+
+def _generated_item_share_link(item_id):
+    entry = session.get(f'generated-item-share-link:{item_id}')
+    if not entry:
+        return None
+    if datetime.now(UTC).timestamp() > entry.get('expires_at', 0):
+        session.pop(f'generated-item-share-link:{item_id}', None)
+        return None
+    return entry['url']
+
+
+def _shares_circle_or_has_item_token_access(item, share_token=None):
+    if item.owner_id == current_user.id:
+        return True
+
+    if current_user.shares_circle_with(item.owner):
+        return True
+
+    return token_grants_item_access(share_token, item)
+
+
+def _parse_homepage_feed_filters(user):
+    scope = request.args.get('scope', 'all')
+    if scope not in {'all', 'circles'}:
+        scope = 'all'
+
+    selected_types_raw = request.args.getlist('types')
+    types_explicit = 'types_present' in request.args
+    if types_explicit:
+        selected_feed_types = [event_type for event_type in selected_types_raw if event_type in HOMEPAGE_FEED_EVENT_TYPES]
+    else:
+        selected_feed_types = ['requests', 'giveaways', 'circle_joins', 'loans']
+
+    distance_explicit = 'distance' in request.args
+    distance_value_raw = request.args.get('distance')
+    selected_distance = None
+    if distance_value_raw and distance_value_raw != 'none':
+        try:
+            parsed_distance = int(distance_value_raw)
+        except (TypeError, ValueError):
+            parsed_distance = None
+        if parsed_distance in HOMEPAGE_DISTANCE_OPTIONS:
+            selected_distance = parsed_distance
+
+    if not distance_explicit and user.is_geocoded:
+        selected_distance = 20
+
+    distance_param_value = 'none' if selected_distance is None else str(selected_distance)
+
+    return {
+        'scope': scope,
+        'selected_feed_types': selected_feed_types,
+        'distance': selected_distance,
+        'distance_explicit': distance_explicit,
+        'distance_param_value': distance_param_value,
+    }
+
+
+def _build_find_context(user):
+    items = []
+    pagination = None
+    query = request.args.get('q', '').strip()
+    selected_categories = request.args.getlist('categories')
+    selected_circles = request.args.getlist('circles')
+    item_type = request.args.get('item_type', 'both')
+    sort_by = request.args.get('sort', 'date')
+    if sort_by not in ('date', 'distance'):
+        sort_by = 'date'
+    page = request.args.get('page', 1, type=int)
+    per_page = 12
+    result_count = 0
+
+    user_circles = sorted(list(user.circles), key=lambda circle: (circle.name or '').lower())
+    has_circles = len(user_circles) > 0
+    all_categories = Category.query.order_by(Category.name).all()
+
+    if has_circles:
+        if query:
+            shared_circle_user_ids = user.get_shared_circle_user_ids_query()
+
+            if selected_circles:
+                shared_circle_user_ids = select(circle_members.c.user_id).where(
+                    circle_members.c.circle_id.in_(selected_circles)
+                ).distinct()
+
+            all_circle_user_ids = select(circle_members.c.user_id).distinct()
+
+            items_query = Item.query.join(User, Item.owner_id == User.id).outerjoin(Item.tags).outerjoin(Item.category).filter(
+                User.vacation_mode == False,
+                Item.owner_id != user.id,
+                and_(
+                    or_(
+                        and_(
+                            or_(Item.is_giveaway == False, Item.giveaway_visibility == 'default'),
+                            Item.owner_id.in_(shared_circle_user_ids)
+                        ),
+                        and_(
+                            Item.giveaway_visibility == 'public',
+                            Item.owner_id.in_(all_circle_user_ids)
+                        )
+                    ),
+                    or_(
+                        Item.name.ilike(f'%{query}%'),
+                        Item.description.ilike(f'%{query}%'),
+                        Tag.name.ilike(f'%{query}%')
+                    )
+                )
+            )
+
+            if selected_categories:
+                items_query = items_query.filter(Item.category_id.in_(selected_categories))
+
+            if item_type == 'loans':
+                items_query = items_query.filter(Item.is_giveaway == False)
+            elif item_type == 'giveaways':
+                items_query = items_query.filter(
+                    Item.is_giveaway == True,
+                    or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                )
+            else:
+                items_query = items_query.filter(
+                    or_(
+                        Item.is_giveaway == False,
+                        and_(
+                            Item.is_giveaway == True,
+                            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                        )
+                    )
+                )
+
+            items_query = items_query.distinct()
+            all_items = items_query.all()
+            if sort_by == 'distance':
+                sorted_items = sort_items_by_owner_distance(all_items, user)
+            else:
+                sorted_items = sorted(all_items, key=lambda x: x.created_at or datetime.min, reverse=True)
+            pagination = ListPagination(items=sorted_items, page=page, per_page=per_page)
+            items = pagination.items
+            result_count = pagination.total
+        else:
+            shared_circle_user_ids = user.get_shared_circle_user_ids_query()
+
+            if selected_circles:
+                shared_circle_user_ids = select(circle_members.c.user_id).where(
+                    circle_members.c.circle_id.in_(selected_circles)
+                ).distinct()
+
+            all_circle_user_ids = select(circle_members.c.user_id).distinct()
+
+            base_query = Item.query.join(User, Item.owner_id == User.id).filter(
+                Item.owner_id != user.id,
+                User.vacation_mode == False,
+                or_(
+                    and_(
+                        or_(Item.is_giveaway == False, Item.giveaway_visibility == 'default'),
+                        Item.owner_id.in_(shared_circle_user_ids)
+                    ),
+                    and_(
+                        Item.giveaway_visibility == 'public',
+                        Item.owner_id.in_(all_circle_user_ids)
+                    )
+                ),
+                or_(
+                    Item.is_giveaway == False,
+                    and_(
+                        Item.is_giveaway == True,
+                        or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                    )
+                )
+            )
+
+            if selected_categories:
+                base_query = base_query.filter(Item.category_id.in_(selected_categories))
+
+            if item_type == 'loans':
+                base_query = base_query.filter(Item.is_giveaway == False)
+            elif item_type == 'giveaways':
+                base_query = base_query.filter(
+                    Item.is_giveaway == True,
+                    or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                )
+
+            if sort_by == 'distance':
+                all_items = base_query.all()
+                sorted_items = sort_items_by_owner_distance(all_items, user)
+                pagination = ListPagination(items=sorted_items, page=page, per_page=per_page)
+            else:
+                base_query = base_query.order_by(Item.created_at.desc())
+                pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
+            items = pagination.items
+            result_count = pagination.total
+
+    return {
+        'items': items,
+        'pagination': pagination,
+        'query': query,
+        'categories': all_categories,
+        'user_circles': user_circles,
+        'selected_categories': selected_categories,
+        'selected_circles': selected_circles,
+        'item_type': item_type,
+        'sort_by': sort_by,
+        'has_circles': has_circles,
+        'result_count': result_count,
+    }
 
 @main_bp.route('/')
 def index():
-    circles = []
+    if not current_user.is_authenticated:
+        return render_template('main/landing.html')
+
     items = []
     giveaway_items = []
+    feed_events = []
     pagination = None
     total_items = 0
     remaining_items = 0
+    query = ''
+    all_categories = []
+    user_circles = []
+    selected_categories = []
+    selected_circles = []
+    item_type = 'both'
+    has_circles = False
+    result_count = 0
+    selected_feed_scope = 'all'
+    selected_feed_types = ['requests', 'giveaways', 'circle_joins', 'loans']
+    selected_feed_distance = 'none'
+    feed_distance_options = [5, 10, 20, 25, 50]
     
-    if current_user.is_authenticated:
-        circles = current_user.circles
-        
-        # For logged-in users: show items from users who share circles with them
-        has_circles = len(current_user.circles) > 0
-        
-        if has_circles:
-            shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
-            # Query items from those users, excluding own items, ordered by newest first
-            base_query = Item.query.filter(
-                Item.owner_id.in_(shared_circle_user_ids),
-                Item.owner_id != current_user.id
-            ).order_by(Item.created_at.desc())
-            
-            # Paginate results
-            page = request.args.get('page', 1, type=int)
-            per_page = 12  # Items per page for logged-in users
-            pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
-            items = pagination.items
-        # else: user has no circles, items list stays empty
-        
-    else:
-        # For anonymous users: show items from public showcase users only
-        showcase_user_ids = select(User.id).where(User.is_public_showcase == True)
-        
-        # Regular items (non-giveaways) from showcase users
-        base_query = Item.query.filter(
-            Item.owner_id.in_(showcase_user_ids),
-            Item.is_giveaway == False
-        )
-        
-        # Public giveaways (visibility='public', unclaimed)
-        giveaway_query = Item.query.filter(
-            Item.is_giveaway == True,
-            Item.giveaway_visibility == 'public',
-            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
-        )
-        
-        # Show limited items with count
-        preview_limit = 6  # Items to show for each section
-        
-        # Count ALL items in the database (excluding claimed giveaways) to show true scope
-        total_items = Item.query.filter(
-            or_(
-                Item.is_giveaway == False,
-                and_(
-                    Item.is_giveaway == True,
-                    Item.claim_status != 'claimed'
-                )
-            )
-        ).count()
-        
-        # Random selection for variety
-        items = base_query.order_by(func.random()).limit(preview_limit).all()
-        giveaway_items = giveaway_query.order_by(func.random()).limit(preview_limit).all()
-        
-        # Calculate remaining: total minus what's actually displayed
-        displayed_count = len(items) + len(giveaway_items)
-        remaining_items = max(0, total_items - displayed_count)
-        
-    return render_template('main/index.html', 
+    user_circles = sorted(list(current_user.circles), key=lambda circle: (circle.name or '').lower())
+    has_circles = len(user_circles) > 0
+    selected_circles = request.args.getlist('circles')
+    filter_state = _parse_homepage_feed_filters(current_user)
+    selected_feed_scope = filter_state['scope']
+    selected_feed_types = filter_state['selected_feed_types']
+    selected_feed_distance = filter_state['distance_param_value']
+
+    feed_events = build_homepage_feed_events(
+        current_user,
+        selected_circle_ids=selected_circles,
+        scope=selected_feed_scope,
+        giveaway_distance=filter_state['distance'],
+        giveaway_distance_explicit=filter_state['distance_explicit'],
+        included_event_types=selected_feed_types,
+    )
+    
+    return render_template('main/index.html',
                          items=items,
                          giveaway_items=giveaway_items,
-                         circles=circles, 
+                         feed_events=feed_events,
                          pagination=pagination,
                          total_items=total_items,
-                         remaining_items=remaining_items)
+                         remaining_items=remaining_items,
+                         query=query,
+                         categories=all_categories,
+                         user_circles=user_circles,
+                         selected_categories=selected_categories,
+                         selected_circles=selected_circles,
+                         item_type=item_type,
+                         has_circles=has_circles,
+                         result_count=result_count,
+                         selected_feed_scope=selected_feed_scope,
+                         selected_feed_types=selected_feed_types,
+                         selected_feed_distance=selected_feed_distance,
+                         feed_distance_options=feed_distance_options)
+
+
+@main_bp.route('/find')
+@login_required
+def find():
+    find_context = _build_find_context(current_user)
+    return render_template('main/find.html', **find_context)
 
 @main_bp.route('/list-item', methods=['GET', 'POST'])
 @login_required
@@ -148,193 +358,31 @@ def list_item():
 @main_bp.route('/giveaways')
 @login_required
 def giveaways():
-    """Display feed of available giveaways with sorting and filtering options"""
-    page = request.args.get('page', 1, type=int)
-    sort_by = request.args.get('sort', 'date')  # 'date' or 'distance'
-    max_distance = request.args.get('distance', type=int)  # Optional distance filter in miles
-    per_page = 12
-    
-    # Check if user has any circles
-    has_circles = len(current_user.circles) > 0
-    
-    # Get user's own active giveaways (unclaimed or pending_pickup, always show these regardless of circle status)
-    my_giveaways = Item.query.filter(
-        Item.owner_id == current_user.id,
-        Item.is_giveaway == True,
-        or_(Item.claim_status == 'unclaimed', Item.claim_status == 'pending_pickup', Item.claim_status.is_(None))
-    ).order_by(Item.created_at.desc()).all()
-    
-    if not has_circles:
-        return render_template('main/giveaways.html', 
-                             items=[], 
-                             my_giveaways=my_giveaways,
-                             pagination=None, 
-                             no_circles=True,
-                             sort_by=sort_by,
-                             max_distance=max_distance)
-    
-    # Get users who share circles with current user
-    shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
-    
-    # Get all users who belong to any circle (for public giveaways)
-    all_circle_user_ids = select(circle_members.c.user_id).distinct()
-    
-    # Base query: giveaways that are unclaimed, excluding own items
-    # Include items that meet either condition:
-    # 1. Default visibility from shared circle users
-    # 2. Public visibility from any circle member
-    base_query = Item.query.filter(
-        Item.is_giveaway == True,
-        and_(
-            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None)),
-            or_(
-                # Default visibility: must share circles with owner
-                and_(
-                    or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
-                    Item.owner_id.in_(shared_circle_user_ids)
-                ),
-                # Public visibility: owner just needs to be in any circle
-                and_(
-                    Item.giveaway_visibility == 'public',
-                    Item.owner_id.in_(all_circle_user_ids)
-                )
-            ),
-            Item.owner_id != current_user.id
-        )
-    ).join(Item.owner)
-    
-    # Apply distance filtering if requested and both users are geocoded
-    if max_distance and current_user.is_geocoded:
-        # We need to filter after getting all items since distance calculation requires
-        # comparing user coordinates. Get all matching items first.
-        all_items = base_query.all()
-        
-        # Filter by distance
-        filtered_items = []
-        for item in all_items:
-            if item.owner.is_geocoded:
-                distance = current_user.distance_to(item.owner)
-                if distance and distance <= max_distance:
-                    filtered_items.append(item)
-        
-        # Sort based on sort_by parameter
-        if sort_by == 'distance':
-            # Sort by distance (already calculated)
-            filtered_items.sort(key=lambda item: current_user.distance_to(item.owner) or float('inf'))
-        else:  # sort_by == 'date'
-            # Sort by newest first
-            filtered_items.sort(key=lambda item: item.created_at, reverse=True)
-        
-        # Manual pagination for distance-filtered results
-        # ListPagination handles slicing internally
-        pagination = ListPagination(filtered_items, page, per_page)
-        items = pagination.items
-    
-    else:
-        # No distance filter - can use database sorting and pagination
-        if sort_by == 'distance' and current_user.is_geocoded:
-            # Get all items and sort by distance
-            all_items = base_query.all()
-            sorted_items = sort_items_by_owner_distance(all_items, current_user)
-            
-            # Manual pagination
-            # ListPagination handles slicing internally
-            pagination = ListPagination(sorted_items, page, per_page)
-            items = pagination.items
-        else:
-            # Date sort - use database ordering
-            base_query = base_query.order_by(Item.created_at.desc())
-            pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
-            items = pagination.items
-    
-    return render_template('main/giveaways.html',
-                         items=items,
-                         my_giveaways=my_giveaways,
-                         pagination=pagination,
-                         no_circles=False,
-                         sort_by=sort_by,
-                         max_distance=max_distance)
-
-@main_bp.route('/search', methods=['GET', 'POST'])
-@login_required
-def search():
-    query = request.args.get('q', '').strip()
-    page = request.args.get('page', 1, type=int)
-    item_type = request.args.get('item_type', 'both')  # 'loans', 'giveaways', or 'both'
-    per_page = 12  # Number of items per page (consistent with other pages)
-
-    # Check if user has any circles
-    has_circles = len(current_user.circles) > 0
-    shared_circle_user_ids = current_user.get_shared_circle_user_ids_query() if has_circles else None
-
-    if request.method == 'GET' and not query:
-        # Display the search form
-        return render_template('search_items.html', has_circles=has_circles, item_type=item_type)
-
-    if not query:
-        flash('Please enter a search term.', 'warning')
-        return redirect(url_for('main.search'))
-    
-    # If user has no circles, show empty results with prompt
-    if not has_circles:
-        return render_template('search_results.html', items=[], query=query, pagination=None, has_circles=False, item_type=item_type)
-    
-    # Get all users who belong to any circle (for public giveaways)
-    all_circle_user_ids = select(circle_members.c.user_id).distinct()
-    
-    # Perform case-insensitive search on name, description, and tags
-    # Include items that meet search criteria AND either:
-    # 1. Are from shared circle users (for default visibility items and loans)
-    # 2. Are public giveaways from any circle member
-    items_query = Item.query.outerjoin(Item.tags).outerjoin(Item.category).filter(
-        and_(
-            or_(
-                # Default items (loans and default-visibility giveaways): must share circles
-                and_(
-                    or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
-                    Item.owner_id.in_(shared_circle_user_ids)
-                ),
-                # Public giveaways: owner just needs to be in any circle
-                and_(
-                    Item.giveaway_visibility == 'public',
-                    Item.owner_id.in_(all_circle_user_ids)
-                )
-            ),
-            or_(
-                Item.name.ilike(f'%{query}%'),
-                Item.description.ilike(f'%{query}%'),
-                Tag.name.ilike(f'%{query}%')
-            )
-        )
-    )
-    
-    # Apply item_type filter
-    if item_type == 'loans':
-        items_query = items_query.filter(Item.is_giveaway == False)
-    elif item_type == 'giveaways':
-        items_query = items_query.filter(
-            Item.is_giveaway == True,
-            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
-        )
-    # 'both' - no additional filtering needed
-    
-    items_query = items_query.distinct()
-    
-    # Get all matching items for distance sorting
-    all_items = items_query.all()
-    
-    # Sort by distance from current user
-    sorted_items = sort_items_by_owner_distance(all_items, current_user)
-    
-    # Paginate the sorted results
-    pagination = ListPagination(items=sorted_items, page=page, per_page=per_page)
-
-    return render_template('search_results.html', items=pagination.items, query=query, pagination=pagination, has_circles=True, item_type=item_type)
+    return redirect(url_for('main.index'))
 
 @main_bp.route('/item/<uuid:item_id>', methods=['GET', 'POST'])
 @login_required
 def item_detail(item_id):
     item = db.get_or_404(Item, item_id)
+    share_token = request.values.get('share_token', '').strip() or None
+    has_token_access = False
+    shares_circle_with_owner = False
+
+    if not item.is_giveaway and item.owner_id != current_user.id:
+        has_token_access = token_grants_item_access(share_token, item)
+        shares_circle_with_owner = current_user.shares_circle_with(item.owner)
+        is_active_borrower = LoanRequest.query.filter_by(
+            item_id=item.id,
+            borrower_id=current_user.id,
+            status='approved',
+        ).first() is not None
+        if not shares_circle_with_owner and not has_token_access and not is_active_borrower:
+            abort(403)
+
+    if item.is_giveaway and item.claim_status == 'claimed':
+        if not can_view_claimed_giveaway(item, current_user):
+            suggestions = get_unavailable_giveaway_suggestions(current_user, exclude_item_id=item.id)
+            return render_template('main/item_unavailable.html', suggestions=suggestions)
     
     # Initialize forms
     form = MessageForm()
@@ -361,7 +409,7 @@ def item_detail(item_id):
             current_app.logger.error(f"Failed to send email notification for message {message.id}: {str(e)}")
         
         flash("Your message has been sent.", "success")
-        return redirect(url_for('main.item_detail', item_id=item.id))
+        return redirect(_build_item_detail_url(item.id, share_token))
     
     # Retrieve messages related to this item (optional)
     messages = Message.query.filter_by(item_id=item.id, recipient_id=current_user.id).order_by(Message.timestamp.desc()).all()
@@ -383,6 +431,7 @@ def item_detail(item_id):
         ).count()
     
     delete_form = DeleteItemForm()
+    generate_share_link_form = EmptyForm()
     release_to_all_form = ReleaseToAllForm()
     confirm_handoff_form = ConfirmHandoffForm()
     return render_template('main/item_detail.html', 
@@ -394,6 +443,12 @@ def item_detail(item_id):
                          interested_count=interested_count,
                          express_interest_form=express_interest_form,
                          withdraw_interest_form=withdraw_interest_form,
+                         share_token=share_token,
+                         has_token_access=has_token_access,
+                         shares_circle_with_owner=shares_circle_with_owner,
+                         item_share_valid_days=ITEM_SHARE_TOKEN_MAX_AGE_DAYS,
+                         generated_share_url=_generated_item_share_link(item.id),
+                         generate_share_link_form=generate_share_link_form,
                          release_to_all_form=release_to_all_form,
                          confirm_handoff_form=confirm_handoff_form)
 
@@ -423,6 +478,7 @@ def express_interest(item_id):
     if form.validate_on_submit():
         # Get optional message from form
         message_text = form.message.data.strip() if form.message.data else None
+        notification_body = message_text or f"Hi! I'm interested in your giveaway '{item.name}'."
         
         # Create GiveawayInterest record
         try:
@@ -433,7 +489,24 @@ def express_interest(item_id):
                 status='active'
             )
             db.session.add(interest)
+
+            # Create in-app notification for owner so they can respond to the request.
+            message = Message(
+                sender_id=current_user.id,
+                recipient_id=item.owner_id,
+                item_id=item.id,
+                body=notification_body
+            )
+            db.session.add(message)
+
             db.session.commit()
+
+            # Send email notification to owner.
+            try:
+                send_message_notification_email(message)
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email notification for giveaway interest message {message.id}: {str(e)}")
+
             flash('Your interest has been recorded! The owner will contact you if you are selected.', 'success')
         except IntegrityError:
             db.session.rollback()
@@ -974,10 +1047,22 @@ def confirm_handoff(item_id):
 @login_required
 def request_item(item_id):
     item = db.get_or_404(Item, item_id)
+    share_token = (request.args.get('share_token') or '').strip() or None
     
     if item.owner == current_user:
         flash('You cannot request your own items.', 'warning')
-        return redirect(url_for('main.item_detail', item_id=item.id))
+        return redirect(_build_item_detail_url(item.id, share_token))
+
+    if item.is_giveaway:
+        flash('This item is being offered as a giveaway, not a loan.', 'warning')
+        return redirect(_build_item_detail_url(item.id, share_token))
+
+    if not item.available:
+        flash('This item is not currently available to borrow.', 'warning')
+        return redirect(_build_item_detail_url(item.id, share_token))
+
+    if not _shares_circle_or_has_item_token_access(item, share_token):
+        abort(403)
     
     existing_request = LoanRequest.query.filter_by(
         item_id=item.id,
@@ -987,7 +1072,7 @@ def request_item(item_id):
     
     if existing_request:
         flash('You already have a pending request for this item.', 'info')
-        return redirect(url_for('main.item_detail', item_id=item.id))
+        return redirect(_build_item_detail_url(item.id, share_token))
 
     form = LoanRequestForm()
     if form.validate_on_submit():
@@ -1026,7 +1111,7 @@ def request_item(item_id):
             db.session.rollback()
             flash('An error occurred. Please try again.', 'danger')
     
-    return render_template('main/request_loan.html', form=form, item=item)
+    return render_template('main/request_loan.html', form=form, item=item, share_token=share_token)
 
 @main_bp.route('/item/<uuid:item_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -1037,6 +1122,7 @@ def edit_item(item_id):
         return redirect(url_for('main.profile'))
     
     form = ListItemForm(obj=item)
+    form.submit.label.text = 'Save'
 
     if request.method == 'GET':
         # Prepopulate giveaway fields
@@ -1389,11 +1475,20 @@ def extend_loan(loan_id):
         loan.last_overdue_reminder_sent = None
         loan.overdue_reminder_count = 0
         
+        # Determine if the due date was extended (moved later) or moved earlier
+        is_extension = form.new_end_date.data > old_end_date
+        
         # Create notification message to borrower
         if form.message.data and form.message.data.strip():
-            message_body = f"The loan of '{loan.item.name}' has been extended until {form.new_end_date.data.strftime('%B %d, %Y')}.\n\nMessage from owner: {form.message.data}"
+            if is_extension:
+                message_body = f"The loan of '{loan.item.name}' has been extended until {form.new_end_date.data.strftime('%B %d, %Y')}.\n\nMessage from owner: {form.message.data}"
+            else:
+                message_body = f"The due date for '{loan.item.name}' has been updated to {form.new_end_date.data.strftime('%B %d, %Y')}.\n\nMessage from owner: {form.message.data}"
         else:
-            message_body = f"Good news! The loan of '{loan.item.name}' has been extended. The new due date is {form.new_end_date.data.strftime('%B %d, %Y')} (previously {old_end_date.strftime('%B %d, %Y')})."
+            if is_extension:
+                message_body = f"Good news! The loan of '{loan.item.name}' has been extended. The new due date is {form.new_end_date.data.strftime('%B %d, %Y')} (previously {old_end_date.strftime('%B %d, %Y')})."
+            else:
+                message_body = f"The due date for '{loan.item.name}' has been updated. The new due date is {form.new_end_date.data.strftime('%B %d, %Y')} (previously {old_end_date.strftime('%B %d, %Y')})."
         
         message = Message(
             sender_id=current_user.id,
@@ -1413,11 +1508,14 @@ def extend_loan(loan_id):
             except Exception as e:
                 current_app.logger.error(f"Failed to send email notification for loan extension message {message.id}: {str(e)}")
             
-            flash(f"Loan has been extended until {form.new_end_date.data.strftime('%B %d, %Y')}.", "success")
+            if is_extension:
+                flash(f"Loan has been extended until {form.new_end_date.data.strftime('%B %d, %Y')}.", "success")
+            else:
+                flash(f"Loan due date has been updated to {form.new_end_date.data.strftime('%B %d, %Y')}.", "success")
         except Exception as e:
             db.session.rollback()
-            flash("An error occurred while extending the loan.", "danger")
-            current_app.logger.error(f"Error extending loan {loan_id}: {e}")
+            flash("An error occurred while updating the loan due date.", "danger")
+            current_app.logger.error(f"Error updating loan due date {loan_id}: {e}")
         
         # Redirect back to the original conversation
         original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
@@ -1452,10 +1550,11 @@ def tag_items(tag_id):
     
     shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
     
-    # Build base query for items with this tag from shared circle users
-    items_query = Item.query.join(Item.tags).filter(
+    # Build base query for items with this tag from shared circle users (excluding vacation mode)
+    items_query = Item.query.join(Item.tags).join(User, Item.owner_id == User.id).filter(
         Tag.id == tag_id,  # Filter by the specific tag
-        Item.owner_id.in_(shared_circle_user_ids)  # Filter by circle membership
+        Item.owner_id.in_(shared_circle_user_ids),  # Filter by circle membership
+        User.vacation_mode == False  # Exclude vacation mode users
     )
     
     # Apply item_type filter
@@ -1466,7 +1565,16 @@ def tag_items(tag_id):
             Item.is_giveaway == True,
             or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
         )
-    # 'both' - no additional filtering needed
+    else:  # 'both'
+        items_query = items_query.filter(
+            or_(
+                Item.is_giveaway == False,
+                and_(
+                    Item.is_giveaway == True,
+                    or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                )
+            )
+        )
     
     # Perform a paginated query to retrieve items
     items_pagination = (
@@ -1519,10 +1627,11 @@ def category_items(category_id):
 
     shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
 
-    # Build base query for items in this category from shared circle users
-    items_query = Item.query.filter(
+    # Build base query for items in this category from shared circle users (excluding vacation mode)
+    items_query = Item.query.join(User, Item.owner_id == User.id).filter(
         Item.category_id == category_id,  # Filter by the specific category
-        Item.owner_id.in_(shared_circle_user_ids)  # Filter by circle membership
+        Item.owner_id.in_(shared_circle_user_ids),  # Filter by circle membership
+        User.vacation_mode == False  # Exclude vacation mode users
     )
     
     # Apply item_type filter
@@ -1533,7 +1642,16 @@ def category_items(category_id):
             Item.is_giveaway == True,
             or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
         )
-    # 'both' - no additional filtering needed
+    else:  # 'both'
+        items_query = items_query.filter(
+            or_(
+                Item.is_giveaway == False,
+                and_(
+                    Item.is_giveaway == True,
+                    or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
+                )
+            )
+        )
     
     # Perform a paginated query to retrieve items
     items_pagination = (
@@ -1564,6 +1682,7 @@ def category_items(category_id):
 def profile():
     
     form = EditProfileForm()
+    digest_form = DigestSettingsForm()
     if form.validate_on_submit():
         # Handle profile image deletion
         if form.delete_image.data and current_user.profile_image_url:
@@ -1604,7 +1723,7 @@ def profile():
         
         db.session.commit()
         flash('Your profile has been updated.', 'success')
-        return redirect(url_for('main.profile'))
+        return redirect(url_for('main.profile', tab='about-me'))
     elif request.method == 'GET':
         form.about_me.data = current_user.about_me
         
@@ -1622,40 +1741,244 @@ def profile():
  
     # Pagination parameters
     page = request.args.get('page', 1, type=int)
+    giveaway_page = request.args.get('giveaway_page', 1, type=int)
+    past_giveaway_page = request.args.get('past_giveaway_page', 1, type=int)
+    search_query = request.args.get('search', '').strip()
     per_page = 12  # Items per page for logged-in users (same as index page)
+
+    my_items_search_filter = None
+    if search_query:
+        my_items_search_filter = or_(
+            Item.name.ilike(f'%{search_query}%'),
+            Item.description.ilike(f'%{search_query}%')
+        )
     
-    # Fetch user's active giveaways (unclaimed or pending_pickup)
-    active_giveaways = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
+    # Fetch user's active giveaways with pagination (unclaimed or pending_pickup)
+    active_giveaways_query = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
         or_(Item.claim_status == 'unclaimed', Item.claim_status == 'pending_pickup', Item.claim_status.is_(None))
-    ).order_by(Item.created_at.desc()).all()
+    )
+    if my_items_search_filter is not None:
+        active_giveaways_query = active_giveaways_query.filter(my_items_search_filter)
+    active_giveaways_pagination = active_giveaways_query.order_by(Item.created_at.desc()).paginate(page=giveaway_page, per_page=per_page, error_out=False)
     
-    # Fetch user's past giveaways (claimed within last 90 days)
+    # Fetch user's past giveaways with pagination (claimed within last 90 days)
     ninety_days_ago = datetime.now(UTC) - timedelta(days=90)
-    past_giveaways = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
+    past_giveaways_query = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
         Item.claim_status == 'claimed',
         Item.claimed_at >= ninety_days_ago
-    ).order_by(Item.claimed_at.desc()).all()
+    )
+    if my_items_search_filter is not None:
+        past_giveaways_query = past_giveaways_query.filter(my_items_search_filter)
+    past_giveaways_pagination = past_giveaways_query.order_by(Item.claimed_at.desc()).paginate(page=past_giveaway_page, per_page=per_page, error_out=False)
     
     # Fetch user's regular items with pagination (newest first)
-    items_pagination = Item.query.filter_by(owner_id=current_user.id, is_giveaway=False).order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    items_query = Item.query.filter_by(owner_id=current_user.id, is_giveaway=False)
+    if my_items_search_filter is not None:
+        items_query = items_query.filter(my_items_search_filter)
+    items_pagination = items_query.order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     user_items = items_pagination.items
     
     # Create a DeleteItemForm for each item (exclude claimed giveaways since they can't be deleted)
-    delete_forms = {item.id: DeleteItemForm() for item in active_giveaways + user_items}
+    delete_forms = {item.id: DeleteItemForm() for item in active_giveaways_pagination.items + user_items}
     
     borrowing = current_user.get_active_loans_as_borrower()
     lending = current_user.get_active_loans_as_owner()
+
+    # Active requests (open, not expired)
+    active_requests_page = request.args.get('active_requests_page', 1, type=int)
+    active_requests = ItemRequest.query.filter(
+        ItemRequest.user_id == current_user.id,
+        ItemRequest.status == 'open',
+        ItemRequest.expires_at > datetime.now(UTC)
+    ).order_by(ItemRequest.created_at.desc()).paginate(
+        page=active_requests_page, per_page=12, error_out=False
+    )
+
+    # Recently fulfilled requests (within 90 days)
+    past_requests_page = request.args.get('past_requests_page', 1, type=int)
+    ninety_days_ago_requests = datetime.now(UTC) - timedelta(days=90)
+    past_requests = ItemRequest.query.filter(
+        ItemRequest.user_id == current_user.id,
+        ItemRequest.status == 'fulfilled',
+        ItemRequest.fulfilled_at >= ninety_days_ago_requests
+    ).order_by(ItemRequest.fulfilled_at.desc()).paginate(
+        page=past_requests_page, per_page=12, error_out=False
+    )
+
+    # Create vacation mode form with current state
+    vacation_form = VacationModeForm()
+    vacation_form.vacation_mode.data = current_user.vacation_mode
+
+    # Populate digest settings form
+    digest_form.digest_frequency.data = current_user.digest_frequency
+    digest_form.digest_radius_miles.data = current_user.digest_radius_miles
+    digest_form.digest_include_giveaways.data = current_user.digest_include_giveaways
+    digest_form.digest_include_requests.data = current_user.digest_include_requests
+    digest_form.digest_include_circle_joins.data = current_user.digest_include_circle_joins
+    digest_form.digest_include_loans.data = current_user.digest_include_loans
+    digest_form.digest_giveaways_include_public.data = current_user.digest_giveaways_include_public
+    digest_form.digest_requests_include_public.data = current_user.digest_requests_include_public
+    
+    # Determine active tab (for maintaining tab state across pagination/form submissions)
+    active_tab = request.args.get('tab', 'my-items')
+    show_edit = request.method == 'POST' and form.errors
+    if show_edit:
+        active_tab = 'about-me'
     
     return render_template('main/profile.html', 
                          form=form, 
                          user=current_user, 
                          items=user_items,
-                         active_giveaways=active_giveaways,
-                         past_giveaways=past_giveaways,
+                         active_giveaways=active_giveaways_pagination.items,
+                         past_giveaways=past_giveaways_pagination.items,
                          delete_forms=delete_forms,
                          borrowing=borrowing,
                          lending=lending,
-                         pagination=items_pagination)
+                         pagination=items_pagination,
+                         active_giveaways_pagination=active_giveaways_pagination,
+                         past_giveaways_pagination=past_giveaways_pagination,
+                         vacation_form=vacation_form,
+                         digest_form=digest_form,
+                         active_tab=active_tab,
+                         search_query=search_query,
+                         show_edit=show_edit,
+                         active_requests=active_requests,
+                         past_requests=past_requests)
+
+
+@main_bp.route('/profile/digest-settings', methods=['POST'])
+@login_required
+def update_digest_settings():
+    """Update digest settings for the current user."""
+    form = DigestSettingsForm()
+
+    if not form.validate_on_submit():
+        flash('Unable to save digest settings. Please check your selections and try again.', 'warning')
+        return redirect(url_for('main.profile', tab='settings'))
+
+    current_user.digest_frequency = form.digest_frequency.data
+    current_user.digest_radius_miles = form.digest_radius_miles.data
+    current_user.digest_include_giveaways = form.digest_include_giveaways.data
+    current_user.digest_include_requests = form.digest_include_requests.data
+    current_user.digest_include_circle_joins = form.digest_include_circle_joins.data
+    current_user.digest_include_loans = form.digest_include_loans.data
+    current_user.digest_giveaways_include_public = form.digest_giveaways_include_public.data
+    current_user.digest_requests_include_public = form.digest_requests_include_public.data
+
+    db.session.commit()
+
+    if current_user.digest_frequency == User.DIGEST_FREQUENCY_NONE:
+        flash('You turned off digest emails. Please consider staying subscribed to keep up with activity in your circles.', 'warning')
+    else:
+        flash('Digest settings updated.', 'success')
+
+    return redirect(url_for('main.profile', tab='settings'))
+
+
+@main_bp.route('/digest/manage/<token>')
+def digest_manage(token):
+    """Anonymous digest management page via signed token."""
+    user, token_error = verify_digest_manage_token(token)
+
+    if token_error:
+        status_code = 410 if token_error == 'expired' else 400
+        return render_template(
+            'main/digest_manage.html',
+            token_valid=False,
+            token_error=token_error,
+            unsubscribed=False,
+            user=None,
+            token=token,
+        ), status_code
+
+    return render_template(
+        'main/digest_manage.html',
+        token_valid=True,
+        token_error=None,
+        unsubscribed=False,
+        frequency_updated=None,
+        user=user,
+        token=token,
+    )
+
+
+@main_bp.route('/digest/frequency/<token>/<frequency>')
+def digest_set_frequency(token, frequency):
+    """One-click anonymous digest frequency update for daily/weekly options."""
+    user, token_error = verify_digest_manage_token(token)
+
+    if token_error:
+        status_code = 410 if token_error == 'expired' else 400
+        return render_template(
+            'main/digest_manage.html',
+            token_valid=False,
+            token_error=token_error,
+            unsubscribed=False,
+            frequency_updated=None,
+            user=None,
+            token=token,
+        ), status_code
+
+    allowed_frequencies = {
+        User.DIGEST_FREQUENCY_DAILY,
+        User.DIGEST_FREQUENCY_WEEKLY,
+    }
+    if frequency not in allowed_frequencies:
+        return render_template(
+            'main/digest_manage.html',
+            token_valid=True,
+            token_error='invalid-frequency',
+            unsubscribed=False,
+            frequency_updated=None,
+            user=user,
+            token=token,
+        ), 400
+
+    if user.digest_frequency != frequency:
+        user.digest_frequency = frequency
+        db.session.commit()
+
+    return render_template(
+        'main/digest_manage.html',
+        token_valid=True,
+        token_error=None,
+        unsubscribed=False,
+        frequency_updated=frequency,
+        user=user,
+        token=token,
+    )
+
+
+@main_bp.route('/digest/unsubscribe/<token>')
+def digest_unsubscribe(token):
+    """One-click anonymous unsubscribe for digest emails."""
+    user, token_error = verify_digest_manage_token(token)
+
+    if token_error:
+        status_code = 410 if token_error == 'expired' else 400
+        return render_template(
+            'main/digest_manage.html',
+            token_valid=False,
+            token_error=token_error,
+            unsubscribed=False,
+            frequency_updated=None,
+            user=None,
+            token=token,
+        ), status_code
+
+    if user.digest_frequency != User.DIGEST_FREQUENCY_NONE:
+        user.digest_frequency = User.DIGEST_FREQUENCY_NONE
+        db.session.commit()
+
+    return render_template(
+        'main/digest_manage.html',
+        token_valid=True,
+        token_error=None,
+        unsubscribed=True,
+        frequency_updated=None,
+        user=user,
+        token=token,
+    )
 
 @main_bp.route('/update-location', methods=['GET', 'POST'])
 @login_required
@@ -1792,13 +2115,17 @@ def messages():
         func.least(Message.sender_id, Message.recipient_id).label('user1_id'),
         func.greatest(Message.sender_id, Message.recipient_id).label('user2_id'),
         Message.item_id,
+        Message.request_id,
+        Message.circle_id,
         func.max(Message.timestamp).label('latest_timestamp')
     ).filter(
         or_(Message.sender_id == current_user.id, Message.recipient_id == current_user.id)
     ).group_by(
         func.least(Message.sender_id, Message.recipient_id),
         func.greatest(Message.sender_id, Message.recipient_id),
-        Message.item_id
+        Message.item_id,
+        Message.request_id,
+        Message.circle_id
     ).subquery()
 
     # Join the subquery with the Message table to get the latest message per conversation
@@ -1807,7 +2134,18 @@ def messages():
         and_(
             func.least(Message.sender_id, Message.recipient_id) == latest_messages_subquery.c.user1_id,
             func.greatest(Message.sender_id, Message.recipient_id) == latest_messages_subquery.c.user2_id,
-            Message.item_id == latest_messages_subquery.c.item_id,
+            or_(
+                and_(Message.item_id.is_(None), latest_messages_subquery.c.item_id.is_(None)),
+                Message.item_id == latest_messages_subquery.c.item_id,
+            ),
+            or_(
+                and_(Message.request_id.is_(None), latest_messages_subquery.c.request_id.is_(None)),
+                Message.request_id == latest_messages_subquery.c.request_id,
+            ),
+            or_(
+                and_(Message.circle_id.is_(None), latest_messages_subquery.c.circle_id.is_(None)),
+                Message.circle_id == latest_messages_subquery.c.circle_id,
+            ),
             Message.timestamp == latest_messages_subquery.c.latest_timestamp
         )
     ).order_by(Message.timestamp.desc()).all()
@@ -1822,17 +2160,48 @@ def messages():
             other_user = db.session.get(User, convo.sender_id)
         
         # Calculate unread messages where current_user is the recipient
+        if not convo.is_request_message:
+            if convo.is_circle_message:
+                target_filter = and_(
+                    Message.circle_id == convo.circle_id,
+                    Message.item_id.is_(None),
+                    Message.request_id.is_(None),
+                )
+                item = None
+                item_request = None
+                circle = convo.circle
+            else:
+                target_filter = and_(
+                    Message.item_id == convo.item_id,
+                    Message.request_id.is_(None),
+                    Message.circle_id.is_(None),
+                )
+                item = db.session.get(Item, convo.item_id)
+                item_request = None
+                circle = None
+        else:
+            target_filter = and_(
+                Message.request_id == convo.request_id,
+                Message.item_id.is_(None),
+                Message.circle_id.is_(None),
+            )
+            item = None
+            item_request = db.session.get(ItemRequest, convo.request_id)
+            circle = None
+
         unread_count = Message.query.filter(
-            Message.item_id == convo.item_id,
+            target_filter,
             Message.recipient_id == current_user.id,
             Message.sender_id == other_user.id,
             Message.is_read == False
         ).count()
         
         conversation_summaries.append({
-            'conversation_id': f"{min(convo.sender_id, convo.recipient_id)}_{max(convo.sender_id, convo.recipient_id)}_{convo.item_id}",
+            'conversation_id': f"{min(convo.sender_id, convo.recipient_id)}_{max(convo.sender_id, convo.recipient_id)}_{convo.item_id}_{convo.request_id}_{convo.circle_id}",
             'other_user': other_user,
-            'item': db.session.get(Item, convo.item_id),
+            'item': item,
+            'item_request': item_request,
+            'circle': circle,
             'latest_message': convo,
             'unread_count': unread_count
         })
@@ -1854,13 +2223,33 @@ def view_conversation(message_id):
         flash("You do not have permission to view this message.", "danger")
         return redirect(url_for('main.messages'))
     
+    if not message.is_request_message:
+        if message.is_circle_message:
+            target_filter = and_(
+                Message.circle_id == message.circle_id,
+                Message.item_id.is_(None),
+                Message.request_id.is_(None),
+            )
+        else:
+            target_filter = and_(
+                Message.item_id == message.item_id,
+                Message.request_id.is_(None),
+                Message.circle_id.is_(None),
+            )
+    else:
+        target_filter = and_(
+            Message.request_id == message.request_id,
+            Message.item_id.is_(None),
+            Message.circle_id.is_(None),
+        )
+
     # Fetch thread messages
     thread_messages = Message.query.filter(
-        Message.item_id == message.item_id,
+        target_filter,
         or_(
-            and_(Message.sender_id == message.sender_id, 
+            and_(Message.sender_id == message.sender_id,
                  Message.recipient_id == message.recipient_id),
-            and_(Message.sender_id == message.recipient_id, 
+            and_(Message.sender_id == message.recipient_id,
                  Message.recipient_id == message.sender_id)
         )
     ).order_by(Message.timestamp).all()
@@ -1871,7 +2260,7 @@ def view_conversation(message_id):
 
     # Mark messages as read, excluding pending loan requests that require action
     unread_messages = Message.query.filter(
-        Message.item_id == message.item_id,
+        target_filter,
         or_(
             and_(
                 Message.sender_id == message.sender_id,
@@ -1904,10 +2293,11 @@ def view_conversation(message_id):
 
     # Find active loan request for this conversation (pending or approved)
     active_loan = None
-    for msg in thread_messages:
-        if msg.loan_request and msg.loan_request.status in ['pending', 'approved']:
-            active_loan = msg.loan_request
-            break
+    if not message.is_request_message:
+        for msg in thread_messages:
+            if msg.loan_request and msg.loan_request.status in ['pending', 'approved']:
+                active_loan = msg.loan_request
+                break
 
     # Handle reply form
     form = MessageForm()
@@ -1916,6 +2306,9 @@ def view_conversation(message_id):
             sender_id=current_user.id,
             recipient_id=other_user.id,
             item_id=message.item_id,
+            request_id=message.request_id,
+            circle_id=message.circle_id,
+
             body=form.body.data,
             is_read=False,
             parent_id=message.id
@@ -1968,3 +2361,25 @@ def delete_account():
             return redirect(url_for('main.delete_account'))
     
     return render_template('main/delete_account.html', form=form, loans_summary=loans_summary)
+
+
+@main_bp.route('/toggle-vacation-mode', methods=['POST'])
+@login_required
+def toggle_vacation_mode():
+    """Toggle vacation mode for the current user."""
+    form = VacationModeForm()
+    
+    if form.validate_on_submit():
+        try:
+            current_user.vacation_mode = form.vacation_mode.data
+            db.session.commit()
+            
+            if current_user.vacation_mode:
+                flash('Vacation mode enabled. Your items are now hidden from other users.', 'success')
+            else:
+                flash('Vacation mode disabled. Your items are now visible to other users.', 'success')
+        except Exception:
+            db.session.rollback()
+            flash('An error occurred while updating vacation mode. Please try again.', 'danger')
+    
+    return redirect(url_for('main.profile'))

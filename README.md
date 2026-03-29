@@ -26,7 +26,8 @@ cp .env.example .env
 
 The default values in `.env.example` are configured for local development with the Docker PostgreSQL database. You can use them as-is or customize as needed. The file includes:
 - Flask configuration (`FLASK_ENV`, `FLASK_APP`)
-- Database connection string for the local Docker database
+- Database connection string for development data (`meutch_dev`)
+- A separate test database URL pattern (`meutch_test`) to isolate test runs from development data
 - Storage backend configuration (defaults to `local` for development)
 - Optional email and cloud storage settings (commented out by default)
 
@@ -59,6 +60,41 @@ flask run
 
 The dummy users seeded by the development data all have the same password. Login looks like:
 Username: `user1@example.com` Password: `password123`.
+
+### Testing Scheduled Emails (Digest + Loan Reminders)
+
+Digest emails and overdue/due-soon loan notices run through the same daily CLI job:
+
+```bash
+flask check-loan-reminders
+```
+
+For normal behavior, run that command as-is. For local testing, the command supports overrides so you can run it repeatedly without waiting for the next day/week cadence:
+
+```bash
+# Force digest sends for daily/weekly users, ignoring cadence windows and last-sent checks
+flask check-loan-reminders --force-digest
+
+# Force loan reminder sends, bypassing sent/day/count guards
+flask check-loan-reminders --force-loan-reminders
+
+# Simulate loan reminder date rules for a specific day
+flask check-loan-reminders --today 2026-03-14
+
+# Simulate the digest scheduler evaluation timestamp in UTC
+flask check-loan-reminders --digest-now "2026-03-16 12:00:00"
+
+# Combine overrides for repeated end-to-end testing
+flask check-loan-reminders --force-digest --force-loan-reminders --today 2026-03-14 --digest-now "2026-03-14 09:00:00"
+```
+
+Notes:
+- Use overrides only in development/staging.
+- `--digest-now` sets the scheduler's evaluation timestamp used for digest cadence/day-boundary checks (daily/weekly send windows).
+- `--today` only affects loan reminder date logic (due soon / due today / overdue checks).
+- You can combine both when testing both systems in one run.
+- If `EMAIL_ALLOWLIST` is set, only allowlisted addresses receive emails.
+- If Mailgun is not configured locally, this command still helps validate scheduling logic and CLI summaries.
 
 ### Development Workflow
 
