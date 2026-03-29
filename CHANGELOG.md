@@ -26,6 +26,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Show distance (if available) to giveaways and requests on activity feed ([#275](https://github.com/sfirke/meutch/pull/275)).
 - Add button to sort items on Find page by distance or date created ([#276](https://github.com/sfirke/meutch/pull/276)).
 - Increase prominence of "Create" floating action button on mobile ([#296](https://github.com/sfirke/meutch/pull/296)).
+- Show distances in buckets, e.g., "2-5 mi" instead of "2.4 mi" to improve user privacy ([#302](https://github.com/sfirke/meutch/pull/302)).
 
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/pull/213)).
