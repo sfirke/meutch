@@ -1679,7 +1679,19 @@ footer h6 {
     color: #fff !important;
 }
 
-/* Register pill: global (desktop non-landing) */
+.landing-page .navbar:not(.scrolled) .btn-primary,
+.landing-page .navbar:not(.scrolled) .nav-register {
+    background-color: #fff !important;
+    border-color: #fff !important;
+    color: var(--primary-dark) !important;
+}
+
+.landing-page .navbar:not(.scrolled) .btn-primary:hover,
+.landing-page .navbar:not(.scrolled) .nav-register:hover {
+    background-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* Register pill button in navbar (desktop, scrolled / non-landing pages) */
 @media (min-width: 992px) {
     .nav-register {
         border: 1.5px solid var(--primary-color) !important;
@@ -1695,51 +1707,21 @@ footer h6 {
     }
 }
 
-/* Landing page: no hamburger — always show Login + Register */
-.landing-page .navbar-toggler,
-.landing-page .navbar-nav.me-auto,
-.landing-page .navbar-mobile-login {
-    display: none !important;
+.landing-page .navbar:not(.scrolled) .navbar-toggler {
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
-.landing-page .navbar-collapse {
-    display: flex !important;
-    flex-basis: auto;
-    flex-grow: 1;
-    align-items: center;
+.landing-page .navbar:not(.scrolled) .navbar-toggler-icon {
+    filter: invert(1) grayscale(100%) brightness(200%);
 }
 
-.landing-page .navbar-collapse .navbar-nav {
-    flex-direction: row;
-    align-items: center;
-    margin-left: auto;
-    gap: 0.25rem;
-}
-
-/* Register: pill-shaped at all widths on landing page */
-.landing-page .nav-register {
-    border: 1.5px solid rgba(255, 255, 255, 0.85) !important;
-    border-radius: 50px !important;
-    padding: 0.35rem 1.1rem !important;
-    font-weight: 600 !important;
-    color: #fff !important;
-    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.landing-page .nav-register:hover {
-    background-color: rgba(255, 255, 255, 0.15) !important;
-}
-
-/* Scrolled state: teal pill */
-.landing-page .navbar.scrolled .nav-register {
-    border-color: var(--primary-color) !important;
-    color: var(--primary-color) !important;
-    background: transparent !important;
-}
-
-.landing-page .navbar.scrolled .nav-register:hover {
-    background-color: var(--primary-color) !important;
-    color: #fff !important;
+/* mobile hamburger menu on transparent nav */
+.landing-page .navbar:not(.scrolled) .navbar-collapse.show,
+.landing-page .navbar:not(.scrolled) .navbar-collapse.collapsing {
+    background-color: rgba(49, 151, 149, 0.95);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-top: 0.5rem;
 }
 
 /* --- Hero --- */
@@ -1903,6 +1885,11 @@ footer h6 {
 .landing-cta {
     background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
     padding: 5rem 0;
+}
+
+.landing-cta p {
+    color: rgba(255, 255, 255, 0.95) !important;
+    font-weight: 500;
 }
 
 .landing-btn-cta {
