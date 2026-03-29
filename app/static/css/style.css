@@ -1649,6 +1649,10 @@ footer h6 {
    Landing Page  (anonymous homepage)
    =================================================================== */
 
+html {
+    overflow-x: hidden;
+}
+
 .landing-page {
     padding-top: 0;
     scroll-behavior: smooth;
@@ -1707,24 +1711,42 @@ footer h6 {
     }
 }
 
-.landing-page .navbar:not(.scrolled) .navbar-toggler {
-    border-color: rgba(255, 255, 255, 0.4);
+/* Landing page navbar: no hamburger
+   - Mobile: brand + pre-toggler Login only (Register is the hero CTA)
+   - Desktop lg+: brand + Login + Register pill
+*/
+.landing-page .navbar-toggler,
+.landing-page .navbar-mobile-login { /* already hidden here; shown outside collapse */
 }
 
-.landing-page .navbar:not(.scrolled) .navbar-toggler-icon {
-    filter: invert(1) grayscale(100%) brightness(200%);
+.landing-page .navbar-toggler {
+    display: none !important;
 }
 
-/* mobile hamburger menu on transparent nav */
-.landing-page .navbar:not(.scrolled) .navbar-collapse.show,
-.landing-page .navbar:not(.scrolled) .navbar-collapse.collapsing {
-    background-color: rgba(49, 151, 149, 0.95);
-    border-radius: var(--border-radius);
-    padding: 1rem;
-    margin-top: 0.5rem;
+/* Mobile: hide the entire collapse — keep it simple */
+@media (max-width: 991.98px) {
+    .landing-page .navbar-collapse {
+        display: none !important;
+    }
 }
 
-/* --- Hero --- */
+/* Desktop lg+: force collapse open, hide left nav (redundant on landing page) */
+@media (min-width: 992px) {
+    .landing-page .navbar-collapse {
+        display: flex !important;
+        flex-basis: auto;
+        flex-grow: 1;
+        align-items: center;
+    }
+    .landing-page .navbar-nav.me-auto {
+        display: none !important;
+    }
+    .landing-page .navbar-collapse .navbar-nav {
+        margin-left: auto;
+    }
+}
+
+/* --------- */
 .landing-hero {
     min-height: 100vh;
     background: linear-gradient(150deg, #155e5c 0%, #1e7874 45%, #2a9490 100%);
