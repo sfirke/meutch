@@ -333,12 +333,8 @@ class TestDistanceUtils:
                 
                 # Should return formatted distance string
                 assert result is not None
-                assert 'mi' in result
-                # Distance between NYC and LA should be ~2400-2500 miles
-                # Extract numeric value to check range
-                distance_str = result.replace(' mi', '')
-                distance_num = float(distance_str)
-                assert 2400 <= distance_num <= 2500
+                # Distance between NYC and LA is ~2450 miles, falls in 25+ mi bucket
+                assert result == '25+ mi'
 
     def test_get_distance_to_item_no_current_user(self, app):
         """Test distance calculation when current_user is not available."""
@@ -434,7 +430,7 @@ class TestDistanceUtils:
                 
                 # Should return very small distance
                 assert result is not None
-                assert '< 0.1 mi' == result
+                assert '< 1 mi' == result
 
     def test_get_distance_to_item_nearby_location(self, app):
         """Test distance calculation for nearby locations."""
@@ -450,12 +446,9 @@ class TestDistanceUtils:
                 
                 result = get_distance(item)
                 
-                # Should return small distance (under 3 miles)
+                # Times Square to Central Park is about 2 mi, should fall in 2-5 mi bucket
                 assert result is not None
-                assert 'mi' in result
-                # Extract numeric part and verify it's reasonable
-                distance_num = float(result.replace(' mi', ''))
-                assert 0.1 <= distance_num <= 3.0
+                assert result == '2-5 mi'
 
     def test_get_distance_to_item_exception_handling(self, app):
         """Test that exceptions are handled gracefully."""
@@ -523,10 +516,8 @@ class TestDistanceUtils:
                 
                 # Should return formatted distance string
                 assert result is not None
-                assert 'mi' in result
-                # Distance between Boston and NYC should be ~185-195 miles
-                distance_num = float(result.replace(' mi', ''))
-                assert 185 <= distance_num <= 195
+                # Distance between Boston and NYC is ~190 miles, falls in 25+ mi bucket
+                assert result == '25+ mi'
 
     def test_get_distance_to_circle_exception_handling(self, app):
         """Test that exceptions are handled gracefully for circles."""

@@ -190,10 +190,8 @@ class TestSearchDistanceDisplay:
             html = response.data.decode('utf-8')
             assert 'Distance Test Item' in html
             
-            # Verify distance badge appears with expected range (180-200 mi)
-            # Badge format: <span class="badge bg-info ms-1">...190.X mi</span>
+            # Verify distance badge appears with bucketed range
             assert 'badge bg-info' in html
-            assert ' mi' in html
-            # Rough sanity check that distance is in expected range
-            assert any(f'{d}' in html for d in range(180, 201))
+            # Distance between Boston and ~190 mi away falls in 25+ mi bucket
+            assert '25+ mi' in html
 

@@ -48,9 +48,9 @@ class TestGeocodingEssentials:
 
     def test_format_distance_essential_cases(self):
         """Test key distance formatting scenarios."""
-        assert format_distance(0.05) == "< 0.1 mi"
-        assert format_distance(1.23) == "1.2 mi"
-        assert format_distance(25.8) == "25.8 mi"
+        assert format_distance(0.05) == "< 1 mi"
+        assert format_distance(1.23) == "1-2 mi"
+        assert format_distance(25.8) == "25+ mi"
 
 
 class TestDistanceUtilsEssentials:

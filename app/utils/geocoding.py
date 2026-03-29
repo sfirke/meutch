@@ -135,17 +135,28 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 
 def format_distance(distance_miles: float) -> str:
     """
-    Format distance for display
-    
+    Format distance as a bucketed range for display.
+
+    Uses graduated buckets to prevent triangulation of user locations
+    while still giving a useful sense of proximity.
+
     Args:
         distance_miles: Distance in miles
-        
+
     Returns:
-        Formatted distance string (e.g., "2.3 mi", "0.1 mi")
+        Bucketed distance string (e.g., "< 1 mi", "2-5 mi")
     """
-    if distance_miles < 0.1:
-        return "< 0.1 mi"
-    return f"{distance_miles:.1f} mi"
+    if distance_miles < 1:
+        return "< 1 mi"
+    if distance_miles < 2:
+        return "1-2 mi"
+    if distance_miles < 5:
+        return "2-5 mi"
+    if distance_miles < 10:
+        return "5-10 mi"
+    if distance_miles < 25:
+        return "10-25 mi"
+    return "25+ mi"
 
 
 def sort_by_distance(items, reference_user, distance_fn, radius=None):
