@@ -1770,12 +1770,6 @@ html {
     object-fit: contain;
     opacity: 0.92;
     filter: drop-shadow(0 8px 24px rgba(0,0,0,0.4));
-    animation: landing-logo-float 4s ease-in-out infinite;
-}
-
-@keyframes landing-logo-float {
-    0%, 100% { transform: translateY(0); }
-    50%       { transform: translateY(-10px); }
 }
 
 .landing-headline {
