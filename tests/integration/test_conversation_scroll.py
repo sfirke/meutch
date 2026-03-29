@@ -2,6 +2,7 @@
 Test that the conversation page only scrolls to bottom when there are unread messages.
 """
 import pytest
+from app import db
 from app.models import Message
 from tests.factories import UserFactory, ItemFactory, MessageFactory
 
@@ -85,7 +86,7 @@ class TestConversationScrollBehavior:
             message_id = message.id
             
             # Verify it's unread before viewing
-            msg = Message.query.get(message_id)
+            msg = db.session.get(Message, message_id)
             assert msg.is_read is False
             
             # Log in as the recipient
@@ -97,7 +98,7 @@ class TestConversationScrollBehavior:
             assert response.status_code == 200
             
             # Verify message is now marked as read
-            msg = Message.query.get(message_id)
+            msg = db.session.get(Message, message_id)
             assert msg.is_read is True
             
             # View the conversation again (second time - should NOT scroll)
