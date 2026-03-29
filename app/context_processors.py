@@ -5,7 +5,6 @@ import os
 
 from flask import current_app, url_for
 from flask_login import current_user
-from sqlalchemy import select
 from app.utils.geocoding import format_distance
 # Remove model imports from top level
 
@@ -14,8 +13,7 @@ _static_hash_cache = {}
 
 def inject_unread_messages_count():
     # Import models at function level to avoid circular imports
-    from app import db
-    from app.models import Message, CircleJoinRequest, circle_members
+    from app.models import Message
 
     if current_user.is_authenticated:
         # Count all unread messages where the current user is the recipient
@@ -26,23 +24,7 @@ def inject_unread_messages_count():
             Message.sender_id != current_user.id  # Exclude self-sent messages
         ).count()
 
-        # Also include pending circle join requests for circles where the user is an admin
-        # Find circles current_user administers
-        admin_circle_ids_sq = select(circle_members.c.circle_id).where(
-            circle_members.c.user_id == current_user.id,
-            circle_members.c.is_admin == True,
-        )
-
-        pending_join_requests = (
-            db.session.query(CircleJoinRequest)
-            .filter(
-                CircleJoinRequest.circle_id.in_(admin_circle_ids_sq),
-                CircleJoinRequest.status == 'pending',
-            )
-            .count()
-        )
-
-        return dict(unread_messages_count=unread_messages + pending_join_requests)
+        return dict(unread_messages_count=unread_messages)
     return dict(unread_messages_count=0)
 
 def inject_total_pending():

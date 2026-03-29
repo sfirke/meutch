@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Digest Emails{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5" style="max-width: 680px;">
+    <h1 class="mb-3">Manage Digest Emails</h1>
+
+    {% if not token_valid %}
+        {% if token_error == 'expired' %}
+            <div class="alert alert-warning">
+                This manage link has expired. Please sign in to update your digest settings.
+            </div>
+        {% else %}
+            <div class="alert alert-danger">
+                This manage link is invalid. Please sign in to update your digest settings.
+            </div>
+        {% endif %}
+
+        <div class="d-flex gap-2">
+            <a class="btn btn-primary" href="{{ url_for('auth.login', next=url_for('main.profile', tab='settings')) }}">Log in</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('main.profile', tab='settings') }}">Digest settings</a>
+        </div>
+    {% else %}
+        <p class="text-muted">Manage digest emails for {{ user.email }}.</p>
+
+        {% if unsubscribed %}
+            <div class="alert alert-success">
+                You have been unsubscribed from digest emails.
+            </div>
+        {% endif %}
+
+        {% if frequency_updated %}
+            <div class="alert alert-success">
+                Digest frequency updated to <strong>{{ frequency_updated }}</strong>.
+            </div>
+        {% endif %}
+
+        {% if token_error == 'invalid-frequency' %}
+            <div class="alert alert-danger">
+                Invalid digest frequency option. Please choose daily or weekly.
+            </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Digest preference</h5>
+                <p class="card-text mb-3">
+                    {% if user.digest_frequency == 'none' %}
+                        Digest emails are currently turned off.
+                    {% else %}
+                        Digest emails are currently {{ user.digest_frequency }}.
+                    {% endif %}
+                </p>
+
+                <div class="mb-3 d-flex flex-wrap gap-2">
+                    {% if user.digest_frequency != 'daily' %}
+                        <a class="btn btn-outline-primary" href="{{ url_for('main.digest_set_frequency', token=token, frequency='daily') }}">Switch to daily</a>
+                    {% endif %}
+                    {% if user.digest_frequency != 'weekly' %}
+                        <a class="btn btn-outline-primary" href="{{ url_for('main.digest_set_frequency', token=token, frequency='weekly') }}">Switch to weekly</a>
+                    {% endif %}
+
+                    {% if user.digest_frequency != 'none' %}
+                        <a class="btn btn-warning" href="{{ url_for('main.digest_unsubscribe', token=token) }}">One-click unsubscribe</a>
+                    {% endif %}
+                </div>
+
+                {% if user.digest_frequency == 'none' %}
+                    <span class="text-muted">You are already unsubscribed.</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mt-3 d-flex gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('auth.login', next=url_for('main.profile', tab='settings')) }}">Log in to change settings</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('main.profile', tab='settings') }}">Profile digest settings</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

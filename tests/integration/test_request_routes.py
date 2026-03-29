@@ -4,7 +4,7 @@ from datetime import datetime, UTC, timedelta
 from unittest.mock import patch
 from app import db
 from app.models import ItemRequest, Circle, Message
-from tests.factories import UserFactory, ItemRequestFactory, CircleFactory, MessageFactory
+from tests.factories import UserFactory, ItemFactory, ItemRequestFactory, CircleFactory, MessageFactory
 from conftest import login_user
 
 
@@ -17,27 +17,85 @@ class TestRequestsFeedAccess:
         assert response.status_code == 302
         assert '/auth/login' in response.headers['Location']
 
-    def test_feed_loads_for_authenticated_user(self, client, app, auth_user):
-        """Test that the feed loads for authenticated users."""
-        with app.app_context():
-            user = auth_user()
-            login_user(client, user.email)
-            response = client.get('/requests/')
-            assert response.status_code == 200
-            assert b'Community Requests' in response.data
-
     def test_feed_shows_no_circles_message(self, client, app, auth_user):
-        """Test feed shows message when user has no circles and views circles scope."""
+        """Test homepage feed shows no-circles message for users with no circles."""
         with app.app_context():
             user = auth_user()
             login_user(client, user.email)
-            response = client.get('/requests/?scope=circles')
+            response = client.get('/')
             assert response.status_code == 200
-            assert b'Join a circle to see requests' in response.data
+            assert b'Join a circle to get started' in response.data
 
 
 class TestRequestsFeedFiltering:
     """Test feed filtering and visibility."""
+
+    def test_feed_default_scope_uses_all(self, client, app, auth_user):
+        """Test default feed shows all-scope results (public + shared-circle requests)."""
+        with app.app_context():
+            user = auth_user()
+            shared_circle_user = UserFactory(latitude=40.7140, longitude=-74.0070)
+            public_user = UserFactory(latitude=40.7135, longitude=-74.0050)
+
+            circle = CircleFactory()
+            circle.members.extend([user, shared_circle_user])
+            db.session.commit()
+
+            ItemRequestFactory(
+                user=shared_circle_user,
+                title='Shared circles request',
+                visibility='circles',
+            )
+            ItemRequestFactory(
+                user=public_user,
+                title='Public all-scope request',
+                visibility='public',
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/')
+            assert response.status_code == 200
+            assert b'Shared circles request' in response.data
+            assert b'Public all-scope request' in response.data
+
+    def test_all_scope_includes_public_and_shared_circles_only(self, client, app, auth_user):
+        """Test all scope includes public requests plus shared-circle circles requests."""
+        with app.app_context():
+            user = auth_user()
+            shared_circle_user = UserFactory(latitude=40.7140, longitude=-74.0070)
+            public_user = UserFactory(latitude=40.7135, longitude=-74.0050)
+            isolated_circle_user = UserFactory(latitude=40.7130, longitude=-74.0065)
+
+            shared_circle = CircleFactory()
+            shared_circle.members.extend([user, shared_circle_user])
+            isolated_circle = CircleFactory()
+            isolated_circle.members.append(isolated_circle_user)
+            db.session.commit()
+
+            ItemRequestFactory(
+                user=shared_circle_user,
+                title='Visible circles request',
+                visibility='circles',
+            )
+            ItemRequestFactory(
+                user=public_user,
+                title='Visible public request',
+                visibility='public',
+            )
+            ItemRequestFactory(
+                user=isolated_circle_user,
+                title='Hidden isolated circles request',
+                visibility='circles',
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/')
+            assert response.status_code == 200
+            assert b'Visible circles request' in response.data
+            assert b'Visible public request' in response.data
+            assert b'Hidden isolated circles request' not in response.data
 
     def test_feed_shows_circle_members_requests(self, client, app, auth_user):
         """Test that requests from circle members are visible."""
@@ -57,7 +115,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=circles')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Need a screwdriver' in response.data
 
@@ -81,19 +139,15 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=circles')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Hidden request' not in response.data
 
     def test_feed_shows_public_requests(self, client, app, auth_user):
-        """Test that public requests are visible to any circle member."""
+        """Test that public requests are visible in all scope."""
         with app.app_context():
             user = auth_user()
             other_user = UserFactory()
-            # User needs to be in a circle to access the feed
-            circle = CircleFactory()
-            circle.members.append(user)
-            db.session.commit()
 
             ItemRequestFactory(
                 user=other_user,
@@ -103,7 +157,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=public&distance=')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Public screwdriver request' in response.data
 
@@ -125,7 +179,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Expired request' not in response.data
 
@@ -148,7 +202,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=circles')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Got my screwdriver' in response.data
 
@@ -171,12 +225,12 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Old fulfilled request' not in response.data
 
-    def test_feed_shows_own_request_within_90_days(self, client, app, auth_user):
-        """Test that user's own fulfilled requests within 90 days are shown."""
+    def test_feed_excludes_own_fulfilled_requests(self, client, app, auth_user):
+        """Test that the homepage feed never shows a user's own fulfilled requests."""
         with app.app_context():
             user = auth_user()
             db.session.commit()
@@ -191,12 +245,12 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=circles')
+            response = client.get('/')
             assert response.status_code == 200
-            assert b'My request from 30 days ago' in response.data
+            assert b'My request from 30 days ago' not in response.data
 
-    def test_feed_shows_own_expired_request_within_90_days(self, client, app, auth_user):
-        """Test that user's own expired requests within 90 days are shown."""
+    def test_feed_excludes_own_expired_requests(self, client, app, auth_user):
+        """Test that the homepage feed never shows a user's own expired requests."""
         with app.app_context():
             user = auth_user()
             db.session.commit()
@@ -211,9 +265,9 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=circles')
+            response = client.get('/')
             assert response.status_code == 200
-            assert b'My request that expired 30 days ago' in response.data
+            assert b'My request that expired 30 days ago' not in response.data
 
     def test_feed_hides_deleted_requests(self, client, app, auth_user):
         """Test that deleted requests are never shown."""
@@ -233,7 +287,7 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Deleted request' not in response.data
 
@@ -254,12 +308,12 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/')
             assert response.status_code == 200
             assert b'Vacation request' not in response.data
 
-    def test_feed_own_requests_section(self, client, app, auth_user):
-        """Test that user's own requests appear in My Requests section."""
+    def test_feed_never_shows_own_requests(self, client, app, auth_user):
+        """Test that the homepage feed never shows a user's own open requests."""
         with app.app_context():
             user = auth_user()
             circle = CircleFactory()
@@ -270,13 +324,13 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/')
+            response = client.get('/')
             assert response.status_code == 200
-            assert b'My own request' in response.data
-            assert b'My Requests' in response.data
+            assert b'My own request' not in response.data
+            assert b'My Requests' not in response.data
 
     def test_feed_public_distance_filter(self, client, app, auth_user):
-        """Test distance filtering on public requests."""
+        """Test homepage distance controls can narrow and expand visible public requests."""
         with app.app_context():
             user = auth_user()
             # auth_user has coordinates (40.7128, -74.0060) - NYC
@@ -293,10 +347,15 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/requests/?scope=public&distance=5')
-            assert response.status_code == 200
-            assert b'Nearby request' in response.data
-            assert b'Far away request' not in response.data
+            default_response = client.get('/')
+            assert default_response.status_code == 200
+            assert b'Nearby request' in default_response.data
+            assert b'Far away request' not in default_response.data
+
+            no_limit_response = client.get('/?distance=none')
+            assert no_limit_response.status_code == 200
+            assert b'Nearby request' in no_limit_response.data
+            assert b'Far away request' in no_limit_response.data
 
 
 class TestRequestCreation:
@@ -336,6 +395,17 @@ class TestRequestCreation:
             assert req.visibility == 'circles'
             assert req.status == 'open'
 
+    def test_new_request_form_defaults_visibility_to_public(self, client, app, auth_user):
+        """Test new request form renders public as the default visibility."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+
+            response = client.get('/requests/new')
+
+            assert response.status_code == 200
+            assert b'<option selected value="public">Public</option>' in response.data
+
     def test_create_request_validation_error(self, client, app, auth_user):
         """Test creating a request with validation errors."""
         with app.app_context():
@@ -359,6 +429,44 @@ class TestRequestCreation:
         response = client.get('/requests/new')
         assert response.status_code == 302
         assert '/auth/login' in response.headers['Location']
+
+    def test_create_public_request_without_location_blocked(self, client, app):
+        """Test that a user without location cannot create a public request."""
+        with app.app_context():
+            from datetime import date
+            user = UserFactory(latitude=None, longitude=None)
+            login_user(client, user.email)
+
+            response = client.post('/requests/new', data={
+                'title': 'Need a ladder',
+                'description': 'For painting',
+                'expires_at': (date.today() + timedelta(days=30)).isoformat(),
+                'seeking': 'either',
+                'visibility': 'public',
+            })
+
+            assert response.status_code == 200
+            assert b'You must set your location' in response.data
+            assert ItemRequest.query.filter_by(title='Need a ladder').first() is None
+
+    def test_create_circles_request_without_location_allowed(self, client, app):
+        """Test that a user without location can create a circles-only request."""
+        with app.app_context():
+            from datetime import date
+            user = UserFactory(latitude=None, longitude=None)
+            login_user(client, user.email)
+
+            response = client.post('/requests/new', data={
+                'title': 'Need a ladder',
+                'description': 'For painting',
+                'expires_at': (date.today() + timedelta(days=30)).isoformat(),
+                'seeking': 'either',
+                'visibility': 'circles',
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'Your request has been posted!' in response.data
+            assert ItemRequest.query.filter_by(title='Need a ladder').first() is not None
 
 
 class TestRequestEditing:
@@ -424,6 +532,29 @@ class TestRequestEditing:
             login_user(client, user.email)
             response = client.get(f'/requests/{req.id}/edit')
             assert response.status_code == 404
+
+    def test_edit_request_to_public_without_location_blocked(self, client, app):
+        """Test that editing a request to public is blocked without location."""
+        with app.app_context():
+            from datetime import date
+            user = UserFactory(latitude=None, longitude=None)
+            req = ItemRequestFactory(user=user, visibility='circles')
+            db.session.commit()
+            req_id = req.id
+
+            login_user(client, user.email)
+            response = client.post(f'/requests/{req_id}/edit', data={
+                'title': 'Updated title',
+                'expires_at': (date.today() + timedelta(days=60)).isoformat(),
+                'seeking': 'either',
+                'visibility': 'public',
+            })
+
+            assert response.status_code == 200
+            assert b'You must set your location' in response.data
+            # Verify request was NOT updated to public
+            updated_req = db.session.get(ItemRequest, req_id)
+            assert updated_req.visibility == 'circles'
 
 
 class TestRequestDeletion:
@@ -650,25 +781,57 @@ class TestRequestConversations:
             assert reply.request_id == item_request.id
             assert reply.item_id is None
 
+    def test_view_conversation_pending_pickup_giveaway_shows_pending_pickup(self, client, app):
+        """Pending-pickup giveaways should show Pending Pickup, not Borrowed, in conversation header."""
+        with app.app_context():
+            owner = UserFactory()
+            claimant = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                available=False,
+            )
+            first_message = MessageFactory(
+                sender=owner,
+                recipient=claimant,
+                item=giveaway,
+                body='Ready for pickup when you are.',
+            )
+            db.session.commit()
+
+            login_user(client, claimant.email)
+            response = client.get(f'/message/{first_message.id}')
+
+            assert response.status_code == 200
+            assert b'Pending Pickup' in response.data
+            assert b'Borrowed' not in response.data
+
 
 class TestRequestNavigation:
-    """Test that the Requests nav link is present."""
+    """Test top-level nav links relevant to requests and find."""
 
-    def test_nav_link_for_authenticated_user(self, client, app, auth_user):
-        """Test that Requests nav link is visible to authenticated users."""
+    def test_nav_links_for_authenticated_user(self, client, app, auth_user):
+        """Test updated authenticated nav shows Home and Find but not Requests/Giveaways/List Item."""
         with app.app_context():
             user = auth_user()
             login_user(client, user.email)
             response = client.get('/')
             assert response.status_code == 200
-            assert b'Requests' in response.data
-            assert b'/requests/' in response.data
+            assert b'Home' in response.data
+            assert b'Find' in response.data
+            assert b'/find' in response.data
+            assert b'href="/giveaways"' not in response.data
+            assert b'href="/requests/"' not in response.data
+            assert b'class="nav-link" href="/list-item"' not in response.data
 
     def test_nav_link_not_for_anonymous(self, client, app):
         """Test that Requests nav link is not shown to anonymous users."""
         response = client.get('/')
         assert response.status_code == 200
-        assert b'hand-holding-heart' not in response.data
+        # The navbar should not contain a Requests nav link for anonymous users
+        # (the landing page mock feed uses the icon but NOT as a nav link)
+        assert b'href="/requests/"' not in response.data
 
 
 class TestRequestEmailNotifications:

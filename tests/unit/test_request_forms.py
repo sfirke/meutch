@@ -10,6 +10,13 @@ from app.models import ItemRequest
 class TestItemRequestForm:
     """Test ItemRequestForm validation."""
 
+    def test_default_visibility_is_public(self, app):
+        """Test request form defaults to public visibility."""
+        with app.app_context():
+            with app.test_request_context():
+                form = ItemRequestForm()
+                assert form.visibility.data == 'public'
+
     def test_valid_form(self, app):
         """Test valid form with all fields."""
         with app.app_context():
@@ -211,3 +218,55 @@ class TestItemRequestForm:
                 # Verify form fields use the exact same constants from the model
                 assert form.seeking.choices == ItemRequest.SEEKING_CHOICES
                 assert form.visibility.choices == ItemRequest.VISIBILITY_CHOICES
+
+    def test_public_request_without_location(self, app):
+        """Test that public request fails validation when user has no location set."""
+        with app.app_context():
+            import flask_login
+            from tests.factories import UserFactory
+            user = UserFactory(latitude=None, longitude=None)
+            with app.test_request_context():
+                flask_login.login_user(user)
+                form_data = {
+                    'title': 'Need a ladder',
+                    'expires_at': date.today() + timedelta(days=30),
+                    'seeking': 'either',
+                    'visibility': 'public',
+                }
+                form = ItemRequestForm(data=form_data)
+                assert form.validate() is False
+                assert any('You must set your location' in e for e in form.visibility.errors)
+
+    def test_public_request_with_location(self, app):
+        """Test that public request passes validation when user has location set."""
+        with app.app_context():
+            import flask_login
+            from tests.factories import UserFactory
+            user = UserFactory(latitude=40.7128, longitude=-74.0060)
+            with app.test_request_context():
+                flask_login.login_user(user)
+                form_data = {
+                    'title': 'Need a ladder',
+                    'expires_at': date.today() + timedelta(days=30),
+                    'seeking': 'either',
+                    'visibility': 'public',
+                }
+                form = ItemRequestForm(data=form_data)
+                assert form.validate() is True
+
+    def test_circles_request_without_location(self, app):
+        """Test that circles-only request passes validation even without location."""
+        with app.app_context():
+            import flask_login
+            from tests.factories import UserFactory
+            user = UserFactory(latitude=None, longitude=None)
+            with app.test_request_context():
+                flask_login.login_user(user)
+                form_data = {
+                    'title': 'Need a ladder',
+                    'expires_at': date.today() + timedelta(days=30),
+                    'seeking': 'either',
+                    'visibility': 'circles',
+                }
+                form = ItemRequestForm(data=form_data)
+                assert form.validate() is True

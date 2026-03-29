@@ -5,6 +5,7 @@ import pytest
 import subprocess
 import time
 import socket
+import urllib.parse
 from app import create_app, db
 from app.models import User, Item, Category, Circle, Tag
 from config import Config
@@ -23,6 +24,27 @@ def is_port_open(host, port):
             return True
     except (socket.error, OSError):
         return False
+
+def _get_test_db_host_port():
+    """Extract host and port from TEST_DATABASE_URL, defaulting to localhost:5433."""
+    url = os.environ.get('TEST_DATABASE_URL', '')
+    if url:
+        try:
+            parsed = urllib.parse.urlparse(url)
+            return (parsed.hostname or 'localhost', parsed.port or 5433)
+        except Exception:
+            pass
+    return ('localhost', 5433)
+
+
+def _local_test_container_running():
+    """Return True only when the named local dev container is confirmed running."""
+    result = subprocess.run(
+        ['docker', 'inspect', '--format', '{{.State.Running}}', 'meutch-test-db'],
+        capture_output=True, text=True, check=False
+    )
+    return result.stdout.strip() == 'true'
+
 
 def ensure_test_database():
     """Ensure the test database is running."""
@@ -45,9 +67,17 @@ def ensure_test_database():
 
         subprocess.run(create_cmd, check=True, capture_output=True, text=True)
 
-    # Check if the test database is already running
-    if is_port_open('localhost', 5433):
-        ensure_database_exists('meutch_test')
+    db_host, db_port = _get_test_db_host_port()
+
+    # Check if the test database server is already reachable.
+    if is_port_open(db_host, db_port):
+        # Only use docker exec when the local dev container is the one serving
+        # the test database.  In CI the postgres service creates meutch_test
+        # automatically (via POSTGRES_DB in the workflow), so docker exec is
+        # unnecessary and — when the runner is memory-constrained — can be
+        # OOM-killed (exit 137).
+        if _local_test_container_running():
+            ensure_database_exists('meutch_test')
         return
     
     print("🚀 Starting test database...")

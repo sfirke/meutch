@@ -101,6 +101,19 @@ class TestAdminUserList:
         response = client.get('/admin/?page=2')
         assert response.status_code == 200
 
+    def test_dashboard_shows_digest_frequency(self, client, db_session):
+        """Test dashboard displays digest frequency badges."""
+        admin = UserFactory(is_admin=True)
+        user = UserFactory(digest_frequency='daily')
+        db_session.commit()
+
+        login_user(client, admin.email)
+
+        response = client.get('/admin/')
+        assert response.status_code == 200
+        assert user.email.encode() in response.data
+        assert b'Daily' in response.data
+
 
 class TestPromoteUser:
     """Tests for promoting users to admin"""
@@ -268,6 +281,55 @@ class TestDeleteUser:
         # User should not be deleted
         db_session.refresh(target)
         assert target.is_deleted is False
+
+
+class TestAdminDigestFrequency:
+    """Tests for admin digest frequency updates."""
+
+    def test_admin_can_update_user_digest_frequency(self, client, db_session):
+        """Test admin can change digest frequency for a user."""
+        admin = UserFactory(is_admin=True)
+        user = UserFactory(digest_frequency='weekly')
+        db_session.commit()
+
+        login_user(client, admin.email)
+
+        response = client.post(
+            f'/admin/users/{user.id}/digest-frequency',
+            data={'digest_frequency': 'none'},
+            follow_redirects=True
+        )
+        assert response.status_code == 200
+        assert b'Digest frequency updated' in response.data
+
+        db_session.refresh(user)
+        assert user.digest_frequency == 'none'
+
+        action = AdminAction.query.filter_by(
+            action_type='set_digest_frequency',
+            target_user_id=user.id,
+            admin_user_id=admin.id
+        ).first()
+        assert action is not None
+
+    def test_admin_digest_frequency_rejects_invalid_value(self, client, db_session):
+        """Test admin digest frequency route rejects invalid values."""
+        admin = UserFactory(is_admin=True)
+        user = UserFactory(digest_frequency='weekly')
+        db_session.commit()
+
+        login_user(client, admin.email)
+
+        response = client.post(
+            f'/admin/users/{user.id}/digest-frequency',
+            data={'digest_frequency': 'monthly'},
+            follow_redirects=True
+        )
+        assert response.status_code == 200
+        assert b'Invalid digest frequency' in response.data
+
+        db_session.refresh(user)
+        assert user.digest_frequency == 'weekly'
 
 
 class TestAdminNavbarLink:

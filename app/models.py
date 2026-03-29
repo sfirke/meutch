@@ -23,6 +23,15 @@ item_tags = db.Table('item_tags',
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
+    DIGEST_FREQUENCY_NONE = 'none'
+    DIGEST_FREQUENCY_DAILY = 'daily'
+    DIGEST_FREQUENCY_WEEKLY = 'weekly'
+    DIGEST_FREQUENCY_CHOICES = [
+        DIGEST_FREQUENCY_NONE,
+        DIGEST_FREQUENCY_DAILY,
+        DIGEST_FREQUENCY_WEEKLY,
+    ]
+
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
@@ -47,6 +56,15 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     is_public_showcase = db.Column(db.Boolean, default=False, nullable=False)
     vacation_mode = db.Column(db.Boolean, default=False, nullable=False)
+    digest_frequency = db.Column(db.String(20), default=DIGEST_FREQUENCY_WEEKLY, nullable=False)
+    digest_radius_miles = db.Column(db.Integer, default=10, nullable=False)
+    digest_include_giveaways = db.Column(db.Boolean, default=True, nullable=False)
+    digest_include_requests = db.Column(db.Boolean, default=True, nullable=False)
+    digest_include_circle_joins = db.Column(db.Boolean, default=True, nullable=False)
+    digest_include_loans = db.Column(db.Boolean, default=True, nullable=False)
+    digest_giveaways_include_public = db.Column(db.Boolean, default=True, nullable=False)
+    digest_requests_include_public = db.Column(db.Boolean, default=True, nullable=False)
+    digest_last_sent_at = db.Column(db.DateTime, nullable=True)
     
     @property
     def profile_image(self):
@@ -406,8 +424,7 @@ class Circle(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.Text, nullable=True)
-    visibility = db.Column(db.String(20), default='public', nullable=False)  # public, private, unlisted
-    requires_approval = db.Column(db.Boolean, default=False)
+    circle_type = db.Column(db.String(20), default='open', nullable=False)  # open, closed, secret
     created_at = db.Column(db.DateTime, default=func.now())
     image_url = db.Column(db.String(500), nullable=True)
     latitude = db.Column(db.Float, nullable=True)
@@ -441,6 +458,10 @@ class Circle(db.Model):
         
         from app.utils.geocoding import calculate_distance
         return calculate_distance(self.latitude, self.longitude, user.latitude, user.longitude)
+
+    @property
+    def requires_join_approval(self):
+        return self.circle_type in ['closed', 'secret']
     
 class Category(db.Model):
     __tablename__ = 'category'
@@ -676,7 +697,7 @@ class ItemRequest(db.Model):
     description = db.Column(db.Text, nullable=True)
     expires_at = db.Column(db.DateTime, nullable=False)
     seeking = db.Column(db.String(20), nullable=False, default='either')  # 'loan', 'giveaway', 'either'
-    visibility = db.Column(db.String(20), nullable=False, default='circles')  # 'circles', 'public'
+    visibility = db.Column(db.String(20), nullable=False, default='public')  # 'circles', 'public'
     status = db.Column(db.String(20), nullable=False, default='open')  # 'open', 'fulfilled', 'deleted'
     fulfilled_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=func.now())

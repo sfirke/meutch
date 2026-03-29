@@ -42,6 +42,18 @@ MAILGUN_API_KEY=<your-mailgun-api-key>
 MAILGUN_DOMAIN=<your-mailgun-domain>
 ```
 
+### Optional: Digest Scheduler Timezone
+
+Digest cadence boundaries are evaluated in one app timezone. The scheduler now prefers `TZ` (same timezone setting used by the server/runtime), then falls back to `DIGEST_TIMEZONE`, then UTC.
+
+```bash
+# Preferred: server/runtime timezone
+TZ=America/New_York
+
+# Backward-compatible fallback (used when TZ is missing/invalid)
+DIGEST_TIMEZONE=America/New_York
+```
+
 ### Optional: Email Allowlist (Staging/Testing)
 
 To prevent staging environments from sending emails to real users, configure an allowlist:
@@ -55,12 +67,24 @@ When `EMAIL_ALLOWLIST` is set, only listed addresses will receive emails. All ot
 
 **Important:** Leave `EMAIL_ALLOWLIST` unset or empty in production to send emails to all users.
 
-## Loan Reminder System
+## Loan Reminder + Digest Job
 
-Meutch includes an automated system to send email reminders for loans:
+Meutch includes one daily scheduled CLI job (`flask check-loan-reminders`) that now processes:
+
+1. Loan reminder emails
+2. Digest emails
+
+Loan reminder behavior:
 - **3-day reminder**: Sent when a loan is 3 days from due
 - **Due date reminder**: Sent to borrower and owner on the due date
 - **Overdue reminders**: Sent on days 1, 3, 7, and 14 after the due date
+
+Digest cadence behavior:
+- **daily** users: evaluated every day (including Sunday)
+- **weekly** users: evaluated on Sunday only
+- **none** users: skipped
+- **Idempotency**: `digest_last_sent_at` is checked against cadence period boundary in resolved scheduler timezone (`TZ` first, then `DIGEST_TIMEZONE`, then UTC) and updated only after successful send
+- **Fault isolation**: one user send failure does not abort the rest of the run
 
 
 ### Running Manually
@@ -71,7 +95,7 @@ To test or manually trigger the reminder system:
 flask check-loan-reminders
 ```
 
-This processes all approved loans and sends appropriate reminders based on due dates.
+This runs loan reminders and digest sends in the same execution flow.
 
 ### Automated Scheduling
 
@@ -81,7 +105,7 @@ Configure a scheduled job in your app spec:
 
 ```yaml
 jobs:
-  - name: loan-reminders
+  - name: loan-reminders-and-digests
     kind: SCHEDULED
     run_command: flask check-loan-reminders
     schedule: "0 9 * * *"  # Daily at 9 AM
@@ -96,6 +120,10 @@ jobs:
       - key: MAILGUN_DOMAIN
         scope: RUN_TIME
       - key: SERVER_NAME
+        scope: RUN_TIME
+      - key: TZ
+        scope: RUN_TIME
+      - key: DIGEST_TIMEZONE
         scope: RUN_TIME
 ```
 

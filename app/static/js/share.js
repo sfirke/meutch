@@ -1,5 +1,48 @@
 // Shared utility functions for sharing links via Web Share API or clipboard fallback
 
+function generateAndCopyShareLink(button) {
+    const formId = button.dataset.formId;
+    const itemId = button.dataset.itemId;
+    const form = document.getElementById(formId);
+    if (!form) return;
+
+    const formData = new FormData(form);
+    const originalHTML = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating…';
+
+    fetch(form.action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData,
+    })
+    .then(function(r) {
+        if (!r.ok) throw new Error('Request failed');
+        return r.json();
+    })
+    .then(function(data) {
+        const url = data.url;
+
+        const section = document.getElementById('share-link-section-' + itemId);
+        const linkInput = document.getElementById('item-share-link-' + itemId);
+        const shareBtn = section ? section.querySelector('.share-btn') : null;
+
+        if (linkInput) linkInput.value = url;
+        if (shareBtn) shareBtn.setAttribute('data-share-url', url);
+        if (section) section.classList.remove('d-none');
+
+        button.disabled = false;
+        button.innerHTML = originalHTML;
+        copyToClipboardFallback(url, button);
+    })
+    .catch(function() {
+        // Fall back to full-page form submit on any error
+        button.disabled = false;
+        button.innerHTML = originalHTML;
+        form.submit();
+    });
+}
+
 function shareLink(button) {
     if (!button) {
         return;
@@ -47,9 +90,9 @@ function showCopiedState(button) {
         return;
     }
 
-    var originalHTML = button.innerHTML;
-    var hadOutlinePrimary = button.classList.contains('btn-outline-primary');
-    var hadOutlineSecondary = button.classList.contains('btn-outline-secondary');
+    const originalHTML = button.innerHTML;
+    const hadOutlinePrimary = button.classList.contains('btn-outline-primary');
+    const hadOutlineSecondary = button.classList.contains('btn-outline-secondary');
 
     button.innerHTML = '<i class="fas fa-check me-1"></i>Link Copied!';
     button.classList.remove('btn-outline-primary', 'btn-outline-secondary');
@@ -87,7 +130,7 @@ function copyToClipboardFallback(url, button) {
 }
 
 function copyWithExecCommand(url, button) {
-    var tempTextarea = document.createElement('textarea');
+    const tempTextarea = document.createElement('textarea');
     tempTextarea.value = url;
     tempTextarea.setAttribute('readonly', '');
     tempTextarea.style.position = 'fixed';
@@ -100,7 +143,7 @@ function copyWithExecCommand(url, button) {
     tempTextarea.select();
     tempTextarea.setSelectionRange(0, tempTextarea.value.length);
 
-    var copied = false;
+    let copied = false;
     try {
         copied = document.execCommand('copy');
     } catch (error) {

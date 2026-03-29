@@ -196,13 +196,13 @@ class TestUnreadMessagesCount:
             # Both counts should be identical
             assert context_count == conversation_count == 2
 
-    def test_inject_unread_messages_count_includes_pending_circle_requests_for_admin(self, app):
-        """Admins should see pending circle join requests counted."""
+    def test_inject_unread_messages_count_excludes_pending_circle_requests_for_admin(self, app):
+        """Pending circle join requests should not contribute to unread message count."""
         with app.app_context():
             admin = UserFactory()
             requester1 = UserFactory()
             requester2 = UserFactory()
-            circle = CircleFactory(requires_approval=True)
+            circle = CircleFactory(circle_type='closed')
 
             # Make admin an admin member of the circle
             db.session.execute(
@@ -221,14 +221,14 @@ class TestUnreadMessagesCount:
 
             with patch('app.context_processors.current_user', admin):
                 result = inject_unread_messages_count()
-                assert result == {'unread_messages_count': 2}
+                assert result == {'unread_messages_count': 0}
 
     def test_inject_unread_messages_count_excludes_circle_requests_for_non_admin(self, app):
         """Non-admin members should not see pending join requests counted."""
         with app.app_context():
             member = UserFactory()
             requester = UserFactory()
-            circle = CircleFactory(requires_approval=True)
+            circle = CircleFactory(circle_type='closed')
 
             # Add as non-admin member
             db.session.execute(
@@ -248,7 +248,7 @@ class TestUnreadMessagesCount:
         """Users with no admin circle membership should not have pending join count."""
         with app.app_context():
             user = UserFactory()
-            circle = CircleFactory(requires_approval=True)
+            circle = CircleFactory(circle_type='closed')
             CircleJoinRequestFactory(circle=circle, user=UserFactory(), status='pending')
 
             with patch('app.context_processors.current_user', user):

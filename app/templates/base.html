@@ -35,7 +35,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ static_url_for('css/style.css') }}">
 </head>
-<body>
+<body {% block body_attrs %}{% endblock %}>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm fixed-top">
         <div class="container">
@@ -43,6 +43,12 @@
                 <img src="{{ url_for('static', filename='img/logo_m.png') }}" alt="Meutch Logo" class="navbar-logo me-2" width="36" height="36">
                 <span class="fw-bold">Meutch</span>
             </a>
+
+            {% if not current_user.is_authenticated %}
+            <a class="nav-link navbar-mobile-login d-flex d-lg-none align-items-center me-1 px-2" href="{{ url_for('auth.login') }}">
+                <i class="fas fa-sign-in-alt me-1"></i><span class="small fw-semibold">Login</span>
+            </a>
+            {% endif %}
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -52,28 +58,17 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.index') }}">
-                            <i class="fas fa-home me-1"></i>Home
+                            {% if current_user.is_authenticated %}
+                                <i class="fas fa-home me-1"></i>Home
+                            {% else %}
+                                <i class="fas fa-home me-1"></i>Home
+                            {% endif %}
                         </a>
                     </li>
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.search') }}">
-                                <i class="fas fa-search me-1"></i>Search
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.giveaways') }}">
-                                <i class="fas fa-gift me-1"></i>Giveaways
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('requests.feed') }}">
-                                <i class="fas fa-hand-holding-heart me-1"></i>Requests
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.list_item') }}">
-                                <i class="fas fa-plus me-1"></i>List Item
+                            <a class="nav-link" href="{{ url_for('main.find') }}">
+                                <i class="fas fa-search me-1"></i>Find
                             </a>
                         </li>
                     {% endif %}
@@ -94,20 +89,24 @@
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link position-relative" href="{{ url_for('main.messages') }}">
-                                <i class="fas fa-envelope me-1"></i>Messages
+                            <a class="nav-link d-flex align-items-center gap-2" href="{{ url_for('main.messages') }}">
+                                <span class="d-flex align-items-center">
+                                    <i class="fas fa-envelope me-1"></i>Messages
+                                </span>
                                 {% if unread_messages_count > 0 %}
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    <span class="badge rounded-pill bg-danger">
                                         {{ unread_messages_count }}
                                     </span>
                                 {% endif %}
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link position-relative" href="{{ url_for('circles.manage_circles') }}">
-                                <i class="fas fa-users me-1"></i>Circles
+                            <a class="nav-link d-flex align-items-center gap-2" href="{{ url_for('circles.manage_circles') }}">
+                                <span class="d-flex align-items-center">
+                                    <i class="fas fa-users me-1"></i>Circles
+                                </span>
                                 {% if total_pending > 0 %}
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
+                                    <span class="badge rounded-pill bg-warning text-dark">
                                         {{ total_pending }}
                                     </span>
                                 {% endif %}
@@ -139,7 +138,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="btn btn-primary ms-2" href="{{ url_for('auth.register') }}">
+                            <a class="nav-link nav-register" href="{{ url_for('auth.register') }}">
                                 <i class="fas fa-user-plus me-1"></i>Register
                             </a>
                         </li>
@@ -184,10 +183,12 @@
         {% endwith %}
 
         <!-- Page Content -->
+        {% block page_content %}
         <div class="container">
             {% block content %}
             {% endblock %}
         </div>
+        {% endblock %}
     </main>
 
     <!-- Footer -->

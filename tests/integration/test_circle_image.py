@@ -29,7 +29,7 @@ def test_create_circle_with_image(mock_upload, client, app):
         response = client.post(url_for('circles.create_circle'), data={
             'name': 'Circle With Image',
             'description': 'A circle with an image',
-            'requires_approval': False,
+            'circle_type': 'open',
             'image': image_data
         }, content_type='multipart/form-data', follow_redirects=True)
         assert response.status_code == 200
@@ -48,7 +48,7 @@ def test_create_circle_with_invalid_image(mock_upload, client, app):
         response = client.post(url_for('circles.create_circle'), data={
             'name': 'Bad Image Circle',
             'description': 'Should fail',
-            'requires_approval': False,
+            'circle_type': 'open',
             'image': bad_image
         }, content_type='multipart/form-data', follow_redirects=True)
         assert response.status_code == 200
@@ -68,7 +68,7 @@ def test_edit_circle_image(mock_upload, mock_valid, client, app):
         response = client.post(url_for('circles.edit_circle', circle_id=circle.id), data={
             'name': circle.name,
             'description': circle.description,
-            'requires_approval': circle.requires_approval,
+            'circle_type': circle.circle_type,
             'image': image_data
         }, content_type='multipart/form-data', follow_redirects=True)
         assert response.status_code == 200
@@ -85,7 +85,7 @@ def test_remove_circle_image(mock_delete, client, app):
         response = client.post(url_for('circles.edit_circle', circle_id=circle.id), data={
             'name': circle.name,
             'description': circle.description,
-            'requires_approval': circle.requires_approval,
+            'circle_type': circle.circle_type,
             'delete_image': True
         }, follow_redirects=True)
         assert response.status_code == 200

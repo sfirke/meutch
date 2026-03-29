@@ -2,19 +2,20 @@
 import pytest
 from app import db
 from app.models import Item, User, Category, Circle
-from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory
+from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory, LoanRequestFactory, UserWebLinkFactory, ItemRequestFactory, CircleJoinRequestFactory
 from conftest import login_user
 from unittest.mock import patch
 import io
+from app.utils.digest_tokens import generate_digest_manage_token
 
 class TestMainRoutes:
     """Test main application routes."""
     
     def test_index_page(self, client, app):
-        """Test index page loads correctly."""
+        """Test index page loads correctly for anonymous users (landing page)."""
         response = client.get('/')
         assert response.status_code == 200
-        assert b'Welcome to Meutch' in response.data
+        assert b'Borrowing from a neighbor' in response.data
     
     def test_index_with_authenticated_user(self, client, app, auth_user):
         """Test index page with authenticated user."""
@@ -23,36 +24,221 @@ class TestMainRoutes:
             login_user(client, user.email)
             response = client.get('/')
             assert response.status_code == 200
-            assert b'Your Circles' in response.data
-    
-    def test_index_anonymous_user_limited_items(self, client, app):
-        """Test that anonymous users see limited items with 'more' message."""
+            assert b'Community Activity' in response.data
+            assert b'Create Request' in response.data
+            assert b'List Item' in response.data
+
+    def test_index_with_authenticated_user_renders_feed_filter_controls(self, client, app, auth_user):
+        """Test authenticated homepage renders feed filter controls with smart defaults."""
         with app.app_context():
-            # Create more than 12 items to test the limit
-            category = CategoryFactory()
-            # User must be marked as public showcase for items to be visible to anonymous users
-            user = UserFactory(is_public_showcase=True)
+            user = auth_user()
+            user.latitude = 0.0
+            user.longitude = 0.0
             db.session.commit()
-            
-            for i in range(15):
-                ItemFactory(owner=user, category=category, available=True)
-            
+
+            login_user(client, user.email)
             response = client.get('/')
+
             assert response.status_code == 200
-            # Should show the "more" message since we have more than 12 items
-            response_text = response.data.decode('utf-8')
-            assert 'more</strong> available items' in response_text
-            assert b'Sign Up' in response.data
+            content = response.data.decode('utf-8')
+            assert 'name="scope"' in content
+            assert 'All Activity' in content
+            assert 'My Circles' in content
+            assert 'name="distance"' in content
+            assert 'value="requests"' in content
+            assert 'value="giveaways"' in content
+            assert 'value="circle_joins"' in content
+            assert 'value="loans"' in content
+            assert 'option value="20" selected' in content
+
+    def test_home_feed_scope_circles_hides_non_shared_public_request_and_giveaway(self, client, app, auth_user):
+        """Test scope=circles hides public request and giveaway from users without a shared circle."""
+        with app.app_context():
+            viewer = auth_user()
+            shared_user = UserFactory()
+            outsider = UserFactory()
+            category = CategoryFactory()
+
+            shared_circle = CircleFactory()
+            shared_circle.members.extend([viewer, shared_user])
+
+            outsider_circle = CircleFactory()
+            outsider_circle.members.append(outsider)
+
+            ItemRequestFactory(user=shared_user, title='Shared Scope Request', visibility='public')
+            ItemRequestFactory(user=outsider, title='Outsider Scope Request', visibility='public')
+
+            ItemFactory(
+                owner=shared_user,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed',
+                name='Shared Scope Giveaway',
+            )
+            ItemFactory(
+                owner=outsider,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed',
+                name='Outsider Scope Giveaway',
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+
+            all_scope_response = client.get('/')
+            all_scope_content = all_scope_response.data.decode('utf-8')
+            assert 'Shared Scope Request' in all_scope_content
+            assert 'Outsider Scope Request' in all_scope_content
+            assert 'Shared Scope Giveaway' in all_scope_content
+            assert 'Outsider Scope Giveaway' in all_scope_content
+
+            circles_scope_response = client.get('/?scope=circles')
+            circles_scope_content = circles_scope_response.data.decode('utf-8')
+            assert 'Shared Scope Request' in circles_scope_content
+            assert 'Outsider Scope Request' not in circles_scope_content
+            assert 'Shared Scope Giveaway' in circles_scope_content
+            assert 'Outsider Scope Giveaway' not in circles_scope_content
+
+    def test_home_feed_distance_filter_hides_far_requests_and_giveaways(self, client, app, auth_user):
+        """Test distance filter applies to request and giveaway activity."""
+        with app.app_context():
+            viewer = auth_user()
+            viewer.latitude = 40.7128  # NYC
+            viewer.longitude = -74.0060
+
+            near_user = UserFactory(latitude=40.7400, longitude=-74.0100)  # Nearby NYC
+            far_user = UserFactory(latitude=42.3601, longitude=-71.0589)  # Boston
+            category = CategoryFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, near_user, far_user])
+
+            ItemRequestFactory(user=near_user, title='Near Distance Request', visibility='public')
+            ItemRequestFactory(user=far_user, title='Far Distance Request', visibility='public')
+
+            ItemFactory(
+                owner=near_user,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed',
+                name='Near Distance Giveaway',
+            )
+            ItemFactory(
+                owner=far_user,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed',
+                name='Far Distance Giveaway',
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get('/?distance=5')
+            content = response.data.decode('utf-8')
+
+            assert 'Near Distance Request' in content
+            assert 'Far Distance Request' not in content
+            assert 'Near Distance Giveaway' in content
+            assert 'Far Distance Giveaway' not in content
+
+    def test_home_feed_type_checkboxes_hide_unchecked_event_types(self, client, app, auth_user):
+        """Test type checkbox filters hide unchecked activity event types."""
+        with app.app_context():
+            viewer = auth_user()
+            owner = UserFactory()
+            borrower = UserFactory()
+            joiner = UserFactory(first_name='Joiner', last_name='Person')
+            category = CategoryFactory()
+
+            circle = CircleFactory()
+            circle.members.extend([viewer, owner, borrower])
+
+            ItemRequestFactory(user=owner, title='Type Filter Request', visibility='public')
+            ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed',
+                name='Type Filter Giveaway',
+            )
+
+            lent_item = ItemFactory(owner=owner, category=category, name='Type Filter Lent Item')
+            LoanRequestFactory(item=lent_item, borrower=borrower, status='approved')
+
+            join_event = CircleJoinRequestFactory(circle=circle, user=joiner, status='approved')
+            db.session.add(join_event)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get('/?types_present=1&types=requests&types=giveaways')
+            content = response.data.decode('utf-8')
+
+            assert 'Type Filter Request' in content
+            assert 'Type Filter Giveaway' in content
+            assert 'Type Filter Lent Item' not in content
+            assert f'{joiner.full_name} joined {circle.name}' not in content
+
+    def test_home_feed_circle_join_links_to_specific_circle_and_hides_combined_metadata_row(self, client, app, auth_user):
+        """Circle-join feed cards should link to the joined circle and not render the combined metadata row."""
+        with app.app_context():
+            viewer = auth_user()
+            joiner = UserFactory(first_name='Circle', last_name='Joiner')
+            circle = CircleFactory(name='Neighborhood Circle')
+            circle.members.append(viewer)
+
+            join_event = CircleJoinRequestFactory(circle=circle, user=joiner, status='approved')
+            db.session.add(join_event)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get('/')
+            content = response.data.decode('utf-8')
+
+            assert response.status_code == 200
+            assert f'href="/circles/{circle.id}"' in content
+            assert 'View Circle' in content
+            assert 'View Circles' not in content
+            assert 'activity-feed-meta' not in content
+
+    def test_find_page_requires_login(self, client):
+        """Test /find requires authentication."""
+        response = client.get('/find')
+        assert response.status_code == 302
+        assert '/auth/login' in response.headers['Location']
+
+    def test_find_page_with_authenticated_user(self, client, app, auth_user):
+        """Test /find shows the search/find experience for authenticated users."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+            response = client.get('/find')
+            assert response.status_code == 200
+            assert b'Find Items' in response.data
+            assert b'Join a circle to get started' in response.data
     
-    def test_index_authenticated_user_pagination(self, client, app, auth_user):
-        """Test that authenticated users get pagination controls."""
+    def test_index_anonymous_user_sees_landing_page(self, client, app):
+        """Test that anonymous users see the landing page with CTAs."""
+        response = client.get('/')
+        assert response.status_code == 200
+        response_text = response.data.decode('utf-8')
+        assert 'Get Started' in response_text
+        assert 'How Meutch Works' in response_text
+        assert 'See It In Action' in response_text
+
+    def test_find_authenticated_user_pagination(self, client, app, auth_user):
+        """Test that authenticated users get pagination controls on /find."""
         with app.app_context():
             user = auth_user()
             other_user = UserFactory()
             category = CategoryFactory()
             
             # Create a circle and add both users to it so auth_user can see other_user's items
-            circle = Circle(name="Test Circle", description="Test", requires_approval=False)
+            circle = Circle(name="Test Circle", description="Test", circle_type='open')
             db.session.add(circle)
             circle.members.append(user)
             circle.members.append(other_user)
@@ -63,7 +249,7 @@ class TestMainRoutes:
                 ItemFactory(owner=other_user, category=category, available=True)
             
             login_user(client, user.email)
-            response = client.get('/')
+            response = client.get('/find')
             assert response.status_code == 200
             
             # Should have pagination controls since we have 15 items (> 12 per page)
@@ -72,33 +258,70 @@ class TestMainRoutes:
             assert 'Page 1 of 2' in response_text or 'page-item' in response_text  # Pagination indicators
             
             # Test that page 2 exists and works
-            page2_response = client.get('/?page=2')
+            page2_response = client.get('/find?page=2')
             assert page2_response.status_code == 200
             page2_text = page2_response.data.decode('utf-8')
             assert 'aria-label="Items pages"' in page2_text
-    
-    def test_index_anonymous_user_few_items_no_more_message(self, client, app):
-        """Test that anonymous users don't see 'more' message when items <= 12."""
+
+    def test_find_public_giveaway_visible_without_query(self, client, app, auth_user):
+        """Public giveaways from any circle member should appear on /find even without a search query."""
         with app.app_context():
-            # Create only a few items
+            user = auth_user()
+            # owner is in a separate circle from the viewer — not a shared circle
+            owner = UserFactory()
             category = CategoryFactory()
-            user = UserFactory()
-            
-            # Create a public circle and add the user to it
-            circle = Circle(name="Test Public Circle", description="Test", requires_approval=False)
-            db.session.add(circle)
-            circle.members.append(user)
+
+            # Put each user in their own circle (no shared circles)
+            user_circle = Circle(name="User Circle", description="", circle_type='open')
+            owner_circle = Circle(name="Owner Circle", description="", circle_type='open')
+            db.session.add_all([user_circle, owner_circle])
+            user_circle.members.append(user)
+            owner_circle.members.append(owner)
             db.session.commit()
-            
-            for i in range(5):
-                ItemFactory(owner=user, category=category, available=True)
-            
-            response = client.get('/')
+
+            public_giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed',
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/find')
             assert response.status_code == 200
-            # Should NOT show the "more" message since we have <= 12 items
-            response_text = response.data.decode('utf-8')
-            assert 'more</strong> available items' not in response_text
-    
+            assert public_giveaway.name.encode() in response.data
+
+    def test_find_public_giveaway_visible_with_query(self, client, app, auth_user):
+        """Public giveaways from any circle member should appear on /find with a search query."""
+        with app.app_context():
+            user = auth_user()
+            owner = UserFactory()
+            category = CategoryFactory()
+
+            user_circle = Circle(name="User Circle 2", description="", circle_type='open')
+            owner_circle = Circle(name="Owner Circle 2", description="", circle_type='open')
+            db.session.add_all([user_circle, owner_circle])
+            user_circle.members.append(user)
+            owner_circle.members.append(owner)
+            db.session.commit()
+
+            public_giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                name="UniquePublicGiveawayItem",
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='unclaimed',
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/find?q=UniquePublicGiveawayItem')
+            assert response.status_code == 200
+            assert public_giveaway.name.encode() in response.data
+
     def test_about_page(self, client):
         """Test about page loads correctly."""
         response = client.get('/about')
@@ -176,7 +399,11 @@ class TestItemRoutes:
         """Test item detail page for authenticated user."""
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
-            item = ItemFactory()
+            owner = UserFactory()
+            circle = CircleFactory()
+            circle.members.append(user)
+            circle.members.append(owner)
+            item = ItemFactory(owner=owner)
             login_user(client, user.email)
             
             response = client.get(f'/item/{item.id}')
@@ -340,12 +567,6 @@ class TestItemRoutes:
 
 class TestSearchRoutes:
     """Test search functionality."""
-    
-    def test_search_requires_login(self, client):
-        """Test search page redirects to login when not authenticated."""
-        response = client.get('/search')
-        assert response.status_code == 302
-        assert 'login' in response.location
 
 class TestTagAndCategoryBrowsing:
     """Test tag and category browsing functionality."""
@@ -591,6 +812,115 @@ class TestProfileRoutes:
             assert response.status_code == 200
             assert b'About Me' in response.data
     
+    def test_profile_has_tabs(self, client, app, auth_user):
+        """Test profile page has tab navigation."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+            response = client.get('/profile')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'my-items-tab' in content
+            assert 'my-activity-tab' in content
+            assert 'about-me-tab' in content
+            assert 'settings-tab' in content
+    
+    def test_profile_about_me_read_only_by_default(self, client, app, auth_user):
+        """Test that the About Me section shows read-only view by default."""
+        with app.app_context():
+            user = auth_user()
+            user.about_me = 'Test bio content'
+            db.session.commit()
+            
+            login_user(client, user.email)
+            response = client.get('/profile')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            # Edit button should be present
+            assert 'Edit Profile' in content
+            # Read-only view is visible (not hidden)
+            assert 'id="profile-view"' in content
+            assert 'id="profile-view" class="d-none"' not in content
+            # Edit form exists but is hidden
+            assert 'id="profile-edit"' in content
+            assert 'id="profile-edit" class="d-none"' in content
+    
+    def test_profile_edit_form_shown_on_validation_error(self, client, app, auth_user):
+        """Test that edit form is shown when form validation fails."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+            
+            # Submit invalid data (URL without platform)
+            response = client.post('/profile', data={
+                'about_me': 'Test bio',
+                'link_1_url': 'https://example.com',
+                'link_1_platform': '',
+            })
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            # About Me tab should be active when form has errors
+            assert 'about-me-tab' in content
+            # Edit view should be visible and read-only view hidden on validation errors
+            assert 'id="profile-view" class="d-none"' in content
+            assert 'id="profile-edit" class="d-none"' not in content
+
+    def test_profile_active_loans_have_clickable_user_and_item_links(self, client, app, auth_user):
+        """Test active loans tab links borrower/lender names and item thumbnail/name."""
+        with app.app_context():
+            user = auth_user()
+            lender = UserFactory()
+            borrower = UserFactory()
+            category = CategoryFactory()
+
+            # Shared circle ensures profile links are accessible
+            circle = CircleFactory()
+            circle.members.append(user)
+            circle.members.append(lender)
+            circle.members.append(borrower)
+
+            borrowed_item = ItemFactory(owner=lender, category=category, name='Borrowed Item', image_url='https://example.com/borrowed.jpg')
+            lent_item = ItemFactory(owner=user, category=category, name='Lent Item', image_url='https://example.com/lent.jpg')
+
+            LoanRequestFactory(item=borrowed_item, borrower=user, status='approved')
+            LoanRequestFactory(item=lent_item, borrower=borrower, status='approved')
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/profile?tab=my-activity')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+
+            # Borrowing section: lender profile + item links (name + thumbnail)
+            assert f'href="/user/{lender.id}"' in content
+            borrowed_item_href = f'href="/item/{borrowed_item.id}"'
+            assert content.count(borrowed_item_href) >= 2
+
+            # Lending section: borrower profile + item links (name + thumbnail)
+            assert f'href="/user/{borrower.id}"' in content
+            lent_item_href = f'href="/item/{lent_item.id}"'
+            assert content.count(lent_item_href) >= 2
+
+    def test_profile_displays_custom_other_site_name(self, client, app, auth_user):
+        """Test that custom name for 'Other' web links is shown in read-only profile view."""
+        with app.app_context():
+            user = auth_user()
+            UserWebLinkFactory(
+                user=user,
+                platform_type='other',
+                platform_name='GitHub',
+                url='https://github.com/example_user',
+                display_order=1
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/profile')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'GitHub' in content
+            assert 'https://github.com/example_user' in content
+
     def test_update_profile(self, client, app, auth_user):
         """Test updating profile."""
         with app.app_context():
@@ -607,6 +937,74 @@ class TestProfileRoutes:
             # Verify profile was updated
             updated_user = db.session.get(User, user.id)
             assert updated_user.about_me == 'Updated bio information'
+
+    def test_profile_digest_settings_load_current_values(self, client, app, auth_user):
+        """Test profile settings shows current digest values."""
+        with app.app_context():
+            user = auth_user()
+            user.digest_frequency = 'daily'
+            user.digest_radius_miles = 25
+            user.digest_include_requests = False
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/profile?tab=settings')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'Email Digest Settings' in content
+            assert 'value="daily"' in content
+            assert 'selected' in content
+            assert 'name="digest_radius_miles"' in content
+            assert 'value="25"' in content
+
+    def test_profile_digest_settings_save(self, client, app, auth_user):
+        """Test saving digest settings from profile page."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+
+            response = client.post('/profile/digest-settings', data={
+                'digest_frequency': 'daily',
+                'digest_radius_miles': '30',
+                'digest_include_giveaways': 'y',
+                'digest_include_requests': 'y',
+                'digest_include_circle_joins': 'y',
+                'digest_giveaways_include_public': 'y',
+                # intentionally omit loans + requests public so they become False
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'Digest settings updated.' in response.data
+
+            updated_user = db.session.get(User, user.id)
+            assert updated_user.digest_frequency == 'daily'
+            assert updated_user.digest_radius_miles == 30
+            assert updated_user.digest_include_giveaways is True
+            assert updated_user.digest_include_requests is True
+            assert updated_user.digest_include_circle_joins is True
+            assert updated_user.digest_include_loans is False
+            assert updated_user.digest_giveaways_include_public is True
+            assert updated_user.digest_requests_include_public is False
+
+    def test_profile_digest_settings_opt_out_warning(self, client, app, auth_user):
+        """Test warning flash when user opts out of digest emails."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+
+            response = client.post('/profile/digest-settings', data={
+                'digest_frequency': 'none',
+                'digest_radius_miles': '10',
+                'digest_include_giveaways': 'y',
+                'digest_include_requests': 'y',
+                'digest_include_circle_joins': 'y',
+                'digest_include_loans': 'y',
+                'digest_giveaways_include_public': 'y',
+                'digest_requests_include_public': 'y',
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'You turned off digest emails' in response.data
 
 
 class TestAccountDeletion:
@@ -639,3 +1037,98 @@ class TestAccountDeletion:
             assert soft_deleted_user.deleted_at is not None
             assert "deleted_" in soft_deleted_user.email  # Email should be anonymized
             assert soft_deleted_user.email != user_email  # Email changed
+
+
+class TestDigestManageRoutes:
+    """Integration tests for anonymous digest manage links."""
+
+    def test_digest_manage_valid_token(self, client, app):
+        with app.app_context():
+            user = UserFactory(digest_frequency='weekly')
+            db.session.commit()
+
+            token = generate_digest_manage_token(user)
+            response = client.get(f'/digest/manage/{token}')
+
+            assert response.status_code == 200
+            assert b'Manage Digest Emails' in response.data
+            assert b'One-click unsubscribe' in response.data
+            assert b'Switch to daily' in response.data
+            assert b'Switch to weekly' not in response.data  # Already on weekly
+
+    def test_digest_manage_shows_only_alternative_frequency(self, client, app):
+        """Test that only the alternative frequency button is shown."""
+        with app.app_context():
+            user = UserFactory(digest_frequency='daily')
+            db.session.commit()
+
+            token = generate_digest_manage_token(user)
+            response = client.get(f'/digest/manage/{token}')
+
+            assert response.status_code == 200
+            assert b'Switch to weekly' in response.data
+            assert b'Switch to daily' not in response.data  # Already on daily
+
+    def test_digest_manage_invalid_token(self, client):
+        response = client.get('/digest/manage/not-a-valid-token')
+        assert response.status_code == 400
+        assert b'invalid' in response.data.lower()
+
+    def test_digest_manage_expired_token(self, client):
+        with patch('app.main.routes.verify_digest_manage_token', return_value=(None, 'expired')):
+            response = client.get('/digest/manage/expired-token')
+
+        assert response.status_code == 410
+        assert b'expired' in response.data.lower()
+
+    def test_digest_unsubscribe_sets_frequency_none(self, client, app):
+        with app.app_context():
+            user = UserFactory(digest_frequency='daily')
+            db.session.commit()
+            token = generate_digest_manage_token(user)
+
+            response = client.get(f'/digest/unsubscribe/{token}')
+            assert response.status_code == 200
+            assert b'unsubscribed' in response.data.lower()
+
+            updated_user = db.session.get(User, user.id)
+            assert updated_user.digest_frequency == User.DIGEST_FREQUENCY_NONE
+
+    def test_digest_set_frequency_updates_to_daily(self, client, app):
+        with app.app_context():
+            user = UserFactory(digest_frequency='weekly')
+            db.session.commit()
+            token = generate_digest_manage_token(user)
+
+            response = client.get(f'/digest/frequency/{token}/daily')
+            assert response.status_code == 200
+            assert b'Digest frequency updated to' in response.data
+
+            updated_user = db.session.get(User, user.id)
+            assert updated_user.digest_frequency == User.DIGEST_FREQUENCY_DAILY
+
+    def test_digest_set_frequency_updates_to_weekly(self, client, app):
+        with app.app_context():
+            user = UserFactory(digest_frequency='daily')
+            db.session.commit()
+            token = generate_digest_manage_token(user)
+
+            response = client.get(f'/digest/frequency/{token}/weekly')
+            assert response.status_code == 200
+            assert b'Digest frequency updated to' in response.data
+
+            updated_user = db.session.get(User, user.id)
+            assert updated_user.digest_frequency == User.DIGEST_FREQUENCY_WEEKLY
+
+    def test_digest_set_frequency_rejects_invalid_frequency(self, client, app):
+        with app.app_context():
+            user = UserFactory(digest_frequency='weekly')
+            db.session.commit()
+            token = generate_digest_manage_token(user)
+
+            response = client.get(f'/digest/frequency/{token}/none')
+            assert response.status_code == 400
+            assert b'Invalid digest frequency option' in response.data
+
+            updated_user = db.session.get(User, user.id)
+            assert updated_user.digest_frequency == User.DIGEST_FREQUENCY_WEEKLY

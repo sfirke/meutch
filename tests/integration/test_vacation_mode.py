@@ -69,8 +69,8 @@ class TestVacationModeToggle:
 class TestVacationModeItemVisibility:
     """Test that vacation mode hides items from other users."""
     
-    def test_homepage_hides_items_from_vacation_mode_user(self, client):
-        """Test that items from users in vacation mode are hidden on the homepage."""
+    def test_find_page_hides_items_from_vacation_mode_user(self, client):
+        """Test that items from users in vacation mode are hidden on the find page."""
         category = CategoryFactory()
         user1 = UserFactory()  # Viewer
         user2 = UserFactory(vacation_mode=False)  # Normal user
@@ -87,9 +87,9 @@ class TestVacationModeItemVisibility:
         item_hidden = ItemFactory(owner=user3, category=category, name="Hidden Item XYZ789")
         db.session.commit()
         
-        # Login as user1 and visit homepage
+        # Login as user1 and visit find page
         login_user(client, user1.email)
-        response = client.get(url_for('main.index'))
+        response = client.get(url_for('main.find', q='Item'))
         
         assert response.status_code == 200
         # Visible item should be shown
@@ -97,8 +97,8 @@ class TestVacationModeItemVisibility:
         # Hidden item should NOT be shown
         assert b'Hidden Item XYZ789' not in response.data
     
-    def test_giveaways_feed_hides_items_from_vacation_mode_user(self, client):
-        """Test that giveaway items from users in vacation mode are hidden."""
+    def test_homepage_feed_hides_giveaways_from_vacation_mode_user(self, client):
+        """Test that giveaway events from users in vacation mode are hidden on homepage feed."""
         category = CategoryFactory()
         user1 = UserFactory()  # Viewer
         user2 = UserFactory(vacation_mode=False)  # Normal user
@@ -121,9 +121,9 @@ class TestVacationModeItemVisibility:
         )
         db.session.commit()
         
-        # Login as user1 and visit giveaways page
+        # Login as user1 and visit homepage feed
         login_user(client, user1.email)
-        response = client.get(url_for('main.giveaways'))
+        response = client.get(url_for('main.index'))
         
         assert response.status_code == 200
         # Visible giveaway should be shown
@@ -151,7 +151,7 @@ class TestVacationModeItemVisibility:
         
         # Login as user1 and search for "Hammer"
         login_user(client, user1.email)
-        response = client.get(url_for('main.search', q='Hammer'))
+        response = client.get(url_for('main.find', q='Hammer'))
         
         assert response.status_code == 200
         # Visible item should be shown
@@ -248,33 +248,3 @@ class TestVacationModeOwnItemsStillVisible:
         assert response.status_code == 200
         # User should see their own item
         assert b'My Own Item' in response.data
-
-
-@pytest.mark.usefixtures('app')
-class TestVacationModeAnonymousUsers:
-    """Test that vacation mode affects items shown to anonymous users."""
-    
-    def test_anonymous_homepage_hides_public_showcase_items_from_vacation_mode_user(self, client):
-        """Test that public showcase items from vacation mode users are hidden."""
-        category = CategoryFactory()
-        
-        # Create a public showcase user in vacation mode
-        showcase_user_vacation = UserFactory(is_public_showcase=True, vacation_mode=True)
-        # Create a public showcase user not in vacation mode
-        showcase_user_normal = UserFactory(is_public_showcase=True, vacation_mode=False)
-        db.session.commit()
-        
-        # Create items
-        item_hidden = ItemFactory(owner=showcase_user_vacation, category=category, name="Hidden Showcase Item")
-        item_visible = ItemFactory(owner=showcase_user_normal, category=category, name="Visible Showcase Item")
-        db.session.commit()
-        
-        # Visit homepage as anonymous user
-        response = client.get(url_for('main.index'))
-        
-        assert response.status_code == 200
-        # Visible item should be shown
-        # Could be subject to random selection but here there are just two items so should always show
-        # Noting this in case someday it starts flaky failing (e.g. because we add more showcase items)
-        assert b'Visible Showcase Item' in response.data
-        assert b'Hidden Showcase Item' not in response.data

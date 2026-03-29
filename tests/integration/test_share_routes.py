@@ -1,11 +1,13 @@
 """Integration tests for share link routes."""
-from datetime import datetime, UTC, timedelta
+from datetime import date, datetime, UTC, timedelta
+from unittest.mock import patch
 
 import pytest
 from app import db
-from tests.factories import UserFactory, ItemFactory, CircleFactory, ItemRequestFactory
+from app.utils.item_share import generate_item_share_token
+from tests.factories import UserFactory, ItemFactory, CircleFactory, ItemRequestFactory, LoanRequestFactory
 from conftest import login_user
-
+import uuid
 
 class TestGiveawaySharePreview:
     """Tests for the giveaway share preview page."""
@@ -159,22 +161,171 @@ class TestGiveawaySharePreview:
 
     def test_nonexistent_giveaway_returns_404(self, client, app):
         """Test that a non-existent item ID returns 404."""
-        import uuid
         response = client.get(f'/share/giveaway/{uuid.uuid4()}')
         assert response.status_code == 404
 
-    def test_claimed_giveaway_still_accessible(self, client, app):
-        """Test that a claimed giveaway preview is still accessible."""
+    def test_claimed_giveaway_preview_unavailable_to_anonymous_user(self, client, app):
+        """Claimed giveaway preview should be unavailable to anonymous users."""
         with app.app_context():
-            user = UserFactory()
+            owner = UserFactory()
+            recipient = UserFactory()
             item = ItemFactory(
-                owner=user, is_giveaway=True,
-                giveaway_visibility='public', claim_status='claimed'
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='claimed',
+                claimed_at=datetime.now(UTC) - timedelta(days=10)
             )
             db.session.commit()
-            
+
             response = client.get(f'/share/giveaway/{item.id}')
             assert response.status_code == 200
+            assert b'This item has found its new home.' in response.data
+            assert item.name.encode() not in response.data
+
+    def test_claimed_giveaway_preview_unavailable_to_unrelated_authenticated_user(self, client, app, auth_user):
+        """Claimed giveaway preview should be unavailable to unrelated logged-in users."""
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            unrelated = auth_user()
+            item = ItemFactory(
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='claimed',
+                claimed_at=datetime.now(UTC) - timedelta(days=10)
+            )
+            db.session.commit()
+
+            login_user(client, email=unrelated.email)
+            response = client.get(f'/share/giveaway/{item.id}')
+            assert response.status_code == 200
+            assert b'This item has found its new home.' in response.data
+            assert item.name.encode() not in response.data
+
+    def test_claimed_giveaway_preview_owner_and_recipient_can_reach_within_90_days(self, client, app):
+        """Owner and recipient should still be redirected to details within 90 days."""
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='claimed',
+                claimed_at=datetime.now(UTC) - timedelta(days=10)
+            )
+            db.session.commit()
+
+            login_user(client, email=owner.email)
+            owner_response = client.get(f'/share/giveaway/{item.id}')
+            assert owner_response.status_code == 302
+            assert f'/item/{item.id}'.encode() in owner_response.headers['Location'].encode()
+
+            client.get('/logout', follow_redirects=True)
+            login_user(client, email=recipient.email)
+            recipient_response = client.get(f'/share/giveaway/{item.id}')
+            assert recipient_response.status_code == 302
+            assert f'/item/{item.id}'.encode() in recipient_response.headers['Location'].encode()
+
+    def test_claimed_giveaway_preview_unavailable_after_90_days_for_everyone(self, client, app):
+        """Claimed giveaway preview should be unavailable after 90 days for all users."""
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='claimed',
+                claimed_at=datetime.now(UTC) - timedelta(days=91)
+            )
+            db.session.commit()
+
+            anonymous_response = client.get(f'/share/giveaway/{item.id}')
+            assert anonymous_response.status_code == 200
+            assert b'This item has found its new home.' in anonymous_response.data
+
+            login_user(client, email=owner.email)
+            owner_response = client.get(f'/share/giveaway/{item.id}')
+            assert owner_response.status_code == 200
+            assert b'This item has found its new home.' in owner_response.data
+
+            client.get('/logout', follow_redirects=True)
+            login_user(client, email=recipient.email)
+            recipient_response = client.get(f'/share/giveaway/{item.id}')
+            assert recipient_response.status_code == 200
+            assert b'This item has found its new home.' in recipient_response.data
+
+    def test_pending_pickup_giveaway_preview_unavailable_to_anonymous_user(self, client, app):
+        """Pending pickup giveaway preview should be unavailable to anonymous users."""
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='pending_pickup'
+            )
+            db.session.commit()
+
+            response = client.get(f'/share/giveaway/{item.id}')
+            assert response.status_code == 200
+            assert b'This item has found its new home.' in response.data
+            assert item.name.encode() not in response.data
+
+    def test_pending_pickup_giveaway_preview_unavailable_to_unrelated_authenticated_user(self, client, app, auth_user):
+        """Pending pickup giveaway preview should be unavailable to unrelated users."""
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            unrelated = auth_user()
+            item = ItemFactory(
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='pending_pickup'
+            )
+            db.session.commit()
+
+            login_user(client, email=unrelated.email)
+            response = client.get(f'/share/giveaway/{item.id}')
+            assert response.status_code == 200
+            assert b'This item has found its new home.' in response.data
+            assert item.name.encode() not in response.data
+
+    def test_pending_pickup_giveaway_preview_owner_and_recipient_can_reach_when_authenticated(self, client, app):
+        """Pending pickup owner and recipient should still be redirected to item details."""
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                claimed_by=recipient,
+                is_giveaway=True,
+                giveaway_visibility='public',
+                claim_status='pending_pickup'
+            )
+            db.session.commit()
+
+            login_user(client, email=owner.email)
+            owner_response = client.get(f'/share/giveaway/{item.id}')
+            assert owner_response.status_code == 302
+            assert f'/item/{item.id}'.encode() in owner_response.headers['Location'].encode()
+
+            client.get('/logout', follow_redirects=True)
+            login_user(client, email=recipient.email)
+            recipient_response = client.get(f'/share/giveaway/{item.id}')
+            assert recipient_response.status_code == 302
+            assert f'/item/{item.id}'.encode() in recipient_response.headers['Location'].encode()
 
 
 class TestRequestSharePreview:
@@ -299,7 +450,6 @@ class TestRequestSharePreview:
 
     def test_nonexistent_request_returns_404(self, client, app):
         """Test that a non-existent request ID returns 404."""
-        import uuid
         response = client.get(f'/share/request/{uuid.uuid4()}')
         assert response.status_code == 404
 
@@ -383,7 +533,7 @@ class TestCircleSharePreview:
         """Test that a public circle preview loads for unauthenticated users."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='public', name='Board Gamers Club'
+                circle_type='open', name='Board Gamers Club'
             )
             db.session.commit()
             
@@ -395,7 +545,7 @@ class TestCircleSharePreview:
         """Test that a private circle preview loads for unauthenticated users."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='private', name='Work Friends'
+                circle_type='closed', name='Work Friends'
             )
             db.session.commit()
             
@@ -403,19 +553,19 @@ class TestCircleSharePreview:
             assert response.status_code == 200
             assert b'Work Friends' in response.data
 
-    def test_unlisted_circle_returns_404(self, client, app):
-        """Test that an unlisted circle returns 404."""
+    def test_secret_circle_returns_404(self, client, app):
+        """Test that a secret circle returns 404."""
         with app.app_context():
-            circle = CircleFactory(visibility='unlisted')
+            circle = CircleFactory(circle_type='secret')
             db.session.commit()
             
             response = client.get(f'/share/circle/{circle.id}')
             assert response.status_code == 404
 
-    def test_public_circle_shows_member_avatars(self, client, app):
-        """Test that a public circle shows member avatars."""
+    def test_open_circle_shows_member_avatars(self, client, app):
+        """Test that an open circle shows member avatars."""
         with app.app_context():
-            circle = CircleFactory(visibility='public')
+            circle = CircleFactory(circle_type='open')
             user1 = UserFactory(first_name='Member1')
             user2 = UserFactory(first_name='Member2')
             circle.members.append(user1)
@@ -427,10 +577,10 @@ class TestCircleSharePreview:
             assert b'share-member-avatar' in response.data
             assert b'2 members' in response.data
 
-    def test_private_circle_hides_member_avatars(self, client, app):
-        """Test that a private circle does NOT show member avatars."""
+    def test_closed_circle_hides_member_avatars(self, client, app):
+        """Test that a closed circle does NOT show member avatars."""
         with app.app_context():
-            circle = CircleFactory(visibility='private')
+            circle = CircleFactory(circle_type='closed')
             user1 = UserFactory()
             circle.members.append(user1)
             db.session.commit()
@@ -438,13 +588,13 @@ class TestCircleSharePreview:
             response = client.get(f'/share/circle/{circle.id}')
             assert response.status_code == 200
             assert b'share-member-avatar' not in response.data
-            assert b'private circle' in response.data.lower()
+            assert b'closed circle' in response.data.lower()
 
     def test_circle_preview_shows_description(self, client, app):
         """Test that the preview shows the circle description."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='public',
+                circle_type='open',
                 description='A circle for board game lovers'
             )
             db.session.commit()
@@ -456,7 +606,7 @@ class TestCircleSharePreview:
     def test_circle_preview_has_cta(self, client, app):
         """Test that preview has sign up and login CTAs."""
         with app.app_context():
-            circle = CircleFactory(visibility='public')
+            circle = CircleFactory(circle_type='open')
             db.session.commit()
             
             response = client.get(f'/share/circle/{circle.id}')
@@ -468,7 +618,7 @@ class TestCircleSharePreview:
         """Test that preview includes Open Graph meta tags."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='public', name='Neighbors Circle'
+                circle_type='open', name='Neighbors Circle'
             )
             db.session.commit()
             
@@ -480,7 +630,7 @@ class TestCircleSharePreview:
         """Test that preview metadata uses circle image when present."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='public',
+                circle_type='open',
                 image_url='https://cdn.example.com/circle.jpg'
             )
             db.session.commit()
@@ -493,7 +643,7 @@ class TestCircleSharePreview:
         """Test that circle preview uses summary_large_image when image exists."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='public',
+                circle_type='open',
                 image_url='https://cdn.example.com/circle-card.jpg'
             )
             db.session.commit()
@@ -506,7 +656,7 @@ class TestCircleSharePreview:
         """Test that circle preview uses summary when no image exists."""
         with app.app_context():
             circle = CircleFactory(
-                visibility='public',
+                circle_type='open',
                 image_url=None
             )
             db.session.commit()
@@ -517,14 +667,13 @@ class TestCircleSharePreview:
 
     def test_nonexistent_circle_returns_404(self, client, app):
         """Test that a non-existent circle ID returns 404."""
-        import uuid
         response = client.get(f'/share/circle/{uuid.uuid4()}')
         assert response.status_code == 404
 
     def test_circle_member_count_shown(self, client, app):
         """Test that member count is displayed correctly."""
         with app.app_context():
-            circle = CircleFactory(visibility='public')
+            circle = CircleFactory(circle_type='open')
             for _ in range(5):
                 user = UserFactory()
                 circle.members.append(user)
@@ -533,6 +682,21 @@ class TestCircleSharePreview:
             response = client.get(f'/share/circle/{circle.id}')
             assert response.status_code == 200
             assert b'5 members' in response.data
+
+    def test_open_circle_preview_uses_shared_sampling_helper(self, client, app):
+        """Open circle preview should delegate member sampling to shared helper."""
+        with app.app_context():
+            circle = CircleFactory(circle_type='open')
+            user = UserFactory(first_name='Sampled Member', profile_image_url='https://cdn.example.com/member.jpg')
+            circle.members.append(user)
+            db.session.commit()
+
+            with patch('app.share.routes.sample_circle_members', return_value=[user]) as mock_sampler:
+                response = client.get(f'/share/circle/{circle.id}')
+
+            assert response.status_code == 200
+            mock_sampler.assert_called_once_with(circle.members, limit=8)
+            assert b'share-member-avatar' in response.data
 
 
 class TestShareButtonVisibility:
@@ -616,11 +780,11 @@ class TestShareButtonVisibility:
             assert response.status_code == 200
             assert b'/share/request/' not in response.data
 
-    def test_share_button_shown_on_public_circle(self, client, app, auth_user):
-        """Test that share button appears on public circle detail page."""
+    def test_share_button_shown_on_open_circle(self, client, app, auth_user):
+        """Test that share button appears on open circle detail page."""
         with app.app_context():
             user = auth_user()
-            circle = CircleFactory(visibility='public')
+            circle = CircleFactory(circle_type='open')
             circle.members.append(user)
             db.session.commit()
             
@@ -630,11 +794,11 @@ class TestShareButtonVisibility:
             assert b'share-btn' in response.data
             assert b'/share/circle/' in response.data
 
-    def test_share_button_shown_on_private_circle(self, client, app, auth_user):
-        """Test that share button appears on private circle detail page."""
+    def test_share_button_shown_on_closed_circle(self, client, app, auth_user):
+        """Test that share button appears on closed circle detail page."""
         with app.app_context():
             user = auth_user()
-            circle = CircleFactory(visibility='private', requires_approval=True)
+            circle = CircleFactory(circle_type='closed')
             circle.members.append(user)
             db.session.commit()
             
@@ -643,11 +807,11 @@ class TestShareButtonVisibility:
             assert response.status_code == 200
             assert b'share-btn' in response.data
 
-    def test_share_button_not_shown_on_unlisted_circle(self, client, app, auth_user):
-        """Test that share button does NOT appear on unlisted circle."""
+    def test_share_button_not_shown_on_secret_circle(self, client, app, auth_user):
+        """Test that share button does NOT appear on secret circle."""
         with app.app_context():
             user = auth_user()
-            circle = CircleFactory(visibility='unlisted', requires_approval=True)
+            circle = CircleFactory(circle_type='secret')
             circle.members.append(user)
             db.session.commit()
             
@@ -661,19 +825,175 @@ class TestRegisterNextParam:
     """Test that the register route preserves the next parameter."""
 
     def test_register_preserves_next_param(self, client, app):
-        """Test that after registration, redirect to login includes next param."""
+        """Test that after registration, ?next is passed through to
+        send_confirmation_email so it can be embedded in the confirmation link."""
+        from unittest.mock import patch
         with app.app_context():
-            response = client.post('/auth/register?next=/circles/some-id', data={
-                'email': 'newuser@example.com',
-                'password': 'testpassword123',
-                'confirm_password': 'testpassword123',
-                'first_name': 'New',
-                'last_name': 'User',
-                'location_method': 'skip'
-            })
-            # Should redirect to login with next param preserved
+            with patch('app.auth.routes.send_confirmation_email') as mock_send:
+                mock_send.return_value = True
+                response = client.post('/auth/register?next=/circles/some-id', data={
+                    'email': 'newuser@example.com',
+                    'password': 'testpassword123',
+                    'confirm_password': 'testpassword123',
+                    'first_name': 'New',
+                    'last_name': 'User',
+                    'location_method': 'skip'
+                })
+            # Should redirect to resend-confirmation page
             assert response.status_code == 302
-            location = response.headers['Location']
-            assert '/auth/login' in location
-            # Check both url-encoded and raw forms of the next parameter in the Location header
-            assert ('next=%2Fcircles%2Fsome-id' in location) or ('next=/circles/some-id' in location)
+            assert '/auth/resend-confirmation' in response.headers['Location']
+
+            # next_url must have been forwarded to the email utility
+            mock_send.assert_called_once()
+            _, kwargs = mock_send.call_args
+            assert kwargs.get('next_url') == '/circles/some-id'
+
+
+class TestItemSharePreview:
+    """Tests for tokenized item share previews and access control."""
+
+    def test_item_share_preview_accessible_to_anonymous_user(self, client, app):
+        with app.app_context():
+            item = ItemFactory(name='Shared Drill', is_giveaway=False)
+            token = generate_item_share_token(item)
+
+            response = client.get(f'/share/item/{token}')
+
+            assert response.status_code == 200
+            assert b'Shared Drill' in response.data
+            assert item.owner.first_name.encode() in response.data
+            assert b'Sign Up' in response.data
+            assert b'Log In' in response.data
+
+    def test_item_share_preview_redirects_authenticated_user_to_item_detail(self, client, app):
+        with app.app_context():
+            viewer = UserFactory()
+            item = ItemFactory(is_giveaway=False)
+            token = generate_item_share_token(item)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f'/share/item/{token}')
+
+            assert response.status_code == 302
+            assert f'/item/{item.id}?share_token={token}'.encode() in response.headers['Location'].encode()
+
+    def test_item_share_preview_redirects_circle_member_without_token(self, client, app):
+        with app.app_context():
+            viewer = UserFactory()
+            item = ItemFactory(is_giveaway=False)
+            circle = CircleFactory()
+            circle.members.extend([viewer, item.owner])
+            token = generate_item_share_token(item)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f'/share/item/{token}')
+
+            assert response.status_code == 302
+            assert response.headers['Location'] == f'/item/{item.id}'
+
+    def test_item_share_preview_404_for_invalid_token(self, client):
+        response = client.get('/share/item/not-a-real-token')
+        assert response.status_code == 404
+
+    def test_item_share_generate_route_shows_owner_link_panel(self, client, app):
+        with app.app_context():
+            owner = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=False)
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(f'/share/item/{item.id}/generate', data={}, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'Anyone with this link can view this item on the web for 30 days' in response.data
+            assert b'/share/item/' in response.data
+
+    def test_item_detail_forbidden_without_shared_circle_or_token(self, client, app):
+        with app.app_context():
+            viewer = UserFactory()
+            item = ItemFactory(is_giveaway=False)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f'/item/{item.id}')
+
+            assert response.status_code == 403
+
+    def test_item_detail_accessible_with_valid_share_token(self, client, app):
+        with app.app_context():
+            viewer = UserFactory()
+            item = ItemFactory(is_giveaway=False)
+            token = generate_item_share_token(item)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f'/item/{item.id}?share_token={token}')
+
+            assert response.status_code == 200
+            assert b'You are viewing this item through a shared link' in response.data
+            assert b'Request to Borrow' in response.data
+
+    def test_request_item_forbidden_without_shared_circle_or_token(self, client, app):
+        with app.app_context():
+            borrower = UserFactory()
+            item = ItemFactory(is_giveaway=False)
+            db.session.commit()
+
+            login_user(client, borrower.email)
+            response = client.get(f'/items/{item.id}/request')
+
+            assert response.status_code == 403
+
+    def test_request_item_accessible_with_valid_share_token(self, client, app):
+        with app.app_context():
+            borrower = UserFactory()
+            item = ItemFactory(is_giveaway=False)
+            token = generate_item_share_token(item)
+            db.session.commit()
+
+            login_user(client, borrower.email)
+            response = client.get(f'/items/{item.id}/request?share_token={token}')
+
+            assert response.status_code == 200
+            assert b'Request to Borrow' in response.data
+
+    def test_request_item_submit_with_valid_share_token(self, client, app):
+        with app.app_context():
+            borrower = UserFactory(email='share-borrower@example.com')
+            item = ItemFactory(is_giveaway=False)
+            token = generate_item_share_token(item)
+            db.session.commit()
+
+            login_user(client, borrower.email)
+
+            start_date = date.today() + timedelta(days=1)
+            end_date = date.today() + timedelta(days=5)
+
+            response = client.post(
+                f'/items/{item.id}/request?share_token={token}',
+                data={
+                    'start_date': start_date.strftime('%Y-%m-%d'),
+                    'end_date': end_date.strftime('%Y-%m-%d'),
+                    'message': 'Could I borrow this next week?'
+                },
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert b'Your loan request has been submitted.' in response.data
+
+    def test_item_detail_accessible_to_active_borrower_after_token_expiry(self, client, app):
+        """A borrower with an approved loan can view item_detail even without a valid token."""
+        with app.app_context():
+            borrower = UserFactory()
+            item = ItemFactory(is_giveaway=False, available=False)
+            LoanRequestFactory(item=item, borrower=borrower, status='approved')
+            db.session.commit()
+
+            login_user(client, borrower.email)
+            response = client.get(f'/item/{item.id}')
+
+            assert response.status_code == 200
+            assert item.name.encode() in response.data

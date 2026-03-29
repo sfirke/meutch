@@ -147,6 +147,10 @@ class Config:
     _server_name_raw = os.environ.get('SERVER_NAME', '')
     SERVER_NAME, PREFERRED_URL_SCHEME = parse_server_name(_server_name_raw)
 
+    # Digest scheduler timezone (single app timezone for cadence boundaries)
+    TZ = os.environ.get('TZ')
+    DIGEST_TIMEZONE = os.environ.get('DIGEST_TIMEZONE', 'UTC')
+
     # Environment-based configuration
     DEBUG = os.environ.get('FLASK_ENV') == 'development'
     LOG_LEVEL = logging.DEBUG if DEBUG else logging.INFO

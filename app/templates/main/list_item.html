@@ -62,7 +62,7 @@
         <div class="mb-3">
             <div class="form-check">
                 {{ form.is_giveaway(class="form-check-input", id="isGiveawayCheckbox") }}
-                {{ form.is_giveaway.label(class="form-check-label") }}
+                {{ form.is_giveaway.label(class="form-check-label", for_="isGiveawayCheckbox") }}
             </div>
             {% for error in form.is_giveaway.errors %}
                 <div class="text-danger">{{ error }}</div>

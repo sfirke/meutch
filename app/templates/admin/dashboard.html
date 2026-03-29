@@ -89,6 +89,7 @@
                                         {% endif %}
                                     </a>
                                 </th>
+                                <th>Digest</th>
                                 <th>Items</th>
                                 <th>Status</th>
                                 <th class="text-end">Actions</th>
@@ -122,6 +123,16 @@
                                         {% else %}
                                             <small class="text-muted">Never</small>
                                         {% endif %}
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('admin.update_digest_frequency', user_id=user.id) }}" class="d-inline digest-frequency-form">
+                                            {{ form.hidden_tag() }}
+                                            <select name="digest_frequency" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+                                                <option value="daily" {% if user.digest_frequency == 'daily' %}selected{% endif %}>Daily</option>
+                                                <option value="weekly" {% if user.digest_frequency == 'weekly' %}selected{% endif %}>Weekly</option>
+                                                <option value="none" {% if user.digest_frequency == 'none' %}selected{% endif %}>None</option>
+                                            </select>
+                                        </form>
                                     </td>
                                     <td>
                                         {% if item_count > 0 %}
@@ -393,6 +404,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
 });
 </script>
 {% endblock %}

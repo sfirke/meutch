@@ -5,6 +5,7 @@ from app.models import Circle, db, circle_members, CircleJoinRequest, User, Mess
 from app.forms import CircleCreateForm, EmptyForm, CircleSearchForm, CircleJoinRequestForm, CircleUuidSearchForm
 from app.utils.storage import upload_circle_image, delete_file, is_valid_file_upload
 from app.utils.geocoding import geocode_address, build_address_string, GeocodingError
+from app.utils.circle_members import build_circle_member_samples
 import logging
 import uuid
 from sqlalchemy import and_
@@ -14,37 +15,24 @@ logger = logging.getLogger(__name__)
 
 # Circles -----------------------------------------------------
 
-def sort_circles_by_distance(circles, user, radius=None):
-    """
-    Sort circles by distance from user's location.
-    
-    Args:
-        circles: List of Circle objects to sort
-        user: User object with location
-        radius: Optional radius in miles to filter by
-        
-    Returns:
-        List of circles sorted by distance (closest first, circles without location at end)
-    """
-    if not user.is_geocoded or not circles:
+def filter_circles_by_distance(circles, user, radius=None):
+    """Filter circles to those within the selected radius when user is geocoded."""
+    if not circles or not radius or not user.is_geocoded:
         return circles
-    
-    circles_with_distance = []
+
+    radius_miles = float(radius)
+    filtered_circles = []
     for circle in circles:
         distance = circle.distance_to_user(user)
-        circles_with_distance.append((circle, distance))
-    
-    # Filter by radius if specified
-    if radius:
-        radius_miles = float(radius)
-        circles_with_distance = [
-            (circle, dist) for circle, dist in circles_with_distance
-            if dist is not None and dist <= radius_miles
-        ]
-    
-    # Sort by distance (None values at end)
-    circles_with_distance.sort(key=lambda x: (x[1] is None, x[1] if x[1] is not None else float('inf')))
-    return [circle for circle, _ in circles_with_distance]
+        if distance is not None and distance <= radius_miles:
+            filtered_circles.append(circle)
+
+    return filtered_circles
+
+
+def sort_circles_by_membership(circles):
+    """Sort circles by member count descending."""
+    return sorted(circles, key=lambda circle: len(circle.members), reverse=True)
 
 @circles_bp.route('/', methods=['GET', 'POST'])
 @login_required
@@ -54,6 +42,8 @@ def manage_circles():
     uuid_search_form = CircleUuidSearchForm()
     searched_circles = None
     browse_circles = None
+    searched_circle_samples = {}
+    browse_circle_samples = {}
     show_browse = False
 
     # Get user's admin circles with pending request counts
@@ -77,6 +67,8 @@ def manage_circles():
     # Convert to dictionary with pre-converted string IDs
     user_admin_circles = {circle_id: count for circle_id, count in admin_circle_counts}
 
+    # Compute once — used for facepile visibility and template membership checks
+    user_circle_ids = {circle.id for circle in current_user.circles}
 
     if request.method == 'POST':
         if 'create_circle' in request.form and circle_form.validate_on_submit():
@@ -85,14 +77,10 @@ def manage_circles():
             if existing_circle:
                 flash('A circle with this name already exists.', 'danger')
             else:
-                # Set requires_approval based on visibility
-                requires_approval = circle_form.visibility.data in ['private', 'unlisted']
-                
                 new_circle = Circle(
                     name=circle_form.name.data,
                     description=circle_form.description.data,
-                    visibility=circle_form.visibility.data,
-                    requires_approval=requires_approval
+                    circle_type=circle_form.circle_type.data,
                 )
                 
                 # Handle location based on input method
@@ -151,55 +139,50 @@ def manage_circles():
                 return redirect(url_for('circles.view_circle', circle_id=new_circle.id))
             
         elif 'search_circles' in request.form and search_form.validate_on_submit():
-            # Handle Circle Search or Browse (only public and private circles, not unlisted)
+            # Handle Circle Search or Browse (open and closed circles, not secret)
             query = search_form.search_query.data.strip() if search_form.search_query.data else ''
             radius = search_form.radius.data
             
-            # Get user's circle IDs for membership indicator
-            user_circle_ids = [circle.id for circle in current_user.circles]
-            
-            # Base query - if no search term, get all public circles (browsing mode)
+            # Base query - if no search term, browse all listed circles (excluding secret)
             if query:
                 circles_query = Circle.query.filter(
                     db.and_(
                         Circle.name.ilike(f'%{query}%'),
-                        Circle.visibility != 'unlisted'  # Exclude unlisted circles from search
+                        Circle.circle_type != 'secret'  # Exclude secret circles from search
                     )
                 )
             else:
-                # Browse all public circles that don't require approval
+                # Browse all listed circles (open and closed)
                 circles_query = Circle.query.filter(
-                    db.and_(
-                        Circle.visibility == 'public',
-                        Circle.requires_approval == False
-                    )
+                    Circle.circle_type != 'secret'
                 )
                 show_browse = True
-            
+
             searched_circles = circles_query.all()
-            
-            # Calculate distances and filter by radius if user has location
-            searched_circles = sort_circles_by_distance(searched_circles, current_user, radius)
+            searched_circles = filter_circles_by_distance(searched_circles, current_user, radius)
+            searched_circles = sort_circles_by_membership(searched_circles)
+            searched_circle_samples = build_circle_member_samples(searched_circles, limit=5, user_circle_ids=user_circle_ids)
             
             if not searched_circles:
                 if radius and current_user.is_geocoded:
                     if query:
                         flash(f'No circles found matching "{query}" within {radius} miles.', 'info')
                     else:
-                        flash(f'No public circles found within {radius} miles.', 'info')
+                        flash(f'No circles found within {radius} miles.', 'info')
                 else:
                     if query:
                         flash(f'No circles found matching "{query}".', 'info')
                     else:
-                        flash('No public circles available to browse.', 'info')
+                        flash('No circles available to browse.', 'info')
                 
         elif 'find_by_uuid' in request.form and uuid_search_form.validate_on_submit():
-            # Handle UUID Search for unlisted circles
+            # Handle UUID Search for secret circles
             try:
                 circle_uuid = uuid_search_form.circle_uuid.data.strip()
                 found_circle = Circle.query.filter_by(id=circle_uuid).first()
                 if found_circle:
                     searched_circles = [found_circle]
+                    searched_circle_samples = build_circle_member_samples(searched_circles, limit=5, user_circle_ids=user_circle_ids)
                 else:
                     flash('No circle found with that UUID.', 'warning')
             except Exception:
@@ -207,26 +190,23 @@ def manage_circles():
 
     # Fetch user's circles and sort by member count (descending)
     user_circles = sorted(current_user.circles, key=lambda x: len(x.members), reverse=True)
-    
-    # If no search was performed on GET request, show browse results (all public circles)
+
+    # If no search was performed on GET request, show browse results (all listed circles)
     if request.method == 'GET':
-        # Get all public circles (including those user is a member of)
+        selected_radius = search_form.radius.data or search_form.radius.default
+
+        # Get all listed circles (open and closed, excluding secret)
         browse_query = Circle.query.filter(
-            db.and_(
-                Circle.visibility == 'public',
-                Circle.requires_approval == False
-            )
+            Circle.circle_type != 'secret'
         )
         browse_circles = browse_query.all()
-        
-        # Sort by distance if user has location
-        browse_circles = sort_circles_by_distance(browse_circles, current_user)
+
+        browse_circles = filter_circles_by_distance(browse_circles, current_user, selected_radius)
+        browse_circles = sort_circles_by_membership(browse_circles)
+        browse_circle_samples = build_circle_member_samples(browse_circles, limit=5, user_circle_ids=user_circle_ids)
         
         show_browse = True
 
-    # Get user's circle IDs for membership indicators in templates
-    user_circle_ids = [circle.id for circle in user_circles]
-    
     return render_template('circles/circles.html', 
                            circle_form=circle_form, 
                            search_form=search_form,
@@ -235,6 +215,8 @@ def manage_circles():
                            user_admin_circles=user_admin_circles,
                            searched_circles=searched_circles,
                            browse_circles=browse_circles,
+                           searched_circle_samples=searched_circle_samples,
+                           browse_circle_samples=browse_circle_samples,
                            show_browse=show_browse,
                            user_circle_ids=user_circle_ids)
 
@@ -247,7 +229,7 @@ def view_circle(circle_id):
 
     # Create form instance for CSRF protection
     form = EmptyForm()  # Use this for all basic forms including cancel
-    join_form = CircleJoinRequestForm() if circle.requires_approval and not is_member else None
+    join_form = CircleJoinRequestForm() if circle.requires_join_approval and not is_member else None
 
     # Check for pending request
     pending_request = CircleJoinRequest.query.filter_by(
@@ -256,8 +238,8 @@ def view_circle(circle_id):
         status='pending'
     ).first()
 
-    # Only query member details if public circle or user is member
-    if not circle.requires_approval or is_member:
+    # Only query member details if open circle or user is member
+    if not circle.requires_join_approval or is_member:
         members_info = db.session.query(
             User,
             circle_members.c.joined_at,
@@ -295,13 +277,13 @@ def view_circle(circle_id):
 @login_required
 def join_circle(circle_id):
     circle = db.get_or_404(Circle, circle_id)
-    form = CircleJoinRequestForm() if circle.requires_approval else EmptyForm()
+    form = CircleJoinRequestForm() if circle.requires_join_approval else EmptyForm()
 
     if current_user in circle.members:
         flash('You are already a member of this circle.', 'info')
         return redirect(url_for('circles.view_circle', circle_id=circle.id))
     
-    if circle.requires_approval:
+    if circle.requires_join_approval:
         if form.validate_on_submit():
             join_request = CircleJoinRequest(
                 circle_id=circle.id,
@@ -309,27 +291,6 @@ def join_circle(circle_id):
                 message=form.message.data
             )
             db.session.add(join_request)
-
-            admin_users = User.query.join(
-                circle_members,
-                and_(
-                    User.id == circle_members.c.user_id,
-                    circle_members.c.circle_id == circle.id,
-                    circle_members.c.is_admin == True
-                )
-            ).all()
-
-            for admin_user in admin_users:
-                notification_message = Message(
-                    sender_id=current_user.id,
-                    recipient_id=admin_user.id,
-                    circle_id=circle.id,
-                    body=(
-                        f"{current_user.full_name} requested to join the circle '{circle.name}'."
-                        + (f" Message: {form.message.data}" if form.message.data else "")
-                    )
-                )
-                db.session.add(notification_message)
 
             db.session.commit()
             
@@ -419,6 +380,10 @@ def handle_join_request(circle_id, request_id, action):
     
     if join_request.circle_id != circle.id:
         flash('Invalid join request.', 'danger')
+        return redirect(url_for('circles.view_circle', circle_id=circle_id))
+
+    if join_request.status != 'pending':
+        flash('This join request has already been handled.', 'info')
         return redirect(url_for('circles.view_circle', circle_id=circle_id))
     
     if action == 'approve':
@@ -548,14 +513,10 @@ def create_circle():
                 flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'error')
                 return render_template('circles/create_circle.html', form=form)
 
-        # Set requires_approval based on visibility
-        requires_approval = form.visibility.data in ['private', 'unlisted']
-        
         new_circle = Circle(
             name=circle_name,
             description=form.description.data.strip(),
-            visibility=form.visibility.data,
-            requires_approval=requires_approval,
+            circle_type=form.circle_type.data,
             image_url=image_url
         )
         db.session.add(new_circle)
@@ -632,8 +593,7 @@ def edit_circle(circle_id):
     if form.validate_on_submit():
         circle.name = form.name.data.strip()
         circle.description = form.description.data.strip()
-        circle.visibility = form.visibility.data
-        circle.requires_approval = form.visibility.data in ['private', 'unlisted']
+        circle.circle_type = form.circle_type.data
 
         # Handle location based on input method
         geocoding_failed = False

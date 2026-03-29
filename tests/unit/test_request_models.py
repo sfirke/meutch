@@ -17,7 +17,7 @@ class TestItemRequestCreation:
             assert req.title is not None
             assert req.status == 'open'
             assert req.seeking == 'either'
-            assert req.visibility == 'circles'
+            assert req.visibility == 'public'
             assert req.fulfilled_at is None
 
     def test_item_request_with_custom_fields(self, app):

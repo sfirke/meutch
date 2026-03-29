@@ -1,6 +1,39 @@
 # Changelog
 
-Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in. 
+Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
+
+## Mar 2026
+
+### Features
+
+**Major**
+- Implement an activity feed for the home page, replacing Giveaways and Requests dedicated pages ([#259](https://github.com/sfirke/meutch/pull/259)).
+- Overhaul user's view of own profile ([#228](https://github.com/sfirke/meutch/pull/228)).
+- Improve search capabilities and combine search into the home page (now "Find") ([#251](https://github.com/sfirke/meutch/pull/251)).
+- Add configurable email digest system (daily/weekly/none), including signup/profile/admin controls, digest content based on feed activity, and shared daily scheduler integration with loan reminder job ([#280](https://github.com/sfirke/meutch/pull/280)).
+- Add owner-generated 30-day share links for regular items, including anonymous preview pages and token-backed borrow requests for recipients outside the owner's circles ([#294](https://github.com/sfirke/meutch/pull/294)).
+- Convert unauthenticated landing page to a modern vertical long-scrolling page ([#298](https://github.com/sfirke/meutch/pull/298)).
+
+**Minor**
+- Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
+- Add search bar for own items ([#252](https://github.com/sfirke/meutch/pull/252)).
+- Requests feed now defaults to an "All" view that combines public requests and shared-circle requests, keeps a "My Circles" filter, and defaults new requests to public visibility ([#255](https://github.com/sfirke/meutch/pull/255)).
+- Make all text adjacent to a radio button or checkbox tappable ([#263](https://github.com/sfirke/meutch/pull/263)).
+- Improve conversation view about an item (image formatting, say "pending pickup" instead of "borrowed") ([#264](https://github.com/sfirke/meutch/pull/264)).
+- Fix unread message badge alignment on mobile and desktop for clarity ([#265](https://github.com/sfirke/meutch/pull/265)).
+- DRY the new-user no-circle empty state across Home and Find, remove duplicate join-circle prompt on Find, and improve Circle discovery UX (default 25-mile filter, membership-first ordering after distance filter, private circles included in browse results, unlisted search moved lower, and member facepiles on circle results) ([#268](https://github.com/sfirke/meutch/pull/268)).
+- Refactor circles to use `circle_type` (`open`/`closed`/`secret`) as the single behavior source, replacing legacy visibility labels (`public`/`private`/`unlisted`) ([#271](https://github.com/sfirke/meutch/pull/271)).
+- Show distance (if available) to giveaways and requests on activity feed ([#275](https://github.com/sfirke/meutch/pull/275)).
+- Add button to sort items on Find page by distance or date created ([#276](https://github.com/sfirke/meutch/pull/276)).
+- Increase prominence of "Create" floating action button on mobile ([#296](https://github.com/sfirke/meutch/pull/296)).
+
+### Bug Fixes
+- Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/pull/213)).
+- Fix: users without location set now can't create public giveaways or requests ([#231](https://github.com/sfirke/meutch/pull/231)). 
+- Fix: pending private-circle join approvals no longer count as unread messages; circles pending badge remains the admin signal, and already-handled join requests can no longer be re-processed by another admin ([#257](https://github.com/sfirke/meutch/pull/257)).
+- Fix: hide members of a closed circle from being viewable in search results ([#273](https://github.com/sfirke/meutch/pull/273)).
+- Fix: consolidate digest display/change UI in the admin panel to eliminate scrollbar ([#291](https://github.com/sfirke/meutch/pull/291)).
+
 
 ## Feb 2026
 
@@ -25,9 +58,13 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Edit item form submit button now says "Save" instead of "List Item" for better clarity on the edit action.
 - Making a claim request on a giveaway now triggers a email message and in-app notification to the item owner. Circle join requests + the decision reply messages now appear as in-app messages in addition to emails ([#205](https://github.com/sfirke/meutch/pull/205)).
 - Item detail images now keep their full height on mobile instead of being constrained to a cropped-looking 300px frame([#221](https://github.com/sfirke/meutch/pull/221)).
+- Add a custom 404 page ([#218](https://github.com/sfirke/meutch/pull/218)) and CSRFError handler([#220](https://github.com/sfirke/meutch/pull/220)).
 - No longer include original filename on images ([#219](https://github.com/sfirke/meutch/pull/219)).
+- After registration, users are redirected to the email-confirmation guidance page instead of the login page (since unconfirmed accounts cannot sign in yet). A `?next=` URL present at registration is saved and restored after email confirmation, so users who follow a share link and register are returned to that page once they log in.([#232](https://github.com/sfirke/meutch/pull/232), [#240](https://github.com/sfirke/meutch/pull/240)).
+- Make giveaway cards easier to distinguish from loans by using a diagonal FREE ribbon in feed/search item cards ([#223](https://github.com/sfirke/meutch/pull/223)).
 
 ### Developer Experience
+- Add manual testing overrides for scheduled email job (`flask check-loan-reminders`) so developers can repeatedly test digest and loan reminder email flows without waiting for natural cadence windows.
 - Create separate dev (sample data) vs. test databases so they stop stepping on each others' toes ([#206](https://github.com/sfirke/meutch/pull/206)).
 
 ## Jan 2026

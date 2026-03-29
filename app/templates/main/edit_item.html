@@ -43,7 +43,7 @@
         <div class="mb-3">
             <div class="form-check">
                 {{ form.is_giveaway(class="form-check-input", id="isGiveawayCheckbox") }}
-                {{ form.is_giveaway.label(class="form-check-label") }}
+                {{ form.is_giveaway.label(class="form-check-label", for_="isGiveawayCheckbox") }}
             </div>
             <small class="text-muted">A giveaway is a one-time transfer - the item will be given away for free, not loaned.</small>
             {% for error in form.is_giveaway.errors %}
@@ -56,8 +56,8 @@
             {{ form.giveaway_visibility.label(class="form-label") }}
             {% for subfield in form.giveaway_visibility %}
                 <div class="form-check">
-                    {{ subfield(class="form-check-input") }}
-                    {{ subfield.label(class="form-check-label") }}
+                    {{ subfield(class="form-check-input", id=subfield.id) }}
+                    {{ subfield.label(class="form-check-label", for_=subfield.id) }}
                 </div>
             {% endfor %}
             {% for error in form.giveaway_visibility.errors %}
@@ -69,8 +69,8 @@
         <div class="mb-3">
             <img src="{{ item.image_url }}" alt="{{ item.name }}" class="img-thumbnail" style="max-width: 200px">
             <div class="form-check">
-                {{ form.delete_image(class="form-check-input") }}
-                {{ form.delete_image.label(class="form-check-label") }}
+                {{ form.delete_image(class="form-check-input", id="deleteImage") }}
+                {{ form.delete_image.label(class="form-check-label", for_="deleteImage") }}
             </div>
         </div>
         {% endif %}

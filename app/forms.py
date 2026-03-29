@@ -1,9 +1,17 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField, FloatField, RadioField, FieldList, FormField
+from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField, FloatField, RadioField, FieldList, FormField, IntegerField
 from flask_wtf.file import FileField, FileAllowed
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError, NumberRange, URL
+from flask_login import current_user
 from app.models import Category, User, ItemRequest
 from datetime import datetime
+
+
+DIGEST_FREQUENCY_CHOICES = [
+    (User.DIGEST_FREQUENCY_WEEKLY, 'Weekly (stay in the loop)'),
+    (User.DIGEST_FREQUENCY_DAILY, 'Daily (respond promptly to requests and giveaways)'),
+    (User.DIGEST_FREQUENCY_NONE, 'Never (must log in to follow activity)'),
+]
 
 def OptionalURL(message=None):
     """
@@ -62,6 +70,12 @@ class RegistrationForm(FlaskForm):
         DataRequired(message="Last name is required."),
         Length(max=50, message="Last name must be under 50 characters.")
     ])
+    digest_frequency = SelectField(
+        'Email Digest Frequency',
+        choices=DIGEST_FREQUENCY_CHOICES,
+        default=User.DIGEST_FREQUENCY_WEEKLY,
+        validators=[DataRequired()]
+    )
     
     # Location input method choice
     location_method = RadioField('How would you like to set your location?', 
@@ -226,14 +240,13 @@ class CircleCreateForm(FlaskForm):
         description = TextAreaField('Description', validators=[
             Length(max=500, message="Description must be under 500 characters.")
         ])
-        # Visibility replaces older requires_approval boolean to allow three states
-        visibility = SelectField('Circle Visibility',
+        circle_type = SelectField('Circle Type',
             choices=[
-                ('public', 'Public - Anyone can find and join'),
-                ('private', 'Private - Anyone can find it, but requires approval to join.'),
-                ('unlisted', 'Unlisted - Cannot be found by search, requires UUID and approval to join.')
+                ('open', 'Open - Anyone can find and join'),
+                ('closed', 'Closed - Anyone can find it, but requires approval to join.'),
+                ('secret', 'Secret - Cannot be found by search, requires UUID and approval to join.')
             ],
-            default='public',
+            default='open',
             validators=[DataRequired()]
         )
         image = FileField('Circle Image', validators=[
@@ -326,7 +339,7 @@ class CircleSearchForm(FlaskForm):
             ('50', 'Within 50 miles'),
             ('100', 'Within 100 miles')
         ],
-        default='',
+        default='25',
         validators=[Optional()]
     )
     submit = SubmitField('Search')
@@ -372,6 +385,16 @@ class ListItemForm(FlaskForm):
         if self.is_giveaway.data and not self.giveaway_visibility.data:
             self.giveaway_visibility.errors.append('Please select a visibility option for this giveaway.')
             rv = False
+        
+        if self.is_giveaway.data and self.giveaway_visibility.data == 'public':
+            if current_user.is_authenticated and not current_user.is_geocoded:
+                self.giveaway_visibility.errors.append(
+                    'You must set your location before making a giveaway public. '
+                    'Public giveaways are visible to everyone on Meutch and users '
+                    'will have no idea where the item is located. '
+                    'Please update your location in your profile settings.'
+                )
+                rv = False
         
         return rv
     
@@ -534,6 +557,26 @@ class VacationModeForm(FlaskForm):
     vacation_mode = BooleanField('Vacation Mode')
     submit = SubmitField('Update')
 
+
+class DigestSettingsForm(FlaskForm):
+    digest_frequency = SelectField(
+        'Digest Frequency',
+        choices=DIGEST_FREQUENCY_CHOICES,
+        validators=[DataRequired()]
+    )
+    digest_radius_miles = IntegerField(
+        'Digest Radius (miles)',
+        validators=[DataRequired(), NumberRange(min=1, max=50, message='Radius must be between 1 and 50 miles.')],
+        default=10
+    )
+    digest_include_giveaways = BooleanField('Giveaways')
+    digest_include_requests = BooleanField('Requests')
+    digest_include_circle_joins = BooleanField('People joining my closed circles')
+    digest_include_loans = BooleanField('Loans in my circles')
+    digest_giveaways_include_public = BooleanField('Include public giveaways within radius')
+    digest_requests_include_public = BooleanField('Include public requests within radius')
+    submit = SubmitField('Save Digest Settings')
+
 class ExpressInterestForm(FlaskForm):
     message = TextAreaField(
         'Optional message to the owner',
@@ -612,7 +655,7 @@ class ItemRequestForm(FlaskForm):
     )
     visibility = SelectField('Who can see this?',
         choices=ItemRequest.VISIBILITY_CHOICES,
-        default='circles',
+        default='public',
         validators=[DataRequired()]
     )
     submit = SubmitField('Post Request')
@@ -626,3 +669,14 @@ class ItemRequestForm(FlaskForm):
             raise ValidationError('Expiration date cannot be in the past.')
         if field.data > max_date:
             raise ValidationError('Expiration date cannot be more than 6 months from today.')
+
+    def validate_visibility(self, field):
+        """Public visibility requires user to have a location set."""
+        if field.data == 'public':
+            if current_user.is_authenticated and not current_user.is_geocoded:
+                raise ValidationError(
+                    'You must set your location before making a request public. '
+                    'Public requests are visible to everyone on Meutch and users '
+                    'will have no idea where you are located. '
+                    'Please update your location in your profile settings.'
+                )
