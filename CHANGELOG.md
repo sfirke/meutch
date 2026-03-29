@@ -12,6 +12,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Improve search capabilities and combine search into the home page (now "Find") ([#251](https://github.com/sfirke/meutch/pull/251)).
 - Add configurable email digest system (daily/weekly/none), including signup/profile/admin controls, digest content based on feed activity, and shared daily scheduler integration with loan reminder job ([#280](https://github.com/sfirke/meutch/pull/280)).
 - Add owner-generated 30-day share links for regular items, including anonymous preview pages and token-backed borrow requests for recipients outside the owner's circles ([#294](https://github.com/sfirke/meutch/pull/294)).
+- Convert unauthenticated landing page to a modern vertical long-scrolling page ([#298](https://github.com/sfirke/meutch/pull/298)).
 
 **Minor**
 - Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
