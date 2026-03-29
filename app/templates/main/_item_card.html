@@ -93,6 +93,11 @@
                     <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="btn btn-primary flex-fill">
                         <i class="fas fa-eye me-1"></i>View
                     </a>
+                    {% if item.current_loan and item.current_loan.messages %}
+                        <a href="{{ url_for('main.view_conversation', message_id=item.current_loan.messages[0].id) }}" class="btn btn-info" data-bs-toggle="tooltip" title="View active loan">
+                            <i class="fas fa-exchange-alt me-1"></i>Loan
+                        </a>
+                    {% endif %}
                     {% if item.id in delete_forms %}
                         <a href="{{ url_for('main.edit_item', item_id=item.id) }}" class="btn btn-warning">
                             <i class="fas fa-edit me-1"></i>Edit
