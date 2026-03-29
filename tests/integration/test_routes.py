@@ -367,6 +367,27 @@ class TestItemRoutes:
             assert item.owner_id == user.id
             assert len(item.tags) == 2
 
+    def test_list_item_post_escapes_html_in_name(self, client, app, auth_user):
+        """Test that HTML in item names is escaped in the flash message to prevent XSS."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            login_user(client, user.email)
+
+            xss_name = '<script>alert("xss")</script>'
+            response = client.post('/list-item', data={
+                'name': xss_name,
+                'description': 'A test item',
+                'category': str(category.id),
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'has been listed successfully!' in response.data
+            # The raw script tag must NOT appear unescaped
+            assert b'<script>alert' not in response.data
+            # The escaped version should be present
+            assert b'&lt;script&gt;' in response.data
+
     def test_list_item_post_create_another_redirects_to_list_form(self, client, app, auth_user):
         """Test create-another submit action returns user to the list-item form."""
         with app.app_context():

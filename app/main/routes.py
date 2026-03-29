@@ -341,9 +341,9 @@ def list_item():
         db.session.commit()
         
         # Create flash message with link to the item
-        from markupsafe import Markup
+        from markupsafe import Markup, escape
         item_link = url_for('main.item_detail', item_id=new_item.id)
-        message = Markup(f'Item "<a href="{item_link}" class="alert-link">{new_item.name}</a>" has been listed successfully!')
+        message = Markup('Item "<a href="{}" class="alert-link">{}</a>" has been listed successfully!').format(item_link, escape(new_item.name))
         
         # Check which button was pressed
         if form.submit_and_create_another.data:
