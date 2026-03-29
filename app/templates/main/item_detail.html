@@ -6,35 +6,35 @@
     <div class="row">
         <!-- Image Column -->
         <div class="col-lg-5 mb-4">
-            <div class="item-detail-image-container position-relative">
-                {% if item.image_url %}
-                    <img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-detail-image">
-                {% else %}
-                    <div class="item-detail-image-placeholder d-flex flex-column align-items-center justify-content-center">
-                        <i class="fas fa-image text-muted mb-3" style="font-size: 4rem;"></i>
-                        <p class="text-muted mb-0">No image available</p>
-                    </div>
-                {% endif %}
-                
-                <!-- Giveaway badge -->
-                {% if item.is_giveaway %}
-                    <span class="position-absolute top-0 start-0 m-3 badge bg-success fs-6">
-                        <i class="fas fa-gift me-1"></i>FREE
-                    </span>
-                {% endif %}
-                
-                <!-- Status indicator -->
-                {% if not item.available %}
-                    {% if item.is_giveaway and item.claim_status == 'claimed' %}
-                        <span class="position-absolute top-0 end-0 m-3 badge bg-success">
-                            <i class="fas fa-heart me-1"></i>Rehomed
-                        </span>
+            <div class="item-detail-image-container">
+                <div class="item-detail-image-inner position-relative">
+                    {% if item.image_url %}
+                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-detail-image">
                     {% else %}
-                        <span class="position-absolute top-0 end-0 m-3 badge bg-warning">
-                            <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Pending Pickup{% else %}Borrowed{% endif %}
-                        </span>
+                        <div class="item-detail-image-placeholder d-flex flex-column align-items-center justify-content-center">
+                            <i class="fas fa-image text-muted mb-3" style="font-size: 4rem;"></i>
+                            <p class="text-muted mb-0">No image available</p>
+                        </div>
                     {% endif %}
-                {% endif %}
+
+                    <!-- Giveaway ribbon -->
+                    {% if item.is_giveaway %}
+                        <span class="giveaway-ribbon">GIVEAWAY</span>
+                    {% endif %}
+
+                    <!-- Status indicator -->
+                    {% if not item.available %}
+                        {% if item.is_giveaway and item.claim_status == 'claimed' %}
+                            <span class="position-absolute top-0 end-0 m-3 badge bg-success">
+                                <i class="fas fa-heart me-1"></i>Rehomed
+                            </span>
+                        {% else %}
+                            <span class="position-absolute top-0 end-0 m-3 badge bg-warning">
+                                <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Pending Pickup{% else %}Borrowed{% endif %}
+                            </span>
+                        {% endif %}
+                    {% endif %}
+                </div>
             </div>
         </div>
         

@@ -19,31 +19,34 @@
             <!-- Preview Card -->
             <div class="card shadow-sm share-preview-card">
                 <!-- Image -->
-                {% if item.image_url %}
-                    <img src="{{ item.image_url }}" alt="{{ item.name }}" class="card-img-top share-preview-image">
-                {% else %}
-                    <div class="share-preview-image-placeholder d-flex flex-column align-items-center justify-content-center bg-light">
-                        <i class="fas fa-gift text-success mb-2" style="font-size: 4rem;"></i>
-                        <span class="text-muted">Free Giveaway</span>
-                    </div>
-                {% endif %}
-                
+                <div class="position-relative">
+                    {% if item.image_url %}
+                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="card-img-top share-preview-image">
+                    {% else %}
+                        <div class="share-preview-image-placeholder d-flex flex-column align-items-center justify-content-center bg-light">
+                            <i class="fas fa-gift text-success mb-2" style="font-size: 4rem;"></i>
+                            <span class="text-muted">Free Giveaway</span>
+                        </div>
+                    {% endif %}
+                    <!-- Giveaway ribbon -->
+                    <span class="giveaway-ribbon">GIVEAWAY</span>
+                </div>
+
                 <div class="card-body">
-                    <!-- Giveaway Badge -->
+                    <!-- Status badges -->
+                    {% if item.claim_status == 'claimed' or item.claim_status == 'pending_pickup' %}
                     <div class="mb-3">
-                        <span class="badge bg-success fs-6">
-                            <i class="fas fa-gift me-1"></i>FREE
-                        </span>
                         {% if item.claim_status == 'claimed' %}
-                            <span class="badge bg-success ms-1">
+                            <span class="badge bg-success">
                                 <i class="fas fa-heart me-1"></i>Rehomed
                             </span>
                         {% elif item.claim_status == 'pending_pickup' %}
-                            <span class="badge bg-warning text-dark ms-1">
+                            <span class="badge bg-warning text-dark">
                                 <i class="fas fa-clock me-1"></i>Pending Pickup
                             </span>
                         {% endif %}
                     </div>
+                    {% endif %}
 
                     <!-- Title -->
                     <h1 class="card-title h2 mb-3">{{ item.name }}</h1>
