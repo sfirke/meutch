@@ -865,7 +865,7 @@ footer h6 {
     }
     
     .item-detail-image {
-        max-height: none;
+        max-height: 60vh;
     }
     
     .item-detail-image-placeholder {
