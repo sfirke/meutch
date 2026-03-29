@@ -15,7 +15,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Convert unauthenticated landing page to a modern vertical long-scrolling page ([#298](https://github.com/sfirke/meutch/pull/298)).
 
 **Minor**
-- Add hash-based cache-busting for CSS and JS static files so browsers always load the latest styles and scripts after a deploy.
 - Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
 - Add search bar for own items ([#252](https://github.com/sfirke/meutch/pull/252)).
 - Requests feed now defaults to an "All" view that combines public requests and shared-circle requests, keeps a "My Circles" filter, and defaults new requests to public visibility ([#255](https://github.com/sfirke/meutch/pull/255)).
@@ -35,6 +34,8 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Fix: hide members of a closed circle from being viewable in search results ([#273](https://github.com/sfirke/meutch/pull/273)).
 - Fix: consolidate digest display/change UI in the admin panel to eliminate scrollbar ([#291](https://github.com/sfirke/meutch/pull/291)).
 
+### Developer Experience
+- Add hash-based cache-busting for CSS and JS static files so browsers always load the latest styles and scripts after a deploy ([#230](https://github.com/sfirke/meutch/pull/230)).
 
 ## Feb 2026
 
