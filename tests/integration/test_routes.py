@@ -866,7 +866,7 @@ class TestProfileRoutes:
             assert 'id="profile-edit" class="d-none"' not in content
 
     def test_profile_active_loans_have_clickable_user_and_item_links(self, client, app, auth_user):
-        """Test active loans tab links borrower/lender names, thumbnails to items, and names to conversations."""
+        """Test active loans tab: item name/thumbnail link to item, View Loan button links to conversation."""
         with app.app_context():
             user = auth_user()
             lender = UserFactory()
@@ -882,10 +882,10 @@ class TestProfileRoutes:
             borrowed_item = ItemFactory(owner=lender, category=category, name='Borrowed Item', image_url='https://example.com/borrowed.jpg')
             lent_item = ItemFactory(owner=user, category=category, name='Lent Item', image_url='https://example.com/lent.jpg')
 
-            borrowed_loan = LoanRequestFactory(item=borrowed_item, borrower=user, status='approved')
-            lent_loan = LoanRequestFactory(item=lent_item, borrower=borrower, status='approved')
+            LoanRequestFactory(item=borrowed_item, borrower=user, status='approved')
+            LoanRequestFactory(item=lent_item, borrower=borrower, status='approved')
 
-            # Create messages so conversation links appear
+            # Create messages so View Loan buttons appear
             borrowed_msg = MessageFactory(sender=user, recipient=lender, item=borrowed_item, body='Can I borrow this?')
             lent_msg = MessageFactory(sender=borrower, recipient=user, item=lent_item, body='Can I borrow this?')
             db.session.commit()
@@ -895,17 +895,15 @@ class TestProfileRoutes:
             assert response.status_code == 200
             content = response.data.decode('utf-8')
 
-            # Borrowing section: lender profile link + thumbnail links to item + name links to conversation
+            # Borrowing section: lender profile + item links (name + thumbnail) + View Loan button
             assert f'href="/user/{lender.id}"' in content
-            borrowed_item_href = f'href="/item/{borrowed_item.id}"'
-            assert borrowed_item_href in content  # thumbnail still links to item
-            assert f'href="/message/{borrowed_msg.id}"' in content  # name links to conversation
+            assert f'href="/item/{borrowed_item.id}"' in content
+            assert f'href="/message/{borrowed_msg.id}"' in content
 
-            # Lending section: borrower profile link + thumbnail links to item + name links to conversation
+            # Lending section: borrower profile + item links (name + thumbnail) + View Loan button
             assert f'href="/user/{borrower.id}"' in content
-            lent_item_href = f'href="/item/{lent_item.id}"'
-            assert lent_item_href in content  # thumbnail still links to item
-            assert f'href="/message/{lent_msg.id}"' in content  # name links to conversation
+            assert f'href="/item/{lent_item.id}"' in content
+            assert f'href="/message/{lent_msg.id}"' in content
 
     def test_profile_displays_custom_other_site_name(self, client, app, auth_user):
         """Test that custom name for 'Other' web links is shown in read-only profile view."""

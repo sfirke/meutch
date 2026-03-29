@@ -100,7 +100,7 @@ class TestMyActivityConversationLinks:
     """Test that My Activity tab links item names to conversations."""
 
     def test_borrowing_table_item_name_links_to_conversation(self, client, app, auth_user):
-        """In borrowing table, item name links to conversation, thumbnail links to item."""
+        """In borrowing table, item name and thumbnail link to item; View Loan button links to conversation."""
         with app.app_context():
             borrower = auth_user()
             owner = UserFactory()
@@ -109,7 +109,7 @@ class TestMyActivityConversationLinks:
             circle.members.append(borrower)
             circle.members.append(owner)
             item = ItemFactory(owner=owner, category=category, image_url='https://example.com/img.jpg')
-            loan = LoanRequestFactory(
+            LoanRequestFactory(
                 item=item, borrower=borrower, status='approved',
                 start_date=date.today() - timedelta(days=5),
                 end_date=date.today() + timedelta(days=10),
@@ -125,15 +125,14 @@ class TestMyActivityConversationLinks:
             assert response.status_code == 200
             content = response.data.decode('utf-8')
 
-            # Item name should link to conversation
-            assert f'href="/message/{msg.id}"' in content
-            # Thumbnail should still link to item detail
+            # Both item name and thumbnail link to item detail
             assert f'href="/item/{item.id}"' in content
-            # No separate "View" button column
-            assert 'btn btn-sm btn-info">View</a>' not in content
+            # Dedicated View Loan button links to conversation
+            assert f'href="/message/{msg.id}"' in content
+            assert 'View Loan' in content
 
     def test_lending_table_item_name_links_to_conversation(self, client, app, auth_user):
-        """In lending table, item name links to conversation, thumbnail links to item."""
+        """In lending table, item name and thumbnail link to item; View Loan button links to conversation."""
         with app.app_context():
             owner = auth_user()
             borrower = UserFactory()
@@ -142,7 +141,7 @@ class TestMyActivityConversationLinks:
             circle.members.append(owner)
             circle.members.append(borrower)
             item = ItemFactory(owner=owner, category=category, image_url='https://example.com/img.jpg')
-            loan = LoanRequestFactory(
+            LoanRequestFactory(
                 item=item, borrower=borrower, status='approved',
                 start_date=date.today() - timedelta(days=5),
                 end_date=date.today() + timedelta(days=10),
@@ -158,10 +157,11 @@ class TestMyActivityConversationLinks:
             assert response.status_code == 200
             content = response.data.decode('utf-8')
 
-            # Item name should link to conversation
-            assert f'href="/message/{msg.id}"' in content
-            # Thumbnail should still link to item detail
+            # Both item name and thumbnail link to item detail
             assert f'href="/item/{item.id}"' in content
+            # Dedicated View Loan button links to conversation
+            assert f'href="/message/{msg.id}"' in content
+            assert 'View Loan' in content
 
     def test_activity_table_no_conversation_column_header(self, client, app, auth_user):
         """My Activity tables should not have a Conversation column header."""
@@ -186,8 +186,8 @@ class TestMyActivityConversationLinks:
             content = response.data.decode('utf-8')
             assert '<th>Conversation</th>' not in content
 
-    def test_activity_table_fallback_to_item_link_when_no_messages(self, client, app, auth_user):
-        """When there are no messages, item name falls back to linking to item detail."""
+    def test_activity_table_no_view_loan_button_when_no_messages(self, client, app, auth_user):
+        """When there are no messages, 'View Loan' button does not appear."""
         with app.app_context():
             user = auth_user()
             owner = UserFactory()
@@ -206,5 +206,7 @@ class TestMyActivityConversationLinks:
             login_user(client, user.email)
             response = client.get('/profile?tab=my-activity')
             content = response.data.decode('utf-8')
-            # With no messages, the name should link to item detail
+            # Item name still links to item detail
             assert f'href="/item/{item.id}"' in content
+            # No View Loan button when there are no messages
+            assert 'View Loan' not in content
