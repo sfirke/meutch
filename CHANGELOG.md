@@ -37,6 +37,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Fix: consolidate digest display/change UI in the admin panel to eliminate scrollbar ([#291](https://github.com/sfirke/meutch/pull/291)).
 - Fix: if no unread messages in conversation, retain focus on action buttons instead of scrolling to bottom ([#141](https://github.com/sfirke/meutch/pull/141)).
 - Fix: improve formatting of image and banner in giveaay item details ([#300](https://github.com/sfirke/meutch/pull/300)).
+- Fix XSS in list-item flash message ([#303](https://github.com/sfirke/meutch/pull/303)).
 
 ### Developer Experience
 - Add hash-based cache-busting for CSS and JS static files so browsers always load the latest styles and scripts after a deploy ([#230](https://github.com/sfirke/meutch/pull/230)).
