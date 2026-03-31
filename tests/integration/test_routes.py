@@ -882,12 +882,12 @@ class TestProfileRoutes:
             borrowed_item = ItemFactory(owner=lender, category=category, name='Borrowed Item', image_url='https://example.com/borrowed.jpg')
             lent_item = ItemFactory(owner=user, category=category, name='Lent Item', image_url='https://example.com/lent.jpg')
 
-            LoanRequestFactory(item=borrowed_item, borrower=user, status='approved')
-            LoanRequestFactory(item=lent_item, borrower=borrower, status='approved')
+            borrowed_loan = LoanRequestFactory(item=borrowed_item, borrower=user, status='approved')
+            lent_loan = LoanRequestFactory(item=lent_item, borrower=borrower, status='approved')
 
             # Create messages so View Loan buttons appear
-            borrowed_msg = MessageFactory(sender=user, recipient=lender, item=borrowed_item, body='Can I borrow this?')
-            lent_msg = MessageFactory(sender=borrower, recipient=user, item=lent_item, body='Can I borrow this?')
+            borrowed_msg = MessageFactory(sender=user, recipient=lender, item=borrowed_item, loan_request=borrowed_loan, body='Can I borrow this?')
+            lent_msg = MessageFactory(sender=borrower, recipient=user, item=lent_item, loan_request=lent_loan, body='Can I borrow this?')
             db.session.commit()
 
             login_user(client, user.email)

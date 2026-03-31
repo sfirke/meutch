@@ -284,13 +284,9 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {% if item.messages %}
-                                                    <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-outline-primary">
-                                                        <i class="fas fa-exchange-alt me-1"></i>View Loan
-                                                    </a>
-                                                {% else %}
-                                                    <span class="text-muted small">No messages yet</span>
-                                                {% endif %}
+                                                <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-exchange-alt me-1"></i>View Loan
+                                                </a>
                                             </td>
                                         </tr>
                                     {% endfor %}
@@ -343,13 +339,9 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {% if item.messages %}
-                                                    <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-outline-primary">
-                                                        <i class="fas fa-exchange-alt me-1"></i>View Loan
-                                                    </a>
-                                                {% else %}
-                                                    <span class="text-muted small">No messages yet</span>
-                                                {% endif %}
+                                                <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-exchange-alt me-1"></i>View Loan
+                                                </a>
                                             </td>
                                         </tr>
                                     {% endfor %}

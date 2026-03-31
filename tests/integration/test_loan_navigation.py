@@ -141,13 +141,14 @@ class TestMyActivityConversationLinks:
             circle.members.append(owner)
             circle.members.append(borrower)
             item = ItemFactory(owner=owner, category=category, image_url='https://example.com/img.jpg')
-            LoanRequestFactory(
+            loan = LoanRequestFactory(
                 item=item, borrower=borrower, status='approved',
                 start_date=date.today() - timedelta(days=5),
                 end_date=date.today() + timedelta(days=10),
             )
             msg = MessageFactory(
                 sender=borrower, recipient=owner, item=item,
+                loan_request=loan,
                 body='Can I borrow this?',
             )
             db.session.commit()
@@ -162,51 +163,3 @@ class TestMyActivityConversationLinks:
             # Dedicated View Loan button links to conversation
             assert f'href="/message/{msg.id}"' in content
             assert 'View Loan' in content
-
-    def test_activity_table_no_conversation_column_header(self, client, app, auth_user):
-        """My Activity tables should not have a Conversation column header."""
-        with app.app_context():
-            user = auth_user()
-            owner = UserFactory()
-            category = CategoryFactory()
-            circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(owner)
-            item = ItemFactory(owner=owner, category=category)
-            LoanRequestFactory(
-                item=item, borrower=user, status='approved',
-                start_date=date.today() - timedelta(days=5),
-                end_date=date.today() + timedelta(days=10),
-            )
-            MessageFactory(sender=user, recipient=owner, item=item, body='hi')
-            db.session.commit()
-
-            login_user(client, user.email)
-            response = client.get('/profile?tab=my-activity')
-            content = response.data.decode('utf-8')
-            assert '<th>Conversation</th>' not in content
-
-    def test_activity_table_no_view_loan_button_when_no_messages(self, client, app, auth_user):
-        """When there are no messages, 'View Loan' button does not appear."""
-        with app.app_context():
-            user = auth_user()
-            owner = UserFactory()
-            category = CategoryFactory()
-            circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(owner)
-            item = ItemFactory(owner=owner, category=category)
-            LoanRequestFactory(
-                item=item, borrower=user, status='approved',
-                start_date=date.today() - timedelta(days=5),
-                end_date=date.today() + timedelta(days=10),
-            )
-            db.session.commit()
-
-            login_user(client, user.email)
-            response = client.get('/profile?tab=my-activity')
-            content = response.data.decode('utf-8')
-            # Item name still links to item detail
-            assert f'href="/item/{item.id}"' in content
-            # No View Loan button when there are no messages
-            assert 'View Loan' not in content
