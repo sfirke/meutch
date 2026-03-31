@@ -27,6 +27,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Add button to sort items on Find page by distance or date created ([#276](https://github.com/sfirke/meutch/pull/276)).
 - Increase prominence of "Create" floating action button on mobile ([#296](https://github.com/sfirke/meutch/pull/296)).
 - Show distances in buckets, e.g., "2-5 mi" instead of "2.4 mi" to improve user privacy ([#302](https://github.com/sfirke/meutch/pull/302)).
+- Make loan activity easier to find: add "View Loan" button to item cards and item detail page, restructure My Activity tab to combine item thumbnail and name into one clear link with a dedicated "View Loan" action button that links to the conversation ([#304](https://github.com/sfirke/meutch/pull/304)).
 
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/pull/213)).

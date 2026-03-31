@@ -1,58 +1,63 @@
+{% set item_url %}{% if link_to_share_preview|default(false) and item.is_giveaway %}{{ url_for('share.giveaway_preview', item_id=item.id) }}{% else %}{{ url_for('main.item_detail', item_id=item.id) }}{% endif %}{% endset %}
 <div class="card h-100">
     {% if item.image %}
-        <div class="position-relative">
-            <img src="{{ item.image }}" class="card-img-top" alt="{{ item.name }}">
-            <!-- Giveaway badge -->
-            {% if item.is_giveaway %}
-                <span class="giveaway-ribbon">
-                    GIVEAWAY
-                </span>
-            {% endif %}
-            <!-- Availability status badge -->
-            {% if not item.available %}
-                {% if item.is_giveaway and item.claim_status == 'claimed' %}
-                    <span class="position-absolute top-0 end-0 m-2 badge bg-success">
-                        <i class="fas fa-heart me-1"></i>Rehomed
-                    </span>
-                {% else %}
-                    <span class="position-absolute top-0 end-0 m-2 badge bg-warning">
-                        <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Pending Pickup{% else %}Borrowed{% endif %}
+        <a href="{{ item_url }}" class="text-decoration-none">
+            <div class="position-relative">
+                <img src="{{ item.image }}" class="card-img-top" alt="{{ item.name }}">
+                <!-- Giveaway badge -->
+                {% if item.is_giveaway %}
+                    <span class="giveaway-ribbon">
+                        GIVEAWAY
                     </span>
                 {% endif %}
-            {% endif %}
-        </div>
+                <!-- Availability status badge -->
+                {% if not item.available %}
+                    {% if item.is_giveaway and item.claim_status == 'claimed' %}
+                        <span class="position-absolute top-0 end-0 m-2 badge bg-success">
+                            <i class="fas fa-heart me-1"></i>Rehomed
+                        </span>
+                    {% else %}
+                        <span class="position-absolute top-0 end-0 m-2 badge bg-warning">
+                            <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Pending Pickup{% else %}Borrowed{% endif %}
+                        </span>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </a>
     {% else %}
-        <div class="card-img-top d-flex align-items-center justify-content-center bg-light position-relative" style="height: 200px;">
-            <i class="fas fa-image text-muted" style="font-size: 3rem;"></i>
-            <!-- Giveaway badge for items without images -->
-            {% if item.is_giveaway %}
-                <span class="giveaway-ribbon">
-                    GIVEAWAY
-                </span>
-            {% endif %}
-            <!-- Availability status badge for items without images -->
-            {% if not item.available %}
-                {% if item.is_giveaway and item.claim_status == 'claimed' %}
-                    <span class="position-absolute top-0 end-0 m-2 badge bg-success">
-                        <i class="fas fa-heart me-1"></i>Rehomed
-                    </span>
-                {% else %}
-                    <span class="position-absolute top-0 end-0 m-2 badge bg-warning">
-                        <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Pending Pickup{% else %}Borrowed{% endif %}
+        <a href="{{ item_url }}" class="text-decoration-none">
+            <div class="card-img-top d-flex align-items-center justify-content-center bg-light position-relative" style="height: 200px;">
+                <i class="fas fa-image text-muted" style="font-size: 3rem;"></i>
+                <!-- Giveaway badge for items without images -->
+                {% if item.is_giveaway %}
+                    <span class="giveaway-ribbon">
+                        GIVEAWAY
                     </span>
                 {% endif %}
-            {% endif %}
-        </div>
+                <!-- Availability status badge for items without images -->
+                {% if not item.available %}
+                    {% if item.is_giveaway and item.claim_status == 'claimed' %}
+                        <span class="position-absolute top-0 end-0 m-2 badge bg-success">
+                            <i class="fas fa-heart me-1"></i>Rehomed
+                        </span>
+                    {% else %}
+                        <span class="position-absolute top-0 end-0 m-2 badge bg-warning">
+                            <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Pending Pickup{% else %}Borrowed{% endif %}
+                        </span>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </a>
     {% endif %}
     
     <div class="card-body d-flex flex-column">
-        <h5 class="card-title">{{ item.name }}</h5>
+        <h5 class="card-title">
+            <a href="{{ item_url }}" class="text-decoration-none text-reset">{{ item.name }}</a>
+        </h5>
         <p class="card-text text-muted">{{ item.description|truncate(100) }}</p>
         
-        <!-- Availability status indicator -->
+        <!-- Distance indicator (only for other users' items) -->
         <div class="mb-2">
-          
-            <!-- Distance indicator (only for other users' items) -->
             {% if current_user.is_authenticated and current_user.id != item.owner_id %}
                 {% set distance = get_distance_to_item(item) %}
                 {% if distance %}
@@ -86,29 +91,24 @@
             </div>
         {% endif %}
         
-        <div class="mt-auto">
-            {% if show_owner_controls and delete_forms %}
-                <!-- Owner controls: View, Edit, Delete -->
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="btn btn-primary flex-fill">
-                        <i class="fas fa-eye me-1"></i>View
+        {% if show_owner_controls and delete_forms %}
+            <!-- Owner controls: Loan (if active), Edit, Delete -->
+            <div class="mt-auto d-flex gap-2 justify-content-end">
+                {% if item.current_loan %}
+                    <a href="{{ url_for('main.view_conversation', message_id=item.current_loan.messages[0].id) }}" class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" title="View active loan">
+                        <i class="fas fa-exchange-alt me-1"></i>Loan
                     </a>
-                    {% if item.id in delete_forms %}
-                        <a href="{{ url_for('main.edit_item', item_id=item.id) }}" class="btn btn-warning">
-                            <i class="fas fa-edit me-1"></i>Edit
-                        </a>
-                        <form action="{{ url_for('main.delete_item', item_id=item.id) }}" method="post" style="display:inline;">
-                            {{ delete_forms[item.id].hidden_tag() }}
-                            {{ delete_forms[item.id].submit(class="btn btn-danger", onclick="return confirm('Are you sure you want to delete this item?');", **{'data-bs-toggle': 'tooltip', 'title': 'Delete item'}) }}
-                        </form>
-                    {% endif %}
-                </div>
-            {% else %}
-                <!-- Default: View Details only -->
-                <a href="{% if link_to_share_preview|default(false) and item.is_giveaway %}{{ url_for('share.giveaway_preview', item_id=item.id) }}{% else %}{{ url_for('main.item_detail', item_id=item.id) }}{% endif %}" class="btn btn-primary w-100">
-                    <i class="fas fa-eye me-1"></i>View Details
-                </a>
-            {% endif %}
-        </div>
+                {% endif %}
+                {% if item.id in delete_forms %}
+                    <a href="{{ url_for('main.edit_item', item_id=item.id) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-edit me-1"></i>Edit
+                    </a>
+                    <form action="{{ url_for('main.delete_item', item_id=item.id) }}" method="post" style="display:inline;">
+                        {{ delete_forms[item.id].hidden_tag() }}
+                        {{ delete_forms[item.id].submit(class="btn btn-sm btn-outline-danger", onclick="return confirm('Are you sure you want to delete this item?');", **{'data-bs-toggle': 'tooltip', 'title': 'Delete item'}) }}
+                    </form>
+                {% endif %}
+            </div>
+        {% endif %}
     </div>
 </div>

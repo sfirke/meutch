@@ -248,50 +248,45 @@
                     <h4><i class="fas fa-arrow-down me-2"></i>Items I'm Borrowing</h4>
                     {% if borrowing %}
                         <div class="table-responsive">
-                            <table class="table">
+                            <table class="table align-middle">
                                 <thead>
                                     <tr>
-                                        <th>Thumbnail</th>
-                                        <th>Item Name</th>
+                                        <th>Item</th>
                                         <th>Owner</th>
-                                        <th>Start Date</th>
-                                        <th>End Date</th>
-                                        <th>Conversation</th>
+                                        <th>Due Date</th>
+                                        <th>Active Loan</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for item in borrowing %}
                                         <tr>
                                             <td>
-                                                {% if item.image_url %}
-                                                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}">
-                                                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
-                                                    </a>
-                                                {% else %}
-                                                    N/A
-                                                {% endif %}
+                                                <div class="d-flex align-items-center gap-2">
+                                                    {% if item.image_url %}
+                                                        <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="flex-shrink-0">
+                                                            <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
+                                                        </a>
+                                                    {% endif %}
+                                                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="fw-semibold text-decoration-none text-reset">{{ item.name }}</a>
+                                                </div>
                                             </td>
-                                            <td><a href="{{ url_for('main.item_detail', item_id=item.id) }}">{{ item.name }}</a></td>
                                             <td><a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}">{{ item.owner.full_name }}</a></td>
-                                            <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
-                                            <td>
+                                            <td class="text-nowrap">
                                                 {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
                                                 {% if item.current_loan.is_overdue() %}
-                                                    <span class="badge bg-danger ms-2">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
+                                                    <span class="badge bg-danger ms-1">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
                                                 {% elif item.current_loan.is_due_soon() %}
                                                     {% if item.current_loan.days_until_due() == 0 %}
-                                                        <span class="badge bg-warning text-dark ms-2">Due today</span>
+                                                        <span class="badge bg-warning text-dark ms-1">Due today</span>
                                                     {% else %}
-                                                        <span class="badge bg-warning text-dark ms-2">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
+                                                        <span class="badge bg-warning text-dark ms-1">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
                                                     {% endif %}
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {% if item.messages %}
-                                                    <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
-                                                {% else %}
-                                                    <span class="text-muted">No messages</span>
-                                                {% endif %}
+                                                <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-exchange-alt me-1"></i>View Loan
+                                                </a>
                                             </td>
                                         </tr>
                                     {% endfor %}
@@ -308,50 +303,45 @@
                     <h4><i class="fas fa-arrow-up me-2"></i>Items I'm Lending</h4>
                     {% if lending %}
                         <div class="table-responsive">
-                            <table class="table">
+                            <table class="table align-middle">
                                 <thead>
                                     <tr>
-                                        <th>Thumbnail</th>
-                                        <th>Item Name</th>
+                                        <th>Item</th>
                                         <th>Borrower</th>
-                                        <th>Start Date</th>
-                                        <th>End Date</th>
-                                        <th>Conversation</th>
+                                        <th>Due Date</th>
+                                        <th>Active Loan</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for item in lending %}
                                         <tr>
                                             <td>
-                                                {% if item.image_url %}
-                                                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}">
-                                                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
-                                                    </a>
-                                                {% else %}
-                                                    N/A
-                                                {% endif %}
+                                                <div class="d-flex align-items-center gap-2">
+                                                    {% if item.image_url %}
+                                                        <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="flex-shrink-0">
+                                                            <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
+                                                        </a>
+                                                    {% endif %}
+                                                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="fw-semibold text-decoration-none text-reset">{{ item.name }}</a>
+                                                </div>
                                             </td>
-                                            <td><a href="{{ url_for('main.item_detail', item_id=item.id) }}">{{ item.name }}</a></td>
                                             <td><a href="{{ url_for('main.user_profile', user_id=item.current_loan.borrower.id) }}">{{ item.current_loan.borrower.full_name }}</a></td>
-                                            <td>{{ item.current_loan.start_date.strftime('%Y-%m-%d') }}</td>
-                                            <td>
+                                            <td class="text-nowrap">
                                                 {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
                                                 {% if item.current_loan.is_overdue() %}
-                                                    <span class="badge bg-danger ms-2">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
+                                                    <span class="badge bg-danger ms-1">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
                                                 {% elif item.current_loan.is_due_soon() %}
                                                     {% if item.current_loan.days_until_due() == 0 %}
-                                                        <span class="badge bg-warning text-dark ms-2">Due today</span>
+                                                        <span class="badge bg-warning text-dark ms-1">Due today</span>
                                                     {% else %}
-                                                        <span class="badge bg-warning text-dark ms-2">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
+                                                        <span class="badge bg-warning text-dark ms-1">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
                                                     {% endif %}
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {% if item.messages %}
-                                                    <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-info">View</a>
-                                                {% else %}
-                                                    <span class="text-muted">No messages</span>
-                                                {% endif %}
+                                                <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-exchange-alt me-1"></i>View Loan
+                                                </a>
                                             </td>
                                         </tr>
                                     {% endfor %}

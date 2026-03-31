@@ -2,7 +2,7 @@
 import pytest
 from app import db
 from app.models import Item, User, Category, Circle
-from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory, LoanRequestFactory, UserWebLinkFactory, ItemRequestFactory, CircleJoinRequestFactory
+from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory, LoanRequestFactory, MessageFactory, UserWebLinkFactory, ItemRequestFactory, CircleJoinRequestFactory
 from conftest import login_user
 from unittest.mock import patch
 import io
@@ -887,7 +887,7 @@ class TestProfileRoutes:
             assert 'id="profile-edit" class="d-none"' not in content
 
     def test_profile_active_loans_have_clickable_user_and_item_links(self, client, app, auth_user):
-        """Test active loans tab links borrower/lender names and item thumbnail/name."""
+        """Test active loans tab: item name/thumbnail link to item, View Loan button links to conversation."""
         with app.app_context():
             user = auth_user()
             lender = UserFactory()
@@ -903,8 +903,12 @@ class TestProfileRoutes:
             borrowed_item = ItemFactory(owner=lender, category=category, name='Borrowed Item', image_url='https://example.com/borrowed.jpg')
             lent_item = ItemFactory(owner=user, category=category, name='Lent Item', image_url='https://example.com/lent.jpg')
 
-            LoanRequestFactory(item=borrowed_item, borrower=user, status='approved')
-            LoanRequestFactory(item=lent_item, borrower=borrower, status='approved')
+            borrowed_loan = LoanRequestFactory(item=borrowed_item, borrower=user, status='approved')
+            lent_loan = LoanRequestFactory(item=lent_item, borrower=borrower, status='approved')
+
+            # Create messages so View Loan buttons appear
+            borrowed_msg = MessageFactory(sender=user, recipient=lender, item=borrowed_item, loan_request=borrowed_loan, body='Can I borrow this?')
+            lent_msg = MessageFactory(sender=borrower, recipient=user, item=lent_item, loan_request=lent_loan, body='Can I borrow this?')
             db.session.commit()
 
             login_user(client, user.email)
@@ -912,15 +916,15 @@ class TestProfileRoutes:
             assert response.status_code == 200
             content = response.data.decode('utf-8')
 
-            # Borrowing section: lender profile + item links (name + thumbnail)
+            # Borrowing section: lender profile + item links (name + thumbnail) + View Loan button
             assert f'href="/user/{lender.id}"' in content
-            borrowed_item_href = f'href="/item/{borrowed_item.id}"'
-            assert content.count(borrowed_item_href) >= 2
+            assert f'href="/item/{borrowed_item.id}"' in content
+            assert f'href="/message/{borrowed_msg.id}"' in content
 
-            # Lending section: borrower profile + item links (name + thumbnail)
+            # Lending section: borrower profile + item links (name + thumbnail) + View Loan button
             assert f'href="/user/{borrower.id}"' in content
-            lent_item_href = f'href="/item/{lent_item.id}"'
-            assert content.count(lent_item_href) >= 2
+            assert f'href="/item/{lent_item.id}"' in content
+            assert f'href="/message/{lent_msg.id}"' in content
 
     def test_profile_displays_custom_other_site_name(self, client, app, auth_user):
         """Test that custom name for 'Other' web links is shown in read-only profile view."""
