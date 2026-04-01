@@ -12,7 +12,7 @@ class TestUserRegistrationWorkflow:
         """Test user can register, confirm email, and login."""
         with app.app_context():
             # User registration
-            response = client.post('/auth/register', data={
+            response = client.post('/register', data={
                 'email': 'newuser@example.com',
                 'first_name': 'New',
                 'last_name': 'User',
@@ -150,7 +150,7 @@ class TestLoanRequestWorkflow:
             assert response.status_code == 200
             
             # Logout borrower and login lender
-            client.get('/auth/logout', follow_redirects=True)
+            client.get('/logout', follow_redirects=True)
             login_user(client, lender.email)
             
             # Lender checks messages and approves loan
@@ -203,7 +203,7 @@ class TestCircleWorkflow:
             assert circle.is_admin(admin_user)
             
             # Member requests to join
-            client.get('/auth/logout', follow_redirects=True)
+            client.get('/logout', follow_redirects=True)
             login_user(client, member_user.email)
             
             response = client.post(f'/circles/join/{circle.id}', data={
@@ -213,7 +213,7 @@ class TestCircleWorkflow:
             assert response.status_code == 200
             
             # Admin approves request
-            client.get('/auth/logout', follow_redirects=True)
+            client.get('/logout', follow_redirects=True)
             login_user(client, admin_user.email)
             
             # Find join request
@@ -301,7 +301,7 @@ class TestMessagingWorkflow:
             assert b'message has been sent' in response.data
             
             # Recipient logs in and checks messages
-            client.get('/auth/logout', follow_redirects=True)
+            client.get('/logout', follow_redirects=True)
             login_user(client, recipient.email)
             
             response = client.get('/messages')
@@ -352,12 +352,12 @@ class TestUserProfileWorkflow:
             assert bytes(user.first_name, encoding='utf-8') in response.data
             
             # Test unauthenticated access redirects to login
-            client.get('/auth/logout', follow_redirects=True)
+            client.get('/logout', follow_redirects=True)
             
             # First verify we get redirected (without following)
             response = client.get(f'/user/{user.id}')
             assert response.status_code == 302
-            assert '/auth/login' in response.location
+            assert '/login' in response.location
             
             # Then verify following redirect lands on login page
             response = client.get(f'/user/{user.id}', follow_redirects=True)

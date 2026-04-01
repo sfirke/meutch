@@ -54,7 +54,7 @@ def create_app(config_class=None):
     app.register_blueprint(main_bp)
 
     from app.auth import bp as auth_bp
-    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(auth_bp, url_prefix='')
 
     from app.circles import bp as circles_bp
     app.register_blueprint(circles_bp, url_prefix='/circles')

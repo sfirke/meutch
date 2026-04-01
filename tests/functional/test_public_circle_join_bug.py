@@ -30,7 +30,7 @@ def test_public_circle_join_flow(client, app):
         assert circle.circle_type == 'open'
 
         # Logout creator
-        client.get('/auth/logout', follow_redirects=True)
+        client.get('/logout', follow_redirects=True)
 
         # Joiner logs in and attempts to join the public circle
         login_user(client, joiner.email)

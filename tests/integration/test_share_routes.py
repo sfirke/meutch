@@ -469,8 +469,8 @@ class TestRequestSharePreview:
             assert response.status_code == 200
             assert b'This request has already been fulfilled.' in response.data
             assert b'Browse current community requests in the requests feed.' in response.data
-            assert b'/auth/register' in response.data
-            assert b'/auth/login' in response.data
+            assert b'/register' in response.data
+            assert b'/login' in response.data
             assert (b'next=%2Frequests%2F' in response.data) or (b'next=/requests/' in response.data)
 
     def test_fulfilled_request_within_7_days_still_accessible_with_feed_next(self, client, app):
@@ -489,8 +489,8 @@ class TestRequestSharePreview:
             assert response.status_code == 200
             assert req.title.encode() in response.data
             assert b'This request has already been fulfilled.' not in response.data
-            assert b'/auth/register' in response.data
-            assert b'/auth/login' in response.data
+            assert b'/register' in response.data
+            assert b'/login' in response.data
             assert (b'next=%2Frequests%2F' in response.data) or (b'next=/requests/' in response.data)
 
     def test_open_request_uses_request_detail_for_auth_next(self, client, app):
@@ -504,8 +504,8 @@ class TestRequestSharePreview:
             assert response.status_code == 200
             encoded_next = f'%2Frequests%2F{req.id}%2Fdetail'.encode()
             raw_next = f'/requests/{req.id}/detail'.encode()
-            assert b'/auth/register' in response.data
-            assert b'/auth/login' in response.data
+            assert b'/register' in response.data
+            assert b'/login' in response.data
             assert (b'next=' + encoded_next in response.data) or (b'next=' + raw_next in response.data)
 
     def test_authenticated_user_old_fulfilled_share_link_redirects_to_feed(self, client, app):
@@ -831,7 +831,7 @@ class TestRegisterNextParam:
         with app.app_context():
             with patch('app.auth.routes.send_confirmation_email') as mock_send:
                 mock_send.return_value = True
-                response = client.post('/auth/register?next=/circles/some-id', data={
+                response = client.post('/register?next=/circles/some-id', data={
                     'email': 'newuser@example.com',
                     'password': 'testpassword123',
                     'confirm_password': 'testpassword123',
@@ -841,7 +841,7 @@ class TestRegisterNextParam:
                 })
             # Should redirect to resend-confirmation page
             assert response.status_code == 302
-            assert '/auth/resend-confirmation' in response.headers['Location']
+            assert '/resend-confirmation' in response.headers['Location']
 
             # next_url must have been forwarded to the email utility
             mock_send.assert_called_once()

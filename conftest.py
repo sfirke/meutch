@@ -259,11 +259,11 @@ def login_user(client, email='test@example.com', password=None, remember=False):
     if remember:
         login_data['remember_device'] = 'y'
 
-    return client.post('/auth/login', data=login_data, follow_redirects=True)
+    return client.post('/login', data=login_data, follow_redirects=True)
 
 def logout_user(client):
     """Helper function to log out a user."""
-    return client.get('/auth/logout', follow_redirects=True)
+    return client.get('/logout', follow_redirects=True)
 
 @pytest.fixture(autouse=True)
 def mock_email_sending():
