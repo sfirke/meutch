@@ -10,7 +10,7 @@ class TestAuthenticationRoutes:
     
     def test_login_page(self, client):
         """Test login page loads correctly."""
-        response = client.get('/auth/login')
+        response = client.get('/login')
         assert response.status_code == 200
         assert b'Log In' in response.data
     
@@ -18,7 +18,7 @@ class TestAuthenticationRoutes:
         """Test login with valid credentials."""
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
-            response = client.post('/auth/login', data={
+            response = client.post('/login', data={
                 'email': user.email,
                 'password': TEST_PASSWORD
             }, follow_redirects=True)
@@ -31,7 +31,7 @@ class TestAuthenticationRoutes:
         """Test login with remember_device sets remember cookie."""
         with app.app_context():
             user = auth_user()
-            response = client.post('/auth/login', data={
+            response = client.post('/login', data={
                 'email': user.email,
                 'password': TEST_PASSWORD,
                 'remember_device': 'y'
@@ -45,7 +45,7 @@ class TestAuthenticationRoutes:
         """Test login without remember_device does not set remember cookie."""
         with app.app_context():
             user = auth_user()
-            response = client.post('/auth/login', data={
+            response = client.post('/login', data={
                 'email': user.email,
                 'password': TEST_PASSWORD
             }, follow_redirects=False)
@@ -58,7 +58,7 @@ class TestAuthenticationRoutes:
         """Test login with invalid credentials."""
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
-            response = client.post('/auth/login', data={
+            response = client.post('/login', data={
                 'email': user.email,
                 'password': 'wrongpassword'
             })
@@ -68,7 +68,7 @@ class TestAuthenticationRoutes:
     
     def test_login_nonexistent_user(self, client):
         """Test login with nonexistent user."""
-        response = client.post('/auth/login', data={
+        response = client.post('/login', data={
             'email': 'nonexistent@example.com',
             'password': 'password'
         })
@@ -81,7 +81,7 @@ class TestAuthenticationRoutes:
         with app.app_context():
             user = UserFactory(email_confirmed=False)
             
-            response = client.post('/auth/login', data={
+            response = client.post('/login', data={
                 'email': user.email,
                 'password': TEST_PASSWORD
             })
@@ -97,14 +97,14 @@ class TestAuthenticationRoutes:
             login_user(client, user.email)
             
             # Then logout
-            response = client.get('/auth/logout', follow_redirects=True)
+            response = client.get('/logout', follow_redirects=True)
             assert response.status_code == 200
             # Just verify we're redirected to main page (landing page for anonymous)
             assert b'Borrowing from a neighbor' in response.data
     
     def test_register_page(self, client):
         """Test registration page loads correctly."""
-        response = client.get('/auth/register')
+        response = client.get('/register')
         assert response.status_code == 200
         assert b'Register' in response.data
         assert b'Email Updates' in response.data
@@ -114,19 +114,19 @@ class TestAuthenticationRoutes:
         """The register form's action URL must include ?next so the parameter
         survives the GET → POST round-trip. Without this, ?next is present on
         the page load but silently dropped when the form is submitted."""
-        response = client.get('/auth/register?next=/share/giveaway/abc123')
+        response = client.get('/register?next=/share/giveaway/abc123')
         assert response.status_code == 200
         # The form action must carry ?next so the POST lands on
-        # /auth/register?next=... (matching the login template pattern).
-        assert (b'action="/auth/register?next=%2Fshare%2Fgiveaway%2Fabc123"' in response.data or
-                b'action="/auth/register?next=/share/giveaway/abc123"' in response.data)
+        # /register?next=... (matching the login template pattern).
+        assert (b'action="/register?next=%2Fshare%2Fgiveaway%2Fabc123"' in response.data or
+                b'action="/register?next=/share/giveaway/abc123"' in response.data)
         assert b'id="location-info"' in response.data
     
     def test_register_valid_data_with_address(self, client, app):
         """Test registration with valid data using address input."""
         with app.app_context():
             with patch('app.auth.routes.geocode_address', return_value=(40.7128, -74.0060)):
-                response = client.post('/auth/register', data={
+                response = client.post('/register', data={
                     'email': 'newuser@example.com',
                     'first_name': 'New',
                     'last_name': 'User',
@@ -153,7 +153,7 @@ class TestAuthenticationRoutes:
     def test_register_valid_data_with_coordinates(self, client, app):
         """Test registration with valid data using direct coordinates."""
         with app.app_context():
-            response = client.post('/auth/register', data={
+            response = client.post('/register', data={
                 'email': 'coorduser@example.com',
                 'first_name': 'Coord',
                 'last_name': 'User',
@@ -177,7 +177,7 @@ class TestAuthenticationRoutes:
     def test_register_valid_data_skip_location(self, client, app):
         """Test registration with valid data skipping location."""
         with app.app_context():
-            response = client.post('/auth/register', data={
+            response = client.post('/register', data={
                 'email': 'skipuser@example.com',
                 'first_name': 'Skip',
                 'last_name': 'User',
@@ -200,7 +200,7 @@ class TestAuthenticationRoutes:
     def test_register_persists_selected_digest_frequency(self, client, app):
         """Test registration persists explicit digest frequency selection."""
         with app.app_context():
-            response = client.post('/auth/register', data={
+            response = client.post('/register', data={
                 'email': 'digestnone@example.com',
                 'first_name': 'Digest',
                 'last_name': 'None',
@@ -217,7 +217,7 @@ class TestAuthenticationRoutes:
 
     def test_register_redirects_to_resend_confirmation(self, client):
         """Test registration redirects to confirmation guidance page, not login."""
-        response = client.post('/auth/register', data={
+        response = client.post('/register', data={
             'email': 'redirectuser@example.com',
             'first_name': 'Redirect',
             'last_name': 'User',
@@ -227,14 +227,14 @@ class TestAuthenticationRoutes:
         }, follow_redirects=False)
 
         assert response.status_code == 302
-        assert '/auth/resend-confirmation' in response.location
+        assert '/resend-confirmation' in response.location
 
     def test_register_with_next_embeds_in_confirmation_url(self, app, client):
-        """?next param on /auth/register is embedded in the confirmation link so
+        """?next param on /register is embedded in the confirmation link so
         it survives cross-device / cross-browser email opens."""
         with patch('app.auth.routes.send_confirmation_email') as mock_send:
             mock_send.return_value = True
-            response = client.post('/auth/register?next=/share/giveaway/abc123', data={
+            response = client.post('/register?next=/share/giveaway/abc123', data={
                 'email': 'nextuser@example.com',
                 'first_name': 'Next',
                 'last_name': 'User',
@@ -244,13 +244,13 @@ class TestAuthenticationRoutes:
             }, follow_redirects=False)
 
         assert response.status_code == 302
-        assert '/auth/resend-confirmation' in response.location
+        assert '/resend-confirmation' in response.location
         mock_send.assert_called_once()
         _, kwargs = mock_send.call_args
         assert kwargs.get('next_url') == '/share/giveaway/abc123'
 
     def test_confirm_email_redirects_to_login_with_next_from_url(self, client, app):
-        """After email confirmation, the user is redirected to /auth/login?next=<url>
+        """After email confirmation, the user is redirected to /login?next=<url>
         when ?next is embedded in the confirmation link URL."""
         with app.app_context():
             user = UserFactory(email_confirmed=False)
@@ -260,18 +260,18 @@ class TestAuthenticationRoutes:
             token_value = user.email_confirmation_token
 
         response = client.get(
-            f'/auth/confirm/{token_value}?next=/share/giveaway/abc123',
+            f'/confirm/{token_value}?next=/share/giveaway/abc123',
             follow_redirects=False
         )
 
         assert response.status_code == 302
-        assert '/auth/login' in response.location
+        assert '/login' in response.location
         assert 'next=' in response.location
         assert 'abc123' in response.location
 
     def test_confirm_email_without_next_redirects_to_plain_login(self, client, app):
         """After email confirmation with no next param, redirect is the plain
-        /auth/login without a next param."""
+        /login without a next param."""
         with app.app_context():
             user = UserFactory(email_confirmed=False)
             user.generate_confirmation_token()
@@ -279,17 +279,17 @@ class TestAuthenticationRoutes:
             _db.session.commit()
             token_value = user.email_confirmation_token
 
-        response = client.get(f'/auth/confirm/{token_value}', follow_redirects=False)
+        response = client.get(f'/confirm/{token_value}', follow_redirects=False)
 
         assert response.status_code == 302
-        assert '/auth/login' in response.location
+        assert '/login' in response.location
         assert 'next=' not in response.location
 
     def test_register_duplicate_email(self, client, app, auth_user):
         """Test registration with duplicate email."""
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
-            response = client.post('/auth/register', data={
+            response = client.post('/register', data={
                 'email': user.email,  # Use existing email
                 'first_name': 'Duplicate',
                 'last_name': 'User',
@@ -303,7 +303,7 @@ class TestAuthenticationRoutes:
     
     def test_register_password_mismatch(self, client):
         """Test registration with password mismatch."""
-        response = client.post('/auth/register', data={
+        response = client.post('/register', data={
             'email': 'mismatch@example.com',
             'first_name': 'Mismatch',
             'last_name': 'User',
@@ -319,7 +319,7 @@ class TestAuthenticationRoutes:
         """Test registration when email sending fails."""
         with app.app_context():
             with patch('app.auth.routes.send_confirmation_email', return_value=False):
-                response = client.post('/auth/register', data={
+                response = client.post('/register', data={
                     'email': 'test@example.com',
                     'first_name': 'Test',
                     'last_name': 'User',
@@ -344,7 +344,7 @@ class TestAuthenticationRoutes:
             ]
             
             for email in test_emails:
-                response = client.post('/auth/login', data={
+                response = client.post('/login', data={
                     'email': email,
                     'password': TEST_PASSWORD
                 }, follow_redirects=True)
@@ -353,13 +353,13 @@ class TestAuthenticationRoutes:
                 assert b'Community Activity' in response.data, f"Failed for email: {email}"
                 
                 # Logout after each test
-                client.get('/auth/logout')
+                client.get('/logout')
 
     def test_case_insensitive_registration_duplicate_prevention(self, client, app):
         """Test that registration prevents duplicates regardless of case."""
         with app.app_context():
             # Register with lowercase email
-            response = client.post('/auth/register', data={
+            response = client.post('/register', data={
                 'email': 'unique@example.com',
                 'first_name': 'First',
                 'last_name': 'User',
@@ -376,7 +376,7 @@ class TestAuthenticationRoutes:
             ]
             
             for email in test_emails:
-                response = client.post('/auth/register', data={
+                response = client.post('/register', data={
                     'email': email,
                     'first_name': 'Duplicate',
                     'last_name': 'User',
@@ -401,7 +401,7 @@ class TestAuthenticationRoutes:
             ]
             
             for email in test_emails:
-                response = client.post('/auth/resend-confirmation', data={
+                response = client.post('/resend-confirmation', data={
                     'email': email
                 })
                 
@@ -412,7 +412,7 @@ class TestAuthenticationRoutes:
         """Test that registration stores emails in lowercase format."""
         with app.app_context():
             # Register with mixed case email
-            response = client.post('/auth/register', data={
+            response = client.post('/register', data={
                 'email': 'TestUser@EXAMPLE.COM',
                 'first_name': 'Test',
                 'last_name': 'User',
@@ -435,19 +435,19 @@ class TestProtectedRoutes:
         """Test that listing items requires authentication."""
         response = client.get('/list-item')
         assert response.status_code == 302
-        assert '/auth/login' in response.location
+        assert '/login' in response.location
     
     def test_profile_requires_auth(self, client):
         """Test that profile requires authentication."""
         response = client.get('/profile')
         assert response.status_code == 302
-        assert '/auth/login' in response.location
+        assert '/login' in response.location
     
     def test_messages_requires_auth(self, client):
         """Test that messages require authentication."""
         response = client.get('/messages')
         assert response.status_code == 302
-        assert '/auth/login' in response.location
+        assert '/login' in response.location
     
     def test_item_detail_requires_auth(self, client, app):
         """Test that item detail requires authentication."""
@@ -455,7 +455,7 @@ class TestProtectedRoutes:
             item = ItemFactory()
             response = client.get(f'/item/{item.id}')
             assert response.status_code == 302
-            assert '/auth/login' in response.location
+            assert '/login' in response.location
 
     def test_tag_items_requires_auth(self, client, app):
         """Test that tag items page requires authentication."""
@@ -464,7 +464,7 @@ class TestProtectedRoutes:
             tag = TagFactory()
             response = client.get(f'/tag/{tag.id}')
             assert response.status_code == 302
-            assert '/auth/login' in response.location
+            assert '/login' in response.location
 
     def test_category_items_requires_auth(self, client, app):
         """Test that category items page requires authentication."""
@@ -473,14 +473,14 @@ class TestProtectedRoutes:
             category = CategoryFactory()
             response = client.get(f'/category/{category.id}')
             assert response.status_code == 302
-            assert '/auth/login' in response.location
+            assert '/login' in response.location
 
 class TestEmailConfirmation:
     """Test email confirmation functionality."""
     
     def test_resend_confirmation_page(self, client):
         """Test resend confirmation page."""
-        response = client.get('/auth/resend-confirmation')
+        response = client.get('/resend-confirmation')
         assert response.status_code == 200
         assert b'Resend Confirmation' in response.data
     
@@ -489,7 +489,7 @@ class TestEmailConfirmation:
         with app.app_context():
             user = UserFactory(email_confirmed=False)
             
-            response = client.post('/auth/resend-confirmation', data={
+            response = client.post('/resend-confirmation', data={
                 'email': user.email
             }, follow_redirects=True)
             
@@ -501,16 +501,16 @@ class TestEmailConfirmation:
         with app.app_context():
             user = UserFactory(email_confirmed=True)
             
-            response = client.post('/auth/resend-confirmation', data={
+            response = client.post('/resend-confirmation', data={
                 'email': user.email
             })
             
             assert response.status_code == 302  # Redirects to login
-            assert '/auth/login' in response.location
+            assert '/login' in response.location
     
     def test_resend_confirmation_nonexistent_email(self, client):
         """Test resending confirmation for nonexistent email."""
-        response = client.post('/auth/resend-confirmation', data={
+        response = client.post('/resend-confirmation', data={
             'email': 'nonexistent@example.com'
         })
         
@@ -522,7 +522,7 @@ class TestPasswordReset:
     
     def test_forgot_password_page(self, client):
         """Test forgot password page."""
-        response = client.get('/auth/forgot-password')
+        response = client.get('/forgot-password')
         assert response.status_code == 200
         assert b'Forgot Password' in response.data
     
@@ -530,7 +530,7 @@ class TestPasswordReset:
         """Test forgot password with valid email."""
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
-            response = client.post('/auth/forgot-password', data={
+            response = client.post('/forgot-password', data={
                 'email': user.email
             }, follow_redirects=True)
             
@@ -539,12 +539,12 @@ class TestPasswordReset:
     
     def test_forgot_password_invalid_email(self, client):
         """Test forgot password with invalid email."""
-        response = client.post('/auth/forgot-password', data={
+        response = client.post('/forgot-password', data={
             'email': 'nonexistent@example.com'
         })
         
         assert response.status_code == 302
-        assert response.location.endswith('/auth/login')
+        assert response.location.endswith('/login')
 
 
 class TestRedirectAfterLogin:
@@ -561,7 +561,7 @@ class TestRedirectAfterLogin:
         """Test login without 'next' parameter redirects to home page."""
         with app.app_context():
             user = auth_user()
-            response = client.post('/auth/login', data={
+            response = client.post('/login', data={
                 'email': user.email,
                 'password': TEST_PASSWORD
             }, follow_redirects=True)
@@ -573,7 +573,7 @@ class TestRedirectAfterLogin:
         """Test login with valid 'next' parameter redirects to intended page."""
         with app.app_context():
             user = auth_user()
-            response = client.post('/auth/login?next=/profile', data={
+            response = client.post('/login?next=/profile', data={
                 'email': user.email,
                 'password': TEST_PASSWORD
             }, follow_redirects=True)
@@ -586,7 +586,7 @@ class TestRedirectAfterLogin:
         """Test that external URLs in 'next' parameter are ignored for security."""
         with app.app_context():
             user = auth_user()
-            response = client.post('/auth/login?next=http://evil.com/phishing', data={
+            response = client.post('/login?next=http://evil.com/phishing', data={
                 'email': user.email,
                 'password': TEST_PASSWORD
             }, follow_redirects=True)
@@ -599,7 +599,7 @@ class TestRedirectAfterLogin:
         """Test that protocol-relative URLs are ignored for security."""
         with app.app_context():
             user = auth_user()
-            response = client.post('/auth/login?next=//evil.com/phishing', data={
+            response = client.post('/login?next=//evil.com/phishing', data={
                 'email': user.email,
                 'password': TEST_PASSWORD
             }, follow_redirects=True)
@@ -623,7 +623,7 @@ class TestRedirectAfterLogin:
             # Step 1: Try to access protected route (circles page)
             response = client.get('/circles/', follow_redirects=False)
             assert response.status_code == 302
-            assert '/auth/login' in response.location
+            assert '/login' in response.location
             assert 'next=' in response.location  # Verify next parameter is set
             
             # Extract the redirect URL with next parameter
@@ -663,13 +663,13 @@ class TestRedirectAfterLogin:
         """
         with app.app_context():
             # Access login page with 'next' parameter
-            response = client.get('/auth/login?next=/profile')
+            response = client.get('/login?next=/profile')
             
             assert response.status_code == 200
             # The form action should include the 'next' parameter
             # This ensures the parameter survives the form POST
-            assert b'action="/auth/login?next=' in response.data or \
-                   b'action="/auth/login?next=%2Fprofile' in response.data
+            assert b'action="/login?next=' in response.data or \
+                   b'action="/login?next=%2Fprofile' in response.data
 
 
 class TestCSRFErrorHandler:
@@ -689,7 +689,7 @@ class TestCSRFErrorHandler:
             db.create_all()
             client = csrf_app.test_client()
             # POST without a valid CSRF token triggers CSRFError; follow redirect to login page
-            response = client.post('/auth/login', data={
+            response = client.post('/login', data={
                 'email': 'test@example.com',
                 'password': 'password',
             }, follow_redirects=True)

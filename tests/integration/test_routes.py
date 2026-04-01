@@ -209,7 +209,7 @@ class TestMainRoutes:
         """Test /find requires authentication."""
         response = client.get('/find')
         assert response.status_code == 302
-        assert '/auth/login' in response.headers['Location']
+        assert '/login' in response.headers['Location']
 
     def test_find_page_with_authenticated_user(self, client, app, auth_user):
         """Test /find shows the search/find experience for authenticated users."""

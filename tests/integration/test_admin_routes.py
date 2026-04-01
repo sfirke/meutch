@@ -13,7 +13,7 @@ class TestAdminDashboardAccess:
         """Test that admin dashboard redirects to login when not authenticated"""
         response = client.get('/admin/')
         assert response.status_code == 302
-        assert '/auth/login' in response.location
+        assert '/login' in response.location
     
     def test_admin_dashboard_blocks_non_admin(self, client, db_session):
         """Test that non-admin users get 403 Forbidden"""

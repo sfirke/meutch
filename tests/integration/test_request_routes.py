@@ -15,7 +15,7 @@ class TestRequestsFeedAccess:
         """Test that the feed requires authentication."""
         response = client.get('/requests/')
         assert response.status_code == 302
-        assert '/auth/login' in response.headers['Location']
+        assert '/login' in response.headers['Location']
 
     def test_feed_shows_no_circles_message(self, client, app, auth_user):
         """Test homepage feed shows no-circles message for users with no circles."""
@@ -428,7 +428,7 @@ class TestRequestCreation:
         """Test that creating a request requires authentication."""
         response = client.get('/requests/new')
         assert response.status_code == 302
-        assert '/auth/login' in response.headers['Location']
+        assert '/login' in response.headers['Location']
 
     def test_create_public_request_without_location_blocked(self, client, app):
         """Test that a user without location cannot create a public request."""
