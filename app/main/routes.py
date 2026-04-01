@@ -85,6 +85,9 @@ def _parse_homepage_feed_filters(user):
     }
 
 
+_FIND_DISTANCE_OPTIONS = {'', '1', '2', '5', '10', '25'}
+
+
 def _build_find_context(user):
     items = []
     pagination = None
@@ -95,6 +98,9 @@ def _build_find_context(user):
     sort_by = request.args.get('sort', 'date')
     if sort_by not in ('date', 'distance'):
         sort_by = 'date'
+    max_distance = request.args.get('max_distance', '')
+    if max_distance not in _FIND_DISTANCE_OPTIONS:
+        max_distance = ''
     page = request.args.get('page', 1, type=int)
     per_page = 12
     result_count = 0
@@ -159,7 +165,12 @@ def _build_find_context(user):
 
             items_query = items_query.distinct()
             all_items = items_query.all()
-            if sort_by == 'distance':
+            if max_distance and user.is_geocoded:
+                radius = float(max_distance)
+                sorted_items = sort_items_by_owner_distance(all_items, user, radius=radius)
+                if sort_by == 'date':
+                    sorted_items = sorted(sorted_items, key=lambda x: x.created_at or datetime.min, reverse=True)
+            elif sort_by == 'distance':
                 sorted_items = sort_items_by_owner_distance(all_items, user)
             else:
                 sorted_items = sorted(all_items, key=lambda x: x.created_at or datetime.min, reverse=True)
@@ -209,7 +220,14 @@ def _build_find_context(user):
                     or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None))
                 )
 
-            if sort_by == 'distance':
+            if max_distance and user.is_geocoded:
+                radius = float(max_distance)
+                all_items = base_query.all()
+                sorted_items = sort_items_by_owner_distance(all_items, user, radius=radius)
+                if sort_by == 'date':
+                    sorted_items = sorted(sorted_items, key=lambda x: x.created_at or datetime.min, reverse=True)
+                pagination = ListPagination(items=sorted_items, page=page, per_page=per_page)
+            elif sort_by == 'distance':
                 all_items = base_query.all()
                 sorted_items = sort_items_by_owner_distance(all_items, user)
                 pagination = ListPagination(items=sorted_items, page=page, per_page=per_page)
@@ -229,6 +247,7 @@ def _build_find_context(user):
         'selected_circles': selected_circles,
         'item_type': item_type,
         'sort_by': sort_by,
+        'max_distance': max_distance,
         'has_circles': has_circles,
         'result_count': result_count,
     }

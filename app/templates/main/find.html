@@ -68,6 +68,16 @@
                     <option value="giveaways" {% if item_type == 'giveaways' %}selected{% endif %}>Giveaways Only</option>
                 </select>
 
+                <select name="max_distance" class="form-select form-select-sm" style="width: auto;" aria-label="Maximum distance"
+                    {% if not current_user.is_geocoded %}disabled title="Set your location to filter by distance"{% endif %}>
+                    <option value="" {% if not max_distance %}selected{% endif %}>Any distance</option>
+                    <option value="1" {% if max_distance == '1' %}selected{% endif %}>Within 1 mi</option>
+                    <option value="2" {% if max_distance == '2' %}selected{% endif %}>Within 2 mi</option>
+                    <option value="5" {% if max_distance == '5' %}selected{% endif %}>Within 5 mi</option>
+                    <option value="10" {% if max_distance == '10' %}selected{% endif %}>Within 10 mi</option>
+                    <option value="25" {% if max_distance == '25' %}selected{% endif %}>Within 25 mi</option>
+                </select>
+
                 <div class="dropdown">
                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-sort me-1"></i>{% if sort_by == 'distance' %}Closest first{% else %}Newest first{% endif %}
@@ -75,13 +85,13 @@
                     <ul class="dropdown-menu">
                         <li>
                             <a class="dropdown-item {% if sort_by == 'date' %}active{% endif %}"
-                               href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, sort='date') }}">
+                               href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, max_distance=max_distance, sort='date') }}">
                                 Newest first
                             </a>
                         </li>
                         <li>
                             <a class="dropdown-item {% if sort_by == 'distance' %}active{% endif %}"
-                               href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, sort='distance') }}">
+                               href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, max_distance=max_distance, sort='distance') }}">
                                 Closest first
                             </a>
                         </li>
@@ -89,23 +99,23 @@
                 </div>
 
                 {% if selected_categories %}
-                <a href="{{ url_for('main.find', q=query, circles=selected_circles, item_type=item_type, sort=sort_by) }}" class="btn btn-sm btn-outline-secondary">
+                <a href="{{ url_for('main.find', q=query, circles=selected_circles, item_type=item_type, max_distance=max_distance, sort=sort_by) }}" class="btn btn-sm btn-outline-secondary">
                     All categories
                 </a>
                 {% endif %}
                 {% if selected_circles %}
-                <a href="{{ url_for('main.find', q=query, categories=selected_categories, item_type=item_type, sort=sort_by) }}" class="btn btn-sm btn-outline-secondary">
+                <a href="{{ url_for('main.find', q=query, categories=selected_categories, item_type=item_type, max_distance=max_distance, sort=sort_by) }}" class="btn btn-sm btn-outline-secondary">
                     All circles
                 </a>
                 {% endif %}
             </div>
         </form>
 
-        {% if query or selected_categories or selected_circles or item_type != 'both' %}
+        {% if query or selected_categories or selected_circles or item_type != 'both' or max_distance %}
         <div class="d-flex align-items-center mb-3">
             <span class="text-muted">
                 <i class="fas fa-filter me-1"></i>
-                {% if query and (selected_categories or selected_circles or item_type != 'both') %}
+                {% if query and (selected_categories or selected_circles or item_type != 'both' or max_distance) %}
                     Showing results for "<strong>{{ query }}</strong>" with filters applied
                 {% elif query %}
                     Showing results for "<strong>{{ query }}</strong>"
@@ -140,7 +150,7 @@
                     <ul class="pagination justify-content-center">
                         {% if pagination.has_prev %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, sort=sort_by, page=pagination.prev_num) }}" aria-label="Previous">
+                                <a class="page-link" href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, max_distance=max_distance, sort=sort_by, page=pagination.prev_num) }}" aria-label="Previous">
                                     <span aria-hidden="true">&laquo;</span>
                                 </a>
                             </li>
@@ -155,7 +165,7 @@
                                 {% if p == pagination.page %}
                                     <li class="page-item active"><span class="page-link">{{ p }}</span></li>
                                 {% else %}
-                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, sort=sort_by, page=p) }}">{{ p }}</a></li>
+                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, max_distance=max_distance, sort=sort_by, page=p) }}">{{ p }}</a></li>
                                 {% endif %}
                             {% else %}
                                 <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -164,7 +174,7 @@
 
                         {% if pagination.has_next %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, sort=sort_by, page=pagination.next_num) }}" aria-label="Next">
+                                <a class="page-link" href="{{ url_for('main.find', q=query, categories=selected_categories, circles=selected_circles, item_type=item_type, max_distance=max_distance, sort=sort_by, page=pagination.next_num) }}" aria-label="Next">
                                     <span aria-hidden="true">&raquo;</span>
                                 </a>
                             </li>
