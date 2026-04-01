@@ -410,7 +410,8 @@ h1 {
 }
 
 /* Forms */
-.form-control {
+.form-control,
+.form-select {
     border: 2px solid var(--border-color);
     border-radius: var(--border-radius-sm);
     padding: 0.75rem 1rem;
@@ -418,7 +419,8 @@ h1 {
     font-family: var(--font-family);
 }
 
-.form-control:focus {
+.form-control:focus,
+.form-select:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
 }
