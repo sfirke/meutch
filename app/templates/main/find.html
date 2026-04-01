@@ -22,7 +22,7 @@
 
             <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
                 <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle find-filter-control" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
                         <i class="fas fa-th-large me-1"></i>Categories
                         <span id="categories-badge" class="badge bg-primary ms-1 {% if not selected_categories %}d-none{% endif %}">{{ selected_categories|length }}</span>
                     </button>
@@ -44,7 +44,7 @@
                 </div>
 
                 <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle find-filter-control" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
                         <i class="fas fa-users me-1"></i>Circles
                         <span id="circles-badge" class="badge bg-primary ms-1 {% if not selected_circles %}d-none{% endif %}">{{ selected_circles|length }}</span>
                     </button>
@@ -62,13 +62,13 @@
                     </div>
                 </div>
 
-                <select name="item_type" class="form-select form-select-sm" style="width: auto;" aria-label="Item type">
+                <select name="item_type" class="form-select form-select-sm find-filter-control find-filter-select" aria-label="Item type">
                     <option value="both" {% if item_type == 'both' %}selected{% endif %}>All Items</option>
                     <option value="loans" {% if item_type == 'loans' %}selected{% endif %}>Loans Only</option>
                     <option value="giveaways" {% if item_type == 'giveaways' %}selected{% endif %}>Giveaways Only</option>
                 </select>
 
-                <select name="max_distance" class="form-select form-select-sm" style="width: auto;" aria-label="Maximum distance"
+                <select name="max_distance" class="form-select form-select-sm find-filter-control find-filter-select" aria-label="Maximum distance"
                     {% if not current_user.is_geocoded %}disabled title="Set your location to filter by distance"{% endif %}>
                     <option value="" {% if not max_distance %}selected{% endif %}>Any distance</option>
                     <option value="1" {% if max_distance == '1' %}selected{% endif %}>Within 1 mi</option>
@@ -79,7 +79,7 @@
                 </select>
 
                 <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle find-filter-control" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-sort me-1"></i>{% if sort_by == 'distance' %}Closest first{% else %}Newest first{% endif %}
                     </button>
                     <ul class="dropdown-menu">
