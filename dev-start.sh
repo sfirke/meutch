@@ -29,7 +29,7 @@ table_exists() {
 }
 
 alembic_revision() {
-    docker exec meutch-test-db psql -U test_user -d meutch_dev -tAc "SELECT version_num FROM alembic_version LIMIT 1" 2>/dev/null | tr -d ' '
+    docker exec meutch-test-db psql -U test_user -d meutch_dev -tAc "SELECT version_num FROM alembic_version LIMIT 1" 2>/dev/null | tr -d ' ' || true
 }
 
 repair_inconsistent_schema_state() {
