@@ -185,7 +185,8 @@
         var thumbId = thumb.dataset.id;
         var detail = {
           index: parseInt(thumb.dataset.index, 10),
-          id: thumbId
+          id: thumbId,
+          container: container
         };
         if (thumbId.startsWith('new-')) {
           detail.file = newFiles.get(thumbId);

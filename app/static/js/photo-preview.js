@@ -12,6 +12,7 @@
 
     var cropper = null;
     var editId = null;
+    var editContainer = null;
     var editThumbEl = null;
     var objectUrl = null;
     var modalEl = null;
@@ -191,7 +192,7 @@
             var id = editId;
             canvas.toBlob(function(blob) {
                 if (!blob) return;
-                document.dispatchEvent(new CustomEvent('multi-image:cropped', {
+                (editContainer || document).dispatchEvent(new CustomEvent('multi-image:cropped', {
                     detail: { id: id, blob: blob }
                 }));
                 hideModal();
@@ -203,6 +204,7 @@
             destroyCropper();
             revokeUrl();
             editId = null;
+            editContainer = null;
             editThumbEl = null;
         });
     }
@@ -271,6 +273,7 @@
     function onEditRequested(e) {
         var detail = e.detail || {};
         editId = detail.id;
+        editContainer = detail.container || null;
         editThumbEl = detail.thumbEl || null;
 
         revokeUrl();

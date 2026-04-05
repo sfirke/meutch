@@ -6,7 +6,8 @@ from PIL import Image
 from app.utils.storage import (
     is_valid_file_upload, process_image, upload_file,
     upload_item_image, upload_profile_image,
-    get_storage_backend, LocalFileStorage, DOSpacesStorage
+    get_storage_backend, LocalFileStorage, DOSpacesStorage,
+    MAX_UPLOAD_FILE_SIZE_BYTES
 )
 import os
 import tempfile
@@ -60,6 +61,16 @@ class TestFileValidation:
         result = is_valid_file_upload(None)
         assert result is False
 
+    def test_is_valid_file_upload_rejects_oversized_file(self):
+        """Test is_valid_file_upload rejects files over the server-side size limit."""
+        mock_file = Mock()
+        mock_file.filename = 'too-large.jpg'
+        mock_file.tell = Mock(side_effect=[0, MAX_UPLOAD_FILE_SIZE_BYTES + 1])
+        mock_file.seek.return_value = None
+
+        result = is_valid_file_upload(mock_file)
+        assert result is False
+
 class TestImageProcessing:
     """Test image processing utilities."""
     
@@ -103,7 +114,9 @@ class TestImageProcessing:
             
             # Mock background creation
             mock_background = Mock()
+            mock_background.size = (800, 600)
             mock_background.paste = Mock()
+            mock_background.save = Mock()
             mock_new.return_value = mock_background
             
             mock_open.return_value = mock_img
@@ -197,6 +210,21 @@ class TestUploadFunctions:
                 
                 # Verify upload failed
                 assert result is None
+
+    @patch('app.utils.storage.get_storage_backend')
+    def test_upload_file_rejects_unprocessable_image(self, mock_get_backend, app):
+        """Test upload_file rejects files that Pillow cannot process as real images."""
+        with app.app_context():
+            mock_file = Mock()
+            mock_file.filename = 'not-really-an-image.jpg'
+            mock_file.seek.return_value = None
+            mock_file.tell.side_effect = [0, 1000]
+
+            with patch('app.utils.storage.process_image', return_value=None):
+                result = upload_file(mock_file, folder='test')
+
+            mock_get_backend.assert_not_called()
+            assert result is None
     
     @patch('app.utils.storage.upload_file')
     def test_upload_item_image(self, mock_upload):

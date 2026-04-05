@@ -4,7 +4,8 @@
 import pytest
 from datetime import datetime
 from markupsafe import Markup
-from app.template_filters import utc_timestamp
+from types import SimpleNamespace
+from app.template_filters import tojson_images, utc_timestamp
 
 
 class TestUtcTimestampFilter:
@@ -149,3 +150,16 @@ class TestUtcTimestampFilter:
         # But fallback display shouldn't show them
         fallback = result.split('>')[1].split('<')[0]
         assert '.123456' not in fallback
+
+
+class TestToJsonImagesFilter:
+    """Tests for the existing-image JSON serializer used by the upload widget."""
+
+    def test_tojson_images_escapes_html_sensitive_characters(self):
+        image = SimpleNamespace(id='img-1', url="https://cdn.example.com/o'reilly?<script>.jpg")
+
+        result = tojson_images([image])
+
+        assert isinstance(result, Markup)
+        assert '\\u0027' in str(result)
+        assert '\\u003cscript\\u003e' in str(result)

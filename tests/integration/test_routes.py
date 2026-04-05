@@ -502,6 +502,27 @@ class TestItemRoutes:
             # Confirm the database was updated
             updated = db.session.get(Item, item.id)
             assert updated.name == 'Redirected Name'
+
+    def test_edit_item_rejects_invalid_image_order_payload(self, client, app, auth_user):
+        """Test that tampered image ordering data is rejected instead of being silently ignored."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            item = ItemFactory(owner=user, category=category, name='Original Name')
+            login_user(client, user.email)
+
+            response = client.post(f'/item/{item.id}/edit', data={
+                'name': 'Tampered Name',
+                'description': 'Updated description',
+                'category': str(category.id),
+                'image_order': 'not-json'
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'Photo order data was invalid.' in response.data
+
+            unchanged_item = db.session.get(Item, item.id)
+            assert unchanged_item.name == 'Original Name'
     
     def test_edit_item_retains_category(self, client, app, auth_user):
         """Test that the category is retained when editing an item."""

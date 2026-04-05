@@ -11,7 +11,7 @@ from app import db
 from app.models import Item, ItemImage, ItemRequest, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm, VacationModeForm, DigestSettingsForm
 from app.main import bp as main_bp
-from app.utils.storage import delete_file, upload_item_image, upload_item_images, delete_item_images, upload_profile_image, is_valid_file_upload
+from app.utils.storage import ALLOWED_IMAGE_EXTENSIONS, MAX_UPLOAD_FILE_SIZE_BYTES, delete_file, upload_item_image, upload_item_images, delete_item_images, get_file_size, has_allowed_image_extension, upload_profile_image, is_valid_file_upload
 from app.utils.geocoding import sort_items_by_owner_distance
 from app.utils.pagination import ListPagination
 from app.utils.email import send_message_notification_email
@@ -22,12 +22,61 @@ from app.utils.item_share import token_grants_item_access, ITEM_SHARE_TOKEN_MAX_
 
 
 HOMEPAGE_DISTANCE_OPTIONS = {5, 10, 20, 25, 50}
+MAX_ITEM_IMAGE_COUNT = 8
 
 
 def _build_item_detail_url(item_id, share_token=None):
     if share_token:
         return url_for('main.item_detail', item_id=item_id, share_token=share_token)
     return url_for('main.item_detail', item_id=item_id)
+
+
+def _parse_json_string_list(raw_value, field_name):
+    if not raw_value:
+        return []
+
+    try:
+        parsed = json.loads(raw_value)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ValueError(f'{field_name} data was invalid. Please reload the page and try again.') from exc
+
+    if not isinstance(parsed, list) or any(not isinstance(entry, str) for entry in parsed):
+        raise ValueError(f'{field_name} data was invalid. Please reload the page and try again.')
+
+    return parsed
+
+
+def _collect_item_image_uploads(files):
+    valid_files = []
+    errors = []
+
+    for uploaded_file in files or []:
+        filename = getattr(uploaded_file, 'filename', '') or ''
+        filename = filename.strip()
+
+        if not filename:
+            continue
+
+        if not has_allowed_image_extension(filename):
+            errors.append(f'{filename} is not a supported image format.')
+            continue
+
+        file_size = get_file_size(uploaded_file)
+        if file_size is None or file_size <= 0:
+            errors.append(f'{filename} could not be read. Please choose a valid image file.')
+            continue
+
+        if file_size > MAX_UPLOAD_FILE_SIZE_BYTES:
+            errors.append(f'{filename} exceeds the 20 MB size limit.')
+            continue
+
+        if not is_valid_file_upload(uploaded_file):
+            errors.append(f'{filename} is not a valid image upload.')
+            continue
+
+        valid_files.append(uploaded_file)
+
+    return valid_files, errors
 
 
 def _generated_item_share_link(item_id):
@@ -308,18 +357,14 @@ def find():
 def list_item():
     form = ListItemForm()
     if form.validate_on_submit():
-        # Collect valid uploaded files
-        uploaded_files = []
-        if form.image.data:
-            allowed_ext = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
-            for f in form.image.data:
-                if is_valid_file_upload(f):
-                    ext = os.path.splitext(f.filename)[1].lower() if f.filename else ''
-                    if ext in allowed_ext:
-                        uploaded_files.append(f)
+        uploaded_files, upload_errors = _collect_item_image_uploads(form.image.data)
+        if upload_errors:
+            for error in upload_errors:
+                flash(error, 'error')
+            return render_template('main/list_item.html', form=form)
 
-        if len(uploaded_files) > 8:
-            flash('You can upload a maximum of 8 images per item.', 'error')
+        if len(uploaded_files) > MAX_ITEM_IMAGE_COUNT:
+            flash(f'You can upload a maximum of {MAX_ITEM_IMAGE_COUNT} images per item.', 'error')
             return render_template('main/list_item.html', form=form)
 
         # Upload images
@@ -358,7 +403,15 @@ def list_item():
                     db.session.add(tag)
                 new_item.tags.append(tag)
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            if image_urls:
+                delete_item_images(image_urls)
+            current_app.logger.error(f'Failed to create item for user {current_user.id}: {str(exc)}')
+            flash('We could not save your item. Please try again.', 'error')
+            return render_template('main/list_item.html', form=form)
         
         # Create flash message with link to the item
         from markupsafe import Markup, escape
@@ -1145,11 +1198,43 @@ def edit_item(item_id):
     form.submit.label.text = 'Save'
 
     if request.method == 'GET':
-        # Prepopulate giveaway fields
+        # Prepopulate giveaway fields and non-model-backed fields
         form.is_giveaway.data = item.is_giveaway
         form.giveaway_visibility.data = item.giveaway_visibility
+        form.category.data = str(item.category_id)
+        form.tags.data = ', '.join([tag.name for tag in item.tags])
 
     if form.validate_on_submit():
+        try:
+            delete_entries = _parse_json_string_list(form.delete_images.data, 'Photo removal')
+            order_entries = _parse_json_string_list(form.image_order.data, 'Photo order')
+        except ValueError as exc:
+            flash(str(exc), 'error')
+            return render_template('main/edit_item.html', form=form, item=item)
+
+        new_files, upload_errors = _collect_item_image_uploads(form.image.data)
+        if upload_errors:
+            for error in upload_errors:
+                flash(error, 'error')
+            return render_template('main/edit_item.html', form=form, item=item)
+
+        existing_images = list(item.images)
+        existing_image_ids = {str(img.id) for img in existing_images}
+        delete_ids = {entry for entry in delete_entries if entry in existing_image_ids}
+        surviving_images = [img for img in existing_images if str(img.id) not in delete_ids]
+
+        if len(surviving_images) + len(new_files) > MAX_ITEM_IMAGE_COUNT:
+            flash(f'Maximum {MAX_ITEM_IMAGE_COUNT} images per item. Please remove some images first.', 'warning')
+            return render_template('main/edit_item.html', form=form, item=item)
+
+        new_urls = []
+        if new_files:
+            try:
+                new_urls = upload_item_images(new_files)
+            except ValueError:
+                flash('Some image uploads failed. Please try again.', 'warning')
+                return render_template('main/edit_item.html', form=form, item=item)
+
         item.name = form.name.data
         item.description = form.description.data
         item.category_id = form.category.data
@@ -1166,9 +1251,9 @@ def edit_item(item_id):
         
         # Update tags
         tag_input = form.tags.data.strip() if form.tags.data else ''
+        item.tags.clear()
         if tag_input:
             tag_names = [tag.strip().lower() for tag in tag_input.split(',') if tag.strip()]
-            item.tags.clear()
             for tag_name in tag_names:
                 tag = Tag.query.filter_by(name=tag_name).first()
                 if not tag:
@@ -1176,73 +1261,58 @@ def edit_item(item_id):
                     db.session.add(tag)
                 item.tags.append(tag)
 
-        # Handle image deletions
-        if form.delete_images.data:
-            try:
-                delete_ids = json.loads(form.delete_images.data)
-                for img in list(item.images):
-                    if str(img.id) in delete_ids:
-                        delete_file(img.url)
-                        db.session.delete(img)
-            except (json.JSONDecodeError, TypeError):
-                pass
+        removed_urls = []
+        for img in existing_images:
+            if str(img.id) in delete_ids:
+                removed_urls.append(img.url)
+                db.session.delete(img)
 
-        # Collect new valid files from upload
-        new_files = []
-        if form.image.data:
-            allowed_ext = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
-            for f in form.image.data:
-                if is_valid_file_upload(f):
-                    ext = os.path.splitext(f.filename)[1].lower() if f.filename else ''
-                    if ext in allowed_ext:
-                        new_files.append(f)
-
-        # Count remaining images after deletions
-        db.session.flush()
-        remaining = len(item.images)
-        if remaining + len(new_files) > 8:
-            flash('Maximum 8 images per item. Please remove some images first.', 'warning')
-            new_files = []
-
-        # Upload new files
-        new_urls = []
-        if new_files:
-            try:
-                new_urls = upload_item_images(new_files)
-            except ValueError:
-                flash('Some image uploads failed. Please try again.', 'warning')
-
-        # Apply unified ordering from image_order (contains both existing UUIDs and new-* markers)
+        existing_by_id = {str(img.id): img for img in surviving_images}
+        ordered_entries = []
+        ordered_existing_ids = set()
         new_url_iter = iter(new_urls)
-        if form.image_order.data:
-            try:
-                order_ids = json.loads(form.image_order.data)
-                for position, entry_id in enumerate(order_ids):
-                    if entry_id.startswith('new-'):
-                        url = next(new_url_iter, None)
-                        if url:
-                            db.session.add(ItemImage(item=item, url=url, position=position))
-                    else:
-                        for img in item.images:
-                            if str(img.id) == entry_id:
-                                img.position = position
-                                break
-            except (json.JSONDecodeError, TypeError):
-                pass
-        else:
-            # Fallback: append new uploads after existing images
-            next_pos = max((img.position for img in item.images), default=-1) + 1
-            for i, url in enumerate(new_urls):
-                db.session.add(ItemImage(item=item, url=url, position=next_pos + i))
 
-        db.session.commit()
+        for entry_id in order_entries:
+            if entry_id.startswith('new-'):
+                url = next(new_url_iter, None)
+                if url is not None:
+                    ordered_entries.append(('new', url))
+                continue
+
+            image = existing_by_id.get(entry_id)
+            if image is not None and entry_id not in ordered_existing_ids:
+                ordered_entries.append(('existing', image))
+                ordered_existing_ids.add(entry_id)
+
+        for image in surviving_images:
+            image_id = str(image.id)
+            if image_id not in ordered_existing_ids:
+                ordered_entries.append(('existing', image))
+
+        for url in new_url_iter:
+            ordered_entries.append(('new', url))
+
+        for position, (entry_type, entry_value) in enumerate(ordered_entries):
+            if entry_type == 'existing':
+                entry_value.position = position
+            else:
+                db.session.add(ItemImage(item=item, url=entry_value, position=position))
+
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            if new_urls:
+                delete_item_images(new_urls)
+            current_app.logger.error(f'Failed to update item {item.id}: {str(exc)}')
+            flash('We could not save your item changes. Please try again.', 'error')
+            return render_template('main/edit_item.html', form=form, item=item)
+
+        if removed_urls:
+            delete_item_images(removed_urls)
         flash('Item has been updated.', 'success')
         # After editing an item, redirect the user back to the item's detail page
         return redirect(url_for('main.item_detail', item_id=item.id))
-    
-    # Prepopulate category and tags fields
-    form.category.data = str(item.category_id)
-    form.tags.data = ', '.join([tag.name for tag in item.tags])
     
     return render_template('main/edit_item.html', form=form, item=item)
 
@@ -1277,11 +1347,13 @@ def delete_item(item_id):
         # Clear item-tag associations
         item.tags.clear()
         
-        # Delete all images from storage
-        delete_item_images([img.url for img in item.images])
+        image_urls = [img.url for img in item.images]
         # Now delete the item
         db.session.delete(item)
         db.session.commit()
+
+        if image_urls:
+            delete_item_images(image_urls)
         
         flash('Item deleted successfully.', 'success')
     except Exception as e:

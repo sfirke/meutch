@@ -1,6 +1,7 @@
 # app/template_filters.py
 """Custom Jinja2 template filters for the Meutch application."""
 
+from jinja2.utils import htmlsafe_json_dumps
 from markupsafe import Markup
 
 
@@ -80,12 +81,9 @@ def utc_timestamp(value, format='datetime'):
     )
 
 
-import json
-
-
 def tojson_images(images):
     """Serialize a list of ItemImage objects to JSON for the multi-image upload component."""
-    return Markup(json.dumps([{'id': str(img.id), 'url': img.url} for img in images]))
+    return Markup(htmlsafe_json_dumps([{'id': str(img.id), 'url': img.url} for img in images]))
 
 
 def register_filters(app):
