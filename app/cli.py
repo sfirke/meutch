@@ -411,6 +411,16 @@ def _seed_development_data():
                         )
                         db.session.add(loan_request)
                         db.session.flush()  # Ensure the loan request is persisted
+
+                        # Always create an initial message to match real app behavior
+                        request_message = Message(
+                            sender=borrower,
+                            recipient=item.owner,
+                            item=item,
+                            body=f"Hi, I'd like to borrow your {item.name}. Would {start_date} to {end_date} work for you?",
+                            loan_request=loan_request
+                        )
+                        db.session.add(request_message)
                         click.echo(f"  ✓ Loan request: {borrower.email} wants {item.name}")
     else:
         click.echo(f"  ≈ Loan requests exist: {existing_loan_requests} records")
