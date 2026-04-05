@@ -65,19 +65,16 @@
             {% endfor %}
         </div>
 
-        {% if item.image_url %}
-        <div class="mb-3">
-            <img src="{{ item.image_url }}" alt="{{ item.name }}" class="img-thumbnail" style="max-width: 200px">
-            <div class="form-check">
-                {{ form.delete_image(class="form-check-input", id="deleteImage") }}
-                {{ form.delete_image.label(class="form-check-label", for_="deleteImage") }}
+        <!-- Images -->
+        <div class="mb-3 multi-image-upload">
+            <label class="form-label">Images <small class="text-muted">(up to 8)</small></label>
+            {{ form.image(class="form-control", accept="image/*", multiple=True, style="display:none") }}
+            {{ form.delete_images() }}
+            {{ form.image_order() }}
+            <div class="multi-image-container" data-existing-images='{{ item.images | tojson_images }}'></div>
+            <div class="form-text">
+                <small class="text-muted">Supported formats: JPG, PNG, GIF, BMP, WebP. Drag to reorder.</small>
             </div>
-        </div>
-        {% endif %}
-        
-        <div class="mb-3">
-            {{ form.image.label }}
-            {{ form.image(class="form-control drag-drop-upload photo-preview", accept="image/*") }}
             {% for error in form.image.errors %}
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
@@ -114,9 +111,9 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-<!-- Drag and Drop Upload Script -->
-<script src="{{ static_url_for('js/drag-drop-upload.js') }}"></script>
+<!-- Multi-Image Upload -->
+<script src="{{ static_url_for('js/multi-image-upload.js') }}"></script>
 
-<!-- Photo Preview Script -->
+<!-- Photo Preview (Crop Modal) -->
 <script src="{{ static_url_for('js/photo-preview.js') }}"></script>
 {% endblock %}

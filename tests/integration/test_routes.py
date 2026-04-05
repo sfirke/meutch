@@ -2,7 +2,7 @@
 import pytest
 from app import db
 from app.models import Item, User, Category, Circle
-from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory, LoanRequestFactory, MessageFactory, UserWebLinkFactory, ItemRequestFactory, CircleJoinRequestFactory
+from tests.factories import UserFactory, ItemFactory, ItemImageFactory, CategoryFactory, CircleFactory, TagFactory, LoanRequestFactory, MessageFactory, UserWebLinkFactory, ItemRequestFactory, CircleJoinRequestFactory
 from conftest import login_user
 from unittest.mock import patch
 import io
@@ -570,7 +570,7 @@ class TestItemRoutes:
             category = CategoryFactory() 
             login_user(client, user.email)
 
-            with patch('app.main.routes.upload_item_image', return_value=None):
+            with patch('app.main.routes.upload_item_images', side_effect=ValueError('upload failed')):
                 response = client.post('/list-item', data={
                     'name': 'Test Item',
                     'description': 'Test Description',
@@ -900,8 +900,10 @@ class TestProfileRoutes:
             circle.members.append(lender)
             circle.members.append(borrower)
 
-            borrowed_item = ItemFactory(owner=lender, category=category, name='Borrowed Item', image_url='https://example.com/borrowed.jpg')
-            lent_item = ItemFactory(owner=user, category=category, name='Lent Item', image_url='https://example.com/lent.jpg')
+            borrowed_item = ItemFactory(owner=lender, category=category, name='Borrowed Item')
+            ItemImageFactory(item=borrowed_item, url='https://example.com/borrowed.jpg', position=0)
+            lent_item = ItemFactory(owner=user, category=category, name='Lent Item')
+            ItemImageFactory(item=lent_item, url='https://example.com/lent.jpg', position=0)
 
             borrowed_loan = LoanRequestFactory(item=borrowed_item, borrower=user, status='approved')
             lent_loan = LoanRequestFactory(item=lent_item, borrower=borrower, status='approved')

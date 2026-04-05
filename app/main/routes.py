@@ -1,3 +1,5 @@
+import json
+import os
 import random
 from flask import render_template, current_app, request, flash, redirect, url_for, abort, session
 from flask_login import login_required, current_user, logout_user
@@ -6,10 +8,10 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC, timedelta
 from app import db
-from app.models import Item, ItemRequest, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
+from app.models import Item, ItemImage, ItemRequest, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm, VacationModeForm, DigestSettingsForm
 from app.main import bp as main_bp
-from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
+from app.utils.storage import delete_file, upload_item_image, upload_item_images, delete_item_images, upload_profile_image, is_valid_file_upload
 from app.utils.geocoding import sort_items_by_owner_distance
 from app.utils.pagination import ListPagination
 from app.utils.email import send_message_notification_email
@@ -306,21 +308,35 @@ def find():
 def list_item():
     form = ListItemForm()
     if form.validate_on_submit():
-        # Handle image upload first, if provided
-        image_url = None
+        # Collect valid uploaded files
+        uploaded_files = []
         if form.image.data:
-            image_url = upload_item_image(form.image.data)
-            if image_url is None:
-                flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'error')
+            allowed_ext = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+            for f in form.image.data:
+                if is_valid_file_upload(f):
+                    ext = os.path.splitext(f.filename)[1].lower() if f.filename else ''
+                    if ext in allowed_ext:
+                        uploaded_files.append(f)
+
+        if len(uploaded_files) > 8:
+            flash('You can upload a maximum of 8 images per item.', 'error')
+            return render_template('main/list_item.html', form=form)
+
+        # Upload images
+        image_urls = []
+        if uploaded_files:
+            try:
+                image_urls = upload_item_images(uploaded_files)
+            except ValueError:
+                flash('Image upload failed. Please ensure you upload valid image files (JPG, PNG, GIF, etc.).', 'error')
                 return render_template('main/list_item.html', form=form)
-        
-        # Create the item only if image upload succeeded (or no image was provided)
+
+        # Create the item
         new_item = Item(
             name=form.name.data.strip(),
             description=form.description.data.strip(),
             owner=current_user,
             category_id=form.category.data,
-            image_url=image_url,
             is_giveaway=form.is_giveaway.data,
             giveaway_visibility=form.giveaway_visibility.data if form.is_giveaway.data else None,
             claim_status='unclaimed' if form.is_giveaway.data else None
@@ -328,6 +344,10 @@ def list_item():
 
         db.session.add(new_item)
         
+        # Create ItemImage records
+        for position, url in enumerate(image_urls):
+            db.session.add(ItemImage(item=new_item, url=url, position=position))
+
         tag_input = form.tags.data.strip() if form.tags.data else ''
         if tag_input:
             tag_names = [tag.strip().lower() for tag in tag_input.split(',') if tag.strip()]
@@ -1156,29 +1176,64 @@ def edit_item(item_id):
                     db.session.add(tag)
                 item.tags.append(tag)
 
-        # Handle image deletion
-        if form.delete_image.data:
-            if item.image_url:
-                current_app.logger.debug("Deleting existing image")
-                delete_file(item.image_url)
-                item.image_url = None
-                current_app.logger.debug("Set item.image_url to None")
-                flash('Image has been removed.', 'success')
- 
-        # Handle image upload - only process if a valid file is provided
+        # Handle image deletions
+        if form.delete_images.data:
+            try:
+                delete_ids = json.loads(form.delete_images.data)
+                for img in list(item.images):
+                    if str(img.id) in delete_ids:
+                        delete_file(img.url)
+                        db.session.delete(img)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        # Collect new valid files from upload
+        new_files = []
         if form.image.data:
-            # Check if a file was actually selected (not just an empty FileStorage object)
-            if hasattr(form.image.data, 'filename') and form.image.data.filename and form.image.data.filename.strip():
-                if is_valid_file_upload(form.image.data):
-                    if item.image_url:
-                        delete_file(item.image_url)
-                    image_url = upload_item_image(form.image.data)
-                    if image_url:
-                        item.image_url = image_url
+            allowed_ext = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+            for f in form.image.data:
+                if is_valid_file_upload(f):
+                    ext = os.path.splitext(f.filename)[1].lower() if f.filename else ''
+                    if ext in allowed_ext:
+                        new_files.append(f)
+
+        # Count remaining images after deletions
+        db.session.flush()
+        remaining = len(item.images)
+        if remaining + len(new_files) > 8:
+            flash('Maximum 8 images per item. Please remove some images first.', 'warning')
+            new_files = []
+
+        # Upload new files
+        new_urls = []
+        if new_files:
+            try:
+                new_urls = upload_item_images(new_files)
+            except ValueError:
+                flash('Some image uploads failed. Please try again.', 'warning')
+
+        # Apply unified ordering from image_order (contains both existing UUIDs and new-* markers)
+        new_url_iter = iter(new_urls)
+        if form.image_order.data:
+            try:
+                order_ids = json.loads(form.image_order.data)
+                for position, entry_id in enumerate(order_ids):
+                    if entry_id.startswith('new-'):
+                        url = next(new_url_iter, None)
+                        if url:
+                            db.session.add(ItemImage(item=item, url=url, position=position))
                     else:
-                        flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'warning')
-                else:
-                    flash('Invalid file upload. Please select a valid image file.', 'warning')
+                        for img in item.images:
+                            if str(img.id) == entry_id:
+                                img.position = position
+                                break
+            except (json.JSONDecodeError, TypeError):
+                pass
+        else:
+            # Fallback: append new uploads after existing images
+            next_pos = max((img.position for img in item.images), default=-1) + 1
+            for i, url in enumerate(new_urls):
+                db.session.add(ItemImage(item=item, url=url, position=next_pos + i))
 
         db.session.commit()
         flash('Item has been updated.', 'success')
@@ -1222,9 +1277,8 @@ def delete_item(item_id):
         # Clear item-tag associations
         item.tags.clear()
         
-        # Delete image from storage if it exists
-        if item.image_url:
-            delete_file(item.image_url)
+        # Delete all images from storage
+        delete_item_images([img.url for img in item.images])
         # Now delete the item
         db.session.delete(item)
         db.session.commit()

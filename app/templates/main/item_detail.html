@@ -8,8 +8,38 @@
         <div class="col-lg-5 mb-4">
             <div class="item-detail-image-container">
                 <div class="item-detail-image-inner position-relative">
-                    {% if item.image_url %}
-                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-detail-image">
+                    {% if item.images|length > 1 %}
+                        <!-- Multi-image carousel -->
+                        <div id="itemCarousel" class="carousel slide" data-bs-ride="false">
+                            <div class="carousel-inner">
+                                {% for img in item.images %}
+                                <div class="carousel-item{% if loop.first %} active{% endif %}">
+                                    <div class="item-carousel-slide">
+                                        <img src="{{ img.url }}" alt="{{ item.name }} - Photo {{ loop.index }}" class="item-detail-image">
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <button class="carousel-control-prev" type="button" data-bs-target="#itemCarousel" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Previous</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#itemCarousel" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Next</span>
+                            </button>
+                        </div>
+                        <!-- Thumbnail strip -->
+                        <div class="item-carousel-thumbs mt-2 d-flex gap-1 overflow-auto">
+                            {% for img in item.images %}
+                            <button type="button" class="item-carousel-thumb{% if loop.first %} active{% endif %}" data-bs-target="#itemCarousel" data-bs-slide-to="{{ loop.index0 }}" aria-label="Photo {{ loop.index }}">
+                                <img src="{{ img.url }}" alt="Thumbnail {{ loop.index }}">
+                            </button>
+                            {% endfor %}
+                        </div>
+                    {% elif item.images %}
+                        <!-- Single image -->
+                        <img src="{{ item.image }}" alt="{{ item.name }}" class="item-detail-image">
                     {% else %}
                         <div class="item-detail-image-placeholder d-flex flex-column align-items-center justify-content-center">
                             <i class="fas fa-image text-muted mb-3" style="font-size: 4rem;"></i>
@@ -353,4 +383,18 @@
         </div>
     </div>
 </div>
+
+{% if item.images|length > 1 %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var carousel = document.getElementById('itemCarousel');
+    if (!carousel) return;
+    var thumbs = document.querySelectorAll('.item-carousel-thumb');
+    carousel.addEventListener('slid.bs.carousel', function(e) {
+        thumbs.forEach(function(t) { t.classList.remove('active'); });
+        if (thumbs[e.to]) thumbs[e.to].classList.add('active');
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

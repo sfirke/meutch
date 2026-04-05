@@ -80,6 +80,15 @@ def utc_timestamp(value, format='datetime'):
     )
 
 
+import json
+
+
+def tojson_images(images):
+    """Serialize a list of ItemImage objects to JSON for the multi-image upload component."""
+    return Markup(json.dumps([{'id': str(img.id), 'url': img.url} for img in images]))
+
+
 def register_filters(app):
     """Register all custom template filters with the Flask app."""
     app.jinja_env.filters['utc_timestamp'] = utc_timestamp
+    app.jinja_env.filters['tojson_images'] = tojson_images

@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from app import db
 from app.utils.item_share import generate_item_share_token
-from tests.factories import UserFactory, ItemFactory, CircleFactory, ItemRequestFactory, LoanRequestFactory
+from tests.factories import UserFactory, ItemFactory, ItemImageFactory, CircleFactory, ItemRequestFactory, LoanRequestFactory
 from conftest import login_user
 import uuid
 
@@ -94,8 +94,8 @@ class TestGiveawaySharePreview:
                 is_giveaway=True,
                 giveaway_visibility='public',
                 claim_status='unclaimed',
-                image_url='https://cdn.example.com/giveaway.jpg'
             )
+            ItemImageFactory(item=item, url='https://cdn.example.com/giveaway.jpg', position=0)
             db.session.commit()
 
             response = client.get(f'/share/giveaway/{item.id}')
@@ -111,8 +111,8 @@ class TestGiveawaySharePreview:
                 is_giveaway=True,
                 giveaway_visibility='public',
                 claim_status='unclaimed',
-                image_url='https://cdn.example.com/giveaway-card.jpg'
             )
+            ItemImageFactory(item=item, url='https://cdn.example.com/giveaway-card.jpg', position=0)
             db.session.commit()
 
             response = client.get(f'/share/giveaway/{item.id}')
@@ -128,7 +128,6 @@ class TestGiveawaySharePreview:
                 is_giveaway=True,
                 giveaway_visibility='public',
                 claim_status='unclaimed',
-                image_url=None
             )
             db.session.commit()
 

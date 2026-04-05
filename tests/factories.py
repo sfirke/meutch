@@ -5,7 +5,7 @@ from faker import Faker
 from werkzeug.security import generate_password_hash
 from datetime import datetime, UTC, timedelta
 from app import db
-from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, CircleJoinRequest, UserWebLink, AdminAction, GiveawayInterest, ItemRequest
+from app.models import User, Item, ItemImage, Category, Circle, Tag, LoanRequest, Message, CircleJoinRequest, UserWebLink, AdminAction, GiveawayInterest, ItemRequest
 import uuid
 
 fake = Faker()
@@ -60,6 +60,18 @@ class ItemFactory(SQLAlchemyModelFactory):
     owner = factory.SubFactory(UserFactory)
     category = factory.SubFactory(CategoryFactory)
     available = True
+
+class ItemImageFactory(SQLAlchemyModelFactory):
+    """Factory for ItemImage model."""
+    class Meta:
+        model = ItemImage
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+
+    item = factory.SubFactory(ItemFactory)
+    url = factory.LazyAttribute(lambda obj: f"https://example.com/items/{uuid.uuid4()}.jpg")
+    position = factory.Sequence(lambda n: n)
+
 
 class CircleFactory(SQLAlchemyModelFactory):
     """Factory for Circle model."""

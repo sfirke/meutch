@@ -355,3 +355,37 @@ def delete_file(url):
         storage.delete(url)
     except Exception as e:
         current_app.logger.error(f"Delete error: {str(e)}")
+
+
+def upload_item_images(files):
+    """
+    Upload multiple item images.
+
+    Args:
+        files: List of uploaded file objects
+
+    Returns:
+        List of URLs for successfully uploaded images. Raises ValueError
+        if any upload fails (caller should clean up already-uploaded URLs).
+    """
+    urls = []
+    for file in files:
+        url = upload_item_image(file)
+        if url is None:
+            # Clean up already-uploaded images on failure
+            for uploaded_url in urls:
+                delete_file(uploaded_url)
+            raise ValueError('One or more image uploads failed')
+        urls.append(url)
+    return urls
+
+
+def delete_item_images(urls):
+    """
+    Delete multiple item images from storage.
+
+    Args:
+        urls: List of image URLs to delete
+    """
+    for url in urls:
+        delete_file(url)

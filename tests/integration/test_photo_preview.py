@@ -18,20 +18,21 @@ class TestPhotoPreview:
             response = client.get('/list-item')
             assert response.status_code == 200
             
-            # Check that the image input has the photo-preview class
-            assert b'photo-preview' in response.data
-            assert b'drag-drop-upload' in response.data
+            # Check that multi-image upload component is included
+            assert b'multi-image-upload' in response.data
+            assert b'multi-image-container' in response.data
             
             # Check that Cropper.js library is included
             assert b'cropperjs' in response.data
             assert b'cropper.min.css' in response.data
             assert b'cropper.min.js' in response.data
             
-            # Check that photo-preview.js is included
+            # Check that photo-preview.js and multi-image-upload.js are included
             assert b'photo-preview.js' in response.data
+            assert b'multi-image-upload.js' in response.data
     
     def test_edit_item_form_includes_photo_preview_classes(self, client, app, auth_user):
-        """Test that edit item form includes photo-preview class for image input"""
+        """Test that edit item form includes multi-image upload component"""
         with app.app_context():
             user = auth_user()
             login_user(client, user.email)
@@ -53,17 +54,18 @@ class TestPhotoPreview:
             response = client.get(f'/item/{item.id}/edit')
             assert response.status_code == 200
             
-            # Check that the image input has the photo-preview class
-            assert b'photo-preview' in response.data
-            assert b'drag-drop-upload' in response.data
+            # Check that multi-image upload component is included
+            assert b'multi-image-upload' in response.data
+            assert b'multi-image-container' in response.data
             
             # Check that Cropper.js library is included
             assert b'cropperjs' in response.data
             assert b'cropper.min.css' in response.data
             assert b'cropper.min.js' in response.data
             
-            # Check that photo-preview.js is included
+            # Check that photo-preview.js and multi-image-upload.js are included
             assert b'photo-preview.js' in response.data
+            assert b'multi-image-upload.js' in response.data
     
     def test_form_accepts_image_file(self, client, app, auth_user):
         """Test that the form accepts and processes image files (verifies form still works)"""
@@ -78,7 +80,7 @@ class TestPhotoPreview:
             
             # Mock the upload function to avoid actual file operations
             from unittest.mock import patch
-            with patch('app.main.routes.upload_item_image', return_value='https://example.com/test.jpg'):
+            with patch('app.main.routes.upload_item_images', return_value=['https://example.com/test.jpg']):
                 response = client.post('/list-item', data={
                     'name': 'Item with Photo',
                     'description': 'An item with a photo',
@@ -93,4 +95,4 @@ class TestPhotoPreview:
                 from app.models import Item
                 item = Item.query.filter_by(name='Item with Photo').first()
                 assert item is not None
-                assert item.image_url == 'https://example.com/test.jpg'
+                assert item.images[0].url == 'https://example.com/test.jpg'

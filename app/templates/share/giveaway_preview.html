@@ -9,7 +9,7 @@
 
 {% block twitter_title %}{{ item.name }} - Free Giveaway on Meutch{% endblock %}
 {% block twitter_description %}{{ item.description|truncate(200) if item.description else 'Someone is giving away ' + item.name + ' for free! Join Meutch to claim it.' }}{% endblock %}
-{% block twitter_card %}{{ 'summary_large_image' if item.image_url else 'summary' }}{% endblock %}
+{% block twitter_card %}{{ 'summary_large_image' if item.images else 'summary' }}{% endblock %}
 {% block twitter_image %}{{ preview_image_url }}{% endblock %}
 
 {% block content %}
@@ -20,8 +20,8 @@
             <div class="card shadow-sm share-preview-card">
                 <!-- Image -->
                 <div class="position-relative">
-                    {% if item.image_url %}
-                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="card-img-top share-preview-image">
+                    {% if item.images %}
+                        <img src="{{ item.image }}" alt="{{ item.name }}" class="card-img-top share-preview-image">
                     {% else %}
                         <div class="share-preview-image-placeholder d-flex flex-column align-items-center justify-content-center bg-light">
                             <i class="fas fa-gift text-success mb-2" style="font-size: 4rem;"></i>

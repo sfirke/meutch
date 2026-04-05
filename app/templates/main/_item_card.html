@@ -4,6 +4,9 @@
         <a href="{{ item_url }}" class="text-decoration-none">
             <div class="position-relative">
                 <img src="{{ item.image }}" class="card-img-top" alt="{{ item.name }}">
+                {% if item.images|length > 1 %}
+                    <span class="position-absolute bottom-0 start-0 m-2 badge bg-dark bg-opacity-75"><i class="fas fa-camera me-1"></i>{{ item.images|length }}</span>
+                {% endif %}
                 <!-- Giveaway badge -->
                 {% if item.is_giveaway %}
                     <span class="giveaway-ribbon">
