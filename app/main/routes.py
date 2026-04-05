@@ -1561,9 +1561,9 @@ def request_extension(loan_id):
         db.session.add(extension_request)
 
         message_body = (
-            f"Extension requested for '{loan.item.name}'.\\n"
-            f"Current due date: {loan.end_date.strftime('%B %d, %Y')}\\n"
-            f"Proposed new due date: {form.proposed_end_date.data.strftime('%B %d, %Y')}\\n\\n"
+            f"Extension requested for '{loan.item.name}'.\n"
+            f"Current due date: {loan.end_date.strftime('%B %d, %Y')}\n"
+            f"Proposed new due date: {form.proposed_end_date.data.strftime('%B %d, %Y')}\n\n"
             f"Message from borrower: {form.message.data.strip()}"
         )
 

@@ -49,9 +49,11 @@
                     <div class="card-body">
                         <h5 class="card-title">{{ conversation_item.name }}</h5>
                         <p class="card-text">{{ conversation_item.description }}</p>
+                        {% if conversation_item.owner != current_user %}
                         <p class="card-text">
                             <strong>Owner:</strong> {{ conversation_item.owner.full_name }}
                         </p>
+                        {% endif %}
                         {% if conversation_item.current_loan and conversation_item.current_loan.borrower == current_user %}
                             <span class="badge bg-info">You are currently borrowing this item</span>
                         {% elif not conversation_item.available %}
@@ -301,7 +303,7 @@
                         {% endif %}
                     </div>
                 {% endif %}                                        
-                    <p>{{ msg.body }}</p>
+                    <p>{{ msg.body | replace('\n', '<br>') | safe }}</p>
                 </div>
             </div>
         {% endfor %}
