@@ -2126,13 +2126,30 @@ body.multi-image-reordering * {
 #itemImageCarousel .carousel-control-prev,
 #itemImageCarousel .carousel-control-next {
     width: 10%;
-    opacity: 0.6;
-    transition: opacity 0.3s;
+    opacity: 1;
+    transition: opacity 0.2s;
 }
 
-#itemImageCarousel:hover .carousel-control-prev,
-#itemImageCarousel:hover .carousel-control-next {
-    opacity: 1;
+#itemImageCarousel .carousel-control-prev-icon,
+#itemImageCarousel .carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.45);
+    border-radius: 50%;
+    padding: 1.1rem;
+    background-size: 50% 50%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    transition: background-color 0.2s;
+}
+
+#itemImageCarousel .carousel-control-prev:hover .carousel-control-prev-icon,
+#itemImageCarousel .carousel-control-next:hover .carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.65);
+}
+
+#itemImageCarousel .carousel-control-prev:focus .carousel-control-prev-icon,
+#itemImageCarousel .carousel-control-next:focus .carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.65);
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
 }
 
 #itemImageCarousel .carousel-indicators {
@@ -2157,9 +2174,9 @@ body.multi-image-reordering * {
         max-height: 60vh;
     }
 
-    #itemImageCarousel .carousel-control-prev,
-    #itemImageCarousel .carousel-control-next {
-        opacity: 0.8;
+    #itemImageCarousel .carousel-control-prev-icon,
+    #itemImageCarousel .carousel-control-next-icon {
+        padding: 0.85rem;
     }
 }
 
