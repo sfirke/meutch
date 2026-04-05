@@ -27,7 +27,7 @@
 
                         <div class="mb-3">
                             {{ form.proposed_end_date.label(class="form-label") }}
-                            {{ form.proposed_end_date(class="form-control" + (" is-invalid" if form.proposed_end_date.errors else ""), type="date") }}
+                            {{ form.proposed_end_date(class="form-control" + (" is-invalid" if form.proposed_end_date.errors else ""), type="date", min=loan.end_date.strftime('%Y-%m-%d')) }}
                             {% if form.proposed_end_date.errors %}
                                 <div class="invalid-feedback">
                                     {% for error in form.proposed_end_date.errors %}
