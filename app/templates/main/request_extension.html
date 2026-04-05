@@ -39,7 +39,7 @@
 
                         <div class="mb-3">
                             {{ form.message.label(class="form-label") }}
-                            {{ form.message(class="form-control" + (" is-invalid" if form.message.errors else ""), rows="4", placeholder="Please explain why you need extra time and when you can return the item.") }}
+                            {{ form.message(class="form-control" + (" is-invalid" if form.message.errors else ""), rows="4", placeholder="Include a quick note about the extension.") }}
                             {% if form.message.errors %}
                                 <div class="invalid-feedback">
                                     {% for error in form.message.errors %}
