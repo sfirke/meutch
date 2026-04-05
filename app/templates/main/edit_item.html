@@ -4,7 +4,7 @@
 <div class="container mt-5">
     <h1>Edit Item</h1>
     <form method="post" enctype="multipart/form-data">
-        {{ form.hidden_tag() }}
+        {{ form.csrf_token }}
         
         <div class="mb-3">
             {{ form.name.label }}

@@ -1,4 +1,5 @@
 """Integration tests for main routes."""
+import json
 import pytest
 from app import db
 from app.models import Item, User, Category, Circle
@@ -430,6 +431,30 @@ class TestItemRoutes:
             response = client.get(f'/item/{item.id}')
             assert response.status_code == 200
             assert item.name.encode() in response.data
+
+    def test_item_detail_uses_thumbnail_carousel_for_multiple_images(self, client, app, auth_user):
+        """Multi-image item detail should render a thumbnail strip below the carousel."""
+        with app.app_context():
+            viewer = auth_user()
+            owner = UserFactory()
+            circle = CircleFactory()
+            circle.members.append(viewer)
+            circle.members.append(owner)
+            item = ItemFactory(owner=owner)
+            ItemImageFactory(item=item, position=0)
+            ItemImageFactory(item=item, position=1)
+            ItemImageFactory(item=item, position=2)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+
+            response = client.get(f'/item/{item.id}')
+
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'itemImageCarousel' in content
+            assert 'item-thumbnail' in content
+            assert 'data-bs-slide-to="2"' in content
     
     def test_edit_item_own_item(self, client, app, auth_user):
         """Test editing own item."""
@@ -523,6 +548,43 @@ class TestItemRoutes:
 
             unchanged_item = db.session.get(Item, item.id)
             assert unchanged_item.name == 'Original Name'
+
+    def test_edit_item_persists_existing_image_reorder(self, client, app, auth_user):
+        """Submitted image_order should update existing image positions."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            item = ItemFactory(owner=user, category=category, name='Original Name')
+            image_1 = ItemImageFactory(item=item, position=0)
+            image_2 = ItemImageFactory(item=item, position=1)
+            image_3 = ItemImageFactory(item=item, position=2)
+            db.session.commit()
+
+            login_user(client, user.email)
+
+            response = client.post(f'/item/{item.id}/edit', data={
+                'name': 'Original Name',
+                'description': 'Updated description',
+                'category': str(category.id),
+                'image_order': json.dumps([
+                    str(image_3.id),
+                    str(image_1.id),
+                    str(image_2.id)
+                ])
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'Item has been updated.' in response.data
+
+            db.session.expire_all()
+            updated_item = db.session.get(Item, item.id)
+
+            assert [str(image.id) for image in updated_item.images] == [
+                str(image_3.id),
+                str(image_1.id),
+                str(image_2.id)
+            ]
+            assert [image.position for image in updated_item.images] == [0, 1, 2]
     
     def test_edit_item_retains_category(self, client, app, auth_user):
         """Test that the category is retained when editing an item."""

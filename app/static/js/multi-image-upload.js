@@ -4,7 +4,6 @@
   var MAX_IMAGES = 8;
   var MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
   var newIdCounter = 0;
-  var DEBUG_VERSION = '2026-04-05-dnd-debug-1';
 
   function init(container) {
     var imageContainer = container.querySelector('.multi-image-container');
@@ -22,34 +21,17 @@
     var newFiles = new Map();
     var deletedIds = new Set();
     var clickedSubmitBtn = null;
-    var debugEnabled = window.location.search.indexOf('debugMultiImageDnD=1') !== -1;
-
-    // State: ordered list of {id, url, isExisting}
-    var images = [];
-
-    function debugLog(eventName, details) {
-      if (!debugEnabled || !window.console || typeof console.log !== 'function') return;
-      console.log('[MultiImageUpload ' + DEBUG_VERSION + '] ' + eventName, details || {});
-    }
 
     // Parse existing images from data attribute
+    var existingImages = [];
     var existingData = imageContainer.dataset.existingImages;
     if (existingData) {
       try {
-        var parsed = JSON.parse(existingData);
-        parsed.forEach(function (img) {
-          images.push({ id: img.id, url: img.url, isExisting: true });
-        });
+        existingImages = JSON.parse(existingData);
       } catch (e) {
         console.error('Failed to parse existing images:', e);
       }
     }
-
-    debugLog('init', {
-      existingImageCount: images.length,
-      hasDeleteField: !!deleteField,
-      hasOrderField: !!orderField
-    });
 
     // Build UI
     var grid = document.createElement('div');
@@ -213,11 +195,13 @@
     }
 
     function getDropTarget(x, y, exclude) {
-      var thumbs = grid.querySelectorAll('.multi-image-thumb');
+      var thumbs = Array.from(grid.querySelectorAll('.multi-image-thumb')).filter(function (t) {
+        return t !== exclude;
+      });
+
       var closest = null;
       var closestDist = Infinity;
       thumbs.forEach(function (t) {
-        if (t === exclude) return;
         var rect = t.getBoundingClientRect();
         var cx = rect.left + rect.width / 2;
         var cy = rect.top + rect.height / 2;
@@ -227,30 +211,27 @@
           closest = t;
         }
       });
-      return closest;
+
+      if (!closest) return null;
+
+      var rect = closest.getBoundingClientRect();
+      return {
+        target: closest,
+        before: x < rect.left + rect.width / 2
+      };
     }
 
     function updatePointerReorder(thumb, clientX, clientY) {
-      var target = getDropTarget(clientX, clientY, thumb);
+      var placement = getDropTarget(clientX, clientY, thumb);
       clearDropIndicators();
-      if (!target || target === thumb) {
-        debugLog('pointer:move', {
-          draggingId: thumb.dataset.id,
-          targetId: null,
-          position: null
-        });
-        return;
-      }
+      if (!placement) return;
 
-      var rect = target.getBoundingClientRect();
-      var before = clientX < rect.left + rect.width / 2;
+      var target = placement.target;
+      if (!target || target === thumb) return;
+
+      var before = placement.before;
       target.classList.add(before ? 'drop-before' : 'drop-after');
       grid.insertBefore(thumb, before ? target : target.nextSibling);
-      debugLog('pointer:move', {
-        draggingId: thumb.dataset.id,
-        targetId: target.dataset.id,
-        position: before ? 'before' : 'after'
-      });
     }
 
     function startVisualDrag(thumb, clientX, clientY) {
@@ -305,20 +286,11 @@
         var startY = e.clientY;
         var dragState = null;
 
-        debugLog('pointer:mousedown', {
-          id: thumb.dataset.id,
-          targetTag: e.target && e.target.tagName,
-          targetClass: e.target && e.target.className
-        });
-
         function onMouseMove(moveEvent) {
           var distance = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY);
           if (!dragState) {
             if (distance < 5) return;
             dragState = startVisualDrag(thumb, startX, startY);
-            debugLog('pointer:dragstart', {
-              id: thumb.dataset.id
-            });
           }
 
           moveEvent.preventDefault();
@@ -330,10 +302,6 @@
           document.removeEventListener('mousemove', onMouseMove);
           document.removeEventListener('mouseup', onMouseUp);
           if (!dragState) return;
-
-          debugLog('pointer:dragend', {
-            id: thumb.dataset.id
-          });
           finishVisualDrag(thumb, dragState, true);
         }
 
@@ -363,9 +331,6 @@
           var distance = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
           if (distance < 5) return;
           dragState = startVisualDrag(thumb, touchStartX, touchStartY);
-          debugLog('touch:dragstart', {
-            id: thumb.dataset.id
-          });
         }
 
         e.preventDefault();
@@ -373,11 +338,12 @@
         updatePointerReorder(thumb, touch.clientX, touch.clientY);
       }, { passive: false });
 
-      thumb.addEventListener('touchend', function () {
+      thumb.addEventListener('touchend', function (e) {
         if (!dragState) return;
-        debugLog('touch:dragend', {
-          id: thumb.dataset.id
-        });
+        var touch = e.changedTouches && e.changedTouches[0];
+        if (touch) {
+          updatePointerReorder(thumb, touch.clientX, touch.clientY);
+        }
         finishVisualDrag(thumb, dragState, true);
         dragState = null;
       });
@@ -508,7 +474,7 @@
           });
           fileInput.files = dt.files;
         } catch (err) {
-          // DataTransfer not supported in older browsers — fallback to fetch
+          // DataTransfer not supported
           console.error('DataTransfer not supported, cannot set files:', err);
         }
 
@@ -529,7 +495,7 @@
     }
 
     // Render existing images
-    images.forEach(function (img) {
+    existingImages.forEach(function (img) {
       var thumb = createThumb(img.id, img.url);
       grid.insertBefore(thumb, addBtn);
     });
@@ -537,11 +503,6 @@
     updateCounter();
     updateBadges();
     updateHiddenFields();
-
-    return {
-      getNewFiles: function () { return newFiles; },
-      getDeletedIds: function () { return deletedIds; }
-    };
   }
 
   function showNotification(message, type) {
