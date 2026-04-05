@@ -2126,13 +2126,13 @@ body.multi-image-reordering * {
 #itemImageCarousel .carousel-control-prev,
 #itemImageCarousel .carousel-control-next {
     width: 10%;
-    opacity: 0;
+    opacity: 0.6;
     transition: opacity 0.3s;
 }
 
 #itemImageCarousel:hover .carousel-control-prev,
 #itemImageCarousel:hover .carousel-control-next {
-    opacity: 0.8;
+    opacity: 1;
 }
 
 #itemImageCarousel .carousel-indicators {
