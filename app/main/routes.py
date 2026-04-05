@@ -1550,6 +1550,7 @@ def request_extension(loan_id):
         return redirect(url_for('main.messages'))
 
     form = RequestExtensionForm(current_end_date=loan.end_date)
+    min_extension_date = loan.end_date + timedelta(days=1)
 
     if form.validate_on_submit():
         extension_request = LoanExtensionRequest(
@@ -1591,7 +1592,7 @@ def request_extension(loan_id):
             current_app.logger.error(f"Error creating extension request for loan {loan_id}: {e}")
             flash("An error occurred while submitting your extension request.", "danger")
 
-    return render_template('main/request_extension.html', form=form, loan=loan)
+    return render_template('main/request_extension.html', form=form, loan=loan, min_extension_date=min_extension_date)
 
 
 @main_bp.route('/loan-extension/<uuid:extension_id>/<action>', methods=['POST'])
