@@ -381,13 +381,19 @@ def _seed_development_data():
     
     # Loan requests (create a few if none exist)
     existing_loan_requests = LoanRequest.query.count()
-    if existing_loan_requests < 5:
-        requests_to_create = 5 - existing_loan_requests
+    if existing_loan_requests < 8:
+        requests_to_create = 8 - existing_loan_requests
+        # Track borrowers used in this seeding pass to spread loans across users
+        used_borrowers = set(
+            lr.borrower_id for lr in LoanRequest.query.all()
+        )
         for i in range(requests_to_create):
             available_items = [item for item in all_items if item.available]
             if available_items:
                 item = random.choice(available_items)
-                potential_borrowers = [u for u in all_users if u != item.owner]
+                # Prefer borrowers not yet seen; fall back to all eligible users
+                unused = [u for u in all_users if u != item.owner and u.id not in used_borrowers]
+                potential_borrowers = unused if unused else [u for u in all_users if u != item.owner]
                 if potential_borrowers:
                     borrower = random.choice(potential_borrowers)
                     
@@ -421,6 +427,7 @@ def _seed_development_data():
                             loan_request=loan_request
                         )
                         db.session.add(request_message)
+                        used_borrowers.add(borrower.id)
                         click.echo(f"  ✓ Loan request: {borrower.email} wants {item.name}")
     else:
         click.echo(f"  ≈ Loan requests exist: {existing_loan_requests} records")
