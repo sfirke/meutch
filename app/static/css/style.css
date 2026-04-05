@@ -2115,10 +2115,16 @@ body.multi-image-reordering * {
 #itemImageCarousel .carousel-inner {
     border-radius: var(--border-radius);
     overflow: hidden;
+    height: 500px;
+}
+
+#itemImageCarousel .carousel-item {
+    height: 100%;
 }
 
 #itemImageCarousel .carousel-item img {
-    max-height: 500px;
+    height: 100%;
+    width: 100%;
     object-fit: contain;
     background-color: #f8f9fa;
 }
@@ -2170,7 +2176,8 @@ body.multi-image-reordering * {
 
 /* Mobile carousel adjustments */
 @media (max-width: 768px) {
-    #itemImageCarousel .carousel-item img {
+    #itemImageCarousel .carousel-inner {
+        height: 60vw;
         max-height: 60vh;
     }
 
