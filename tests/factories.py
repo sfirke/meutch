@@ -5,7 +5,7 @@ from faker import Faker
 from werkzeug.security import generate_password_hash
 from datetime import datetime, UTC, timedelta
 from app import db
-from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, CircleJoinRequest, UserWebLink, AdminAction, GiveawayInterest, ItemRequest
+from app.models import User, Item, Category, Circle, Tag, LoanRequest, LoanExtensionRequest, Message, CircleJoinRequest, UserWebLink, AdminAction, GiveawayInterest, ItemRequest
 import uuid
 
 fake = Faker()
@@ -83,6 +83,19 @@ class LoanRequestFactory(SQLAlchemyModelFactory):
     borrower = factory.SubFactory(UserFactory)
     start_date = factory.LazyAttribute(lambda obj: fake.date_this_month())
     end_date = factory.LazyAttribute(lambda obj: fake.date_this_year())
+    status = 'pending'
+
+
+class LoanExtensionRequestFactory(SQLAlchemyModelFactory):
+    """Factory for LoanExtensionRequest model."""
+    class Meta:
+        model = LoanExtensionRequest
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+
+    loan_request = factory.SubFactory(LoanRequestFactory)
+    proposed_end_date = factory.LazyAttribute(lambda obj: obj.loan_request.end_date + timedelta(days=7))
+    message = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=200))
     status = 'pending'
 
 class MessageFactory(SQLAlchemyModelFactory):

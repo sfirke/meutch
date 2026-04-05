@@ -6,8 +6,8 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC, timedelta
 from app import db
-from app.models import Item, ItemRequest, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
-from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm, VacationModeForm, DigestSettingsForm
+from app.models import Item, ItemRequest, LoanRequest, LoanExtensionRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
+from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, RequestExtensionForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm, VacationModeForm, DigestSettingsForm
 from app.main import bp as main_bp
 from app.utils.storage import delete_file, upload_item_image, upload_profile_image, is_valid_file_upload
 from app.utils.geocoding import sort_items_by_owner_distance
@@ -20,6 +20,13 @@ from app.utils.item_share import token_grants_item_access, ITEM_SHARE_TOKEN_MAX_
 
 
 HOMEPAGE_DISTANCE_OPTIONS = {5, 10, 20, 25, 50}
+
+
+def _reset_loan_reminders(loan):
+    loan.due_soon_reminder_sent = None
+    loan.due_date_reminder_sent = None
+    loan.last_overdue_reminder_sent = None
+    loan.overdue_reminder_count = 0
 
 
 def _build_item_detail_url(item_id, share_token=None):
@@ -1468,12 +1475,9 @@ def extend_loan(loan_id):
     if form.validate_on_submit():
         old_end_date = loan.end_date
         loan.end_date = form.new_end_date.data
-        
+
         # Reset reminder flags since the due date has changed
-        loan.due_soon_reminder_sent = None
-        loan.due_date_reminder_sent = None
-        loan.last_overdue_reminder_sent = None
-        loan.overdue_reminder_count = 0
+        _reset_loan_reminders(loan)
         
         # Determine if the due date was extended (moved later) or moved earlier
         is_extension = form.new_end_date.data > old_end_date
@@ -1522,6 +1526,154 @@ def extend_loan(loan_id):
         return redirect(url_for('main.view_conversation', message_id=original_message.id))
     
     return render_template('main/extend_loan.html', form=form, loan=loan)
+
+
+@main_bp.route('/loan/<uuid:loan_id>/request-extension', methods=['GET', 'POST'])
+@login_required
+def request_extension(loan_id):
+    """Allow borrower to request an extension for an active loan."""
+    loan = db.get_or_404(LoanRequest, loan_id)
+
+    if loan.borrower_id != current_user.id:
+        flash("You are not authorized to request an extension for this loan.", "danger")
+        return redirect(url_for('main.messages'))
+
+    if loan.status != 'approved':
+        flash("Only approved loans can have extension requests.", "warning")
+        return redirect(url_for('main.messages'))
+
+    if loan.has_pending_extension:
+        flash("You already have a pending extension request for this loan.", "warning")
+        original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+        if original_message:
+            return redirect(url_for('main.view_conversation', message_id=original_message.id))
+        return redirect(url_for('main.messages'))
+
+    form = RequestExtensionForm(current_end_date=loan.end_date)
+
+    if form.validate_on_submit():
+        extension_request = LoanExtensionRequest(
+            loan_request_id=loan.id,
+            proposed_end_date=form.proposed_end_date.data,
+            message=form.message.data.strip(),
+            status='pending'
+        )
+        db.session.add(extension_request)
+
+        message_body = (
+            f"Extension requested for '{loan.item.name}'.\\n"
+            f"Current due date: {loan.end_date.strftime('%B %d, %Y')}\\n"
+            f"Proposed new due date: {form.proposed_end_date.data.strftime('%B %d, %Y')}\\n\\n"
+            f"Message from borrower: {form.message.data.strip()}"
+        )
+
+        message = Message(
+            sender_id=current_user.id,
+            recipient_id=loan.item.owner_id,
+            item_id=loan.item_id,
+            body=message_body,
+            loan_request_id=loan.id
+        )
+        db.session.add(message)
+
+        try:
+            db.session.commit()
+
+            try:
+                send_message_notification_email(message)
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email notification for extension request message {message.id}: {str(e)}")
+
+            flash("Extension request sent to the item owner.", "success")
+            return redirect(url_for('main.view_conversation', message_id=message.id))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error creating extension request for loan {loan_id}: {e}")
+            flash("An error occurred while submitting your extension request.", "danger")
+
+    return render_template('main/request_extension.html', form=form, loan=loan)
+
+
+@main_bp.route('/loan-extension/<uuid:extension_id>/<action>', methods=['POST'])
+@login_required
+def process_extension_request(extension_id, action):
+    """Allow item owner to approve or deny a borrower extension request."""
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Invalid request.", "danger")
+        return redirect(url_for('main.messages'))
+
+    extension_request = db.get_or_404(LoanExtensionRequest, extension_id)
+    loan = extension_request.loan_request
+
+    if loan.item.owner_id != current_user.id:
+        flash("You are not authorized to process this extension request.", "danger")
+        return redirect(url_for('main.messages'))
+
+    if loan.status != 'approved':
+        flash("Only active loans can be extended.", "warning")
+        return redirect(url_for('main.messages'))
+
+    if extension_request.status != 'pending':
+        flash("This extension request has already been processed.", "warning")
+        original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+        if original_message:
+            return redirect(url_for('main.view_conversation', message_id=original_message.id))
+        return redirect(url_for('main.messages'))
+
+    if action not in ['approve', 'deny']:
+        flash("Invalid action.", "danger")
+        return redirect(url_for('main.messages'))
+
+    extension_request.status = 'approved' if action == 'approve' else 'denied'
+    extension_request.responded_at = datetime.now(UTC)
+
+    if action == 'approve':
+        old_end_date = loan.end_date
+        loan.end_date = extension_request.proposed_end_date
+        _reset_loan_reminders(loan)
+
+        message_body = (
+            f"Your extension request for '{loan.item.name}' has been approved. "
+            f"The due date has been updated from {old_end_date.strftime('%B %d, %Y')} to "
+            f"{loan.end_date.strftime('%B %d, %Y')}."
+        )
+    else:
+        message_body = (
+            f"Your extension request for '{loan.item.name}' was denied. "
+            f"The current due date remains {loan.end_date.strftime('%B %d, %Y')}."
+        )
+
+    message = Message(
+        sender_id=current_user.id,
+        recipient_id=loan.borrower_id,
+        item_id=loan.item_id,
+        body=message_body,
+        loan_request_id=loan.id
+    )
+    db.session.add(message)
+
+    try:
+        db.session.commit()
+
+        try:
+            send_message_notification_email(message)
+        except Exception as e:
+            current_app.logger.error(f"Failed to send email notification for extension decision message {message.id}: {str(e)}")
+
+        if action == 'approve':
+            flash("Extension request approved and due date updated.", "success")
+        else:
+            flash("Extension request denied.", "info")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error processing extension request {extension_id}: {e}")
+        flash("An error occurred while processing the extension request.", "danger")
+
+    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+    if original_message:
+        return redirect(url_for('main.view_conversation', message_id=original_message.id))
+    return redirect(url_for('main.messages'))
 
 @main_bp.route('/tag/<uuid:tag_id>')
 @login_required
@@ -2293,10 +2445,12 @@ def view_conversation(message_id):
 
     # Find active loan request for this conversation (pending or approved)
     active_loan = None
+    pending_extension_request = None
     if not message.is_request_message:
         for msg in thread_messages:
             if msg.loan_request and msg.loan_request.status in ['pending', 'approved']:
                 active_loan = msg.loan_request
+                pending_extension_request = active_loan.pending_extension_request
                 break
 
     # Handle reply form
@@ -2333,6 +2487,7 @@ def view_conversation(message_id):
                          thread_messages=thread_messages, 
                          form=form, 
                          active_loan=active_loan,
+                         pending_extension_request=pending_extension_request,
                          loan_action_form=loan_action_form,
                          has_unread_messages=has_unread_messages)
 

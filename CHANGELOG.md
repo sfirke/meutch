@@ -15,6 +15,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Convert unauthenticated landing page to a modern vertical long-scrolling page ([#298](https://github.com/sfirke/meutch/pull/298)).
 
 **Minor**
+- Let borrowers request loan extensions by proposing a new due date with a required message, and let owners approve or deny requests directly in the conversation view. Borrower due-soon/due-today/overdue reminder emails now include a direct "Request Extension" link.
 - Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
 - Add search bar for own items ([#252](https://github.com/sfirke/meutch/pull/252)).
 - Requests feed now defaults to an "All" view that combines public requests and shared-circle requests, keeps a "My Circles" filter, and defaults new requests to public visibility ([#255](https://github.com/sfirke/meutch/pull/255)).

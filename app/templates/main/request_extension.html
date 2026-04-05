@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Request Loan Extension - Meutch{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Request Loan Extension</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h5>{{ loan.item.name }}</h5>
+                        <p class="text-muted mb-2">
+                            <strong>Owner:</strong> {{ loan.item.owner.full_name }}<br>
+                            <strong>Current Due Date:</strong> {{ loan.end_date.strftime('%B %d, %Y') }}
+                        </p>
+                        <p class="small mb-0">
+                            Propose a new due date and include a message explaining why you need extra time.
+                        </p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('main.request_extension', loan_id=loan.id) }}">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.proposed_end_date.label(class="form-label") }}
+                            {{ form.proposed_end_date(class="form-control" + (" is-invalid" if form.proposed_end_date.errors else ""), type="date") }}
+                            {% if form.proposed_end_date.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.proposed_end_date.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.message.label(class="form-label") }}
+                            {{ form.message(class="form-control" + (" is-invalid" if form.message.errors else ""), rows="4", placeholder="Please explain why you need extra time and when you can return the item.") }}
+                            {% if form.message.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.message.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            {{ form.submit(class="btn btn-primary") }}
+                            <a href="{{ url_for('main.messages') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

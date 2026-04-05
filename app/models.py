@@ -526,9 +526,38 @@ class LoanRequest(db.Model):
         days = self.days_until_due()
         return abs(days) if days < 0 else 0
 
+    @property
+    def pending_extension_request(self):
+        """Returns the latest pending extension request for this loan, if any."""
+        pending_requests = [req for req in self.extension_requests if req.status == 'pending']
+        if not pending_requests:
+            return None
+        return max(pending_requests, key=lambda req: req.created_at)
+
+    @property
+    def has_pending_extension(self):
+        """Returns True when this loan has a pending extension request."""
+        return self.pending_extension_request is not None
+
     def __repr__(self):
         return f'<LoanRequest {self.id} for Item {self.item_id} by User {self.borrower_id}>'
-    
+
+
+class LoanExtensionRequest(db.Model):
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
+    loan_request_id = db.Column(UUID(as_uuid=True), db.ForeignKey('loan_request.id'), nullable=False)
+    proposed_end_date = db.Column(db.Date, nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), default='pending', nullable=False)  # pending, approved, denied
+    created_at = db.Column(db.DateTime, default=func.now(), nullable=False)
+    responded_at = db.Column(db.DateTime, nullable=True)
+
+    loan_request = db.relationship('LoanRequest', backref='extension_requests')
+
+    def __repr__(self):
+        return f'<LoanExtensionRequest {self.id} for LoanRequest {self.loan_request_id}>'
+
+
 class Feedback(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     loan_request_id = db.Column(UUID(as_uuid=True), db.ForeignKey('loan_request.id'), nullable=False)
