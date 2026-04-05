@@ -94,7 +94,7 @@
         {% if show_owner_controls and delete_forms %}
             <!-- Owner controls: Loan (if active), Edit, Delete -->
             <div class="mt-auto d-flex gap-2 justify-content-end">
-                {% if item.current_loan %}
+                {% if item.current_loan and item.current_loan.messages %}
                     <a href="{{ url_for('main.view_conversation', message_id=item.current_loan.messages[0].id) }}" class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" title="View active loan">
                         <i class="fas fa-exchange-alt me-1"></i>Loan
                     </a>
