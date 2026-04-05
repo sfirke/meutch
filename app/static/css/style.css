@@ -1987,6 +1987,19 @@ html {
     border-style: dashed;
 }
 
+body.multi-image-reordering,
+body.multi-image-reordering * {
+    user-select: none;
+}
+
+.multi-image-thumb.drop-before {
+    box-shadow: -4px 0 0 0 var(--primary-color);
+}
+
+.multi-image-thumb.drop-after {
+    box-shadow: 4px 0 0 0 var(--primary-color);
+}
+
 .multi-image-thumb img {
     width: 100%;
     height: 100%;
@@ -2038,24 +2051,6 @@ html {
 
 .btn-thumb-delete:hover {
     background-color: rgba(220, 53, 69, 1);
-}
-
-.multi-image-thumb-handle {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    padding: 0.25rem 0.4rem;
-    background-color: rgba(0, 0, 0, 0.5);
-    color: #fff;
-    font-size: 0.7rem;
-    border-top-right-radius: var(--border-radius);
-    cursor: grab;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.multi-image-thumb:hover .multi-image-thumb-handle {
-    opacity: 1;
 }
 
 .multi-image-thumb-badge {
@@ -2110,9 +2105,6 @@ html {
 /* Touch device: always show overlay */
 @media (hover: none) and (pointer: coarse) {
     .multi-image-thumb-overlay {
-        opacity: 1;
-    }
-    .multi-image-thumb-handle {
         opacity: 1;
     }
     .multi-image-grid {

@@ -4,6 +4,7 @@
   var MAX_IMAGES = 8;
   var MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
   var newIdCounter = 0;
+  var DEBUG_VERSION = '2026-04-05-dnd-debug-1';
 
   function init(container) {
     var imageContainer = container.querySelector('.multi-image-container');
@@ -21,9 +22,15 @@
     var newFiles = new Map();
     var deletedIds = new Set();
     var clickedSubmitBtn = null;
+    var debugEnabled = window.location.search.indexOf('debugMultiImageDnD=1') !== -1;
 
     // State: ordered list of {id, url, isExisting}
     var images = [];
+
+    function debugLog(eventName, details) {
+      if (!debugEnabled || !window.console || typeof console.log !== 'function') return;
+      console.log('[MultiImageUpload ' + DEBUG_VERSION + '] ' + eventName, details || {});
+    }
 
     // Parse existing images from data attribute
     var existingData = imageContainer.dataset.existingImages;
@@ -37,6 +44,12 @@
         console.error('Failed to parse existing images:', e);
       }
     }
+
+    debugLog('init', {
+      existingImageCount: images.length,
+      hasDeleteField: !!deleteField,
+      hasOrderField: !!orderField
+    });
 
     // Build UI
     var grid = document.createElement('div');
@@ -113,12 +126,12 @@
     function createThumb(id, url) {
       var thumb = document.createElement('div');
       thumb.className = 'multi-image-thumb';
-      thumb.setAttribute('draggable', 'true');
       thumb.dataset.id = id;
 
       var img = document.createElement('img');
       img.src = url;
       img.alt = 'Photo';
+      img.setAttribute('draggable', 'false');
       thumb.appendChild(img);
 
       var overlay = document.createElement('div');
@@ -145,15 +158,6 @@
       overlay.appendChild(deleteBtn);
 
       thumb.appendChild(overlay);
-
-      var handle = document.createElement('div');
-      handle.className = 'multi-image-thumb-handle';
-      handle.title = 'Drag to reorder';
-      handle.setAttribute('aria-label', 'Drag to reorder');
-      var handleIcon = document.createElement('i');
-      handleIcon.className = 'fas fa-grip-vertical';
-      handle.appendChild(handleIcon);
-      thumb.appendChild(handle);
 
       var badge = document.createElement('span');
       badge.className = 'multi-image-thumb-badge';
@@ -196,49 +200,17 @@
         container.dispatchEvent(new CustomEvent('multi-image:edit', { detail: detail, bubbles: true }));
       });
 
-      // Desktop drag-and-drop
-      thumb.addEventListener('dragstart', function (e) {
-        thumb.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', thumb.dataset.id);
-      });
-
-      thumb.addEventListener('dragend', function () {
-        thumb.classList.remove('dragging');
-        updateBadges();
-        updateHiddenFields();
-      });
-
-      // Touch reorder on handle
-      setupTouchDrag(handle, thumb);
+      setupPointerDrag(thumb);
+      setupTouchDrag(thumb);
 
       return thumb;
     }
 
-    // Drag over / drop on grid
-    grid.addEventListener('dragover', function (e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      var dragging = grid.querySelector('.dragging');
-      if (!dragging) return;
-      var target = getDropTarget(e.clientX, e.clientY, dragging);
-      if (target && target !== dragging) {
-        var rect = target.getBoundingClientRect();
-        var midX = rect.left + rect.width / 2;
-        if (e.clientX < midX) {
-          grid.insertBefore(dragging, target);
-        } else {
-          grid.insertBefore(dragging, target.nextSibling);
-        }
-      }
-    });
-
-    grid.addEventListener('drop', function (e) {
-      e.preventDefault();
-      updateBadges();
-      updateHiddenFields();
-      announce('Photo reordered.');
-    });
+    function clearDropIndicators() {
+      grid.querySelectorAll('.drop-before, .drop-after').forEach(function (el) {
+        el.classList.remove('drop-before', 'drop-after');
+      });
+    }
 
     function getDropTarget(x, y, exclude) {
       var thumbs = grid.querySelectorAll('.multi-image-thumb');
@@ -258,65 +230,162 @@
       return closest;
     }
 
-    // Touch drag for mobile reorder
-    function setupTouchDrag(handle, thumb) {
-      var clone = null;
-      var offsetX = 0;
-      var offsetY = 0;
-      var scrollLocked = false;
+    function updatePointerReorder(thumb, clientX, clientY) {
+      var target = getDropTarget(clientX, clientY, thumb);
+      clearDropIndicators();
+      if (!target || target === thumb) {
+        debugLog('pointer:move', {
+          draggingId: thumb.dataset.id,
+          targetId: null,
+          position: null
+        });
+        return;
+      }
 
-      handle.addEventListener('touchstart', function (e) {
+      var rect = target.getBoundingClientRect();
+      var before = clientX < rect.left + rect.width / 2;
+      target.classList.add(before ? 'drop-before' : 'drop-after');
+      grid.insertBefore(thumb, before ? target : target.nextSibling);
+      debugLog('pointer:move', {
+        draggingId: thumb.dataset.id,
+        targetId: target.dataset.id,
+        position: before ? 'before' : 'after'
+      });
+    }
+
+    function startVisualDrag(thumb, clientX, clientY) {
+      var rect = thumb.getBoundingClientRect();
+      var clone = thumb.cloneNode(true);
+      clone.classList.add('multi-image-thumb-clone');
+      clone.style.position = 'fixed';
+      clone.style.zIndex = '9999';
+      clone.style.width = rect.width + 'px';
+      clone.style.height = rect.height + 'px';
+      clone.style.pointerEvents = 'none';
+      clone.style.opacity = '0.85';
+      clone.style.left = clientX - (clientX - rect.left) + 'px';
+      clone.style.top = clientY - (clientY - rect.top) + 'px';
+      document.body.appendChild(clone);
+
+      thumb.classList.add('dragging');
+      document.body.classList.add('multi-image-reordering');
+
+      return {
+        clone: clone,
+        offsetX: clientX - rect.left,
+        offsetY: clientY - rect.top
+      };
+    }
+
+    function moveVisualDrag(state, clientX, clientY) {
+      state.clone.style.left = (clientX - state.offsetX) + 'px';
+      state.clone.style.top = (clientY - state.offsetY) + 'px';
+    }
+
+    function finishVisualDrag(thumb, state, announceReorder) {
+      if (state && state.clone) {
+        state.clone.remove();
+      }
+      thumb.classList.remove('dragging');
+      clearDropIndicators();
+      document.body.classList.remove('multi-image-reordering');
+      updateBadges();
+      updateHiddenFields();
+      if (announceReorder) {
+        announce('Photo reordered.');
+      }
+    }
+
+    function setupPointerDrag(thumb) {
+      thumb.addEventListener('mousedown', function (e) {
+        if (e.button !== 0) return;
+        if (e.target.closest('.btn-thumb-action')) return;
+
+        var startX = e.clientX;
+        var startY = e.clientY;
+        var dragState = null;
+
+        debugLog('pointer:mousedown', {
+          id: thumb.dataset.id,
+          targetTag: e.target && e.target.tagName,
+          targetClass: e.target && e.target.className
+        });
+
+        function onMouseMove(moveEvent) {
+          var distance = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY);
+          if (!dragState) {
+            if (distance < 5) return;
+            dragState = startVisualDrag(thumb, startX, startY);
+            debugLog('pointer:dragstart', {
+              id: thumb.dataset.id
+            });
+          }
+
+          moveEvent.preventDefault();
+          moveVisualDrag(dragState, moveEvent.clientX, moveEvent.clientY);
+          updatePointerReorder(thumb, moveEvent.clientX, moveEvent.clientY);
+        }
+
+        function onMouseUp() {
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+          if (!dragState) return;
+
+          debugLog('pointer:dragend', {
+            id: thumb.dataset.id
+          });
+          finishVisualDrag(thumb, dragState, true);
+        }
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      });
+    }
+
+    // Touch drag for mobile reorder
+    function setupTouchDrag(thumb) {
+      var dragState = null;
+      var touchStartX = 0;
+      var touchStartY = 0;
+
+      thumb.addEventListener('touchstart', function (e) {
+        if (e.target.closest('.btn-thumb-action')) return;
         if (e.touches.length !== 1) return;
         var touch = e.touches[0];
-        var rect = thumb.getBoundingClientRect();
-        offsetX = touch.clientX - rect.left;
-        offsetY = touch.clientY - rect.top;
-
-        clone = thumb.cloneNode(true);
-        clone.classList.add('multi-image-thumb-clone');
-        clone.style.position = 'fixed';
-        clone.style.zIndex = '9999';
-        clone.style.width = rect.width + 'px';
-        clone.style.height = rect.height + 'px';
-        clone.style.pointerEvents = 'none';
-        clone.style.opacity = '0.85';
-        clone.style.left = (touch.clientX - offsetX) + 'px';
-        clone.style.top = (touch.clientY - offsetY) + 'px';
-        document.body.appendChild(clone);
-
-        thumb.classList.add('dragging');
-        scrollLocked = true;
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        dragState = null;
       }, { passive: true });
 
-      handle.addEventListener('touchmove', function (e) {
-        if (!clone) return;
-        e.preventDefault();
+      thumb.addEventListener('touchmove', function (e) {
         var touch = e.touches[0];
-        clone.style.left = (touch.clientX - offsetX) + 'px';
-        clone.style.top = (touch.clientY - offsetY) + 'px';
-
-        var target = getDropTarget(touch.clientX, touch.clientY, thumb);
-        if (target && target !== thumb) {
-          var rect = target.getBoundingClientRect();
-          var midX = rect.left + rect.width / 2;
-          if (touch.clientX < midX) {
-            grid.insertBefore(thumb, target);
-          } else {
-            grid.insertBefore(thumb, target.nextSibling);
-          }
+        if (!dragState) {
+          var distance = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+          if (distance < 5) return;
+          dragState = startVisualDrag(thumb, touchStartX, touchStartY);
+          debugLog('touch:dragstart', {
+            id: thumb.dataset.id
+          });
         }
+
+        e.preventDefault();
+        moveVisualDrag(dragState, touch.clientX, touch.clientY);
+        updatePointerReorder(thumb, touch.clientX, touch.clientY);
       }, { passive: false });
 
-      handle.addEventListener('touchend', function () {
-        if (clone) {
-          clone.remove();
-          clone = null;
-        }
-        thumb.classList.remove('dragging');
-        scrollLocked = false;
-        updateBadges();
-        updateHiddenFields();
-        announce('Photo reordered.');
+      thumb.addEventListener('touchend', function () {
+        if (!dragState) return;
+        debugLog('touch:dragend', {
+          id: thumb.dataset.id
+        });
+        finishVisualDrag(thumb, dragState, true);
+        dragState = null;
+      });
+
+      thumb.addEventListener('touchcancel', function () {
+        if (!dragState) return;
+        finishVisualDrag(thumb, dragState, false);
+        dragState = null;
       });
     }
 
