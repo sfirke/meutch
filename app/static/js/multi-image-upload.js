@@ -383,6 +383,7 @@
         filesToAdd = filesToAdd.slice(0, available);
       }
 
+      var validFiles = [];
       filesToAdd.forEach(function (file) {
         if (!file.type.startsWith('image/')) {
           showNotification(file.name + ' is not an image file.', 'warning');
@@ -392,16 +393,27 @@
           showNotification(file.name + ' exceeds the 20MB size limit.', 'warning');
           return;
         }
+        validFiles.push(file);
+      });
+
+      // Reset file input so same file can be re-selected
+      fileInput.value = '';
+
+      validFiles.forEach(function (file) {
         var id = 'new-' + newIdCounter++;
         newFiles.set(id, file);
 
         var url = URL.createObjectURL(file);
         var thumb = createThumb(id, url);
         grid.insertBefore(thumb, addBtn);
+
+        // Compress in background; replace stored file once done so the form
+        // submits a smaller payload (server will receive pre-scaled JPEG).
+        compressImage(file, 800, 600, 0.82).then(function (compressed) {
+          newFiles.set(id, compressed);
+        });
       });
 
-      // Reset file input so same file can be re-selected
-      fileInput.value = '';
       updateCounter();
       updateBadges();
       updateHiddenFields();
@@ -466,6 +478,16 @@
         // Update hidden fields before submission
         updateHiddenFields();
 
+        // Show loading state on submit buttons
+        var submitBtns = form.querySelectorAll('button[type=submit]');
+        submitBtns.forEach(function (btn) { btn.disabled = true; });
+        if (clickedSubmitBtn) {
+          var loadingMsg = orderedFiles.length > 0
+            ? '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Uploading photos, please wait…'
+            : '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Saving…';
+          clickedSubmitBtn.innerHTML = loadingMsg;
+        }
+
         // Build DataTransfer to set file input files
         try {
           var dt = new DataTransfer();
@@ -527,6 +549,55 @@
     setTimeout(function () {
       if (alert.parentNode) alert.remove();
     }, 5000);
+  }
+
+  /**
+   * Compress an image file client-side using a canvas.
+   * Returns a Promise that resolves to a File (compressed JPEG if smaller,
+   * original otherwise).
+   */
+  function compressImage(file, maxWidth, maxHeight, quality) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+
+        var w = img.naturalWidth;
+        var h = img.naturalHeight;
+        var ratio = Math.min(maxWidth / w, maxHeight / h, 1);
+        var newW = Math.round(w * ratio);
+        var newH = Math.round(h * ratio);
+
+        // If already within bounds and already a JPEG, skip recompression
+        if (ratio === 1 && file.type === 'image/jpeg') {
+          resolve(file);
+          return;
+        }
+
+        var canvas = document.createElement('canvas');
+        canvas.width = newW;
+        canvas.height = newH;
+        canvas.getContext('2d').drawImage(img, 0, 0, newW, newH);
+
+        canvas.toBlob(function (blob) {
+          if (!blob || blob.size >= file.size) {
+            resolve(file);
+            return;
+          }
+          var name = file.name.replace(/\.[^.]+$/, '.jpg');
+          resolve(new File([blob], name, { type: 'image/jpeg' }));
+        }, 'image/jpeg', quality);
+      };
+
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        resolve(file); // Fall back to original on error
+      };
+
+      img.src = url;
+    });
   }
 
   function autoInit() {

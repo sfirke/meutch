@@ -1,7 +1,10 @@
 import json
 import os
 import random
-from flask import render_template, current_app, request, flash, redirect, url_for, abort, session
+import re
+from urllib.parse import urlparse
+import requests as http_client
+from flask import render_template, current_app, request, flash, redirect, url_for, abort, session, make_response
 from flask_login import login_required, current_user, logout_user
 from sqlalchemy import or_, and_, func, select
 from sqlalchemy.orm import joinedload
@@ -283,6 +286,36 @@ def _build_find_context(user):
         'has_circles': has_circles,
         'result_count': result_count,
     }
+
+_CDN_HOST_RE = re.compile(
+    r'^[a-z0-9-]+\.[a-z0-9-]+\.cdn\.digitaloceanspaces\.com$', re.IGNORECASE
+)
+
+
+@main_bp.route('/image-proxy')
+@login_required
+def image_proxy():
+    """Proxy a CDN-hosted item image so the crop editor can fetch it without CORS."""
+    url = request.args.get('url', '')
+    if not url:
+        abort(400)
+
+    parsed = urlparse(url)
+    if parsed.scheme != 'https' or not _CDN_HOST_RE.match(parsed.netloc):
+        abort(400)
+
+    try:
+        resp = http_client.get(url, timeout=10, stream=True)
+        resp.raise_for_status()
+    except http_client.RequestException:
+        abort(502)
+
+    content_type = resp.headers.get('Content-Type', 'image/jpeg')
+    proxy_response = make_response(resp.content)
+    proxy_response.headers['Content-Type'] = content_type
+    proxy_response.headers['Cache-Control'] = 'private, max-age=3600'
+    return proxy_response
+
 
 @main_bp.route('/')
 def index():

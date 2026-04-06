@@ -282,17 +282,19 @@
             objectUrl = URL.createObjectURL(detail.file);
             showModal(objectUrl);
         } else if (detail.url) {
-            // Fetch the image and convert to a blob URL so the cropper canvas
-            // is never tainted by cross-origin image data (e.g. CDN-hosted images
-            // or local dev URLs that differ from the current page origin).
-            fetch(detail.url)
+            // Route through the server-side proxy so the fetch is never blocked
+            // by CDN CORS caching issues (DO Spaces CDN may serve cached responses
+            // without Access-Control-Allow-Origin when the image was first loaded
+            // via a plain <img> tag).
+            var proxyUrl = '/image-proxy?url=' + encodeURIComponent(detail.url);
+            fetch(proxyUrl)
                 .then(function(response) { return response.blob(); })
                 .then(function(blob) {
                     objectUrl = URL.createObjectURL(blob);
                     showModal(objectUrl);
                 })
                 .catch(function(err) {
-                    console.warn('[PhotoPreview] Could not fetch image for crop editor:', err);
+                    console.warn('[PhotoPreview] Could not load image for crop editor:', err);
                 });
         }
     }
