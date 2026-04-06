@@ -15,8 +15,8 @@ class TestMainRoutes:
         """Test index page loads correctly for anonymous users (landing page)."""
         response = client.get('/')
         assert response.status_code == 200
-        assert b'Borrowing from a neighbor' in response.data
-    
+        assert b'What if borrowing from a neighbor' in response.data
+
     def test_index_with_authenticated_user(self, client, app, auth_user):
         """Test index page with authenticated user."""
         with app.app_context():
