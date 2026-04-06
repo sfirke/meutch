@@ -1219,6 +1219,10 @@ footer h6 {
 /* Photo Preview - Cropper.js Customization */
 /* Make all corner handles mobile-friendly with large touch targets (48px minimum per WCAG) */
 /* but show as small, consistent circles for a polished appearance */
+/* Clip handles to the crop-box so all four corners show a consistent quarter-arc on load */
+.cropper-crop-box {
+    overflow: hidden !important;
+}
 .cropper-point {
     width: 48px !important;
     height: 48px !important;
