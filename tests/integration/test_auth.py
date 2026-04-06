@@ -100,7 +100,7 @@ class TestAuthenticationRoutes:
             response = client.get('/logout', follow_redirects=True)
             assert response.status_code == 200
             # Just verify we're redirected to main page (landing page for anonymous)
-            assert b'Borrowing from a neighbor' in response.data
+            assert b'What if borrowing from a neighbor' in response.data
     
     def test_register_page(self, client):
         """Test registration page loads correctly."""
