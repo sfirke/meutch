@@ -4,8 +4,10 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ## Apr 2026
 
-### Bug Fixes
-- Fix item photo reordering when dragging an image to the far left on the edit form, and refresh the item-detail carousel with in-image dot navigation for clearer controls.
+### Features
+
+**Major**
+- Allow users to upload up to eight images per item listed, with associated enhancements ([#316](https://github.com/sfirke/meutch/pull/316)).
 
 ### Developer Experience
 - Seeded loan data now includes messages, `./dev-start seed` can run when alembic table is missing/hasn't been initialized yet ([#307](https://github.com/sfirke/meutch/pull/307)).
