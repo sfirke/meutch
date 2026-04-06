@@ -278,17 +278,23 @@
 
         revokeUrl();
 
-        var src;
         if (detail.file) {
             objectUrl = URL.createObjectURL(detail.file);
-            src = objectUrl;
+            showModal(objectUrl);
         } else if (detail.url) {
-            src = detail.url;
-        } else {
-            return;
+            // Fetch the image and convert to a blob URL so the cropper canvas
+            // is never tainted by cross-origin image data (e.g. CDN-hosted images
+            // or local dev URLs that differ from the current page origin).
+            fetch(detail.url)
+                .then(function(response) { return response.blob(); })
+                .then(function(blob) {
+                    objectUrl = URL.createObjectURL(blob);
+                    showModal(objectUrl);
+                })
+                .catch(function(err) {
+                    console.warn('[PhotoPreview] Could not fetch image for crop editor:', err);
+                });
         }
-
-        showModal(src);
     }
 
     // ── public API ──────────────────────────────────────────────────
