@@ -478,16 +478,6 @@
         // Update hidden fields before submission
         updateHiddenFields();
 
-        // Show loading state on submit buttons
-        var submitBtns = form.querySelectorAll('button[type=submit]');
-        submitBtns.forEach(function (btn) { btn.disabled = true; });
-        if (clickedSubmitBtn) {
-          var loadingMsg = orderedFiles.length > 0
-            ? '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Uploading photos, please wait…'
-            : '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Saving…';
-          clickedSubmitBtn.innerHTML = loadingMsg;
-        }
-
         // Build DataTransfer to set file input files
         try {
           var dt = new DataTransfer();
