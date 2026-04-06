@@ -1217,22 +1217,33 @@ footer h6 {
 }
 
 /* Photo Preview - Cropper.js Customization */
-/* Make all corner handles the same size for easier grabbing */
+/* Make all corner handles mobile-friendly with large touch targets */
 .cropper-point {
-    width: 9px !important;
-    height: 9px !important;
-}
-
-/* Ensure the visual indicator is consistent across all corners */
-.cropper-point.point-se {
-    width: 9px !important;
-    height: 9px !important;
-}
-
-/* Make corner points more visible with better contrast */
-.cropper-point {
-    opacity: 0.9 !important;
+    width: 48px !important;
+    height: 48px !important;
+    margin-top: -24px !important;
+    margin-left: -24px !important;
+    opacity: 0.8 !important;
     background-color: var(--primary-color) !important;
+    /* Visual indicator circle in center */
+    box-shadow: inset 0 0 0 12px var(--primary-color), inset 0 0 0 14px rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Edge/side handles - make them larger too */
+.cropper-point.point-e,
+.cropper-point.point-w,
+.cropper-point.point-n,
+.cropper-point.point-s {
+    width: 48px !important;
+    height: 48px !important;
+}
+
+/* Bottom-right corner special styling */
+.cropper-point.point-se {
+    width: 48px !important;
+    height: 48px !important;
+    margin-top: -24px !important;
+    margin-left: -24px !important;
 }
 
 /* ============================================
