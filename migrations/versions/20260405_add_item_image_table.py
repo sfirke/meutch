@@ -26,7 +26,6 @@ def upgrade():
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('id')
     )
-    op.create_index('ix_item_image_item_id', 'item_image', ['item_id'])
 
     # Migrate existing image_url data to item_image rows
     op.execute("""
@@ -54,5 +53,4 @@ def downgrade():
         )
     """)
 
-    op.drop_index('ix_item_image_item_id', table_name='item_image')
     op.drop_table('item_image')
