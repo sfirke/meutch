@@ -70,7 +70,7 @@ def _collect_item_image_uploads(files):
             continue
 
         if file_size > MAX_UPLOAD_FILE_SIZE_BYTES:
-            errors.append(f'{filename} exceeds the 20 MB size limit.')
+            errors.append(f'{filename} exceeds the 100 MB size limit.')
             continue
 
         if not is_valid_file_upload(uploaded_file):
@@ -292,6 +292,12 @@ _CDN_HOST_RE = re.compile(
 )
 
 
+# NOTE: This proxy exists to guard against CDN cache poisoning. The DO Spaces CDN
+# can cache responses without Access-Control-Allow-Origin if an image is first
+# fetched via a plain <img> tag (no Origin header), causing subsequent fetch()
+# calls from the crop editor to be CORS-blocked on that CDN edge node. Routing
+# through the server sidesteps this even if bucket-level CORS rules are in place.
+# Before removing this, verify the CDN returns Vary: Origin on image responses.
 @main_bp.route('/image-proxy')
 @login_required
 def image_proxy():
