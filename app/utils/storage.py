@@ -9,8 +9,8 @@ from abc import ABC, abstractmethod
 
 
 ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
-MAX_UPLOAD_FILE_SIZE_BYTES = 20 * 1024 * 1024
-MAX_SOURCE_IMAGE_PIXELS = 40_000_000
+MAX_UPLOAD_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100MB for high-res phone photos
+MAX_SOURCE_IMAGE_PIXELS = 10000 * 10000  # 100 megapixels, to prevent decompression bombs
 
 Image.MAX_IMAGE_PIXELS = MAX_SOURCE_IMAGE_PIXELS
 
