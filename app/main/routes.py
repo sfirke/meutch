@@ -14,7 +14,7 @@ from app import db
 from app.models import Item, ItemImage, ItemRequest, LoanRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm, VacationModeForm, DigestSettingsForm
 from app.main import bp as main_bp
-from app.utils.storage import ALLOWED_IMAGE_EXTENSIONS, MAX_UPLOAD_FILE_SIZE_BYTES, delete_file, upload_item_image, upload_item_images, delete_item_images, get_file_size, has_allowed_image_extension, upload_profile_image, is_valid_file_upload
+from app.utils.storage import ALLOWED_IMAGE_EXTENSIONS, MAX_ITEM_IMAGE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_LABEL, delete_file, upload_item_image, upload_item_images, delete_item_images, get_file_size, has_allowed_image_extension, upload_profile_image, is_valid_file_upload
 from app.utils.geocoding import sort_items_by_owner_distance
 from app.utils.pagination import ListPagination
 from app.utils.email import send_message_notification_email
@@ -25,7 +25,6 @@ from app.utils.item_share import token_grants_item_access, ITEM_SHARE_TOKEN_MAX_
 
 
 HOMEPAGE_DISTANCE_OPTIONS = {5, 10, 20, 25, 50}
-MAX_ITEM_IMAGE_COUNT = 8
 
 
 def _build_item_detail_url(item_id, share_token=None):
@@ -70,7 +69,7 @@ def _collect_item_image_uploads(files):
             continue
 
         if file_size > MAX_UPLOAD_FILE_SIZE_BYTES:
-            errors.append(f'{filename} exceeds the 100 MB size limit.')
+            errors.append(f'{filename} exceeds the {MAX_UPLOAD_FILE_SIZE_LABEL} size limit.')
             continue
 
         if not is_valid_file_upload(uploaded_file):

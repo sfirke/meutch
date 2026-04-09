@@ -1,8 +1,15 @@
 (function () {
   'use strict';
 
-  var MAX_IMAGES = 8;
-  var MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+  var DEFAULT_MAX_IMAGES = 8;
+  var DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024;
+  var DEFAULT_MAX_FILE_SIZE_LABEL = '100 MB';
+  var DEFAULT_MAX_SOURCE_IMAGE_PIXELS = 10000 * 10000;
+  var DEFAULT_MAX_SOURCE_IMAGE_LABEL = '100 megapixels';
+  var DEFAULT_MAX_SOURCE_IMAGE_EXAMPLE_DIMENSIONS = '10000 x 10000';
+  var DEFAULT_COMPRESS_MAX_WIDTH = 800;
+  var DEFAULT_COMPRESS_MAX_HEIGHT = 600;
+  var DEFAULT_COMPRESSION_QUALITY = 0.85;
   var newIdCounter = 0;
 
   function init(container) {
@@ -19,9 +26,18 @@
     fileInput.style.display = 'none';
 
     var newFiles = new Map();
-    var fileVersions = new Map();
     var deletedIds = new Set();
     var clickedSubmitBtn = null;
+    var pendingFilesCount = 0;
+    var maxImages = parsePositiveInt(container.dataset.maxImages, DEFAULT_MAX_IMAGES);
+    var maxFileSize = parsePositiveInt(container.dataset.maxFileSizeBytes, DEFAULT_MAX_FILE_SIZE);
+    var maxFileSizeLabel = container.dataset.maxFileSizeLabel || DEFAULT_MAX_FILE_SIZE_LABEL;
+    var maxSourceImagePixels = parsePositiveInt(container.dataset.maxSourceImagePixels, DEFAULT_MAX_SOURCE_IMAGE_PIXELS);
+    var maxSourceImageLabel = container.dataset.maxSourceImageLabel || DEFAULT_MAX_SOURCE_IMAGE_LABEL;
+    var maxSourceImageExampleDimensions = container.dataset.maxSourceImageExampleDimensions || DEFAULT_MAX_SOURCE_IMAGE_EXAMPLE_DIMENSIONS;
+    var compressMaxWidth = parsePositiveInt(container.dataset.compressMaxWidth, DEFAULT_COMPRESS_MAX_WIDTH);
+    var compressMaxHeight = parsePositiveInt(container.dataset.compressMaxHeight, DEFAULT_COMPRESS_MAX_HEIGHT);
+    var compressionQuality = parseQuality(container.dataset.compressionQuality, DEFAULT_COMPRESSION_QUALITY);
 
     // Parse existing images from data attribute
     var existingImages = [];
@@ -75,9 +91,9 @@
     }
 
     function updateCounter() {
-      var count = grid.querySelectorAll('.multi-image-thumb').length;
-      counter.textContent = count + ' / ' + MAX_IMAGES;
-      addBtn.style.display = count >= MAX_IMAGES ? 'none' : '';
+      var count = grid.querySelectorAll('.multi-image-thumb').length + pendingFilesCount;
+      counter.textContent = count + ' / ' + maxImages;
+      addBtn.style.display = count >= maxImages ? 'none' : '';
     }
 
     function updateBadges() {
@@ -163,7 +179,7 @@
         updateCounter();
         updateBadges();
         updateHiddenFields();
-        announce('Photo removed. ' + grid.querySelectorAll('.multi-image-thumb').length + ' of ' + MAX_IMAGES + ' photos.');
+        announce('Photo removed. ' + grid.querySelectorAll('.multi-image-thumb').length + ' of ' + maxImages + ' photos.');
       });
 
       // Crop handler
@@ -372,57 +388,72 @@
     fileInput.addEventListener('change', function () {
       if (!fileInput.files || fileInput.files.length === 0) return;
 
-      var currentCount = grid.querySelectorAll('.multi-image-thumb').length;
+      var currentCount = grid.querySelectorAll('.multi-image-thumb').length + pendingFilesCount;
       var filesToAdd = Array.from(fileInput.files);
-      var available = MAX_IMAGES - currentCount;
+      var available = maxImages - currentCount;
 
       if (filesToAdd.length > available) {
         var msg = available === 0
-          ? 'Maximum of ' + MAX_IMAGES + ' images reached.'
+          ? 'Maximum of ' + maxImages + ' images reached.'
           : 'Only ' + available + ' more image(s) can be added. Extra files were skipped.';
         showNotification(msg, 'warning');
         filesToAdd = filesToAdd.slice(0, available);
       }
 
-      var validFiles = [];
+      var candidateFiles = [];
       filesToAdd.forEach(function (file) {
         if (!file.type.startsWith('image/')) {
           showNotification(file.name + ' is not an image file.', 'warning');
           return;
         }
-        if (file.size > MAX_FILE_SIZE) {
-          showNotification(file.name + ' exceeds the 20MB size limit.', 'warning');
+        if (file.size > maxFileSize) {
+          showNotification(file.name + ' exceeds the ' + maxFileSizeLabel + ' size limit.', 'warning');
           return;
         }
-        validFiles.push(file);
+        candidateFiles.push(file);
       });
 
       // Reset file input so same file can be re-selected
       fileInput.value = '';
 
-      validFiles.forEach(function (file) {
-        var id = 'new-' + newIdCounter++;
-        newFiles.set(id, file);
+      if (candidateFiles.length === 0) {
+        updateCounter();
+        return;
+      }
 
-        var url = URL.createObjectURL(file);
-        var thumb = createThumb(id, url);
-        grid.insertBefore(thumb, addBtn);
-
-        // Compress in background; replace stored file once done so the form
-        // submits a smaller payload (server will receive pre-scaled JPEG).
-        var version = (fileVersions.get(id) || 0) + 1;
-        fileVersions.set(id, version);
-        compressImage(file, 800, 600, 0.82).then(function (compressed) {
-          // Only apply if the file hasn't been replaced (e.g. by cropping)
-          if (fileVersions.get(id) === version) {
-            newFiles.set(id, compressed);
-          }
-        });
-      });
-
+      pendingFilesCount += candidateFiles.length;
       updateCounter();
-      updateBadges();
-      updateHiddenFields();
+
+      Promise.all(candidateFiles.map(function (file) {
+        return prepareImageFile(
+          file,
+          compressMaxWidth,
+          compressMaxHeight,
+          compressionQuality,
+          maxSourceImagePixels,
+          maxSourceImageLabel,
+          maxSourceImageExampleDimensions
+        );
+      })).then(function (results) {
+        results.forEach(function (result) {
+          if (result.error) {
+            showNotification(result.error, 'warning');
+            return;
+          }
+
+          var id = 'new-' + newIdCounter++;
+          newFiles.set(id, result.file);
+
+          var url = URL.createObjectURL(result.file);
+          var thumb = createThumb(id, url);
+          grid.insertBefore(thumb, addBtn);
+        });
+
+        pendingFilesCount -= candidateFiles.length;
+        updateCounter();
+        updateBadges();
+        updateHiddenFields();
+      });
     });
 
     // Listen for cropped image from external modal
@@ -448,8 +479,6 @@
 
       if (id.startsWith('new-')) {
         newFiles.set(id, file);
-        // Bump version so any in-flight compression is discarded
-        fileVersions.set(id, (fileVersions.get(id) || 0) + 1);
       } else {
         // Cropping an existing image: mark old for deletion, treat as new
         deletedIds.add(id);
@@ -471,6 +500,12 @@
       });
 
       form.addEventListener('submit', function (e) {
+        if (pendingFilesCount > 0) {
+          e.preventDefault();
+          showNotification('Please wait for photos to finish processing.', 'warning');
+          return;
+        }
+
         // Build ordered list of files from DOM order
         var thumbs = grid.querySelectorAll('.multi-image-thumb');
         var orderedFiles = [];
@@ -551,10 +586,10 @@
 
   /**
    * Compress an image file client-side using a canvas.
-   * Returns a Promise that resolves to a File (compressed JPEG if smaller,
-   * original otherwise).
+   * Returns a Promise that resolves to an object containing either a
+   * processed File or an error message.
    */
-  function compressImage(file, maxWidth, maxHeight, quality) {
+  function prepareImageFile(file, maxWidth, maxHeight, quality, maxSourceImagePixels, maxSourceImageLabel, maxSourceImageExampleDimensions) {
     return new Promise(function (resolve) {
       var img = new Image();
       var url = URL.createObjectURL(file);
@@ -564,13 +599,20 @@
 
         var w = img.naturalWidth;
         var h = img.naturalHeight;
+        if ((w * h) > maxSourceImagePixels) {
+          resolve({
+            error: file.name + ' exceeds the source image limit of ' + buildSourceImageLimitLabel(maxSourceImageLabel, maxSourceImageExampleDimensions) + '.'
+          });
+          return;
+        }
+
         var ratio = Math.min(maxWidth / w, maxHeight / h, 1);
         var newW = Math.round(w * ratio);
         var newH = Math.round(h * ratio);
 
         // If already within bounds and already a JPEG, skip recompression
         if (ratio === 1 && file.type === 'image/jpeg') {
-          resolve(file);
+          resolve({ file: file });
           return;
         }
 
@@ -581,21 +623,38 @@
 
         canvas.toBlob(function (blob) {
           if (!blob || blob.size >= file.size) {
-            resolve(file);
+            resolve({ file: file });
             return;
           }
           var name = file.name.replace(/\.[^.]+$/, '.jpg');
-          resolve(new File([blob], name, { type: 'image/jpeg' }));
+          resolve({ file: new File([blob], name, { type: 'image/jpeg' }) });
         }, 'image/jpeg', quality);
       };
 
       img.onerror = function () {
         URL.revokeObjectURL(url);
-        resolve(file); // Fall back to original on error
+        resolve({ error: file.name + ' could not be processed as an image.' });
       };
 
       img.src = url;
     });
+  }
+
+  function parsePositiveInt(value, fallback) {
+    var parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  }
+
+  function parseQuality(value, fallback) {
+    var parsed = parseFloat(value);
+    return Number.isFinite(parsed) && parsed > 0 && parsed <= 1 ? parsed : fallback;
+  }
+
+  function buildSourceImageLimitLabel(maxSourceImageLabel, maxSourceImageExampleDimensions) {
+    if (!maxSourceImageExampleDimensions) {
+      return maxSourceImageLabel;
+    }
+    return maxSourceImageLabel + ' (' + maxSourceImageExampleDimensions + ' pixels)';
   }
 
   function autoInit() {

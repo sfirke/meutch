@@ -2,6 +2,7 @@
 Tests for photo preview functionality in item forms
 """
 import io
+from app.utils.storage import MAX_SOURCE_IMAGE_PIXELS, MAX_UPLOAD_FILE_SIZE_BYTES
 from tests.factories import UserFactory, CategoryFactory
 from conftest import login_user
 
@@ -30,6 +31,9 @@ class TestPhotoPreview:
             # Check that photo-preview.js and multi-image-upload.js are included
             assert b'photo-preview.js' in response.data
             assert b'multi-image-upload.js' in response.data
+            assert f'data-max-file-size-bytes="{MAX_UPLOAD_FILE_SIZE_BYTES}"'.encode() in response.data
+            assert f'data-max-source-image-pixels="{MAX_SOURCE_IMAGE_PIXELS}"'.encode() in response.data
+            assert b'Up to 100 MB per photo before compression.' in response.data
     
     def test_edit_item_form_includes_photo_preview_classes(self, client, app, auth_user):
         """Test that edit item form includes multi-image upload component"""
@@ -66,6 +70,9 @@ class TestPhotoPreview:
             # Check that photo-preview.js and multi-image-upload.js are included
             assert b'photo-preview.js' in response.data
             assert b'multi-image-upload.js' in response.data
+            assert f'data-max-file-size-bytes="{MAX_UPLOAD_FILE_SIZE_BYTES}"'.encode() in response.data
+            assert f'data-max-source-image-pixels="{MAX_SOURCE_IMAGE_PIXELS}"'.encode() in response.data
+            assert b'Up to 100 MB per photo before compression.' in response.data
     
     def test_form_accepts_image_file(self, client, app, auth_user):
         """Test that the form accepts and processes image files (verifies form still works)"""

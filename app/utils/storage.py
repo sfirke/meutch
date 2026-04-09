@@ -9,8 +9,17 @@ from abc import ABC, abstractmethod
 
 
 ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
-MAX_UPLOAD_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100MB for high-res phone photos
-MAX_SOURCE_IMAGE_PIXELS = 10000 * 10000  # 100 megapixels, to prevent decompression bombs
+BYTES_PER_MEGABYTE = 1024 * 1024
+MAX_UPLOAD_FILE_SIZE_BYTES = 100 * BYTES_PER_MEGABYTE  # 100MB for high-res phone photos
+MAX_UPLOAD_FILE_SIZE_LABEL = f'{MAX_UPLOAD_FILE_SIZE_BYTES // BYTES_PER_MEGABYTE} MB'
+MAX_SOURCE_IMAGE_SIDE_LENGTH = 10000
+MAX_SOURCE_IMAGE_PIXELS = MAX_SOURCE_IMAGE_SIDE_LENGTH * MAX_SOURCE_IMAGE_SIDE_LENGTH  # 100 megapixels, to prevent decompression bombs
+MAX_SOURCE_IMAGE_LABEL = '100 megapixels'
+MAX_SOURCE_IMAGE_EXAMPLE_DIMENSIONS = f'{MAX_SOURCE_IMAGE_SIDE_LENGTH} x {MAX_SOURCE_IMAGE_SIDE_LENGTH}'
+MAX_ITEM_IMAGE_COUNT = 8
+ITEM_IMAGE_MAX_WIDTH = 800
+ITEM_IMAGE_MAX_HEIGHT = 600
+ITEM_IMAGE_QUALITY = 85
 
 Image.MAX_IMAGE_PIXELS = MAX_SOURCE_IMAGE_PIXELS
 
@@ -350,7 +359,13 @@ def upload_item_image(file):
     Returns:
         URL of the uploaded item image or None if upload failed
     """
-    return upload_file(file, folder='items', max_width=800, max_height=600, quality=85)
+    return upload_file(
+        file,
+        folder='items',
+        max_width=ITEM_IMAGE_MAX_WIDTH,
+        max_height=ITEM_IMAGE_MAX_HEIGHT,
+        quality=ITEM_IMAGE_QUALITY,
+    )
 
 def upload_circle_image(file):
     """

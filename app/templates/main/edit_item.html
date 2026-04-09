@@ -66,14 +66,23 @@
         </div>
 
         <!-- Images -->
-        <div class="mb-3 multi-image-upload">
-            <label class="form-label">Images <small class="text-muted">(up to 8)</small></label>
+        <div class="mb-3 multi-image-upload"
+             data-max-images="{{ item_upload_limits.max_images }}"
+             data-max-file-size-bytes="{{ item_upload_limits.max_file_size_bytes }}"
+             data-max-file-size-label="{{ item_upload_limits.max_file_size_label }}"
+             data-max-source-image-pixels="{{ item_upload_limits.max_source_image_pixels }}"
+             data-max-source-image-label="{{ item_upload_limits.max_source_image_label }}"
+             data-max-source-image-example-dimensions="{{ item_upload_limits.max_source_image_example_dimensions }}"
+             data-compress-max-width="{{ item_upload_limits.compressed_max_width }}"
+             data-compress-max-height="{{ item_upload_limits.compressed_max_height }}"
+             data-compression-quality="{{ item_upload_limits.compression_quality }}">
+            <label class="form-label">Images <small class="text-muted">(up to {{ item_upload_limits.max_images }})</small></label>
             {{ form.image(class="form-control", accept="image/*", multiple=True, style="display:none") }}
             {{ form.delete_images() }}
             {{ form.image_order() }}
             <div class="multi-image-container" data-existing-images='{{ item.images | tojson_images }}'></div>
             <div class="form-text">
-                <small class="text-muted">Supported formats: JPG, PNG, GIF, BMP, WebP. Drag to reorder.</small>
+                <small class="text-muted">Supported formats: JPG, PNG, GIF, BMP, WebP. Up to {{ item_upload_limits.max_file_size_label }} per photo before compression. Drag to reorder.</small>
             </div>
             {% for error in form.image.errors %}
                 <div class="text-danger">{{ error }}</div>
