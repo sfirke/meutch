@@ -282,13 +282,24 @@
             objectUrl = URL.createObjectURL(detail.file);
             showModal(objectUrl);
         } else if (detail.url) {
-            // Route through the server-side proxy so the fetch is never blocked
-            // by CDN CORS caching issues (DO Spaces CDN may serve cached responses
-            // without Access-Control-Allow-Origin when the image was first loaded
-            // via a plain <img> tag).
-            var proxyUrl = '/image-proxy?url=' + encodeURIComponent(detail.url);
-            fetch(proxyUrl)
-                .then(function(response) { return response.blob(); })
+            // Same-origin URLs (local dev storage) can be fetched directly.
+            // Cross-origin CDN URLs go through the server-side proxy to avoid
+            // CORS cache poisoning from DO Spaces CDN.
+            var isSameOrigin = false;
+            try {
+                isSameOrigin = new URL(detail.url, window.location.origin).origin === window.location.origin;
+            } catch (_) { /* treat as cross-origin */ }
+
+            var fetchUrl = isSameOrigin
+                ? detail.url
+                : '/image-proxy?url=' + encodeURIComponent(detail.url);
+            fetch(fetchUrl)
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Image fetch failed: ' + response.status);
+                    }
+                    return response.blob();
+                })
                 .then(function(blob) {
                     objectUrl = URL.createObjectURL(blob);
                     showModal(objectUrl);
