@@ -19,6 +19,7 @@
     fileInput.style.display = 'none';
 
     var newFiles = new Map();
+    var fileVersions = new Map();
     var deletedIds = new Set();
     var clickedSubmitBtn = null;
 
@@ -409,8 +410,13 @@
 
         // Compress in background; replace stored file once done so the form
         // submits a smaller payload (server will receive pre-scaled JPEG).
+        var version = (fileVersions.get(id) || 0) + 1;
+        fileVersions.set(id, version);
         compressImage(file, 800, 600, 0.82).then(function (compressed) {
-          newFiles.set(id, compressed);
+          // Only apply if the file hasn't been replaced (e.g. by cropping)
+          if (fileVersions.get(id) === version) {
+            newFiles.set(id, compressed);
+          }
         });
       });
 
@@ -442,6 +448,8 @@
 
       if (id.startsWith('new-')) {
         newFiles.set(id, file);
+        // Bump version so any in-flight compression is discarded
+        fileVersions.set(id, (fileVersions.get(id) || 0) + 1);
       } else {
         // Cropping an existing image: mark old for deletion, treat as new
         deletedIds.add(id);
