@@ -75,6 +75,32 @@
 
     grid.appendChild(addBtn);
 
+    // Hidden capture input: opens camera directly on mobile (capture attr ignored on desktop)
+    var captureInput = document.createElement('input');
+    captureInput.type = 'file';
+    captureInput.accept = 'image/*';
+    captureInput.setAttribute('capture', 'environment');
+    captureInput.style.display = 'none';
+    container.appendChild(captureInput);
+
+    // Camera button – only rendered on touch devices
+    var isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    var cameraBtn = document.createElement('div');
+    cameraBtn.className = 'multi-image-add-btn';
+    cameraBtn.setAttribute('role', 'button');
+    cameraBtn.setAttribute('tabindex', '0');
+    cameraBtn.setAttribute('aria-label', 'Take photo');
+    if (!isTouchDevice) {
+      cameraBtn.style.display = 'none';
+    }
+    var cameraIcon = document.createElement('i');
+    cameraIcon.className = 'fas fa-camera fa-2x';
+    cameraBtn.appendChild(cameraIcon);
+    var cameraLabel = document.createElement('span');
+    cameraLabel.textContent = 'Take Photo';
+    cameraBtn.appendChild(cameraLabel);
+    grid.appendChild(cameraBtn);
+
     // Aria-live region for screen readers
     var liveRegion = document.createElement('div');
     liveRegion.setAttribute('aria-live', 'polite');
@@ -93,7 +119,11 @@
     function updateCounter() {
       var count = grid.querySelectorAll('.multi-image-thumb').length + pendingFilesCount;
       counter.textContent = count + ' / ' + maxImages;
-      addBtn.style.display = count >= maxImages ? 'none' : '';
+      var atMax = count >= maxImages;
+      addBtn.style.display = atMax ? 'none' : '';
+      if (isTouchDevice) {
+        cameraBtn.style.display = atMax ? 'none' : '';
+      }
     }
 
     function updateBadges() {
@@ -372,24 +402,12 @@
       });
     }
 
-    // Add button click / keyboard
-    addBtn.addEventListener('click', function () {
-      fileInput.click();
-    });
-
-    addBtn.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        fileInput.click();
-      }
-    });
-
-    // File selection
-    fileInput.addEventListener('change', function () {
-      if (!fileInput.files || fileInput.files.length === 0) return;
+    // Shared file processing used by both gallery and camera inputs
+    function handleFiles(files, inputEl) {
+      if (!files || files.length === 0) return;
 
       var currentCount = grid.querySelectorAll('.multi-image-thumb').length + pendingFilesCount;
-      var filesToAdd = Array.from(fileInput.files);
+      var filesToAdd = Array.from(files);
       var available = maxImages - currentCount;
 
       if (filesToAdd.length > available) {
@@ -413,8 +431,8 @@
         candidateFiles.push(file);
       });
 
-      // Reset file input so same file can be re-selected
-      fileInput.value = '';
+      // Reset input so same file can be re-selected
+      inputEl.value = '';
 
       if (candidateFiles.length === 0) {
         updateCounter();
@@ -454,6 +472,39 @@
         updateBadges();
         updateHiddenFields();
       });
+    }
+
+    // Add button click / keyboard
+    addBtn.addEventListener('click', function () {
+      fileInput.click();
+    });
+
+    addBtn.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+
+    // Camera button click / keyboard
+    cameraBtn.addEventListener('click', function () {
+      captureInput.click();
+    });
+
+    cameraBtn.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        captureInput.click();
+      }
+    });
+
+    // File selection
+    fileInput.addEventListener('change', function () {
+      handleFiles(fileInput.files, fileInput);
+    });
+
+    captureInput.addEventListener('change', function () {
+      handleFiles(captureInput.files, captureInput);
     });
 
     // Listen for cropped image from external modal
