@@ -83,14 +83,20 @@
     captureInput.style.display = 'none';
     container.appendChild(captureInput);
 
-    // Camera button – only rendered on touch devices
+    // Camera button – only rendered on touch devices where capture="environment" gives a
+    // meaningfully different experience from the regular gallery picker.
+    // Firefox already includes a camera option in its standard file chooser, so the
+    // button would be redundant there. No feature-detection API exists for this
+    // distinction; targeted UA detection is the pragmatic best practice here.
     var isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    var isFirefox = /Firefox\//.test(navigator.userAgent);
+    var showCameraBtn = isTouchDevice && !isFirefox;
     var cameraBtn = document.createElement('div');
     cameraBtn.className = 'multi-image-add-btn';
     cameraBtn.setAttribute('role', 'button');
     cameraBtn.setAttribute('tabindex', '0');
     cameraBtn.setAttribute('aria-label', 'Take photo');
-    if (!isTouchDevice) {
+    if (!showCameraBtn) {
       cameraBtn.style.display = 'none';
     }
     var cameraIcon = document.createElement('i');
@@ -121,7 +127,7 @@
       counter.textContent = count + ' / ' + maxImages;
       var atMax = count >= maxImages;
       addBtn.style.display = atMax ? 'none' : '';
-      if (isTouchDevice) {
+      if (showCameraBtn) {
         cameraBtn.style.display = atMax ? 'none' : '';
       }
     }
