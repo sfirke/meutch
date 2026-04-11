@@ -6,6 +6,17 @@ import os
 from flask import current_app, url_for
 from flask_login import current_user
 from app.utils.geocoding import format_distance
+from app.utils.storage import (
+    ITEM_IMAGE_MAX_HEIGHT,
+    ITEM_IMAGE_MAX_WIDTH,
+    ITEM_IMAGE_QUALITY,
+    MAX_ITEM_IMAGE_COUNT,
+    MAX_SOURCE_IMAGE_EXAMPLE_DIMENSIONS,
+    MAX_SOURCE_IMAGE_LABEL,
+    MAX_SOURCE_IMAGE_PIXELS,
+    MAX_UPLOAD_FILE_SIZE_BYTES,
+    MAX_UPLOAD_FILE_SIZE_LABEL,
+)
 # Remove model imports from top level
 
 # Module-level cache for file content hashes (populated once per process in production)
@@ -138,3 +149,18 @@ def inject_static_url_for():
         return url_for('static', filename=filename, **kwargs) + '?v=' + _static_hash_cache[filepath]
 
     return dict(static_url_for=static_url_for)
+
+def inject_item_upload_limits():
+    return {
+        'item_upload_limits': {
+            'max_images': MAX_ITEM_IMAGE_COUNT,
+            'max_file_size_bytes': MAX_UPLOAD_FILE_SIZE_BYTES,
+            'max_file_size_label': MAX_UPLOAD_FILE_SIZE_LABEL,
+            'max_source_image_pixels': MAX_SOURCE_IMAGE_PIXELS,
+            'max_source_image_label': MAX_SOURCE_IMAGE_LABEL,
+            'max_source_image_example_dimensions': MAX_SOURCE_IMAGE_EXAMPLE_DIMENSIONS,
+            'compressed_max_width': ITEM_IMAGE_MAX_WIDTH,
+            'compressed_max_height': ITEM_IMAGE_MAX_HEIGHT,
+            'compression_quality': ITEM_IMAGE_QUALITY / 100,
+        }
+    }

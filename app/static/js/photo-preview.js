@@ -1,447 +1,333 @@
 /**
- * Photo Preview with Rotation and Cropping
- * Provides image preview, rotation, and cropping capabilities for file uploads
- * Uses Cropper.js for advanced image manipulation
- * Requires notifications.js for user feedback
+ * Photo Preview – Bootstrap 5 Modal Crop Editor
+ * Listens for multi-image:edit events, opens a Cropper.js modal,
+ * and dispatches multi-image:cropped with the resulting blob.
+ * Requires: Cropper.js, Bootstrap 5 JS
  */
 
 (function() {
     'use strict';
 
-    // Constants
-    const ROTATION_ANIMATION_DELAY = 10; // milliseconds to wait after rotation for zoom adjustment
-    
-    const BUTTON_CONFIGS = [
-        { class: 'rotate-left-btn', icon: 'fa-undo', text: 'Rotate Left', style: 'btn-outline-secondary' },
-        { class: 'rotate-right-btn', icon: 'fa-redo', text: 'Rotate Right', style: 'btn-outline-secondary' },
-        { class: 'zoom-in-btn', icon: 'fa-search-plus', text: 'Zoom In', style: 'btn-outline-secondary' },
-        { class: 'zoom-out-btn', icon: 'fa-search-minus', text: 'Zoom Out', style: 'btn-outline-secondary' },
-        { class: 'reset-btn', icon: 'fa-sync-alt', text: 'Reset', style: 'btn-outline-secondary' },
-        { class: 'remove-btn', icon: 'fa-trash', text: 'Remove Photo', style: 'btn-outline-danger' }
-    ];
+    var ROTATION_DELAY = 10;
 
-    let cropper = null;
-    let currentFile = null;
+    var cropper = null;
+    var editId = null;
+    var editContainer = null;
+    var editThumbEl = null;
+    var objectUrl = null;
+    var modalEl = null;
+    var modalInstance = null;
+    var cropImage = null;
 
-    /**
-     * Zoom the cropper to fit the container after rotation
-     * @param {Cropper} cropperInstance - The Cropper.js instance
-     */
-    function zoomToFitContainer(cropperInstance) {
-        const containerData = cropperInstance.getContainerData();
-        const imageData = cropperInstance.getImageData();
-        const ratio = imageData.aspectRatio > 1 ? 
-            containerData.width / imageData.width :
-            containerData.height / imageData.height;
-        cropperInstance.zoomTo(ratio);
-    }
+    // ── helpers ──────────────────────────────────────────────────────
 
-    /**
-     * Clear the file input and update dependent UI elements
-     * This ensures both photo-preview and drag-drop-upload UI stay in sync
-     * @param {HTMLElement} fileInput - The file input element to clear
-     * @param {HTMLElement} previewContainer - The preview container element
-     */
-    function clearFileInput(fileInput, previewContainer) {
-        fileInput.value = '';
-        hidePreview(previewContainer);
-        // Trigger change event to notify drag-drop-upload component
-        const event = new Event('change', { bubbles: true });
-        fileInput.dispatchEvent(event);
-    }
-
-    /**
-     * Initialize photo preview for a file input element
-     * @param {HTMLElement} fileInput - The file input element to enhance
-     */
-    function initPhotoPreview(fileInput) {
-        if (!fileInput || fileInput.type !== 'file') {
-            return;
-        }
-
-        // Cropper.js must be loaded - it's a required dependency
-        if (typeof Cropper === 'undefined') {
-            return;
-        }
-
-        // Check if already initialized
-        if (fileInput.dataset.photoPreviewInitialized === 'true') {
-            return;
-        }
-        fileInput.dataset.photoPreviewInitialized = 'true';
-
-        // Create preview container using DOM methods (safer than innerHTML)
-        const previewContainer = document.createElement('div');
-        previewContainer.className = 'photo-preview-container mt-3';
-        previewContainer.style.display = 'none';
-        
-        const card = document.createElement('div');
-        card.className = 'card';
-        
-        const cardBody = document.createElement('div');
-        cardBody.className = 'card-body';
-        
-        const title = document.createElement('h6');
-        title.className = 'card-title';
-        title.textContent = 'Photo Preview';
-        
-        const wrapper = document.createElement('div');
-        wrapper.className = 'photo-preview-wrapper';
-        
-        const previewImage = document.createElement('img');
-        previewImage.id = 'preview-image';
-        previewImage.className = 'img-fluid';
-        previewImage.style.maxWidth = '100%';
-        previewImage.style.display = 'block';
-        previewImage.alt = 'Photo preview';
-        
-        wrapper.appendChild(previewImage);
-        
-        const controls = document.createElement('div');
-        controls.className = 'photo-preview-controls mt-3 d-flex gap-2 flex-wrap';
-        
-        // Create control buttons with accessibility support
-        BUTTON_CONFIGS.forEach(function(btnConfig) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn btn-sm ' + btnConfig.style + ' ' + btnConfig.class;
-            btn.setAttribute('aria-label', btnConfig.text);
-            
-            const icon = document.createElement('i');
-            icon.className = 'fas ' + btnConfig.icon;
-            icon.setAttribute('aria-hidden', 'true');
-            
-            btn.appendChild(icon);
-            btn.appendChild(document.createTextNode(' ' + btnConfig.text));
-            controls.appendChild(btn);
-        });
-        
-        const helpText = document.createElement('small');
-        helpText.className = 'text-muted d-block mt-2';
-        helpText.textContent = 'Adjust your photo as needed. You can drag to reposition and use the zoom buttons. Changes will be applied when you submit the form.';
-        
-        cardBody.appendChild(title);
-        cardBody.appendChild(wrapper);
-        cardBody.appendChild(controls);
-        cardBody.appendChild(helpText);
-        card.appendChild(cardBody);
-        previewContainer.appendChild(card);
-
-        // Insert preview container after the file input's parent container
-        const fileInputContainer = fileInput.closest('.mb-3') || fileInput.parentNode;
-        fileInputContainer.parentNode.insertBefore(previewContainer, fileInputContainer.nextSibling);
-
-        // Get references to elements
-        const rotateLeftBtn = previewContainer.querySelector('.rotate-left-btn');
-        const rotateRightBtn = previewContainer.querySelector('.rotate-right-btn');
-        const zoomInBtn = previewContainer.querySelector('.zoom-in-btn');
-        const zoomOutBtn = previewContainer.querySelector('.zoom-out-btn');
-        const resetBtn = previewContainer.querySelector('.reset-btn');
-        const removeBtn = previewContainer.querySelector('.remove-btn');
-        const controlsDiv = previewContainer.querySelector('.photo-preview-controls');
-
-        // File input change handler with security validations
-        fileInput.addEventListener('change', function() {
-            const file = fileInput.files[0];
-            
-            // Validate file exists and is an image
-            if (!file) {
-                hidePreview(previewContainer);
-                return;
-            }
-            
-            // Strict file type validation - only allow specific image types
-            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
-            if (!allowedTypes.includes(file.type.toLowerCase())) {
-                Notifications.error('Invalid file type. Please select a valid image file (JPEG, PNG, GIF, WebP, or BMP).');
-                clearFileInput(fileInput, previewContainer);
-                return;
-            }
-            
-            // File size limit: 20MB (prevent DoS from huge files)
-            const maxSize = 20 * 1024 * 1024; // 20MB in bytes
-            if (file.size > maxSize) {
-                Notifications.error('File is too large. Please select an image under 20MB.');
-                clearFileInput(fileInput, previewContainer);
-                return;
-            }
-            
-            currentFile = file;
-            displayImage(file, previewImage, previewContainer);
-            // Show controls when a new file is selected
-            controlsDiv.style.display = 'flex';
-        });
-
-        // Control button handlers
-        rotateLeftBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (cropper) {
-                const imageData = cropper.getImageData();
-                const currentRotation = imageData.rotate || 0;
-                
-                // Rotate to new angle
-                cropper.rotateTo(currentRotation - 90);
-                
-                // After rotation, zoom to fit the container
-                setTimeout(function() {
-                    zoomToFitContainer(cropper);
-                }, ROTATION_ANIMATION_DELAY);
-            }
-        });
-
-        rotateRightBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (cropper) {
-                const imageData = cropper.getImageData();
-                const currentRotation = imageData.rotate || 0;
-                
-                // Rotate to new angle
-                cropper.rotateTo(currentRotation + 90);
-                
-                // After rotation, zoom to fit the container
-                setTimeout(function() {
-                    zoomToFitContainer(cropper);
-                }, ROTATION_ANIMATION_DELAY);
-            }
-        });
-
-        zoomInBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (cropper) {
-                cropper.zoom(0.1);
-            }
-        });
-
-        zoomOutBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (cropper) {
-                cropper.zoom(-0.1);
-            }
-        });
-
-        resetBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (currentFile) {
-                displayImage(currentFile, previewImage, previewContainer);
-            }
-        });
-
-        removeBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            fileInput.value = '';
-            currentFile = null;
-            hidePreview(previewContainer);
-            
-            // Trigger change event to update file info display
-            const event = new Event('change', { bubbles: true });
-            fileInput.dispatchEvent(event);
-        });
-        
-        // Add form submit handler to ensure cropped image is used
-        const form = fileInput.closest('form');
-        if (form) {
-            // Track if we've already processed the image
-            let imageProcessed = false;
-            let pendingSubmitter = null;
-
-            // Capture clicked submit button for browsers that don't support e.submitter
-            form.querySelectorAll('[type="submit"]').forEach(function(btn) {
-                btn.addEventListener('click', function() { pendingSubmitter = btn; });
-            });
-
-            form.addEventListener('submit', function(e) {
-                // e.submitter is more reliable than click tracking when available
-                if (e.submitter) pendingSubmitter = e.submitter;
-
-                if (cropper && currentFile && !imageProcessed) {
-                    // Prevent the form from submitting until we process the image
-                    e.preventDefault();
-                    // Capture now so the async callback uses the correct button
-                    const submitter = pendingSubmitter;
-
-                    // Update file input with final cropped/rotated version
-                    updateFileInputWithCroppedImage(fileInput, function() {
-                        imageProcessed = true;
-
-                        // requestSubmit preserves submitter identity and reruns validation
-                        if (typeof form.requestSubmit === 'function') {
-                            form.requestSubmit(submitter || undefined);
-                            return;
-                        }
-
-                        // Legacy fallback: inject button identity as a hidden field before raw submit
-                        if (submitter && submitter.name) {
-                            const hidden = document.createElement('input');
-                            hidden.type = 'hidden';
-                            hidden.name = submitter.name;
-                            hidden.value = submitter.value || '';
-                            form.appendChild(hidden);
-                        }
-
-                        HTMLFormElement.prototype.submit.call(form);
-                    });
-                }
+    function el(tag, attrs, children) {
+        var node = document.createElement(tag);
+        if (attrs) {
+            Object.keys(attrs).forEach(function(k) {
+                if (k === 'textContent') { node.textContent = attrs[k]; }
+                else if (k === 'className') { node.className = attrs[k]; }
+                else { node.setAttribute(k, attrs[k]); }
             });
         }
-    }
-
-    /**
-     * Display an image in the preview
-     * @param {File} file - The image file to display
-     * @param {HTMLElement} previewImage - The preview image element
-     * @param {HTMLElement} previewContainer - The preview container element
-     */
-    function displayImage(file, previewImage, previewContainer) {
-        // Additional security check
-        if (!file || !file.type || !file.type.startsWith('image/')) {
-            return;
+        if (children) {
+            children.forEach(function(c) {
+                if (typeof c === 'string') { node.appendChild(document.createTextNode(c)); }
+                else if (c) { node.appendChild(c); }
+            });
         }
-        
-        const reader = new FileReader();
-        
-        reader.onerror = function() {
-            Notifications.error('Failed to read image file. Please try another file.');
-        };
-        
-        reader.onload = function(e) {
-            // Validate the result is a data URL
-            if (!e.target.result || !e.target.result.startsWith('data:image/')) {
-                Notifications.error('Failed to load image. Please try another file.');
-                return;
-            }
-            
-            // Destroy existing cropper instance
-            if (cropper) {
-                cropper.destroy();
-                cropper = null;
-            }
-
-            // Set image source
-            previewImage.src = e.target.result;
-            previewContainer.style.display = 'block';
-
-            // Clean up previous onload handler to prevent memory leaks
-            previewImage.onload = null;
-            
-            // Wait for image to load before initializing Cropper
-            previewImage.onload = function() {
-                // Initialize Cropper.js
-                cropper = new Cropper(previewImage, {
-                    viewMode: 2, // Restrict canvas to container
-                    dragMode: 'move',
-                    aspectRatio: NaN, // Free aspect ratio
-                    autoCropArea: 1,
-                    restore: false,
-                    guides: true,
-                    center: true,
-                    highlight: false,
-                    cropBoxMovable: true,
-                    cropBoxResizable: true,
-                    toggleDragModeOnDblclick: false,
-                    responsive: true,
-                    background: false,
-                    zoomable: true,
-                    zoomOnWheel: true,
-                    zoomOnTouch: true,
-                    rotatable: true,
-                    checkOrientation: true,
-                    minContainerWidth: 200,
-                    minContainerHeight: 200
-                });
-            };
-        };
-        reader.readAsDataURL(file);
+        return node;
     }
 
-    /**
-     * Hide the preview container
-     * @param {HTMLElement} previewContainer - The preview container element
-     */
-    function hidePreview(previewContainer) {
-        previewContainer.style.display = 'none';
+    function icon(faClass) {
+        return el('i', { className: 'fas ' + faClass, 'aria-hidden': 'true' });
+    }
+
+    function revokeUrl() {
+        if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+            objectUrl = null;
+        }
+    }
+
+    function destroyCropper() {
         if (cropper) {
             cropper.destroy();
             cropper = null;
         }
     }
 
-    /**
-     * Update the file input with the cropped/rotated image
-     * This converts the canvas to a blob and creates a new File object
-     * @param {HTMLElement} fileInput - The file input element to update
-     * @param {Function} callback - Optional callback function to call after update
-     */
-    function updateFileInputWithCroppedImage(fileInput, callback) {
-        if (!cropper || !currentFile) {
-            if (callback) callback();
-            return;
-        }
-
-        // Get the cropped canvas
-        const canvas = cropper.getCroppedCanvas();
-        
-        if (!canvas) {
-            if (callback) callback();
-            return;
-        }
-
-        // Convert canvas to blob with error handling
-        try {
-            canvas.toBlob(function(blob) {
-                if (!blob) {
-                    console.warn('Failed to create blob from canvas');
-                    if (callback) callback();
-                    return;
-                }
-
-                // Create a new file from the blob
-                const fileName = currentFile.name;
-                const newFile = new File([blob], fileName, {
-                    type: currentFile.type,
-                    lastModified: Date.now()
-                });
-
-                // Update the file input
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(newFile);
-                fileInput.files = dataTransfer.files;
-
-                // Store the updated file
-                currentFile = newFile;
-                
-                if (callback) callback();
-            }, currentFile.type);
-        } catch (e) {
-            console.error('Error converting canvas to blob:', e);
-            if (callback) callback();
-        }
+    function zoomToFitContainer(inst) {
+        var container = inst.getContainerData();
+        var image = inst.getImageData();
+        var ratio = image.aspectRatio > 1
+            ? container.width / image.width
+            : container.height / image.height;
+        inst.zoomTo(ratio);
     }
 
-    /**
-     * Auto-initialize all file inputs with class 'photo-preview'
-     */
-    function autoInit() {
-        // Cropper.js must be loaded synchronously before this script
-        if (typeof Cropper === 'undefined') {
-            return;
-        }
-        
-        const fileInputs = document.querySelectorAll('input[type="file"].photo-preview');
-        fileInputs.forEach(function(input) {
-            initPhotoPreview(input);
+    // ── modal DOM ───────────────────────────────────────────────────
+
+    function buildModal() {
+        var rotateLeftBtn = el('button', {
+            type: 'button',
+            className: 'btn btn-sm btn-outline-secondary crop-rotate-left',
+            'aria-label': 'Rotate left'
+        }, [icon('fa-undo'), ' Rotate']);
+
+        var rotateRightBtn = el('button', {
+            type: 'button',
+            className: 'btn btn-sm btn-outline-secondary crop-rotate-right',
+            'aria-label': 'Rotate right'
+        }, [icon('fa-redo'), ' Rotate']);
+
+        var zoomInBtn = el('button', {
+            type: 'button',
+            className: 'btn btn-sm btn-outline-secondary crop-zoom-in',
+            'aria-label': 'Zoom in'
+        }, [icon('fa-search-plus')]);
+
+        var zoomOutBtn = el('button', {
+            type: 'button',
+            className: 'btn btn-sm btn-outline-secondary crop-zoom-out',
+            'aria-label': 'Zoom out'
+        }, [icon('fa-search-minus')]);
+
+        var resetBtn = el('button', {
+            type: 'button',
+            className: 'btn btn-sm btn-outline-secondary crop-reset',
+            'aria-label': 'Reset'
+        }, [icon('fa-sync-alt')]);
+
+        var toolGroup = el('div', { className: 'd-flex gap-2 flex-wrap me-auto' },
+            [rotateLeftBtn, rotateRightBtn, zoomInBtn, zoomOutBtn, resetBtn]);
+
+        var cancelBtn = el('button', {
+            type: 'button',
+            className: 'btn btn-secondary',
+            'data-bs-dismiss': 'modal'
+        }, ['Cancel']);
+
+        var applyBtn = el('button', {
+            type: 'button',
+            className: 'btn btn-primary crop-apply'
+        }, ['Apply']);
+
+        cropImage = el('img', {
+            id: 'crop-image',
+            style: 'max-width: 100%; display: block;',
+            alt: 'Crop preview'
+        });
+
+        var cropContainer = el('div', {
+            className: 'crop-container',
+            style: 'max-height: 60vh; overflow: hidden;'
+        }, [cropImage]);
+
+        var titleEl = el('h5', { className: 'modal-title', id: 'cropModalLabel' }, ['Edit Photo']);
+        var closeBtn = el('button', {
+            type: 'button',
+            className: 'btn-close',
+            'data-bs-dismiss': 'modal',
+            'aria-label': 'Close'
+        });
+
+        var header = el('div', { className: 'modal-header' }, [titleEl, closeBtn]);
+        var body = el('div', { className: 'modal-body' }, [cropContainer]);
+        var footer = el('div', { className: 'modal-footer' }, [toolGroup, cancelBtn, applyBtn]);
+
+        var content = el('div', { className: 'modal-content' }, [header, body, footer]);
+        var dialog = el('div', { className: 'modal-dialog modal-lg modal-dialog-centered' }, [content]);
+        modalEl = el('div', {
+            className: 'modal fade',
+            id: 'cropModal',
+            tabindex: '-1',
+            'aria-labelledby': 'cropModalLabel',
+            'aria-hidden': 'true'
+        }, [dialog]);
+
+        document.body.appendChild(modalEl);
+
+        // ── control handlers ────────────────────────────────────────
+
+        rotateLeftBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!cropper) return;
+            var rot = (cropper.getImageData().rotate || 0) - 90;
+            cropper.rotateTo(rot);
+            setTimeout(function() { zoomToFitContainer(cropper); }, ROTATION_DELAY);
+        });
+
+        rotateRightBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!cropper) return;
+            var rot = (cropper.getImageData().rotate || 0) + 90;
+            cropper.rotateTo(rot);
+            setTimeout(function() { zoomToFitContainer(cropper); }, ROTATION_DELAY);
+        });
+
+        zoomInBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (cropper) cropper.zoom(0.1);
+        });
+
+        zoomOutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (cropper) cropper.zoom(-0.1);
+        });
+
+        resetBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!cropper) return;
+            var src = cropImage.getAttribute('src');
+            destroyCropper();
+            initCropper(src);
+        });
+
+        applyBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!cropper) return;
+            var canvas = cropper.getCroppedCanvas();
+            if (!canvas) return;
+            var id = editId;
+            canvas.toBlob(function(blob) {
+                if (!blob) return;
+                (editContainer || document).dispatchEvent(new CustomEvent('multi-image:cropped', {
+                    detail: { id: id, blob: blob }
+                }));
+                hideModal();
+            }, 'image/jpeg', 0.92);
+        });
+
+        // ── modal hidden cleanup ────────────────────────────────────
+        modalEl.addEventListener('hidden.bs.modal', function() {
+            destroyCropper();
+            revokeUrl();
+            editId = null;
+            editContainer = null;
+            editThumbEl = null;
         });
     }
 
-    // Auto-initialize on DOM ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', autoInit);
-    } else {
-        autoInit();
+    // ── cropper init ────────────────────────────────────────────────
+
+    function initCropper(src) {
+        destroyCropper();
+        cropImage.onload = null;
+
+        cropImage.onload = function() {
+            cropper = new Cropper(cropImage, {
+                viewMode: 2,
+                dragMode: 'move',
+                aspectRatio: NaN,
+                autoCropArea: 1,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false,
+                responsive: true,
+                background: false,
+                zoomable: true,
+                zoomOnWheel: true,
+                zoomOnTouch: true,
+                rotatable: true,
+                checkOrientation: true,
+                minContainerWidth: 200,
+                minContainerHeight: 200
+            });
+        };
+
+        cropImage.src = src;
+        // Force onload if image is already cached
+        if (cropImage.complete) {
+            cropImage.onload();
+        }
     }
 
-    // Export for manual initialization if needed
-    window.PhotoPreview = {
-        init: initPhotoPreview,
-        autoInit: autoInit
-    };
+    // ── show / hide ─────────────────────────────────────────────────
+
+    function showModal(src) {
+        if (!modalInstance) {
+            modalInstance = new bootstrap.Modal(modalEl);
+        }
+        modalInstance.show();
+
+        // Wait until modal is visible so Cropper can measure the container
+        modalEl.addEventListener('shown.bs.modal', function onShown() {
+            modalEl.removeEventListener('shown.bs.modal', onShown);
+            initCropper(src);
+        });
+    }
+
+    function hideModal() {
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+    }
+
+    // ── edit listener ───────────────────────────────────────────────
+
+    function onEditRequested(e) {
+        var detail = e.detail || {};
+        editId = detail.id;
+        editContainer = detail.container || null;
+        editThumbEl = detail.thumbEl || null;
+
+        revokeUrl();
+
+        if (detail.file) {
+            objectUrl = URL.createObjectURL(detail.file);
+            showModal(objectUrl);
+        } else if (detail.url) {
+            // Same-origin URLs (local dev storage) can be fetched directly.
+            // Cross-origin CDN URLs go through the server-side proxy to avoid
+            // CORS cache poisoning from DO Spaces CDN.
+            var isSameOrigin = false;
+            try {
+                isSameOrigin = new URL(detail.url, window.location.origin).origin === window.location.origin;
+            } catch (_) { /* treat as cross-origin */ }
+
+            var fetchUrl = isSameOrigin
+                ? detail.url
+                : '/image-proxy?url=' + encodeURIComponent(detail.url);
+            fetch(fetchUrl)
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Image fetch failed: ' + response.status);
+                    }
+                    return response.blob();
+                })
+                .then(function(blob) {
+                    objectUrl = URL.createObjectURL(blob);
+                    showModal(objectUrl);
+                })
+                .catch(function(err) {
+                    console.warn('[PhotoPreview] Could not load image for crop editor:', err);
+                });
+        }
+    }
+
+    // ── public API ──────────────────────────────────────────────────
+
+    function init() {
+        if (typeof Cropper === 'undefined') {
+            return;
+        }
+        if (typeof bootstrap === 'undefined') {
+            return;
+        }
+        if (!document.getElementById('cropModal')) {
+            buildModal();
+        }
+        document.addEventListener('multi-image:edit', onEditRequested);
+    }
+
+    window.PhotoPreview = { init: init };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        window.PhotoPreview.init();
+    });
 })();

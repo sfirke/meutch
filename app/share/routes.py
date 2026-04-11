@@ -49,7 +49,7 @@ def giveaway_preview(item_id):
     return render_template(
         'share/giveaway_preview.html',
         item=item,
-        preview_image_url=_absolute_image_url(item.image_url),
+        preview_image_url=_absolute_image_url(item.image),
         auth_next_url=auth_next_url,
     )
 
@@ -127,7 +127,7 @@ def item_preview(token):
     return render_template(
         'share/item_preview.html',
         item=item,
-        preview_image_url=_absolute_image_url(item.image_url),
+        preview_image_url=_absolute_image_url(item.image),
         auth_next_url=auth_next_url,
         item_share_valid_days=ITEM_SHARE_TOKEN_MAX_AGE_DAYS,
     )

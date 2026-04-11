@@ -4,7 +4,7 @@
 <div class="container mt-5">
     <h1>Edit Item</h1>
     <form method="post" enctype="multipart/form-data">
-        {{ form.hidden_tag() }}
+        {{ form.csrf_token }}
         
         <div class="mb-3">
             {{ form.name.label }}
@@ -65,19 +65,25 @@
             {% endfor %}
         </div>
 
-        {% if item.image_url %}
-        <div class="mb-3">
-            <img src="{{ item.image_url }}" alt="{{ item.name }}" class="img-thumbnail" style="max-width: 200px">
-            <div class="form-check">
-                {{ form.delete_image(class="form-check-input", id="deleteImage") }}
-                {{ form.delete_image.label(class="form-check-label", for_="deleteImage") }}
+        <!-- Images -->
+        <div class="mb-3 multi-image-upload"
+             data-max-images="{{ item_upload_limits.max_images }}"
+             data-max-file-size-bytes="{{ item_upload_limits.max_file_size_bytes }}"
+             data-max-file-size-label="{{ item_upload_limits.max_file_size_label }}"
+             data-max-source-image-pixels="{{ item_upload_limits.max_source_image_pixels }}"
+             data-max-source-image-label="{{ item_upload_limits.max_source_image_label }}"
+             data-max-source-image-example-dimensions="{{ item_upload_limits.max_source_image_example_dimensions }}"
+             data-compress-max-width="{{ item_upload_limits.compressed_max_width }}"
+             data-compress-max-height="{{ item_upload_limits.compressed_max_height }}"
+             data-compression-quality="{{ item_upload_limits.compression_quality }}">
+            <label class="form-label">Images <small class="text-muted">(up to {{ item_upload_limits.max_images }})</small></label>
+            {{ form.image(class="form-control", accept="image/*", multiple=True, style="display:none") }}
+            {{ form.delete_images() }}
+            {{ form.image_order() }}
+            <div class="multi-image-container" data-existing-images='{{ item.images | tojson_images }}'></div>
+            <div class="form-text">
+                <small class="text-muted">Supported formats: JPG, PNG, GIF, BMP, WebP. Up to {{ item_upload_limits.max_file_size_label }} per photo before compression. Drag to reorder.</small>
             </div>
-        </div>
-        {% endif %}
-        
-        <div class="mb-3">
-            {{ form.image.label }}
-            {{ form.image(class="form-control drag-drop-upload photo-preview", accept="image/*") }}
             {% for error in form.image.errors %}
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
@@ -111,12 +117,12 @@
 </script>
 
 <!-- Cropper.js CSS and JS -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" integrity="sha512-UtLOu9C7NuThQhuXXrGwx9Jb/z9zPQJctuAgNUBK3Z6kkSYT9wJ+2+dh6klS+TDBCV9kNPBbAxbVD+vCcfGPaA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" integrity="sha512-JyCZjCOZoyeQZSd5+YEAcFgz2fowJ1F1hyJOXgtKu4llIa0KneLcidn5bwfutiehUTiOuK87A986BZJMko0eWQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-<!-- Drag and Drop Upload Script -->
-<script src="{{ static_url_for('js/drag-drop-upload.js') }}"></script>
+<!-- Multi-Image Upload -->
+<script src="{{ static_url_for('js/multi-image-upload.js') }}"></script>
 
-<!-- Photo Preview Script -->
+<!-- Photo Preview (Crop Modal) -->
 <script src="{{ static_url_for('js/photo-preview.js') }}"></script>
 {% endblock %}

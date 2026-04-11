@@ -246,7 +246,7 @@ def build_visible_giveaway_events(
             'description': item.description,
             'actor_name': item.owner.full_name if item.owner else 'Deleted User',
             'actor_avatar_url': item.owner.profile_image_url if item.owner else None,
-            'image_url': item.image_url,
+            'image_url': item.image,
             'action': 'posted a giveaway',
             'distance': distance,
         })
@@ -292,7 +292,7 @@ def build_recent_lent_events(user, scoped_circle_ids=None, days=30, since=None, 
             'description': item.description,
             'actor_name': owner_name,
             'actor_avatar_url': item.owner.profile_image_url if item.owner else None,
-            'image_url': item.image_url,
+            'image_url': item.image,
             'action': 'lent out',
         })
     return events

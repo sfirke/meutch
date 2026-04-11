@@ -212,7 +212,7 @@ class TestItem:
         """Test item image property with default."""
         with app.app_context():
             item = ItemFactory()
-            # Should return default image URL when no image_url is set
+            # Should return default image URL when no images are set
             assert 'default_item_photo.png' in item.image
     
     def test_item_with_tags(self, app):

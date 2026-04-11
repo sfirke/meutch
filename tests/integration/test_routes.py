@@ -1,8 +1,9 @@
 """Integration tests for main routes."""
+import json
 import pytest
 from app import db
 from app.models import Item, User, Category, Circle
-from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, TagFactory, LoanRequestFactory, MessageFactory, UserWebLinkFactory, ItemRequestFactory, CircleJoinRequestFactory
+from tests.factories import UserFactory, ItemFactory, ItemImageFactory, CategoryFactory, CircleFactory, TagFactory, LoanRequestFactory, MessageFactory, UserWebLinkFactory, ItemRequestFactory, CircleJoinRequestFactory
 from conftest import login_user
 from unittest.mock import patch
 import io
@@ -15,8 +16,8 @@ class TestMainRoutes:
         """Test index page loads correctly for anonymous users (landing page)."""
         response = client.get('/')
         assert response.status_code == 200
-        assert b'Borrowing from a neighbor' in response.data
-    
+        assert b'What if borrowing from a neighbor' in response.data
+
     def test_index_with_authenticated_user(self, client, app, auth_user):
         """Test index page with authenticated user."""
         with app.app_context():
@@ -430,6 +431,30 @@ class TestItemRoutes:
             response = client.get(f'/item/{item.id}')
             assert response.status_code == 200
             assert item.name.encode() in response.data
+
+    def test_item_detail_uses_thumbnail_carousel_for_multiple_images(self, client, app, auth_user):
+        """Multi-image item detail should render a thumbnail strip below the carousel."""
+        with app.app_context():
+            viewer = auth_user()
+            owner = UserFactory()
+            circle = CircleFactory()
+            circle.members.append(viewer)
+            circle.members.append(owner)
+            item = ItemFactory(owner=owner)
+            ItemImageFactory(item=item, position=0)
+            ItemImageFactory(item=item, position=1)
+            ItemImageFactory(item=item, position=2)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+
+            response = client.get(f'/item/{item.id}')
+
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'itemImageCarousel' in content
+            assert 'item-thumbnail' in content
+            assert 'data-bs-slide-to="2"' in content
     
     def test_edit_item_own_item(self, client, app, auth_user):
         """Test editing own item."""
@@ -502,6 +527,64 @@ class TestItemRoutes:
             # Confirm the database was updated
             updated = db.session.get(Item, item.id)
             assert updated.name == 'Redirected Name'
+
+    def test_edit_item_rejects_invalid_image_order_payload(self, client, app, auth_user):
+        """Test that tampered image ordering data is rejected instead of being silently ignored."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            item = ItemFactory(owner=user, category=category, name='Original Name')
+            login_user(client, user.email)
+
+            response = client.post(f'/item/{item.id}/edit', data={
+                'name': 'Tampered Name',
+                'description': 'Updated description',
+                'category': str(category.id),
+                'image_order': 'not-json'
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'Photo order data was invalid.' in response.data
+
+            unchanged_item = db.session.get(Item, item.id)
+            assert unchanged_item.name == 'Original Name'
+
+    def test_edit_item_persists_existing_image_reorder(self, client, app, auth_user):
+        """Submitted image_order should update existing image positions."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            item = ItemFactory(owner=user, category=category, name='Original Name')
+            image_1 = ItemImageFactory(item=item, position=0)
+            image_2 = ItemImageFactory(item=item, position=1)
+            image_3 = ItemImageFactory(item=item, position=2)
+            db.session.commit()
+
+            login_user(client, user.email)
+
+            response = client.post(f'/item/{item.id}/edit', data={
+                'name': 'Original Name',
+                'description': 'Updated description',
+                'category': str(category.id),
+                'image_order': json.dumps([
+                    str(image_3.id),
+                    str(image_1.id),
+                    str(image_2.id)
+                ])
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'Item has been updated.' in response.data
+
+            db.session.expire_all()
+            updated_item = db.session.get(Item, item.id)
+
+            assert [str(image.id) for image in updated_item.images] == [
+                str(image_3.id),
+                str(image_1.id),
+                str(image_2.id)
+            ]
+            assert [image.position for image in updated_item.images] == [0, 1, 2]
     
     def test_edit_item_retains_category(self, client, app, auth_user):
         """Test that the category is retained when editing an item."""
@@ -570,7 +653,7 @@ class TestItemRoutes:
             category = CategoryFactory() 
             login_user(client, user.email)
 
-            with patch('app.main.routes.upload_item_image', return_value=None):
+            with patch('app.main.routes.upload_item_images', side_effect=ValueError('upload failed')):
                 response = client.post('/list-item', data={
                     'name': 'Test Item',
                     'description': 'Test Description',
@@ -900,8 +983,10 @@ class TestProfileRoutes:
             circle.members.append(lender)
             circle.members.append(borrower)
 
-            borrowed_item = ItemFactory(owner=lender, category=category, name='Borrowed Item', image_url='https://example.com/borrowed.jpg')
-            lent_item = ItemFactory(owner=user, category=category, name='Lent Item', image_url='https://example.com/lent.jpg')
+            borrowed_item = ItemFactory(owner=lender, category=category, name='Borrowed Item')
+            ItemImageFactory(item=borrowed_item, url='https://example.com/borrowed.jpg', position=0)
+            lent_item = ItemFactory(owner=user, category=category, name='Lent Item')
+            ItemImageFactory(item=lent_item, url='https://example.com/lent.jpg', position=0)
 
             borrowed_loan = LoanRequestFactory(item=borrowed_item, borrower=user, status='approved')
             lent_loan = LoanRequestFactory(item=lent_item, borrower=borrower, status='approved')

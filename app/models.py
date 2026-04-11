@@ -320,8 +320,8 @@ class User(UserMixin, db.Model):
                 item.available = False
             else:
                 # Delete item image if exists and no active loans
-                if item.image_url:
-                    delete_file(item.image_url)
+                for img in item.images:
+                    delete_file(img.url)
                 
                 # Delete associated loan requests
                 LoanRequest.query.filter_by(item_id=item.id).delete()
@@ -366,7 +366,6 @@ class Item(db.Model):
     created_at = db.Column(db.DateTime, default=func.now())
     category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('category.id'), nullable=False)
     loan_requests = db.relationship('LoanRequest', backref='item')
-    image_url = db.Column(db.String(500), nullable=True)
     is_giveaway = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
     giveaway_visibility = db.Column(db.String(20), nullable=True)  # 'default' or 'public'
     claim_status = db.Column(db.String(20), nullable=True)  # 'unclaimed', 'pending_pickup', 'claimed'
@@ -375,10 +374,14 @@ class Item(db.Model):
     
     # Relationships
     claimed_by = db.relationship('User', foreign_keys=[claimed_by_id], backref='claimed_giveaways')
+    images = db.relationship('ItemImage', backref='item', order_by='ItemImage.position',
+                             cascade='all, delete-orphan', passive_deletes=True, lazy='select')
 
     @property
     def image(self):
-        return self.image_url or url_for('static', filename='img/default_item_photo.png')
+        if self.images:
+            return self.images[0].url
+        return url_for('static', filename='img/default_item_photo.png')
     
     @property
     def current_loan(self):
@@ -394,6 +397,20 @@ class Item(db.Model):
 
     def __repr__(self):
         return f'<Item {self.name}>'
+
+
+class ItemImage(db.Model):
+    """Images associated with an item, supporting multiple photos per item."""
+    __tablename__ = 'item_image'
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
+    item_id = db.Column(UUID(as_uuid=True), db.ForeignKey('item.id', ondelete='CASCADE'), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    position = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=func.now())
+
+    def __repr__(self):
+        return f'<ItemImage item_id={self.item_id} position={self.position}>'
 
 
 class GiveawayInterest(db.Model):

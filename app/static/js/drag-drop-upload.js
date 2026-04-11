@@ -22,6 +22,11 @@
         }
         fileInput.dataset.dragDropInitialized = 'true';
 
+        // Skip UI creation for inputs managed by multi-image-upload
+        if (fileInput.closest('.multi-image-upload')) {
+            return;
+        }
+
         // Get accepted file types from the input's accept attribute
         const acceptedTypes = fileInput.accept || 'image/*';
         
@@ -107,20 +112,26 @@
 
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-                const file = files[0];
-                
-                // Validate file type
-                if (!isValidFileType(file, acceptedTypes)) {
-                    fileInfo.textContent = 'Please select a valid image file (JPG, PNG, GIF, BMP, WebP)';
+                const dataTransfer = new DataTransfer();
+                let invalidCount = 0;
+
+                const maxFiles = fileInput.multiple ? files.length : 1;
+                for (let i = 0; i < maxFiles; i++) {
+                    if (isValidFileType(files[i], acceptedTypes)) {
+                        dataTransfer.items.add(files[i]);
+                    } else {
+                        invalidCount++;
+                    }
+                }
+
+                if (dataTransfer.files.length === 0) {
+                    fileInfo.textContent = 'Please select valid image files (JPG, PNG, GIF, BMP, WebP)';
                     fileInfo.className = 'text-danger small mt-2 mb-0 file-info';
                     return;
                 }
-                
-                // Create a new FileList-like object and assign to input
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
+
                 fileInput.files = dataTransfer.files;
-                
+
                 // Trigger change event
                 const event = new Event('change', { bubbles: true });
                 fileInput.dispatchEvent(event);
@@ -173,9 +184,13 @@
      */
     function updateFileInfo(fileInput, fileInfo, dropZone) {
         if (fileInput.files && fileInput.files.length > 0) {
-            const file = fileInput.files[0];
-            const fileSize = formatFileSize(file.size);
-            fileInfo.textContent = `Selected: ${file.name} (${fileSize})`;
+            if (fileInput.files.length === 1) {
+                const file = fileInput.files[0];
+                const fileSize = formatFileSize(file.size);
+                fileInfo.textContent = `Selected: ${file.name} (${fileSize})`;
+            } else {
+                fileInfo.textContent = `${fileInput.files.length} files selected`;
+            }
             fileInfo.className = 'text-success small mt-2 mb-0 file-info';
             dropZone.classList.add('has-file');
         } else {

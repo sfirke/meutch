@@ -262,9 +262,9 @@
                                         <tr>
                                             <td>
                                                 <div class="d-flex align-items-center gap-2">
-                                                    {% if item.image_url %}
+                                                    {% if item.images %}
                                                         <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="flex-shrink-0">
-                                                            <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
+                                                            <img src="{{ item.image }}" alt="{{ item.name }}" class="thumbnail">
                                                         </a>
                                                     {% endif %}
                                                     <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="fw-semibold text-decoration-none text-reset">{{ item.name }}</a>
@@ -317,9 +317,9 @@
                                         <tr>
                                             <td>
                                                 <div class="d-flex align-items-center gap-2">
-                                                    {% if item.image_url %}
+                                                    {% if item.images %}
                                                         <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="flex-shrink-0">
-                                                            <img src="{{ item.image_url }}" alt="{{ item.name }}" class="thumbnail">
+                                                            <img src="{{ item.image }}" alt="{{ item.name }}" class="thumbnail">
                                                         </a>
                                                     {% endif %}
                                                     <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="fw-semibold text-decoration-none text-reset">{{ item.name }}</a>

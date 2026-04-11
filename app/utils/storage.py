@@ -3,9 +3,25 @@ from flask import current_app, url_for
 from werkzeug.utils import secure_filename
 import uuid
 import io
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, UnidentifiedImageError
 import os
 from abc import ABC, abstractmethod
+
+
+ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+BYTES_PER_MEGABYTE = 1024 * 1024
+MAX_UPLOAD_FILE_SIZE_BYTES = 100 * BYTES_PER_MEGABYTE  # 100MB for high-res phone photos
+MAX_UPLOAD_FILE_SIZE_LABEL = f'{MAX_UPLOAD_FILE_SIZE_BYTES // BYTES_PER_MEGABYTE} MB'
+MAX_SOURCE_IMAGE_SIDE_LENGTH = 10000
+MAX_SOURCE_IMAGE_PIXELS = MAX_SOURCE_IMAGE_SIDE_LENGTH * MAX_SOURCE_IMAGE_SIDE_LENGTH  # 100 megapixels, to prevent decompression bombs
+MAX_SOURCE_IMAGE_LABEL = f'{MAX_SOURCE_IMAGE_PIXELS // 1_000_000} megapixels'
+MAX_SOURCE_IMAGE_EXAMPLE_DIMENSIONS = f'{MAX_SOURCE_IMAGE_SIDE_LENGTH} x {MAX_SOURCE_IMAGE_SIDE_LENGTH}'
+MAX_ITEM_IMAGE_COUNT = 8
+ITEM_IMAGE_MAX_WIDTH = 800
+ITEM_IMAGE_MAX_HEIGHT = 600
+ITEM_IMAGE_QUALITY = 85
+
+Image.MAX_IMAGE_PIXELS = MAX_SOURCE_IMAGE_PIXELS
 
 
 class StorageBackend(ABC):
@@ -193,15 +209,27 @@ def is_valid_file_upload(file):
     if not file.filename.strip():
         return False
     
-    # Check if file has content by trying to read and reset
+    file_size = get_file_size(file)
+    return file_size is not None and 0 < file_size <= MAX_UPLOAD_FILE_SIZE_BYTES
+
+
+def get_file_size(file):
+    """Return the size of an uploaded file in bytes, or None if unavailable."""
     try:
         current_position = file.tell()
-        file.seek(0, 2)  # Seek to end
+        file.seek(0, 2)
         file_size = file.tell()
-        file.seek(current_position)  # Reset to original position
-        return file_size > 0
+        file.seek(current_position)
+        return file_size
     except (AttributeError, OSError):
+        return None
+
+
+def has_allowed_image_extension(filename):
+    """Check whether a filename uses one of the supported image extensions."""
+    if not filename:
         return False
+    return os.path.splitext(filename)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
 
 def process_image(file, max_width=800, max_height=600, quality=85):
@@ -215,11 +243,13 @@ def process_image(file, max_width=800, max_height=600, quality=85):
         quality: JPEG quality 1-100 (default: 85)
     
     Returns:
-        BytesIO object containing the processed image
+        BytesIO object containing the processed image, or None on failure
     """
     try:
+        file.seek(0)
         # Open the image
         image = Image.open(file)
+        image.load()
         
         # Convert to RGB if necessary (handles RGBA, P, etc.)
         if image.mode in ('RGBA', 'LA', 'P'):
@@ -252,11 +282,12 @@ def process_image(file, max_width=800, max_height=600, quality=85):
         
         return output
         
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as e:
+        current_app.logger.warning(f"Image processing rejected upload: {str(e)}")
+        return None
     except Exception as e:
         current_app.logger.error(f"Image processing error: {str(e)}")
-        # Return original file if processing fails
-        file.seek(0)
-        return file
+        return None
 
 def upload_file(file, folder='items', max_width=800, max_height=600, quality=85):
     """
@@ -284,8 +315,7 @@ def upload_file(file, folder='items', max_width=800, max_height=600, quality=85)
         file_ext = os.path.splitext(filename)[1].lower()
         
         # Check if it's an image file
-        image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
-        if file_ext not in image_extensions:
+        if file_ext not in ALLOWED_IMAGE_EXTENSIONS:
             # Reject non-image files (app only supports image uploads)
             current_app.logger.warning(f"Rejected non-image file upload: {filename}")
             return None
@@ -295,6 +325,9 @@ def upload_file(file, folder='items', max_width=800, max_height=600, quality=85)
         
         # Process the image
         processed_file = process_image(file, max_width, max_height, quality)
+        if processed_file is None:
+            current_app.logger.warning(f"Rejected invalid image upload: {filename}")
+            return None
         
         # Get storage backend and upload
         storage = get_storage_backend()
@@ -326,7 +359,13 @@ def upload_item_image(file):
     Returns:
         URL of the uploaded item image or None if upload failed
     """
-    return upload_file(file, folder='items', max_width=800, max_height=600, quality=85)
+    return upload_file(
+        file,
+        folder='items',
+        max_width=ITEM_IMAGE_MAX_WIDTH,
+        max_height=ITEM_IMAGE_MAX_HEIGHT,
+        quality=ITEM_IMAGE_QUALITY,
+    )
 
 def upload_circle_image(file):
     """
@@ -355,3 +394,37 @@ def delete_file(url):
         storage.delete(url)
     except Exception as e:
         current_app.logger.error(f"Delete error: {str(e)}")
+
+
+def upload_item_images(files):
+    """
+    Upload multiple item images.
+
+    Args:
+        files: List of uploaded file objects
+
+    Returns:
+        List of URLs for successfully uploaded images. Raises ValueError
+        if any upload fails (caller should clean up already-uploaded URLs).
+    """
+    urls = []
+    for file in files:
+        url = upload_item_image(file)
+        if url is None:
+            # Clean up already-uploaded images on failure
+            for uploaded_url in urls:
+                delete_file(uploaded_url)
+            raise ValueError('One or more image uploads failed')
+        urls.append(url)
+    return urls
+
+
+def delete_item_images(urls):
+    """
+    Delete multiple item images from storage.
+
+    Args:
+        urls: List of image URLs to delete
+    """
+    for url in urls:
+        delete_file(url)

@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from app import db
 from app.models import Item
 from tests.factories import (
-    UserFactory, ItemFactory, CategoryFactory, CircleFactory,
+    UserFactory, ItemFactory, ItemImageFactory, CategoryFactory, CircleFactory,
     LoanRequestFactory, MessageFactory,
 )
 from conftest import login_user
@@ -108,7 +108,8 @@ class TestMyActivityConversationLinks:
             circle = CircleFactory()
             circle.members.append(borrower)
             circle.members.append(owner)
-            item = ItemFactory(owner=owner, category=category, image_url='https://example.com/img.jpg')
+            item = ItemFactory(owner=owner, category=category)
+            ItemImageFactory(item=item, url='https://example.com/img.jpg', position=0)
             LoanRequestFactory(
                 item=item, borrower=borrower, status='approved',
                 start_date=date.today() - timedelta(days=5),
@@ -140,7 +141,8 @@ class TestMyActivityConversationLinks:
             circle = CircleFactory()
             circle.members.append(owner)
             circle.members.append(borrower)
-            item = ItemFactory(owner=owner, category=category, image_url='https://example.com/img.jpg')
+            item = ItemFactory(owner=owner, category=category)
+            ItemImageFactory(item=item, url='https://example.com/img.jpg', position=0)
             loan = LoanRequestFactory(
                 item=item, borrower=borrower, status='approved',
                 start_date=date.today() - timedelta(days=5),

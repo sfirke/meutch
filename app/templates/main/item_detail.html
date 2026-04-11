@@ -8,8 +8,43 @@
         <div class="col-lg-5 mb-4">
             <div class="item-detail-image-container">
                 <div class="item-detail-image-inner position-relative">
-                    {% if item.image_url %}
-                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-detail-image">
+                    {% if item.images|length > 1 %}
+                        <!-- Multi-photo carousel -->
+                        <div id="itemImageCarousel" class="carousel slide" data-bs-ride="false">
+                            <div class="carousel-indicators">
+                                {% for img in item.images %}
+                                <button type="button" data-bs-target="#itemImageCarousel" data-bs-slide-to="{{ loop.index0 }}" {% if loop.first %}class="active" aria-current="true"{% endif %} aria-label="Photo {{ loop.index }}"></button>
+                                {% endfor %}
+                            </div>
+                            <div class="carousel-inner">
+                                {% for img in item.images %}
+                                <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                    <img src="{{ img.url }}" alt="{{ item.name }} - Photo {{ loop.index }}" class="item-detail-image d-block w-100">
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <button class="carousel-control-prev" type="button" data-bs-target="#itemImageCarousel" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Previous</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#itemImageCarousel" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Next</span>
+                            </button>
+                        </div>
+                        <!-- Thumbnail strip -->
+                        <div class="d-flex gap-2 mt-2 overflow-auto pb-1">
+                            {% for img in item.images %}
+                            <img src="{{ img.url }}" alt="Thumbnail {{ loop.index }}"
+                                 class="item-thumbnail {% if loop.first %}active{% endif %}"
+                                 data-bs-target="#itemImageCarousel" data-bs-slide-to="{{ loop.index0 }}"
+                                 role="button" tabindex="0"
+                                 style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 2px solid transparent; opacity: 0.7; transition: all 0.2s;">
+                            {% endfor %}
+                        </div>
+                    {% elif item.images %}
+                        <!-- Single image -->
+                        <img src="{{ item.image }}" alt="{{ item.name }}" class="item-detail-image">
                     {% else %}
                         <div class="item-detail-image-placeholder d-flex flex-column align-items-center justify-content-center">
                             <i class="fas fa-image text-muted mb-3" style="font-size: 4rem;"></i>
@@ -353,4 +388,37 @@
         </div>
     </div>
 </div>
+
+{% if item.images|length > 1 %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var carousel = document.getElementById('itemImageCarousel');
+    if (!carousel) return;
+    var thumbnails = document.querySelectorAll('.item-thumbnail');
+    carousel.addEventListener('slid.bs.carousel', function(e) {
+        thumbnails.forEach(function(thumb, i) {
+            if (i === e.to) {
+                thumb.style.opacity = '1';
+                thumb.style.borderColor = 'var(--bs-primary, #0d6efd)';
+            } else {
+                thumb.style.opacity = '0.7';
+                thumb.style.borderColor = 'transparent';
+            }
+        });
+    });
+    thumbnails.forEach(function(thumb) {
+        thumb.addEventListener('click', function() {
+            var bsCarousel = bootstrap.Carousel.getOrCreateInstance(carousel);
+            bsCarousel.to(parseInt(thumb.dataset.bsSlideTo));
+        });
+    });
+    // Set initial active state
+    if (thumbnails.length > 0) {
+        thumbnails[0].style.opacity = '1';
+        thumbnails[0].style.borderColor = 'var(--bs-primary, #0d6efd)';
+    }
+});
+</script>
+{% endif %}
+
 {% endblock %}

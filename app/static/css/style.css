@@ -1217,22 +1217,21 @@ footer h6 {
 }
 
 /* Photo Preview - Cropper.js Customization */
-/* Make all corner handles the same size for easier grabbing */
-.cropper-point {
-    width: 9px !important;
-    height: 9px !important;
+/* Make all corner handles mobile-friendly with large touch targets (48px minimum per WCAG) */
+/* but show as small, consistent circles for a polished appearance */
+/* Clip handles to the crop-box so all four corners show a consistent quarter-arc on load */
+.cropper-crop-box {
+    overflow: hidden !important;
 }
-
-/* Ensure the visual indicator is consistent across all corners */
-.cropper-point.point-se {
-    width: 9px !important;
-    height: 9px !important;
-}
-
-/* Make corner points more visible with better contrast */
 .cropper-point {
-    opacity: 0.9 !important;
-    background-color: var(--primary-color) !important;
+    width: 48px !important;
+    height: 48px !important;
+    margin-top: -24px !important;
+    margin-left: -24px !important;
+    background-color: transparent !important;
+    border: 3px solid var(--primary-color) !important;
+    border-radius: 50% !important;
+    opacity: 0.75 !important;
 }
 
 /* ============================================
@@ -1949,4 +1948,266 @@ html {
     .landing-cta {
         padding: 3rem 0;
     }
+}
+
+/* ===========================
+   Multi-Image Upload Grid
+   =========================== */
+
+.multi-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.multi-image-thumb {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    border: 2px solid var(--border-color);
+    background-color: #f8f9fa;
+    cursor: grab;
+    transition: border-color 0.2s, transform 0.2s, opacity 0.2s;
+}
+
+.multi-image-thumb:hover {
+    border-color: var(--primary-color);
+}
+
+.multi-image-thumb.dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+}
+
+body.multi-image-reordering,
+body.multi-image-reordering * {
+    user-select: none;
+}
+
+.multi-image-thumb.drop-before {
+    box-shadow: -4px 0 0 0 var(--primary-color);
+}
+
+.multi-image-thumb.drop-after {
+    box-shadow: 4px 0 0 0 var(--primary-color);
+}
+
+.multi-image-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.multi-image-thumb-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.multi-image-thumb:hover .multi-image-thumb-overlay {
+    opacity: 1;
+}
+
+.btn-thumb-action {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-thumb-crop {
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #333;
+}
+
+.btn-thumb-crop:hover {
+    background-color: #fff;
+}
+
+.btn-thumb-delete {
+    background-color: rgba(220, 53, 69, 0.85);
+    color: #fff;
+}
+
+.btn-thumb-delete:hover {
+    background-color: rgba(220, 53, 69, 1);
+}
+
+.multi-image-thumb-badge {
+    position: absolute;
+    bottom: 0.25rem;
+    right: 0.25rem;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 0.65rem;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+
+.multi-image-add-btn {
+    aspect-ratio: 1;
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--muted-text);
+    background-color: #fafafa;
+    transition: all 0.2s;
+    gap: 0.25rem;
+    min-height: 120px;
+}
+
+.multi-image-add-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: #f0fdfa;
+}
+
+.multi-image-add-btn span {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.multi-image-add-btn .image-counter {
+    font-size: 0.75rem;
+    font-weight: 400;
+    opacity: 0.7;
+}
+
+/* Touch device: always show overlay */
+@media (hover: none) and (pointer: coarse) {
+    .multi-image-thumb-overlay {
+        opacity: 1;
+    }
+    .multi-image-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 0.5rem;
+    }
+}
+
+/* ===========================
+   Item Detail Carousel
+   =========================== */
+
+#itemImageCarousel .carousel-inner {
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    height: 500px;
+}
+
+#itemImageCarousel .carousel-item {
+    height: 100%;
+}
+
+#itemImageCarousel .carousel-item img {
+    height: 100%;
+    width: 100%;
+    object-fit: contain;
+    background-color: #f8f9fa;
+}
+
+#itemImageCarousel .carousel-control-prev,
+#itemImageCarousel .carousel-control-next {
+    width: 10%;
+    opacity: 1;
+    transition: opacity 0.2s;
+}
+
+#itemImageCarousel .carousel-control-prev-icon,
+#itemImageCarousel .carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.45);
+    border-radius: 50%;
+    padding: 1.1rem;
+    background-size: 50% 50%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    transition: background-color 0.2s;
+}
+
+#itemImageCarousel .carousel-control-prev:hover .carousel-control-prev-icon,
+#itemImageCarousel .carousel-control-next:hover .carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.65);
+}
+
+#itemImageCarousel .carousel-control-prev:focus .carousel-control-prev-icon,
+#itemImageCarousel .carousel-control-next:focus .carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.65);
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+#itemImageCarousel .carousel-indicators {
+    margin-bottom: 0.5rem;
+}
+
+#itemImageCarousel .carousel-indicators button {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.item-thumbnail.active,
+.item-thumbnail:hover {
+    opacity: 1 !important;
+    border-color: var(--bs-primary, #0d6efd) !important;
+}
+
+/* Mobile carousel adjustments */
+@media (max-width: 768px) {
+    #itemImageCarousel .carousel-inner {
+        height: 60vw;
+        max-height: 60vh;
+    }
+
+    #itemImageCarousel .carousel-control-prev-icon,
+    #itemImageCarousel .carousel-control-next-icon {
+        padding: 0.85rem;
+    }
+}
+
+/* ===========================
+   Crop Modal
+   =========================== */
+
+#cropModal .crop-container {
+    background-color: #f0f0f0;
+    border-radius: var(--border-radius);
+}
+
+#cropModal .modal-footer {
+    flex-wrap: wrap;
+}
+
+/* Multi-image live region (screen reader) */
+.multi-image-sr-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }

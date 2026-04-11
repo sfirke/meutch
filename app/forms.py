@@ -1,5 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField, FloatField, RadioField, FieldList, FormField, IntegerField
+from wtforms import BooleanField, StringField, PasswordField, SelectField, SubmitField, TextAreaField, DateField, FloatField, RadioField, FieldList, FormField, IntegerField, HiddenField
+from wtforms import MultipleFileField
 from flask_wtf.file import FileField, FileAllowed
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError, NumberRange, URL
 from flask_login import current_user
@@ -356,10 +357,9 @@ class ListItemForm(FlaskForm):
     description = TextAreaField('Description', validators=[Length(max=500)])
     category = SelectField('Category', coerce=str, validators=[DataRequired()])
     tags = StringField('Tags (comma-separated)', validators=[Length(max=200)])
-    image = FileField('Image', validators=[
-        OptionalFileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], 'Images only! Allowed formats: JPG, PNG, GIF, BMP, WebP')
-    ])
-    delete_image = BooleanField('Delete current image')
+    image = MultipleFileField('Images', validators=[])
+    delete_images = HiddenField('Delete Images')  # JSON array of ItemImage IDs to delete
+    image_order = HiddenField('Image Order')  # JSON array of ItemImage IDs for reorder
     is_giveaway = BooleanField('This is a giveaway (free item)')
     giveaway_visibility = RadioField('Giveaway Visibility',
         choices=[
