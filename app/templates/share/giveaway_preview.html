@@ -12,10 +12,13 @@
 {% block twitter_card %}{{ 'summary_large_image' if item.images else 'summary' }}{% endblock %}
 {% block twitter_image %}{{ preview_image_url }}{% endblock %}
 
-{% block content %}
-<div class="container mt-5 mb-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
+{% block body_attrs %}class="landing-page"{% endblock %}
+
+{% block page_content %}
+<section class="share-preview-hero">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
             <!-- Preview Card -->
             <div class="card shadow-sm share-preview-card">
                 <!-- Image -->
@@ -99,9 +102,10 @@
                     </div>
                 </div>
             </div>
+            </div>
         </div>
     </div>
-</div>
+</section>
 
 {% include 'share/_meutch_pitch.html' %}
 {% endblock %}

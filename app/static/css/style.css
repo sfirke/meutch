@@ -1269,6 +1269,29 @@ footer h6 {
    Share Preview Pages & Share Button
    =========================================== */
 
+/* Dark hero background for the share card area — mirrors the landing page hero */
+.share-preview-hero {
+    background: linear-gradient(150deg, #155e5c 0%, #1e7874 45%, #2a9490 100%);
+    padding: 120px 0 80px;
+    position: relative;
+    overflow: hidden;
+}
+
+.share-preview-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+}
+
+@media (max-width: 768px) {
+    .share-preview-hero {
+        padding: 100px 0 60px;
+        background: linear-gradient(160deg, #1e8480 0%, #2aadaa 100%);
+    }
+}
+
 .share-preview-card {
     border: none;
     border-radius: 12px;
