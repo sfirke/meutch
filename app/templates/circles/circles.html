@@ -7,13 +7,38 @@
 {% block content %}
 <div class="container mt-5">
     <h1 class="mb-4">Circles</h1>
-    
+
+    {% if total_pending > 0 %}
+    <section id="pending-requests" class="card border-warning mb-4">
+        <div class="card-header bg-warning text-dark fw-semibold">
+            <i class="fas fa-bell me-2"></i>Needs Attention
+        </div>
+        <ul class="list-group list-group-flush">
+            {% for circle in user_circles %}
+                {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}
+                <li class="list-group-item d-flex align-items-center justify-content-between">
+                    <div>
+                        <strong>{{ circle.name }}</strong>
+                        <span class="badge bg-warning text-dark ms-2">
+                            {{ user_admin_circles[circle.id|string] }} pending request{{ 's' if user_admin_circles[circle.id|string] > 1 }}
+                        </span>
+                    </div>
+                    <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-warning btn-sm">Review Requests &rarr;</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
     <!-- Tabbed Navigation -->
     <ul class="nav nav-tabs mb-4" id="circlesTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="your-circles-tab" data-bs-toggle="tab" data-bs-target="#your-circles" type="button" role="tab" aria-controls="your-circles" aria-selected="true">
                 <i class="fas fa-users me-2"></i>Your Circles
-                {% if user_circles|length > 0 %}
+                {% if total_pending > 0 %}
+                    <span class="badge bg-warning text-dark ms-1">{{ total_pending }}</span>
+                {% elif user_circles|length > 0 %}
                     <span class="badge bg-secondary ms-1">{{ user_circles|length }}</span>
                 {% endif %}
             </button>
