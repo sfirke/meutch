@@ -1,0 +1,115 @@
+{#
+  Shared pitch content: "How Meutch Works" + "Why Meutch?" sections.
+
+  Included on share preview pages (to introduce the app to new visitors)
+  and on the landing page (to keep content DRY).
+
+  Optional context variables:
+    auth_next_url  — forwarded as the `next` param on the register link.
+                     Not set on the landing page; set by share routes.
+    show_cta       — Set to false on the landing page (which has its own
+                     final CTA). Defaults to true (show CTA) everywhere else.
+#}
+{% set _register_url = url_for('auth.register', next=auth_next_url) if auth_next_url is defined else url_for('auth.register') %}
+
+<!-- ============================================
+     HOW IT WORKS
+     ============================================ -->
+<section class="landing-section" id="how-it-works">
+    <div class="container">
+        <h2 class="landing-section-title text-center mb-2">How Meutch Works</h2>
+        <p class="text-center text-muted mb-5">Four simple steps to start sharing with your community.</p>
+
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-3">
+                <div class="landing-step text-center">
+                    <div class="landing-step-number">1</div>
+                    <h3 class="h5 mb-2">Join a Circle</h3>
+                    <p class="text-muted small">Circles are your communities: a neighborhood, club, faith group, or friend circle. They control who sees your stuff.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="landing-step text-center">
+                    <div class="landing-step-number">2</div>
+                    <h3 class="h5 mb-2">List Your Items</h3>
+                    <p class="text-muted small">Add tools, kitchen gear, camping equipment — anything you'd lend to a friend. Got stuff to give away? List that too.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="landing-step text-center">
+                    <div class="landing-step-number">3</div>
+                    <h3 class="h5 mb-2">Find What You Need</h3>
+                    <p class="text-muted small">Search for items nearby, or post a request to let your circles know what you're looking for.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="landing-step text-center">
+                    <div class="landing-step-number">4</div>
+                    <h3 class="h5 mb-2">Arrange the Handoff</h3>
+                    <p class="text-muted small">Message the owner, agree on dates, and pick it up. Return it when you're done. That's&nbsp;it.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================
+     WHY MEUTCH
+     ============================================ -->
+<section class="landing-section landing-section-alt">
+    <div class="container">
+        <h2 class="landing-section-title text-center mb-2">Why Meutch?</h2>
+        <p class="text-center text-muted mb-5">1-click ordering is convenient but costly. There's a better way.</p>
+
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body p-4 text-center">
+                        <div class="landing-icon-circle mb-3">
+                            <i class="fas fa-piggy-bank"></i>
+                        </div>
+                        <h3 class="h5 mb-2">Save Money &amp; Space</h3>
+                        <p class="text-muted small mb-0">Need a ladder for the weekend? A cooler for one party? Borrow it instead of buying and storing it forever.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body p-4 text-center">
+                        <div class="landing-icon-circle mb-3">
+                            <i class="fas fa-people-arrows"></i>
+                        </div>
+                        <h3 class="h5 mb-2">Build Real Connections</h3>
+                        <p class="text-muted small mb-0">We're surrounded by objects yet lack relationships with our neighbors. Sharing changes that.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body p-4 text-center">
+                        <div class="landing-icon-circle mb-3">
+                            <i class="fas fa-leaf"></i>
+                        </div>
+                        <h3 class="h5 mb-2">Lighten Your Footprint</h3>
+                        <p class="text-muted small mb-0">Every item borrowed is one less manufactured, shipped, and eventually landfilled. Small acts, big impact.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% if show_cta is not defined or show_cta %}
+<!-- ============================================
+     FINAL CTA
+     ============================================ -->
+<section class="landing-cta">
+    <div class="container text-center">
+        <h2 class="text-white mb-3">Ready to start sharing?</h2>
+        <p class="text-white-50 mb-4">Join your friends and neighbors in building caring, resilient communities.</p>
+        <a href="{{ _register_url }}" class="btn btn-lg landing-btn-cta">
+            <i class="fas fa-user-plus me-2"></i>Create Your Account
+        </a>
+    </div>
+</section>
+{% endif %}
