@@ -11,7 +11,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, UTC, timedelta
 from app import db
-from app.models import Item, ItemRequest, LoanRequest, LoanExtensionRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
+from app.models import Item, ItemImage, ItemRequest, LoanRequest, LoanExtensionRequest, Tag, User, Message, Category, GiveawayInterest, UserWebLink, circle_members
 from app.forms import ListItemForm, EditProfileForm, DeleteItemForm, MessageForm, LoanRequestForm, ExtendLoanForm, RequestExtensionForm, DeleteAccountForm, UpdateLocationForm, ExpressInterestForm, WithdrawInterestForm, SelectRecipientForm, ChangeRecipientForm, ReleaseToAllForm, ConfirmHandoffForm, EmptyForm, VacationModeForm, DigestSettingsForm
 from app.main import bp as main_bp
 from app.utils.storage import ALLOWED_IMAGE_EXTENSIONS, MAX_ITEM_IMAGE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_LABEL, delete_file, upload_item_image, upload_item_images, delete_item_images, get_file_size, has_allowed_image_extension, upload_profile_image, is_valid_file_upload
