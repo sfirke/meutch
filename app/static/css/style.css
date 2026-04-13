@@ -1303,11 +1303,14 @@ footer h6 {
     max-height: 400px;
     object-fit: contain;
     background-color: #f8f9fa;
+    padding: 12px;
+    box-sizing: border-box;
 }
 
 .share-preview-image-placeholder {
     height: 250px;
     border-bottom: 1px solid var(--border-color, #dee2e6);
+    padding: 12px;
 }
 
 .share-member-avatar img {
