@@ -150,10 +150,20 @@ def send_message_notification_email(message):
 
     # Determine the subject and email content based on message type
     if message.is_loan_request_message:
+        message_body_lower = (message.body or '').lower()
         # Check if this is a loan extension message (owner extending the due date)
-        if message.loan_request.status == 'approved' and 'has been extended' in message.body:
+        if 'extension requested' in message_body_lower:
+            subject = f"Meutch - Extension Request for {message.item.name}"
+            email_type = "extension request"
+        elif message.loan_request.status == 'approved' and 'extension request' in message_body_lower and 'approved' in message_body_lower:
+            subject = f"Meutch - Extension Approved for {message.item.name}"
+            email_type = "extension approval"
+        elif message.loan_request.status == 'approved' and ('has been extended' in message_body_lower or 'due date has been updated' in message_body_lower):
             subject = f"Meutch - Loan Extended for {message.item.name}"
             email_type = "loan extension"
+        elif message.loan_request.status == 'approved' and 'extension request' in message_body_lower and 'denied' in message_body_lower:
+            subject = f"Meutch - Extension Denied for {message.item.name}"
+            email_type = "extension denial"
         elif message.loan_request.status == 'pending':
             subject = f"Meutch - New Loan Request for {message.item.name}"
             email_type = "loan request"
@@ -476,6 +486,33 @@ def _digest_cadence_label(user):
     return 'off'
 
 
+def _format_names_list(names):
+    """Format ['Alice', 'Bob', 'Celeste'] as 'Alice, Bob, and Celeste'."""
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return f'{names[0]} and {names[1]}'
+    return ', '.join(names[:-1]) + f', and {names[-1]}'
+
+
+def _group_circle_joins_for_digest(circle_joins):
+    """Group per-person circle-join events into per-circle groups for compact rendering."""
+    groups = {}
+    order = []
+    for event in circle_joins:
+        cid = event.get('circle_id')
+        if cid not in groups:
+            groups[cid] = {
+                'event': event,
+                'circle_name': event.get('circle_name') or event.get('title') or 'Unknown Circle',
+                'image_url': event.get('image_url'),
+                'actors': [],
+            }
+            order.append(cid)
+        groups[cid]['actors'].append(event.get('actor_name') or 'Someone')
+    return [groups[cid] for cid in order]
+
+
 def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url):
     giveaways = digest_payload.get('giveaways', [])
     requests = digest_payload.get('requests', [])
@@ -528,7 +565,18 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
 
     append_text_section('Giveaways', giveaways, include_description=True)
     append_text_section('Requests', requests, include_description=True)
-    append_text_section('Circle Joins', circle_joins)
+
+    if circle_joins:
+        grouped_joins = _group_circle_joins_for_digest(circle_joins)
+        text_lines.append('Circle Joins:')
+        for group in grouped_joins:
+            count = len(group['actors'])
+            label = f"{count} {'person' if count == 1 else 'people'}"
+            names = _format_names_list(group['actors'])
+            text_lines.append(f"- {label} joined {group['circle_name']}: {names}")
+            text_lines.append(f"  {_digest_event_url(group['event'])}")
+        text_lines.append('')
+
     append_text_section('Loans', loans)
 
     text_lines.extend([
@@ -581,6 +629,40 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         </ul>
         """
 
+    def _build_circle_joins_html_section(circle_join_events):
+        if not circle_join_events:
+            return ''
+        grouped = _group_circle_joins_for_digest(circle_join_events)
+        items_html = []
+        for group in grouped:
+            count = len(group['actors'])
+            label = f"{count} {'person' if count == 1 else 'people'}"
+            names = _format_names_list(group['actors'])
+            link = _digest_event_url(group['event'])
+            image_html = ''
+            if group['image_url']:
+                image_html = (
+                    f"<div style=\"margin: 8px 0;\">"
+                    f"<img src=\"{group['image_url']}\" alt=\"Circle image\" "
+                    f"style=\"max-width: 100%; width: 220px; height: auto; border-radius: 8px;\">"
+                    f"</div>"
+                )
+            items_html.append(
+                f"""
+                <li style=\"margin-bottom: 10px;\">
+                    <strong>{label}</strong> joined {group['circle_name']}: {names}<br>
+                    {image_html}
+                    <a href=\"{link}\" style=\"color: #007bff; text-decoration: none;\">View circle</a>
+                </li>
+                """
+            )
+        return f"""
+        <h3 style=\"margin-top: 24px; color: #333;\">Circle Joins</h3>
+        <ul style=\"padding-left: 20px;\">
+            {''.join(items_html)}
+        </ul>
+        """
+
     summary_html = ''
     if summary_lines:
         summary_items_html = ''.join(
@@ -604,7 +686,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
 
         {build_html_section('Giveaways', giveaways, include_description=True)}
         {build_html_section('Requests', requests, include_description=True)}
-        {build_html_section('Circle Joins', circle_joins)}
+        {_build_circle_joins_html_section(circle_joins)}
         {build_html_section('Loans', loans)}
 
         <hr style=\"margin: 28px 0; border: none; border-top: 1px solid #ddd;\">
@@ -655,6 +737,7 @@ def send_loan_due_soon_email(loan):
     
     # Generate the item URL
     item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
+    extension_url = url_for('main.request_extension', loan_id=loan.id, _external=True)
     
     subject = f"Meutch - Reminder: {loan.item.name} is due in 3 days"
     
@@ -668,6 +751,9 @@ Owner: {owner.first_name} {owner.last_name}
 Due Date: {loan.end_date.strftime('%B %d, %Y')} (in 3 days)
 
 Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
+
+Need more time? Request an extension here:
+{extension_url}
 
 You can view the item details here:
 {item_url}
@@ -698,7 +784,11 @@ The Meutch Team
             Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
         </p>
         
-        <div style="text-align: center; margin: 30px 0;">
+        <div style="text-align: center; margin: 30px 0; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <a href="{extension_url}" 
+               style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Request Extension
+            </a>
             <a href="{item_url}" 
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 View Item Details
@@ -735,6 +825,7 @@ def send_loan_due_today_borrower_email(loan):
     
     # Generate the item URL
     item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
+    extension_url = url_for('main.request_extension', loan_id=loan.id, _external=True)
     
     subject = f"Meutch - {loan.item.name} is due back today"
     
@@ -748,6 +839,9 @@ Owner: {owner.first_name} {owner.last_name}
 Due Date: Today, {loan.end_date.strftime('%B %d, %Y')}
 
 Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
+
+If you need more time, you can request an extension here:
+{extension_url}
 
 You can view the item details here:
 {item_url}
@@ -778,7 +872,11 @@ The Meutch Team
             Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
         </p>
         
-        <div style="text-align: center; margin: 30px 0;">
+        <div style="text-align: center; margin: 30px 0; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <a href="{extension_url}" 
+               style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Request Extension
+            </a>
             <a href="{item_url}" 
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 View Item Details
@@ -902,6 +1000,7 @@ def send_loan_overdue_borrower_email(loan, days_overdue):
     
     # Generate the item URL
     item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
+    extension_url = url_for('main.request_extension', loan_id=loan.id, _external=True)
     
     subject = f"Meutch - Reminder: {loan.item.name} is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue"
     
@@ -916,6 +1015,9 @@ Due Date: {loan.end_date.strftime('%B %d, %Y')}
 Days Overdue: {days_overdue}
 
 Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
+
+Need additional time? Request an extension here:
+{extension_url}
 
 You can view the item details here:
 {item_url}
@@ -947,7 +1049,11 @@ The Meutch Team
             Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
         </p>
         
-        <div style="text-align: center; margin: 30px 0;">
+        <div style="text-align: center; margin: 30px 0; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <a href="{extension_url}" 
+               style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Request Extension
+            </a>
             <a href="{item_url}" 
                style="background-color: #dc3545; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 View Item Details

@@ -120,6 +120,53 @@ class TestEmailUtils:
             assert '0 circle joins' not in content['text']
             assert '3 new activities' not in content['text']
 
+    def test_digest_circle_joins_consolidated_per_circle(self, app):
+        """Multiple people joining the same circle appear as one item per circle, not per person.
+
+        Also verifies the link reads 'View circle' (not 'View activity') and appears once per circle.
+        """
+        with app.app_context():
+            user = UserFactory(first_name='Subscriber', digest_frequency='weekly')
+            circle_x_id = uuid.uuid4()
+            circle_y_id = uuid.uuid4()
+            payload = {
+                'summary_stats': {'total_new_items': 0, 'giveaways_count': 0, 'borrow_requests_count': 0},
+                'giveaways': [],
+                'requests': [],
+                'loans': [],
+                'circle_joins': [
+                    {'event_type': 'circle_join', 'circle_id': circle_x_id, 'title': 'Circle X', 'actor_name': 'Alice',   'action': 'joined', 'image_url': None},
+                    {'event_type': 'circle_join', 'circle_id': circle_x_id, 'title': 'Circle X', 'actor_name': 'Bob',     'action': 'joined', 'image_url': None},
+                    {'event_type': 'circle_join', 'circle_id': circle_x_id, 'title': 'Circle X', 'actor_name': 'Celeste', 'action': 'joined', 'image_url': None},
+                    {'event_type': 'circle_join', 'circle_id': circle_y_id, 'title': 'Circle Y', 'actor_name': 'Alice',   'action': 'joined', 'image_url': None},
+                ],
+            }
+            content = build_digest_email_content(
+                user, payload,
+                manage_url='https://example.com/digest/manage/token',
+                unsubscribe_url='https://example.com/digest/unsubscribe/token',
+            )
+
+            text = content['text']
+            html = content['html']
+
+            # Circle names should appear once each, not once per joiner
+            assert text.count('Circle X') == 1, "Circle X should not be repeated per joiner"
+            assert text.count('Circle Y') == 1, "Circle Y should not be repeated per joiner"
+
+            # Should show correct plural/singular phrasing
+            assert '3 people' in text
+            assert '1 person' in text
+
+            # All joiner names should be listed
+            assert 'Alice' in text
+            assert 'Bob' in text
+            assert 'Celeste' in text
+
+            # HTML should say "View circle", not "View activity", for circle joins
+            assert 'View circle' in html
+            assert 'View activity' not in html
+
     def test_send_digest_email_returns_false_when_no_events(self, app):
         """Test that send_digest_email returns False and skips sending when payload has no events."""
         with app.app_context():
