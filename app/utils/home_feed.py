@@ -485,6 +485,9 @@ def _digest_included_event_types(user):
 def build_digest_payload(user, since=None, until=None, max_events=200):
     window_end = _utc(until) or datetime.now(UTC)
     window_start = _utc(since) or _utc(user.digest_last_sent_at) or (window_end - timedelta(days=7))
+    # Guard against an inverted window (e.g. digest_last_sent_at is in the future relative to until)
+    if window_start >= window_end:
+        window_start = window_end - timedelta(days=7)
 
     included_event_types = _digest_included_event_types(user)
     events = _assemble_feed_events(
