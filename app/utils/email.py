@@ -528,12 +528,12 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     subject = f"Meutch Digest - {total_activities} new activities"
 
     summary_entries = [
-        ("giveaways", len(giveaways)),
-        ("requests", len(requests)),
-        ("circle joins", len(circle_joins)),
-        ("loans", len(loans)),
+        ("giveaway", "giveaways", len(giveaways)),
+        ("request", "requests", len(requests)),
+        ("circle join", "circle joins", len(circle_joins)),
+        ("loan", "loans", len(loans)),
     ]
-    summary_lines = [f"- {count} {label}" for label, count in summary_entries if count > 0]
+    summary_lines = [f"- {count} {singular if count == 1 else plural}" for singular, plural, count in summary_entries if count > 0]
 
     text_lines = [
         f"Hello {user.first_name},",
