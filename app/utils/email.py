@@ -471,10 +471,7 @@ def _digest_event_url(event):
 
 
 def _digest_event_title(event):
-    event_type = event.get('event_type')
-    if event_type == 'circle_join':
-        return event.get('title') or 'Circle activity'
-    return event.get('title') or 'Community activity'
+    return event['title']
 
 
 def _digest_cadence_label(user):
@@ -552,9 +549,9 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             return
         text_lines.append(f"{section_title}:")
         for event in events:
-            actor = event.get('actor_name') or 'Someone'
+            actor = event['actor_name']
             title = _digest_event_title(event)
-            action = event.get('action') or 'shared'
+            action = event['action']
             text_lines.append(f"- {actor} {action}: {title}")
             if include_description and event.get('description'):
                 text_lines.append(f"  {event['description']}")
@@ -594,9 +591,9 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
 
         items_html = []
         for event in events:
-            actor = event.get('actor_name') or 'Someone'
+            actor = event['actor_name']
             item_title = _digest_event_title(event)
-            action = event.get('action') or 'shared'
+            action = event['action']
             link = _digest_event_url(event)
             description_html = ''
             if include_description and event.get('description'):

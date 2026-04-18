@@ -1158,7 +1158,7 @@ def confirm_handoff(item_id):
 @login_required
 def request_item(item_id):
     item = db.get_or_404(Item, item_id)
-    share_token = (request.args.get('share_token') or '').strip() or None
+    share_token = request.args.get('share_token', '').strip() or None
     
     if item.owner == current_user:
         flash('You cannot request your own items.', 'warning')
