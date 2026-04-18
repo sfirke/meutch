@@ -504,12 +504,12 @@ def _group_circle_joins_for_digest(circle_joins):
         if cid not in groups:
             groups[cid] = {
                 'event': event,
-                'circle_name': event.get('circle_name') or event.get('title') or 'Unknown Circle',
+                'circle_name': event['title'],
                 'image_url': event.get('image_url'),
                 'actors': [],
             }
             order.append(cid)
-        groups[cid]['actors'].append(event.get('actor_name') or 'Someone')
+        groups[cid]['actors'].append(event['actor_name'])
     return [groups[cid] for cid in order]
 
 
