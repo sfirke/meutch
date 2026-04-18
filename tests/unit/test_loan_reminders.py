@@ -1,9 +1,9 @@
 """Unit tests for loan reminder functionality including ExtendLoanForm and LoanRequest helper methods."""
 import pytest
 from datetime import date, timedelta
-from app.forms import ExtendLoanForm
+from app.forms import ExtendLoanForm, RequestExtensionForm
 from app.models import LoanRequest
-from tests.factories import UserFactory, ItemFactory, LoanRequestFactory
+from tests.factories import UserFactory, ItemFactory, LoanRequestFactory, LoanExtensionRequestFactory
 
 
 class TestExtendLoanForm:
@@ -21,6 +21,52 @@ class TestExtendLoanForm:
                 }
             )
             assert form.validate() is True
+
+
+class TestRequestExtensionForm:
+    """Test RequestExtensionForm validation."""
+
+    def test_form_validates_with_future_date_after_current_due_date(self, app):
+        """Test that extension request form validates for future date after current due date."""
+        with app.app_context():
+            current_end_date = date.today() + timedelta(days=5)
+            form = RequestExtensionForm(
+                current_end_date=current_end_date,
+                data={
+                    'proposed_end_date': date.today() + timedelta(days=10),
+                    'message': 'I need two more days to finish using this item responsibly.'
+                }
+            )
+            assert form.validate() is True
+
+    def test_form_fails_when_proposed_date_not_after_current_due_date(self, app):
+        """Test that proposed end date must be after current due date."""
+        with app.app_context():
+            current_end_date = date.today() + timedelta(days=5)
+            form = RequestExtensionForm(
+                current_end_date=current_end_date,
+                data={
+                    'proposed_end_date': current_end_date,
+                    'message': 'I still need this item for a little longer.'
+                }
+            )
+            assert form.validate() is False
+            assert 'proposed_end_date' in form.errors
+            assert any('after the current due date' in error.lower() for error in form.errors['proposed_end_date'])
+
+    def test_form_message_is_required(self, app):
+        """Test that extension request message is required."""
+        with app.app_context():
+            current_end_date = date.today() + timedelta(days=5)
+            form = RequestExtensionForm(
+                current_end_date=current_end_date,
+                data={
+                    'proposed_end_date': date.today() + timedelta(days=10),
+                    'message': ''
+                }
+            )
+            assert form.validate() is False
+            assert 'message' in form.errors
     
     def test_form_fails_when_new_date_in_past(self, app):
         """Test that form fails validation when new_end_date is in the past."""
@@ -242,3 +288,59 @@ class TestLoanRequestHelperMethods:
             )
             
             assert loan.days_overdue() == 0
+
+    def test_pending_extension_request_returns_latest_pending(self, app):
+        """Test pending_extension_request returns the latest pending extension record."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                start_date=date.today() - timedelta(days=4),
+                end_date=date.today() + timedelta(days=2),
+                status='approved'
+            )
+
+            first_pending = LoanExtensionRequestFactory(
+                loan_request=loan,
+                proposed_end_date=date.today() + timedelta(days=5),
+                status='pending'
+            )
+            latest_pending = LoanExtensionRequestFactory(
+                loan_request=loan,
+                proposed_end_date=date.today() + timedelta(days=7),
+                status='pending'
+            )
+            LoanExtensionRequestFactory(
+                loan_request=loan,
+                proposed_end_date=date.today() + timedelta(days=9),
+                status='denied'
+            )
+
+            assert loan.pending_extension_request is not None
+            assert loan.pending_extension_request.id in {first_pending.id, latest_pending.id}
+            assert loan.has_pending_extension is True
+
+    def test_has_pending_extension_false_without_pending_records(self, app):
+        """Test has_pending_extension returns False when no pending extension exists."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                start_date=date.today() - timedelta(days=4),
+                end_date=date.today() + timedelta(days=2),
+                status='approved'
+            )
+            LoanExtensionRequestFactory(
+                loan_request=loan,
+                proposed_end_date=date.today() + timedelta(days=7),
+                status='denied'
+            )
+
+            assert loan.pending_extension_request is None
+            assert loan.has_pending_extension is False

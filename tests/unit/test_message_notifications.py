@@ -201,3 +201,57 @@ class TestMessageNotifications:
             
             assert "Unknown loan request status 'invalid_status'" in str(exc_info.value)
             assert "Valid statuses are: pending, approved, denied, completed, canceled" in str(exc_info.value)
+
+    def test_send_message_notification_email_extension_request_subject(self, app):
+        """Test extension request messages use extension request subject line."""
+        with app.app_context():
+            from tests.factories import LoanRequestFactory
+
+            borrower = UserFactory(email='borrower2@test.com', first_name='Alex', last_name='Borrower')
+            owner = UserFactory(email='owner2@test.com', first_name='Casey', last_name='Owner')
+            item = ItemFactory(name='Cordless Drill', owner=owner)
+
+            loan_request = LoanRequestFactory(item=item, borrower=borrower, status='approved')
+            message = MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                item=item,
+                body='Extension requested for \'Cordless Drill\'.\nProposed new due date: April 12, 2026',
+                loan_request=loan_request
+            )
+
+            with patch('app.utils.email.send_email') as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_message_notification_email(message)
+
+                assert result is True
+                args, _ = mock_send_email.call_args
+                assert 'Extension Request for Cordless Drill' in args[1]
+
+    def test_send_message_notification_email_extension_denial_subject(self, app):
+        """Test extension denial messages use extension denied subject line."""
+        with app.app_context():
+            from tests.factories import LoanRequestFactory
+
+            owner = UserFactory(email='owner3@test.com', first_name='Morgan', last_name='Owner')
+            borrower = UserFactory(email='borrower3@test.com', first_name='Taylor', last_name='Borrower')
+            item = ItemFactory(name='Ladder', owner=owner)
+
+            loan_request = LoanRequestFactory(item=item, borrower=borrower, status='approved')
+            message = MessageFactory(
+                sender=owner,
+                recipient=borrower,
+                item=item,
+                body='Your extension request for \'Ladder\' was denied. The current due date remains April 05, 2026.',
+                loan_request=loan_request
+            )
+
+            with patch('app.utils.email.send_email') as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_message_notification_email(message)
+
+                assert result is True
+                args, _ = mock_send_email.call_args
+                assert 'Extension Denied for Ladder' in args[1]

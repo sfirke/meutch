@@ -523,6 +523,28 @@ class ExtendLoanForm(FlaskForm):
         if field.data < datetime.now().date():
             raise ValidationError('New end date cannot be in the past.')
 
+
+class RequestExtensionForm(FlaskForm):
+    proposed_end_date = DateField('Proposed New Due Date',
+        validators=[DataRequired(message="Please select a proposed new due date.")])
+    message = TextAreaField('Message to Owner',
+        validators=[
+            DataRequired(message="Please include a message with your extension request."),
+            Length(min=10, max=1000,
+                message="Message must be between 10 and 1000 characters.")
+        ])
+    submit = SubmitField('Request Extension')
+
+    def __init__(self, current_end_date=None, *args, **kwargs):
+        super(RequestExtensionForm, self).__init__(*args, **kwargs)
+        self.current_end_date = current_end_date
+
+    def validate_proposed_end_date(self, field):
+        if field.data < datetime.now().date():
+            raise ValidationError('Proposed due date cannot be in the past.')
+        if self.current_end_date and field.data <= self.current_end_date:
+            raise ValidationError('Proposed due date must be after the current due date.')
+
 class ForgotPasswordForm(FlaskForm):
     email = StringField('Email', validators=[
         DataRequired(message="Email is required."),
