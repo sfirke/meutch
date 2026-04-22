@@ -790,6 +790,7 @@ class TestRequestConversations:
                 owner=owner,
                 is_giveaway=True,
                 claim_status='pending_pickup',
+                claimed_by=claimant,
                 available=False,
             )
             first_message = MessageFactory(
@@ -806,6 +807,37 @@ class TestRequestConversations:
             assert response.status_code == 200
             assert b'Pending Pickup' in response.data
             assert b'Borrowed' not in response.data
+            assert b'You are the selected recipient for this giveaway.' in response.data
+            assert b'Mark Handoff Complete' not in response.data
+
+    def test_view_conversation_pending_pickup_giveaway_owner_sees_handoff_actions(self, client, app):
+        """Owners should get the handoff-complete CTA in the recipient conversation."""
+        with app.app_context():
+            owner = UserFactory()
+            claimant = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=claimant,
+                available=False,
+            )
+            first_message = MessageFactory(
+                sender=owner,
+                recipient=claimant,
+                item=giveaway,
+                body='Let me know when you are on your way.',
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f'/message/{first_message.id}')
+
+            assert response.status_code == 200
+            assert b'Giveaway Pickup' in response.data
+            assert b'Mark Handoff Complete' in response.data
+            assert b'Change Recipient' in response.data
+            assert b'Release to Everyone' in response.data
 
 
 class TestRequestNavigation:

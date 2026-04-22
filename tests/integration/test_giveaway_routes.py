@@ -2052,9 +2052,57 @@ class TestItemDetailPageForGiveaways:
             assert response.status_code == 200
             assert b'Change Recipient' in response.data
             assert b'Release to Everyone' in response.data
-            assert b'Confirm Handoff Complete' in response.data
+            assert b'Mark Handoff Complete' in response.data
             assert b'Recipient:' in response.data
             assert b'John Doe' in response.data
+
+    def test_delete_modal_warns_when_item_messages_will_be_lost(self, client, app, auth_user):
+        """Delete modal should warn when item messages would be removed."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            message = Message(
+                sender_id=requester.id,
+                recipient_id=owner.id,
+                item_id=giveaway.id,
+                body='Could I claim this?'
+            )
+            db.session.add(message)
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f'/item/{giveaway.id}')
+
+            assert response.status_code == 200
+            assert b'Deleting this item will also permanently remove 1 message tied to it.' in response.data
+
+    def test_delete_modal_omits_message_warning_without_item_messages(self, client, app, auth_user):
+        """Delete modal should stay simpler when there are no item messages to lose."""
+        with app.app_context():
+            owner = auth_user()
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f'/item/{giveaway.id}')
+
+            assert response.status_code == 200
+            assert b'permanently remove 1 message tied to it' not in response.data
     
     def test_owner_sees_claimed_badge(self, client, app, auth_user):
         """Test owner sees claimed badge with recipient name and date."""
@@ -2086,11 +2134,43 @@ class TestItemDetailPageForGiveaways:
             # Should NOT show action buttons for claimed items
             assert b'Change Recipient' not in response.data
             assert b'Release to Everyone' not in response.data
-            assert b'Confirm Handoff Complete' not in response.data
+            assert b'Mark Handoff Complete' not in response.data
 
 
 class TestDataIntegrity:
     """Test data integrity and edge cases for giveaways."""
+
+    def test_pending_pickup_giveaway_cannot_be_deleted(self, client, app, auth_user):
+        """Pending-pickup giveaways should be resolved, not deleted."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester,
+                available=False,
+            )
+            message = Message(
+                sender_id=requester.id,
+                recipient_id=owner.id,
+                item_id=giveaway.id,
+                body='I can pick it up this afternoon.'
+            )
+            db.session.add(message)
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(f'/item/{giveaway.id}/delete', follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'still pending pickup' in response.data
+            assert db.session.get(Item, giveaway.id) is not None
+            assert db.session.get(Message, message.id) is not None
     
     def test_claimed_by_persists_when_user_soft_deleted(self, client, app, auth_user):
         """Test claimed_by_id persists when claiming user soft deletes account."""

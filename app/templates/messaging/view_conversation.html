@@ -49,9 +49,11 @@
                     <div class="card-body">
                         <h5 class="card-title">{{ conversation_item.name }}</h5>
                         <p class="card-text">{{ conversation_item.description }}</p>
+                        {% if conversation_item.owner != current_user %}
                         <p class="card-text">
                             <strong>Owner:</strong> {{ conversation_item.owner.full_name }}
                         </p>
+                        {% endif %}
                         {% if conversation_item.current_loan and conversation_item.current_loan.borrower == current_user %}
                             <span class="badge bg-info">You are currently borrowing this item</span>
                         {% elif not conversation_item.available %}
@@ -88,6 +90,46 @@
                 </p>
             </div>
         </div>
+    {% endif %}
+
+    {% if giveaway_handoff_item %}
+    <div class="card mb-4 border-warning shadow-sm">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">
+                <i class="fas fa-gift me-2"></i>Giveaway Pickup
+            </h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-2">
+                <strong>Recipient:</strong> {{ giveaway_handoff_item.claimed_by.full_name if giveaway_handoff_item.claimed_by else 'Selected recipient' }}
+            </p>
+            {% if giveaway_handoff_item.owner_id == current_user.id %}
+                <p class="text-muted mb-3">Once they have the item, mark the handoff complete here so this giveaway closes out instead of lingering in pending pickup.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <form method="POST" action="{{ url_for('main.confirm_handoff', item_id=giveaway_handoff_item.id) }}" class="d-inline">
+                        {{ giveaway_handoff_form.hidden_tag() }}
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check-circle me-1"></i>Mark Handoff Complete
+                        </button>
+                    </form>
+                    <a href="{{ url_for('main.select_recipient', item_id=giveaway_handoff_item.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-exchange-alt me-1"></i>Change Recipient
+                    </a>
+                    <form method="POST" action="{{ url_for('main.release_to_all', item_id=giveaway_handoff_item.id) }}" class="d-inline" onsubmit="return confirm('Release this giveaway back to everyone? The item will reappear in the feed and all interested users will remain in the pool.');">
+                        {{ giveaway_release_form.hidden_tag() }}
+                        <button type="submit" class="btn btn-outline-secondary">
+                            <i class="fas fa-undo me-1"></i>Release to Everyone
+                        </button>
+                    </form>
+                </div>
+            {% elif giveaway_handoff_item.claimed_by_id == current_user.id %}
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    You are the selected recipient for this giveaway. Use this conversation to coordinate pickup, and the owner will mark the handoff complete once you have the item.
+                </div>
+            {% endif %}
+        </div>
+    </div>
     {% endif %}
 
     <!-- Active Loan Management Panel -->
@@ -171,6 +213,31 @@
                     {% elif active_loan.status == 'approved' %}
                         {% if thread_messages[0].item.owner == current_user %}
                             <h6 class="mb-3">Item Owner Actions:</h6>
+                            {% if pending_extension_request %}
+                                <div class="alert alert-warning mb-3">
+                                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                                        <div>
+                                            <strong>Extension request pending</strong><br>
+                                            Proposed due date: {{ pending_extension_request.proposed_end_date.strftime('%B %d, %Y') }}<br>
+                                            <small>{{ pending_extension_request.message }}</small>
+                                        </div>
+                                        <div class="d-flex gap-2 flex-wrap">
+                                            <form method="POST" action="{{ url_for('main.process_extension_request', extension_id=pending_extension_request.id, action='approve') }}" class="d-inline">
+                                                {{ loan_action_form.hidden_tag() }}
+                                                <button type="submit" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-check me-1"></i>Approve
+                                                </button>
+                                            </form>
+                                            <form method="POST" action="{{ url_for('main.process_extension_request', extension_id=pending_extension_request.id, action='deny') }}" class="d-inline">
+                                                {{ loan_action_form.hidden_tag() }}
+                                                <button type="submit" class="btn btn-danger btn-sm">
+                                                    <i class="fas fa-times me-1"></i>Deny
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
                             <div class="d-flex flex-wrap gap-2">
                                 <a href="{{ url_for('main.extend_loan', loan_id=active_loan.id) }}" class="btn btn-primary">
                                     <i class="fas fa-calendar-plus me-1"></i>Extend Loan Period
@@ -189,6 +256,19 @@
                                 </form>
                             </div>
                         {% elif active_loan.borrower_id == current_user.id %}
+                            {% if pending_extension_request %}
+                                <div class="alert alert-secondary mb-3">
+                                    <i class="fas fa-hourglass-half me-2"></i>
+                                    <strong>Extension request pending:</strong>
+                                    Proposed due date {{ pending_extension_request.proposed_end_date.strftime('%B %d, %Y') }}.
+                                </div>
+                            {% else %}
+                                <div class="mb-3">
+                                    <a href="{{ url_for('main.request_extension', loan_id=active_loan.id) }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-calendar-plus me-1"></i>Request Extension
+                                    </a>
+                                </div>
+                            {% endif %}
                             {% if active_loan.is_overdue() %}
                                 <div class="alert alert-danger mb-0">
                                     <i class="fas fa-exclamation-triangle me-2"></i>
@@ -263,7 +343,7 @@
                         {% endif %}
                     </div>
                 {% endif %}                                        
-                    <p>{{ msg.body }}</p>
+                    <p>{{ msg.body | replace('\n', '<br>') | safe }}</p>
                 </div>
             </div>
         {% endfor %}

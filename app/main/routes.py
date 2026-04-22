@@ -1364,6 +1364,10 @@ def delete_item(item_id):
     if item.owner != current_user:
         flash('You can only delete your own items.', 'danger')
         return redirect(url_for('main.profile'))
+
+    if item.is_giveaway and item.claim_status == 'pending_pickup':
+        flash('This giveaway is still pending pickup. Mark the handoff complete or release it instead of deleting the item.', 'warning')
+        return redirect(url_for('main.item_detail', item_id=item.id))
     
     # Prevent deletion of claimed giveaways (completed transactions)
     if item.is_giveaway and item.claim_status == 'claimed':
@@ -1942,8 +1946,13 @@ def profile():
     items_pagination = items_query.order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     user_items = items_pagination.items
     
-    # Create a DeleteItemForm for each item (exclude claimed giveaways since they can't be deleted)
+    # Create action forms for owner item controls.
     delete_forms = {item.id: DeleteItemForm() for item in active_giveaways_pagination.items + user_items}
+    confirm_handoff_forms = {
+        item.id: ConfirmHandoffForm()
+        for item in active_giveaways_pagination.items
+        if item.claim_status == 'pending_pickup'
+    }
     
     borrowing = current_user.get_active_loans_as_borrower()
     lending = current_user.get_active_loans_as_owner()
@@ -1996,6 +2005,7 @@ def profile():
                          active_giveaways=active_giveaways_pagination.items,
                          past_giveaways=past_giveaways_pagination.items,
                          delete_forms=delete_forms,
+                         confirm_handoff_forms=confirm_handoff_forms,
                          borrowing=borrowing,
                          lending=lending,
                          pagination=items_pagination,
@@ -2236,6 +2246,7 @@ def user_profile(user_id):
     items = []
     items_pagination = None
     delete_forms = {}
+    confirm_handoff_forms = {}
     
     if can_view_items:
         # Pagination parameters
@@ -2248,7 +2259,16 @@ def user_profile(user_id):
         
         # Create DeleteItemForm for each item if the current user is the owner
         if current_user.id == user.id:
-            delete_forms = {item.id: DeleteItemForm() for item in items}
+            delete_forms = {
+                item.id: DeleteItemForm()
+                for item in items
+                if not (item.is_giveaway and item.claim_status == 'claimed')
+            }
+            confirm_handoff_forms = {
+                item.id: ConfirmHandoffForm()
+                for item in items
+                if item.is_giveaway and item.claim_status == 'pending_pickup'
+            }
     
     return render_template(
         'main/user_profile.html',
@@ -2256,6 +2276,7 @@ def user_profile(user_id):
         items=items,
         pagination=items_pagination,
         delete_forms=delete_forms,
+        confirm_handoff_forms=confirm_handoff_forms,
         can_view_items=can_view_items
     )
 
@@ -2463,6 +2484,21 @@ def view_conversation(message_id):
                 active_loan = msg.loan_request
                 break
 
+    giveaway_handoff_item = None
+    giveaway_handoff_form = None
+    giveaway_release_form = None
+    if (
+        message.item
+        and message.item.is_giveaway
+        and message.item.claim_status == 'pending_pickup'
+        and message.item.claimed_by_id
+        and {current_user.id, other_user.id} == {message.item.owner_id, message.item.claimed_by_id}
+    ):
+        giveaway_handoff_item = message.item
+        if current_user.id == message.item.owner_id:
+            giveaway_handoff_form = ConfirmHandoffForm()
+            giveaway_release_form = ReleaseToAllForm()
+
     # Handle reply form
     form = MessageForm()
     if form.validate_on_submit():
@@ -2497,6 +2533,9 @@ def view_conversation(message_id):
                          thread_messages=thread_messages, 
                          form=form, 
                          active_loan=active_loan,
+                         giveaway_handoff_item=giveaway_handoff_item,
+                         giveaway_handoff_form=giveaway_handoff_form,
+                         giveaway_release_form=giveaway_release_form,
                          loan_action_form=loan_action_form,
                          has_unread_messages=has_unread_messages)
 

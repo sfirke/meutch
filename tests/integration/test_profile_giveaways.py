@@ -102,6 +102,30 @@ class TestProfileGiveawaysSeparation:
             assert response.status_code == 200
             assert b'My Active Giveaways' in response.data
             assert b'Pending Pickup Item' in response.data
+
+    def test_profile_pending_pickup_delete_modal_offers_handoff_completion(self, client, app, auth_user):
+        """Pending-pickup giveaway cards should steer owners to complete the handoff instead of deleting."""
+        with app.app_context():
+            user = auth_user()
+            recipient = UserFactory()
+            category = CategoryFactory()
+
+            ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=recipient,
+                name='Pending Pickup Item'
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get('/profile')
+
+            assert response.status_code == 200
+            assert b'This giveaway is still pending pickup' in response.data
+            assert b'Mark Handoff Complete' in response.data
     
     def test_profile_shows_recently_claimed_in_past(self, client, app, auth_user):
         """Test that profile displays recently claimed giveaways in past section."""
