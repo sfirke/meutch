@@ -92,6 +92,39 @@
         </div>
     {% endif %}
 
+    {% if giveaway_selection_item %}
+    <div class="card mb-4 border-success shadow-sm">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-user-check me-2"></i>Choose Recipient
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if giveaway_selection_interested_count == 1 %}
+                <p class="mb-3">
+                    <strong>{{ thread_messages[0].other_user.full_name }}</strong> is currently the only interested user for this giveaway. You can give it to them here without leaving the conversation.
+                </p>
+            {% else %}
+                <p class="mb-3">
+                    <strong>{{ giveaway_selection_interested_count }} people are interested in this giveaway.</strong> You can give it to {{ thread_messages[0].other_user.full_name }} now or review everyone first.
+                </p>
+            {% endif %}
+            <div class="d-flex flex-wrap gap-2">
+                <form method="POST" action="{{ url_for('main.give_to_user', item_id=giveaway_selection_item.id, user_id=thread_messages[0].other_user.id) }}" class="d-inline">
+                    {{ giveaway_selection_form.hidden_tag() }}
+                    <input type="hidden" name="message_id" value="{{ message.id }}">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-gift me-1"></i>Give Item to This User
+                    </button>
+                </form>
+                <a href="{{ url_for('main.select_recipient', item_id=giveaway_selection_item.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-users me-1"></i>View Interested Users
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {% if giveaway_handoff_item %}
     <div class="card mb-4 border-warning shadow-sm">
         <div class="card-header bg-warning text-dark">

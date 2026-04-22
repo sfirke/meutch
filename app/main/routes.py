@@ -2,6 +2,7 @@ import json
 import os
 import random
 import re
+from uuid import UUID
 from urllib.parse import urlparse
 import requests as http_client
 from flask import render_template, current_app, request, flash, redirect, url_for, abort, session, make_response
@@ -89,6 +90,40 @@ def _generated_item_share_link(item_id):
         session.pop(f'generated-item-share-link:{item_id}', None)
         return None
     return entry['url']
+
+
+def _conversation_other_user_id(message, viewer_id):
+    if message.sender_id == viewer_id:
+        return message.recipient_id
+    if message.recipient_id == viewer_id:
+        return message.sender_id
+    return None
+
+
+def _select_giveaway_recipient(item, selected_interest, sender_id):
+    item.claim_status = 'pending_pickup'
+    item.claimed_by_id = selected_interest.user_id
+    item.claimed_at = None
+    item.available = False
+    selected_interest.status = 'selected'
+
+    notification_message = Message(
+        sender_id=sender_id,
+        recipient_id=selected_interest.user_id,
+        item_id=item.id,
+        body=f"Good news! You've been selected for the giveaway '{item.name}'! Please coordinate pickup with the owner."
+    )
+    db.session.add(notification_message)
+    db.session.commit()
+
+    try:
+        send_message_notification_email(notification_message)
+    except Exception as exc:
+        current_app.logger.error(
+            f"Failed to send email notification for giveaway selection: {str(exc)}"
+        )
+
+    return notification_message
 
 
 def _shares_circle_or_has_item_token_access(item, share_token=None):
@@ -734,32 +769,7 @@ def select_recipient(item_id):
             return redirect(url_for('main.select_recipient', item_id=item.id))
         
         try:
-            # Update item status
-            item.claim_status = 'pending_pickup'
-            item.claimed_by_id = selected_interest.user_id
-            item.available = False
-            # claimed_at remains NULL until handoff is confirmed
-            
-            # Update the selected interest status
-            selected_interest.status = 'selected'
-            
-            # Create notification message to selected user
-            notification_message = Message(
-                sender_id=current_user.id,
-                recipient_id=selected_interest.user_id,
-                item_id=item.id,
-                body=f"Good news! You've been selected for the giveaway '{item.name}'! Please coordinate pickup with the owner."
-            )
-            db.session.add(notification_message)
-            
-            db.session.commit()
-            
-            # Send email notification
-            try:
-                send_message_notification_email(notification_message)
-            except Exception as e:
-                current_app.logger.error(f"Failed to send email notification for giveaway selection: {str(e)}")
-            
+            _select_giveaway_recipient(item, selected_interest, current_user.id)
             flash(f'{selected_interest.user.full_name} has been selected! They will be notified.', 'success')
             return redirect(url_for('main.item_detail', item_id=item.id))
             
@@ -829,6 +839,75 @@ def select_recipient(item_id):
                          next_form=next_form,
                          random_reassign_form=random_reassign_form,
                          manual_reassign_form=manual_reassign_form)
+
+
+@main_bp.route('/item/<uuid:item_id>/give-to-user/<uuid:user_id>', methods=['POST'])
+@login_required
+def give_to_user(item_id, user_id):
+    """Owner selects an interested user directly from their conversation."""
+    item = db.get_or_404(Item, item_id)
+    form = EmptyForm()
+
+    conversation_message = None
+    conversation_message_id = request.form.get('message_id')
+    if conversation_message_id:
+        try:
+            conversation_message = db.session.get(Message, UUID(conversation_message_id))
+        except (TypeError, ValueError):
+            conversation_message = None
+
+    if not form.validate_on_submit():
+        flash('Invalid request.', 'danger')
+        if conversation_message:
+            return redirect(url_for('main.view_conversation', message_id=conversation_message.id))
+        return redirect(url_for('main.item_detail', item_id=item.id))
+
+    if item.owner_id != current_user.id:
+        flash('You do not have permission to manage this giveaway.', 'danger')
+        if conversation_message:
+            return redirect(url_for('main.view_conversation', message_id=conversation_message.id))
+        return redirect(url_for('main.item_detail', item_id=item.id))
+
+    if not item.is_giveaway:
+        flash('This item is not a giveaway.', 'danger')
+        if conversation_message:
+            return redirect(url_for('main.view_conversation', message_id=conversation_message.id))
+        return redirect(url_for('main.item_detail', item_id=item.id))
+
+    if item.claim_status not in [None, 'unclaimed']:
+        flash('This giveaway is no longer awaiting recipient selection.', 'warning')
+        if conversation_message:
+            return redirect(url_for('main.view_conversation', message_id=conversation_message.id))
+        return redirect(url_for('main.item_detail', item_id=item.id))
+
+    if conversation_message is None or conversation_message.item_id != item.id:
+        flash('Invalid conversation context.', 'danger')
+        return redirect(url_for('main.item_detail', item_id=item.id))
+
+    other_user_id = _conversation_other_user_id(conversation_message, current_user.id)
+    if other_user_id != user_id:
+        flash('This conversation does not match that interested user.', 'danger')
+        return redirect(url_for('main.view_conversation', message_id=conversation_message.id))
+
+    selected_interest = GiveawayInterest.query.filter_by(
+        item_id=item.id,
+        user_id=user_id,
+        status='active'
+    ).first()
+
+    if not selected_interest:
+        flash('This user is not currently in the interested-user pool.', 'warning')
+        return redirect(url_for('main.view_conversation', message_id=conversation_message.id))
+
+    try:
+        _select_giveaway_recipient(item, selected_interest, current_user.id)
+        flash(f'{selected_interest.user.full_name} has been selected! They will be notified.', 'success')
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error(f"Error selecting giveaway recipient from conversation {conversation_message.id}: {str(exc)}")
+        flash('An error occurred. Please try again.', 'danger')
+
+    return redirect(url_for('main.view_conversation', message_id=conversation_message.id))
 
 
 @main_bp.route('/item/<uuid:item_id>/message-requester/<uuid:user_id>', methods=['GET', 'POST'])
@@ -2398,10 +2477,8 @@ def messages():
 def view_conversation(message_id):
     message = db.get_or_404(Message, message_id)
 
-    if message.sender_id == current_user.id:
-        other_user = db.session.get(User, message.recipient_id)
-    else:
-        other_user = db.session.get(User, message.sender_id)
+    other_user_id = _conversation_other_user_id(message, current_user.id)
+    other_user = db.session.get(User, other_user_id)
 
     # Ensure that only the recipient can view the message
     if message.recipient_id != current_user.id and message.sender_id != current_user.id:
@@ -2484,6 +2561,28 @@ def view_conversation(message_id):
                 active_loan = msg.loan_request
                 break
 
+    giveaway_selection_item = None
+    giveaway_selection_form = None
+    giveaway_selection_interested_count = 0
+    if (
+        message.item
+        and message.item.is_giveaway
+        and message.item.claim_status in [None, 'unclaimed']
+        and current_user.id == message.item.owner_id
+    ):
+        active_interest = GiveawayInterest.query.filter_by(
+            item_id=message.item.id,
+            user_id=other_user.id,
+            status='active'
+        ).first()
+        if active_interest:
+            giveaway_selection_item = message.item
+            giveaway_selection_form = EmptyForm()
+            giveaway_selection_interested_count = GiveawayInterest.query.filter_by(
+                item_id=message.item.id,
+                status='active'
+            ).count()
+
     giveaway_handoff_item = None
     giveaway_handoff_form = None
     giveaway_release_form = None
@@ -2533,6 +2632,9 @@ def view_conversation(message_id):
                          thread_messages=thread_messages, 
                          form=form, 
                          active_loan=active_loan,
+                         giveaway_selection_item=giveaway_selection_item,
+                         giveaway_selection_form=giveaway_selection_form,
+                         giveaway_selection_interested_count=giveaway_selection_interested_count,
                          giveaway_handoff_item=giveaway_handoff_item,
                          giveaway_handoff_form=giveaway_handoff_form,
                          giveaway_release_form=giveaway_release_form,

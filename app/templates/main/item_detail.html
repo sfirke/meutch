@@ -234,7 +234,7 @@
                                     {% if item.claim_status in [None, 'unclaimed'] and interested_count > 0 %}
                                         <a href="{{ url_for('main.select_recipient', item_id=item.id) }}" 
                                            class="btn btn-primary btn-lg">
-                                            <i class="fas fa-user-check me-2"></i>View & Select Recipient
+                                            <i class="fas fa-user-check me-2"></i>View Interested Users
                                             <span class="badge bg-light text-dark ms-2">{{ interested_count }}</span>
                                         </a>
                                     {% elif item.claim_status == 'pending_pickup' %}
