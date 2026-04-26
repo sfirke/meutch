@@ -324,13 +324,14 @@
                             {% endif %}
                         </div>
                     </div>
-                    {% if current_user.is_authenticated and current_user.id == item.owner.id %}
+                    {% set is_claimed_giveaway = item.is_giveaway and item.claim_status == 'claimed' %}
+                    {% if current_user.is_authenticated and current_user.id == item.owner.id and not is_claimed_giveaway %}
                         <div class="card-footer d-flex align-items-center justify-content-between">
                             <a href="{{ url_for('main.edit_item', item_id=item.id) }}"
                                class="btn btn-sm btn-outline-secondary">
                                 <i class="fas fa-pencil-alt me-1"></i>Edit Item
                             </a>
-                            {% if item.current_loan %}
+                            {% if not item.is_giveaway and item.current_loan %}
                                 <a href="{{ url_for('main.view_conversation', message_id=item.current_loan.messages[0].id) }}"
                                    class="btn btn-sm btn-info">
                                     <i class="fas fa-exchange-alt me-1"></i>View Active Loan
@@ -343,7 +344,7 @@
                         </div>
                     {% endif %}
                 </div>
-                {% if current_user.is_authenticated and current_user.id == item.owner.id %}
+                {% if current_user.is_authenticated and current_user.id == item.owner.id and not is_claimed_giveaway %}
                     {% set item_delete_form = delete_form %}
                     {% set item_confirm_handoff_form = confirm_handoff_form %}
                     {% include 'main/_delete_item_modal.html' %}

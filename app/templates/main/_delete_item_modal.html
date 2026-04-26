@@ -1,8 +1,10 @@
 {% set is_pending_handoff = item.is_giveaway and item.claim_status == 'pending_pickup' %}
-{% set active_loan = item.current_loan if not is_pending_handoff else none %}
+{% set is_claimed_giveaway = item.is_giveaway and item.claim_status == 'claimed' %}
+{% set active_loan = item.current_loan if not item.is_giveaway else none %}
 {% set is_on_loan = active_loan is not none %}
 {% set message_count = item.messages|length %}
-{% set header_class = 'bg-warning text-dark' if is_pending_handoff or is_on_loan else 'bg-danger text-white' %}
+{% set is_blocked_delete = is_pending_handoff or is_claimed_giveaway or is_on_loan %}
+{% set header_class = 'bg-secondary text-white' if is_claimed_giveaway else ('bg-warning text-dark' if is_pending_handoff or is_on_loan else 'bg-danger text-white') %}
 
 <div class="modal fade" id="{{ delete_modal_id }}" tabindex="-1" aria-labelledby="{{ delete_modal_id }}Label" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -11,19 +13,26 @@
                 <h5 class="modal-title" id="{{ delete_modal_id }}Label">
                     {% if is_pending_handoff %}
                         This giveaway is still pending pickup
+                    {% elif is_claimed_giveaway %}
+                        This giveaway has already been handed off
                     {% elif is_on_loan %}
                         This item is currently out on loan
                     {% else %}
                         Delete {{ item.name }}?
                     {% endif %}
                 </h5>
-                <button type="button" class="btn-close {% if not is_pending_handoff and not is_on_loan %}btn-close-white{% endif %}" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close {% if is_claimed_giveaway or not is_blocked_delete %}btn-close-white{% endif %}" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 {% if is_pending_handoff %}
                     <p class="mb-3">
                         <strong>{{ item.claimed_by.full_name if item.claimed_by else 'A recipient' }}</strong> is still coordinating pickup for this giveaway.
                         Complete the handoff or release the item to everyone before deleting.
+                    </p>
+                {% elif is_claimed_giveaway %}
+                    <p class="mb-3">
+                        <strong>{{ item.claimed_by.full_name if item.claimed_by else 'The recipient' }}</strong> has already received this giveaway.
+                        Completed giveaways cannot be deleted.
                     </p>
                 {% elif is_on_loan %}
                     <p class="mb-3">
@@ -34,14 +43,14 @@
                     <p class="mb-3">This will permanently delete <strong>{{ item.name }}</strong>.</p>
                 {% endif %}
 
-                {% if message_count > 0 and not is_pending_handoff and not is_on_loan %}
+                {% if message_count > 0 and not is_blocked_delete %}
                     <div class="alert alert-warning mb-3" role="alert">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        Deleting this item will also permanently remove {{ message_count }} message{{ 's' if message_count != 1 else '' }} tied to it.
+                        Deleting this item will also permanently remove {{ message_count }} message{{ 's' if message_count != 1 else '' }} associated with it.
                     </div>
                 {% endif %}
 
-                {% if not is_pending_handoff and not is_on_loan %}
+                {% if not is_blocked_delete %}
                     <p class="text-muted small mb-0">This action cannot be undone.</p>
                 {% endif %}
             </div>
@@ -54,10 +63,12 @@
                             <i class="fas fa-check-circle me-1"></i>Mark Handoff Complete
                         </button>
                     </form>
-                {% elif is_on_loan and active_loan.messages %}
-                    <a href="{{ url_for('main.view_conversation', message_id=active_loan.messages[0].id) }}" class="btn btn-info">
-                        <i class="fas fa-exchange-alt me-1"></i>View Active Loan
-                    </a>
+                {% elif is_on_loan %}
+                    {% if active_loan.messages %}
+                        <a href="{{ url_for('main.view_conversation', message_id=active_loan.messages[0].id) }}" class="btn btn-info">
+                            <i class="fas fa-exchange-alt me-1"></i>View Active Loan
+                        </a>
+                    {% endif %}
                 {% else %}
                     <form action="{{ url_for('main.delete_item', item_id=item.id) }}" method="post" class="d-inline">
                         {{ item_delete_form.hidden_tag() }}

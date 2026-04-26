@@ -2255,7 +2255,7 @@ class TestItemDetailPageForGiveaways:
             response = client.get(f'/item/{giveaway.id}')
 
             assert response.status_code == 200
-            assert b'Deleting this item will also permanently remove 1 message tied to it.' in response.data
+            assert b'Deleting this item will also permanently remove 1 message associated with it.' in response.data
 
     def test_delete_modal_omits_message_warning_without_item_messages(self, client, app, auth_user):
         """Delete modal should stay simpler when there are no item messages to lose."""
@@ -2308,6 +2308,9 @@ class TestItemDetailPageForGiveaways:
             assert b'Change Recipient' not in response.data
             assert b'Release to Everyone' not in response.data
             assert b'Mark Handoff Complete' not in response.data
+            assert b'Edit Item' not in response.data
+            assert b'Delete Item' not in response.data
+            assert b'View Active Loan' not in response.data
 
 
 class TestDataIntegrity:
