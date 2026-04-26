@@ -395,6 +395,13 @@ class Item(db.Model):
         """Returns owner name or 'Deleted User' if owner is None"""
         return self.owner.full_name if self.owner else "Deleted User"
 
+    @property
+    def claimed_by_name(self):
+        """Returns claimed giveaway recipient name or 'Deleted User' if unavailable."""
+        if self.claimed_by and not self.claimed_by.is_deleted:
+            return self.claimed_by.full_name
+        return "Deleted User"
+
     def __repr__(self):
         return f'<Item {self.name}>'
 

@@ -26,12 +26,12 @@
             <div class="modal-body">
                 {% if is_pending_handoff %}
                     <p class="mb-3">
-                        <strong>{{ item.claimed_by.full_name if item.claimed_by else 'A recipient' }}</strong> is still coordinating pickup for this giveaway.
+                        <strong>{{ item.claimed_by_name }}</strong> is still coordinating pickup for this giveaway.
                         Complete the handoff or release the item to everyone before deleting.
                     </p>
                 {% elif is_claimed_giveaway %}
                     <p class="mb-3">
-                        <strong>{{ item.claimed_by.full_name if item.claimed_by else 'The recipient' }}</strong> has already received this giveaway.
+                        <strong>{{ item.claimed_by_name }}</strong> has already received this giveaway.
                         Completed giveaways cannot be deleted.
                     </p>
                 {% elif is_on_loan %}

@@ -134,7 +134,7 @@
         </div>
         <div class="card-body">
             <p class="mb-2">
-                <strong>Recipient:</strong> {{ giveaway_handoff_item.claimed_by.full_name if giveaway_handoff_item.claimed_by else 'Selected recipient' }}
+                <strong>Recipient:</strong> {{ giveaway_handoff_item.claimed_by_name }}
             </p>
             {% if giveaway_handoff_item.owner_id == current_user.id %}
                 <p class="text-muted mb-3">Once they have the item, mark the handoff complete here to close out this giveaway.</p>

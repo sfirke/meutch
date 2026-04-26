@@ -1222,7 +1222,7 @@ def confirm_handoff(item_id):
         
         db.session.commit()
         
-        recipient_name = item.claimed_by.full_name if item.claimed_by else 'the recipient'
+        recipient_name = item.claimed_by_name
         flash(f'Handoff complete! The giveaway has been successfully given to {recipient_name}.', 'success')
         return redirect(url_for('main.item_detail', item_id=item.id))
         

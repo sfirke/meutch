@@ -34,3 +34,29 @@ class TestItemGiveawayFields:
             assert item.claim_status == 'pending_pickup'
             assert item.claimed_by_id == user.id
             assert item.claimed_at is None  # Not set until handoff confirmed
+
+    def test_claimed_by_name_uses_recipient_full_name(self, app):
+        """Claimed giveaway recipient name should come from the selected user."""
+        with app.app_context():
+            recipient = UserFactory(first_name='Jordan', last_name='Lee')
+            item = ItemFactory(
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=recipient,
+            )
+            db.session.commit()
+
+            assert item.claimed_by_name == 'Jordan Lee'
+
+    def test_claimed_by_name_falls_back_for_soft_deleted_recipient(self, app):
+        """Soft-deleted recipients should render as Deleted User."""
+        with app.app_context():
+            recipient = UserFactory(first_name='Jordan', last_name='Lee', is_deleted=True, deleted_at=datetime.now(UTC))
+            item = ItemFactory(
+                is_giveaway=True,
+                claim_status='claimed',
+                claimed_by=recipient,
+            )
+            db.session.commit()
+
+            assert item.claimed_by_name == 'Deleted User'

@@ -2229,6 +2229,33 @@ class TestItemDetailPageForGiveaways:
             assert b'Recipient:' in response.data
             assert b'John Doe' in response.data
 
+    def test_owner_sees_deleted_user_when_pending_pickup_recipient_soft_deleted(self, client, app, auth_user):
+        """Pending-pickup giveaway UI should not expose a soft-deleted recipient's name."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory(first_name='Jane', last_name='Smith')
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester,
+            )
+            requester.is_deleted = True
+            requester.deleted_at = datetime.now(UTC)
+            db.session.commit()
+
+            login_user(client, owner.email)
+
+            response = client.get(f'/item/{giveaway.id}')
+
+            assert response.status_code == 200
+            assert b'Recipient:' in response.data
+            assert b'Deleted User' in response.data
+            assert b'Jane Smith' not in response.data
+
     def test_delete_modal_warns_when_item_messages_will_be_lost(self, client, app, auth_user):
         """Delete modal should warn when item messages would be removed."""
         with app.app_context():
