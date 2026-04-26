@@ -1444,6 +1444,16 @@ def delete_item(item_id):
         flash('You can only delete your own items.', 'danger')
         return redirect(url_for('main.profile'))
 
+    active_loan = LoanRequest.query.filter_by(
+        item_id=item.id,
+        status='approved'
+    ).first()
+    if active_loan:
+        flash('This item is currently out on loan. Mark it returned or cancel the loan before deleting the item.', 'warning')
+        if active_loan.messages:
+            return redirect(url_for('main.view_conversation', message_id=active_loan.messages[0].id))
+        return redirect(url_for('main.item_detail', item_id=item.id))
+
     if item.is_giveaway and item.claim_status == 'pending_pickup':
         flash('This giveaway is still pending pickup. Mark the handoff complete or release it instead of deleting the item.', 'warning')
         return redirect(url_for('main.item_detail', item_id=item.id))
