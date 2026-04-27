@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime, UTC, timedelta
 from unittest.mock import patch
 from app import db
-from app.models import ItemRequest, Circle, Message
+from app.models import ItemRequest, Circle, Message, GiveawayInterest
 from tests.factories import UserFactory, ItemFactory, ItemRequestFactory, CircleFactory, MessageFactory
 from conftest import login_user
 
@@ -790,6 +790,7 @@ class TestRequestConversations:
                 owner=owner,
                 is_giveaway=True,
                 claim_status='pending_pickup',
+                claimed_by=claimant,
                 available=False,
             )
             first_message = MessageFactory(
@@ -806,6 +807,160 @@ class TestRequestConversations:
             assert response.status_code == 200
             assert b'Pending Pickup' in response.data
             assert b'Borrowed' not in response.data
+            assert b'You are the selected recipient for this giveaway.' in response.data
+            assert b'Mark Handoff Complete' not in response.data
+
+    def test_view_conversation_pending_pickup_giveaway_owner_sees_handoff_actions(self, client, app):
+        """Owners should get the handoff-complete CTA in the recipient conversation."""
+        with app.app_context():
+            owner = UserFactory()
+            claimant = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=claimant,
+                available=False,
+            )
+            first_message = MessageFactory(
+                sender=owner,
+                recipient=claimant,
+                item=giveaway,
+                body='Let me know when you are on your way.',
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f'/message/{first_message.id}')
+
+            assert response.status_code == 200
+            assert b'Giveaway Pickup' in response.data
+            assert b'Mark Handoff Complete' in response.data
+            assert b'Change Recipient' in response.data
+            assert b'Release to Everyone' in response.data
+
+    def test_view_conversation_unclaimed_giveaway_owner_sees_quick_select_actions(self, client, app):
+        """Owners should get the direct recipient-selection CTA in an interested user's conversation."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status='unclaimed',
+                available=True,
+            )
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status='active',
+            )
+            first_message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=giveaway,
+                body='I would love to pick this up.',
+            )
+            db.session.add(interest)
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f'/message/{first_message.id}')
+
+            assert response.status_code == 200
+            assert b'Choose Recipient' in response.data
+            assert b'Give Item to This User' in response.data
+            assert b'View Interested Users' in response.data
+            assert b'Mark Handoff Complete' not in response.data
+
+    def test_view_conversation_unclaimed_giveaway_shows_interested_count_guidance(self, client, app):
+        """Owner quick-select panel should call out when multiple users are interested."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            another_requester = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status='unclaimed',
+                available=True,
+            )
+            db.session.add_all([
+                GiveawayInterest(item_id=giveaway.id, user_id=requester.id, status='active'),
+                GiveawayInterest(item_id=giveaway.id, user_id=another_requester.id, status='active'),
+            ])
+            first_message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=giveaway,
+                body='Happy to collect it this week.',
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f'/message/{first_message.id}')
+
+            assert response.status_code == 200
+            assert b'2 people are interested in this giveaway.' in response.data
+            assert b'View Interested Users' in response.data
+
+    def test_view_conversation_unclaimed_giveaway_recipient_does_not_see_quick_select_actions(self, client, app):
+        """Recipients should not see owner-only quick-select actions."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status='unclaimed',
+                available=True,
+            )
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status='active',
+            )
+            first_message = MessageFactory(
+                sender=owner,
+                recipient=requester,
+                item=giveaway,
+                body='Thanks for reaching out.',
+            )
+            db.session.add(interest)
+            db.session.commit()
+
+            login_user(client, requester.email)
+            response = client.get(f'/message/{first_message.id}')
+
+            assert response.status_code == 200
+            assert b'Choose Recipient' not in response.data
+            assert b'Give Item to This User' not in response.data
+
+    def test_view_conversation_unclaimed_giveaway_hides_quick_select_when_user_not_interested(self, client, app):
+        """Owner should not get the quick-select CTA if the conversation partner is not in the pool."""
+        with app.app_context():
+            owner = UserFactory()
+            chatter = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status='unclaimed',
+                available=True,
+            )
+            first_message = MessageFactory(
+                sender=chatter,
+                recipient=owner,
+                item=giveaway,
+                body='Is this still available?',
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f'/message/{first_message.id}')
+
+            assert response.status_code == 200
+            assert b'Choose Recipient' not in response.data
+            assert b'Give Item to This User' not in response.data
 
 
 class TestRequestNavigation:

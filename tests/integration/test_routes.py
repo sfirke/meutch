@@ -1,4 +1,5 @@
 """Integration tests for main routes."""
+from datetime import date, timedelta
 import json
 import pytest
 from app import db
@@ -645,6 +646,68 @@ class TestItemRoutes:
             response = client.post(f'/item/{item.id}/delete', follow_redirects=True)
             assert response.status_code == 200
             assert b'You can only delete your own items.' in response.data
+
+    def test_delete_item_with_active_loan_is_blocked(self, client, app, auth_user):
+        """Owners must resolve active loans before deleting an item."""
+        with app.app_context():
+            owner = auth_user()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner, available=False)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status='approved',
+                start_date=date.today() - timedelta(days=2),
+                end_date=date.today() + timedelta(days=5),
+            )
+            loan_message = MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                item=item,
+                loan_request=loan,
+                body='I still have this item and can return it this weekend.',
+            )
+            item_id = item.id
+            loan_message_id = loan_message.id
+            db.session.commit()
+
+            login_user(client, owner.email)
+
+            response = client.post(f'/item/{item.id}/delete', follow_redirects=False)
+
+            assert response.status_code == 302
+            assert response.headers['Location'].endswith(f'/message/{loan_message_id}')
+            assert db.session.get(Item, item_id) is not None
+
+    def test_delete_modal_for_active_loan_shows_resolution_guidance(self, client, app, auth_user):
+        """Delete modal should send owners to the active loan instead of offering deletion."""
+        with app.app_context():
+            owner = auth_user()
+            borrower = UserFactory(first_name='Taylor', last_name='Borrower')
+            item = ItemFactory(owner=owner, available=False)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status='approved',
+                start_date=date.today() - timedelta(days=1),
+                end_date=date.today() + timedelta(days=7),
+            )
+            MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                item=item,
+                loan_request=loan,
+                body='Thanks again for lending this to me.',
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f'/item/{item.id}')
+
+            assert response.status_code == 200
+            assert b'This item is currently out on loan' in response.data
+            assert b'Mark the item returned or cancel the loan before deleting it.' in response.data
+            assert b'View Active Loan' in response.data
     
     def test_add_item_image_upload_failure(self, app, client, auth_user):
         """Test adding item when image upload fails."""

@@ -234,7 +234,7 @@
                                     {% if item.claim_status in [None, 'unclaimed'] and interested_count > 0 %}
                                         <a href="{{ url_for('main.select_recipient', item_id=item.id) }}" 
                                            class="btn btn-primary btn-lg">
-                                            <i class="fas fa-user-check me-2"></i>View & Select Recipient
+                                            <i class="fas fa-user-check me-2"></i>View Interested Users
                                             <span class="badge bg-light text-dark ms-2">{{ interested_count }}</span>
                                         </a>
                                     {% elif item.claim_status == 'pending_pickup' %}
@@ -246,18 +246,18 @@
                                                         <i class="fas fa-clock me-1"></i>Pending Pickup
                                                     </span>
                                                     <span class="text-muted">
-                                                        Recipient: <strong class="text-dark">{{ item.claimed_by.full_name }}</strong>
+                                                        Recipient: <strong class="text-dark">{{ item.claimed_by_name }}</strong>
                                                     </span>
                                                 </div>
+                                                <p class="text-muted mb-3">Once they have the item, mark the handoff complete so this giveaway closes out cleanly.</p>
                                                 
                                                 <!-- Primary action: Confirm Handoff -->
                                                 <form action="{{ url_for('main.confirm_handoff', item_id=item.id) }}" 
                                                       method="post" 
-                                                      class="mb-3"
-                                                      onsubmit="return confirm('Confirm that the handoff is complete? This action cannot be undone.');">
+                                                      class="mb-3">
                                                     {{ confirm_handoff_form.hidden_tag() }}
                                                     <button type="submit" class="btn btn-success btn-lg w-100">
-                                                        <i class="fas fa-check-circle me-2"></i>Confirm Handoff Complete
+                                                        <i class="fas fa-check-circle me-2"></i>Mark Handoff Complete
                                                     </button>
                                                 </form>
                                                 
@@ -281,7 +281,7 @@
                                         </div>
                                     {% elif item.claim_status == 'claimed' %}
                                         <div class="alert alert-success mb-3" role="alert">
-                                            <i class="fas fa-check-circle me-2"></i>Given to <strong>{{ item.claimed_by.full_name if item.claimed_by else 'a user' }}</strong>{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}
+                                            <i class="fas fa-check-circle me-2"></i>Given to <strong>{{ item.claimed_by_name }}</strong>{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}
                                         </div>
                                     {% endif %}
                                 {% else %}
@@ -324,28 +324,31 @@
                             {% endif %}
                         </div>
                     </div>
-                    {% if current_user.is_authenticated and current_user.id == item.owner.id %}
+                    {% set is_claimed_giveaway = item.is_giveaway and item.claim_status == 'claimed' %}
+                    {% if current_user.is_authenticated and current_user.id == item.owner.id and not is_claimed_giveaway %}
                         <div class="card-footer d-flex align-items-center justify-content-between">
                             <a href="{{ url_for('main.edit_item', item_id=item.id) }}"
                                class="btn btn-sm btn-outline-secondary">
                                 <i class="fas fa-pencil-alt me-1"></i>Edit Item
                             </a>
-                            {% if item.current_loan %}
+                            {% if not item.is_giveaway and item.current_loan %}
                                 <a href="{{ url_for('main.view_conversation', message_id=item.current_loan.messages[0].id) }}"
                                    class="btn btn-sm btn-info">
                                     <i class="fas fa-exchange-alt me-1"></i>View Active Loan
                                 </a>
                             {% endif %}
-                            <form action="{{ url_for('main.delete_item', item_id=item.id) }}" method="post" class="d-inline">
-                                {{ delete_form.hidden_tag() }}
-                                <button type="submit" class="btn btn-sm btn-outline-danger"
-                                        onclick="return confirm('Are you sure you want to delete this item?');">
-                                    <i class="fas fa-trash me-1"></i>Delete Item
-                                </button>
-                            </form>
+                            {% set delete_modal_id = 'deleteItemModal-' ~ item.id %}
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#{{ delete_modal_id }}">
+                                <i class="fas fa-trash me-1"></i>Delete Item
+                            </button>
                         </div>
                     {% endif %}
                 </div>
+                {% if current_user.is_authenticated and current_user.id == item.owner.id and not is_claimed_giveaway %}
+                    {% set item_delete_form = delete_form %}
+                    {% set item_confirm_handoff_form = confirm_handoff_form %}
+                    {% include 'main/_delete_item_modal.html' %}
+                {% endif %}
                 
                 <!-- Message Owner Card -->
                 {% if current_user.is_authenticated and current_user.id != item.owner.id %}

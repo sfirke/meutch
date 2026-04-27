@@ -2,7 +2,7 @@
 import pytest
 from app import db
 from app.models import Item, GiveawayInterest, Message
-from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory
+from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, MessageFactory
 from conftest import login_user
 from datetime import datetime, UTC, timedelta
 from sqlalchemy import text
@@ -1084,11 +1084,184 @@ class TestRecipientSelection:
             
             assert response.status_code == 200
             assert b'not a giveaway' in response.data
+class TestConversationGiveawaySelection:
+    """Test selecting a giveaway recipient directly from a conversation."""
+
+    def test_owner_can_select_recipient_from_conversation(self, client, app, auth_user):
+        """Owner can promote an interested conversation partner into pending pickup."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory(first_name='Alex')
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed',
+                available=True,
+            )
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status='active',
+            )
+            first_message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=giveaway,
+                body='Interested if it is still available.',
+            )
+            db.session.add(interest)
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(
+                f'/item/{giveaway.id}/give-to-user/{requester.id}',
+                data={'message_id': str(first_message.id)},
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert b'Giveaway Pickup' in response.data
+            assert b'Mark Handoff Complete' in response.data
+
+            db.session.refresh(giveaway)
+            db.session.refresh(interest)
+            assert giveaway.claim_status == 'pending_pickup'
+            assert giveaway.claimed_by_id == requester.id
+            assert giveaway.available is False
+            assert interest.status == 'selected'
+
+            notification_message = Message.query.filter(
+                Message.item_id == giveaway.id,
+                Message.recipient_id == requester.id,
+                Message.body.contains("selected for the giveaway")
+            ).order_by(Message.timestamp.desc()).first()
+            assert notification_message is not None
+
+    def test_non_owner_cannot_select_recipient_from_conversation(self, client, app, auth_user):
+        """Non-owners should be blocked from the conversation quick-select route."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = auth_user()
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed',
+                available=True,
+            )
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status='active',
+            )
+            first_message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=giveaway,
+                body='Can I have this?',
+            )
+            db.session.add(interest)
+            db.session.commit()
+
+            login_user(client, requester.email)
+            response = client.post(
+                f'/item/{giveaway.id}/give-to-user/{requester.id}',
+                data={'message_id': str(first_message.id)},
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert b'do not have permission' in response.data
+            db.session.refresh(giveaway)
+            assert giveaway.claim_status == 'unclaimed'
+            assert giveaway.claimed_by_id is None
+
+    def test_cannot_select_non_interested_user_from_conversation(self, client, app, auth_user):
+        """Conversation quick-select should reject users who are not active in the pool."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed',
+                available=True,
+            )
+            first_message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=giveaway,
+                body='Checking whether this is still around.',
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(
+                f'/item/{giveaway.id}/give-to-user/{requester.id}',
+                data={'message_id': str(first_message.id)},
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert b'not currently in the interested-user pool' in response.data
+            db.session.refresh(giveaway)
+            assert giveaway.claim_status == 'unclaimed'
+            assert giveaway.claimed_by_id is None
+
+    def test_cannot_select_from_conversation_once_pickup_is_pending(self, client, app, auth_user):
+        """Quick-select route should refuse giveaways that already moved past selection."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester,
+                available=False,
+            )
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status='selected',
+            )
+            first_message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=giveaway,
+                body='Still planning to come by later today.',
+            )
+            db.session.add(interest)
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(
+                f'/item/{giveaway.id}/give-to-user/{requester.id}',
+                data={'message_id': str(first_message.id)},
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert b'no longer awaiting recipient selection' in response.data
+            db.session.refresh(giveaway)
+            assert giveaway.claim_status == 'pending_pickup'
+            assert giveaway.claimed_by_id == requester.id
 
 
 class TestGiveawayOwnerMessaging:
     """Test giveaway owner messaging functionality."""
-    
+
     def test_owner_can_message_requester(self, client, app, auth_user):
         """Test that owner can initiate a message with a giveaway requester."""
         with app.app_context():
@@ -2052,9 +2225,84 @@ class TestItemDetailPageForGiveaways:
             assert response.status_code == 200
             assert b'Change Recipient' in response.data
             assert b'Release to Everyone' in response.data
-            assert b'Confirm Handoff Complete' in response.data
+            assert b'Mark Handoff Complete' in response.data
             assert b'Recipient:' in response.data
             assert b'John Doe' in response.data
+
+    def test_owner_sees_deleted_user_when_pending_pickup_recipient_soft_deleted(self, client, app, auth_user):
+        """Pending-pickup giveaway UI should not expose a soft-deleted recipient's name."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory(first_name='Jane', last_name='Smith')
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester,
+            )
+            requester.is_deleted = True
+            requester.deleted_at = datetime.now(UTC)
+            db.session.commit()
+
+            login_user(client, owner.email)
+
+            response = client.get(f'/item/{giveaway.id}')
+
+            assert response.status_code == 200
+            assert b'Recipient:' in response.data
+            assert b'Deleted User' in response.data
+            assert b'Jane Smith' not in response.data
+
+    def test_delete_modal_warns_when_item_messages_will_be_lost(self, client, app, auth_user):
+        """Delete modal should warn when item messages would be removed."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            message = Message(
+                sender_id=requester.id,
+                recipient_id=owner.id,
+                item_id=giveaway.id,
+                body='Could I claim this?'
+            )
+            db.session.add(message)
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f'/item/{giveaway.id}')
+
+            assert response.status_code == 200
+            assert b'Deleting this item will also permanently remove 1 message associated with it.' in response.data
+
+    def test_delete_modal_omits_message_warning_without_item_messages(self, client, app, auth_user):
+        """Delete modal should stay simpler when there are no item messages to lose."""
+        with app.app_context():
+            owner = auth_user()
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='unclaimed'
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f'/item/{giveaway.id}')
+
+            assert response.status_code == 200
+            assert b'permanently remove 1 message tied to it' not in response.data
     
     def test_owner_sees_claimed_badge(self, client, app, auth_user):
         """Test owner sees claimed badge with recipient name and date."""
@@ -2086,11 +2334,46 @@ class TestItemDetailPageForGiveaways:
             # Should NOT show action buttons for claimed items
             assert b'Change Recipient' not in response.data
             assert b'Release to Everyone' not in response.data
-            assert b'Confirm Handoff Complete' not in response.data
+            assert b'Mark Handoff Complete' not in response.data
+            assert b'Edit Item' not in response.data
+            assert b'Delete Item' not in response.data
+            assert b'View Active Loan' not in response.data
 
 
 class TestDataIntegrity:
     """Test data integrity and edge cases for giveaways."""
+
+    def test_pending_pickup_giveaway_cannot_be_deleted(self, client, app, auth_user):
+        """Pending-pickup giveaways should be resolved, not deleted."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status='pending_pickup',
+                claimed_by=requester,
+                available=False,
+            )
+            message = Message(
+                sender_id=requester.id,
+                recipient_id=owner.id,
+                item_id=giveaway.id,
+                body='I can pick it up this afternoon.'
+            )
+            db.session.add(message)
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(f'/item/{giveaway.id}/delete', follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'still pending pickup' in response.data
+            assert db.session.get(Item, giveaway.id) is not None
+            assert db.session.get(Message, message.id) is not None
     
     def test_claimed_by_persists_when_user_soft_deleted(self, client, app, auth_user):
         """Test claimed_by_id persists when claiming user soft deletes account."""
