@@ -159,11 +159,6 @@ def _giveaway_conversion_blocker(item):
     return None, None
 
 
-def _reject_giveaway_loan_action(loan):
-    flash('Loan actions are unavailable for giveaway items.', 'warning')
-    return _redirect_to_loan_conversation(loan)
-
-
 def _parse_homepage_feed_filters(user):
     scope = request.args.get('scope', 'all')
     if scope not in {'all', 'circles'}:
@@ -1548,9 +1543,6 @@ def process_loan(loan_id, action):
     if loan.item.owner_id != current_user.id:
         flash("You are not authorized to perform this action.", "danger")
         return redirect(url_for('main.messages'))
-
-    if loan.item.is_giveaway:
-        return _reject_giveaway_loan_action(loan)
     
     if action.lower() not in ['approve', 'deny']:
         flash("Invalid action.", "danger")
@@ -1608,9 +1600,6 @@ def cancel_loan_request(loan_id):
     if loan.borrower_id != current_user.id:
         flash("You are not authorized to cancel this request.", "danger")
         return redirect(url_for('main.messages'))
-
-    if loan.item.is_giveaway:
-        return _reject_giveaway_loan_action(loan)
     
     if loan.status != 'pending':
         flash("This loan request cannot be canceled.", "warning")
@@ -1659,9 +1648,6 @@ def complete_loan(loan_id):
     if loan.item.owner_id != current_user.id:
         flash("You are not authorized to perform this action.", "danger")
         return redirect(url_for('main.messages'))
-
-    if loan.item.is_giveaway:
-        return _reject_giveaway_loan_action(loan)
     
     if loan.status != 'approved':
         flash("This loan is not currently active.", "warning")
@@ -1712,9 +1698,6 @@ def owner_cancel_loan(loan_id):
     if loan.item.owner_id != current_user.id:
         flash("You are not authorized to perform this action.", "danger")
         return redirect(url_for('main.messages'))
-
-    if loan.item.is_giveaway:
-        return _reject_giveaway_loan_action(loan)
     
     # Ensure the loan status is 'approved' before cancellation
     if loan.status != 'approved':
@@ -1763,9 +1746,6 @@ def extend_loan(loan_id):
     if loan.item.owner_id != current_user.id:
         flash("You are not authorized to extend this loan.", "danger")
         return redirect(url_for('main.messages'))
-
-    if loan.item.is_giveaway:
-        return _reject_giveaway_loan_action(loan)
     
     # Can extend pending or approved loans only
     if loan.status not in ['pending', 'approved']:
