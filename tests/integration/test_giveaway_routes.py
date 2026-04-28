@@ -2,7 +2,7 @@
 import pytest
 from app import db
 from app.models import Item, GiveawayInterest, Message
-from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, MessageFactory
+from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, MessageFactory, LoanRequestFactory
 from conftest import login_user
 from datetime import datetime, UTC, timedelta
 from sqlalchemy import text
@@ -110,6 +110,74 @@ class TestGiveawayItemCreation:
             assert updated_item.is_giveaway is True
             assert updated_item.giveaway_visibility == 'public'
             assert updated_item.claim_status == 'unclaimed'
+
+    def test_edit_item_to_giveaway_with_active_loan_is_blocked(self, client, app, auth_user):
+        """Items with active loans cannot be converted to giveaways."""
+        with app.app_context():
+            owner = auth_user()
+            borrower = UserFactory()
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, is_giveaway=False, available=False)
+            LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status='approved',
+                start_date=datetime.now(UTC).date() - timedelta(days=2),
+                end_date=datetime.now(UTC).date() + timedelta(days=5),
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(f'/item/{item.id}/edit', data={
+                'name': item.name,
+                'description': item.description,
+                'category': str(category.id),
+                'is_giveaway': True,
+                'giveaway_visibility': 'public',
+                'tags': ''
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'This item has an active loan. Mark it returned or cancel the loan before converting it to a giveaway.' in response.data
+
+            updated_item = db.session.get(Item, item.id)
+            assert updated_item.is_giveaway is False
+            assert updated_item.giveaway_visibility is None
+            assert updated_item.claim_status is None
+
+    def test_edit_item_to_giveaway_with_pending_loan_request_is_blocked(self, client, app, auth_user):
+        """Items with pending loan requests cannot be converted to giveaways."""
+        with app.app_context():
+            owner = auth_user()
+            borrower = UserFactory()
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, is_giveaway=False)
+            LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status='pending',
+                start_date=datetime.now(UTC).date() + timedelta(days=1),
+                end_date=datetime.now(UTC).date() + timedelta(days=7),
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(f'/item/{item.id}/edit', data={
+                'name': item.name,
+                'description': item.description,
+                'category': str(category.id),
+                'is_giveaway': True,
+                'giveaway_visibility': 'default',
+                'tags': ''
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'This item has a pending loan request. Resolve the request before converting it to a giveaway.' in response.data
+
+            updated_item = db.session.get(Item, item.id)
+            assert updated_item.is_giveaway is False
+            assert updated_item.giveaway_visibility is None
+            assert updated_item.claim_status is None
     
     def test_edit_giveaway_to_loan(self, client, app, auth_user):
         """Test editing an existing giveaway to become a loan item."""

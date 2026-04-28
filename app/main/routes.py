@@ -136,6 +136,29 @@ def _shares_circle_or_has_item_token_access(item, share_token=None):
     return token_grants_item_access(share_token, item)
 
 
+def _get_first_loan_conversation_message(loan):
+    return Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+
+
+def _redirect_to_loan_conversation(loan):
+    original_message = _get_first_loan_conversation_message(loan)
+    if original_message:
+        return redirect(url_for('main.view_conversation', message_id=original_message.id))
+    return redirect(url_for('main.item_detail', item_id=loan.item_id))
+
+
+def _giveaway_conversion_blocker(item):
+    active_loan = LoanRequest.query.filter_by(item_id=item.id, status='approved').first()
+    if active_loan:
+        return active_loan, 'active'
+
+    pending_loan = LoanRequest.query.filter_by(item_id=item.id, status='pending').first()
+    if pending_loan:
+        return pending_loan, 'pending'
+
+    return None, None
+
+
 def _parse_homepage_feed_filters(user):
     scope = request.args.get('scope', 'all')
     if scope not in {'all', 'circles'}:
@@ -1322,6 +1345,19 @@ def edit_item(item_id):
         form.tags.data = ', '.join([tag.name for tag in item.tags])
 
     if form.validate_on_submit():
+        if form.is_giveaway.data:
+            blocking_loan, blocking_loan_type = _giveaway_conversion_blocker(item)
+            if blocking_loan:
+                if blocking_loan_type == 'active':
+                    form.is_giveaway.errors.append(
+                        'This item has an active loan. Mark it returned or cancel the loan before converting it to a giveaway.'
+                    )
+                else:
+                    form.is_giveaway.errors.append(
+                        'This item has a pending loan request. Resolve the request before converting it to a giveaway.'
+                    )
+                return render_template('main/edit_item.html', form=form, item=item)
+
         try:
             delete_entries = _parse_json_string_list(form.delete_images.data, 'Photo removal')
             order_entries = _parse_json_string_list(form.image_order.data, 'Photo order')
@@ -1549,8 +1585,7 @@ def process_loan(loan_id, action):
         flash("An error occurred processing the request.", "danger")
     
     # Redirect back to the conversation
-    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
-    return redirect(url_for('main.view_conversation', message_id=original_message.id))
+    return _redirect_to_loan_conversation(loan)
 
 @main_bp.route('/loan/<uuid:loan_id>/cancel', methods=['POST'])
 @login_required
@@ -1598,8 +1633,7 @@ def cancel_loan_request(loan_id):
         flash("An error occurred canceling the request.", "danger")
     
     # Find original conversation
-    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
-    return redirect(url_for('main.view_conversation', message_id=original_message.id))
+    return _redirect_to_loan_conversation(loan)
 
 @main_bp.route('/loan/<uuid:loan_id>/complete', methods=['POST'])
 @login_required
@@ -1648,8 +1682,7 @@ def complete_loan(loan_id):
         flash("An error occurred completing the loan.", "danger")
     
     # Find original conversation
-    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
-    return redirect(url_for('main.view_conversation', message_id=original_message.id))
+    return _redirect_to_loan_conversation(loan)
 
 @main_bp.route('/loan/<uuid:loan_id>/owner_cancel', methods=['POST'])
 @login_required
@@ -1701,8 +1734,7 @@ def owner_cancel_loan(loan_id):
         current_app.logger.error(f"Error canceling loan {loan_id}: {e}")
     
     # Redirect back to the original conversation
-    original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
-    return redirect(url_for('main.view_conversation', message_id=original_message.id))
+    return _redirect_to_loan_conversation(loan)
 
 @main_bp.route('/loan/<uuid:loan_id>/extend', methods=['GET', 'POST'])
 @login_required
@@ -1775,8 +1807,7 @@ def extend_loan(loan_id):
             current_app.logger.error(f"Error updating loan due date {loan_id}: {e}")
         
         # Redirect back to the original conversation
-        original_message = Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
-        return redirect(url_for('main.view_conversation', message_id=original_message.id))
+        return _redirect_to_loan_conversation(loan)
     
     return render_template('main/extend_loan.html', form=form, loan=loan)
 

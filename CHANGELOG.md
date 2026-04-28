@@ -13,6 +13,10 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - `share/` pages get the aesthetic and the "how/why" content from the main landing page ([#323](https://github.com/sfirke/meutch/pull/323)).
 - Surface giveaway actions in the owner-recipient conversation, both for recipient assignment and handoff confirmation. Also add item deletion modal that stops pending-pickup items and active loans from being deleted ([#329](https://github.com/sfirke/meutch/pull/329)).
 
+### Bug fixes
+- Items can no longer be converted to giveaways while they still have pending or approved loan requests ([#334](https://github.com/sfirke/meutch/pull/334)).
+
+
 ### Developer Experience
 - Seeded loan data now includes messages, `./dev-start seed` can run when alembic table is missing/hasn't been initialized yet ([#307](https://github.com/sfirke/meutch/pull/307)).
 

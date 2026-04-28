@@ -708,7 +708,7 @@ class TestItemRoutes:
             assert b'This item is currently out on loan' in response.data
             assert b'Mark the item returned or cancel the loan before deleting it.' in response.data
             assert b'View Active Loan' in response.data
-    
+
     def test_add_item_image_upload_failure(self, app, client, auth_user):
         """Test adding item when image upload fails."""
         with app.app_context():
