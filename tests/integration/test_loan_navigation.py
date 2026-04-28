@@ -165,3 +165,114 @@ class TestMyActivityConversationLinks:
             # Dedicated View Loan button links to conversation
             assert f'href="/message/{msg.id}"' in content
             assert 'View Loan' in content
+
+    def test_my_activity_hides_giveaway_items_from_loan_tables(self, client, app, auth_user):
+        """Loan-only profile tables should filter out malformed giveaway-backed loans."""
+        with app.app_context():
+            viewer = auth_user()
+            other_owner = UserFactory()
+            other_borrower = UserFactory()
+            category = CategoryFactory()
+
+            valid_borrowed = ItemFactory(
+                owner=other_owner,
+                category=category,
+                available=False,
+                name='Valid Borrowed Item',
+            )
+            valid_borrowed_loan = LoanRequestFactory(
+                item=valid_borrowed,
+                borrower=viewer,
+                status='approved',
+                start_date=date.today() - timedelta(days=2),
+                end_date=date.today() + timedelta(days=5),
+            )
+            MessageFactory(
+                sender=viewer,
+                recipient=other_owner,
+                item=valid_borrowed,
+                loan_request=valid_borrowed_loan,
+                body='Borrowing this valid item.',
+            )
+
+            valid_lent = ItemFactory(
+                owner=viewer,
+                category=category,
+                available=False,
+                name='Valid Lent Item',
+            )
+            valid_lent_loan = LoanRequestFactory(
+                item=valid_lent,
+                borrower=other_borrower,
+                status='approved',
+                start_date=date.today() - timedelta(days=3),
+                end_date=date.today() + timedelta(days=4),
+            )
+            MessageFactory(
+                sender=other_borrower,
+                recipient=viewer,
+                item=valid_lent,
+                loan_request=valid_lent_loan,
+                body='Borrowing this valid lent item.',
+            )
+
+            malformed_borrowed = ItemFactory(
+                owner=other_owner,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed',
+                available=False,
+                name='Malformed Borrowed Giveaway',
+            )
+            malformed_borrowed_loan = LoanRequestFactory(
+                item=malformed_borrowed,
+                borrower=viewer,
+                status='approved',
+                start_date=date.today() - timedelta(days=1),
+                end_date=date.today() + timedelta(days=6),
+            )
+            MessageFactory(
+                sender=viewer,
+                recipient=other_owner,
+                item=malformed_borrowed,
+                loan_request=malformed_borrowed_loan,
+                body='This malformed borrowed giveaway should be hidden.',
+            )
+
+            malformed_lent = ItemFactory(
+                owner=viewer,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed',
+                available=False,
+                name='Malformed Lent Giveaway',
+            )
+            malformed_lent_loan = LoanRequestFactory(
+                item=malformed_lent,
+                borrower=other_borrower,
+                status='approved',
+                start_date=date.today() - timedelta(days=1),
+                end_date=date.today() + timedelta(days=6),
+            )
+            MessageFactory(
+                sender=other_borrower,
+                recipient=viewer,
+                item=malformed_lent,
+                loan_request=malformed_lent_loan,
+                body='This malformed lent giveaway should be hidden.',
+            )
+
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get('/profile?tab=my-activity')
+
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            my_activity_content = content.split('id="my-activity"', 1)[1].split('id="about-me"', 1)[0]
+            assert 'Valid Borrowed Item' in my_activity_content
+            assert 'Valid Lent Item' in my_activity_content
+            assert 'Malformed Borrowed Giveaway' not in my_activity_content
+            assert 'Malformed Lent Giveaway' not in my_activity_content

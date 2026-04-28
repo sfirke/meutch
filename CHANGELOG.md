@@ -44,6 +44,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Make loan activity easier to find: add "View Loan" button to item cards and item detail page, restructure My Activity tab to combine item thumbnail and name into one clear link with a dedicated "View Loan" action button that links to the conversation ([#304](https://github.com/sfirke/meutch/pull/304)).
 
 ### Bug Fixes
+- Fix: items can no longer be converted to giveaways while they still have pending or approved loan requests, and legacy giveaway-backed loan routes are now rejected consistently in the loan workflow.
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/pull/213)).
 - Fix: users without location set now can't create public giveaways or requests ([#231](https://github.com/sfirke/meutch/pull/231)). 
 - Fix: pending private-circle join approvals no longer count as unread messages; circles pending badge remains the admin signal, and already-handled join requests can no longer be re-processed by another admin ([#257](https://github.com/sfirke/meutch/pull/257)).

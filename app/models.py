@@ -146,14 +146,16 @@ class User(UserMixin, db.Model):
         """Returns items user is currently borrowing"""
         return Item.query.join(LoanRequest).filter(
             LoanRequest.borrower_id == self.id,
-            LoanRequest.status == 'approved'
+            LoanRequest.status == 'approved',
+            Item.is_giveaway == False
         ).all()
 
     def get_active_loans_as_owner(self):
         """Returns items user is currently lending"""
         return Item.query.join(LoanRequest).filter(
             Item.owner_id == self.id,
-            LoanRequest.status == 'approved'
+            LoanRequest.status == 'approved',
+            Item.is_giveaway == False
         ).all()
     
     def generate_confirmation_token(self):

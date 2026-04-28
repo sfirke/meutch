@@ -708,6 +708,61 @@ class TestItemRoutes:
             assert b'This item is currently out on loan' in response.data
             assert b'Mark the item returned or cancel the loan before deleting it.' in response.data
             assert b'View Active Loan' in response.data
+
+    @pytest.mark.parametrize(
+        'loan_status, actor_role, method, path_template',
+        [
+            ('pending', 'owner', 'post', '/loan/{loan_id}/approve'),
+            ('pending', 'borrower', 'post', '/loan/{loan_id}/cancel'),
+            ('approved', 'owner', 'post', '/loan/{loan_id}/complete'),
+            ('approved', 'owner', 'post', '/loan/{loan_id}/owner_cancel'),
+            ('pending', 'owner', 'get', '/loan/{loan_id}/extend'),
+            ('approved', 'owner', 'post', '/loan/{loan_id}/extend'),
+        ],
+    )
+    def test_giveaway_backed_loan_actions_are_blocked(self, client, app, auth_user, loan_status, actor_role, method, path_template):
+        """Loan-only routes should reject giveaway items even if malformed data exists."""
+        with app.app_context():
+            owner = auth_user()
+            borrower = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed',
+                available=(loan_status == 'pending'),
+            )
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status=loan_status,
+                start_date=date.today() - timedelta(days=1),
+                end_date=date.today() + timedelta(days=7),
+            )
+            original_message = MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                item=item,
+                loan_request=loan,
+                body='Keeping this conversation attached to the loan.',
+            )
+            db.session.commit()
+
+            login_user(client, owner.email if actor_role == 'owner' else borrower.email)
+
+            response = getattr(client, method)(
+                path_template.format(loan_id=loan.id),
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert b'Loan actions are unavailable for giveaway items.' in response.data
+            assert f'/message/{original_message.id}'.encode() in response.data
+
+            updated_loan = db.session.get(type(loan), loan.id)
+            updated_item = db.session.get(Item, item.id)
+            assert updated_loan.status == loan_status
+            assert updated_item.available is (loan_status == 'pending')
     
     def test_add_item_image_upload_failure(self, app, client, auth_user):
         """Test adding item when image upload fails."""

@@ -1,6 +1,6 @@
 {% set is_pending_handoff = item.is_giveaway and item.claim_status == 'pending_pickup' %}
 {% set is_claimed_giveaway = item.is_giveaway and item.claim_status == 'claimed' %}
-{% set active_loan = item.current_loan if not item.is_giveaway else none %}
+{% set active_loan = item.current_loan %}
 {% set is_on_loan = active_loan is not none %}
 {% set message_count = item.messages|length %}
 {% set is_blocked_delete = is_pending_handoff or is_claimed_giveaway or is_on_loan %}
