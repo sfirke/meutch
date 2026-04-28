@@ -253,6 +253,281 @@ def build_visible_giveaway_events(
     return events
 
 
+def _classify_request_digest_variant(item_request, since=None, until=None):
+    created_in_window = _within_time_window(item_request.created_at, since=since, until=until)
+    fulfilled_in_window = (
+        item_request.status == 'fulfilled'
+        and item_request.fulfilled_at is not None
+        and _within_time_window(item_request.fulfilled_at, since=since, until=until)
+    )
+
+    if created_in_window and fulfilled_in_window:
+        return 'new-resolved-in-window'
+    if created_in_window:
+        return 'new'
+    if fulfilled_in_window:
+        return 'resolved-in-window'
+    return None
+
+
+def _classify_giveaway_digest_variant(item, since=None, until=None):
+    created_in_window = _within_time_window(item.created_at, since=since, until=until)
+    claimed_in_window = (
+        item.claim_status == 'claimed'
+        and item.claimed_at is not None
+        and _within_time_window(item.claimed_at, since=since, until=until)
+    )
+
+    if created_in_window and claimed_in_window:
+        return 'new-resolved-in-window'
+    if created_in_window:
+        return 'new'
+    if claimed_in_window:
+        return 'resolved-in-window'
+    return None
+
+
+def build_digest_request_events(
+    user,
+    scoped_circle_ids=None,
+    scope='all',
+    max_distance=None,
+    distance_explicit=False,
+    since=None,
+    until=None,
+):
+    now = datetime.now(UTC)
+    since_utc = _utc(since)
+    until_utc = _utc(until)
+    shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
+    normalized_scope = _normalize_scope(scope)
+
+    base_query = ItemRequest.query.join(User, ItemRequest.user_id == User.id).filter(
+        ItemRequest.user_id != user.id,
+        User.is_deleted == False,
+        User.vacation_mode == False,
+        or_(
+            and_(
+                ItemRequest.status == 'open',
+                ItemRequest.expires_at > now,
+            ),
+            and_(
+                ItemRequest.status == 'fulfilled',
+                ItemRequest.fulfilled_at.isnot(None),
+            ),
+        ),
+    )
+
+    if since_utc is not None and until_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                and_(
+                    ItemRequest.created_at >= since_utc,
+                    ItemRequest.created_at <= until_utc,
+                ),
+                and_(
+                    ItemRequest.fulfilled_at.isnot(None),
+                    ItemRequest.fulfilled_at >= since_utc,
+                    ItemRequest.fulfilled_at <= until_utc,
+                ),
+            )
+        )
+    elif since_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                ItemRequest.created_at >= since_utc,
+                and_(
+                    ItemRequest.fulfilled_at.isnot(None),
+                    ItemRequest.fulfilled_at >= since_utc,
+                ),
+            )
+        )
+    elif until_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                ItemRequest.created_at <= until_utc,
+                and_(
+                    ItemRequest.fulfilled_at.isnot(None),
+                    ItemRequest.fulfilled_at <= until_utc,
+                ),
+            )
+        )
+
+    if normalized_scope == 'circles':
+        if shared_circle_user_ids is None:
+            return []
+        base_query = base_query.filter(ItemRequest.user_id.in_(shared_circle_user_ids))
+    else:
+        if shared_circle_user_ids is None:
+            base_query = base_query.filter(ItemRequest.visibility == 'public')
+        else:
+            base_query = base_query.filter(
+                or_(
+                    ItemRequest.visibility == 'public',
+                    and_(
+                        ItemRequest.visibility == 'circles',
+                        ItemRequest.user_id.in_(shared_circle_user_ids),
+                    ),
+                )
+            )
+
+    visible_requests = base_query.order_by(ItemRequest.created_at.desc()).all()
+    effective_distance = _effective_giveaway_distance(max_distance, distance_explicit)
+    visible_requests = _distance_filter_requests(visible_requests, user, effective_distance)
+
+    events = []
+    for item_request in visible_requests:
+        digest_variant = _classify_request_digest_variant(item_request, since=since, until=until)
+        if digest_variant is None:
+            continue
+
+        started_at = _utc(item_request.created_at)
+        resolved_at = _utc(item_request.fulfilled_at) if item_request.fulfilled_at else None
+        event_time = resolved_at if digest_variant == 'resolved-in-window' else started_at
+        distance = None
+        if user.is_geocoded and item_request.user and item_request.user.is_geocoded:
+            raw = user.distance_to(item_request.user)
+            distance = format_distance(raw) if raw is not None else None
+        events.append({
+            'event_type': 'request',
+            'created_at': event_time,
+            'started_at': started_at,
+            'resolved_at': resolved_at,
+            'resolution_status': 'fulfilled' if resolved_at is not None else None,
+            'digest_variant': digest_variant,
+            'request_id': item_request.id,
+            'title': item_request.title,
+            'description': item_request.description,
+            'status': item_request.status,
+            'actor_name': item_request.user.full_name if item_request.user else 'Deleted User',
+            'actor_avatar_url': item_request.user.profile_image_url if item_request.user else None,
+            'image_url': None,
+            'action': 'requested',
+            'visibility': item_request.visibility,
+            'distance': distance,
+        })
+    return events
+
+
+def build_digest_giveaway_events(
+    user,
+    scoped_circle_ids=None,
+    scope='all',
+    max_distance=None,
+    distance_explicit=False,
+    since=None,
+    until=None,
+):
+    if not scoped_circle_ids:
+        return []
+
+    since_utc = _utc(since)
+    until_utc = _utc(until)
+    shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
+    all_circle_user_ids = select(circle_members.c.user_id).distinct()
+    normalized_scope = _normalize_scope(scope)
+
+    if normalized_scope == 'circles':
+        visibility_filter = Item.owner_id.in_(shared_circle_user_ids)
+    else:
+        visibility_filter = or_(
+            and_(
+                or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
+                Item.owner_id.in_(shared_circle_user_ids),
+            ),
+            and_(
+                Item.giveaway_visibility == 'public',
+                Item.owner_id.in_(all_circle_user_ids),
+            ),
+        )
+
+    base_query = Item.query.join(User, Item.owner_id == User.id).filter(
+        Item.is_giveaway == True,
+        User.vacation_mode == False,
+        visibility_filter,
+        Item.owner_id != user.id,
+        or_(
+            Item.claim_status.is_(None),
+            Item.claim_status == 'unclaimed',
+            and_(
+                Item.claim_status == 'claimed',
+                Item.claimed_at.isnot(None),
+            ),
+        ),
+    )
+
+    if since_utc is not None and until_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                and_(
+                    Item.created_at >= since_utc,
+                    Item.created_at <= until_utc,
+                ),
+                and_(
+                    Item.claimed_at.isnot(None),
+                    Item.claimed_at >= since_utc,
+                    Item.claimed_at <= until_utc,
+                ),
+            )
+        )
+    elif since_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                Item.created_at >= since_utc,
+                and_(
+                    Item.claimed_at.isnot(None),
+                    Item.claimed_at >= since_utc,
+                ),
+            )
+        )
+    elif until_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                Item.created_at <= until_utc,
+                and_(
+                    Item.claimed_at.isnot(None),
+                    Item.claimed_at <= until_utc,
+                ),
+            )
+        )
+
+    giveaway_items = base_query.order_by(Item.created_at.desc()).all()
+    effective_distance = _effective_giveaway_distance(max_distance, distance_explicit)
+    giveaway_items = _distance_filter_items(giveaway_items, user, effective_distance)
+
+    events = []
+    for item in giveaway_items:
+        digest_variant = _classify_giveaway_digest_variant(item, since=since, until=until)
+        if digest_variant is None:
+            continue
+
+        started_at = _utc(item.created_at)
+        resolved_at = _utc(item.claimed_at) if item.claimed_at else None
+        event_time = resolved_at if digest_variant == 'resolved-in-window' else started_at
+        distance = None
+        if user.is_geocoded and item.owner and item.owner.is_geocoded:
+            raw = user.distance_to(item.owner)
+            distance = format_distance(raw) if raw is not None else None
+        events.append({
+            'event_type': 'giveaway',
+            'created_at': event_time,
+            'started_at': started_at,
+            'resolved_at': resolved_at,
+            'resolution_status': 'claimed' if resolved_at is not None else None,
+            'digest_variant': digest_variant,
+            'item_id': item.id,
+            'title': item.name,
+            'description': item.description,
+            'claim_status': item.claim_status,
+            'actor_name': item.owner.full_name if item.owner else 'Deleted User',
+            'actor_avatar_url': item.owner.profile_image_url if item.owner else None,
+            'image_url': item.image,
+            'action': 'posted a giveaway',
+            'distance': distance,
+        })
+    return events
+
+
 def build_recent_lent_events(user, scoped_circle_ids=None, days=30, since=None, until=None):
     if not scoped_circle_ids:
         return []
@@ -490,23 +765,62 @@ def build_digest_payload(user, since=None, until=None, max_events=200):
         window_start = window_end - timedelta(days=7)
 
     included_event_types = _digest_included_event_types(user)
-    events = _assemble_feed_events(
-        user,
-        selected_circle_ids=None,
-        request_scope='all' if user.digest_requests_include_public else 'circles',
-        giveaway_scope='all' if user.digest_giveaways_include_public else 'circles',
-        giveaway_distance=user.digest_radius_miles,
-        giveaway_distance_explicit=True,
-        included_event_types=included_event_types,
-        since=window_start,
-        until=window_end,
-        max_events=max_events,
-    )
+    scoped_circle_ids = _get_scoped_circle_ids(user)
+    events = []
+
+    if 'requests' in included_event_types:
+        events.extend(
+            build_digest_request_events(
+                user,
+                scoped_circle_ids=scoped_circle_ids,
+                scope='all' if user.digest_requests_include_public else 'circles',
+                max_distance=user.digest_radius_miles,
+                distance_explicit=True,
+                since=window_start,
+                until=window_end,
+            )
+        )
+    if 'giveaways' in included_event_types:
+        events.extend(
+            build_digest_giveaway_events(
+                user,
+                scoped_circle_ids=scoped_circle_ids,
+                scope='all' if user.digest_giveaways_include_public else 'circles',
+                max_distance=user.digest_radius_miles,
+                distance_explicit=True,
+                since=window_start,
+                until=window_end,
+            )
+        )
+    if 'loans' in included_event_types:
+        events.extend(
+            build_recent_lent_events(
+                user,
+                scoped_circle_ids=scoped_circle_ids,
+                since=window_start,
+                until=window_end,
+            )
+        )
+    if 'circle_joins' in included_event_types:
+        events.extend(
+            build_circle_join_events(
+                user,
+                scoped_circle_ids=scoped_circle_ids,
+                since=window_start,
+                until=window_end,
+            )
+        )
+
+    events.sort(key=lambda event: event['created_at'], reverse=True)
+    events = events[:max_events]
 
     giveaways = [event for event in events if event.get('event_type') == 'giveaway']
     requests = [event for event in events if event.get('event_type') == 'request']
     circle_joins = [event for event in events if event.get('event_type') == 'circle_join']
     loans = [event for event in events if event.get('event_type') == 'lent']
+
+    giveaways_count = sum(1 for event in giveaways if event.get('digest_variant') != 'resolved-in-window')
+    requests_count = sum(1 for event in requests if event.get('digest_variant') != 'resolved-in-window')
 
     return {
         'window_start': window_start,
@@ -517,8 +831,8 @@ def build_digest_payload(user, since=None, until=None, max_events=200):
         'circle_joins': circle_joins,
         'loans': loans,
         'summary_stats': {
-            'total_new_items': len(giveaways) + len(requests),
-            'giveaways_count': len(giveaways),
-            'borrow_requests_count': len(requests),
+            'total_new_items': giveaways_count + requests_count,
+            'giveaways_count': giveaways_count,
+            'borrow_requests_count': requests_count,
         },
     }

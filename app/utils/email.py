@@ -464,6 +464,25 @@ def _digest_event_title(event):
     return event['title']
 
 
+def _digest_resolution_label(event):
+    if event.get('digest_variant') != 'new-resolved-in-window':
+        return None
+    if event['event_type'] == 'request' and event.get('resolution_status') == 'fulfilled':
+        return 'Fulfilled'
+    if event['event_type'] == 'giveaway' and event.get('resolution_status') == 'claimed':
+        return 'Claimed'
+    return None
+
+
+def _digest_resolution_only_text(event):
+    title = _digest_event_title(event)
+    if event['event_type'] == 'request':
+        return f'{title} was marked fulfilled'
+    if event['event_type'] == 'giveaway':
+        return f'{title} was claimed'
+    return title
+
+
 def _digest_cadence_label(user):
     cadence = (getattr(user, 'digest_frequency', None) or '').lower()
     if cadence == 'daily':
@@ -540,12 +559,20 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         text_lines.append(f"{section_title}:")
         for event in events:
             actor = event['actor_name']
-            title = _digest_event_title(event)
-            action = event['action']
-            text_lines.append(f"- {actor} {action}: {title}")
-            if include_description and event.get('description'):
+            is_resolution_only = event.get('digest_variant') == 'resolved-in-window'
+            if is_resolution_only:
+                text_lines.append(f"- {actor}: {_digest_resolution_only_text(event)}")
+            else:
+                title = _digest_event_title(event)
+                action = event['action']
+                resolution_label = _digest_resolution_label(event)
+                line = f"- {actor} {action}: {title}"
+                if resolution_label:
+                    line = f"{line} [{resolution_label}]"
+                text_lines.append(line)
+            if include_description and not is_resolution_only and event.get('description'):
                 text_lines.append(f"  {event['description']}")
-            if event.get('image_url'):
+            if not is_resolution_only and event.get('image_url'):
                 text_lines.append(f"  Image: {event['image_url']}")
             text_lines.append(f"  {_digest_event_url(event)}")
         text_lines.append("")
@@ -582,15 +609,14 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         items_html = []
         for event in events:
             actor = event['actor_name']
-            item_title = _digest_event_title(event)
-            action = event['action']
             link = _digest_event_url(event)
+            is_resolution_only = event.get('digest_variant') == 'resolved-in-window'
             description_html = ''
-            if include_description and event.get('description'):
+            if include_description and not is_resolution_only and event.get('description'):
                 description_html = f"<p style=\"margin: 6px 0 0 0; color: #555;\">{event['description']}</p>"
 
             image_html = ''
-            if event.get('image_url'):
+            if not is_resolution_only and event.get('image_url'):
                 image_html = (
                     f"<div style=\"margin: 8px 0;\">"
                     f"<img src=\"{event['image_url']}\" alt=\"Activity image\" "
@@ -598,10 +624,25 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
                     f"</div>"
                 )
 
+            if is_resolution_only:
+                activity_html = f"<strong>{actor}</strong>: {_digest_resolution_only_text(event)}<br>"
+            else:
+                item_title = _digest_event_title(event)
+                action = event['action']
+                resolution_label = _digest_resolution_label(event)
+                label_html = ''
+                if resolution_label:
+                    label_html = (
+                        f" <span style=\"display: inline-block; margin-left: 6px; padding: 1px 8px; "
+                        f"background-color: #198754; color: #fff; border-radius: 999px; font-size: 12px;\">"
+                        f"{resolution_label}</span>"
+                    )
+                activity_html = f"<strong>{actor}</strong> {action}: {item_title}{label_html}<br>"
+
             items_html.append(
                 f"""
                 <li style=\"margin-bottom: 10px;\">
-                    <strong>{actor}</strong> {action}: {item_title}<br>
+                    {activity_html}
                     {description_html}
                     {image_html}
                     <a href=\"{link}\" style=\"color: #007bff; text-decoration: none;\">View activity</a>

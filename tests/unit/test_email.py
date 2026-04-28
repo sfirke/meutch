@@ -191,3 +191,201 @@ class TestEmailUtils:
                 assert result is False
                 # send_email should never be called
                 mock_send_email.assert_not_called()
+
+    def test_build_digest_email_content_adds_same_window_resolution_labels(self, app):
+        with app.app_context():
+            user = UserFactory(first_name='Digest', digest_frequency='daily')
+            payload = {
+                'summary_stats': {
+                    'total_new_items': 2,
+                    'giveaways_count': 1,
+                    'borrow_requests_count': 1,
+                },
+                'events': [
+                    {
+                        'event_type': 'giveaway',
+                        'item_id': uuid.uuid4(),
+                        'actor_name': 'Alex',
+                        'title': 'Free Chair',
+                        'description': 'Great chair in good condition',
+                        'image_url': 'https://example.com/chair.jpg',
+                        'action': 'posted a giveaway',
+                        'digest_variant': 'new-resolved-in-window',
+                        'resolution_status': 'claimed',
+                    },
+                    {
+                        'event_type': 'request',
+                        'request_id': uuid.uuid4(),
+                        'actor_name': 'Taylor',
+                        'title': 'Need a ladder',
+                        'description': 'Need for one weekend project',
+                        'image_url': None,
+                        'action': 'requested',
+                        'digest_variant': 'new-resolved-in-window',
+                        'resolution_status': 'fulfilled',
+                    },
+                ],
+                'giveaways': [
+                    {
+                        'event_type': 'giveaway',
+                        'item_id': uuid.uuid4(),
+                        'actor_name': 'Alex',
+                        'title': 'Free Chair',
+                        'description': 'Great chair in good condition',
+                        'image_url': 'https://example.com/chair.jpg',
+                        'action': 'posted a giveaway',
+                        'digest_variant': 'new-resolved-in-window',
+                        'resolution_status': 'claimed',
+                    }
+                ],
+                'requests': [
+                    {
+                        'event_type': 'request',
+                        'request_id': uuid.uuid4(),
+                        'actor_name': 'Taylor',
+                        'title': 'Need a ladder',
+                        'description': 'Need for one weekend project',
+                        'image_url': None,
+                        'action': 'requested',
+                        'digest_variant': 'new-resolved-in-window',
+                        'resolution_status': 'fulfilled',
+                    }
+                ],
+                'circle_joins': [],
+                'loans': [],
+            }
+
+            content = build_digest_email_content(
+                user,
+                payload,
+                manage_url='https://example.com/digest/manage/token123',
+                unsubscribe_url='https://example.com/digest/unsubscribe/token123',
+            )
+
+            assert 'Alex posted a giveaway: Free Chair [Claimed]' in content['text']
+            assert 'Taylor requested: Need a ladder [Fulfilled]' in content['text']
+            assert '>Claimed</span>' in content['html']
+            assert '>Fulfilled</span>' in content['html']
+
+    def test_build_digest_email_content_renders_resolution_only_copy(self, app):
+        with app.app_context():
+            user = UserFactory(first_name='Digest', digest_frequency='weekly')
+            giveaway_id = uuid.uuid4()
+            request_id = uuid.uuid4()
+            payload = {
+                'summary_stats': {
+                    'total_new_items': 0,
+                    'giveaways_count': 0,
+                    'borrow_requests_count': 0,
+                },
+                'events': [
+                    {
+                        'event_type': 'giveaway',
+                        'item_id': giveaway_id,
+                        'actor_name': 'Alex',
+                        'title': 'Free Chair',
+                        'description': 'This should not be repeated',
+                        'image_url': 'https://example.com/chair.jpg',
+                        'action': 'posted a giveaway',
+                        'digest_variant': 'resolved-in-window',
+                        'resolution_status': 'claimed',
+                    },
+                    {
+                        'event_type': 'request',
+                        'request_id': request_id,
+                        'actor_name': 'Taylor',
+                        'title': 'Need a ladder',
+                        'description': 'This should not be repeated',
+                        'image_url': None,
+                        'action': 'requested',
+                        'digest_variant': 'resolved-in-window',
+                        'resolution_status': 'fulfilled',
+                    },
+                ],
+                'giveaways': [
+                    {
+                        'event_type': 'giveaway',
+                        'item_id': giveaway_id,
+                        'actor_name': 'Alex',
+                        'title': 'Free Chair',
+                        'description': 'This should not be repeated',
+                        'image_url': 'https://example.com/chair.jpg',
+                        'action': 'posted a giveaway',
+                        'digest_variant': 'resolved-in-window',
+                        'resolution_status': 'claimed',
+                    }
+                ],
+                'requests': [
+                    {
+                        'event_type': 'request',
+                        'request_id': request_id,
+                        'actor_name': 'Taylor',
+                        'title': 'Need a ladder',
+                        'description': 'This should not be repeated',
+                        'image_url': None,
+                        'action': 'requested',
+                        'digest_variant': 'resolved-in-window',
+                        'resolution_status': 'fulfilled',
+                    }
+                ],
+                'circle_joins': [],
+                'loans': [],
+            }
+
+            content = build_digest_email_content(
+                user,
+                payload,
+                manage_url='https://example.com/digest/manage/token123',
+                unsubscribe_url='https://example.com/digest/unsubscribe/token123',
+            )
+
+            assert 'Alex: Free Chair was claimed' in content['text']
+            assert 'Taylor: Need a ladder was marked fulfilled' in content['text']
+            assert 'This should not be repeated' not in content['text']
+            assert 'Image: https://example.com/chair.jpg' not in content['text']
+            assert 'Free Chair was claimed' in content['html']
+            assert 'Need a ladder was marked fulfilled' in content['html']
+
+    def test_send_digest_email_sends_when_payload_has_only_resolution_events(self, app):
+        with app.app_context():
+            user = UserFactory(first_name='Digest', digest_frequency='weekly')
+            payload = {
+                'summary_stats': {
+                    'total_new_items': 0,
+                    'giveaways_count': 0,
+                    'borrow_requests_count': 0,
+                },
+                'events': [
+                    {
+                        'event_type': 'giveaway',
+                        'item_id': uuid.uuid4(),
+                        'actor_name': 'Alex',
+                        'title': 'Free Chair',
+                        'action': 'posted a giveaway',
+                        'digest_variant': 'resolved-in-window',
+                        'resolution_status': 'claimed',
+                    }
+                ],
+                'giveaways': [
+                    {
+                        'event_type': 'giveaway',
+                        'item_id': uuid.uuid4(),
+                        'actor_name': 'Alex',
+                        'title': 'Free Chair',
+                        'action': 'posted a giveaway',
+                        'digest_variant': 'resolved-in-window',
+                        'resolution_status': 'claimed',
+                    }
+                ],
+                'requests': [],
+                'circle_joins': [],
+                'loans': [],
+            }
+
+            with patch('app.utils.email.send_email') as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_digest_email(user, payload)
+
+                assert result is True
+                mock_send_email.assert_called_once()

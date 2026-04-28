@@ -251,3 +251,276 @@ def test_build_digest_payload_summary_stats_counts_requests_and_giveaways(app):
         assert payload['summary_stats']['giveaways_count'] == 1
         assert payload['summary_stats']['borrow_requests_count'] == 1
         assert payload['summary_stats']['total_new_items'] == 2
+
+
+def test_build_digest_payload_keeps_same_window_fulfilled_request_in_requests_section(app):
+    with app.app_context():
+        viewer = UserFactory(
+            digest_include_giveaways=False,
+            digest_include_requests=True,
+            digest_include_circle_joins=False,
+            digest_include_loans=False,
+            digest_requests_include_public=False,
+        )
+        requester = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, requester])
+
+        now = datetime.now(UTC)
+        item_request = ItemRequestFactory(
+            user=requester,
+            visibility='circles',
+            status='fulfilled',
+            created_at=now - timedelta(hours=6),
+            fulfilled_at=now - timedelta(hours=1),
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(viewer, since=now - timedelta(days=1), until=now)
+
+        assert len(payload['requests']) == 1
+        event = payload['requests'][0]
+        assert event['request_id'] == item_request.id
+        assert event['digest_variant'] == 'new-resolved-in-window'
+        assert event['created_at'] == item_request.created_at.replace(tzinfo=UTC)
+        assert event['started_at'] == item_request.created_at.replace(tzinfo=UTC)
+        assert event['resolved_at'] == item_request.fulfilled_at.replace(tzinfo=UTC)
+        assert event['resolution_status'] == 'fulfilled'
+        assert payload['summary_stats']['borrow_requests_count'] == 1
+        assert payload['summary_stats']['total_new_items'] == 1
+
+
+def test_build_digest_payload_emits_resolution_only_request_event(app):
+    with app.app_context():
+        viewer = UserFactory(
+            digest_include_giveaways=False,
+            digest_include_requests=True,
+            digest_include_circle_joins=False,
+            digest_include_loans=False,
+            digest_requests_include_public=False,
+        )
+        requester = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, requester])
+
+        now = datetime.now(UTC)
+        item_request = ItemRequestFactory(
+            user=requester,
+            visibility='circles',
+            status='fulfilled',
+            created_at=now - timedelta(days=4),
+            fulfilled_at=now - timedelta(hours=2),
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(viewer, since=now - timedelta(days=1), until=now)
+
+        assert len(payload['requests']) == 1
+        event = payload['requests'][0]
+        assert event['request_id'] == item_request.id
+        assert event['digest_variant'] == 'resolved-in-window'
+        assert event['created_at'] == item_request.fulfilled_at.replace(tzinfo=UTC)
+        assert event['started_at'] == item_request.created_at.replace(tzinfo=UTC)
+        assert event['resolved_at'] == item_request.fulfilled_at.replace(tzinfo=UTC)
+        assert payload['summary_stats']['borrow_requests_count'] == 0
+        assert payload['summary_stats']['total_new_items'] == 0
+
+
+def test_build_digest_payload_keeps_same_window_claimed_giveaway_in_giveaways_section(app):
+    with app.app_context():
+        viewer = UserFactory(
+            digest_include_giveaways=True,
+            digest_include_requests=False,
+            digest_include_circle_joins=False,
+            digest_include_loans=False,
+            digest_giveaways_include_public=False,
+        )
+        owner = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner])
+
+        now = datetime.now(UTC)
+        item = ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility='default',
+            claim_status='claimed',
+            available=False,
+            name='Claimed in Window',
+            created_at=now - timedelta(hours=5),
+            claimed_at=now - timedelta(hours=1),
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(viewer, since=now - timedelta(days=1), until=now)
+
+        assert len(payload['giveaways']) == 1
+        event = payload['giveaways'][0]
+        assert event['item_id'] == item.id
+        assert event['digest_variant'] == 'new-resolved-in-window'
+        assert event['created_at'] == item.created_at.replace(tzinfo=UTC)
+        assert event['started_at'] == item.created_at.replace(tzinfo=UTC)
+        assert event['resolved_at'] == item.claimed_at.replace(tzinfo=UTC)
+        assert event['resolution_status'] == 'claimed'
+        assert payload['summary_stats']['giveaways_count'] == 1
+        assert payload['summary_stats']['total_new_items'] == 1
+
+
+def test_build_digest_payload_emits_resolution_only_claimed_giveaway_event(app):
+    with app.app_context():
+        viewer = UserFactory(
+            digest_include_giveaways=True,
+            digest_include_requests=False,
+            digest_include_circle_joins=False,
+            digest_include_loans=False,
+            digest_giveaways_include_public=False,
+        )
+        owner = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner])
+
+        now = datetime.now(UTC)
+        item = ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility='default',
+            claim_status='claimed',
+            available=False,
+            name='Claimed Later',
+            created_at=now - timedelta(days=3),
+            claimed_at=now - timedelta(hours=3),
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(viewer, since=now - timedelta(days=1), until=now)
+
+        assert len(payload['giveaways']) == 1
+        event = payload['giveaways'][0]
+        assert event['item_id'] == item.id
+        assert event['digest_variant'] == 'resolved-in-window'
+        assert event['created_at'] == item.claimed_at.replace(tzinfo=UTC)
+        assert event['started_at'] == item.created_at.replace(tzinfo=UTC)
+        assert event['resolved_at'] == item.claimed_at.replace(tzinfo=UTC)
+        assert payload['summary_stats']['giveaways_count'] == 0
+        assert payload['summary_stats']['total_new_items'] == 0
+
+
+def test_build_digest_payload_toggles_suppress_request_and_giveaway_resolution_events(app):
+    with app.app_context():
+        viewer = UserFactory(
+            digest_include_giveaways=False,
+            digest_include_requests=False,
+            digest_include_circle_joins=False,
+            digest_include_loans=False,
+            digest_giveaways_include_public=False,
+            digest_requests_include_public=False,
+        )
+        owner = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner])
+
+        now = datetime.now(UTC)
+        ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility='default',
+            claim_status='claimed',
+            available=False,
+            created_at=now - timedelta(days=2),
+            claimed_at=now - timedelta(hours=2),
+        )
+        ItemRequestFactory(
+            user=owner,
+            visibility='circles',
+            status='fulfilled',
+            created_at=now - timedelta(days=2),
+            fulfilled_at=now - timedelta(hours=1),
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(viewer, since=now - timedelta(days=1), until=now)
+
+        assert payload['events'] == []
+        assert payload['giveaways'] == []
+        assert payload['requests'] == []
+
+
+def test_build_digest_payload_summary_stats_exclude_resolution_only_events(app):
+    with app.app_context():
+        viewer = UserFactory(
+            digest_include_giveaways=True,
+            digest_include_requests=True,
+            digest_include_circle_joins=False,
+            digest_include_loans=False,
+            digest_giveaways_include_public=False,
+            digest_requests_include_public=False,
+        )
+        owner = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner])
+
+        now = datetime.now(UTC)
+        ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility='default',
+            claim_status='claimed',
+            available=False,
+            created_at=now - timedelta(days=3),
+            claimed_at=now - timedelta(hours=2),
+        )
+        ItemRequestFactory(
+            user=owner,
+            visibility='circles',
+            status='fulfilled',
+            created_at=now - timedelta(hours=6),
+            fulfilled_at=now - timedelta(hours=1),
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(viewer, since=now - timedelta(days=1), until=now)
+
+        assert len(payload['events']) == 2
+        assert payload['summary_stats']['giveaways_count'] == 0
+        assert payload['summary_stats']['borrow_requests_count'] == 1
+        assert payload['summary_stats']['total_new_items'] == 1
+
+
+def test_build_digest_payload_skips_pending_pickup_giveaway_without_claimed_at(app):
+    with app.app_context():
+        viewer = UserFactory(
+            digest_include_giveaways=True,
+            digest_include_requests=False,
+            digest_include_circle_joins=False,
+            digest_include_loans=False,
+            digest_giveaways_include_public=False,
+        )
+        owner = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner])
+
+        now = datetime.now(UTC)
+        ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility='default',
+            claim_status='pending_pickup',
+            available=False,
+            created_at=now - timedelta(days=2),
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(viewer, since=now - timedelta(days=1), until=now)
+
+        assert payload['giveaways'] == []
+        assert payload['events'] == []
