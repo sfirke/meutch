@@ -2,7 +2,7 @@
 import pytest
 from app import db
 from app.models import Item, GiveawayInterest, Message
-from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, MessageFactory, LoanRequestFactory
+from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory, MessageFactory, LoanRequestFactory, GiveawayInterestFactory
 from conftest import login_user
 from datetime import datetime, UTC, timedelta
 from sqlalchemy import text
@@ -210,6 +210,108 @@ class TestGiveawayItemCreation:
             assert updated_item.is_giveaway is False
             assert updated_item.giveaway_visibility is None
             assert updated_item.claim_status is None
+
+    def test_edit_giveaway_to_loan_with_interested_users_is_blocked(self, client, app, auth_user):
+        """Giveaways with interested users cannot be converted back into loan items."""
+        with app.app_context():
+            owner = auth_user()
+            interested_user = UserFactory()
+            category = CategoryFactory()
+            item = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='unclaimed'
+            )
+            GiveawayInterestFactory(item=item, user=interested_user, status='active')
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(f'/item/{item.id}/edit', data={
+                'name': item.name,
+                'description': item.description,
+                'category': str(category.id),
+                'tags': ''
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'This giveaway already has interested users. It cannot be converted back into a loan item.' in response.data
+
+            updated_item = db.session.get(Item, item.id)
+            assert updated_item.is_giveaway is True
+            assert updated_item.giveaway_visibility == 'default'
+            assert updated_item.claim_status == 'unclaimed'
+
+    def test_edit_pending_pickup_giveaway_to_loan_is_blocked(self, client, app, auth_user):
+        """Pending-pickup giveaways cannot be converted back into loan items."""
+        with app.app_context():
+            owner = auth_user()
+            recipient = UserFactory()
+            category = CategoryFactory()
+            item = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='pending_pickup',
+                claimed_by=recipient,
+                available=False
+            )
+            GiveawayInterestFactory(item=item, user=recipient, status='selected')
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(f'/item/{item.id}/edit', data={
+                'name': item.name,
+                'description': item.description,
+                'category': str(category.id),
+                'tags': ''
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'This giveaway is pending pickup. Complete the handoff or release it back to everyone before converting it to a loan item.' in response.data
+
+            updated_item = db.session.get(Item, item.id)
+            assert updated_item.is_giveaway is True
+            assert updated_item.giveaway_visibility == 'default'
+            assert updated_item.claim_status == 'pending_pickup'
+            assert updated_item.claimed_by_id == recipient.id
+
+    def test_edit_claimed_giveaway_to_loan_is_blocked(self, client, app, auth_user):
+        """Claimed giveaways cannot be converted back into loan items."""
+        with app.app_context():
+            owner = auth_user()
+            recipient = UserFactory()
+            category = CategoryFactory()
+            item = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility='default',
+                claim_status='claimed',
+                claimed_by=recipient,
+                available=False
+            )
+            GiveawayInterestFactory(item=item, user=recipient, status='selected')
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(f'/item/{item.id}/edit', data={
+                'name': item.name,
+                'description': item.description,
+                'category': str(category.id),
+                'tags': ''
+            }, follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b'This giveaway has already been handed off. Completed giveaways cannot be converted back into loan items.' in response.data
+
+            updated_item = db.session.get(Item, item.id)
+            assert updated_item.is_giveaway is True
+            assert updated_item.giveaway_visibility == 'default'
+            assert updated_item.claim_status == 'claimed'
+            assert updated_item.claimed_by_id == recipient.id
 
 
 class TestGiveawayPublicVisibilityLocationRequirement:
