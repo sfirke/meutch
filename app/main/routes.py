@@ -159,6 +159,23 @@ def _giveaway_conversion_blocker(item):
     return None, None
 
 
+def _loan_conversion_blocker(item):
+    if item.claim_status == 'claimed':
+        return 'claimed'
+
+    if item.claim_status == 'pending_pickup':
+        return 'pending_pickup'
+
+    active_interest = GiveawayInterest.query.filter(
+        GiveawayInterest.item_id == item.id,
+        GiveawayInterest.status.in_(['active', 'selected'])
+    ).first()
+    if active_interest:
+        return 'interested_users'
+
+    return None
+
+
 def _parse_homepage_feed_filters(user):
     scope = request.args.get('scope', 'all')
     if scope not in {'all', 'circles'}:
@@ -1356,6 +1373,23 @@ def edit_item(item_id):
                     form.is_giveaway.errors.append(
                         'This item has a pending loan request. Resolve the request before converting it to a giveaway.'
                     )
+                return render_template('main/edit_item.html', form=form, item=item)
+        elif item.is_giveaway:
+            conversion_blocker = _loan_conversion_blocker(item)
+            if conversion_blocker == 'interested_users':
+                form.is_giveaway.errors.append(
+                    'This giveaway already has interested users. It cannot be converted back into a loan item.'
+                )
+                return render_template('main/edit_item.html', form=form, item=item)
+            if conversion_blocker == 'pending_pickup':
+                form.is_giveaway.errors.append(
+                    'This giveaway is pending pickup. Complete the handoff or release it back to everyone before converting it to a loan item.'
+                )
+                return render_template('main/edit_item.html', form=form, item=item)
+            if conversion_blocker == 'claimed':
+                form.is_giveaway.errors.append(
+                    'This giveaway has already been handed off. Completed giveaways cannot be converted back into loan items.'
+                )
                 return render_template('main/edit_item.html', form=form, item=item)
 
         try:
