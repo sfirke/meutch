@@ -132,8 +132,14 @@
                                     <h2 class="h5 mb-1 d-inline">{{ event.title }}</h2>
                                     {% if event.event_type == 'request' %}
                                         <span class="badge rounded-pill text-bg-light border text-primary ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-hand-holding-heart me-1"></i>Request</span>
+                                        {% if event.status == 'fulfilled' %}
+                                            <span class="badge bg-success ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-check-circle me-1"></i>Fulfilled</span>
+                                        {% endif %}
                                     {% elif event.event_type == 'giveaway' %}
                                         <span class="badge rounded-pill text-bg-light border text-success ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-gift me-1"></i>Giveaway</span>
+                                        {% if event.claim_status == 'claimed' %}
+                                            <span class="badge bg-success ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-check-circle me-1"></i>Claimed</span>
+                                        {% endif %}
                                     {% elif event.event_type == 'lent' %}
                                         <span class="badge rounded-pill text-bg-light border text-secondary ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-handshake me-1"></i>Lent</span>
                                     {% elif event.event_type == 'circle_join' %}

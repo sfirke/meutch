@@ -6,6 +6,7 @@ from app.utils.geocoding import format_distance
 
 
 DEFAULT_GIVEAWAY_DISTANCE_MILES = 20
+RESOLVED_FEED_WINDOW_DAYS = 7
 HOMEPAGE_FEED_EVENT_TYPES = {'requests', 'giveaways', 'loans', 'circle_joins'}
 
 
@@ -161,6 +162,7 @@ def build_visible_requests_events(
         event_time = _utc(item_request.fulfilled_at) if item_request.status == 'fulfilled' else _utc(item_request.created_at)
         if not _within_time_window(event_time, since=since, until=until):
             continue
+        action = 'marked a request fulfilled' if item_request.status == 'fulfilled' else 'requested'
         distance = None
         if user.is_geocoded and item_request.user and item_request.user.is_geocoded:
             raw = user.distance_to(item_request.user)
@@ -175,7 +177,7 @@ def build_visible_requests_events(
             'actor_name': item_request.user.full_name if item_request.user else 'Deleted User',
             'actor_avatar_url': item_request.user.profile_image_url if item_request.user else None,
             'image_url': None,
-            'action': 'requested',
+            'action': action,
             'visibility': item_request.visibility,
             'distance': distance,
         })
@@ -194,6 +196,8 @@ def build_visible_giveaway_events(
     if not scoped_circle_ids:
         return []
 
+    now = datetime.now(UTC)
+    claimed_cutoff = _utc(since) or (now - timedelta(days=RESOLVED_FEED_WINDOW_DAYS))
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
     all_circle_user_ids = select(circle_members.c.user_id).distinct()
     normalized_scope = _normalize_scope(scope)
@@ -216,14 +220,32 @@ def build_visible_giveaway_events(
         Item.is_giveaway == True,
         User.vacation_mode == False,
         and_(
-            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None)),
+            or_(
+                Item.claim_status == 'unclaimed',
+                Item.claim_status.is_(None),
+                and_(
+                    Item.claim_status == 'claimed',
+                    Item.claimed_at.isnot(None),
+                    Item.claimed_at > claimed_cutoff,
+                ),
+            ),
             visibility_filter,
             Item.owner_id != user.id,
         ),
     )
 
-    if _utc(until) is not None:
-        base_query = base_query.filter(Item.created_at <= _utc(until))
+    until_utc = _utc(until)
+    if until_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                Item.created_at <= until_utc,
+                and_(
+                    Item.claim_status == 'claimed',
+                    Item.claimed_at.isnot(None),
+                    Item.claimed_at <= until_utc,
+                ),
+            )
+        )
 
     giveaway_items = base_query.order_by(Item.created_at.desc()).all()
     effective_distance = _effective_giveaway_distance(max_distance, distance_explicit)
@@ -231,9 +253,10 @@ def build_visible_giveaway_events(
 
     events = []
     for item in giveaway_items:
-        event_time = _utc(item.created_at)
+        event_time = _utc(item.claimed_at) if item.claim_status == 'claimed' else _utc(item.created_at)
         if not _within_time_window(event_time, since=since, until=until):
             continue
+        action = 'gave away' if item.claim_status == 'claimed' else 'posted a giveaway'
         distance = None
         if user.is_geocoded and item.owner and item.owner.is_geocoded:
             raw = user.distance_to(item.owner)
@@ -244,10 +267,11 @@ def build_visible_giveaway_events(
             'item_id': item.id,
             'title': item.name,
             'description': item.description,
+            'claim_status': item.claim_status,
             'actor_name': item.owner.full_name if item.owner else 'Deleted User',
             'actor_avatar_url': item.owner.profile_image_url if item.owner else None,
             'image_url': item.image,
-            'action': 'posted a giveaway',
+            'action': action,
             'distance': distance,
         })
     return events

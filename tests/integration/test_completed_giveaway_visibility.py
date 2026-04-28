@@ -1,9 +1,4 @@
-"""
-Tests for completed giveaway visibility in various views.
-
-Completed (claimed) giveaways should not appear in public feeds
-but should remain visible to owner and recipient for 90 days.
-"""
+"""Tests for completed giveaway visibility in various views."""
 from datetime import datetime, UTC, timedelta
 import pytest
 from app import db
@@ -13,10 +8,10 @@ from conftest import login_user
 
 
 class TestCompletedGiveawayVisibility:
-    """Test that completed giveaways don't show in public views."""
+    """Test that completed giveaways stay hidden in browse surfaces but can appear in the home feed."""
     
-    def test_claimed_giveaway_not_in_home_page(self, client, app, auth_user):
-        """Test that claimed giveaways don't appear on home page."""
+    def test_claimed_giveaway_shows_as_claimed_on_home_page(self, client, app, auth_user):
+        """Test that recently claimed giveaways appear on home page with a resolved label."""
         user_email = None
         with app.app_context():
             # Create a circle and users
@@ -73,14 +68,16 @@ class TestCompletedGiveawayVisibility:
         # Unclaimed should appear
         assert unclaimed_name in html
         
-        # Claimed should NOT appear
-        assert claimed_name not in html
+        # Recently claimed should appear with a visible resolved state
+        assert claimed_name in html
+        assert 'Claimed' in html
+        assert 'gave away' in html
 
         # Pending pickup should NOT appear to other users
         assert pending_name not in html
     
-    def test_claimed_giveaway_not_in_authenticated_home_feed(self, client, app, auth_user):
-        """Test that claimed giveaways don't appear in the authenticated homepage feed."""
+    def test_claimed_giveaway_not_in_authenticated_home_feed_after_visibility_window(self, client, app, auth_user):
+        """Test that old claimed giveaways age out of the authenticated homepage feed."""
         with app.app_context():
             circle = CircleFactory()
             owner = UserFactory()
@@ -112,7 +109,7 @@ class TestCompletedGiveawayVisibility:
                 giveaway_visibility='default',
                 claim_status='claimed',
                 claimed_by=claimer,
-                claimed_at=datetime.now(UTC) - timedelta(days=5)
+                claimed_at=datetime.now(UTC) - timedelta(days=8)
             )
             
             db.session.commit()
@@ -128,7 +125,7 @@ class TestCompletedGiveawayVisibility:
             # Pending pickup should NOT appear to other users
             assert pending.name not in html
             
-            # Claimed should NOT appear
+            # Claimed should age out of the feed after the recent-activity window
             assert claimed.name not in html
     
     def test_claimed_giveaway_not_in_search_results(self, client, app, auth_user):
