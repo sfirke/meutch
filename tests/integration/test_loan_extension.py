@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from flask import url_for
 from app import db
 from app.models import Message
-from tests.factories import UserFactory, ItemFactory, LoanRequestFactory
+from tests.factories import UserFactory, ItemFactory, LoanRequestFactory, MessageFactory
 from conftest import login_user
 
 
@@ -184,3 +184,35 @@ class TestLoanExtension:
             assert 'has been updated' in message.body.lower()
             assert 'has been extended' not in message.body.lower()
             assert custom_msg in message.body
+
+    def test_owner_does_not_see_extend_button_for_pending_loan(self, app, client):
+        """Owners should not see the 'Extend Loan Period' button when viewing a conversation
+        with a pending loan request — only Approve and Deny."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                start_date=date.today(),
+                end_date=date.today() + timedelta(days=7),
+                status='pending'
+            )
+            msg = MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                item=item,
+                body='Can I borrow this?',
+                is_read=False,
+            )
+            msg.loan_request = loan
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(url_for('main.view_conversation', message_id=msg.id))
+
+            assert response.status_code == 200
+            assert b'Approve Request' in response.data
+            assert b'Deny Request' in response.data
+            assert b'Extend Loan Period' not in response.data
