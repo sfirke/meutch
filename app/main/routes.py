@@ -1840,8 +1840,8 @@ def extend_loan(loan_id):
             flash("An error occurred while updating the loan due date.", "danger")
             current_app.logger.error(f"Error updating loan due date {loan_id}: {e}")
         
-        # Redirect back to the original conversation
-        return _redirect_to_loan_conversation(loan)
+        # Redirect to profile My Activity tab
+        return redirect(url_for('main.profile', tab='my-activity'))
     
     return render_template('main/extend_loan.html', form=form, loan=loan)
 

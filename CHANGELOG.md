@@ -17,6 +17,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Items can no longer be converted to giveaways while they still have pending or approved loan requests ([#334](https://github.com/sfirke/meutch/pull/334)).
 - Giveaways can no longer be converted back into loan items once people have expressed interest, pickup is pending, or the handoff is complete ([#335](https://github.com/sfirke/meutch/pull/335)).
 - Fix section stretch on request giveaway screen ([#336](https://github.com/sfirke/meutch/pull/336)).
+- Hide loan extension button from pending loan, improve redirect after extending loan ([#337](https://github.com/sfirke/meutch/pull/337)).
 
 
 ### Developer Experience

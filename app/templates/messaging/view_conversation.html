@@ -230,9 +230,6 @@
                                         <i class="fas fa-times me-1"></i>Deny Request
                                     </button>
                                 </form>
-                                <a href="{{ url_for('main.extend_loan', loan_id=active_loan.id) }}" class="btn btn-outline-primary">
-                                    <i class="fas fa-calendar-plus me-1"></i>Extend Loan Period
-                                </a>
                             </div>
                         {% elif active_loan.borrower_id == current_user.id %}
                             <h6 class="mb-3">Borrower Actions:</h6>
