@@ -1,12 +1,9 @@
 #!/bin/bash
 
-# Script to install the pre-commit hook
-# Run this script to set up automatic testing before commits
+# Script to install pre-commit managed hooks for the repository
+# Run this script after installing requirements-dev.txt
 
 set -e
-
-HOOK_SOURCE="pre-commit-hook"
-HOOK_DEST=".git/hooks/pre-commit"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -19,7 +16,7 @@ print_color() {
     printf "${1}${2}${NC}\n"
 }
 
-print_color $BLUE "🔧 Installing pre-commit hook..."
+print_color $BLUE "🔧 Installing pre-commit hooks..."
 
 # Check if we're in a git repository
 if [ ! -d ".git" ]; then
@@ -27,36 +24,27 @@ if [ ! -d ".git" ]; then
     exit 1
 fi
 
-# Check if hook source exists
-if [ ! -f "$HOOK_SOURCE" ]; then
-    print_color $RED "❌ Pre-commit hook source file not found: $HOOK_SOURCE"
+# Check if pre-commit is available
+if ! command -v pre-commit > /dev/null 2>&1; then
+    print_color $RED "❌ pre-commit is not installed in the current environment."
+    print_color $YELLOW "💡 Activate your venv and run: pip install -r requirements-dev.txt"
     exit 1
 fi
 
-# Create hooks directory if it doesn't exist
-mkdir -p ".git/hooks"
+print_color $BLUE "🪝 Installing Git hooks for pre-commit and pre-push..."
+pre-commit install --hook-type pre-commit --hook-type pre-push
 
-# Check if hook already exists
-if [ -f "$HOOK_DEST" ]; then
-    print_color $YELLOW "⚠️  Pre-commit hook already exists. Creating backup..."
-    cp "$HOOK_DEST" "$HOOK_DEST.backup.$(date +%Y%m%d_%H%M%S)"
-fi
+print_color $BLUE "📦 Preparing hook environments..."
+pre-commit install-hooks
 
-# Install the hook
-cp "$HOOK_SOURCE" "$HOOK_DEST"
-chmod +x "$HOOK_DEST"
-
-print_color $GREEN "✅ Pre-commit hook installed successfully!"
-print_color $BLUE "📝 The hook will now run unit tests before each commit."
-print_color $BLUE "💡 To bypass the hook for a specific commit, use: git commit --no-verify"
-
-# Test the hook
-print_color $BLUE "🧪 Testing the hook installation..."
-if [ -x "$HOOK_DEST" ]; then
-    print_color $GREEN "✅ Hook is executable and ready to use!"
-else
-    print_color $RED "❌ Hook installation failed - not executable."
+print_color $BLUE "🧪 Validating the configuration..."
+if ! pre-commit validate-config > /dev/null; then
+    print_color $RED "❌ pre-commit configuration is invalid."
     exit 1
 fi
 
+print_color $GREEN "✅ Pre-commit hooks installed successfully!"
+print_color $BLUE "📝 Commits now run fast file-scoped linting; pushes run the Alembic check and unit tests."
+print_color $BLUE "💡 To run hooks manually: pre-commit run --all-files"
+print_color $BLUE "💡 To bypass a hook for a specific commit, use: git commit --no-verify"
 print_color $GREEN "🎉 Installation complete!"

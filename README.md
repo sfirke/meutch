@@ -16,6 +16,13 @@ This README is focused on developing and contributing to the codebase. But compu
 
 Start by cloning and pulling the repo to your machine. Set up a Python virtual environment in the `venv/` directory.
 
+Install the application and contributor dependencies into that environment:
+
+```bash
+source venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+```
+
 ### Environment Setup
 
 Copy the example environment file and customize it for your local setup:
@@ -98,13 +105,28 @@ Notes:
 
 ### Development Workflow
 
-To ensure code quality, you can install a pre-commit hook that automatically runs unit tests before each commit:
+This repo uses `pre-commit` so contributors get the same checks locally and in CI.
+
+Install the hooks once per clone:
 
 ```bash
 ./install-pre-commit-hook.sh
 ```
 
-This helps catch issues early. If you need to bypass the hook for a specific commit (use sparingly):
+What runs where:
+- `pre-commit` on commit: fast checks only, against the files you are changing. That includes `ruff` linting, `ruff format`, `pylint --errors-only`, and basic YAML/whitespace checks.
+- `pre-push` on push: the Alembic revision ID check and the unit test suite.
+- GitHub Actions on pull requests: the same `pre-commit` checks run against the PR diff so contributors and CI stay aligned.
+
+Useful commands:
+
+```bash
+pre-commit run --all-files
+pre-commit run ruff-check --files path/to/file.py
+pre-commit run pylint-errors-only --files path/to/file.py
+```
+
+This keeps local commit hooks fast on a legacy codebase while still enforcing linting on newly touched Python files. If you need to bypass the hook for a specific commit (use sparingly):
 
 ```bash
 git commit --no-verify
