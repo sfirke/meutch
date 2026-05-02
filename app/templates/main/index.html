@@ -18,7 +18,7 @@
                 </a>
             </div>
         </div>
-        
+
         <div class="d-flex justify-content-between align-items-center">
             <p class="text-muted mb-0 small">Recent requests, giveaways, and lending activity.</p>
             <button class="btn btn-link btn-sm text-decoration-none p-0 d-flex align-items-center gap-1" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
@@ -118,7 +118,7 @@
                                 <span class="activity-feed-avatar-fallback flex-shrink-0" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true">{{ actor_initials or 'CM' }}</span>
                             {% endif %}
                             <div class="text-truncate">
-                                <strong class="text-body">{{ event.actor_name }}</strong> 
+                                <strong class="text-body">{{ event.actor_name }}</strong>
                                 {{ event.action }}
                             </div>
                             <div class="ms-auto text-nowrap" style="font-size: 0.8rem;">
@@ -149,7 +149,7 @@
                                         <span class="badge bg-info ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-map-marker-alt me-1"></i>{{ event.distance }}</span>
                                     {% endif %}
                                 </div>
-                                
+
                                 {% if event.description %}
                                     <p class="text-muted small mb-2 text-break" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                                         {{ event.description }}
