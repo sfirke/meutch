@@ -24,6 +24,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Developer Experience
 - Seeded loan data now includes messages, `./dev-start seed` can run when alembic table is missing/hasn't been initialized yet ([#307](https://github.com/sfirke/meutch/pull/307)).
 - Add shared `pre-commit` linting with `ruff` and `pylint --errors-only`, plus GitHub PR enforcement for the same hooks ([#338](https://github.com/sfirke/meutch/pull/338)).
+- Align local pre-push linting with CI by sharing the same branch-diff `pre-commit` runner and documenting the diff-scoped command.
 
 ## Mar 2026
 

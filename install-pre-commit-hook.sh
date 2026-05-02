@@ -49,7 +49,7 @@ fi
 
 print_color $GREEN "✅ Pre-commit hooks installed successfully!"
 print_color $BLUE "📝 Any previous custom pre-commit hook has been replaced."
-print_color $BLUE "📝 Commits now run fast file-scoped linting; pushes run the Alembic check and unit tests."
-print_color $BLUE "💡 To run hooks manually: pre-commit run --all-files"
+print_color $BLUE "📝 Commits now run fast staged-file linting; pushes run the CI-style branch-diff lint, Alembic check, and unit tests."
+print_color $BLUE "💡 To run the CI-style diff-scoped lint locally: ./scripts/run_precommit_diff.sh"
 print_color $BLUE "💡 To bypass a hook for a specific commit, use: git commit --no-verify"
 print_color $GREEN "🎉 Installation complete!"
