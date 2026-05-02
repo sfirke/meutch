@@ -8,6 +8,7 @@ on:
 
 jobs:
   lint:
+    name: pre-commit
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
@@ -45,7 +46,7 @@ jobs:
 
     - name: Run pre-commit on changed files
       run: |
-        pre-commit run --show-diff-on-failure --color=always --from-ref ${{ steps.diff-base.outputs.sha }} --to-ref HEAD
+        pre-commit run -v --show-diff-on-failure --color=always --from-ref ${{ steps.diff-base.outputs.sha }} --to-ref HEAD
 
   test:
     runs-on: ubuntu-latest
