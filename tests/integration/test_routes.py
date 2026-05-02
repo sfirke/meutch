@@ -324,6 +324,116 @@ class TestMainRoutes:
             assert response.status_code == 200
             assert public_giveaway.name.encode() in response.data
 
+    def test_find_invalid_max_distance_sanitized(self, client, app, auth_user):
+        """When max_distance is an invalid value, it is ignored and all items still show."""
+        with app.app_context():
+            viewer = auth_user()
+            viewer.latitude = 40.7128
+            viewer.longitude = -74.0060
+            other_user = UserFactory(latitude=40.7300, longitude=-74.0200)
+            category = CategoryFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, other_user])
+            item = ItemFactory(owner=other_user, category=category, available=True)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get('/find?max_distance=999')
+            assert response.status_code == 200
+            assert item.name.encode() in response.data
+
+    def test_find_max_distance_filters_far_items_no_query(self, client, app, auth_user):
+        """When max_distance=25 and user is geocoded, items from far owners are excluded without a query."""
+        with app.app_context():
+            viewer = auth_user()
+            viewer.latitude = 40.7128   # NYC
+            viewer.longitude = -74.0060
+            near_owner = UserFactory(latitude=40.7300, longitude=-74.0200)   # ~2 miles from viewer
+            far_owner = UserFactory(latitude=42.3601, longitude=-71.0589)    # Boston, ~215 miles away
+            category = CategoryFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, near_owner, far_owner])
+            near_item = ItemFactory(owner=near_owner, category=category, available=True)
+            far_item = ItemFactory(owner=far_owner, category=category, available=True)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get('/find?max_distance=25')
+            assert response.status_code == 200
+            assert near_item.name.encode() in response.data
+            assert far_item.name.encode() not in response.data
+
+    def test_find_max_distance_ignored_when_user_not_geocoded(self, client, app, auth_user):
+        """When max_distance=25 but the viewer has no location set, all items still show."""
+        with app.app_context():
+            viewer = auth_user()
+            # auth_user fixture sets lat/lon by default — explicitly clear to make not geocoded
+            viewer.latitude = None
+            viewer.longitude = None
+            db.session.commit()
+            other_user = UserFactory(latitude=42.3601, longitude=-71.0589)   # Boston
+            category = CategoryFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, other_user])
+            item = ItemFactory(owner=other_user, category=category, available=True)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get('/find?max_distance=25')
+            assert response.status_code == 200
+            assert item.name.encode() in response.data
+
+    def test_find_max_distance_filters_far_items_with_query(self, client, app, auth_user):
+        """When max_distance=25 and user is geocoded, far items are excluded even with a search query."""
+        with app.app_context():
+            viewer = auth_user()
+            viewer.latitude = 40.7128   # NYC
+            viewer.longitude = -74.0060
+            near_owner = UserFactory(latitude=40.7300, longitude=-74.0200)   # ~2 miles from viewer
+            far_owner = UserFactory(latitude=42.3601, longitude=-71.0589)    # Boston, ~215 miles away
+            category = CategoryFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, near_owner, far_owner])
+            near_item = ItemFactory(owner=near_owner, category=category, available=True, name='widget-xyz-near')
+            far_item = ItemFactory(owner=far_owner, category=category, available=True, name='widget-xyz-far')
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get('/find?q=widget-xyz&max_distance=25')
+            assert response.status_code == 200
+            assert b'widget-xyz-near' in response.data
+            assert b'widget-xyz-far' not in response.data
+
+    def test_find_distance_filter_select_disabled_for_non_geocoded_user(self, client, app, auth_user):
+        """The max_distance select is disabled for non-geocoded users and enabled for geocoded users."""
+        with app.app_context():
+            non_geocoded_user = auth_user()
+            # auth_user fixture sets lat/lon by default — explicitly clear to make not geocoded
+            non_geocoded_user.latitude = None
+            non_geocoded_user.longitude = None
+            # Must be in a circle so has_circles=True and the filter controls are rendered
+            circle = CircleFactory()
+            circle.members.append(non_geocoded_user)
+            db.session.commit()
+            login_user(client, non_geocoded_user.email)
+            response = client.get('/find')
+            assert response.status_code == 200
+            content = response.data.decode('utf-8')
+            assert 'Set your location to filter by distance' in content
+
+            geocoded_user = auth_user()
+            # auth_user already has latitude/longitude set, but be explicit
+            geocoded_user.latitude = 40.7128
+            geocoded_user.longitude = -74.0060
+            circle2 = CircleFactory()
+            circle2.members.append(geocoded_user)
+            db.session.commit()
+            login_user(client, geocoded_user.email)
+            response = client.get('/find')
+            assert response.status_code == 200
+            geocoded_content = response.data.decode('utf-8')
+            assert 'Set your location to filter by distance' not in geocoded_content
+
     def test_about_page(self, client):
         """Test about page loads correctly."""
         response = client.get('/about')
