@@ -2,6 +2,16 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
+## May 2026
+
+### Features
+
+**Minor**:
+- Digest emails now surface fulfilled requests and claimed giveaways, including clear labels when an item is both created and resolved within the same digest window ([#339](https://github.com/sfirke/meutch/pull/339)).
+
+### Developer Experience
+- Align local pre-push linting with CI by sharing the same branch-diff `pre-commit` runner and documenting the diff-scoped command ([#339](https://github.com/sfirke/meutch/pull/339)).
+
 ## Apr 2026
 
 ### Features
@@ -12,7 +22,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 **Minor**
 - `share/` pages get the aesthetic and the "how/why" content from the main landing page ([#323](https://github.com/sfirke/meutch/pull/323)).
 - Surface giveaway actions in the owner-recipient conversation, both for recipient assignment and handoff confirmation. Also add item deletion modal that stops pending-pickup items and active loans from being deleted ([#329](https://github.com/sfirke/meutch/pull/329)).
-- Digest emails now surface fulfilled requests and claimed giveaways, including clear labels when an item is both created and resolved within the same digest window.
 
 ### Bug fixes
 - Items can no longer be converted to giveaways while they still have pending or approved loan requests ([#334](https://github.com/sfirke/meutch/pull/334)).
@@ -24,7 +33,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Developer Experience
 - Seeded loan data now includes messages, `./dev-start seed` can run when alembic table is missing/hasn't been initialized yet ([#307](https://github.com/sfirke/meutch/pull/307)).
 - Add shared `pre-commit` linting with `ruff` and `pylint --errors-only`, plus GitHub PR enforcement for the same hooks ([#338](https://github.com/sfirke/meutch/pull/338)).
-- Align local pre-push linting with CI by sharing the same branch-diff `pre-commit` runner and documenting the diff-scoped command.
 
 ## Mar 2026
 
