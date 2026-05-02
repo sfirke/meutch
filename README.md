@@ -113,6 +113,7 @@ Install the hooks once per clone:
 ./install-pre-commit-hook.sh
 ```
 
+That script force-replaces any older custom git hook for this repo, so you do not need to manually uninstall the legacy hook first.
 What runs where:
 - `pre-commit` on commit: fast checks only, against the files you are changing. That includes `ruff` linting, `ruff format`, `pylint --errors-only`, and basic YAML/whitespace checks.
 - `pre-push` on push: the Alembic revision ID check and the unit test suite.

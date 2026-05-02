@@ -1,0 +1,60 @@
+default_install_hook_types:
+  - pre-commit
+  - pre-push
+default_stages:
+  - pre-commit
+minimum_pre_commit_version: 3.7.0
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: ruff check --fix
+        language: system
+        types_or:
+          - python
+          - pyi
+        require_serial: true
+
+      - id: ruff-format
+        name: ruff format
+        entry: ruff format
+        language: system
+        types_or:
+          - python
+          - pyi
+
+      - id: pylint-errors-only
+        name: pylint (errors only)
+        entry: pylint --errors-only --score=n --recursive=n
+        language: system
+        types_or:
+          - python
+          - pyi
+
+      - id: alembic-revision-ids
+        name: Validate Alembic revision IDs
+        entry: python scripts/check_alembic_revision_ids.py
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages:
+          - pre-push
+
+      - id: unit-tests
+        name: Run unit tests
+        entry: bash -c 'export FLASK_ENV=testing; export PYTHONPATH="${PYTHONPATH}:$(pwd)"; export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgresql://test_user:test_password@localhost:5433/meutch_test}"; pytest tests/unit/ -q --tb=short'
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages:
+          - pre-push

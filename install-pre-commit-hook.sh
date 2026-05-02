@@ -31,8 +31,12 @@ if ! command -v pre-commit > /dev/null 2>&1; then
     exit 1
 fi
 
+print_color $BLUE "🧹 Removing legacy hook backups from previous installs..."
+rm -f .git/hooks/pre-commit.legacy
+rm -f .git/hooks/pre-commit.backup.*
+
 print_color $BLUE "🪝 Installing Git hooks for pre-commit and pre-push..."
-pre-commit install --hook-type pre-commit --hook-type pre-push
+pre-commit install --overwrite --hook-type pre-commit --hook-type pre-push
 
 print_color $BLUE "📦 Preparing hook environments..."
 pre-commit install-hooks
@@ -44,6 +48,7 @@ if ! pre-commit validate-config > /dev/null; then
 fi
 
 print_color $GREEN "✅ Pre-commit hooks installed successfully!"
+print_color $BLUE "📝 Any previous custom pre-commit hook has been replaced."
 print_color $BLUE "📝 Commits now run fast file-scoped linting; pushes run the Alembic check and unit tests."
 print_color $BLUE "💡 To run hooks manually: pre-commit run --all-files"
 print_color $BLUE "💡 To bypass a hook for a specific commit, use: git commit --no-verify"
