@@ -22,6 +22,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Developer Experience
 - Seeded loan data now includes messages, `./dev-start seed` can run when alembic table is missing/hasn't been initialized yet ([#307](https://github.com/sfirke/meutch/pull/307)).
+- Add shared `pre-commit` linting with `ruff` and `pylint --errors-only`, plus GitHub PR enforcement for the same hooks ([#338](https://github.com/sfirke/meutch/pull/338)).
 
 ## Mar 2026
 
@@ -52,7 +53,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/pull/213)).
-- Fix: users without location set now can't create public giveaways or requests ([#231](https://github.com/sfirke/meutch/pull/231)). 
+- Fix: users without location set now can't create public giveaways or requests ([#231](https://github.com/sfirke/meutch/pull/231)).
 - Fix: pending private-circle join approvals no longer count as unread messages; circles pending badge remains the admin signal, and already-handled join requests can no longer be re-processed by another admin ([#257](https://github.com/sfirke/meutch/pull/257)).
 - Fix: hide members of a closed circle from being viewable in search results ([#273](https://github.com/sfirke/meutch/pull/273)).
 - Fix: consolidate digest display/change UI in the admin panel to eliminate scrollbar ([#291](https://github.com/sfirke/meutch/pull/291)).

@@ -1,0 +1,19 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.pylint.main]
+jobs = 0
+ignore-paths = ["^migrations/"]
+py-version = "3.12"
+
+[tool.pylint.messages_control]
+disable = [
+    "c-extension-no-member",
+    "no-member",
+]
