@@ -521,7 +521,8 @@ def _digest_resolution_only_text(event):
     if event["event_type"] == "request":
         return f"{title} was marked fulfilled"
     if event["event_type"] == "giveaway":
-        return f"{title} was claimed"
+        actor = event.get("actor_name", "Unknown")
+        return f"{title} offered by {actor} was claimed"
     return title
 
 
@@ -607,7 +608,11 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             actor = event["actor_name"]
             is_resolution_only = event.get("digest_variant") == "resolved-in-window"
             if is_resolution_only:
-                text_lines.append(f"- {actor}: {_digest_resolution_only_text(event)}")
+                # For giveaways, the message already includes the actor name
+                if event["event_type"] == "giveaway":
+                    text_lines.append(f"- {_digest_resolution_only_text(event)}")
+                else:
+                    text_lines.append(f"- {actor}: {_digest_resolution_only_text(event)}")
             else:
                 title = _digest_event_title(event)
                 action = event["action"]
@@ -619,6 +624,8 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             if include_description and not is_resolution_only and event.get("description"):
                 text_lines.append(f"  {event['description']}")
             if not is_resolution_only and event.get("image_url"):
+                text_lines.append(f"  Image: {event['image_url']}")
+            if is_resolution_only and event.get("image_url"):
                 text_lines.append(f"  Image: {event['image_url']}")
             text_lines.append(f"  {_digest_event_url(event)}")
         text_lines.append("")
@@ -666,7 +673,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
                 )
 
             image_html = ""
-            if not is_resolution_only and event.get("image_url"):
+            if event.get("image_url"):
                 image_html = (
                     f"<div style=\"margin: 8px 0;\">"
                     f"<img src=\"{event['image_url']}\" alt=\"Activity image\" "
@@ -675,9 +682,13 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
                 )
 
             if is_resolution_only:
-                activity_html = (
-                    f"<strong>{actor}</strong>: {_digest_resolution_only_text(event)}<br>"
-                )
+                # For giveaways, the message already includes the actor name
+                if event["event_type"] == "giveaway":
+                    activity_html = f"{_digest_resolution_only_text(event)}<br>"
+                else:
+                    activity_html = (
+                        f"<strong>{actor}</strong>: {_digest_resolution_only_text(event)}<br>"
+                    )
             else:
                 item_title = _digest_event_title(event)
                 action = event["action"]

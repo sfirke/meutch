@@ -379,11 +379,11 @@ class TestEmailUtils:
                 unsubscribe_url="https://example.com/digest/unsubscribe/token123",
             )
 
-            assert "Alex: Free Chair was claimed" in content["text"]
-            assert "Taylor: Need a ladder was marked fulfilled" in content["text"]
+            assert "Free Chair offered by Alex was claimed" in content["text"]
+            assert "Need a ladder was marked fulfilled" in content["text"]
             assert "This should not be repeated" not in content["text"]
-            assert "Image: https://example.com/chair.jpg" not in content["text"]
-            assert "Free Chair was claimed" in content["html"]
+            assert "Image: https://example.com/chair.jpg" in content["text"]
+            assert "Free Chair offered by Alex was claimed" in content["html"]
             assert "Need a ladder was marked fulfilled" in content["html"]
 
     def test_send_digest_email_sends_when_payload_has_only_resolution_events(self, app):
