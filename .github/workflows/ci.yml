@@ -40,13 +40,9 @@ jobs:
     - name: Fetch pull request base branch
       run: git fetch origin ${{ github.base_ref }}
 
-    - name: Compute pull request merge base
-      id: diff-base
-      run: echo "sha=$(git merge-base HEAD FETCH_HEAD)" >> "$GITHUB_OUTPUT"
-
     - name: Run pre-commit on changed files
       run: |
-        pre-commit run -v --show-diff-on-failure --color=always --from-ref ${{ steps.diff-base.outputs.sha }} --to-ref HEAD
+        ./scripts/run_precommit_diff.sh origin/${{ github.base_ref }}
 
   test:
     runs-on: ubuntu-latest

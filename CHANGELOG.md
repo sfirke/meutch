@@ -2,6 +2,16 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
+## May 2026
+
+### Features
+
+**Minor**:
+- Digest emails now surface fulfilled requests and claimed giveaways, including clear labels when an item is both created and resolved within the same digest window ([#339](https://github.com/sfirke/meutch/pull/339)).
+
+### Developer Experience
+- Align local pre-push linting with CI by sharing the same branch-diff `pre-commit` runner and documenting the diff-scoped command ([#339](https://github.com/sfirke/meutch/pull/339)).
+
 ## Apr 2026
 
 ### Features

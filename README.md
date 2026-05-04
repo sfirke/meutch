@@ -116,14 +116,15 @@ Install the hooks once per clone:
 That script force-replaces any older custom git hook for this repo, so you do not need to manually uninstall the legacy hook first.
 What runs where:
 - `pre-commit` on commit: fast checks only, against the files you are changing. That includes `ruff` linting, `ruff format`, `pylint --errors-only`, and basic YAML/whitespace checks.
-- `pre-push` on push: the Alembic revision ID check and the unit test suite.
-- GitHub Actions on pull requests: the same `pre-commit` checks run against the PR diff so contributors and CI stay aligned.
+- `pre-push` on push: the same diff-scoped `pre-commit` lint that CI uses, plus the Alembic revision ID check and the unit test suite.
+- GitHub Actions on pull requests: that same diff-scoped `pre-commit` run executes against the PR diff.
 
 Useful commands:
 
 ```bash
-pre-commit run --all-files
+./scripts/run_precommit_diff.sh
 pre-commit run ruff-check --files path/to/file.py
+pre-commit run ruff-format --files path/to/file.py
 pre-commit run pylint-errors-only --files path/to/file.py
 ```
 

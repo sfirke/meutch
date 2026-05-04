@@ -1,31 +1,38 @@
 """Unit tests for email utilities."""
-import pytest
+
 import uuid
-from unittest.mock import patch, Mock
-from app.utils.email import send_account_deletion_email, build_digest_email_content, send_digest_email
+from unittest.mock import patch
+
+import pytest
+
+from app.utils.email import (
+    build_digest_email_content,
+    send_account_deletion_email,
+    send_digest_email,
+)
 from tests.factories import UserFactory
 
 
 class TestEmailUtils:
     """Test email utility functions."""
-    
+
     def test_send_account_deletion_email_content(self):
         """Test that account deletion email contains correct content."""
-        with patch('app.utils.email.send_email') as mock_send_email:
+        with patch("app.utils.email.send_email") as mock_send_email:
             mock_send_email.return_value = True
-            
+
             # Call the function
             result = send_account_deletion_email("test@example.com", "John")
-            
+
             # Verify send_email was called
             assert mock_send_email.called
             call_args = mock_send_email.call_args[0]
-            
+
             # Check email parameters
             email_address = call_args[0]
             subject = call_args[1]
             content = call_args[2]
-            
+
             assert email_address == "test@example.com"
             assert "Account Successfully Deleted" in subject
             assert "Hello John" in content
@@ -33,67 +40,67 @@ class TestEmailUtils:
             assert "Your name will continue to appear in message history" in content
             assert "Thank you for being part of the Meutch community" in content
             assert result is True
-    
+
     def test_send_account_deletion_email_failure(self):
         """Test that account deletion email handles send failure gracefully."""
-        with patch('app.utils.email.send_email') as mock_send_email:
+        with patch("app.utils.email.send_email") as mock_send_email:
             mock_send_email.return_value = False
-            
+
             # Call the function
             result = send_account_deletion_email("test@example.com", "John")
-            
+
             # Should return False when send_email fails
             assert result is False
-    
+
     def test_send_account_deletion_email_exception(self):
         """Test that account deletion email handles exceptions."""
-        with patch('app.utils.email.send_email') as mock_send_email:
+        with patch("app.utils.email.send_email") as mock_send_email:
             mock_send_email.side_effect = Exception("Network error")
-            
+
             # Should raise the exception (not caught in this function)
             with pytest.raises(Exception, match="Network error"):
                 send_account_deletion_email("test@example.com", "John")
 
     def test_build_digest_email_content_includes_sections_and_manage_links(self, app):
         with app.app_context():
-            user = UserFactory(first_name='Digest', digest_frequency='daily')
+            user = UserFactory(first_name="Digest", digest_frequency="daily")
             payload = {
-                'summary_stats': {
-                    'total_new_items': 2,
-                    'giveaways_count': 1,
-                    'borrow_requests_count': 1,
+                "summary_stats": {
+                    "total_new_items": 2,
+                    "giveaways_count": 1,
+                    "borrow_requests_count": 1,
                 },
-                'giveaways': [
+                "giveaways": [
                     {
-                        'event_type': 'giveaway',
-                        'item_id': uuid.uuid4(),
-                        'actor_name': 'Alex',
-                        'title': 'Free Chair',
-                        'description': 'Great chair in good condition',
-                        'image_url': 'https://example.com/chair.jpg',
-                        'action': 'posted a giveaway',
+                        "event_type": "giveaway",
+                        "item_id": uuid.uuid4(),
+                        "actor_name": "Alex",
+                        "title": "Free Chair",
+                        "description": "Great chair in good condition",
+                        "image_url": "https://example.com/chair.jpg",
+                        "action": "posted a giveaway",
                     }
                 ],
-                'requests': [
+                "requests": [
                     {
-                        'event_type': 'request',
-                        'request_id': uuid.uuid4(),
-                        'actor_name': 'Taylor',
-                        'title': 'Need a ladder',
-                        'description': 'Need for one weekend project',
-                        'image_url': 'https://example.com/ladder.jpg',
-                        'action': 'requested',
+                        "event_type": "request",
+                        "request_id": uuid.uuid4(),
+                        "actor_name": "Taylor",
+                        "title": "Need a ladder",
+                        "description": "Need for one weekend project",
+                        "image_url": "https://example.com/ladder.jpg",
+                        "action": "requested",
                     }
                 ],
-                'circle_joins': [],
-                'loans': [
+                "circle_joins": [],
+                "loans": [
                     {
-                        'event_type': 'lent',
-                        'item_id': uuid.uuid4(),
-                        'actor_name': 'Morgan',
-                        'title': 'Power Drill',
-                        'image_url': 'https://example.com/drill.jpg',
-                        'action': 'lent out',
+                        "event_type": "lent",
+                        "item_id": uuid.uuid4(),
+                        "actor_name": "Morgan",
+                        "title": "Power Drill",
+                        "image_url": "https://example.com/drill.jpg",
+                        "action": "lent out",
                     }
                 ],
             }
@@ -101,24 +108,24 @@ class TestEmailUtils:
             content = build_digest_email_content(
                 user,
                 payload,
-                manage_url='https://example.com/digest/manage/token123',
-                unsubscribe_url='https://example.com/digest/unsubscribe/token123',
+                manage_url="https://example.com/digest/manage/token123",
+                unsubscribe_url="https://example.com/digest/unsubscribe/token123",
             )
 
-            assert content['subject'] == 'Meutch Digest - 3 new activities'
-            assert 'This is your daily Meutch digest.' in content['text']
-            assert 'Great chair in good condition' in content['text']
-            assert 'Need for one weekend project' in content['text']
-            assert 'https://example.com/chair.jpg' in content['text']
-            assert 'https://example.com/ladder.jpg' in content['text']
-            assert 'https://example.com/drill.jpg' in content['text']
-            assert 'Giveaways' in content['text']
-            assert 'Requests' in content['text']
-            assert 'https://example.com/digest/manage/token123' in content['text']
-            assert 'https://example.com/digest/unsubscribe/token123' in content['text']
-            assert 'One-click unsubscribe' in content['html']
-            assert '0 circle joins' not in content['text']
-            assert '3 new activities' not in content['text']
+            assert content["subject"] == "Meutch Digest - 3 new activities"
+            assert "This is your daily Meutch digest." in content["text"]
+            assert "Great chair in good condition" in content["text"]
+            assert "Need for one weekend project" in content["text"]
+            assert "https://example.com/chair.jpg" in content["text"]
+            assert "https://example.com/ladder.jpg" in content["text"]
+            assert "https://example.com/drill.jpg" in content["text"]
+            assert "Giveaways" in content["text"]
+            assert "Requests" in content["text"]
+            assert "https://example.com/digest/manage/token123" in content["text"]
+            assert "https://example.com/digest/unsubscribe/token123" in content["text"]
+            assert "One-click unsubscribe" in content["html"]
+            assert "0 circle joins" not in content["text"]
+            assert "3 new activities" not in content["text"]
 
     def test_digest_circle_joins_consolidated_per_circle(self, app):
         """Multiple people joining the same circle appear as one item per circle, not per person.
@@ -126,68 +133,299 @@ class TestEmailUtils:
         Also verifies the link reads 'View circle' (not 'View activity') and appears once per circle.
         """
         with app.app_context():
-            user = UserFactory(first_name='Subscriber', digest_frequency='weekly')
+            user = UserFactory(first_name="Subscriber", digest_frequency="weekly")
             circle_x_id = uuid.uuid4()
             circle_y_id = uuid.uuid4()
             payload = {
-                'summary_stats': {'total_new_items': 0, 'giveaways_count': 0, 'borrow_requests_count': 0},
-                'giveaways': [],
-                'requests': [],
-                'loans': [],
-                'circle_joins': [
-                    {'event_type': 'circle_join', 'circle_id': circle_x_id, 'title': 'Circle X', 'actor_name': 'Alice',   'action': 'joined', 'image_url': None},
-                    {'event_type': 'circle_join', 'circle_id': circle_x_id, 'title': 'Circle X', 'actor_name': 'Bob',     'action': 'joined', 'image_url': None},
-                    {'event_type': 'circle_join', 'circle_id': circle_x_id, 'title': 'Circle X', 'actor_name': 'Celeste', 'action': 'joined', 'image_url': None},
-                    {'event_type': 'circle_join', 'circle_id': circle_y_id, 'title': 'Circle Y', 'actor_name': 'Alice',   'action': 'joined', 'image_url': None},
+                "summary_stats": {
+                    "total_new_items": 0,
+                    "giveaways_count": 0,
+                    "borrow_requests_count": 0,
+                },
+                "giveaways": [],
+                "requests": [],
+                "loans": [],
+                "circle_joins": [
+                    {
+                        "event_type": "circle_join",
+                        "circle_id": circle_x_id,
+                        "title": "Circle X",
+                        "actor_name": "Alice",
+                        "action": "joined",
+                        "image_url": None,
+                    },
+                    {
+                        "event_type": "circle_join",
+                        "circle_id": circle_x_id,
+                        "title": "Circle X",
+                        "actor_name": "Bob",
+                        "action": "joined",
+                        "image_url": None,
+                    },
+                    {
+                        "event_type": "circle_join",
+                        "circle_id": circle_x_id,
+                        "title": "Circle X",
+                        "actor_name": "Celeste",
+                        "action": "joined",
+                        "image_url": None,
+                    },
+                    {
+                        "event_type": "circle_join",
+                        "circle_id": circle_y_id,
+                        "title": "Circle Y",
+                        "actor_name": "Alice",
+                        "action": "joined",
+                        "image_url": None,
+                    },
                 ],
             }
             content = build_digest_email_content(
-                user, payload,
-                manage_url='https://example.com/digest/manage/token',
-                unsubscribe_url='https://example.com/digest/unsubscribe/token',
+                user,
+                payload,
+                manage_url="https://example.com/digest/manage/token",
+                unsubscribe_url="https://example.com/digest/unsubscribe/token",
             )
 
-            text = content['text']
-            html = content['html']
+            text = content["text"]
+            html = content["html"]
 
             # Circle names should appear once each, not once per joiner
-            assert text.count('Circle X') == 1, "Circle X should not be repeated per joiner"
-            assert text.count('Circle Y') == 1, "Circle Y should not be repeated per joiner"
+            assert text.count("Circle X") == 1, "Circle X should not be repeated per joiner"
+            assert text.count("Circle Y") == 1, "Circle Y should not be repeated per joiner"
 
             # Should show correct plural/singular phrasing
-            assert '3 people' in text
-            assert '1 person' in text
+            assert "3 people" in text
+            assert "1 person" in text
 
             # All joiner names should be listed
-            assert 'Alice' in text
-            assert 'Bob' in text
-            assert 'Celeste' in text
+            assert "Alice" in text
+            assert "Bob" in text
+            assert "Celeste" in text
 
             # HTML should say "View circle", not "View activity", for circle joins
-            assert 'View circle' in html
-            assert 'View activity' not in html
+            assert "View circle" in html
+            assert "View activity" not in html
 
     def test_send_digest_email_returns_false_when_no_events(self, app):
         """Test that send_digest_email returns False and skips sending when payload has no events."""
         with app.app_context():
-            user = UserFactory(first_name='Digest', digest_frequency='weekly')
+            user = UserFactory(first_name="Digest", digest_frequency="weekly")
             payload = {
-                'summary_stats': {
-                    'total_new_items': 0,
-                    'giveaways_count': 0,
-                    'borrow_requests_count': 0,
+                "summary_stats": {
+                    "total_new_items": 0,
+                    "giveaways_count": 0,
+                    "borrow_requests_count": 0,
                 },
-                'events': [],
-                'giveaways': [],
-                'requests': [],
-                'circle_joins': [],
-                'loans': [],
+                "events": [],
+                "giveaways": [],
+                "requests": [],
+                "circle_joins": [],
+                "loans": [],
             }
 
-            with patch('app.utils.email.send_email') as mock_send_email:
+            with patch("app.utils.email.send_email") as mock_send_email:
                 result = send_digest_email(user, payload)
 
                 # Should return False when no events exist
                 assert result is False
                 # send_email should never be called
                 mock_send_email.assert_not_called()
+
+    def test_build_digest_email_content_adds_same_window_resolution_labels(self, app):
+        with app.app_context():
+            user = UserFactory(first_name="Digest", digest_frequency="daily")
+            payload = {
+                "summary_stats": {
+                    "total_new_items": 2,
+                    "giveaways_count": 1,
+                    "borrow_requests_count": 1,
+                },
+                "events": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": uuid.uuid4(),
+                        "actor_name": "Alex",
+                        "title": "Free Chair",
+                        "description": "Great chair in good condition",
+                        "image_url": "https://example.com/chair.jpg",
+                        "action": "posted a giveaway",
+                        "digest_variant": "new-resolved-in-window",
+                        "resolution_status": "claimed",
+                    },
+                    {
+                        "event_type": "request",
+                        "request_id": uuid.uuid4(),
+                        "actor_name": "Taylor",
+                        "title": "Need a ladder",
+                        "description": "Need for one weekend project",
+                        "image_url": None,
+                        "action": "requested",
+                        "digest_variant": "new-resolved-in-window",
+                        "resolution_status": "fulfilled",
+                    },
+                ],
+                "giveaways": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": uuid.uuid4(),
+                        "actor_name": "Alex",
+                        "title": "Free Chair",
+                        "description": "Great chair in good condition",
+                        "image_url": "https://example.com/chair.jpg",
+                        "action": "posted a giveaway",
+                        "digest_variant": "new-resolved-in-window",
+                        "resolution_status": "claimed",
+                    }
+                ],
+                "requests": [
+                    {
+                        "event_type": "request",
+                        "request_id": uuid.uuid4(),
+                        "actor_name": "Taylor",
+                        "title": "Need a ladder",
+                        "description": "Need for one weekend project",
+                        "image_url": None,
+                        "action": "requested",
+                        "digest_variant": "new-resolved-in-window",
+                        "resolution_status": "fulfilled",
+                    }
+                ],
+                "circle_joins": [],
+                "loans": [],
+            }
+
+            content = build_digest_email_content(
+                user,
+                payload,
+                manage_url="https://example.com/digest/manage/token123",
+                unsubscribe_url="https://example.com/digest/unsubscribe/token123",
+            )
+
+            assert "Alex posted a giveaway: Free Chair [Claimed]" in content["text"]
+            assert "Taylor requested: Need a ladder [Fulfilled]" in content["text"]
+            assert ">Claimed</span>" in content["html"]
+            assert ">Fulfilled</span>" in content["html"]
+
+    def test_build_digest_email_content_renders_resolution_only_copy(self, app):
+        with app.app_context():
+            user = UserFactory(first_name="Digest", digest_frequency="weekly")
+            giveaway_id = uuid.uuid4()
+            request_id = uuid.uuid4()
+            payload = {
+                "summary_stats": {
+                    "total_new_items": 0,
+                    "giveaways_count": 0,
+                    "borrow_requests_count": 0,
+                },
+                "events": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": giveaway_id,
+                        "actor_name": "Alex",
+                        "title": "Free Chair",
+                        "description": "This should not be repeated",
+                        "image_url": "https://example.com/chair.jpg",
+                        "action": "posted a giveaway",
+                        "digest_variant": "resolved-in-window",
+                        "resolution_status": "claimed",
+                    },
+                    {
+                        "event_type": "request",
+                        "request_id": request_id,
+                        "actor_name": "Taylor",
+                        "title": "Need a ladder",
+                        "description": "This should not be repeated",
+                        "image_url": None,
+                        "action": "requested",
+                        "digest_variant": "resolved-in-window",
+                        "resolution_status": "fulfilled",
+                    },
+                ],
+                "giveaways": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": giveaway_id,
+                        "actor_name": "Alex",
+                        "title": "Free Chair",
+                        "description": "This should not be repeated",
+                        "image_url": "https://example.com/chair.jpg",
+                        "action": "posted a giveaway",
+                        "digest_variant": "resolved-in-window",
+                        "resolution_status": "claimed",
+                    }
+                ],
+                "requests": [
+                    {
+                        "event_type": "request",
+                        "request_id": request_id,
+                        "actor_name": "Taylor",
+                        "title": "Need a ladder",
+                        "description": "This should not be repeated",
+                        "image_url": None,
+                        "action": "requested",
+                        "digest_variant": "resolved-in-window",
+                        "resolution_status": "fulfilled",
+                    }
+                ],
+                "circle_joins": [],
+                "loans": [],
+            }
+
+            content = build_digest_email_content(
+                user,
+                payload,
+                manage_url="https://example.com/digest/manage/token123",
+                unsubscribe_url="https://example.com/digest/unsubscribe/token123",
+            )
+
+            assert "Free Chair offered by Alex was claimed" in content["text"]
+            assert "Need a ladder was marked fulfilled" in content["text"]
+            assert "This should not be repeated" not in content["text"]
+            assert "Image: https://example.com/chair.jpg" in content["text"]
+            assert "Free Chair offered by Alex was claimed" in content["html"]
+            assert "Need a ladder was marked fulfilled" in content["html"]
+
+    def test_send_digest_email_sends_when_payload_has_only_resolution_events(self, app):
+        with app.app_context():
+            user = UserFactory(first_name="Digest", digest_frequency="weekly")
+            payload = {
+                "summary_stats": {
+                    "total_new_items": 0,
+                    "giveaways_count": 0,
+                    "borrow_requests_count": 0,
+                },
+                "events": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": uuid.uuid4(),
+                        "actor_name": "Alex",
+                        "title": "Free Chair",
+                        "action": "posted a giveaway",
+                        "digest_variant": "resolved-in-window",
+                        "resolution_status": "claimed",
+                    }
+                ],
+                "giveaways": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": uuid.uuid4(),
+                        "actor_name": "Alex",
+                        "title": "Free Chair",
+                        "action": "posted a giveaway",
+                        "digest_variant": "resolved-in-window",
+                        "resolution_status": "claimed",
+                    }
+                ],
+                "requests": [],
+                "circle_joins": [],
+                "loans": [],
+            }
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_digest_email(user, payload)
+
+                assert result is True
+                mock_send_email.assert_called_once()

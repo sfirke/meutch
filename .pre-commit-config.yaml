@@ -41,6 +41,15 @@ repos:
           - python
           - pyi
 
+      - id: pre-commit-diff
+        name: Run diff-scoped pre-commit
+        entry: ./scripts/run_precommit_diff.sh
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages:
+          - pre-push
+
       - id: alembic-revision-ids
         name: Validate Alembic revision IDs
         entry: python scripts/check_alembic_revision_ids.py
