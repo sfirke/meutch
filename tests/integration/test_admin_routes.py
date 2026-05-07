@@ -180,10 +180,18 @@ class TestAdminDashboardMetrics:
             category=category,
             created_at=datetime(2025, 12, 15, tzinfo=UTC),
         )
-        LoanRequestFactory(
+        may_loan = LoanRequestFactory(
             item=lendable_item,
             borrower=borrower,
             created_at=datetime(2026, 5, 2, tzinfo=UTC),
+        )
+        MessageFactory(
+            sender=lender,
+            recipient=borrower,
+            item=lendable_item,
+            loan_request=may_loan,
+            timestamp=datetime(2026, 5, 3, tzinfo=UTC),
+            body="The loan request has been approved.",
         )
 
         old_request = ItemRequestFactory(

@@ -75,9 +75,12 @@ def _monthly_active_users_series():
             LoanRequest.created_at.label("event_at"),
         ),
         select(
-            Item.owner_id.label("user_id"),
-            LoanRequest.created_at.label("event_at"),
-        ).join(Item, LoanRequest.item_id == Item.id),
+            Message.sender_id.label("user_id"),
+            Message.timestamp.label("event_at"),
+        )
+        .join(LoanRequest, Message.loan_request_id == LoanRequest.id)
+        .join(Item, LoanRequest.item_id == Item.id)
+        .where(Message.sender_id == Item.owner_id),
         select(
             Message.sender_id.label("user_id"),
             Message.timestamp.label("event_at"),
