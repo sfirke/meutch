@@ -7,245 +7,276 @@
         <p class="text-muted">Platform administration and user management</p>
     </div>
 
-    <!-- Metrics Cards -->
-    <div class="row g-4 mb-5">
-        <div class="col-md-4">
-            <div class="card border-primary">
-                <div class="card-body text-center">
-                    <i class="fas fa-users fa-3x text-primary mb-3"></i>
-                    <h3 class="card-title">{{ total_users }}</h3>
-                    <p class="card-text text-muted">Total Users</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-success">
-                <div class="card-body text-center">
-                    <i class="fas fa-user-check fa-3x text-success mb-3"></i>
-                    <h3 class="card-title">{{ recent_users }}</h3>
-                    <p class="card-text text-muted">Recent Users <small>(30 days)</small></p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-info">
-                <div class="card-body text-center">
-                    <i class="fas fa-box fa-3x text-info mb-3"></i>
-                    <h3 class="card-title">{{ total_items }}</h3>
-                    <p class="card-text text-muted">Total Items</p>
-                </div>
-            </div>
-        </div>
-    </div>
+    <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'users' %}active{% endif %}" id="admin-users-tab" data-bs-toggle="tab" data-bs-target="#admin-users" type="button" role="tab" aria-controls="admin-users" aria-selected="{{ 'true' if active_tab == 'users' else 'false' }}" data-admin-tab="users">
+                <i class="fas fa-users-cog me-2"></i>Users
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'analytics' %}active{% endif %}" id="admin-analytics-tab" data-bs-toggle="tab" data-bs-target="#admin-analytics" type="button" role="tab" aria-controls="admin-analytics" aria-selected="{{ 'true' if active_tab == 'analytics' else 'false' }}" data-admin-tab="analytics">
+                <i class="fas fa-chart-line me-2"></i>Analytics
+            </button>
+        </li>
+    </ul>
 
-    <!-- User Management Table -->
-    <div class="card">
-        <div class="card-header bg-dark text-white">
-            <h5 class="mb-0"><i class="fas fa-list me-2"></i>User Management</h5>
-        </div>
-        <div class="card-body">
-            {% if users_pagination.items %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>
-                                    <a href="{{ url_for('admin.dashboard', sort_by='full_name', order='asc' if current_sort == 'full_name' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
-                                        User
-                                        {% if current_sort == 'full_name' %}
-                                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                        {% else %}
-                                            <i class="fas fa-sort text-muted"></i>
-                                        {% endif %}
-                                    </a>
-                                </th>
-                                <th>
-                                    <a href="{{ url_for('admin.dashboard', sort_by='email', order='asc' if current_sort == 'email' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
-                                        Email
-                                        {% if current_sort == 'email' %}
-                                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                        {% else %}
-                                            <i class="fas fa-sort text-muted"></i>
-                                        {% endif %}
-                                    </a>
-                                </th>
-                                <th>
-                                    <a href="{{ url_for('admin.dashboard', sort_by='created_at', order='asc' if current_sort == 'created_at' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
-                                        Joined
-                                        {% if current_sort == 'created_at' %}
-                                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                        {% else %}
-                                            <i class="fas fa-sort text-muted"></i>
-                                        {% endif %}
-                                    </a>
-                                </th>
-                                <th>
-                                    <a href="{{ url_for('admin.dashboard', sort_by='last_login', order='asc' if current_sort == 'last_login' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
-                                        Last Active
-                                        {% if current_sort == 'last_login' %}
-                                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
-                                        {% else %}
-                                            <i class="fas fa-sort text-muted"></i>
-                                        {% endif %}
-                                    </a>
-                                </th>
-                                <th>Digest</th>
-                                <th>Items</th>
-                                <th>Status</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for user, item_count in users_pagination.items %}
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <img src="{{ user.profile_image }}" alt="{{ user.full_name }}" 
-                                                 class="rounded-circle me-2" width="40" height="40">
-                                            <a href="{{ url_for('main.user_profile', user_id=user.id) }}" class="text-decoration-none">
-                                                <strong>{{ user.full_name }}</strong>
-                                            </a>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <a href="mailto:{{ user.email }}">{{ user.email }}</a>
-                                    </td>
-                                    <td>
-                                        <small class="text-muted">
-                                            {{ user.created_at|utc_timestamp('short-date') }}
-                                        </small>
-                                    </td>
-                                    <td>
-                                        {% if user.last_login %}
-                                            <small class="text-muted">
-                                                {{ user.last_login|utc_timestamp('short-date') }}
-                                            </small>
-                                        {% else %}
-                                            <small class="text-muted">Never</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <form method="POST" action="{{ url_for('admin.update_digest_frequency', user_id=user.id) }}" class="d-inline digest-frequency-form">
-                                            {{ form.hidden_tag() }}
-                                            <select name="digest_frequency" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
-                                                <option value="daily" {% if user.digest_frequency == 'daily' %}selected{% endif %}>Daily</option>
-                                                <option value="weekly" {% if user.digest_frequency == 'weekly' %}selected{% endif %}>Weekly</option>
-                                                <option value="none" {% if user.digest_frequency == 'none' %}selected{% endif %}>None</option>
-                                            </select>
-                                        </form>
-                                    </td>
-                                    <td>
-                                        {% if item_count > 0 %}
-                                            <span class="badge bg-secondary">{{ item_count }}</span>
-                                        {% else %}
-                                            <span class="text-muted">0</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if user.is_deleted %}
-                                            <span class="badge bg-danger">Deleted</span>
-                                        {% elif user.is_admin %}
-                                            <span class="badge bg-warning text-dark">
-                                                <i class="fas fa-shield-alt"></i> Admin
-                                            </span>
-                                        {% elif not user.email_confirmed %}
-                                            <span class="badge bg-secondary">Unverified</span>
-                                        {% endif %}
-                                        {% if user.is_public_showcase %}
-                                            <span class="badge bg-info">
-                                                <i class="fas fa-star"></i> Showcase
-                                            </span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end">
-                                        <div class="btn-group" role="group">
-                                            {% if user.id != current_user.id %}
-                                                {% if not user.is_admin %}
-                                                    <button type="button" class="btn btn-sm btn-outline-success"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#promoteModal"
-                                                            data-user-name="{{ user.full_name }}"
-                                                            data-action-url="{{ url_for('admin.promote_user', user_id=user.id) }}">
-                                                        <i class="fas fa-arrow-up"></i> Promote
-                                                    </button>
+    <div class="tab-content" id="adminTabContent">
+        <div class="tab-pane fade {% if active_tab == 'users' %}show active{% endif %}" id="admin-users" role="tabpanel" aria-labelledby="admin-users-tab">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>User Management</h5>
+                </div>
+                <div class="card-body">
+                    {% if users_pagination.items %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <a href="{{ url_for('admin.dashboard', active_tab='users', sort_by='full_name', order='asc' if current_sort == 'full_name' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
+                                                User
+                                                {% if current_sort == 'full_name' %}
+                                                    <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
                                                 {% else %}
-                                                    <button type="button" class="btn btn-sm btn-outline-warning"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#demoteModal"
-                                                            data-user-name="{{ user.full_name }}"
-                                                            data-action-url="{{ url_for('admin.demote_user', user_id=user.id) }}">
-                                                        <i class="fas fa-arrow-down"></i> Demote
-                                                    </button>
+                                                    <i class="fas fa-sort text-muted"></i>
                                                 {% endif %}
-                                            {% endif %}
+                                            </a>
+                                        </th>
+                                        <th>
+                                            <a href="{{ url_for('admin.dashboard', active_tab='users', sort_by='email', order='asc' if current_sort == 'email' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
+                                                Email
+                                                {% if current_sort == 'email' %}
+                                                    <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                                {% else %}
+                                                    <i class="fas fa-sort text-muted"></i>
+                                                {% endif %}
+                                            </a>
+                                        </th>
+                                        <th>
+                                            <a href="{{ url_for('admin.dashboard', active_tab='users', sort_by='created_at', order='asc' if current_sort == 'created_at' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
+                                                Joined
+                                                {% if current_sort == 'created_at' %}
+                                                    <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                                {% else %}
+                                                    <i class="fas fa-sort text-muted"></i>
+                                                {% endif %}
+                                            </a>
+                                        </th>
+                                        <th>
+                                            <a href="{{ url_for('admin.dashboard', active_tab='users', sort_by='last_login', order='asc' if current_sort == 'last_login' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
+                                                Last Active
+                                                {% if current_sort == 'last_login' %}
+                                                    <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                                                {% else %}
+                                                    <i class="fas fa-sort text-muted"></i>
+                                                {% endif %}
+                                            </a>
+                                        </th>
+                                        <th>Digest</th>
+                                        <th>Items</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user, item_count in users_pagination.items %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <img src="{{ user.profile_image }}" alt="{{ user.full_name }}"
+                                                         class="rounded-circle me-2" width="40" height="40">
+                                                    <a href="{{ url_for('main.user_profile', user_id=user.id) }}" class="text-decoration-none">
+                                                        <strong>{{ user.full_name }}</strong>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <a href="mailto:{{ user.email }}">{{ user.email }}</a>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    {{ user.created_at|utc_timestamp('short-date') }}
+                                                </small>
+                                            </td>
+                                            <td>
+                                                {% if user.last_login %}
+                                                    <small class="text-muted">
+                                                        {{ user.last_login|utc_timestamp('short-date') }}
+                                                    </small>
+                                                {% else %}
+                                                    <small class="text-muted">Never</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <form method="POST" action="{{ url_for('admin.update_digest_frequency', user_id=user.id) }}" class="d-inline digest-frequency-form">
+                                                    {{ form.hidden_tag() }}
+                                                    <select name="digest_frequency" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+                                                        <option value="daily" {% if user.digest_frequency == 'daily' %}selected{% endif %}>Daily</option>
+                                                        <option value="weekly" {% if user.digest_frequency == 'weekly' %}selected{% endif %}>Weekly</option>
+                                                        <option value="none" {% if user.digest_frequency == 'none' %}selected{% endif %}>None</option>
+                                                    </select>
+                                                </form>
+                                            </td>
+                                            <td>
+                                                {% if item_count > 0 %}
+                                                    <span class="badge bg-secondary">{{ item_count }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">0</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if user.is_deleted %}
+                                                    <span class="badge bg-danger">Deleted</span>
+                                                {% elif user.is_admin %}
+                                                    <span class="badge bg-warning text-dark">
+                                                        <i class="fas fa-shield-alt"></i> Admin
+                                                    </span>
+                                                {% elif not user.email_confirmed %}
+                                                    <span class="badge bg-secondary">Unverified</span>
+                                                {% endif %}
+                                                {% if user.is_public_showcase %}
+                                                    <span class="badge bg-info">
+                                                        <i class="fas fa-star"></i> Showcase
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end">
+                                                <div class="btn-group" role="group">
+                                                    {% if user.id != current_user.id %}
+                                                        {% if not user.is_admin %}
+                                                            <button type="button" class="btn btn-sm btn-outline-success"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#promoteModal"
+                                                                    data-user-name="{{ user.full_name }}"
+                                                                    data-action-url="{{ url_for('admin.promote_user', user_id=user.id) }}">
+                                                                <i class="fas fa-arrow-up"></i> Promote
+                                                            </button>
+                                                        {% else %}
+                                                            <button type="button" class="btn btn-sm btn-outline-warning"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#demoteModal"
+                                                                    data-user-name="{{ user.full_name }}"
+                                                                    data-action-url="{{ url_for('admin.demote_user', user_id=user.id) }}">
+                                                                <i class="fas fa-arrow-down"></i> Demote
+                                                            </button>
+                                                        {% endif %}
+                                                    {% endif %}
 
-                                            {# Showcase buttons available for all users including self #}
-                                            {% if not user.is_public_showcase %}
-                                                <button type="button" class="btn btn-sm btn-outline-info"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#enableShowcaseModal"
-                                                        data-user-name="{{ user.full_name }}"
-                                                        data-action-url="{{ url_for('admin.enable_showcase', user_id=user.id) }}">
-                                                    <i class="fas fa-star"></i> Enable Showcase
-                                                </button>
-                                            {% else %}
-                                                <button type="button" class="btn btn-sm btn-outline-secondary"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#disableShowcaseModal"
-                                                        data-user-name="{{ user.full_name }}"
-                                                        data-action-url="{{ url_for('admin.disable_showcase', user_id=user.id) }}">
-                                                    <i class="fas fa-star"></i> Disable Showcase
-                                                </button>
-                                            {% endif %}
+                                                    {% if not user.is_public_showcase %}
+                                                        <button type="button" class="btn btn-sm btn-outline-info"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#enableShowcaseModal"
+                                                                data-user-name="{{ user.full_name }}"
+                                                                data-action-url="{{ url_for('admin.enable_showcase', user_id=user.id) }}">
+                                                            <i class="fas fa-star"></i> Enable Showcase
+                                                        </button>
+                                                    {% else %}
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#disableShowcaseModal"
+                                                                data-user-name="{{ user.full_name }}"
+                                                                data-action-url="{{ url_for('admin.disable_showcase', user_id=user.id) }}">
+                                                            <i class="fas fa-star"></i> Disable Showcase
+                                                        </button>
+                                                    {% endif %}
 
-                                            {% if user.id != current_user.id %}
-                                                <button type="button" class="btn btn-sm btn-outline-danger"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#deleteModal"
-                                                        data-user-name="{{ user.full_name }}"
-                                                        data-action-url="{{ url_for('admin.delete_user', user_id=user.id) }}">
-                                                    <i class="fas fa-trash"></i> Delete
-                                                </button>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                                                    {% if user.id != current_user.id %}
+                                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#deleteModal"
+                                                                data-user-name="{{ user.full_name }}"
+                                                                data-action-url="{{ url_for('admin.delete_user', user_id=user.id) }}">
+                                                            <i class="fas fa-trash"></i> Delete
+                                                        </button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
 
-                <!-- Pagination -->
-                {% if users_pagination.pages > 1 %}
-                    <nav aria-label="User list pagination">
-                        <ul class="pagination justify-content-center mt-4">
-                            <li class="page-item {% if not users_pagination.has_prev %}disabled{% endif %}">
-                                <a class="page-link" href="{{ url_for('admin.dashboard', page=users_pagination.prev_num, sort_by=current_sort, order=current_order) if users_pagination.has_prev else '#' }}">
-                                    Previous
-                                </a>
-                            </li>
-                            
-                            {% for page_num in users_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
-                                {% if page_num %}
-                                    <li class="page-item {% if page_num == users_pagination.page %}active{% endif %}">
-                                        <a class="page-link" href="{{ url_for('admin.dashboard', page=page_num, sort_by=current_sort, order=current_order) }}">{{ page_num }}</a>
+                        {% if users_pagination.pages > 1 %}
+                            <nav aria-label="User list pagination">
+                                <ul class="pagination justify-content-center mt-4">
+                                    <li class="page-item {% if not users_pagination.has_prev %}disabled{% endif %}">
+                                        <a class="page-link" href="{{ url_for('admin.dashboard', active_tab='users', page=users_pagination.prev_num, sort_by=current_sort, order=current_order) if users_pagination.has_prev else '#' }}">
+                                            Previous
+                                        </a>
                                     </li>
-                                {% else %}
-                                    <li class="page-item disabled"><span class="page-link">...</span></li>
-                                {% endif %}
-                            {% endfor %}
-                            
-                            <li class="page-item {% if not users_pagination.has_next %}disabled{% endif %}">
-                                <a class="page-link" href="{{ url_for('admin.dashboard', page=users_pagination.next_num, sort_by=current_sort, order=current_order) if users_pagination.has_next else '#' }}">
-                                    Next
-                                </a>
-                            </li>
-                        </ul>
-                    </nav>
-                {% endif %}
-            {% else %}
-                <p class="text-muted text-center py-4">No users found.</p>
-            {% endif %}
+
+                                    {% for page_num in users_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                        {% if page_num %}
+                                            <li class="page-item {% if page_num == users_pagination.page %}active{% endif %}">
+                                                <a class="page-link" href="{{ url_for('admin.dashboard', active_tab='users', page=page_num, sort_by=current_sort, order=current_order) }}">{{ page_num }}</a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    <li class="page-item {% if not users_pagination.has_next %}disabled{% endif %}">
+                                        <a class="page-link" href="{{ url_for('admin.dashboard', active_tab='users', page=users_pagination.next_num, sort_by=current_sort, order=current_order) if users_pagination.has_next else '#' }}">
+                                            Next
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted text-center py-4">No users found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade {% if active_tab == 'analytics' %}show active{% endif %}" id="admin-analytics" role="tabpanel" aria-labelledby="admin-analytics-tab">
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="card border-primary h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                            <h3 class="card-title">{{ total_users }}</h3>
+                            <p class="card-text text-muted">Total Users</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-success h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-user-check fa-3x text-success mb-3"></i>
+                            <h3 class="card-title">{{ recent_users }}</h3>
+                            <p class="card-text text-muted">Recent Users <small>(30 days)</small></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-info h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-box fa-3x text-info mb-3"></i>
+                            <h3 class="card-title">{{ total_items }}</h3>
+                            <p class="card-text text-muted">Total Items</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-2">
+                        <div>
+                            <h4 class="mb-1"><i class="fas fa-chart-line me-2 text-primary"></i>Monthly Active Users</h4>
+                            <p class="text-muted mb-0">Users who were in a circle with at least one other current member and took at least one qualifying action that month.</p>
+                        </div>
+                        <span class="badge text-bg-light border">Starting Jan 2026</span>
+                    </div>
+                    <p class="small text-muted mb-4">Qualifying actions include posting a request, adding an item, creating a borrow request, replying to someone else's request or giveaway, or expressing interest in someone else's giveaway. Circle eligibility uses join date plus current circle membership because leave history is not stored.</p>
+                    <div class="chart-container" style="position: relative; min-height: 320px;">
+                        <canvas id="mauChart" aria-label="Monthly active users chart" role="img"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -384,8 +415,16 @@
 </div>
 
 {# Populate shared modals dynamically when opened #}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var mauSeries = {{ mau_series|tojson }};
+    var mauChart = null;
+
     document.querySelectorAll('.modal').forEach(function(modal) {
         modal.addEventListener('show.bs.modal', function(event) {
             var button = event.relatedTarget;
@@ -405,6 +444,101 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    function syncAdminTab(tabName) {
+        var url = new URL(window.location.href);
+        url.searchParams.set('active_tab', tabName);
+        window.history.replaceState({}, '', url);
+    }
+
+    function initializeMauChart() {
+        if (mauChart || typeof Chart === 'undefined') {
+            return;
+        }
+
+        var canvas = document.getElementById('mauChart');
+        if (!canvas) {
+            return;
+        }
+
+        Chart.register(ChartDataLabels);
+        mauChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: mauSeries.map(function(point) { return point.label; }),
+                datasets: [{
+                    label: 'Monthly Active Users',
+                    data: mauSeries.map(function(point) { return point.count; }),
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.15)',
+                    pointBackgroundColor: '#0d6efd',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 6,
+                    tension: 0.25,
+                    fill: false
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'MAU: ' + context.parsed.y;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        align: 'top',
+                        anchor: 'end',
+                        color: '#0d6efd',
+                        font: {
+                            weight: '600'
+                        },
+                        formatter: function(value) {
+                            return value;
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        },
+                        title: {
+                            display: true,
+                            text: 'Active users'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    document.querySelectorAll('#adminTabs button[data-bs-toggle="tab"]').forEach(function(tabButton) {
+        tabButton.addEventListener('shown.bs.tab', function(event) {
+            var tabName = event.target.getAttribute('data-admin-tab');
+            syncAdminTab(tabName);
+            if (tabName == 'analytics') {
+                initializeMauChart();
+            }
+        });
+    });
+
+    if (document.getElementById('admin-analytics-tab').classList.contains('active')) {
+        initializeMauChart();
+    }
 });
 </script>
 {% endblock %}
