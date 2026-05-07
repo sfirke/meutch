@@ -219,7 +219,7 @@ class TestAdminDashboardMetrics:
         assert counts["2026-02-01"] == 1
         assert counts["2026-03-01"] == 1
         assert counts["2026-04-01"] == 0
-        assert counts["2026-05-01"] == 1
+        assert counts["2026-05-01"] == 2
 
 
 class TestAdminUserList:

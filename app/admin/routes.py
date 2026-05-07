@@ -1,7 +1,5 @@
 """Admin panel routes for user management and monitoring"""
 
-# pylint: disable=not-callable
-
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -36,6 +34,9 @@ def _next_month(month_start):
 
 def _monthly_active_users_series():
     """Build monthly active user counts beginning January 2026."""
+    # Pylint does not understand SQLAlchemy's dynamic func.* helpers and
+    # incorrectly flags calls like func.count(...) as not-callable.
+    # pylint: disable=not-callable
     first_month = datetime(2026, 1, 1, tzinfo=UTC)
     current_month = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     end_month = _next_month(current_month)
@@ -73,6 +74,10 @@ def _monthly_active_users_series():
             LoanRequest.borrower_id.label("user_id"),
             LoanRequest.created_at.label("event_at"),
         ),
+        select(
+            Item.owner_id.label("user_id"),
+            LoanRequest.created_at.label("event_at"),
+        ).join(Item, LoanRequest.item_id == Item.id),
         select(
             Message.sender_id.label("user_id"),
             Message.timestamp.label("event_at"),
@@ -198,6 +203,7 @@ def dashboard():
             sort_column = sort_column.asc()
 
     # Add item count to each user with dynamic sorting
+    # pylint: disable=not-callable
     query = (
         db.session.query(User, func.count(Item.id).label("item_count"))
         .outerjoin(Item, Item.owner_id == User.id)
