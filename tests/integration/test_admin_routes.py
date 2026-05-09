@@ -1,283 +1,439 @@
 """Integration tests for admin panel routes and functionality"""
-import pytest
-from flask import url_for
-from tests.factories import UserFactory, ItemFactory, AdminActionFactory
-from app.models import AdminAction
+
+import json
+import re
+from datetime import UTC, datetime
+
+from app import db
+from app.models import AdminAction, circle_members
 from conftest import login_user
+from tests.factories import (
+    CategoryFactory,
+    CircleFactory,
+    GiveawayInterestFactory,
+    ItemFactory,
+    ItemRequestFactory,
+    LoanRequestFactory,
+    MessageFactory,
+    UserFactory,
+)
+
+
+def _extract_mau_series(response):
+    """Parse the MAU chart payload from the dashboard HTML."""
+    content = response.data.decode("utf-8")
+    match = re.search(r"var mauSeries = (.*?);", content, re.DOTALL)
+    assert match is not None
+    return json.loads(match.group(1))
+
+
+def _set_circle_joined_at(user, circle, joined_at):
+    """Set the joined_at timestamp for a circle membership."""
+    db.session.execute(
+        circle_members.update()
+        .where(circle_members.c.user_id == user.id)
+        .where(circle_members.c.circle_id == circle.id)
+        .values(joined_at=joined_at)
+    )
 
 
 class TestAdminDashboardAccess:
     """Tests for admin dashboard access control"""
-    
+
     def test_admin_dashboard_requires_login(self, client):
         """Test that admin dashboard redirects to login when not authenticated"""
-        response = client.get('/admin/')
+        response = client.get("/admin/")
         assert response.status_code == 302
-        assert '/login' in response.location
-    
+        assert "/login" in response.location
+
     def test_admin_dashboard_blocks_non_admin(self, client, db_session):
         """Test that non-admin users get 403 Forbidden"""
         user = UserFactory(is_admin=False)
         db_session.commit()
-        
+
         login_user(client, user.email)
-        
-        response = client.get('/admin/')
+
+        response = client.get("/admin/")
         assert response.status_code == 403
-    
+
     def test_admin_dashboard_allows_admin(self, client, db_session):
         """Test that admin users can access dashboard"""
         admin = UserFactory(is_admin=True)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.get('/admin/')
+
+        response = client.get("/admin/")
         assert response.status_code == 200
-        assert b'Admin Panel' in response.data
+        assert b"Admin Panel" in response.data
 
 
 class TestAdminDashboardMetrics:
     """Tests for admin dashboard metrics display"""
-    
+
     def test_dashboard_shows_user_count(self, client, db_session):
         """Test dashboard displays correct user count"""
         admin = UserFactory(is_admin=True)
         UserFactory.create_batch(5)  # 5 regular users
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.get('/admin/')
+
+        response = client.get("/admin/")
         assert response.status_code == 200
         # Should show 6 total users (5 + 1 admin)
-        assert b'6' in response.data
-        assert b'Total Users' in response.data
-    
+        assert b"6" in response.data
+        assert b"Total Users" in response.data
+
     def test_dashboard_shows_item_count(self, client, db_session):
         """Test dashboard displays correct item count"""
         admin = UserFactory(is_admin=True)
         ItemFactory.create_batch(3)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.get('/admin/')
+
+        response = client.get("/admin/")
         assert response.status_code == 200
-        assert b'Total Items' in response.data
-        assert b'3' in response.data
+        assert b"Total Items" in response.data
+        assert b"3" in response.data
+
+    def test_dashboard_shows_users_and_analytics_tabs(self, client, db_session):
+        """Test dashboard exposes separate Users and Analytics tabs."""
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+
+        login_user(client, admin.email)
+
+        response = client.get("/admin/?active_tab=analytics")
+        assert response.status_code == 200
+        assert b"admin-users-tab" in response.data
+        assert b"admin-analytics-tab" in response.data
+        assert b"Monthly Active Users" in response.data
+        assert b"Starting Jan 2026" in response.data
+
+    def test_dashboard_mau_chart_uses_qualifying_activity_only(self, client, db_session):
+        """Test MAU chart counts qualifying monthly activity and excludes invalid rows."""
+        admin = UserFactory(is_admin=True)
+        item_adder = UserFactory()
+        request_poster = UserFactory()
+        giveaway_owner = UserFactory()
+        giveaway_responder = UserFactory()
+        lender = UserFactory()
+        borrower = UserFactory()
+        self_message_user = UserFactory()
+        excluded_user = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+
+        eligible_users = [
+            admin,
+            item_adder,
+            request_poster,
+            giveaway_owner,
+            giveaway_responder,
+            lender,
+            borrower,
+            self_message_user,
+        ]
+        for user in eligible_users:
+            circle.members.append(user)
+        db_session.flush()
+
+        joined_at = datetime(2026, 1, 1, tzinfo=UTC)
+        for user in eligible_users:
+            _set_circle_joined_at(user, circle, joined_at)
+
+        ItemFactory(
+            owner=item_adder,
+            category=category,
+            created_at=datetime(2026, 1, 8, tzinfo=UTC),
+        )
+
+        ItemRequestFactory(
+            user=request_poster,
+            created_at=datetime(2026, 2, 10, tzinfo=UTC),
+            expires_at=datetime(2026, 3, 10, tzinfo=UTC),
+        )
+        ItemFactory(
+            owner=request_poster,
+            category=category,
+            created_at=datetime(2026, 2, 18, tzinfo=UTC),
+        )
+
+        giveaway = ItemFactory(
+            owner=giveaway_owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="unclaimed",
+            created_at=datetime(2025, 12, 20, tzinfo=UTC),
+        )
+        GiveawayInterestFactory(
+            item=giveaway,
+            user=giveaway_responder,
+            created_at=datetime(2026, 3, 12, tzinfo=UTC),
+        )
+
+        lendable_item = ItemFactory(
+            owner=lender,
+            category=category,
+            created_at=datetime(2025, 12, 15, tzinfo=UTC),
+        )
+        may_loan = LoanRequestFactory(
+            item=lendable_item,
+            borrower=borrower,
+            created_at=datetime(2026, 5, 2, tzinfo=UTC),
+        )
+        MessageFactory(
+            sender=lender,
+            recipient=borrower,
+            item=lendable_item,
+            loan_request=may_loan,
+            timestamp=datetime(2026, 5, 3, tzinfo=UTC),
+            body="The loan request has been approved.",
+        )
+
+        old_request = ItemRequestFactory(
+            user=self_message_user,
+            created_at=datetime(2025, 12, 22, tzinfo=UTC),
+            expires_at=datetime(2026, 1, 22, tzinfo=UTC),
+        )
+        MessageFactory(
+            sender=self_message_user,
+            recipient=admin,
+            request=old_request,
+            item=None,
+            timestamp=datetime(2026, 4, 5, tzinfo=UTC),
+            body="Following up on my own request",
+        )
+
+        ItemRequestFactory(
+            user=excluded_user,
+            created_at=datetime(2026, 2, 11, tzinfo=UTC),
+            expires_at=datetime(2026, 3, 11, tzinfo=UTC),
+        )
+
+        db_session.commit()
+        login_user(client, admin.email)
+
+        response = client.get("/admin/?active_tab=analytics")
+        assert response.status_code == 200
+
+        series = _extract_mau_series(response)
+        counts = {point["month_start"]: point["count"] for point in series}
+
+        assert counts["2026-01-01"] == 1
+        assert counts["2026-02-01"] == 1
+        assert counts["2026-03-01"] == 1
+        assert counts["2026-04-01"] == 0
+        assert counts["2026-05-01"] == 2
 
 
 class TestAdminUserList:
     """Tests for user list display and pagination"""
-    
+
     def test_dashboard_shows_user_list(self, client, db_session):
         """Test that user list is displayed"""
         admin = UserFactory(is_admin=True)
         user = UserFactory()
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.get('/admin/')
+
+        response = client.get("/admin/")
         assert response.status_code == 200
         assert user.email.encode() in response.data
         assert user.full_name.encode() in response.data
-    
+
     def test_dashboard_pagination_works(self, client, db_session):
         """Test that pagination works for large user lists"""
         admin = UserFactory(is_admin=True)
         UserFactory.create_batch(25)  # More than one page (20 per page)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
+
         # First page
-        response = client.get('/admin/')
+        response = client.get("/admin/")
         assert response.status_code == 200
-        assert b'Next' in response.data or b'next' in response.data
-        
+        assert b"Next" in response.data or b"next" in response.data
+
         # Second page
-        response = client.get('/admin/?page=2')
+        response = client.get("/admin/?page=2")
         assert response.status_code == 200
 
     def test_dashboard_shows_digest_frequency(self, client, db_session):
         """Test dashboard displays digest frequency badges."""
         admin = UserFactory(is_admin=True)
-        user = UserFactory(digest_frequency='daily')
+        user = UserFactory(digest_frequency="daily")
         db_session.commit()
 
         login_user(client, admin.email)
 
-        response = client.get('/admin/')
+        response = client.get("/admin/")
         assert response.status_code == 200
         assert user.email.encode() in response.data
-        assert b'Daily' in response.data
+        assert b"Daily" in response.data
 
 
 class TestPromoteUser:
     """Tests for promoting users to admin"""
-    
+
     def test_promote_user_success(self, client, db_session):
         """Test successful user promotion"""
         admin = UserFactory(is_admin=True)
         user = UserFactory(is_admin=False)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{user.id}/promote', follow_redirects=True)
+
+        response = client.post(f"/admin/users/{user.id}/promote", follow_redirects=True)
         assert response.status_code == 200
-        
+
         # Check user was promoted
         db_session.refresh(user)
         assert user.is_admin is True
-        
+
         # Check admin action was logged
         action = AdminAction.query.filter_by(
-            action_type='promote',
-            target_user_id=user.id,
-            admin_user_id=admin.id
+            action_type="promote", target_user_id=user.id, admin_user_id=admin.id
         ).first()
         assert action is not None
-    
+
     def test_promote_requires_admin(self, client, db_session):
         """Test that only admins can promote users"""
         non_admin = UserFactory(is_admin=False)
         target = UserFactory(is_admin=False)
         db_session.commit()
-        
+
         login_user(client, non_admin.email)
-        
-        response = client.post(f'/admin/users/{target.id}/promote')
+
+        response = client.post(f"/admin/users/{target.id}/promote")
         assert response.status_code == 403
-        
+
         # User should not be promoted
         db_session.refresh(target)
         assert target.is_admin is False
-    
+
     def test_promote_already_admin(self, client, db_session):
         """Test promoting a user who is already admin"""
         admin = UserFactory(is_admin=True)
         already_admin = UserFactory(is_admin=True)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{already_admin.id}/promote', follow_redirects=True)
+
+        response = client.post(f"/admin/users/{already_admin.id}/promote", follow_redirects=True)
         assert response.status_code == 200
-        assert b'already an admin' in response.data
+        assert b"already an admin" in response.data
 
 
 class TestDemoteUser:
     """Tests for demoting admin users"""
-    
+
     def test_demote_user_success(self, client, db_session):
         """Test successful admin demotion"""
         admin = UserFactory(is_admin=True)
         target_admin = UserFactory(is_admin=True)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{target_admin.id}/demote', follow_redirects=True)
+
+        response = client.post(f"/admin/users/{target_admin.id}/demote", follow_redirects=True)
         assert response.status_code == 200
-        
+
         # Check user was demoted
         db_session.refresh(target_admin)
         assert target_admin.is_admin is False
-        
+
         # Check admin action was logged
         action = AdminAction.query.filter_by(
-            action_type='demote',
-            target_user_id=target_admin.id,
-            admin_user_id=admin.id
+            action_type="demote", target_user_id=target_admin.id, admin_user_id=admin.id
         ).first()
         assert action is not None
-    
+
     def test_cannot_demote_self(self, client, db_session):
         """Test that admin cannot demote themselves"""
         admin = UserFactory(is_admin=True)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{admin.id}/demote', follow_redirects=True)
+
+        response = client.post(f"/admin/users/{admin.id}/demote", follow_redirects=True)
         assert response.status_code == 200
-        assert b'cannot demote yourself' in response.data
-        
+        assert b"cannot demote yourself" in response.data
+
         # Admin status should be unchanged
         db_session.refresh(admin)
         assert admin.is_admin is True
-    
+
     def test_demote_non_admin(self, client, db_session):
         """Test demoting a user who is not an admin"""
         admin = UserFactory(is_admin=True)
         regular_user = UserFactory(is_admin=False)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{regular_user.id}/demote', follow_redirects=True)
+
+        response = client.post(f"/admin/users/{regular_user.id}/demote", follow_redirects=True)
         assert response.status_code == 200
-        assert b'not an admin' in response.data
+        assert b"not an admin" in response.data
 
 
 class TestDeleteUser:
     """Tests for deleting user accounts"""
-    
+
     def test_delete_user_success(self, client, db_session):
         """Test successful user deletion"""
         admin = UserFactory(is_admin=True)
         user = UserFactory()
         db_session.commit()
-        
+
         user_id = user.id
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{user_id}/delete', follow_redirects=True)
+
+        response = client.post(f"/admin/users/{user_id}/delete", follow_redirects=True)
         assert response.status_code == 200
-        assert b'has been deleted' in response.data
-        
+        assert b"has been deleted" in response.data
+
         # Check user was soft-deleted
         db_session.refresh(user)
         assert user.is_deleted is True
-        
+
         # Check admin action was logged
         action = AdminAction.query.filter_by(
-            action_type='delete',
-            target_user_id=user_id,
-            admin_user_id=admin.id
+            action_type="delete", target_user_id=user_id, admin_user_id=admin.id
         ).first()
         assert action is not None
-    
+
     def test_cannot_delete_self(self, client, db_session):
         """Test that admin cannot delete their own account"""
         admin = UserFactory(is_admin=True)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{admin.id}/delete', follow_redirects=True)
+
+        response = client.post(f"/admin/users/{admin.id}/delete", follow_redirects=True)
         assert response.status_code == 200
-        assert b'cannot delete your own account' in response.data
-        
+        assert b"cannot delete your own account" in response.data
+
         # User should not be deleted
         db_session.refresh(admin)
         assert admin.is_deleted is False
-    
+
     def test_delete_requires_admin(self, client, db_session):
         """Test that only admins can delete users"""
         non_admin = UserFactory(is_admin=False)
         target = UserFactory()
         db_session.commit()
-        
+
         login_user(client, non_admin.email)
-        
-        response = client.post(f'/admin/users/{target.id}/delete')
+
+        response = client.post(f"/admin/users/{target.id}/delete")
         assert response.status_code == 403
-        
+
         # User should not be deleted
         db_session.refresh(target)
         assert target.is_deleted is False
@@ -289,99 +445,97 @@ class TestAdminDigestFrequency:
     def test_admin_can_update_user_digest_frequency(self, client, db_session):
         """Test admin can change digest frequency for a user."""
         admin = UserFactory(is_admin=True)
-        user = UserFactory(digest_frequency='weekly')
+        user = UserFactory(digest_frequency="weekly")
         db_session.commit()
 
         login_user(client, admin.email)
 
         response = client.post(
-            f'/admin/users/{user.id}/digest-frequency',
-            data={'digest_frequency': 'none'},
-            follow_redirects=True
+            f"/admin/users/{user.id}/digest-frequency",
+            data={"digest_frequency": "none"},
+            follow_redirects=True,
         )
         assert response.status_code == 200
-        assert b'Digest frequency updated' in response.data
+        assert b"Digest frequency updated" in response.data
 
         db_session.refresh(user)
-        assert user.digest_frequency == 'none'
+        assert user.digest_frequency == "none"
 
         action = AdminAction.query.filter_by(
-            action_type='set_digest_frequency',
-            target_user_id=user.id,
-            admin_user_id=admin.id
+            action_type="set_digest_frequency", target_user_id=user.id, admin_user_id=admin.id
         ).first()
         assert action is not None
 
     def test_admin_digest_frequency_rejects_invalid_value(self, client, db_session):
         """Test admin digest frequency route rejects invalid values."""
         admin = UserFactory(is_admin=True)
-        user = UserFactory(digest_frequency='weekly')
+        user = UserFactory(digest_frequency="weekly")
         db_session.commit()
 
         login_user(client, admin.email)
 
         response = client.post(
-            f'/admin/users/{user.id}/digest-frequency',
-            data={'digest_frequency': 'monthly'},
-            follow_redirects=True
+            f"/admin/users/{user.id}/digest-frequency",
+            data={"digest_frequency": "monthly"},
+            follow_redirects=True,
         )
         assert response.status_code == 200
-        assert b'Invalid digest frequency' in response.data
+        assert b"Invalid digest frequency" in response.data
 
         db_session.refresh(user)
-        assert user.digest_frequency == 'weekly'
+        assert user.digest_frequency == "weekly"
 
 
 class TestAdminNavbarLink:
     """Tests for admin navbar link visibility"""
-    
+
     def test_admin_link_visible_to_admin(self, client, db_session):
         """Test that admin link appears for admin users"""
         admin = UserFactory(is_admin=True)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.get('/')
+
+        response = client.get("/")
         assert response.status_code == 200
-        assert b'Admin Panel' in response.data
-    
+        assert b"Admin Panel" in response.data
+
     def test_admin_link_hidden_from_regular_users(self, client, db_session):
         """Test that admin link does not appear for regular users"""
         user = UserFactory(is_admin=False)
         db_session.commit()
-        
+
         login_user(client, user.email)
-        
-        response = client.get('/')
+
+        response = client.get("/")
         assert response.status_code == 200
-        assert b'Admin Panel' not in response.data
+        assert b"Admin Panel" not in response.data
 
 
 class TestAdminFlashMessages:
     """Tests for admin-specific flash message categories"""
-    
+
     def test_admin_success_flash_message(self, client, db_session):
         """Test admin-success flash message category"""
         admin = UserFactory(is_admin=True)
         user = UserFactory(is_admin=False)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{user.id}/promote', follow_redirects=True)
+
+        response = client.post(f"/admin/users/{user.id}/promote", follow_redirects=True)
         assert response.status_code == 200
         # Check for admin flash message styling
-        assert b'promoted to admin' in response.data
-    
+        assert b"promoted to admin" in response.data
+
     def test_admin_error_flash_message(self, client, db_session):
         """Test admin-error flash message category"""
         admin = UserFactory(is_admin=True)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
+
         # Try to demote self
-        response = client.post(f'/admin/users/{admin.id}/demote', follow_redirects=True)
+        response = client.post(f"/admin/users/{admin.id}/demote", follow_redirects=True)
         assert response.status_code == 200
-        assert b'cannot demote yourself' in response.data
+        assert b"cannot demote yourself" in response.data
