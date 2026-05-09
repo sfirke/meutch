@@ -10,6 +10,7 @@ from tests.factories import (
     CircleFactory,
     ItemFactory,
     ItemRequestFactory,
+    LoanRequestFactory,
     MessageFactory,
     UserFactory,
 )
@@ -849,6 +850,50 @@ class TestRequestConversations:
             assert b"You are the selected recipient for this giveaway." in response.data
             assert b"Mark Handoff Complete" not in response.data
 
+    def test_view_conversation_owner_loan_request_uses_consolidated_summary(self, client, app):
+        """Owner loan conversations should keep the request context in one summary card without a borrower row."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory(first_name="User1", last_name="Test")
+            shared_circle = CircleFactory(name="Outdoor Adventures")
+            shared_circle.members.extend([owner, requester])
+
+            item = ItemFactory(
+                owner=owner,
+                name="Bread Maker",
+                description="Automatic bread making machine, barely used",
+            )
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=requester,
+                status="pending",
+                start_date=datetime(2026, 5, 9, tzinfo=UTC),
+                end_date=datetime(2026, 5, 16, tzinfo=UTC),
+            )
+            first_message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=item,
+                loan_request=loan,
+                body="Could I borrow this next week?",
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f"/message/{first_message.id}")
+            content = response.get_data(as_text=True)
+
+            assert response.status_code == 200
+            assert "Conversation with" in content
+            assert requester.full_name in content
+            assert content.index(requester.full_name) < content.index("Circles in common:")
+            assert shared_circle.name in content
+            assert f'href="/item/{item.id}"' in content
+            assert "Requested dates:" in content
+            assert "Approve Request" in content
+            assert "Deny Request" in content
+            assert "Borrower:" not in content
+
     def test_view_conversation_pending_pickup_giveaway_owner_sees_handoff_actions(
         self, client, app
     ):
@@ -915,6 +960,46 @@ class TestRequestConversations:
             assert b"Give Item to This User" in response.data
             assert b"View Interested Users" in response.data
             assert b"Mark Handoff Complete" not in response.data
+
+    def test_view_conversation_unclaimed_giveaway_shows_shared_circle_links(self, client, app):
+        """Owner giveaway conversations should show the circles shared with the requester."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            shared_circle = CircleFactory(name="Neighborhood Circle")
+            requester_only_circle = CircleFactory(name="Requester Circle")
+
+            shared_circle.members.extend([owner, requester])
+            requester_only_circle.members.append(requester)
+
+            giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="unclaimed",
+                available=True,
+            )
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status="active",
+            )
+            first_message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=giveaway,
+                body="I can pick this up after work.",
+            )
+            db.session.add(interest)
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f"/message/{first_message.id}")
+
+            assert response.status_code == 200
+            assert b"Circles in common:" in response.data
+            assert b"Neighborhood Circle" in response.data
+            assert f"/circles/{shared_circle.id}".encode() in response.data
+            assert b"Requester Circle" not in response.data
 
     def test_view_conversation_unclaimed_giveaway_shows_interested_count_guidance(
         self, client, app

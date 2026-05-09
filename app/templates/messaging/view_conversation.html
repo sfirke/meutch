@@ -4,74 +4,223 @@
     {% set conversation_item = thread_messages[0].item if thread_messages else None %}
     {% set conversation_request = thread_messages[0].request if thread_messages else None %}
     {% set conversation_circle = thread_messages[0].circle if thread_messages else None %}
+    {% set conversation_partner = thread_messages[0].other_user if thread_messages else None %}
+    {% set is_item_owner = conversation_item and conversation_item.owner_id == current_user.id %}
 
-    <!-- Conversation Header -->
-    <div class="mb-4">
-        <div class="d-flex align-items-center gap-3 mb-2">
-            <h1 class="mb-0">
-                <a href="{{ url_for('main.user_profile', user_id=thread_messages[0].other_user.id) }}" class="text-primary text-decoration-none">
-                    {{ thread_messages[0].other_user.full_name }}
-                </a>
-            </h1>
-        </div>
-        <div class="d-flex align-items-center gap-2 text-muted">
-            {% if conversation_item %}
-                <i class="fas fa-box"></i>
-                <a href="{{ url_for('main.item_detail', item_id=conversation_item.id) }}" class="text-decoration-none text-secondary">
-                    <span class="item-name">{{ conversation_item.name }}</span>
-                </a>
-            {% elif conversation_request %}
-                <i class="fas fa-hand-holding-heart"></i>
-                <a href="{{ url_for('requests.detail', request_id=conversation_request.id) }}" class="text-decoration-none text-secondary">
-                    <span class="item-name">Re: {{ conversation_request.title }}</span>
-                </a>
-            {% elif conversation_circle %}
-                <i class="fas fa-users"></i>
-                <a href="{{ url_for('circles.view_circle', circle_id=conversation_circle.id) }}" class="text-decoration-none text-secondary">
-                    <span class="item-name">Circle: {{ conversation_circle.name }}</span>
-                </a>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Item Details Card -->
     {% if conversation_item %}
-        <div class="card mb-4">
+        <div class="card conversation-summary-card mb-4 border-0 shadow-sm">
             <div class="row g-0">
-                <div class="col-md-4">
-                    {% if conversation_item.image %}
-                        <img src="{{ conversation_item.image }}" 
-                             class="img-fluid rounded-start card-img-top"
-                             alt="{{ conversation_item.name }}">
-                    {% endif %}
+                <div class="col-md-4 col-lg-3">
+                    <a href="{{ url_for('main.item_detail', item_id=conversation_item.id) }}" class="conversation-summary-media text-decoration-none">
+                        {% if conversation_item.image %}
+                            <img src="{{ conversation_item.image }}"
+                                 class="img-fluid"
+                                 alt="{{ conversation_item.name }}">
+                        {% else %}
+                            <div class="conversation-summary-media-placeholder">
+                                <i class="fas fa-box-open"></i>
+                            </div>
+                        {% endif %}
+                    </a>
                 </div>
-                <div class="col-md-8">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ conversation_item.name }}</h5>
-                        <p class="card-text">{{ conversation_item.description }}</p>
-                        {% if conversation_item.owner != current_user %}
-                        <p class="card-text">
-                            <strong>Owner:</strong> {{ conversation_item.owner.full_name }}
-                        </p>
-                        {% endif %}
-                        {% if conversation_item.current_loan and conversation_item.current_loan.borrower == current_user %}
-                            <span class="badge bg-info">You are currently borrowing this item</span>
-                        {% elif not conversation_item.available %}
-                            {% if conversation_item.is_giveaway and conversation_item.claim_status == 'pending_pickup' %}
-                                <span class="badge bg-warning">
-                                    <i class="fas fa-clock me-1"></i>Pending Pickup
-                                </span>
-                            {% else %}
-                                <span class="badge bg-warning">
-                                    <i class="fas fa-clock me-1"></i>Borrowed
-                                </span>
+                <div class="col-md-8 col-lg-9">
+                    <div class="card-body p-4">
+                        <div class="conversation-summary-kicker mb-2">Conversation with</div>
+                        <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                            <h1 class="conversation-summary-title mb-0">
+                                <a href="{{ url_for('main.user_profile', user_id=conversation_partner.id) }}" class="text-primary text-decoration-none">
+                                    {{ conversation_partner.full_name }}
+                                </a>
+                            </h1>
+                            {% if shared_circles %}
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <span class="conversation-summary-label">Circles in common:</span>
+                                    {% for circle in shared_circles %}
+                                        <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="badge rounded-pill text-bg-light border text-decoration-none">
+                                            {{ circle.name }}
+                                        </a>
+                                    {% endfor %}
+                                </div>
                             {% endif %}
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-3 text-muted">
+                            <i class="fas fa-box"></i>
+                            <a href="{{ url_for('main.item_detail', item_id=conversation_item.id) }}" class="conversation-summary-item-link text-decoration-none">
+                                {{ conversation_item.name }}
+                            </a>
+                            {% if is_item_owner %}
+                                <span class="badge rounded-pill text-bg-light border">Your item</span>
+                            {% endif %}
+                            <a href="{{ url_for('main.item_detail', item_id=conversation_item.id) }}" class="btn btn-sm btn-outline-secondary ms-sm-auto">
+                                <i class="fas fa-arrow-right me-1"></i>View item
+                            </a>
+                        </div>
+                        {% if conversation_item.description %}
+                            <p class="conversation-summary-description mb-4">{{ conversation_item.description }}</p>
                         {% endif %}
+
+                        <div class="row g-3">
+                            <div class="col-lg-7">
+                                <div class="conversation-summary-panel h-100">
+                                    {% if active_loan %}
+                                        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                                            <h2 class="h5 mb-0">
+                                                {% if active_loan.status == 'pending' %}
+                                                    {% if is_item_owner %}
+                                                        Loan Request
+                                                    {% else %}
+                                                        Your Loan Request
+                                                    {% endif %}
+                                                {% elif active_loan.status == 'approved' %}
+                                                    {% if is_item_owner %}
+                                                        Active Loan
+                                                    {% else %}
+                                                        Your Active Loan
+                                                    {% endif %}
+                                                {% endif %}
+                                            </h2>
+                                            <span class="badge bg-{{ 'warning text-dark' if active_loan.status == 'pending' else 'success' if active_loan.status == 'approved' else 'danger' }}">
+                                                {{ active_loan.status|title }}
+                                            </span>
+                                            {% if active_loan.status == 'approved' %}
+                                                {% if active_loan.is_overdue() %}
+                                                    <span class="badge bg-danger">Overdue by {{ active_loan.days_overdue() }} day{{ 's' if active_loan.days_overdue() != 1 else '' }}</span>
+                                                {% elif active_loan.is_due_soon() %}
+                                                    {% if active_loan.days_until_due() == 0 %}
+                                                        <span class="badge bg-warning text-dark">Due today</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning text-dark">Due in {{ active_loan.days_until_due() }} day{{ 's' if active_loan.days_until_due() != 1 else '' }}</span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endif %}
+                                        </div>
+                                        <p class="mb-0">
+                                            <strong>Requested dates:</strong> {{ active_loan.start_date.strftime('%Y-%m-%d') }} to {{ active_loan.end_date.strftime('%Y-%m-%d') }}
+                                        </p>
+                                    {% else %}
+                                        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                                            <h2 class="h5 mb-0">Item Status</h2>
+                                            {% if conversation_item.current_loan and conversation_item.current_loan.borrower == current_user %}
+                                                <span class="badge bg-info">You are currently borrowing this item</span>
+                                            {% elif not conversation_item.available %}
+                                                {% if conversation_item.is_giveaway and conversation_item.claim_status == 'pending_pickup' %}
+                                                    <span class="badge bg-warning text-dark">
+                                                        <i class="fas fa-clock me-1"></i>Pending Pickup
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-warning text-dark">
+                                                        <i class="fas fa-clock me-1"></i>Borrowed
+                                                    </span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge bg-success">Available</span>
+                                            {% endif %}
+                                        </div>
+                                        <p class="mb-0 text-muted">Use this conversation to coordinate details about the item.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-lg-5">
+                                <div class="conversation-summary-panel h-100">
+                                    {% if active_loan and active_loan.status == 'pending' %}
+                                        {% if is_item_owner %}
+                                            <h2 class="h5 mb-3">Owner Actions</h2>
+                                            <div class="d-flex flex-wrap gap-2">
+                                                <form method="POST" action="{{ url_for('main.process_loan', loan_id=active_loan.id, action='approve') }}" class="d-inline">
+                                                    {{ loan_action_form.hidden_tag() }}
+                                                    <button type="submit" class="btn btn-success">
+                                                        <i class="fas fa-check me-1"></i>Approve Request
+                                                    </button>
+                                                </form>
+                                                <form method="POST" action="{{ url_for('main.process_loan', loan_id=active_loan.id, action='deny') }}" class="d-inline">
+                                                    {{ loan_action_form.hidden_tag() }}
+                                                    <button type="submit" class="btn btn-danger">
+                                                        <i class="fas fa-times me-1"></i>Deny Request
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        {% elif active_loan.borrower_id == current_user.id %}
+                                            <h2 class="h5 mb-3">Borrower Actions</h2>
+                                            <form method="POST" action="{{ url_for('main.cancel_loan_request', loan_id=active_loan.id) }}" class="d-inline">
+                                                {{ loan_action_form.hidden_tag() }}
+                                                <button type="submit" class="btn btn-warning">
+                                                    <i class="fas fa-ban me-1"></i>Cancel Request
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    {% elif active_loan and active_loan.status == 'approved' %}
+                                        {% if is_item_owner %}
+                                            <h2 class="h5 mb-3">Owner Actions</h2>
+                                            <div class="d-flex flex-wrap gap-2">
+                                                <a href="{{ url_for('main.extend_loan', loan_id=active_loan.id) }}" class="btn btn-primary">
+                                                    <i class="fas fa-calendar-plus me-1"></i>Extend Loan Period
+                                                </a>
+                                                <form method="POST" action="{{ url_for('main.complete_loan', loan_id=active_loan.id) }}" class="d-inline">
+                                                    {{ loan_action_form.hidden_tag() }}
+                                                    <button type="submit" class="btn btn-success">
+                                                        <i class="fas fa-check-circle me-1"></i>Mark as Returned
+                                                    </button>
+                                                </form>
+                                                <form method="POST" action="{{ url_for('main.owner_cancel_loan', loan_id=active_loan.id) }}" class="d-inline">
+                                                    {{ loan_action_form.hidden_tag() }}
+                                                    <button type="submit" class="btn btn-secondary">
+                                                        <i class="fas fa-ban me-1"></i>Cancel Loan
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        {% elif active_loan.borrower_id == current_user.id %}
+                                            {% if active_loan.is_overdue() %}
+                                                <div class="alert alert-danger mb-0">
+                                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                                    <strong>This item is overdue!</strong> Please return it as soon as possible. It was due {{ active_loan.end_date.strftime('%B %d, %Y') }}.
+                                                </div>
+                                            {% elif active_loan.is_due_soon() %}
+                                                <div class="alert alert-warning mb-0">
+                                                    <i class="fas fa-clock me-2"></i>
+                                                    <strong>Due soon!</strong> Please return this item by {{ active_loan.end_date.strftime('%B %d, %Y') }}.
+                                                </div>
+                                            {% else %}
+                                                <div class="alert alert-info mb-0">
+                                                    <i class="fas fa-info-circle me-2"></i>
+                                                    <strong>Enjoy the item!</strong> Please return it by {{ active_loan.end_date.strftime('%B %d, %Y') }}.
+                                                </div>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% else %}
+                                        <h2 class="h5 mb-3">Conversation</h2>
+                                        <p class="mb-0 text-muted">Use the thread below to ask follow-up questions, confirm pickup timing, or share updates.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    {% elif conversation_request %}
+    {% elif conversation_request or conversation_circle %}
+        <div class="mb-4">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <h1 class="mb-0">
+                    <a href="{{ url_for('main.user_profile', user_id=conversation_partner.id) }}" class="text-primary text-decoration-none">
+                        {{ conversation_partner.full_name }}
+                    </a>
+                </h1>
+            </div>
+            <div class="d-flex align-items-center gap-2 text-muted">
+                {% if conversation_request %}
+                    <i class="fas fa-hand-holding-heart"></i>
+                    <a href="{{ url_for('requests.detail', request_id=conversation_request.id) }}" class="text-decoration-none text-secondary">
+                        <span class="item-name">Re: {{ conversation_request.title }}</span>
+                    </a>
+                {% elif conversation_circle %}
+                    <i class="fas fa-users"></i>
+                    <a href="{{ url_for('circles.view_circle', circle_id=conversation_circle.id) }}" class="text-decoration-none text-secondary">
+                        <span class="item-name">Circle: {{ conversation_circle.name }}</span>
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+        {% if conversation_request %}
         <div class="card mb-4">
             <div class="card-body">
                 <h5 class="card-title mb-2">
@@ -90,6 +239,7 @@
                 </p>
             </div>
         </div>
+        {% endif %}
     {% endif %}
 
     {% if giveaway_selection_item %}
@@ -165,137 +315,17 @@
     </div>
     {% endif %}
 
-    <!-- Active Loan Management Panel -->
-    {% if active_loan %}
-    <div class="card mb-4 border-{{ 'warning' if active_loan.status == 'pending' else 'info' if active_loan.status == 'approved' else 'secondary' }} shadow-sm">
-        <div class="card-header bg-{{ 'warning' if active_loan.status == 'pending' else 'info' if active_loan.status == 'approved' else 'secondary' }} text-{{ 'dark' if active_loan.status == 'pending' else 'white' }}">
-            <h5 class="mb-0">
-                <i class="fas fa-handshake me-2"></i>
-                {% if active_loan.status == 'pending' %}
-                    {% if thread_messages[0].item.owner == current_user %}
-                        Loan Request
-                    {% else %}
-                        Your Loan Request
-                    {% endif %}
-                {% elif active_loan.status == 'approved' %}
-                    {% if thread_messages[0].item.owner == current_user %}
-                        Active Loan
-                    {% else %}
-                        Your Active Loan
-                    {% endif %}
-                {% endif %}
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <p class="mb-2">
-                        <strong>Duration:</strong> {{ active_loan.start_date.strftime('%Y-%m-%d') }} to {{ active_loan.end_date.strftime('%Y-%m-%d') }}
-                    </p>
-                    <p class="mb-2">
-                        <strong>Status:</strong> 
-                        <span class="badge bg-{{ 'warning' if active_loan.status == 'pending' else 'success' if active_loan.status == 'approved' else 'danger' }}">
-                            {{ active_loan.status|title }}
-                        </span>
-                        {% if active_loan.status == 'approved' %}
-                            {% if active_loan.is_overdue() %}
-                                <span class="badge bg-danger ms-2">Overdue by {{ active_loan.days_overdue() }} day{{ 's' if active_loan.days_overdue() != 1 else '' }}</span>
-                            {% elif active_loan.is_due_soon() %}
-                                {% if active_loan.days_until_due() == 0 %}
-                                    <span class="badge bg-warning text-dark ms-2">Due today</span>
-                                {% else %}
-                                    <span class="badge bg-warning text-dark ms-2">Due in {{ active_loan.days_until_due() }} day{{ 's' if active_loan.days_until_due() != 1 else '' }}</span>
-                                {% endif %}
-                            {% endif %}
-                        {% endif %}
-                    </p>
-                    <p class="mb-0">
-                        <strong>Borrower:</strong> {{ active_loan.borrower_name }}
-                    </p>
-                </div>
-                <div class="col-md-6">
-                    {% if active_loan.status == 'pending' %}
-                        {% if thread_messages[0].item.owner == current_user %}
-                            <h6 class="mb-3">Item Owner Actions:</h6>
-                            <div class="d-flex flex-wrap gap-2">
-                                <form method="POST" action="{{ url_for('main.process_loan', loan_id=active_loan.id, action='approve') }}" class="d-inline">
-                                    {{ loan_action_form.hidden_tag() }}
-                                    <button type="submit" class="btn btn-success">
-                                        <i class="fas fa-check me-1"></i>Approve Request
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ url_for('main.process_loan', loan_id=active_loan.id, action='deny') }}" class="d-inline">
-                                    {{ loan_action_form.hidden_tag() }}
-                                    <button type="submit" class="btn btn-danger">
-                                        <i class="fas fa-times me-1"></i>Deny Request
-                                    </button>
-                                </form>
-                            </div>
-                        {% elif active_loan.borrower_id == current_user.id %}
-                            <h6 class="mb-3">Borrower Actions:</h6>
-                            <form method="POST" action="{{ url_for('main.cancel_loan_request', loan_id=active_loan.id) }}" class="d-inline">
-                                {{ loan_action_form.hidden_tag() }}
-                                <button type="submit" class="btn btn-warning">
-                                    <i class="fas fa-ban me-1"></i>Cancel Request
-                                </button>
-                            </form>
-                        {% endif %}
-                    {% elif active_loan.status == 'approved' %}
-                        {% if thread_messages[0].item.owner == current_user %}
-                            <h6 class="mb-3">Item Owner Actions:</h6>
-                            <div class="d-flex flex-wrap gap-2">
-                                <a href="{{ url_for('main.extend_loan', loan_id=active_loan.id) }}" class="btn btn-primary">
-                                    <i class="fas fa-calendar-plus me-1"></i>Extend Loan Period
-                                </a>
-                                <form method="POST" action="{{ url_for('main.complete_loan', loan_id=active_loan.id) }}" class="d-inline">
-                                    {{ loan_action_form.hidden_tag() }}
-                                    <button type="submit" class="btn btn-success">
-                                        <i class="fas fa-check-circle me-1"></i>Mark as Returned
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ url_for('main.owner_cancel_loan', loan_id=active_loan.id) }}" class="d-inline">
-                                    {{ loan_action_form.hidden_tag() }}
-                                    <button type="submit" class="btn btn-secondary">
-                                        <i class="fas fa-ban me-1"></i>Cancel Loan
-                                    </button>
-                                </form>
-                            </div>
-                        {% elif active_loan.borrower_id == current_user.id %}
-                            {% if active_loan.is_overdue() %}
-                                <div class="alert alert-danger mb-0">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    <strong>This item is overdue!</strong> Please return it as soon as possible. It was due {{ active_loan.end_date.strftime('%B %d, %Y') }}.
-                                </div>
-                            {% elif active_loan.is_due_soon() %}
-                                <div class="alert alert-warning mb-0">
-                                    <i class="fas fa-clock me-2"></i>
-                                    <strong>Due soon!</strong> Please return this item by {{ active_loan.end_date.strftime('%B %d, %Y') }}.
-                                </div>
-                            {% else %}
-                                <div class="alert alert-info mb-0">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    <strong>Enjoy the item!</strong> Please return it by {{ active_loan.end_date.strftime('%B %d, %Y') }}.
-                                </div>
-                            {% endif %}
-                        {% endif %}
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
     <h3>Messages</h3>
     <div class="thread-container">
         {% for msg in thread_messages %}
-            <div class="card message-card 
-                {% if msg.sender_id == current_user.id %}message-mine{% else %}message-theirs{% endif %} 
+            <div class="card message-card
+                {% if msg.sender_id == current_user.id %}message-mine{% else %}message-theirs{% endif %}
                 {% if msg.has_pending_action %}unread-message{% endif %}
                 {% if msg.is_loan_request_message and msg.loan_request.messages[0] == msg %} message-loan{% endif %}">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <strong>From:</strong> 
+                            <strong>From:</strong>
                             {% if msg.sender_id != current_user.id %}
                                 <a href="{{ url_for('main.user_profile', user_id=msg.sender.id) }}">
                                     {{ msg.sender.full_name }}
@@ -325,7 +355,7 @@
                                 {% endif %}
                             {% endif %}
                         </p>
-                        <p><strong>Status:</strong> 
+                        <p><strong>Status:</strong>
                             <span class="badge bg-{{ 'warning' if msg.loan_request.status == 'pending' else 'success' if msg.loan_request.status == 'approved' else 'danger' }}">
                                 {{ msg.loan_request.status|title }}
                             </span>
@@ -334,7 +364,7 @@
                             <p class="text-muted"><em>This loan request is no longer active. {{ msg.loan_request.status|title }} on {{ msg.timestamp|utc_timestamp('date') }}.</em></p>
                         {% endif %}
                     </div>
-                {% endif %}                                        
+                {% endif %}
                     <p>{{ msg.body | replace('\n', '<br>') | safe }}</p>
                 </div>
             </div>

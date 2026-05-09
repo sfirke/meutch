@@ -463,7 +463,7 @@ input[type="file"]:focus {
         justify-content: center;
         text-align: center;
     }
-    
+
     input[type="file"]::file-selector-button {
         background: var(--primary-color);
         color: white;
@@ -475,7 +475,7 @@ input[type="file"]:focus {
         cursor: pointer;
         transition: background-color 0.2s ease;
     }
-    
+
     input[type="file"]::file-selector-button:hover {
         background: var(--primary-dark);
     }
@@ -577,31 +577,31 @@ footer h6 {
     .main-content {
         padding: 1rem 0;
     }
-    
+
     h1 {
         font-size: 2rem;
     }
-    
+
     /* Hero logo smaller on mobile */
     .hero-logo {
         width: 80px;
         height: 80px;
     }
-    
+
     .items-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
+
     .circles-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
+
     .card-body {
         padding: 1rem;
     }
-    
+
     .circle-card {
         padding: 1rem;
     }
@@ -621,11 +621,11 @@ footer h6 {
     body {
         padding-top: 70px;
     }
-    
+
     .navbar-brand {
         font-size: 1.25rem;
     }
-    
+
     .container {
         padding: 0 1rem;
     }
@@ -663,11 +663,11 @@ footer h6 {
     .btn {
         display: none !important;
     }
-    
+
     .main-content {
         padding-top: 0;
     }
-    
+
     .card {
         box-shadow: none;
         border: 1px solid #ccc;
@@ -863,11 +863,11 @@ footer h6 {
         position: static;
         margin-bottom: 2rem;
     }
-    
+
     .item-detail-image {
         max-height: 60vh;
     }
-    
+
     .item-detail-image-placeholder {
         height: 300px;
     }
@@ -962,6 +962,88 @@ footer h6 {
     gap: 20px; /* Space between the columns */
     align-items: flex-start; /* Align items to the top */
     margin-bottom: 15px; /* Space below the row */
+}
+
+.conversation-summary-card {
+    overflow: hidden;
+    background: linear-gradient(180deg, #fbfdff 0%, #ffffff 100%);
+    border: 1px solid rgba(49, 151, 149, 0.12);
+}
+
+.conversation-summary-media {
+    display: block;
+    height: 100%;
+    min-height: 240px;
+    background: linear-gradient(135deg, #edfdfd 0%, #f7fafc 100%);
+}
+
+.conversation-summary-media img {
+    width: 100%;
+    height: 100%;
+    min-height: 240px;
+    object-fit: cover;
+}
+
+.conversation-summary-media-placeholder {
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    color: var(--primary-dark);
+}
+
+.conversation-summary-kicker {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-text);
+}
+
+.conversation-summary-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.05;
+}
+
+.conversation-summary-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--muted-text);
+}
+
+.conversation-summary-item-link {
+    color: var(--dark-text);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.conversation-summary-item-link:hover {
+    color: var(--primary-dark);
+}
+
+.conversation-summary-description {
+    color: var(--muted-text);
+    font-size: 1.05rem;
+}
+
+.conversation-summary-panel {
+    padding: 1rem 1.125rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.9rem;
+    background: #f8fafc;
+}
+
+@media (max-width: 767.98px) {
+    .conversation-summary-media,
+    .conversation-summary-media img,
+    .conversation-summary-media-placeholder {
+        min-height: 180px;
+    }
+
+    .conversation-summary-title {
+        font-size: 2.1rem;
+    }
 }
 
 .message-card {
@@ -1193,24 +1275,24 @@ footer h6 {
     .drag-drop-zone .drag-drop-content > p:nth-of-type(2) {
         display: none;
     }
-    
+
     /* Make the icon smaller and adjust spacing */
     .drag-drop-content .fa-cloud-upload-alt {
         font-size: 2rem !important;
         margin-bottom: 0.5rem !important;
     }
-    
+
     /* Reduce padding on mobile */
     .drag-drop-zone {
         padding: 1.5rem 1rem;
     }
-    
+
     /* Disable hover effects on touch devices */
     .drag-drop-zone:hover {
         border-color: var(--border-color);
         background-color: #fafafa;
     }
-    
+
     .drag-drop-zone:hover .fa-cloud-upload-alt {
         color: var(--muted-text);
     }
