@@ -21,6 +21,7 @@ from app.models import (
     User,
     circle_members,
 )
+from app.services import account_service
 
 logger = logging.getLogger(__name__)
 
@@ -348,10 +349,9 @@ def delete_user(user_id):
     )
     db.session.add(action)
 
-    # Soft delete the user (uses existing delete_account method)
+    # Soft delete the user using the shared account workflow service.
     try:
-        user.delete_account()
-        db.session.commit()
+        account_service.delete_user_account(user)
 
         flash(f"User account for {user_name} has been deleted", "admin-success")
         logger.info(f"Admin {current_user.email} deleted user {user_email}")

@@ -13,14 +13,15 @@ from app.forms import (
     WithdrawInterestForm,
 )
 from app.main import bp as main_bp
-from app.models import GiveawayInterest, Item, ItemImage, LoanRequest, Message, Tag
+from app.models import GiveawayInterest, Item, LoanRequest, Message
+from app.services import item_service
 from app.utils.email import send_message_notification_email
 from app.utils.giveaway_visibility import (
     can_view_claimed_giveaway,
     get_unavailable_giveaway_suggestions,
 )
 from app.utils.item_share import ITEM_SHARE_TOKEN_MAX_AGE_DAYS, token_grants_item_access
-from app.utils.storage import MAX_ITEM_IMAGE_COUNT, delete_item_images, upload_item_images
+from app.utils.storage import MAX_ITEM_IMAGE_COUNT
 
 from .helpers import (
     _build_item_detail_url,
@@ -28,35 +29,6 @@ from .helpers import (
     _generated_item_share_link,
     _parse_json_string_list,
 )
-
-
-def _giveaway_conversion_blocker(item):
-    active_loan = LoanRequest.query.filter_by(item_id=item.id, status="approved").first()
-    if active_loan:
-        return active_loan, "active"
-
-    pending_loan = LoanRequest.query.filter_by(item_id=item.id, status="pending").first()
-    if pending_loan:
-        return pending_loan, "pending"
-
-    return None, None
-
-
-def _loan_conversion_blocker(item):
-    if item.claim_status == "claimed":
-        return "claimed"
-
-    if item.claim_status == "pending_pickup":
-        return "pending_pickup"
-
-    active_interest = GiveawayInterest.query.filter(
-        GiveawayInterest.item_id == item.id,
-        GiveawayInterest.status.in_(["active", "selected"]),
-    ).first()
-    if active_interest:
-        return "interested_users"
-
-    return None
 
 
 @main_bp.route("/list-item", methods=["GET", "POST"])
@@ -74,48 +46,24 @@ def list_item():
             flash(f"You can upload a maximum of {MAX_ITEM_IMAGE_COUNT} images per item.", "error")
             return render_template("main/list_item.html", form=form)
 
-        image_urls = []
-        if uploaded_files:
-            try:
-                image_urls = upload_item_images(uploaded_files)
-            except ValueError:
-                flash(
-                    "Image upload failed. Please ensure you upload valid image files (JPG, PNG, GIF, etc.).",
-                    "error",
-                )
-                return render_template("main/list_item.html", form=form)
-
-        new_item = Item(
-            name=form.name.data.strip(),
-            description=form.description.data.strip(),
-            owner=current_user,
-            category_id=form.category.data,
-            is_giveaway=form.is_giveaway.data,
-            giveaway_visibility=form.giveaway_visibility.data if form.is_giveaway.data else None,
-            claim_status="unclaimed" if form.is_giveaway.data else None,
-        )
-
-        db.session.add(new_item)
-
-        for position, url in enumerate(image_urls):
-            db.session.add(ItemImage(item=new_item, url=url, position=position))
-
-        tag_input = form.tags.data.strip() if form.tags.data else ""
-        if tag_input:
-            tag_names = [tag.strip().lower() for tag in tag_input.split(",") if tag.strip()]
-            for tag_name in tag_names:
-                tag = Tag.query.filter_by(name=tag_name).first()
-                if not tag:
-                    tag = Tag(name=tag_name)
-                    db.session.add(tag)
-                new_item.tags.append(tag)
-
         try:
-            db.session.commit()
+            new_item = item_service.create_item(
+                current_user,
+                form.name.data,
+                form.description.data,
+                form.category.data,
+                form.is_giveaway.data,
+                form.giveaway_visibility.data,
+                form.tags.data,
+                uploaded_files,
+            )
+        except ValueError:
+            flash(
+                "Image upload failed. Please ensure you upload valid image files (JPG, PNG, GIF, etc.).",
+                "error",
+            )
+            return render_template("main/list_item.html", form=form)
         except Exception as exc:
-            db.session.rollback()
-            if image_urls:
-                delete_item_images(image_urls)
             current_app.logger.error(
                 f"Failed to create item for user {current_user.id}: {str(exc)}"
             )
@@ -254,7 +202,7 @@ def edit_item(item_id):
 
     if form.validate_on_submit():
         if form.is_giveaway.data:
-            blocking_loan, blocking_loan_type = _giveaway_conversion_blocker(item)
+            blocking_loan, blocking_loan_type = item_service.get_giveaway_conversion_blocker(item)
             if blocking_loan:
                 if blocking_loan_type == "active":
                     form.is_giveaway.errors.append(
@@ -266,7 +214,7 @@ def edit_item(item_id):
                     )
                 return render_template("main/edit_item.html", form=form, item=item)
         elif item.is_giveaway:
-            conversion_blocker = _loan_conversion_blocker(item)
+            conversion_blocker = item_service.get_loan_conversion_blocker(item)
             if conversion_blocker == "interested_users":
                 form.is_giveaway.errors.append(
                     "This giveaway already has interested users. It cannot be converted back into a loan item."
@@ -308,84 +256,27 @@ def edit_item(item_id):
             )
             return render_template("main/edit_item.html", form=form, item=item)
 
-        new_urls = []
-        if new_files:
-            try:
-                new_urls = upload_item_images(new_files)
-            except ValueError:
-                flash("Some image uploads failed. Please try again.", "warning")
-                return render_template("main/edit_item.html", form=form, item=item)
-
-        item.name = form.name.data
-        item.description = form.description.data
-        item.category_id = form.category.data
-        item.is_giveaway = form.is_giveaway.data
-        item.giveaway_visibility = form.giveaway_visibility.data if form.is_giveaway.data else None
-        if form.is_giveaway.data and not item.claim_status:
-            item.claim_status = "unclaimed"
-        elif not form.is_giveaway.data:
-            item.claim_status = None
-
-        tag_input = form.tags.data.strip() if form.tags.data else ""
-        item.tags.clear()
-        if tag_input:
-            tag_names = [tag.strip().lower() for tag in tag_input.split(",") if tag.strip()]
-            for tag_name in tag_names:
-                tag = Tag.query.filter_by(name=tag_name).first()
-                if not tag:
-                    tag = Tag(name=tag_name)
-                    db.session.add(tag)
-                item.tags.append(tag)
-
-        removed_urls = []
-        for img in existing_images:
-            if str(img.id) in delete_ids:
-                removed_urls.append(img.url)
-                db.session.delete(img)
-
-        existing_by_id = {str(img.id): img for img in surviving_images}
-        ordered_entries = []
-        ordered_existing_ids = set()
-        new_url_iter = iter(new_urls)
-
-        for entry_id in order_entries:
-            if entry_id.startswith("new-"):
-                url = next(new_url_iter, None)
-                if url is not None:
-                    ordered_entries.append(("new", url))
-                continue
-
-            image = existing_by_id.get(entry_id)
-            if image is not None and entry_id not in ordered_existing_ids:
-                ordered_entries.append(("existing", image))
-                ordered_existing_ids.add(entry_id)
-
-        for image in surviving_images:
-            image_id = str(image.id)
-            if image_id not in ordered_existing_ids:
-                ordered_entries.append(("existing", image))
-
-        for url in new_url_iter:
-            ordered_entries.append(("new", url))
-
-        for position, (entry_type, entry_value) in enumerate(ordered_entries):
-            if entry_type == "existing":
-                entry_value.position = position
-            else:
-                db.session.add(ItemImage(item=item, url=entry_value, position=position))
-
         try:
-            db.session.commit()
+            item_service.update_item(
+                item,
+                form.name.data,
+                form.description.data,
+                form.category.data,
+                form.is_giveaway.data,
+                form.giveaway_visibility.data,
+                form.tags.data,
+                new_files,
+                delete_entries,
+                order_entries,
+            )
+        except ValueError:
+            flash("Some image uploads failed. Please try again.", "warning")
+            return render_template("main/edit_item.html", form=form, item=item)
         except Exception as exc:
-            db.session.rollback()
-            if new_urls:
-                delete_item_images(new_urls)
             current_app.logger.error(f"Failed to update item {item.id}: {str(exc)}")
             flash("We could not save your item changes. Please try again.", "error")
             return render_template("main/edit_item.html", form=form, item=item)
 
-        if removed_urls:
-            delete_item_images(removed_urls)
         flash("Item has been updated.", "success")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
@@ -428,22 +319,10 @@ def delete_item(item_id):
         return redirect(url_for("main.profile"))
 
     try:
-        Message.query.filter(Message.item_id == item_id).delete()
-        LoanRequest.query.filter_by(item_id=item_id).delete()
-        GiveawayInterest.query.filter_by(item_id=item_id).delete()
-        item.tags.clear()
-
-        image_urls = [img.url for img in item.images]
-        db.session.delete(item)
-        db.session.commit()
-
-        if image_urls:
-            delete_item_images(image_urls)
-
+        item_service.delete_item_with_cleanup(item)
         flash("Item deleted successfully.", "success")
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error deleting item {item_id}: {str(e)}")
+    except Exception as exc:
+        current_app.logger.error(f"Error deleting item {item_id}: {str(exc)}")
         flash("An error occurred while deleting the item.", "danger")
 
     return redirect(url_for("main.profile"))

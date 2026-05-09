@@ -1,7 +1,7 @@
 import random
 
 from app.main.views import browse, giveaways, items, loans, messaging, profile, public  # noqa: F401
-from app.services import giveaway_service, loan_service
+from app.services import giveaway_service, item_service, loan_service
 from app.utils.digest_tokens import verify_digest_manage_token
 from app.utils.email import send_message_notification_email
 from app.utils.storage import upload_item_images
@@ -9,6 +9,7 @@ from app.utils.storage import upload_item_images
 giveaways.random = random
 giveaway_service.random = random
 items.upload_item_images = lambda *args, **kwargs: upload_item_images(*args, **kwargs)
+item_service.upload_item_images = lambda *args, **kwargs: upload_item_images(*args, **kwargs)
 items.send_message_notification_email = lambda *args, **kwargs: send_message_notification_email(
     *args, **kwargs
 )
