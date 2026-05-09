@@ -25,6 +25,7 @@
                     <p><strong>Name:</strong> {{ target_user.full_name }}</p>
                     <p class="mb-1"><strong>Requested:</strong> {{ interest.created_at|utc_timestamp('datetime') }}</p>
                     {% set shared_circles_container_class = 'mt-3 mb-2' %}
+                    {% set shared_circles_empty_message = 'You do not share any circles with this requester.' %}
                     {% include '_shared_circles.html' %}
                     {% if interest.message %}
                         <div class="mt-3 p-3 bg-light rounded">

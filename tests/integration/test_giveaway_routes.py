@@ -1484,6 +1484,33 @@ class TestGiveawayOwnerMessaging:
             assert f"/circles/{shared_circle.id}".encode() in response.data
             assert b"Owner Only Circle" not in response.data
 
+    def test_message_requester_page_shows_no_shared_circles_message(self, client, app, auth_user):
+        """Message requester page should explain when owner and requester share no circles."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory()
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner, category=category, is_giveaway=True, claim_status="unclaimed"
+            )
+
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                message="Could I pick this up tomorrow?",
+                status="active",
+            )
+            db.session.add(interest)
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f"/item/{giveaway.id}/message-requester/{requester.id}")
+
+            assert response.status_code == 200
+            assert b"You do not share any circles with this requester." in response.data
+            assert b"Circles in common:" not in response.data
+
     def test_owner_can_message_requester(self, client, app, auth_user):
         """Test that owner can initiate a message with a giveaway requester."""
         with app.app_context():
