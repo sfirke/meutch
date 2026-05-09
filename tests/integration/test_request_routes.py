@@ -10,6 +10,7 @@ from tests.factories import (
     CircleFactory,
     ItemFactory,
     ItemRequestFactory,
+    LoanRequestFactory,
     MessageFactory,
     UserFactory,
 )
@@ -848,6 +849,50 @@ class TestRequestConversations:
             assert b"Borrowed" not in response.data
             assert b"You are the selected recipient for this giveaway." in response.data
             assert b"Mark Handoff Complete" not in response.data
+
+    def test_view_conversation_owner_loan_request_uses_consolidated_summary(self, client, app):
+        """Owner loan conversations should keep the request context in one summary card without a borrower row."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory(first_name="User1", last_name="Test")
+            shared_circle = CircleFactory(name="Outdoor Adventures")
+            shared_circle.members.extend([owner, requester])
+
+            item = ItemFactory(
+                owner=owner,
+                name="Bread Maker",
+                description="Automatic bread making machine, barely used",
+            )
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=requester,
+                status="pending",
+                start_date=datetime(2026, 5, 9, tzinfo=UTC),
+                end_date=datetime(2026, 5, 16, tzinfo=UTC),
+            )
+            first_message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=item,
+                loan_request=loan,
+                body="Could I borrow this next week?",
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f"/message/{first_message.id}")
+            content = response.get_data(as_text=True)
+
+            assert response.status_code == 200
+            assert "Conversation with" in content
+            assert requester.full_name in content
+            assert content.index(requester.full_name) < content.index("Circles in common:")
+            assert shared_circle.name in content
+            assert f'href="/item/{item.id}"' in content
+            assert "Requested dates:" in content
+            assert "Approve Request" in content
+            assert "Deny Request" in content
+            assert "Borrower:" not in content
 
     def test_view_conversation_pending_pickup_giveaway_owner_sees_handoff_actions(
         self, client, app
