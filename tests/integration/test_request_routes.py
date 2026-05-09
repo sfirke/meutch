@@ -916,6 +916,46 @@ class TestRequestConversations:
             assert b"View Interested Users" in response.data
             assert b"Mark Handoff Complete" not in response.data
 
+    def test_view_conversation_unclaimed_giveaway_shows_shared_circle_links(self, client, app):
+        """Owner giveaway conversations should show the circles shared with the requester."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            shared_circle = CircleFactory(name="Neighborhood Circle")
+            requester_only_circle = CircleFactory(name="Requester Circle")
+
+            shared_circle.members.extend([owner, requester])
+            requester_only_circle.members.append(requester)
+
+            giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="unclaimed",
+                available=True,
+            )
+            interest = GiveawayInterest(
+                item_id=giveaway.id,
+                user_id=requester.id,
+                status="active",
+            )
+            first_message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=giveaway,
+                body="I can pick this up after work.",
+            )
+            db.session.add(interest)
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f"/message/{first_message.id}")
+
+            assert response.status_code == 200
+            assert b"Circles in common:" in response.data
+            assert b"Neighborhood Circle" in response.data
+            assert f"/circles/{shared_circle.id}".encode() in response.data
+            assert b"Requester Circle" not in response.data
+
     def test_view_conversation_unclaimed_giveaway_shows_interested_count_guidance(
         self, client, app
     ):

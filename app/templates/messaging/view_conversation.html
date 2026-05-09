@@ -40,7 +40,7 @@
             <div class="row g-0">
                 <div class="col-md-4">
                     {% if conversation_item.image %}
-                        <img src="{{ conversation_item.image }}" 
+                        <img src="{{ conversation_item.image }}"
                              class="img-fluid rounded-start card-img-top"
                              alt="{{ conversation_item.name }}">
                     {% endif %}
@@ -109,6 +109,8 @@
                     <strong>{{ giveaway_selection_interested_count }} people are interested in this giveaway.</strong> You can give it to {{ thread_messages[0].other_user.full_name }} now or review everyone first.
                 </p>
             {% endif %}
+            {% set shared_circles_container_class = 'mb-3' %}
+            {% include '_shared_circles.html' %}
             <div class="d-flex flex-wrap gap-2">
                 <form method="POST" action="{{ url_for('main.give_to_user', item_id=giveaway_selection_item.id, user_id=thread_messages[0].other_user.id) }}" class="d-inline">
                     {{ giveaway_selection_form.hidden_tag() }}
@@ -193,7 +195,7 @@
                         <strong>Duration:</strong> {{ active_loan.start_date.strftime('%Y-%m-%d') }} to {{ active_loan.end_date.strftime('%Y-%m-%d') }}
                     </p>
                     <p class="mb-2">
-                        <strong>Status:</strong> 
+                        <strong>Status:</strong>
                         <span class="badge bg-{{ 'warning' if active_loan.status == 'pending' else 'success' if active_loan.status == 'approved' else 'danger' }}">
                             {{ active_loan.status|title }}
                         </span>
@@ -212,6 +214,8 @@
                     <p class="mb-0">
                         <strong>Borrower:</strong> {{ active_loan.borrower_name }}
                     </p>
+                    {% set shared_circles_container_class = 'mt-2' %}
+                    {% include '_shared_circles.html' %}
                 </div>
                 <div class="col-md-6">
                     {% if active_loan.status == 'pending' %}
@@ -288,14 +292,14 @@
     <h3>Messages</h3>
     <div class="thread-container">
         {% for msg in thread_messages %}
-            <div class="card message-card 
-                {% if msg.sender_id == current_user.id %}message-mine{% else %}message-theirs{% endif %} 
+            <div class="card message-card
+                {% if msg.sender_id == current_user.id %}message-mine{% else %}message-theirs{% endif %}
                 {% if msg.has_pending_action %}unread-message{% endif %}
                 {% if msg.is_loan_request_message and msg.loan_request.messages[0] == msg %} message-loan{% endif %}">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <strong>From:</strong> 
+                            <strong>From:</strong>
                             {% if msg.sender_id != current_user.id %}
                                 <a href="{{ url_for('main.user_profile', user_id=msg.sender.id) }}">
                                     {{ msg.sender.full_name }}
@@ -325,7 +329,7 @@
                                 {% endif %}
                             {% endif %}
                         </p>
-                        <p><strong>Status:</strong> 
+                        <p><strong>Status:</strong>
                             <span class="badge bg-{{ 'warning' if msg.loan_request.status == 'pending' else 'success' if msg.loan_request.status == 'approved' else 'danger' }}">
                                 {{ msg.loan_request.status|title }}
                             </span>
@@ -334,7 +338,7 @@
                             <p class="text-muted"><em>This loan request is no longer active. {{ msg.loan_request.status|title }} on {{ msg.timestamp|utc_timestamp('date') }}.</em></p>
                         {% endif %}
                     </div>
-                {% endif %}                                        
+                {% endif %}
                     <p>{{ msg.body | replace('\n', '<br>') | safe }}</p>
                 </div>
             </div>

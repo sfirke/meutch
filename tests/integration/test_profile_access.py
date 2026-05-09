@@ -1,12 +1,14 @@
 """Integration tests for profile access with circle-based restrictions."""
+
 import pytest
-from app.models import User, Circle, db
-from tests.factories import UserFactory, CircleFactory
 from flask import url_for
+
+from app.models import db
 from conftest import login_user
+from tests.factories import CircleFactory, UserFactory
 
 
-@pytest.mark.usefixtures('app')
+@pytest.mark.usefixtures("app")
 class TestProfileAccessControl:
     """Test that profile access is restricted based on circle membership."""
 
@@ -14,10 +16,10 @@ class TestProfileAccessControl:
         """Test that profile page redirects to login when not authenticated."""
         user = UserFactory()
         db.session.commit()
-        
-        response = client.get(url_for('main.user_profile', user_id=user.id))
+
+        response = client.get(url_for("main.user_profile", user_id=user.id))
         assert response.status_code == 302
-        assert 'login' in response.location
+        assert "login" in response.location
 
     def test_profile_accessible_when_shared_circle(self, client):
         """Test that users can view profiles of users in their circles."""
@@ -26,17 +28,17 @@ class TestProfileAccessControl:
         db.session.commit()
 
         circle = CircleFactory()
-        
+
         # Add both users to the same circle
         circle.members.append(user1)
         circle.members.append(user2)
         db.session.commit()
 
         login_user(client, user1.email)
-        response = client.get(url_for('main.user_profile', user_id=user2.id))
-        
+        response = client.get(url_for("main.user_profile", user_id=user2.id))
+
         assert response.status_code == 200
-        assert b'Profile Owner' in response.data
+        assert b"Profile Owner" in response.data
 
     def test_profile_not_accessible_when_no_shared_circle(self, client):
         """Test that users cannot view profiles of users not in their circles."""
@@ -47,20 +49,20 @@ class TestProfileAccessControl:
         # Create separate circles
         circle1 = CircleFactory(name="Circle A")
         circle2 = CircleFactory(name="Circle B")
-        
+
         # Users in different circles
         circle1.members.append(user1)
         circle2.members.append(user2)
         db.session.commit()
 
         login_user(client, user1.email)
-        response = client.get(url_for('main.user_profile', user_id=user2.id))
-        
+        response = client.get(url_for("main.user_profile", user_id=user2.id))
+
         # Should redirect with warning
         assert response.status_code == 302
         # Follow redirect to index
-        response = client.get(url_for('main.user_profile', user_id=user2.id), follow_redirects=True)
-        assert b'You can only view profiles of users in your circles' in response.data
+        response = client.get(url_for("main.user_profile", user_id=user2.id), follow_redirects=True)
+        assert b"You can only view profiles of users in your circles" in response.data
 
     def test_profile_not_accessible_when_no_circles(self, client):
         """Test that users without circles cannot view other profiles."""
@@ -73,8 +75,8 @@ class TestProfileAccessControl:
         db.session.commit()
 
         login_user(client, user1.email)
-        response = client.get(url_for('main.user_profile', user_id=user2.id))
-        
+        response = client.get(url_for("main.user_profile", user_id=user2.id))
+
         # Should redirect with warning
         assert response.status_code == 302
 
@@ -90,10 +92,10 @@ class TestProfileAccessControl:
         db.session.commit()
 
         login_user(client, admin_user.email)
-        response = client.get(url_for('main.user_profile', user_id=regular_user.id))
-        
+        response = client.get(url_for("main.user_profile", user_id=regular_user.id))
+
         assert response.status_code == 200
-        assert b'Regular User' in response.data
+        assert b"Regular User" in response.data
 
     def test_user_can_view_own_profile(self, client):
         """Test that users can always view their own profile."""
@@ -102,10 +104,10 @@ class TestProfileAccessControl:
 
         # User has no circles
         login_user(client, user.email)
-        response = client.get(url_for('main.user_profile', user_id=user.id))
-        
+        response = client.get(url_for("main.user_profile", user_id=user.id))
+
         assert response.status_code == 200
-        assert b'Self Viewer' in response.data
+        assert b"Self Viewer" in response.data
 
     def test_profile_accessible_one_shared_of_many_circles(self, client):
         """Test profile access when users share only one of many circles."""
@@ -116,7 +118,7 @@ class TestProfileAccessControl:
         circle1 = CircleFactory(name="Shared Circle")
         circle2 = CircleFactory(name="User1 Only")
         circle3 = CircleFactory(name="User2 Only")
-        
+
         # user1 in circles 1 and 2
         circle1.members.append(user1)
         circle2.members.append(user1)
@@ -126,10 +128,35 @@ class TestProfileAccessControl:
         db.session.commit()
 
         login_user(client, user1.email)
-        response = client.get(url_for('main.user_profile', user_id=user2.id))
-        
+        response = client.get(url_for("main.user_profile", user_id=user2.id))
+
         assert response.status_code == 200
-        assert b'Partial Overlap' in response.data
+        assert b"Partial Overlap" in response.data
+
+    def test_profile_displays_shared_circle_links(self, client, app):
+        """Profile should show only shared circles with links to those circles."""
+        with app.app_context():
+            viewer = UserFactory(first_name="Viewer", last_name="User")
+            profile_owner = UserFactory(first_name="Profile", last_name="Owner")
+
+            shared_circle = CircleFactory(name="Repair Circle")
+            viewer_only_circle = CircleFactory(name="Viewer Only Circle")
+            profile_only_circle = CircleFactory(name="Profile Only Circle")
+
+            shared_circle.members.extend([viewer, profile_owner])
+            viewer_only_circle.members.append(viewer)
+            profile_only_circle.members.append(profile_owner)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(url_for("main.user_profile", user_id=profile_owner.id))
+
+            assert response.status_code == 200
+            assert b"Circles in common:" in response.data
+            assert b"Repair Circle" in response.data
+            assert f"/circles/{shared_circle.id}".encode() in response.data
+            assert b"Viewer Only Circle" not in response.data
+            assert b"Profile Only Circle" not in response.data
 
     def test_profile_nonexistent_user_does_not_leak_existence(self, client):
         """Non-admins should not learn if a non-shared user exists (or not)."""
@@ -139,6 +166,6 @@ class TestProfileAccessControl:
         db.session.commit()
 
         login_user(client, viewer.email)
-        response = client.get(url_for('main.user_profile', user_id=uuid.uuid4()))
+        response = client.get(url_for("main.user_profile", user_id=uuid.uuid4()))
         # Redirect to index with generic warning (same behavior as unauthorized access)
         assert response.status_code == 302

@@ -12,9 +12,17 @@
                 <p class="mt-3">{{ user.about_me }}</p>
             {% endif %}
         </div>
-        
+
         <!-- Web Links Section - Upper Right -->
         <div class="col-md-8">
+            {% if shared_circles %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        {% set shared_circles_container_class = 'mb-0' %}
+                        {% include '_shared_circles.html' %}
+                    </div>
+                </div>
+            {% endif %}
             {% if user.web_links %}
                 <div class="card">
                     <div class="card-body">
@@ -39,7 +47,7 @@
         </div>
     </div>
 </div>
-    
+
     <!-- User's Items (only visible to self and admins) -->
     {% if can_view_items %}
     <div id="items-section" class="mt-4">
@@ -53,7 +61,7 @@
                     {% include 'main/_item_card.html' %}
                 {% endfor %}
             </div>
-            
+
             <!-- Pagination Controls -->
             {% if pagination.pages > 1 %}
                 <nav aria-label="User items pages">
@@ -69,7 +77,7 @@
                                 <span class="page-link" aria-hidden="true">&laquo;</span>
                             </li>
                         {% endif %}
-                        
+
                         {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
                             {% if p %}
                                 {% if p == pagination.page %}
@@ -81,7 +89,7 @@
                                 <li class="page-item disabled"><span class="page-link">…</span></li>
                             {% endif %}
                         {% endfor %}
-                        
+
                         {% if pagination.has_next %}
                             <li class="page-item">
                                 <a class="page-link" href="{{ url_for('main.user_profile', user_id=user.id, page=pagination.next_num) }}" aria-label="Next">
