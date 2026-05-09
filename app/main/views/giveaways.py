@@ -1,11 +1,8 @@
-import random
-from datetime import UTC, datetime
 from uuid import UUID
 
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import and_, or_
-from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.forms import (
@@ -20,35 +17,11 @@ from app.forms import (
 )
 from app.main import bp as main_bp
 from app.models import GiveawayInterest, Item, Message, User
+from app.services import giveaway_service
+from app.services.exceptions import ConflictError, ServiceError
 from app.utils.email import send_message_notification_email
 
 from .helpers import _conversation_other_user_id
-
-
-def _select_giveaway_recipient(item, selected_interest, sender_id):
-    item.claim_status = "pending_pickup"
-    item.claimed_by_id = selected_interest.user_id
-    item.claimed_at = None
-    item.available = False
-    selected_interest.status = "selected"
-
-    notification_message = Message(
-        sender_id=sender_id,
-        recipient_id=selected_interest.user_id,
-        item_id=item.id,
-        body=f"Good news! You've been selected for the giveaway '{item.name}'! Please coordinate pickup with the owner.",
-    )
-    db.session.add(notification_message)
-    db.session.commit()
-
-    try:
-        send_message_notification_email(notification_message)
-    except Exception as exc:
-        current_app.logger.error(
-            f"Failed to send email notification for giveaway selection: {str(exc)}"
-        )
-
-    return notification_message
 
 
 @main_bp.route("/item/<uuid:item_id>/express-interest", methods=["POST"])
@@ -58,59 +31,19 @@ def express_interest(item_id):
     item = db.get_or_404(Item, item_id)
     form = ExpressInterestForm()
 
-    if not item.is_giveaway:
-        flash("This item is not a giveaway.", "danger")
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
-    if item.claim_status not in [None, "unclaimed"]:
-        flash("This giveaway is no longer available.", "warning")
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
-    if item.owner_id == current_user.id:
-        flash("You cannot express interest in your own giveaway.", "warning")
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
     if form.validate_on_submit():
-        message_text = form.message.data.strip() if form.message.data else None
-        notification_body = message_text or f"Hi! I'm interested in your giveaway '{item.name}'."
-
         try:
-            interest = GiveawayInterest(
-                item_id=item.id,
-                user_id=current_user.id,
-                message=message_text,
-                status="active",
-            )
-            db.session.add(interest)
-
-            message = Message(
-                sender_id=current_user.id,
-                recipient_id=item.owner_id,
-                item_id=item.id,
-                body=notification_body,
-            )
-            db.session.add(message)
-
-            db.session.commit()
-
-            try:
-                send_message_notification_email(message)
-            except Exception as e:
-                current_app.logger.error(
-                    f"Failed to send email notification for giveaway interest message {message.id}: {str(e)}"
-                )
-
+            giveaway_service.express_interest(item, current_user.id, form.message.data)
+        except ServiceError as exc:
+            flash(str(exc), exc.flash_category)
+        except Exception as exc:
+            current_app.logger.error(f"Error expressing interest in giveaway {item_id}: {str(exc)}")
+            flash("An error occurred. Please try again.", "danger")
+        else:
             flash(
                 "Your interest has been recorded! The owner will contact you if you are selected.",
                 "success",
             )
-        except IntegrityError:
-            db.session.rollback()
-            flash("You have already expressed interest in this giveaway.", "info")
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error expressing interest in giveaway {item_id}: {str(e)}")
-            flash("An error occurred. Please try again.", "danger")
 
     return redirect(url_for("main.item_detail", item_id=item.id))
 
@@ -126,20 +59,15 @@ def withdraw_interest(item_id):
         flash("Invalid request.", "danger")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    interest = GiveawayInterest.query.filter_by(item_id=item.id, user_id=current_user.id).first()
-
-    if not interest:
-        flash("You have not expressed interest in this giveaway.", "warning")
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
     try:
-        db.session.delete(interest)
-        db.session.commit()
-        flash("Your interest has been withdrawn.", "success")
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error withdrawing interest from giveaway {item_id}: {str(e)}")
+        giveaway_service.withdraw_interest(item, current_user.id)
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
+    except Exception as exc:
+        current_app.logger.error(f"Error withdrawing interest from giveaway {item_id}: {str(exc)}")
         flash("An error occurred. Please try again.", "danger")
+    else:
+        flash("Your interest has been withdrawn.", "success")
 
     return redirect(url_for("main.item_detail", item_id=item.id))
 
@@ -179,46 +107,33 @@ def select_recipient(item_id):
             flash("Invalid selection. Please try again.", "danger")
             return redirect(url_for("main.select_recipient", item_id=item.id))
 
-        active_interests = (
-            GiveawayInterest.query.filter_by(item_id=item.id, status="active")
-            .order_by(GiveawayInterest.created_at)
-            .all()
-        )
-
-        if not active_interests:
-            flash("No interested users found.", "warning")
-            return redirect(url_for("main.item_detail", item_id=item.id))
-
-        selected_interest = None
-        if selection_method == "first":
-            selected_interest = active_interests[0]
-        elif selection_method == "random":
-            selected_interest = random.choice(active_interests)
-        elif selection_method == "manual":
-            manual_user_id = form.user_id.data
-            selected_interest = GiveawayInterest.query.filter_by(
-                item_id=item.id,
-                user_id=manual_user_id,
-                status="active",
-            ).first()
-
-        if not selected_interest:
-            flash("Invalid selection. Please try again.", "danger")
-            return redirect(url_for("main.select_recipient", item_id=item.id))
-
         try:
-            _select_giveaway_recipient(item, selected_interest, current_user.id)
+            selected_interest = giveaway_service.select_recipient(
+                item,
+                current_user.id,
+                selection_method,
+                form.user_id.data if selection_method == "manual" else None,
+            )
+        except ConflictError as exc:
+            flash(str(exc), exc.flash_category)
+            if str(exc) == "No interested users found.":
+                return redirect(url_for("main.item_detail", item_id=item.id))
+            return redirect(url_for("main.select_recipient", item_id=item.id))
+        except ServiceError as exc:
+            flash(str(exc), exc.flash_category)
+            return redirect(url_for("main.select_recipient", item_id=item.id))
+        except Exception as exc:
+            current_app.logger.error(
+                f"Error selecting recipient for giveaway {item_id}: {str(exc)}"
+            )
+            flash("An error occurred. Please try again.", "danger")
+            return redirect(url_for("main.select_recipient", item_id=item.id))
+        else:
             flash(
                 f"{selected_interest.user.full_name} has been selected! They will be notified.",
                 "success",
             )
             return redirect(url_for("main.item_detail", item_id=item.id))
-
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error selecting recipient for giveaway {item_id}: {str(e)}")
-            flash("An error occurred. Please try again.", "danger")
-            return redirect(url_for("main.select_recipient", item_id=item.id))
 
     is_reassignment = item.claim_status == "pending_pickup"
     interested_users = (
@@ -338,23 +253,26 @@ def give_to_user(item_id, user_id):
         user_id=user_id,
         status="active",
     ).first()
-
     if not selected_interest:
         flash("This user is not currently in the interested-user pool.", "warning")
         return redirect(url_for("main.view_conversation", message_id=conversation_message.id))
 
     try:
-        _select_giveaway_recipient(item, selected_interest, current_user.id)
-        flash(
-            f"{selected_interest.user.full_name} has been selected! They will be notified.",
-            "success",
+        selected_interest = giveaway_service.select_recipient(
+            item, current_user.id, "manual", user_id
         )
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
     except Exception as exc:
-        db.session.rollback()
         current_app.logger.error(
             f"Error selecting giveaway recipient from conversation {conversation_message.id}: {str(exc)}"
         )
         flash("An error occurred. Please try again.", "danger")
+    else:
+        flash(
+            f"{selected_interest.user.full_name} has been selected! They will be notified.",
+            "success",
+        )
 
     return redirect(url_for("main.view_conversation", message_id=conversation_message.id))
 
@@ -406,16 +324,16 @@ def message_giveaway_requester(item_id, user_id):
 
             try:
                 send_message_notification_email(message)
-            except Exception as e:
+            except Exception as exc:
                 current_app.logger.error(
-                    f"Failed to send email notification for message {message.id}: {str(e)}"
+                    f"Failed to send email notification for message {message.id}: {str(exc)}"
                 )
 
             flash("Your message has been sent.", "success")
             return redirect(url_for("main.view_conversation", message_id=message.id))
-        except Exception as e:
+        except Exception as exc:
             db.session.rollback()
-            current_app.logger.error(f"Error sending message for giveaway {item_id}: {str(e)}")
+            current_app.logger.error(f"Error sending message for giveaway {item_id}: {str(exc)}")
             flash("An error occurred. Please try again.", "danger")
 
     shared_circles = current_user.shared_circles_with(target_user)
@@ -454,99 +372,26 @@ def change_recipient(item_id):
         flash("Invalid request.", "danger")
         return redirect(url_for("main.select_recipient", item_id=item.id))
 
-    selection_method = form.selection_method.data
-    previous_claimed_by_id = item.claimed_by_id
-    active_interests = (
-        GiveawayInterest.query.filter(
-            GiveawayInterest.item_id == item.id,
-            GiveawayInterest.status == "active",
-            GiveawayInterest.user_id != previous_claimed_by_id,
-        )
-        .order_by(GiveawayInterest.created_at)
-        .all()
-    )
-
-    if not active_interests:
-        flash("No other interested users available to select.", "warning")
-        return redirect(url_for("main.select_recipient", item_id=item.id))
-
-    selected_interest = None
-    if selection_method == "next":
-        selected_interest = active_interests[0]
-    elif selection_method == "random":
-        selected_interest = random.choice(active_interests)
-    elif selection_method == "manual":
-        manual_user_id = form.user_id.data
-        if str(manual_user_id) == str(previous_claimed_by_id):
-            flash("That recipient is currently selected.", "warning")
-            return redirect(url_for("main.select_recipient", item_id=item.id))
-        selected_interest = GiveawayInterest.query.filter(
-            GiveawayInterest.item_id == item.id,
-            GiveawayInterest.user_id == manual_user_id,
-            GiveawayInterest.status == "active",
-            GiveawayInterest.user_id != previous_claimed_by_id,
-        ).first()
-
-    if not selected_interest:
-        flash("Invalid selection. Please try again.", "danger")
-        return redirect(url_for("main.select_recipient", item_id=item.id))
-
     try:
-        previous_interest = GiveawayInterest.query.filter_by(
-            item_id=item.id, user_id=previous_claimed_by_id
-        ).first()
-        if previous_interest:
-            previous_interest.status = "active"
-
-        previous_recipient = db.session.get(User, previous_claimed_by_id)
-        if previous_recipient:
-            previous_notification = Message(
-                sender_id=current_user.id,
-                recipient_id=previous_recipient.id,
-                item_id=item.id,
-                body=f"The owner has selected a different recipient for the giveaway '{item.name}'. Your interest remains active and you may still be selected in the future.",
-            )
-            db.session.add(previous_notification)
-
-        item.claimed_by_id = selected_interest.user_id
-        selected_interest.status = "selected"
-
-        notification_message = Message(
-            sender_id=current_user.id,
-            recipient_id=selected_interest.user_id,
-            item_id=item.id,
-            body=f"Good news! You've been selected for the giveaway '{item.name}'! Please coordinate pickup with the owner.",
+        selected_interest = giveaway_service.change_recipient(
+            item,
+            current_user.id,
+            form.selection_method.data,
+            form.user_id.data if form.selection_method.data == "manual" else None,
         )
-        db.session.add(notification_message)
-
-        db.session.commit()
-
-        try:
-            send_message_notification_email(notification_message)
-        except Exception as e:
-            current_app.logger.error(
-                f"Failed to send email notification for giveaway reassignment: {str(e)}"
-            )
-
-        if previous_recipient:
-            try:
-                send_message_notification_email(previous_notification)
-            except Exception as e:
-                current_app.logger.error(
-                    f"Failed to send email notification to previous recipient: {str(e)}"
-                )
-
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
+        return redirect(url_for("main.select_recipient", item_id=item.id))
+    except Exception as exc:
+        current_app.logger.error(f"Error changing recipient for giveaway {item_id}: {str(exc)}")
+        flash("An error occurred. Please try again.", "danger")
+        return redirect(url_for("main.select_recipient", item_id=item.id))
+    else:
         flash(
             f"{selected_interest.user.full_name} has been selected! They will be notified.",
             "success",
         )
         return redirect(url_for("main.item_detail", item_id=item.id))
-
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error changing recipient for giveaway {item_id}: {str(e)}")
-        flash("An error occurred. Please try again.", "danger")
-        return redirect(url_for("main.select_recipient", item_id=item.id))
 
 
 @main_bp.route("/item/<uuid:item_id>/release-to-all", methods=["POST"])
@@ -574,47 +419,20 @@ def release_to_all(item_id):
         return redirect(url_for("main.item_detail", item_id=item.id))
 
     try:
-        previous_recipient_id = item.claimed_by_id
-        if previous_recipient_id:
-            previous_interest = GiveawayInterest.query.filter_by(
-                item_id=item.id, user_id=previous_recipient_id
-            ).first()
-            if previous_interest:
-                previous_interest.status = "active"
-
-            release_notification = Message(
-                sender_id=current_user.id,
-                recipient_id=previous_recipient_id,
-                item_id=item.id,
-                body=f"The owner has released the giveaway '{item.name}' back to everyone. Your interest remains active and you may still be selected.",
-            )
-            db.session.add(release_notification)
-
-        item.claim_status = "unclaimed"
-        item.claimed_by_id = None
-        item.available = True
-
-        db.session.commit()
-
-        if previous_recipient_id:
-            try:
-                send_message_notification_email(release_notification)
-            except Exception as e:
-                current_app.logger.error(
-                    f"Failed to send email notification for giveaway release: {str(e)}"
-                )
-
+        giveaway_service.release_to_all(item, current_user.id)
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
+    except Exception as exc:
+        current_app.logger.error(f"Error releasing giveaway {item_id} to all: {str(exc)}")
+        flash("An error occurred. Please try again.", "danger")
+    else:
         flash(
             "The giveaway has been released and will reappear in the feed. All interested users remain in the pool.",
             "success",
         )
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error releasing giveaway {item_id} to all: {str(e)}")
-        flash("An error occurred. Please try again.", "danger")
-        return redirect(url_for("main.item_detail", item_id=item.id))
+    return redirect(url_for("main.item_detail", item_id=item.id))
 
 
 @main_bp.route("/item/<uuid:item_id>/confirm-handoff", methods=["POST"])
@@ -642,12 +460,13 @@ def confirm_handoff(item_id):
         return redirect(url_for("main.item_detail", item_id=item.id))
 
     try:
-        item.claim_status = "claimed"
-        item.claimed_at = datetime.now(UTC)
-        item.available = False
-
-        db.session.commit()
-
+        giveaway_service.confirm_handoff(item, current_user.id)
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
+    except Exception as exc:
+        current_app.logger.error(f"Error confirming handoff for giveaway {item_id}: {str(exc)}")
+        flash("An error occurred. Please try again.", "danger")
+    else:
         recipient_name = item.claimed_by_name
         flash(
             f"Handoff complete! The giveaway has been successfully given to {recipient_name}.",
@@ -655,8 +474,4 @@ def confirm_handoff(item_id):
         )
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error confirming handoff for giveaway {item_id}: {str(e)}")
-        flash("An error occurred. Please try again.", "danger")
-        return redirect(url_for("main.item_detail", item_id=item.id))
+    return redirect(url_for("main.item_detail", item_id=item.id))
