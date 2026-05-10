@@ -1,7 +1,7 @@
+import logging
 import random
 from datetime import UTC, datetime
 
-from flask import current_app
 from sqlalchemy.exc import IntegrityError
 
 from app import db
@@ -14,12 +14,14 @@ from app.services.exceptions import (
 )
 from app.utils.email import send_message_notification_email
 
+logger = logging.getLogger(__name__)
+
 
 def _send_notification_email(message, error_prefix):
     try:
         send_message_notification_email(message)
     except Exception as exc:  # pragma: no cover - behavior is unchanged if email sending fails
-        current_app.logger.error(f"{error_prefix}: {str(exc)}")
+        logger.error("%s: %s", error_prefix, exc)
 
 
 def _commit():

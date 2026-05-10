@@ -1,4 +1,9 @@
-"""Compatibility re-export layer for domain-specific form modules."""
+"""Compatibility re-export layer for domain-specific form modules.
+
+This module exists to maintain backwards compatibility for imports that have not
+yet been updated. Do NOT add new forms here — add them in the appropriate
+domain module (forms_items.py, forms_loans.py, etc.) and import from there directly.
+"""
 
 from app.forms_auth import (
     ForgotPasswordForm,

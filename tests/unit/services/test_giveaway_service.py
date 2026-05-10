@@ -1,7 +1,10 @@
 from unittest.mock import patch
 
+import pytest
+
 from app.models import Message
 from app.services import giveaway_service
+from app.services.exceptions import AuthorizationError, ConflictError, InvalidActionError
 from tests.factories import GiveawayInterestFactory, ItemFactory, UserFactory
 
 
@@ -97,3 +100,120 @@ class TestGiveawayService:
                 next_user.id,
             }
             assert mock_email.call_count == 2
+
+    def test_express_interest_raises_conflict_for_non_giveaway_item(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=False, available=True)
+
+            with pytest.raises(InvalidActionError, match="not a giveaway"):
+                giveaway_service.express_interest(item, requester.id, "I want this")
+
+    def test_express_interest_raises_conflict_when_already_claimed(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="claimed",
+                available=False,
+                giveaway_visibility="default",
+            )
+
+            with pytest.raises(ConflictError, match="no longer available"):
+                giveaway_service.express_interest(item, requester.id, "I want this")
+
+    def test_express_interest_raises_conflict_when_owner_expresses_interest(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="unclaimed",
+                available=True,
+                giveaway_visibility="default",
+            )
+
+            with pytest.raises(ConflictError, match="cannot express interest in your own"):
+                giveaway_service.express_interest(item, owner.id, "I want this")
+
+    def test_withdraw_interest_raises_conflict_when_interest_not_found(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="unclaimed",
+                available=True,
+                giveaway_visibility="default",
+            )
+
+            with pytest.raises(ConflictError, match="not expressed interest"):
+                giveaway_service.withdraw_interest(item, requester.id)
+
+    def test_select_recipient_raises_auth_error_for_non_owner(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            other = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="unclaimed",
+                available=True,
+                giveaway_visibility="default",
+            )
+            GiveawayInterestFactory(item=item, user=requester, status="active")
+
+            with pytest.raises(AuthorizationError):
+                giveaway_service.select_recipient(item, other.id, "first")
+
+    def test_select_recipient_raises_conflict_when_no_interested_users(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="unclaimed",
+                available=True,
+                giveaway_visibility="default",
+            )
+
+            with pytest.raises(ConflictError, match="No interested users"):
+                giveaway_service.select_recipient(item, owner.id, "first")
+
+    def test_change_recipient_raises_auth_error_for_non_owner(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            other = UserFactory()
+            prev_user = UserFactory()
+            next_user = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="pending_pickup",
+                claimed_by_id=prev_user.id,
+                available=False,
+                giveaway_visibility="default",
+            )
+            GiveawayInterestFactory(item=item, user=next_user, status="active")
+
+            with pytest.raises(AuthorizationError):
+                giveaway_service.change_recipient(item, other.id, "next")
+
+    def test_change_recipient_raises_conflict_when_not_pending_pickup(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="unclaimed",
+                available=True,
+                giveaway_visibility="default",
+            )
+
+            with pytest.raises(ConflictError, match="not pending pickup"):
+                giveaway_service.change_recipient(item, owner.id, "next")

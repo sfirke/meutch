@@ -1,4 +1,4 @@
-from flask import current_app
+import logging
 
 from app import db
 from app.models import LoanRequest, Message
@@ -10,12 +10,14 @@ from app.services.exceptions import (
 )
 from app.utils.email import send_message_notification_email
 
+logger = logging.getLogger(__name__)
+
 
 def _send_notification_email(message, error_prefix):
     try:
         send_message_notification_email(message)
     except Exception as exc:  # pragma: no cover - route/service behavior is the same either way
-        current_app.logger.error(f"{error_prefix}: {str(exc)}")
+        logger.error("%s: %s", error_prefix, exc)
 
 
 def _commit_and_notify(message, error_prefix):
