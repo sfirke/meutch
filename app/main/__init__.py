@@ -1,5 +1,5 @@
 from flask import Blueprint
 
-bp = Blueprint('main', __name__)
+from app.main.views import browse, giveaways, items, loans, messaging, profile, public  # noqa: F401
 
-from app.main import routes
+bp = Blueprint("main", __name__)
