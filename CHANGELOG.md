@@ -12,6 +12,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Admin panel now separates user management from analytics, with a new Monthly Active Users chart that tracks qualifying activity from January 2026 onward ([#342](https://github.com/sfirke/meutch/pull/342)).
 
 ### Developer Experience
+- Massive refactor that split `routes.py` into many views and pushed the app logic down into a new service layer ([#352](https://github.com/sfirke/meutch/pull/352)).
 - Align local pre-push linting with CI by sharing the same branch-diff `pre-commit` runner and documenting the diff-scoped command ([#339](https://github.com/sfirke/meutch/pull/339)).
 
 ## Apr 2026
