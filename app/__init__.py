@@ -1,39 +1,41 @@
 import logging
 import os
+from uuid import UUID
+
 from flask import Flask, flash, redirect, render_template, url_for
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from flask_login import LoginManager
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
-from config import config
-from uuid import UUID
-from app.context_processors import (
-    inject_unread_messages_count, 
-    inject_total_pending,
-    inject_distance_utils,
-    inject_static_url_for,
-    inject_item_upload_limits,
-)
 
+from app.context_processors import (
+    inject_distance_utils,
+    inject_item_upload_limits,
+    inject_static_url_for,
+    inject_total_pending,
+    inject_unread_messages_count,
+)
+from config import config
 
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
 
+
 def create_app(config_class=None):
     app = Flask(__name__)
-    
+
     # Auto-detect environment if no config provided
     if config_class is None:
-        flask_env = os.environ.get('FLASK_ENV', 'development')
-        config_class = config.get(flask_env, config['default'])
-    
+        flask_env = os.environ.get("FLASK_ENV", "development")
+        config_class = config.get(flask_env, config["default"])
+
     app.config.from_object(config_class)
-    
+
     # Validate storage configuration at startup
-    if hasattr(config_class, 'validate_storage_config'):
+    if hasattr(config_class, "validate_storage_config"):
         config_instance = config_class()
         config_instance.validate_storage_config()
 
@@ -42,36 +44,47 @@ def create_app(config_class=None):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
-    
+
     configure_logging(app)
 
     # Set the login view for @login_required
-    login_manager.login_view = 'auth.login'
-    login_manager.login_message = 'Please log in to access this page.'
-    login_manager.login_message_category = 'info'
-    
+    login_manager.login_view = "auth.login"
+    login_manager.login_message = "Please log in to access this page."
+    login_manager.login_message_category = "info"
+
     # Register blueprints
     from app.main import bp as main_bp
+
     app.register_blueprint(main_bp)
 
     from app.auth import bp as auth_bp
-    app.register_blueprint(auth_bp, url_prefix='')
+
+    app.register_blueprint(auth_bp, url_prefix="")
 
     from app.circles import bp as circles_bp
-    app.register_blueprint(circles_bp, url_prefix='/circles')
+
+    app.register_blueprint(circles_bp, url_prefix="/circles")
 
     from app.admin import bp as admin_bp
-    app.register_blueprint(admin_bp, url_prefix='/admin')
+
+    app.register_blueprint(admin_bp, url_prefix="/admin")
 
     from app.requests import bp as requests_bp
-    app.register_blueprint(requests_bp, url_prefix='/requests')
+
+    app.register_blueprint(requests_bp, url_prefix="/requests")
 
     from app.share import bp as share_bp
-    app.register_blueprint(share_bp, url_prefix='/share')
+
+    app.register_blueprint(share_bp, url_prefix="/share")
+
+    from app.api import v1_bp as api_v1_bp
+
+    app.register_blueprint(api_v1_bp, url_prefix="/api/v1")
 
     # Register CLI commands
     try:
-        from app.cli import seed, user, check_loan_reminders
+        from app.cli import check_loan_reminders, seed, user
+
         app.cli.add_command(seed)
         app.cli.add_command(user)
         app.cli.add_command(check_loan_reminders)
@@ -82,48 +95,54 @@ def create_app(config_class=None):
     @login_manager.user_loader
     def load_user(user_id):
         from app.models import User
+
         try:
             uuid_obj = UUID(user_id, version=4)
         except ValueError:
             return None
         return db.session.get(User, uuid_obj)
-    
+
     # Register the context processor
     app.context_processor(inject_unread_messages_count)
     app.context_processor(inject_total_pending)
     app.context_processor(inject_distance_utils)
     app.context_processor(inject_static_url_for)
     app.context_processor(inject_item_upload_limits)
-    
+
     # Register custom Jinja filters
     from app.template_filters import register_filters
+
     register_filters(app)
 
     # Register error handlers
     @app.errorhandler(403)
     def forbidden(e):
-        return render_template('errors/403.html'), 403
+        return render_template("errors/403.html"), 403
 
     @app.errorhandler(404)
     def page_not_found(e):
-        return render_template('errors/404.html'), 404
-    
+        return render_template("errors/404.html"), 404
+
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
-        flash('Your session has expired. Please log in again to continue.', 'warning')
-        return redirect(url_for('auth.login'))
+        flash("Your session has expired. Please log in again to continue.", "warning")
+        return redirect(url_for("auth.login"))
 
     # Optional auto-seed for development (disabled by default)
     with app.app_context():
-        if app.config.get('FLASK_ENV') == 'development' and os.environ.get('AUTO_SEED_ON_STARTUP', '').lower() in ('1', 'true', 'yes', 'on'):
+        if app.config.get("FLASK_ENV") == "development" and os.environ.get(
+            "AUTO_SEED_ON_STARTUP", ""
+        ).lower() in ("1", "true", "yes", "on"):
             try:
                 from app.models import User
+
                 # First check if tables exist by trying a simple query
                 try:
                     user_count = User.query.count()
                     if user_count == 0:
                         print("🌱 Development database is empty, auto-seeding...")
                         from app.utils.data_seeding import check_and_seed_if_empty
+
                         check_and_seed_if_empty()
                 except Exception as table_error:
                     print(f"Note: Database tables not ready for auto-seeding: {table_error}")
@@ -137,20 +156,18 @@ def create_app(config_class=None):
 def configure_logging(app):
     # Remove the default Flask logger handlers
     del app.logger.handlers[:]
-    
+
     # Create a new logger handler
     handler = logging.StreamHandler()
-    handler.setLevel(app.config['LOG_LEVEL'])
+    handler.setLevel(app.config["LOG_LEVEL"])
 
     # Define log format
-    formatter = logging.Formatter(
-        '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
-    )
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s")
     handler.setFormatter(formatter)
 
     # Add the handler to the app's logger
     app.logger.addHandler(handler)
-    app.logger.setLevel(app.config['LOG_LEVEL'])
+    app.logger.setLevel(app.config["LOG_LEVEL"])
 
     # Optional: Disable werkzeug's default logger if necessary
     # logging.getLogger('werkzeug').setLevel(logging.ERROR)
