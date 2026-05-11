@@ -14,7 +14,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Developer Experience
 - Massive refactor that split `routes.py` into many views and pushed the app logic down into a new service layer ([#352](https://github.com/sfirke/meutch/pull/352)).
 - Align local pre-push linting with CI by sharing the same branch-diff `pre-commit` runner and documenting the diff-scoped command ([#339](https://github.com/sfirke/meutch/pull/339)).
-- Add initial `app/api/v1` scaffolding, bootstrap JSON endpoints, and an API design document to prepare for a mobile client.
+
+### API development
+- Add initial `app/api/v1` scaffolding, bootstrap JSON endpoints, and an API design document to prepare for a mobile client ([#354](https://github.com/sfirke/meutch/pull/354)).
 
 ## Apr 2026
 
