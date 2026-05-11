@@ -1,19 +1,29 @@
-from flask import render_template, redirect, url_for, flash, request, current_app
-from flask_login import current_user, login_required
-from app.circles import bp as circles_bp
-from app.models import Circle, db, circle_members, CircleJoinRequest, User, Message
-from app.forms import CircleCreateForm, EmptyForm, CircleSearchForm, CircleJoinRequestForm, CircleUuidSearchForm
-from app.utils.storage import upload_circle_image, delete_file, is_valid_file_upload
-from app.utils.geocoding import geocode_address, build_address_string, GeocodingError
-from app.utils.circle_members import build_circle_member_samples
 import logging
-import uuid
+from datetime import UTC, datetime
+
+from flask import current_app, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
 from sqlalchemy import and_
-from datetime import datetime, UTC
+
+from app.circles import bp as circles_bp
+from app.forms import (
+    CircleCreateForm,
+    CircleJoinRequestForm,
+    CircleSearchForm,
+    CircleUuidSearchForm,
+    EmptyForm,
+)
+from app.models import Circle, CircleJoinRequest, User, circle_members, db
+from app.services import circle_service
+from app.services.exceptions import ServiceError
+from app.utils.circle_members import build_circle_member_samples
+from app.utils.geocoding import GeocodingError, build_address_string, geocode_address
+from app.utils.storage import delete_file, is_valid_file_upload, upload_circle_image
 
 logger = logging.getLogger(__name__)
 
 # Circles -----------------------------------------------------
+
 
 def filter_circles_by_distance(circles, user, radius=None):
     """Filter circles to those within the selected radius when user is geocoded."""
@@ -34,7 +44,8 @@ def sort_circles_by_membership(circles):
     """Sort circles by member count descending."""
     return sorted(circles, key=lambda circle: len(circle.members), reverse=True)
 
-@circles_bp.route('/', methods=['GET', 'POST'])
+
+@circles_bp.route("/", methods=["GET", "POST"])
 @login_required
 def manage_circles():
     circle_form = CircleCreateForm()
@@ -47,22 +58,22 @@ def manage_circles():
     show_browse = False
 
     # Get user's admin circles with pending request counts
-    admin_circle_counts = db.session.query(
-        Circle.id.cast(db.String).label('circle_id'),  # Convert UUID to string
-        db.func.count(CircleJoinRequest.id).label('pending_count')
-    ).join(
-        circle_members,
-        Circle.id == circle_members.c.circle_id
-    ).outerjoin(
-        CircleJoinRequest,
-        db.and_(
-            Circle.id == CircleJoinRequest.circle_id,
-            CircleJoinRequest.status == 'pending'
+    admin_circle_counts = (
+        db.session.query(
+            Circle.id.cast(db.String).label("circle_id"),  # Convert UUID to string
+            db.func.count(CircleJoinRequest.id).label("pending_count"),
         )
-    ).filter(
-        circle_members.c.user_id == current_user.id,
-        circle_members.c.is_admin == True
-    ).group_by(Circle.id).all()
+        .join(circle_members, Circle.id == circle_members.c.circle_id)
+        .outerjoin(
+            CircleJoinRequest,
+            db.and_(
+                Circle.id == CircleJoinRequest.circle_id, CircleJoinRequest.status == "pending"
+            ),
+        )
+        .filter(circle_members.c.user_id == current_user.id, circle_members.c.is_admin)
+        .group_by(Circle.id)
+        .all()
+    )
 
     # Convert to dictionary with pre-converted string IDs
     user_admin_circles = {circle_id: count for circle_id, count in admin_circle_counts}
@@ -70,158 +81,181 @@ def manage_circles():
     # Compute once — used for facepile visibility and template membership checks
     user_circle_ids = {circle.id for circle in current_user.circles}
 
-    if request.method == 'POST':
-        if 'create_circle' in request.form and circle_form.validate_on_submit():
+    if request.method == "POST":
+        if "create_circle" in request.form and circle_form.validate_on_submit():
             # Handle Circle Creation
-            existing_circle = Circle.query.filter(db.func.lower(Circle.name) == db.func.lower(circle_form.name.data)).first()
+            existing_circle = Circle.query.filter(
+                db.func.lower(Circle.name) == db.func.lower(circle_form.name.data)
+            ).first()
             if existing_circle:
-                flash('A circle with this name already exists.', 'danger')
+                flash("A circle with this name already exists.", "danger")
             else:
                 new_circle = Circle(
                     name=circle_form.name.data,
                     description=circle_form.description.data,
                     circle_type=circle_form.circle_type.data,
                 )
-                
+
                 # Handle location based on input method
                 geocoding_failed = False
-                if circle_form.location_method.data == 'coordinates':
+                if circle_form.location_method.data == "coordinates":
                     # Direct coordinate input
                     new_circle.latitude = circle_form.latitude.data
                     new_circle.longitude = circle_form.longitude.data
-                    logger.info(f"Circle {new_circle.name} provided coordinates directly: ({new_circle.latitude}, {new_circle.longitude})")
-                elif circle_form.location_method.data == 'address':
+                    logger.info(
+                        f"Circle {new_circle.name} provided coordinates directly: ({new_circle.latitude}, {new_circle.longitude})"
+                    )
+                elif circle_form.location_method.data == "address":
                     # Address geocoding
                     address = build_address_string(
-                        circle_form.street.data, circle_form.city.data, circle_form.state.data, 
-                        circle_form.zip_code.data, circle_form.country.data
+                        circle_form.street.data,
+                        circle_form.city.data,
+                        circle_form.state.data,
+                        circle_form.zip_code.data,
+                        circle_form.country.data,
                     )
-                    
+
                     try:
                         coordinates = geocode_address(address)
                         if coordinates:
                             new_circle.latitude, new_circle.longitude = coordinates
-                            logger.info(f"Successfully geocoded address for circle {new_circle.name}")
+                            logger.info(
+                                f"Successfully geocoded address for circle {new_circle.name}"
+                            )
                         else:
                             geocoding_failed = True
-                            logger.warning(f"Failed to geocode address for circle {new_circle.name}: {address}")
+                            logger.warning(
+                                f"Failed to geocode address for circle {new_circle.name}: {address}"
+                            )
                     except GeocodingError as e:
                         geocoding_failed = True
                         logger.error(f"Geocoding error for circle {new_circle.name}: {e}")
                     except Exception as e:
                         geocoding_failed = True
-                        logger.error(f"Unexpected error during geocoding for circle {new_circle.name}: {e}")
+                        logger.error(
+                            f"Unexpected error during geocoding for circle {new_circle.name}: {e}"
+                        )
                 # If location_method is 'skip', don't set any location data
-                
+
                 db.session.add(new_circle)
                 db.session.flush()  # Ensure circle has an ID
-                
+
                 # Add creator as admin member
                 stmt = circle_members.insert().values(
                     user_id=current_user.id,
                     circle_id=new_circle.id,
                     joined_at=datetime.now(UTC),
-                    is_admin=True
+                    is_admin=True,
                 )
                 db.session.execute(stmt)
                 db.session.commit()
-                
+
                 # Provide appropriate feedback based on location choice
-                if circle_form.location_method.data == 'skip':
-                    flash('Circle created successfully! You can add a location later to help members find circles nearby.', 'success')
+                if circle_form.location_method.data == "skip":
+                    flash(
+                        "Circle created successfully! You can add a location later to help members find circles nearby.",
+                        "success",
+                    )
                 elif geocoding_failed:
-                    flash('Circle created successfully, but we couldn\'t determine the location from the address provided. '
-                          'You can try entering coordinates directly, or update the location later.', 'warning')
+                    flash(
+                        "Circle created successfully, but we couldn't determine the location from the address provided. "
+                        "You can try entering coordinates directly, or update the location later.",
+                        "warning",
+                    )
                 else:
-                    flash('Circle created successfully!', 'success')
-                
+                    flash("Circle created successfully!", "success")
+
                 # Redirect to the newly created circle's detail page
-                return redirect(url_for('circles.view_circle', circle_id=new_circle.id))
-            
-        elif 'search_circles' in request.form and search_form.validate_on_submit():
+                return redirect(url_for("circles.view_circle", circle_id=new_circle.id))
+
+        elif "search_circles" in request.form and search_form.validate_on_submit():
             # Handle Circle Search or Browse (open and closed circles, not secret)
-            query = search_form.search_query.data.strip() if search_form.search_query.data else ''
+            query = search_form.search_query.data.strip() if search_form.search_query.data else ""
             radius = search_form.radius.data
-            
+
             # Base query - if no search term, browse all listed circles (excluding secret)
             if query:
                 circles_query = Circle.query.filter(
                     db.and_(
-                        Circle.name.ilike(f'%{query}%'),
-                        Circle.circle_type != 'secret'  # Exclude secret circles from search
+                        Circle.name.ilike(f"%{query}%"),
+                        Circle.circle_type != "secret",  # Exclude secret circles from search
                     )
                 )
             else:
                 # Browse all listed circles (open and closed)
-                circles_query = Circle.query.filter(
-                    Circle.circle_type != 'secret'
-                )
+                circles_query = Circle.query.filter(Circle.circle_type != "secret")
                 show_browse = True
 
             searched_circles = circles_query.all()
             searched_circles = filter_circles_by_distance(searched_circles, current_user, radius)
             searched_circles = sort_circles_by_membership(searched_circles)
-            searched_circle_samples = build_circle_member_samples(searched_circles, limit=5, user_circle_ids=user_circle_ids)
-            
+            searched_circle_samples = build_circle_member_samples(
+                searched_circles, limit=5, user_circle_ids=user_circle_ids
+            )
+
             if not searched_circles:
                 if radius and current_user.is_geocoded:
                     if query:
-                        flash(f'No circles found matching "{query}" within {radius} miles.', 'info')
+                        flash(f'No circles found matching "{query}" within {radius} miles.', "info")
                     else:
-                        flash(f'No circles found within {radius} miles.', 'info')
+                        flash(f"No circles found within {radius} miles.", "info")
                 else:
                     if query:
-                        flash(f'No circles found matching "{query}".', 'info')
+                        flash(f'No circles found matching "{query}".', "info")
                     else:
-                        flash('No circles available to browse.', 'info')
-                
-        elif 'find_by_uuid' in request.form and uuid_search_form.validate_on_submit():
+                        flash("No circles available to browse.", "info")
+
+        elif "find_by_uuid" in request.form and uuid_search_form.validate_on_submit():
             # Handle UUID Search for secret circles
             try:
                 circle_uuid = uuid_search_form.circle_uuid.data.strip()
                 found_circle = Circle.query.filter_by(id=circle_uuid).first()
                 if found_circle:
                     searched_circles = [found_circle]
-                    searched_circle_samples = build_circle_member_samples(searched_circles, limit=5, user_circle_ids=user_circle_ids)
+                    searched_circle_samples = build_circle_member_samples(
+                        searched_circles, limit=5, user_circle_ids=user_circle_ids
+                    )
                 else:
-                    flash('No circle found with that UUID.', 'warning')
+                    flash("No circle found with that UUID.", "warning")
             except Exception:
-                flash('Invalid UUID format.', 'danger')
+                flash("Invalid UUID format.", "danger")
 
     # Fetch user's circles and sort by member count (descending)
     user_circles = sorted(current_user.circles, key=lambda x: len(x.members), reverse=True)
 
     # If no search was performed on GET request, show browse results (all listed circles)
-    if request.method == 'GET':
+    if request.method == "GET":
         selected_radius = search_form.radius.data or search_form.radius.default
 
         # Get all listed circles (open and closed, excluding secret)
-        browse_query = Circle.query.filter(
-            Circle.circle_type != 'secret'
-        )
+        browse_query = Circle.query.filter(Circle.circle_type != "secret")
         browse_circles = browse_query.all()
 
         browse_circles = filter_circles_by_distance(browse_circles, current_user, selected_radius)
         browse_circles = sort_circles_by_membership(browse_circles)
-        browse_circle_samples = build_circle_member_samples(browse_circles, limit=5, user_circle_ids=user_circle_ids)
-        
+        browse_circle_samples = build_circle_member_samples(
+            browse_circles, limit=5, user_circle_ids=user_circle_ids
+        )
+
         show_browse = True
 
-    return render_template('circles/circles.html', 
-                           circle_form=circle_form, 
-                           search_form=search_form,
-                           uuid_search_form=uuid_search_form,
-                           user_circles=user_circles,
-                           user_admin_circles=user_admin_circles,
-                           searched_circles=searched_circles,
-                           browse_circles=browse_circles,
-                           searched_circle_samples=searched_circle_samples,
-                           browse_circle_samples=browse_circle_samples,
-                           show_browse=show_browse,
-                           user_circle_ids=user_circle_ids)
+    return render_template(
+        "circles/circles.html",
+        circle_form=circle_form,
+        search_form=search_form,
+        uuid_search_form=uuid_search_form,
+        user_circles=user_circles,
+        user_admin_circles=user_admin_circles,
+        searched_circles=searched_circles,
+        browse_circles=browse_circles,
+        searched_circle_samples=searched_circle_samples,
+        browse_circle_samples=browse_circle_samples,
+        show_browse=show_browse,
+        user_circle_ids=user_circle_ids,
+    )
 
 
-@circles_bp.route('/<uuid:circle_id>', methods=['GET'])
+@circles_bp.route("/<uuid:circle_id>", methods=["GET"])
 @login_required
 def view_circle(circle_id):
     circle = db.get_or_404(Circle, circle_id)
@@ -233,291 +267,226 @@ def view_circle(circle_id):
 
     # Check for pending request
     pending_request = CircleJoinRequest.query.filter_by(
-        circle_id=circle_id,
-        user_id=current_user.id,
-        status='pending'
+        circle_id=circle_id, user_id=current_user.id, status="pending"
     ).first()
 
     # Only query member details if open circle or user is member
     if not circle.requires_join_approval or is_member:
-        members_info = db.session.query(
-            User,
-            circle_members.c.joined_at,
-            circle_members.c.is_admin
-        ).join(
-            circle_members,
-            and_(
-                User.id == circle_members.c.user_id,
-                circle_members.c.circle_id == circle_id
+        members_info = (
+            db.session.query(User, circle_members.c.joined_at, circle_members.c.is_admin)
+            .join(
+                circle_members,
+                and_(User.id == circle_members.c.user_id, circle_members.c.circle_id == circle_id),
             )
-        ).all()
-
-        ordered_members = sorted(
-            members_info,
-            key=lambda x: (not x.is_admin, x.joined_at)
+            .all()
         )
+
+        ordered_members = sorted(members_info, key=lambda x: (not x.is_admin, x.joined_at))
     else:
         ordered_members = []
 
     # Check if current user is the last member
     is_last_member = is_member and len(circle.members) == 1
-    
+
     return render_template(
-        'circles/circle_details.html',
+        "circles/circle_details.html",
         circle=circle,
         is_member=is_member,
         is_last_member=is_last_member,
         form=form,
         join_form=join_form,
         ordered_members=ordered_members,
-        pending_request=pending_request
+        pending_request=pending_request,
     )
 
-@circles_bp.route('/join/<uuid:circle_id>', methods=['POST'])
+
+@circles_bp.route("/join/<uuid:circle_id>", methods=["POST"])
 @login_required
 def join_circle(circle_id):
     circle = db.get_or_404(Circle, circle_id)
     form = CircleJoinRequestForm() if circle.requires_join_approval else EmptyForm()
 
-    if current_user in circle.members:
-        flash('You are already a member of this circle.', 'info')
-        return redirect(url_for('circles.view_circle', circle_id=circle.id))
-    
     if circle.requires_join_approval:
         if form.validate_on_submit():
-            join_request = CircleJoinRequest(
-                circle_id=circle.id,
-                user_id=current_user.id,
-                message=form.message.data
-            )
-            db.session.add(join_request)
-
-            db.session.commit()
-            
-            # Send email notification to circle admins
             try:
-                from app.utils.email import send_circle_join_request_notification_email
-                send_circle_join_request_notification_email(join_request)
-            except Exception as e:
-                current_app.logger.error(f"Failed to send email notification for circle join request {join_request.id}: {str(e)}")
-            
-            flash('Your request to join has been submitted.', 'success')
-            return redirect(url_for('circles.view_circle', circle_id=circle.id))
+                circle_service.join_circle(circle, current_user, form.message.data)
+            except ServiceError as exc:
+                flash(str(exc), exc.flash_category)
+            except Exception as exc:
+                current_app.logger.error(
+                    f"Error creating circle join request for {circle.id}: {str(exc)}"
+                )
+                flash("There was an error with your join request.", "danger")
+            else:
+                flash("Your request to join has been submitted.", "success")
+                return redirect(url_for("circles.view_circle", circle_id=circle.id))
         else:
-            flash('There was an error with your join request.', 'danger')
-            return redirect(url_for('circles.view_circle', circle_id=circle.id))
+            flash("There was an error with your join request.", "danger")
+            return redirect(url_for("circles.view_circle", circle_id=circle.id))
     else:
-        # For circles that do not require approval
-        stmt = circle_members.insert().values(
-            user_id=current_user.id,
-            circle_id=circle.id,
-            joined_at=datetime.now(UTC),
-            is_admin=False
-        )
-        db.session.execute(stmt)
-        db.session.commit()
-        flash('You have joined the circle successfully!', 'success')
-        return redirect(url_for('circles.view_circle', circle_id=circle.id))
+        try:
+            circle_service.join_circle(circle, current_user)
+        except ServiceError as exc:
+            flash(str(exc), exc.flash_category)
+        except Exception as exc:
+            current_app.logger.error(f"Error joining open circle {circle.id}: {str(exc)}")
+            flash("There was an error joining the circle.", "danger")
+        else:
+            flash("You have joined the circle successfully!", "success")
+            return redirect(url_for("circles.view_circle", circle_id=circle.id))
+
+    return redirect(url_for("circles.view_circle", circle_id=circle.id))
 
 
-@circles_bp.route('/leave/<uuid:circle_id>', methods=['POST'])
+@circles_bp.route("/leave/<uuid:circle_id>", methods=["POST"])
 @login_required
 def leave_circle(circle_id):
     circle = db.get_or_404(Circle, circle_id)
     if current_user not in circle.members:
-        flash('You are not a member of this circle.', 'info')
-        return redirect(url_for('circles.view_circle', circle_id=circle_id))
-    
+        flash("You are not a member of this circle.", "info")
+        return redirect(url_for("circles.view_circle", circle_id=circle_id))
+
     # Check if current user is an admin and there are other members
     if circle.is_admin(current_user) and len(circle.members) > 1:
-        admin_count = db.session.query(circle_members).filter_by(
-            circle_id=circle.id,
-            is_admin=True
-        ).count()
-        
+        admin_count = (
+            db.session.query(circle_members).filter_by(circle_id=circle.id, is_admin=True).count()
+        )
+
         if admin_count == 1:
             # Find earliest member to assign as new admin
-            next_admin_assoc = db.session.query(circle_members).filter(
-                circle_members.c.circle_id == circle.id,
-                circle_members.c.user_id != current_user.id
-            ).order_by(circle_members.c.joined_at).first()
-            
+            next_admin_assoc = (
+                db.session.query(circle_members)
+                .filter(
+                    circle_members.c.circle_id == circle.id,
+                    circle_members.c.user_id != current_user.id,
+                )
+                .order_by(circle_members.c.joined_at)
+                .first()
+            )
+
             if next_admin_assoc:
-                stmt = circle_members.update().where(
-                    and_(
-                        circle_members.c.circle_id == circle_id,
-                        circle_members.c.user_id == next_admin_assoc.user_id
+                stmt = (
+                    circle_members.update()
+                    .where(
+                        and_(
+                            circle_members.c.circle_id == circle_id,
+                            circle_members.c.user_id == next_admin_assoc.user_id,
+                        )
                     )
-                ).values(is_admin=True)
+                    .values(is_admin=True)
+                )
                 db.session.execute(stmt)
 
     # Remove the member using the relationship
     circle.members.remove(current_user)
-    
+
     # If this was the last member, delete the circle
     if len(circle.members) == 0:
         if circle.image_url:
             delete_file(circle.image_url)
         db.session.delete(circle)
         db.session.commit()
-        flash('Circle has been deleted as it has no remaining members.', 'info')
-        return redirect(url_for('circles.manage_circles'))
-    
+        flash("Circle has been deleted as it has no remaining members.", "info")
+        return redirect(url_for("circles.manage_circles"))
+
     db.session.commit()
-    flash('You have left the circle.', 'success')
-    return redirect(url_for('circles.manage_circles'))
+    flash("You have left the circle.", "success")
+    return redirect(url_for("circles.manage_circles"))
 
 
-@circles_bp.route('/<uuid:circle_id>/request/<uuid:request_id>/<action>', methods=['POST'])
+@circles_bp.route("/<uuid:circle_id>/request/<uuid:request_id>/<action>", methods=["POST"])
 @login_required
 def handle_join_request(circle_id, request_id, action):
     circle = db.get_or_404(Circle, circle_id)
-    if not circle.is_admin(current_user):
-        flash('You must be an admin to perform this action.', 'danger')
-        return redirect(url_for('circles.view_circle', circle_id=circle_id))
-        
     join_request = db.get_or_404(CircleJoinRequest, request_id)
-    
-    if join_request.circle_id != circle.id:
-        flash('Invalid join request.', 'danger')
-        return redirect(url_for('circles.view_circle', circle_id=circle_id))
 
-    if join_request.status != 'pending':
-        flash('This join request has already been handled.', 'info')
-        return redirect(url_for('circles.view_circle', circle_id=circle_id))
-    
-    if action == 'approve':
-        # Add user to circle_members with is_admin=False
-        stmt = circle_members.insert().values(
-            user_id=join_request.user_id,
-            circle_id=circle.id,
-            joined_at=datetime.now(UTC),
-            is_admin=False
-        )
-        db.session.execute(stmt)
-        join_request.status = 'approved'
-        decision_message = Message(
-            sender_id=current_user.id,
-            recipient_id=join_request.user_id,
-            circle_id=circle.id,
-            body=f"Your request to join '{circle.name}' has been approved."
-        )
-        db.session.add(decision_message)
-        flash('User has been approved to join the circle.', 'success')
-        
-    elif action == 'reject':
-        join_request.status = 'rejected'
-        decision_message = Message(
-            sender_id=current_user.id,
-            recipient_id=join_request.user_id,
-            circle_id=circle.id,
-            body=f"Your request to join '{circle.name}' has been denied."
-        )
-        db.session.add(decision_message)
-        flash('User request has been denied.', 'info')
-    else:
-        flash('Invalid action.', 'danger')
-        return redirect(url_for('circles.view_circle', circle_id=circle_id))
-    
-    db.session.commit()
-    
-    # Send email notification to the requesting user
     try:
-        from app.utils.email import send_circle_join_request_decision_email
-        send_circle_join_request_decision_email(join_request)
-    except Exception as e:
-        current_app.logger.error(f"Failed to send email notification for circle join request decision {join_request.id}: {str(e)}")
-    
-    return redirect(url_for('circles.view_circle', circle_id=circle_id))
+        handled_action = circle_service.handle_join_request(
+            circle, join_request, current_user, action
+        )
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
+    except Exception as exc:
+        current_app.logger.error(f"Error handling circle join request {request_id}: {str(exc)}")
+        flash("There was an error handling the join request.", "danger")
+    else:
+        if handled_action == "approve":
+            flash("User has been approved to join the circle.", "success")
+        else:
+            flash("User request has been denied.", "info")
 
-@circles_bp.route('/<uuid:circle_id>/cancel-request', methods=['POST'])
+    return redirect(url_for("circles.view_circle", circle_id=circle_id))
+
+
+@circles_bp.route("/<uuid:circle_id>/cancel-request", methods=["POST"])
 @login_required
 def cancel_join_request(circle_id):
-    circle = db.get_or_404(Circle, circle_id)
-    
-    # Find and delete pending request
-    pending_request = CircleJoinRequest.query.filter_by(
-        circle_id=circle_id,
-        user_id=current_user.id,
-        status='pending'
-    ).first()
-    
-    if pending_request:
-        db.session.delete(pending_request)
-        try:
-            db.session.commit()
-            flash('Join request cancelled.', 'info')
-        except:
-            db.session.rollback()
-            flash('Error cancelling request.', 'danger')
-    
-    # Force a fresh query on redirect
-    return redirect(url_for('circles.view_circle', circle_id=circle_id))
+    db.get_or_404(Circle, circle_id)
 
-@circles_bp.route('/<uuid:circle_id>/admin/<uuid:user_id>/<action>', methods=['POST'])
+    try:
+        if circle_service.cancel_join_request(circle_id, current_user.id):
+            flash("Join request cancelled.", "info")
+    except Exception:
+        db.session.rollback()
+        flash("Error cancelling request.", "danger")
+
+    # Force a fresh query on redirect
+    return redirect(url_for("circles.view_circle", circle_id=circle_id))
+
+
+@circles_bp.route("/<uuid:circle_id>/admin/<uuid:user_id>/<action>", methods=["POST"])
 @login_required
 def toggle_admin(circle_id, user_id, action):
     circle = db.get_or_404(Circle, circle_id)
-    if not circle.is_admin(current_user):
-        flash('You must be an admin to perform this action.', 'danger')
-        return redirect(url_for('circles.view_circle', circle_id=circle_id))
-        
-    user_member = db.session.query(circle_members).filter_by(
-        circle_id=circle_id,
-        user_id=user_id
-    ).first()
-    
-    if not user_member:
-        flash('User is not a member of this circle.', 'warning')
-        return redirect(url_for('circles.view_circle', circle_id=circle_id))
-    
-    if action == 'add':
-        is_admin = True
-        flash_message = 'Admin status granted to user.'
-    elif action == 'remove':
-        is_admin = False
-        flash_message = 'Admin status removed from user.'
-    else:
-        flash('Invalid action.', 'danger')
-        return redirect(url_for('circles.view_circle', circle_id=circle_id))
-    
-    stmt = circle_members.update().where(
-        and_(
-            circle_members.c.circle_id == circle_id,
-            circle_members.c.user_id == user_id
+
+    try:
+        is_admin = circle_service.toggle_admin(circle, user_id, current_user, action)
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
+    except Exception as exc:
+        current_app.logger.error(
+            f"Error updating admin status for user {user_id} in circle {circle_id}: {str(exc)}"
         )
-    ).values(is_admin=is_admin)
-    
-    db.session.execute(stmt)
-    db.session.commit()
-    
-    flash(flash_message, 'success')
-    return redirect(url_for('circles.view_circle', circle_id=circle_id))
+        flash("There was an error updating admin status.", "danger")
+    else:
+        if is_admin:
+            flash("Admin status granted to user.", "success")
+        else:
+            flash("Admin status removed from user.", "success")
+
+    return redirect(url_for("circles.view_circle", circle_id=circle_id))
 
 
-@circles_bp.route('/create-circle', methods=['GET', 'POST'])
+@circles_bp.route("/create-circle", methods=["GET", "POST"])
 @login_required
 def create_circle():
     form = CircleCreateForm()
     if form.validate_on_submit():
         circle_name = form.name.data.strip()
-        existing_circle = Circle.query.filter(db.func.lower(Circle.name) == db.func.lower(circle_name)).first()
+        existing_circle = Circle.query.filter(
+            db.func.lower(Circle.name) == db.func.lower(circle_name)
+        ).first()
         if existing_circle:
-            flash('A circle with that name already exists. Please choose a different name.', 'danger')
-            return render_template('circles/create_circle.html', form=form)
-        
+            flash(
+                "A circle with that name already exists. Please choose a different name.", "danger"
+            )
+            return render_template("circles/create_circle.html", form=form)
+
         image_url = None
         if form.image.data and is_valid_file_upload(form.image.data):
             image_url = upload_circle_image(form.image.data)
             if image_url is None:
-                flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'error')
-                return render_template('circles/create_circle.html', form=form)
+                flash(
+                    "Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).",
+                    "error",
+                )
+                return render_template("circles/create_circle.html", form=form)
 
         new_circle = Circle(
             name=circle_name,
             description=form.description.data.strip(),
             circle_type=form.circle_type.data,
-            image_url=image_url
+            image_url=image_url,
         )
         db.session.add(new_circle)
         db.session.flush()
@@ -525,70 +494,77 @@ def create_circle():
             user_id=current_user.id,
             circle_id=new_circle.id,
             joined_at=datetime.now(UTC),
-            is_admin=True
+            is_admin=True,
         )
         db.session.execute(stmt)
         db.session.commit()
-        
-        flash(f'Circle "{new_circle.name}" has been created successfully!', 'success')
-        return redirect(url_for('circles.view_circle', circle_id=new_circle.id))
-    return render_template('circles/create_circle.html', form=form)
 
-@circles_bp.route('/<uuid:circle_id>/remove/<uuid:user_id>', methods=['POST'])
+        flash(f'Circle "{new_circle.name}" has been created successfully!', "success")
+        return redirect(url_for("circles.view_circle", circle_id=new_circle.id))
+    return render_template("circles/create_circle.html", form=form)
+
+
+@circles_bp.route("/<uuid:circle_id>/remove/<uuid:user_id>", methods=["POST"])
 @login_required
 def remove_member(circle_id, user_id):
     circle = db.get_or_404(Circle, circle_id)
     if not circle.is_admin(current_user):
-        flash('You must be an admin to remove members.', 'danger')
-        return redirect(url_for('circles.view_circle', circle_id=circle_id))
-    
+        flash("You must be an admin to remove members.", "danger")
+        return redirect(url_for("circles.view_circle", circle_id=circle_id))
+
     user_to_remove = db.get_or_404(User, user_id)
     if user_to_remove not in circle.members:
-        flash('User is not a member of this circle.', 'warning')
-        return redirect(url_for('circles.view_circle', circle_id=circle_id))
-    
+        flash("User is not a member of this circle.", "warning")
+        return redirect(url_for("circles.view_circle", circle_id=circle_id))
+
     if user_to_remove == current_user:
-        flash('Use the leave circle button to remove yourself.', 'warning')
-        return redirect(url_for('circles.view_circle', circle_id=circle_id))
-    
+        flash("Use the leave circle button to remove yourself.", "warning")
+        return redirect(url_for("circles.view_circle", circle_id=circle_id))
+
     # Check if this would leave the circle without admins
     if circle.is_admin(user_to_remove):
-        admin_count = db.session.query(circle_members).filter_by(
-            circle_id=circle.id,
-            is_admin=True
-        ).count()
+        admin_count = (
+            db.session.query(circle_members).filter_by(circle_id=circle.id, is_admin=True).count()
+        )
         if admin_count <= 1:
-            flash('Cannot remove the last admin. Make someone else an admin first.', 'danger')
-            return redirect(url_for('circles.view_circle', circle_id=circle_id))
-    
+            flash("Cannot remove the last admin. Make someone else an admin first.", "danger")
+            return redirect(url_for("circles.view_circle", circle_id=circle_id))
+
     # Remove the member
     circle.members.remove(user_to_remove)
     db.session.commit()
-    
-    flash(f'{user_to_remove.first_name} {user_to_remove.last_name} has been removed from the circle.', 'success')
-    return redirect(url_for('circles.view_circle', circle_id=circle_id))
 
-@circles_bp.route('/<uuid:circle_id>/edit', methods=['GET', 'POST'])
+    flash(
+        f"{user_to_remove.first_name} {user_to_remove.last_name} has been removed from the circle.",
+        "success",
+    )
+    return redirect(url_for("circles.view_circle", circle_id=circle_id))
+
+
+@circles_bp.route("/<uuid:circle_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_circle(circle_id):
     circle = db.get_or_404(Circle, circle_id)
     if not circle.is_admin(current_user):
-        flash('Only circle admins can edit circle details.', 'danger')
-        return redirect(url_for('circles.view_circle', circle_id=circle.id))
+        flash("Only circle admins can edit circle details.", "danger")
+        return redirect(url_for("circles.view_circle", circle_id=circle.id))
 
     from app.forms import CircleCreateForm
+
     form = CircleCreateForm(obj=circle)
     # Remove submit label confusion
-    form.submit.label.text = 'Update Circle'
+    form.submit.label.text = "Update Circle"
 
-    if request.method == 'GET':
+    if request.method == "GET":
         form.image.data = None
         form.delete_image.data = False
         # Populate location fields with existing data
         if circle.is_geocoded:
             form.latitude.data = circle.latitude
             form.longitude.data = circle.longitude
-            form.location_method.data = 'skip'  # Default to skip, user can change if they want to update
+            form.location_method.data = (
+                "skip"  # Default to skip, user can change if they want to update
+            )
 
     if form.validate_on_submit():
         circle.name = form.name.data.strip()
@@ -597,18 +573,23 @@ def edit_circle(circle_id):
 
         # Handle location based on input method
         geocoding_failed = False
-        if form.location_method.data == 'coordinates':
+        if form.location_method.data == "coordinates":
             # Direct coordinate input
             circle.latitude = form.latitude.data
             circle.longitude = form.longitude.data
-            logger.info(f"Circle {circle.name} location updated with coordinates: ({circle.latitude}, {circle.longitude})")
-        elif form.location_method.data == 'address':
+            logger.info(
+                f"Circle {circle.name} location updated with coordinates: ({circle.latitude}, {circle.longitude})"
+            )
+        elif form.location_method.data == "address":
             # Address geocoding
             address = build_address_string(
-                form.street.data, form.city.data, form.state.data, 
-                form.zip_code.data, form.country.data
+                form.street.data,
+                form.city.data,
+                form.state.data,
+                form.zip_code.data,
+                form.country.data,
             )
-            
+
             try:
                 coordinates = geocode_address(address)
                 if coordinates:
@@ -629,7 +610,7 @@ def edit_circle(circle_id):
         if form.delete_image.data and circle.image_url:
             delete_file(circle.image_url)
             circle.image_url = None
-            flash('Circle image has been removed.', 'success')
+            flash("Circle image has been removed.", "success")
 
         # Handle image upload
         if form.image.data and is_valid_file_upload(form.image.data):
@@ -638,20 +619,26 @@ def edit_circle(circle_id):
             image_url = upload_circle_image(form.image.data)
             if image_url:
                 circle.image_url = image_url
-                flash('Circle image updated.', 'success')
+                flash("Circle image updated.", "success")
             else:
-                flash('Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).', 'error')
-                return render_template('circles/edit_circle.html', form=form, circle=circle)
+                flash(
+                    "Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).",
+                    "error",
+                )
+                return render_template("circles/edit_circle.html", form=form, circle=circle)
 
         db.session.commit()
-        
+
         # Provide appropriate feedback based on location update
         if geocoding_failed:
-            flash('Circle updated, but we couldn\'t determine the location from the address provided. '
-                  'You can try entering coordinates directly.', 'warning')
+            flash(
+                "Circle updated, but we couldn't determine the location from the address provided. "
+                "You can try entering coordinates directly.",
+                "warning",
+            )
         else:
-            flash('Circle updated successfully.', 'success')
-        
-        return redirect(url_for('circles.view_circle', circle_id=circle.id))
+            flash("Circle updated successfully.", "success")
 
-    return render_template('circles/edit_circle.html', form=form, circle=circle)
+        return redirect(url_for("circles.view_circle", circle_id=circle.id))
+
+    return render_template("circles/edit_circle.html", form=form, circle=circle)

@@ -1171,7 +1171,7 @@ class TestRecipientSelection:
             login_user(client, owner.email)
 
             # Test 1: Mock random.choice to return first interest (user1)
-            with patch("app.main.routes.random.choice", return_value=interest1):
+            with patch("app.services.giveaway_service.random.choice", return_value=interest1):
                 response = client.post(
                     f"/item/{giveaway.id}/select-recipient",
                     data={"selection_method": "random"},
@@ -1192,7 +1192,7 @@ class TestRecipientSelection:
             db.session.commit()
 
             # Test 2: Mock random.choice to return second interest (user2)
-            with patch("app.main.routes.random.choice", return_value=interest2):
+            with patch("app.services.giveaway_service.random.choice", return_value=interest2):
                 response = client.post(
                     f"/item/{giveaway.id}/select-recipient",
                     data={"selection_method": "random"},
@@ -1213,7 +1213,7 @@ class TestRecipientSelection:
             db.session.commit()
 
             # Test 3: Mock random.choice to return third interest (user3)
-            with patch("app.main.routes.random.choice", return_value=interest3):
+            with patch("app.services.giveaway_service.random.choice", return_value=interest3):
                 response = client.post(
                     f"/item/{giveaway.id}/select-recipient",
                     data={"selection_method": "random"},
