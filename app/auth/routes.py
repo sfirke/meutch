@@ -1,11 +1,9 @@
 import logging
-from datetime import UTC, datetime, timedelta
 from urllib.parse import urljoin, urlparse
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_user, logout_user
 
-from app import db
 from app.auth import bp as auth
 from app.auth import bp as auth_bp
 from app.forms import (
@@ -15,9 +13,7 @@ from app.forms import (
     ResendConfirmationForm,
     ResetPasswordForm,
 )
-from app.models import User
-from app.utils.email import send_confirmation_email, send_password_reset_email
-from app.utils.geocoding import GeocodingError, build_address_string, geocode_address
+from app.services import auth_service
 
 logger = logging.getLogger(__name__)
 logger.debug("Loading app.auth.routes")
@@ -40,76 +36,39 @@ def register():
 
     form = RegistrationForm()
     if form.validate_on_submit():
-        user = User(
-            email=form.email.data.lower(),
+        next_page = request.args.get("next")
+        safe_next = next_page if (next_page and _is_safe_url(next_page)) else None
+        registration_result = auth_service.register_user(
+            email=form.email.data,
             first_name=form.first_name.data,
             last_name=form.last_name.data,
+            password=form.password.data,
             digest_frequency=form.digest_frequency.data,
+            location_method=form.location_method.data,
+            next_url=safe_next,
+            street=form.street.data,
+            city=form.city.data,
+            state=form.state.data,
+            zip_code=form.zip_code.data,
+            country=form.country.data,
+            latitude=form.latitude.data,
+            longitude=form.longitude.data,
         )
-        user.set_password(form.password.data)
 
-        # Handle location based on input method
-        if form.location_method.data == "coordinates":
-            # Direct coordinate input
-            user.latitude = form.latitude.data
-            user.longitude = form.longitude.data
-            user.geocoded_at = datetime.now(UTC)
-            user.geocoding_failed = False
-            logger.info(
-                f"User {user.email} provided coordinates directly: ({user.latitude}, {user.longitude})"
-            )
-        elif form.location_method.data == "address":
-            # Address geocoding
-            address = build_address_string(
-                form.street.data,
-                form.city.data,
-                form.state.data,
-                form.zip_code.data,
-                form.country.data,
-            )
-
-            try:
-                coordinates = geocode_address(address)
-                if coordinates:
-                    user.latitude, user.longitude = coordinates
-                    user.geocoded_at = datetime.now(UTC)
-                    user.geocoding_failed = False
-                    logger.info(f"Successfully geocoded address for user {user.email}")
-                else:
-                    user.geocoding_failed = True
-                    logger.warning(f"Failed to geocode address for user {user.email}: {address}")
-            except GeocodingError as e:
-                user.geocoding_failed = True
-                logger.error(f"Geocoding error for user {user.email}: {e}")
-            except Exception as e:
-                user.geocoding_failed = True
-                logger.error(f"Unexpected error during geocoding for user {user.email}: {e}")
-        # If location_method is 'skip', don't set any location data
-
-        db.session.add(user)
-        db.session.commit()
-
-        # Provide appropriate feedback based on location choice
-        if form.location_method.data == "skip":
+        if registration_result.location_method == "skip":
             flash(
                 "Your account has been created! You can add your location later on your profile page "
                 "to see distances to items and help others find items near you.",
                 "info",
             )
-        elif user.geocoding_failed:
+        elif registration_result.geocoding_failed:
             flash(
                 "Your account has been created, but we couldn't determine your location from the address provided. "
                 "You can try the option to enter coordinates directly, or update your location later on your profile page to see distances to items.",
                 "warning",
             )
 
-        # Preserve ?next so the user lands back on the page that sent them here
-        # after they confirm their email and log in. Embed it in the confirmation
-        # link so it survives cross-device / cross-browser email opens.
-        next_page = request.args.get("next")
-        safe_next = next_page if (next_page and _is_safe_url(next_page)) else None
-
-        if send_confirmation_email(user, next_url=safe_next):
+        if registration_result.email_sent:
             flash("A confirmation email has been sent to you by email.", "info")
         else:
             flash("Error sending confirmation email. Please try again.", "error")
@@ -123,28 +82,24 @@ def register():
 def login():
     form = LoginForm()
     if form.validate_on_submit():
-        # Use case-insensitive email lookup
-        user = User.query.filter(
-            db.func.lower(User.email) == db.func.lower(form.email.data)
-        ).first()
-        if user and user.check_password(form.password.data):  # Use the model method
-            if user.is_confirmed():
-                # Update last_login timestamp
-                user.last_login = datetime.now(UTC)
-                db.session.commit()
+        authentication_result = auth_service.authenticate_user(
+            form.email.data,
+            form.password.data,
+        )
+        if authentication_result.status == auth_service.LOGIN_STATUS_SUCCESS:
+            login_user(authentication_result.user, remember=form.remember_device.data)
+            next_page = request.args.get("next")
+            if next_page and _is_safe_url(next_page):
+                return redirect(next_page)
+            return redirect(url_for("main.index"))
 
-                login_user(user, remember=form.remember_device.data)
-                # Handle redirect to 'next' page if provided
-                next_page = request.args.get("next")
-                if next_page and _is_safe_url(next_page):
-                    return redirect(next_page)
-                return redirect(url_for("main.index"))
-            else:
-                flash(
-                    "Please confirm your email address before logging in. Check your email for the confirmation link.",
-                    "warning",
-                )
-                return render_template("auth/login.html", form=form)
+        if authentication_result.status == auth_service.LOGIN_STATUS_UNCONFIRMED:
+            flash(
+                "Please confirm your email address before logging in. Check your email for the confirmation link.",
+                "warning",
+            )
+            return render_template("auth/login.html", form=form)
+
         flash("Invalid email or password", "danger")
     return render_template("auth/login.html", form=form)
 
@@ -159,27 +114,16 @@ def logout():
 def confirm_email(token):
     """Confirm user email with token"""
 
-    user = User.query.filter_by(email_confirmation_token=token).first()
-
-    if not user:
+    confirmation_result = auth_service.confirm_email_token(token)
+    if confirmation_result.status == auth_service.CONFIRM_EMAIL_STATUS_INVALID_LINK:
         flash("Invalid or expired confirmation link.", "danger")
         return redirect(url_for("auth.login"))
 
-    # Check if token is not too old (24 hours)
-    if user.email_confirmation_sent_at:
-        # Ensure email_confirmation_sent_at is timezone-aware for comparison
-        confirmation_sent_at_utc = (
-            user.email_confirmation_sent_at.replace(tzinfo=UTC)
-            if user.email_confirmation_sent_at.tzinfo is None
-            else user.email_confirmation_sent_at
-        )
-        token_age = datetime.now(UTC) - confirmation_sent_at_utc
-        if token_age > timedelta(hours=24):
-            flash("Confirmation link has expired. Please request a new one.", "danger")
-            return redirect(url_for("auth.resend_confirmation"))
+    if confirmation_result.status == auth_service.CONFIRM_EMAIL_STATUS_EXPIRED:
+        flash("Confirmation link has expired. Please request a new one.", "danger")
+        return redirect(url_for("auth.resend_confirmation"))
 
-    if user.confirm_email(token):
-        db.session.commit()
+    if confirmation_result.status == auth_service.CONFIRM_EMAIL_STATUS_CONFIRMED:
         flash("Your email has been confirmed! You can now log in.", "success")
         next_page = request.args.get("next")
         if next_page and _is_safe_url(next_page):
@@ -196,19 +140,16 @@ def resend_confirmation():
     form = ResendConfirmationForm()
 
     if form.validate_on_submit():
-        email = form.email.data
-        user = User.query.filter(db.func.lower(User.email) == db.func.lower(email)).first()
-
-        if not user:
+        resend_result = auth_service.resend_confirmation_email_for_user(form.email.data)
+        if resend_result.status == auth_service.RESEND_CONFIRMATION_STATUS_NOT_FOUND:
             flash("No account found with that email address.", "danger")
             return render_template("auth/resend_confirmation.html", form=form)
 
-        if user.is_confirmed():
+        if resend_result.status == auth_service.RESEND_CONFIRMATION_STATUS_ALREADY_CONFIRMED:
             flash("Your email is already confirmed. You can log in.", "info")
             return redirect(url_for("auth.login"))
 
-        if send_confirmation_email(user):
-            db.session.commit()
+        if resend_result.status == auth_service.RESEND_CONFIRMATION_STATUS_SENT:
             flash("A new confirmation email has been sent. Please check your email.", "success")
         else:
             flash("Error sending confirmation email. Please try again later.", "danger")
@@ -226,15 +167,13 @@ def forgot_password():
 
     form = ForgotPasswordForm()
     if form.validate_on_submit():
-        user = User.query.filter(
-            db.func.lower(User.email) == db.func.lower(form.email.data)
-        ).first()
-
-        if user:
-            if send_password_reset_email(user):
-                flash("Password reset instructions have been sent to your email.", "info")
-            else:
-                flash("Error sending password reset email. Please try again later.", "error")
+        password_reset_request = auth_service.request_password_reset(form.email.data)
+        if password_reset_request.status == auth_service.PASSWORD_RESET_REQUEST_STATUS_SENT:
+            flash("Password reset instructions have been sent to your email.", "info")
+        elif (
+            password_reset_request.status == auth_service.PASSWORD_RESET_REQUEST_STATUS_SEND_FAILED
+        ):
+            flash("Error sending password reset email. Please try again later.", "error")
         else:
             flash(
                 "If an account with that email exists, password reset instructions have been sent.",
@@ -252,33 +191,23 @@ def reset_password(token):
     if current_user.is_authenticated:
         return redirect(url_for("main.index"))
 
-    user = User.query.filter_by(password_reset_token=token).first()
-
-    if not user:
+    password_reset_token = auth_service.get_password_reset_token_status(token)
+    if password_reset_token.status == auth_service.PASSWORD_RESET_TOKEN_STATUS_INVALID:
         flash("Invalid or expired reset link.", "danger")
         return redirect(url_for("auth.forgot_password"))
 
-    # Check if token is not too old (1 hour)
-    if user.password_reset_sent_at:
-        # Ensure password_reset_sent_at is timezone-aware for comparison
-        reset_sent_at_utc = (
-            user.password_reset_sent_at.replace(tzinfo=UTC)
-            if user.password_reset_sent_at.tzinfo is None
-            else user.password_reset_sent_at
-        )
-        token_age = datetime.now(UTC) - reset_sent_at_utc
-        if token_age > timedelta(hours=1):
-            flash("Reset link has expired. Please request a new one.", "danger")
-            return redirect(url_for("auth.forgot_password"))
+    if password_reset_token.status == auth_service.PASSWORD_RESET_TOKEN_STATUS_EXPIRED:
+        flash("Reset link has expired. Please request a new one.", "danger")
+        return redirect(url_for("auth.forgot_password"))
 
     form = ResetPasswordForm()
     if form.validate_on_submit():
-        if user.reset_password(token, form.password.data):
-            db.session.commit()
+        reset_result = auth_service.reset_password(token, form.password.data)
+        if reset_result.status == auth_service.PASSWORD_RESET_STATUS_SUCCESS:
             flash("Your password has been reset successfully. You can now log in.", "success")
             return redirect(url_for("auth.login"))
-        else:
-            flash("Invalid reset token. Please request a new password reset.", "danger")
-            return redirect(url_for("auth.forgot_password"))
+
+        flash("Invalid reset token. Please request a new password reset.", "danger")
+        return redirect(url_for("auth.forgot_password"))
 
     return render_template("auth/reset_password.html", form=form)

@@ -224,7 +224,7 @@ class TestWorkflowEssentials:
     def test_complete_geocoding_workflow_with_address(self, app, client):
         """Test registration -> geocoding -> distance calculation workflow with address input."""
         with app.app_context():
-            with patch("app.auth.routes.geocode_address") as mock_geocode:
+            with patch("app.utils.geocoding.geocode_address") as mock_geocode:
                 mock_geocode.return_value = (40.7128, -74.0060)
 
                 # Register user with geocoding via address

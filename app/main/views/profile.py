@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from flask import current_app, flash, redirect, render_template, request, url_for
+from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, logout_user
 from sqlalchemy import or_
 
@@ -16,8 +16,8 @@ from app.forms import (
 )
 from app.main import bp as main_bp
 from app.models import Item, ItemRequest, User, UserWebLink
+from app.services import account_service, location_service, profile_service
 from app.utils.digest_tokens import verify_digest_manage_token
-from app.utils.storage import delete_file, upload_profile_image
 
 
 @main_bp.route("/profile", methods=["GET", "POST"])
@@ -26,41 +26,30 @@ def profile():
     form = EditProfileForm()
     digest_form = DigestSettingsForm()
     if form.validate_on_submit():
-        if form.delete_image.data and current_user.profile_image_url:
-            delete_file(current_user.profile_image_url)
-            current_user.profile_image_url = None
-
-        if form.profile_image.data:
-            if current_user.profile_image_url:
-                delete_file(current_user.profile_image_url)
-            image_url = upload_profile_image(form.profile_image.data)
-            if image_url:
-                current_user.profile_image_url = image_url
-            else:
-                flash(
-                    "Profile image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).",
-                    "warning",
-                )
-
-        current_user.about_me = form.about_me.data
-        UserWebLink.query.filter_by(user_id=current_user.id).delete()
-
+        links = []
         for index in range(1, 6):
-            platform = getattr(form, f"link_{index}_platform").data
-            custom_name = getattr(form, f"link_{index}_custom_name").data
-            url = getattr(form, f"link_{index}_url").data
+            links.append(
+                {
+                    "platform": getattr(form, f"link_{index}_platform").data,
+                    "custom_name": getattr(form, f"link_{index}_custom_name").data,
+                    "url": getattr(form, f"link_{index}_url").data,
+                    "display_order": index,
+                }
+            )
 
-            if platform and url and url.strip():
-                web_link = UserWebLink(
-                    user_id=current_user.id,
-                    platform_type=platform,
-                    platform_name=custom_name.strip() if custom_name else None,
-                    url=url.strip(),
-                    display_order=index,
-                )
-                db.session.add(web_link)
+        profile_result = profile_service.update_profile(
+            current_user,
+            about_me=form.about_me.data,
+            links=links,
+            profile_image=form.profile_image.data,
+            delete_image=form.delete_image.data,
+        )
+        if profile_result.image_upload_failed:
+            flash(
+                "Profile image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).",
+                "warning",
+            )
 
-        db.session.commit()
         flash("Your profile has been updated.", "success")
         return redirect(url_for("main.profile", tab="about-me"))
     elif request.method == "GET":
@@ -223,18 +212,19 @@ def update_digest_settings():
         )
         return redirect(url_for("main.profile", tab="settings"))
 
-    current_user.digest_frequency = form.digest_frequency.data
-    current_user.digest_radius_miles = form.digest_radius_miles.data
-    current_user.digest_include_giveaways = form.digest_include_giveaways.data
-    current_user.digest_include_requests = form.digest_include_requests.data
-    current_user.digest_include_circle_joins = form.digest_include_circle_joins.data
-    current_user.digest_include_loans = form.digest_include_loans.data
-    current_user.digest_giveaways_include_public = form.digest_giveaways_include_public.data
-    current_user.digest_requests_include_public = form.digest_requests_include_public.data
+    digest_opted_out = profile_service.update_digest_settings(
+        current_user,
+        digest_frequency=form.digest_frequency.data,
+        digest_radius_miles=form.digest_radius_miles.data,
+        digest_include_giveaways=form.digest_include_giveaways.data,
+        digest_include_requests=form.digest_include_requests.data,
+        digest_include_circle_joins=form.digest_include_circle_joins.data,
+        digest_include_loans=form.digest_include_loans.data,
+        digest_giveaways_include_public=form.digest_giveaways_include_public.data,
+        digest_requests_include_public=form.digest_requests_include_public.data,
+    )
 
-    db.session.commit()
-
-    if current_user.digest_frequency == User.DIGEST_FREQUENCY_NONE:
+    if digest_opted_out:
         flash(
             "You turned off digest emails. Please consider staying subscribed to keep up with activity in your circles.",
             "warning",
@@ -304,9 +294,7 @@ def digest_set_frequency(token, frequency):
             token=token,
         ), 400
 
-    if user.digest_frequency != frequency:
-        user.digest_frequency = frequency
-        db.session.commit()
+    profile_service.set_digest_frequency(user, frequency)
 
     return render_template(
         "main/digest_manage.html",
@@ -336,9 +324,7 @@ def digest_unsubscribe(token):
             token=token,
         ), status_code
 
-    if user.digest_frequency != User.DIGEST_FREQUENCY_NONE:
-        user.digest_frequency = User.DIGEST_FREQUENCY_NONE
-        db.session.commit()
+    profile_service.unsubscribe_from_digest(user)
 
     return render_template(
         "main/digest_manage.html",
@@ -355,71 +341,46 @@ def digest_unsubscribe(token):
 @login_required
 def update_location():
     """Allow users to update their location coordinates"""
-    from app.utils.geocoding import GeocodingError, build_address_string, geocode_address
-
-    if not current_user.can_update_location():
-        flash(
-            "You can only update your location once per day. Please try again tomorrow.",
-            "warning",
-        )
-        return redirect(url_for("main.profile"))
-
     form = UpdateLocationForm()
 
     if form.validate_on_submit():
-        if form.location_method.data == "remove":
-            current_user.latitude = None
-            current_user.longitude = None
-            db.session.commit()
+        location_result = location_service.update_user_location(
+            current_user,
+            location_method=form.location_method.data,
+            street=form.street.data,
+            city=form.city.data,
+            state=form.state.data,
+            zip_code=form.zip_code.data,
+            country=form.country.data,
+            latitude=form.latitude.data,
+            longitude=form.longitude.data,
+        )
+        if location_result == location_service.LOCATION_UPDATE_STATUS_RATE_LIMITED:
+            flash(
+                "You can only update your location once per day. Please try again tomorrow.",
+                "warning",
+            )
+            return redirect(url_for("main.profile"))
+
+        if location_result == location_service.LOCATION_UPDATE_STATUS_REMOVED:
             flash("Your location has been removed successfully.", "success")
             return redirect(url_for("main.profile"))
-        if form.location_method.data == "coordinates":
-            current_user.latitude = form.latitude.data
-            current_user.longitude = form.longitude.data
-            current_user.geocoded_at = datetime.now(UTC)
-            current_user.geocoding_failed = False
-            db.session.commit()
+
+        if location_result == location_service.LOCATION_UPDATE_STATUS_SUCCESS:
             flash("Your location has been updated successfully!", "success")
             return redirect(url_for("main.profile"))
 
-        address = build_address_string(
-            form.street.data,
-            form.city.data,
-            form.state.data,
-            form.zip_code.data,
-            form.country.data,
-        )
-
-        try:
-            coordinates = geocode_address(address)
-            if coordinates:
-                current_user.latitude, current_user.longitude = coordinates
-                current_user.geocoded_at = datetime.now(UTC)
-                current_user.geocoding_failed = False
-                db.session.commit()
-                flash("Your location has been updated successfully!", "success")
-                return redirect(url_for("main.profile"))
-
-            current_user.geocoding_failed = True
-            db.session.commit()
+        if location_result == location_service.LOCATION_UPDATE_STATUS_GEOCODING_FAILED:
             flash(
                 "We couldn't determine your location from that address. You can try entering coordinates directly using the second option below.",
                 "warning",
             )
-        except GeocodingError as e:
-            current_user.geocoding_failed = True
-            db.session.commit()
-            current_app.logger.error(f"Geocoding error for user {current_user.email}: {e}")
+        elif location_result == location_service.LOCATION_UPDATE_STATUS_GEOCODING_ERROR:
             flash(
                 "There was an error determining your location from that address. You can try entering coordinates directly using the second option below.",
                 "warning",
             )
-        except Exception as e:
-            current_user.geocoding_failed = True
-            db.session.commit()
-            current_app.logger.error(
-                f"Unexpected error during geocoding for user {current_user.email}: {e}"
-            )
+        elif location_result == location_service.LOCATION_UPDATE_STATUS_UNEXPECTED_ERROR:
             flash(
                 "There was an error determining your location. You can try entering coordinates directly using the second option below.",
                 "error",
@@ -494,7 +455,7 @@ def delete_account():
 
     if form.validate_on_submit():
         try:
-            current_user.delete_account()
+            account_service.delete_user_account(current_user)
             logout_user()
             flash("Your account has been successfully deleted.", "info")
             return redirect(url_for("main.index"))
@@ -517,10 +478,11 @@ def toggle_vacation_mode():
 
     if form.validate_on_submit():
         try:
-            current_user.vacation_mode = form.vacation_mode.data
-            db.session.commit()
-
-            if current_user.vacation_mode:
+            vacation_mode_enabled = profile_service.toggle_vacation_mode(
+                current_user,
+                form.vacation_mode.data,
+            )
+            if vacation_mode_enabled:
                 flash(
                     "Vacation mode enabled. Your items are now hidden from other users.",
                     "success",

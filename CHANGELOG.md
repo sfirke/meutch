@@ -17,6 +17,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### API development
 - Add initial `app/api/v1` scaffolding, bootstrap JSON endpoints, and an API design document to prepare for a mobile client ([#354](https://github.com/sfirke/meutch/pull/354)).
+- Extract auth, profile, location, and account-setting workflows into reusable services so the web layer and upcoming API can share the same business logic.
 
 ## Apr 2026
 

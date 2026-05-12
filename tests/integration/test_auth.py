@@ -128,7 +128,7 @@ class TestAuthenticationRoutes:
     def test_register_valid_data_with_address(self, client, app):
         """Test registration with valid data using address input."""
         with app.app_context():
-            with patch("app.auth.routes.geocode_address", return_value=(40.7128, -74.0060)):
+            with patch("app.utils.geocoding.geocode_address", return_value=(40.7128, -74.0060)):
                 response = client.post(
                     "/register",
                     data={
@@ -255,7 +255,7 @@ class TestAuthenticationRoutes:
     def test_register_with_next_embeds_in_confirmation_url(self, app, client):
         """?next param on /register is embedded in the confirmation link so
         it survives cross-device / cross-browser email opens."""
-        with patch("app.auth.routes.send_confirmation_email") as mock_send:
+        with patch("app.services.auth_service.send_confirmation_email") as mock_send:
             mock_send.return_value = True
             response = client.post(
                 "/register?next=/share/giveaway/abc123",
@@ -354,7 +354,7 @@ class TestAuthenticationRoutes:
     def test_register_email_error(self, app, client):
         """Test registration when email sending fails."""
         with app.app_context():
-            with patch("app.auth.routes.send_confirmation_email", return_value=False):
+            with patch("app.services.auth_service.send_confirmation_email", return_value=False):
                 response = client.post(
                     "/register",
                     data={
