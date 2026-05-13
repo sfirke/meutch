@@ -1,13 +1,18 @@
 """Integration tests for loan activity navigation links."""
-import pytest
+
 from datetime import date, timedelta
+
 from app import db
-from app.models import Item
-from tests.factories import (
-    UserFactory, ItemFactory, ItemImageFactory, CategoryFactory, CircleFactory,
-    LoanRequestFactory, MessageFactory,
-)
 from conftest import login_user
+from tests.factories import (
+    CategoryFactory,
+    CircleFactory,
+    ItemFactory,
+    ItemImageFactory,
+    LoanRequestFactory,
+    MessageFactory,
+    UserFactory,
+)
 
 
 class TestItemCardLoanButton:
@@ -21,22 +26,27 @@ class TestItemCardLoanButton:
             category = CategoryFactory()
             item = ItemFactory(owner=owner, category=category, available=False)
             loan = LoanRequestFactory(
-                item=item, borrower=borrower, status='approved',
+                item=item,
+                borrower=borrower,
+                status="approved",
                 start_date=date.today() - timedelta(days=5),
                 end_date=date.today() + timedelta(days=10),
             )
             msg = MessageFactory(
-                sender=borrower, recipient=owner, item=item,
-                body='Can I borrow this?', loan_request=loan,
+                sender=borrower,
+                recipient=owner,
+                item=item,
+                body="Can I borrow this?",
+                loan_request=loan,
             )
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get('/profile?tab=my-items')
+            response = client.get("/profile?tab=my-items")
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
+            content = response.data.decode("utf-8")
             assert f'href="/message/{msg.id}"' in content
-            assert 'View active loan' in content
+            assert "View active loan" in content
 
     def test_item_card_hides_loan_button_when_no_active_loan(self, client, app, auth_user):
         """Owner's item card does not show 'Loan' button when item has no active loan."""
@@ -47,10 +57,10 @@ class TestItemCardLoanButton:
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get('/profile?tab=my-items')
+            response = client.get("/profile?tab=my-items")
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
-            assert 'View active loan' not in content
+            content = response.data.decode("utf-8")
+            assert "View active loan" not in content
 
 
 class TestItemDetailLoanLink:
@@ -64,21 +74,26 @@ class TestItemDetailLoanLink:
             category = CategoryFactory()
             item = ItemFactory(owner=owner, category=category, available=False)
             loan = LoanRequestFactory(
-                item=item, borrower=borrower, status='approved',
+                item=item,
+                borrower=borrower,
+                status="approved",
                 start_date=date.today() - timedelta(days=5),
                 end_date=date.today() + timedelta(days=10),
             )
             msg = MessageFactory(
-                sender=borrower, recipient=owner, item=item,
-                body='Can I borrow this?', loan_request=loan,
+                sender=borrower,
+                recipient=owner,
+                item=item,
+                body="Can I borrow this?",
+                loan_request=loan,
             )
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f'/item/{item.id}')
+            response = client.get(f"/item/{item.id}")
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
-            assert 'View Active Loan' in content
+            content = response.data.decode("utf-8")
+            assert "View Active Loan" in content
             assert f'href="/message/{msg.id}"' in content
 
     def test_item_detail_hides_loan_link_when_no_active_loan(self, client, app, auth_user):
@@ -90,10 +105,10 @@ class TestItemDetailLoanLink:
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f'/item/{item.id}')
+            response = client.get(f"/item/{item.id}")
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
-            assert 'View Active Loan' not in content
+            content = response.data.decode("utf-8")
+            assert "View Active Loan" not in content
 
 
 class TestMyActivityConversationLinks:
@@ -109,28 +124,32 @@ class TestMyActivityConversationLinks:
             circle.members.append(borrower)
             circle.members.append(owner)
             item = ItemFactory(owner=owner, category=category)
-            ItemImageFactory(item=item, url='https://example.com/img.jpg', position=0)
+            ItemImageFactory(item=item, url="https://example.com/img.jpg", position=0)
             LoanRequestFactory(
-                item=item, borrower=borrower, status='approved',
+                item=item,
+                borrower=borrower,
+                status="approved",
                 start_date=date.today() - timedelta(days=5),
                 end_date=date.today() + timedelta(days=10),
             )
             msg = MessageFactory(
-                sender=borrower, recipient=owner, item=item,
-                body='Can I borrow this?',
+                sender=borrower,
+                recipient=owner,
+                item=item,
+                body="Can I borrow this?",
             )
             db.session.commit()
 
             login_user(client, borrower.email)
-            response = client.get('/profile?tab=my-activity')
+            response = client.get("/profile?tab=my-activity")
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
+            content = response.data.decode("utf-8")
 
             # Both item name and thumbnail link to item detail
             assert f'href="/item/{item.id}"' in content
             # Dedicated View Loan button links to conversation
             assert f'href="/message/{msg.id}"' in content
-            assert 'View Loan' in content
+            assert "View Loan" in content
 
     def test_lending_table_item_name_links_to_conversation(self, client, app, auth_user):
         """In lending table, item name and thumbnail link to item; View Loan button links to conversation."""
@@ -142,26 +161,30 @@ class TestMyActivityConversationLinks:
             circle.members.append(owner)
             circle.members.append(borrower)
             item = ItemFactory(owner=owner, category=category)
-            ItemImageFactory(item=item, url='https://example.com/img.jpg', position=0)
+            ItemImageFactory(item=item, url="https://example.com/img.jpg", position=0)
             loan = LoanRequestFactory(
-                item=item, borrower=borrower, status='approved',
+                item=item,
+                borrower=borrower,
+                status="approved",
                 start_date=date.today() - timedelta(days=5),
                 end_date=date.today() + timedelta(days=10),
             )
             msg = MessageFactory(
-                sender=borrower, recipient=owner, item=item,
+                sender=borrower,
+                recipient=owner,
+                item=item,
                 loan_request=loan,
-                body='Can I borrow this?',
+                body="Can I borrow this?",
             )
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get('/profile?tab=my-activity')
+            response = client.get("/profile?tab=my-activity")
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
+            content = response.data.decode("utf-8")
 
             # Both item name and thumbnail link to item detail
             assert f'href="/item/{item.id}"' in content
             # Dedicated View Loan button links to conversation
             assert f'href="/message/{msg.id}"' in content
-            assert 'View Loan' in content
+            assert "View Loan" in content
