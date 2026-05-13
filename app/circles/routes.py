@@ -17,32 +17,20 @@ from app.models import Circle, CircleJoinRequest, User, circle_members, db
 from app.services import circle_service
 from app.services.exceptions import ServiceError
 from app.utils.circle_members import build_circle_member_samples
+from app.utils.circle_queries import (
+    get_admin_circle_pending_counts,
+    get_listed_circles,
+    get_ordered_circle_members,
+    get_pending_circle_join_request,
+    get_sorted_user_circles,
+    should_show_circle_members,
+)
 from app.utils.geocoding import GeocodingError, build_address_string, geocode_address
 from app.utils.storage import delete_file, is_valid_file_upload, upload_circle_image
 
 logger = logging.getLogger(__name__)
 
 # Circles -----------------------------------------------------
-
-
-def filter_circles_by_distance(circles, user, radius=None):
-    """Filter circles to those within the selected radius when user is geocoded."""
-    if not circles or not radius or not user.is_geocoded:
-        return circles
-
-    radius_miles = float(radius)
-    filtered_circles = []
-    for circle in circles:
-        distance = circle.distance_to_user(user)
-        if distance is not None and distance <= radius_miles:
-            filtered_circles.append(circle)
-
-    return filtered_circles
-
-
-def sort_circles_by_membership(circles):
-    """Sort circles by member count descending."""
-    return sorted(circles, key=lambda circle: len(circle.members), reverse=True)
 
 
 @circles_bp.route("/", methods=["GET", "POST"])
@@ -57,26 +45,7 @@ def manage_circles():
     browse_circle_samples = {}
     show_browse = False
 
-    # Get user's admin circles with pending request counts
-    admin_circle_counts = (
-        db.session.query(
-            Circle.id.cast(db.String).label("circle_id"),  # Convert UUID to string
-            db.func.count(CircleJoinRequest.id).label("pending_count"),
-        )
-        .join(circle_members, Circle.id == circle_members.c.circle_id)
-        .outerjoin(
-            CircleJoinRequest,
-            db.and_(
-                Circle.id == CircleJoinRequest.circle_id, CircleJoinRequest.status == "pending"
-            ),
-        )
-        .filter(circle_members.c.user_id == current_user.id, circle_members.c.is_admin)
-        .group_by(Circle.id)
-        .all()
-    )
-
-    # Convert to dictionary with pre-converted string IDs
-    user_admin_circles = {circle_id: count for circle_id, count in admin_circle_counts}
+    user_admin_circles = get_admin_circle_pending_counts(current_user.id)
 
     # Compute once — used for facepile visibility and template membership checks
     user_circle_ids = {circle.id for circle in current_user.circles}
@@ -173,22 +142,9 @@ def manage_circles():
             query = search_form.search_query.data.strip() if search_form.search_query.data else ""
             radius = search_form.radius.data
 
-            # Base query - if no search term, browse all listed circles (excluding secret)
-            if query:
-                circles_query = Circle.query.filter(
-                    db.and_(
-                        Circle.name.ilike(f"%{query}%"),
-                        Circle.circle_type != "secret",  # Exclude secret circles from search
-                    )
-                )
-            else:
-                # Browse all listed circles (open and closed)
-                circles_query = Circle.query.filter(Circle.circle_type != "secret")
+            searched_circles = get_listed_circles(current_user, search_query=query, radius=radius)
+            if not query:
                 show_browse = True
-
-            searched_circles = circles_query.all()
-            searched_circles = filter_circles_by_distance(searched_circles, current_user, radius)
-            searched_circles = sort_circles_by_membership(searched_circles)
             searched_circle_samples = build_circle_member_samples(
                 searched_circles, limit=5, user_circle_ids=user_circle_ids
             )
@@ -221,18 +177,13 @@ def manage_circles():
                 flash("Invalid UUID format.", "danger")
 
     # Fetch user's circles and sort by member count (descending)
-    user_circles = sorted(current_user.circles, key=lambda x: len(x.members), reverse=True)
+    user_circles = get_sorted_user_circles(current_user)
 
     # If no search was performed on GET request, show browse results (all listed circles)
     if request.method == "GET":
         selected_radius = search_form.radius.data or search_form.radius.default
 
-        # Get all listed circles (open and closed, excluding secret)
-        browse_query = Circle.query.filter(Circle.circle_type != "secret")
-        browse_circles = browse_query.all()
-
-        browse_circles = filter_circles_by_distance(browse_circles, current_user, selected_radius)
-        browse_circles = sort_circles_by_membership(browse_circles)
+        browse_circles = get_listed_circles(current_user, radius=selected_radius)
         browse_circle_samples = build_circle_member_samples(
             browse_circles, limit=5, user_circle_ids=user_circle_ids
         )
@@ -266,22 +217,11 @@ def view_circle(circle_id):
     join_form = CircleJoinRequestForm() if circle.requires_join_approval and not is_member else None
 
     # Check for pending request
-    pending_request = CircleJoinRequest.query.filter_by(
-        circle_id=circle_id, user_id=current_user.id, status="pending"
-    ).first()
+    pending_request = get_pending_circle_join_request(circle_id, current_user.id)
 
     # Only query member details if open circle or user is member
-    if not circle.requires_join_approval or is_member:
-        members_info = (
-            db.session.query(User, circle_members.c.joined_at, circle_members.c.is_admin)
-            .join(
-                circle_members,
-                and_(User.id == circle_members.c.user_id, circle_members.c.circle_id == circle_id),
-            )
-            .all()
-        )
-
-        ordered_members = sorted(members_info, key=lambda x: (not x.is_admin, x.joined_at))
+    if should_show_circle_members(circle, current_user):
+        ordered_members = get_ordered_circle_members(circle_id)
     else:
         ordered_members = []
 

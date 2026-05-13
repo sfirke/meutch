@@ -719,6 +719,19 @@ class TestRequestDetail:
             assert b"Edit" in response.data
             assert b"Mark Fulfilled" in response.data
 
+    def test_circles_only_detail_requires_shared_circle(self, client, app, auth_user):
+        """Test that circles-only requests are hidden from users outside the owner's circles."""
+        with app.app_context():
+            viewer = auth_user()
+            owner = UserFactory()
+            req = ItemRequestFactory(user=owner, visibility="circles")
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f"/requests/{req.id}/detail")
+
+            assert response.status_code == 403
+
 
 class TestRequestConversations:
     """Test request-linked conversation flows."""

@@ -4,13 +4,17 @@ from datetime import UTC, datetime, timedelta
 
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import and_, or_
 
 from app import db
 from app.forms import EmptyForm, ItemRequestForm, MessageForm
-from app.models import ItemRequest, Message, User
+from app.models import ItemRequest, Message
 from app.requests import bp as requests_bp
 from app.utils.email import send_message_notification_email
+from app.utils.messaging_queries import (
+    build_request_conversation_summaries,
+    find_request_conversation_message,
+)
+from app.utils.request_queries import can_view_request
 
 
 @requests_bp.route("/")
@@ -91,38 +95,13 @@ def detail(request_id):
     item_request = db.session.get(ItemRequest, request_id)
     if not item_request or item_request.status == "deleted":
         abort(404)
+    if not can_view_request(item_request, current_user):
+        abort(403)
 
     # Get conversations about this request (for the author only)
     conversations = []
     if current_user.id == item_request.user_id:
-        # Get all messages about this request, ordered by timestamp
-        messages = (
-            Message.query.filter(
-                Message.request_id == item_request.id,
-                Message.item_id.is_(None),
-            )
-            .order_by(Message.timestamp.desc())
-            .all()
-        )
-
-        # Group by unique (sender, recipient) pairs to get conversation threads
-        conversation_map = {}
-        for msg in messages:
-            # Normalize key so same conversation appears only once
-            pair = tuple(sorted([msg.sender_id, msg.recipient_id]))
-            if pair not in conversation_map:
-                conversation_map[pair] = msg
-
-        # Convert to list with the other person's info
-        for pair, latest_msg in conversation_map.items():
-            other_user_id = pair[0] if pair[1] == current_user.id else pair[1]
-            other_user = db.session.get(User, other_user_id)
-            conversations.append(
-                {
-                    "other_user": other_user,
-                    "latest_message": latest_msg,
-                }
-            )
+        conversations = build_request_conversation_summaries(item_request.id, current_user.id)
 
     return render_template(
         "requests/detail.html",
@@ -188,28 +167,13 @@ def conversation(request_id):
         flash("You cannot message yourself about your own request.", "warning")
         return redirect(url_for("requests.detail", request_id=item_request.id))
 
-    if item_request.visibility == "circles" and not current_user.shares_circle_with(
-        item_request.user
-    ):
+    if not can_view_request(item_request, current_user):
         abort(403)
 
-    existing_message = (
-        Message.query.filter(
-            Message.request_id == item_request.id,
-            Message.item_id.is_(None),
-            or_(
-                and_(
-                    Message.sender_id == current_user.id,
-                    Message.recipient_id == item_request.user_id,
-                ),
-                and_(
-                    Message.sender_id == item_request.user_id,
-                    Message.recipient_id == current_user.id,
-                ),
-            ),
-        )
-        .order_by(Message.timestamp.asc())
-        .first()
+    existing_message = find_request_conversation_message(
+        item_request.id,
+        current_user.id,
+        item_request.user_id,
     )
 
     if existing_message:
