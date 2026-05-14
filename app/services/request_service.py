@@ -63,6 +63,8 @@ def fulfill_request(item_request, acting_user, fulfilled_at=None):
     _ensure_request_owner(item_request, acting_user)
     if item_request.status == "deleted":
         raise ConflictError("This request has already been removed.")
+    if item_request.status == "fulfilled":
+        raise ConflictError("This request has already been fulfilled.")
 
     item_request.status = "fulfilled"
     item_request.fulfilled_at = fulfilled_at or datetime.now(UTC)

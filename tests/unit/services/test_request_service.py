@@ -100,3 +100,11 @@ class TestRequestService:
 
             assert item_request.status == "fulfilled"
             assert item_request.fulfilled_at == fulfilled_at.replace(tzinfo=None)
+
+    def test_fulfill_request_rejects_already_fulfilled(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            item_request = ItemRequestFactory(user=owner, status="fulfilled")
+
+            with pytest.raises(ConflictError, match="already been fulfilled"):
+                request_service.fulfill_request(item_request, owner)
