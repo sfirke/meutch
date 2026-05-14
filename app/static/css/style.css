@@ -1299,15 +1299,13 @@ footer h6 {
 }
 
 /* Photo Preview - Cropper.js Customization */
-/* Make all corner handles mobile-friendly with large touch targets (48px minimum per WCAG) */
-/* but show as small, consistent circles for a polished appearance */
-/* Node sizes and symmetry */
+/* Node sizes and symmetry - 30px circular handles with perfect centering */
 .cropper-point {
-    width: 35px !important;
-    height: 35px !important;
+    width: 30px !important;
+    height: 30px !important;
     background-color: var(--primary-color) !important;
     opacity: 0.9 !important;
-    border-radius: 50%;
+    border-radius: 50% !important;
     transition: all 0.2s ease;
     z-index: 10;
     transform: translate(-50%, -50%) !important;

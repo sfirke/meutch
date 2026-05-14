@@ -51,6 +51,21 @@
     }
 
     // Build UI
+    var emptyDropZone = document.createElement('div');
+    emptyDropZone.className = 'drag-drop-zone mb-3';
+    emptyDropZone.innerHTML = '<div class="drag-drop-content">' +
+      '<i class="fas fa-cloud-upload-alt fa-3x mb-3 text-muted"></i>' +
+      '<p class="mb-2">Drag and drop photos here</p>' +
+      '<p class="text-muted small mb-3">or</p>' +
+      '<div class="browse-btn">Select files</div>' +
+      '<p class="text-muted small mt-3 mb-0">Maximum upload file size: ' + maxFileSizeLabel + '.</p>' +
+      '</div>';
+    imageContainer.appendChild(emptyDropZone);
+
+    emptyDropZone.addEventListener('click', function () {
+      fileInput.click();
+    });
+
     var grid = document.createElement('div');
     grid.className = 'multi-image-grid';
     imageContainer.appendChild(grid);
@@ -126,6 +141,15 @@
       var count = grid.querySelectorAll('.multi-image-thumb').length + pendingFilesCount;
       counter.textContent = count + ' / ' + maxImages;
       var atMax = count >= maxImages;
+      
+      if (count === 0) {
+        emptyDropZone.style.display = 'block';
+        grid.style.display = 'none';
+      } else {
+        emptyDropZone.style.display = 'none';
+        grid.style.display = '';
+      }
+
       addBtn.style.display = atMax ? 'none' : '';
       if (showCameraBtn) {
         cameraBtn.style.display = atMax ? 'none' : '';
@@ -511,6 +535,29 @@
 
     captureInput.addEventListener('change', function () {
       handleFiles(captureInput.files, captureInput);
+    });
+
+    // Drag and drop functionality
+    imageContainer.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      imageContainer.classList.add('drag-over');
+    });
+
+    imageContainer.addEventListener('dragleave', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      imageContainer.classList.remove('drag-over');
+    });
+
+    imageContainer.addEventListener('drop', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      imageContainer.classList.remove('drag-over');
+      
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFiles(e.dataTransfer.files, fileInput);
+      }
     });
 
     // Listen for cropped image from external modal
