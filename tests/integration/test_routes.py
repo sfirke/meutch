@@ -767,6 +767,43 @@ class TestItemRoutes:
             assert b"Mark the item returned or cancel the loan before deleting it." in response.data
             assert b"View Active Loan" in response.data
 
+    def test_complete_giveaway_backed_loan_is_blocked(self, client, app, auth_user):
+        """Loan completion routes should reject legacy giveaway-backed loan records."""
+        with app.app_context():
+            owner = auth_user()
+            borrower = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+                available=False,
+            )
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status="approved",
+                start_date=date.today() - timedelta(days=2),
+                end_date=date.today() + timedelta(days=5),
+            )
+            MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                item=item,
+                loan_request=loan,
+                body="Legacy mixed-state loan thread.",
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(f"/loan/{loan.id}/complete", follow_redirects=True)
+
+            assert response.status_code == 200
+            assert b"This item is being offered as a giveaway, not a loan." in response.data
+
+            db.session.refresh(loan)
+            assert loan.status == "approved"
+
     def test_add_item_image_upload_failure(self, app, client, auth_user):
         """Test adding item when image upload fails."""
         with app.app_context():

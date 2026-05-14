@@ -17,9 +17,8 @@ from app.forms import (
 )
 from app.main import bp as main_bp
 from app.models import GiveawayInterest, Item, Message, User
-from app.services import giveaway_service
+from app.services import giveaway_service, message_service
 from app.services.exceptions import ConflictError, ServiceError
-from app.utils.email import send_message_notification_email
 
 from .helpers import _conversation_other_user_id
 
@@ -311,28 +310,16 @@ def message_giveaway_requester(item_id, user_id):
 
     form = MessageForm()
     if form.validate_on_submit():
-        message = Message(
-            sender_id=current_user.id,
-            recipient_id=user_id,
-            item_id=item.id,
-            body=form.body.data,
-        )
-        db.session.add(message)
-
         try:
-            db.session.commit()
-
-            try:
-                send_message_notification_email(message)
-            except Exception as exc:
-                current_app.logger.error(
-                    f"Failed to send email notification for message {message.id}: {str(exc)}"
-                )
-
+            message = message_service.create_message(
+                current_user.id,
+                user_id,
+                form.body.data,
+                item_id=item.id,
+            )
             flash("Your message has been sent.", "success")
             return redirect(url_for("main.view_conversation", message_id=message.id))
         except Exception as exc:
-            db.session.rollback()
             current_app.logger.error(f"Error sending message for giveaway {item_id}: {str(exc)}")
             flash("An error occurred. Please try again.", "danger")
 

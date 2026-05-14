@@ -170,7 +170,11 @@ class User(UserMixin, db.Model):
         """Returns items user is currently borrowing"""
         return (
             Item.query.join(LoanRequest)
-            .filter(LoanRequest.borrower_id == self.id, LoanRequest.status == "approved")
+            .filter(
+                Item.is_giveaway.is_(False),
+                LoanRequest.borrower_id == self.id,
+                LoanRequest.status == "approved",
+            )
             .all()
         )
 
@@ -178,7 +182,11 @@ class User(UserMixin, db.Model):
         """Returns items user is currently lending"""
         return (
             Item.query.join(LoanRequest)
-            .filter(Item.owner_id == self.id, LoanRequest.status == "approved")
+            .filter(
+                Item.is_giveaway.is_(False),
+                Item.owner_id == self.id,
+                LoanRequest.status == "approved",
+            )
             .all()
         )
 

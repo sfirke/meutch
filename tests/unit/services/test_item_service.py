@@ -1,8 +1,11 @@
 from unittest.mock import patch
 
+import pytest
+
 from app import db
 from app.models import GiveawayInterest, Item, LoanRequest, Message
 from app.services import item_service
+from app.services.exceptions import ConflictError
 from tests.factories import (
     CategoryFactory,
     GiveawayInterestFactory,
@@ -85,3 +88,57 @@ class TestItemService:
             assert GiveawayInterest.query.count() == 0
             assert Message.query.count() == 0
             mock_delete_images.assert_called_once_with([image.url])
+
+    def test_update_item_rejects_giveaway_conversion_with_active_loan(self, app):
+        with app.app_context():
+            item = ItemFactory(is_giveaway=False, available=False)
+            borrower = UserFactory()
+            LoanRequestFactory(item=item, borrower=borrower, status="approved")
+
+            with pytest.raises(ConflictError, match="active loan"):
+                item_service.update_item(
+                    item,
+                    item.name,
+                    item.description,
+                    item.category_id,
+                    True,
+                    "public",
+                    "",
+                    [],
+                    [],
+                    [],
+                )
+
+    def test_update_item_rejects_loan_conversion_with_interested_users(self, app):
+        with app.app_context():
+            item = ItemFactory(
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            GiveawayInterestFactory(item=item, status="active")
+
+            with pytest.raises(ConflictError, match="interested users"):
+                item_service.update_item(
+                    item,
+                    item.name,
+                    item.description,
+                    item.category_id,
+                    False,
+                    None,
+                    "",
+                    [],
+                    [],
+                    [],
+                )
+
+    def test_get_item_delete_blocker_returns_active_loan(self, app):
+        with app.app_context():
+            item = ItemFactory(is_giveaway=False, available=False)
+            borrower = UserFactory()
+            loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
+
+            blocker_type, blocking_loan = item_service.get_item_delete_blocker(item)
+
+            assert blocker_type == "active_loan"
+            assert blocking_loan.id == loan.id

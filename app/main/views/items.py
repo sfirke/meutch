@@ -14,8 +14,8 @@ from app.forms import (
 )
 from app.main import bp as main_bp
 from app.models import GiveawayInterest, Item, LoanRequest, Message
-from app.services import item_service
-from app.utils.email import send_message_notification_email
+from app.services import item_service, message_service
+from app.services.exceptions import AuthorizationError, ConflictError
 from app.utils.giveaway_visibility import (
     can_view_claimed_giveaway,
     get_unavailable_giveaway_suggestions,
@@ -121,21 +121,12 @@ def item_detail(item_id):
     withdraw_interest_form = WithdrawInterestForm()
 
     if form.validate_on_submit():
-        message = Message(
-            sender_id=current_user.id,
-            recipient_id=item.owner.id,
+        message_service.create_message(
+            current_user.id,
+            item.owner.id,
+            form.body.data,
             item_id=item.id,
-            body=form.body.data,
         )
-        db.session.add(message)
-        db.session.commit()
-
-        try:
-            send_message_notification_email(message)
-        except Exception as e:
-            current_app.logger.error(
-                f"Failed to send email notification for message {message.id}: {str(e)}"
-            )
 
         flash("Your message has been sent.", "success")
         return redirect(_build_item_detail_url(item.id, share_token))
@@ -201,36 +192,6 @@ def edit_item(item_id):
         form.tags.data = ", ".join([tag.name for tag in item.tags])
 
     if form.validate_on_submit():
-        if form.is_giveaway.data:
-            blocking_loan, blocking_loan_type = item_service.get_giveaway_conversion_blocker(item)
-            if blocking_loan:
-                if blocking_loan_type == "active":
-                    form.is_giveaway.errors.append(
-                        "This item has an active loan. Mark it returned or cancel the loan before converting it to a giveaway."
-                    )
-                else:
-                    form.is_giveaway.errors.append(
-                        "This item has a pending loan request. Resolve the request before converting it to a giveaway."
-                    )
-                return render_template("main/edit_item.html", form=form, item=item)
-        elif item.is_giveaway:
-            conversion_blocker = item_service.get_loan_conversion_blocker(item)
-            if conversion_blocker == "interested_users":
-                form.is_giveaway.errors.append(
-                    "This giveaway already has interested users. It cannot be converted back into a loan item."
-                )
-                return render_template("main/edit_item.html", form=form, item=item)
-            if conversion_blocker == "pending_pickup":
-                form.is_giveaway.errors.append(
-                    "This giveaway is pending pickup. Complete the handoff or release it back to everyone before converting it to a loan item."
-                )
-                return render_template("main/edit_item.html", form=form, item=item)
-            if conversion_blocker == "claimed":
-                form.is_giveaway.errors.append(
-                    "This giveaway has already been handed off. Completed giveaways cannot be converted back into loan items."
-                )
-                return render_template("main/edit_item.html", form=form, item=item)
-
         try:
             delete_entries = _parse_json_string_list(form.delete_images.data, "Photo removal")
             order_entries = _parse_json_string_list(form.image_order.data, "Photo order")
@@ -269,6 +230,9 @@ def edit_item(item_id):
                 delete_entries,
                 order_entries,
             )
+        except ConflictError as exc:
+            form.is_giveaway.errors.append(str(exc))
+            return render_template("main/edit_item.html", form=form, item=item)
         except ValueError:
             flash("Some image uploads failed. Please try again.", "warning")
             return render_template("main/edit_item.html", form=form, item=item)
@@ -288,30 +252,26 @@ def edit_item(item_id):
 def delete_item(item_id):
     item = db.get_or_404(Item, item_id)
 
-    if item.owner != current_user:
-        flash("You can only delete your own items.", "danger")
-        return redirect(url_for("main.profile"))
-
-    active_loan = LoanRequest.query.filter_by(item_id=item.id, status="approved").first()
-    if active_loan:
+    blocker_type, blocking_loan = item_service.get_item_delete_blocker(item)
+    if blocker_type == "active_loan":
         flash(
             "This item is currently out on loan. Mark it returned or cancel the loan before deleting the item.",
             "warning",
         )
-        if active_loan.messages:
+        if blocking_loan.messages:
             return redirect(
-                url_for("main.view_conversation", message_id=active_loan.messages[0].id)
+                url_for("main.view_conversation", message_id=blocking_loan.messages[0].id)
             )
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    if item.is_giveaway and item.claim_status == "pending_pickup":
+    if blocker_type == "pending_pickup":
         flash(
             "This giveaway is still pending pickup. Mark the handoff complete or release it instead of deleting the item.",
             "warning",
         )
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    if item.is_giveaway and item.claim_status == "claimed":
+    if blocker_type == "claimed":
         flash(
             "You cannot delete a giveaway that has been claimed and handed off. This is a completed transaction.",
             "danger",
@@ -319,8 +279,10 @@ def delete_item(item_id):
         return redirect(url_for("main.profile"))
 
     try:
-        item_service.delete_item_with_cleanup(item)
+        item_service.delete_item(item, current_user)
         flash("Item deleted successfully.", "success")
+    except AuthorizationError as exc:
+        flash(str(exc), exc.flash_category)
     except Exception as exc:
         current_app.logger.error(f"Error deleting item {item_id}: {str(exc)}")
         flash("An error occurred while deleting the item.", "danger")

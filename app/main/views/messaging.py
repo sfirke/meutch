@@ -1,12 +1,12 @@
-from flask import current_app, flash, redirect, render_template, url_for
+from flask import flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
 from app import db
 from app.forms import ConfirmHandoffForm, EmptyForm, MessageForm, ReleaseToAllForm
 from app.main import bp as main_bp
 from app.models import GiveawayInterest, Message, User
-from app.utils.email import send_message_notification_email
-from app.utils.messaging_queries import build_inbox_summaries, get_conversation_thread_state
+from app.services import message_service
+from app.utils.messaging_queries import build_inbox_summaries
 
 from .helpers import _conversation_other_user_id
 
@@ -33,7 +33,7 @@ def view_conversation(message_id):
         flash("You do not have permission to view this message.", "danger")
         return redirect(url_for("main.messages"))
 
-    thread_state = get_conversation_thread_state(message, current_user.id)
+    thread_state = message_service.get_conversation_thread_state(message, current_user.id)
     thread_messages = thread_state["thread_messages"]
     has_unread_messages = thread_state["has_unread_messages"]
 
@@ -83,25 +83,7 @@ def view_conversation(message_id):
 
     form = MessageForm()
     if form.validate_on_submit():
-        reply = Message(
-            sender_id=current_user.id,
-            recipient_id=other_user.id,
-            item_id=message.item_id,
-            request_id=message.request_id,
-            circle_id=message.circle_id,
-            body=form.body.data,
-            is_read=False,
-            parent_id=message.id,
-        )
-        db.session.add(reply)
-        db.session.commit()
-
-        try:
-            send_message_notification_email(reply)
-        except Exception as e:
-            current_app.logger.error(
-                f"Failed to send email notification for reply message {reply.id}: {str(e)}"
-            )
+        message_service.reply_to_message(message, current_user.id, form.body.data)
 
         flash("Your reply has been sent.", "success")
         return redirect(url_for("main.view_conversation", message_id=message_id))
