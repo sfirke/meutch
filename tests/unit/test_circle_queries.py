@@ -75,9 +75,17 @@ def test_get_ordered_circle_members_sorts_admins_first_then_joined_at(app):
 
         db.session.execute(
             circle_members.insert().values(
+                user_id=early_member.id,
+                circle_id=circle.id,
+                joined_at=now - timedelta(days=2),
+                is_admin=False,
+            )
+        )
+        db.session.execute(
+            circle_members.insert().values(
                 user_id=later_member.id,
                 circle_id=circle.id,
-                joined_at=now,
+                joined_at=now - timedelta(days=1),
                 is_admin=False,
             )
         )
@@ -85,16 +93,8 @@ def test_get_ordered_circle_members_sorts_admins_first_then_joined_at(app):
             circle_members.insert().values(
                 user_id=admin.id,
                 circle_id=circle.id,
-                joined_at=now - timedelta(days=2),
+                joined_at=now,
                 is_admin=True,
-            )
-        )
-        db.session.execute(
-            circle_members.insert().values(
-                user_id=early_member.id,
-                circle_id=circle.id,
-                joined_at=now - timedelta(days=1),
-                is_admin=False,
             )
         )
         db.session.commit()
