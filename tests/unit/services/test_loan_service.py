@@ -180,6 +180,46 @@ class TestLoanService:
             with pytest.raises(AuthorizationError):
                 loan_service.complete_loan(loan, other.id)
 
+    def test_process_loan_decision_rejects_giveaway_backed_loan(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=True, available=False)
+            loan = LoanRequestFactory(item=item, borrower=borrower, status="pending")
+
+            with pytest.raises(ConflictError, match="giveaway"):
+                loan_service.process_loan_decision(loan, owner.id, "approve")
+
+    def test_cancel_loan_request_rejects_giveaway_backed_loan(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=True, available=False)
+            loan = LoanRequestFactory(item=item, borrower=borrower, status="pending")
+
+            with pytest.raises(ConflictError, match="giveaway"):
+                loan_service.cancel_loan_request(loan, borrower.id)
+
+    def test_complete_loan_rejects_giveaway_backed_loan(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=True, available=False)
+            loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
+
+            with pytest.raises(ConflictError, match="giveaway"):
+                loan_service.complete_loan(loan, owner.id)
+
+    def test_owner_cancel_rejects_giveaway_backed_loan(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=True, available=False)
+            loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
+
+            with pytest.raises(ConflictError, match="giveaway"):
+                loan_service.owner_cancel_approved_loan(loan, owner.id)
+
     def test_extend_loan_raises_auth_error_for_non_owner(self, app):
         with app.app_context():
             owner = UserFactory()
@@ -196,3 +236,19 @@ class TestLoanService:
 
             with pytest.raises(AuthorizationError):
                 loan_service.extend_loan(loan, other.id, date.today() + timedelta(days=7), "")
+
+    def test_extend_loan_rejects_giveaway_backed_loan(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=True, available=False)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status="approved",
+                start_date=date.today() - timedelta(days=1),
+                end_date=date.today() + timedelta(days=3),
+            )
+
+            with pytest.raises(ConflictError, match="giveaway"):
+                loan_service.extend_loan(loan, owner.id, date.today() + timedelta(days=7), "")

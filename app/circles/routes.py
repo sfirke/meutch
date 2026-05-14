@@ -1,9 +1,5 @@
-import logging
-from datetime import UTC, datetime
-
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import and_
 
 from app.circles import bp as circles_bp
 from app.forms import (
@@ -13,7 +9,7 @@ from app.forms import (
     CircleUuidSearchForm,
     EmptyForm,
 )
-from app.models import Circle, CircleJoinRequest, User, circle_members, db
+from app.models import Circle, CircleJoinRequest, User, db
 from app.services import circle_service
 from app.services.exceptions import ServiceError
 from app.utils.circle_members import build_circle_member_samples
@@ -25,10 +21,6 @@ from app.utils.circle_queries import (
     get_sorted_user_circles,
     should_show_circle_members,
 )
-from app.utils.geocoding import GeocodingError, build_address_string, geocode_address
-from app.utils.storage import delete_file, is_valid_file_upload, upload_circle_image
-
-logger = logging.getLogger(__name__)
 
 # Circles -----------------------------------------------------
 
@@ -52,80 +44,33 @@ def manage_circles():
 
     if request.method == "POST":
         if "create_circle" in request.form and circle_form.validate_on_submit():
-            # Handle Circle Creation
-            existing_circle = Circle.query.filter(
-                db.func.lower(Circle.name) == db.func.lower(circle_form.name.data)
-            ).first()
-            if existing_circle:
-                flash("A circle with this name already exists.", "danger")
-            else:
-                new_circle = Circle(
+            try:
+                result = circle_service.create_circle(
+                    current_user,
                     name=circle_form.name.data,
                     description=circle_form.description.data,
                     circle_type=circle_form.circle_type.data,
+                    location_method=circle_form.location_method.data,
+                    latitude=circle_form.latitude.data,
+                    longitude=circle_form.longitude.data,
+                    street=circle_form.street.data,
+                    city=circle_form.city.data,
+                    state=circle_form.state.data,
+                    zip_code=circle_form.zip_code.data,
+                    country=circle_form.country.data,
                 )
-
-                # Handle location based on input method
-                geocoding_failed = False
-                if circle_form.location_method.data == "coordinates":
-                    # Direct coordinate input
-                    new_circle.latitude = circle_form.latitude.data
-                    new_circle.longitude = circle_form.longitude.data
-                    logger.info(
-                        f"Circle {new_circle.name} provided coordinates directly: ({new_circle.latitude}, {new_circle.longitude})"
-                    )
-                elif circle_form.location_method.data == "address":
-                    # Address geocoding
-                    address = build_address_string(
-                        circle_form.street.data,
-                        circle_form.city.data,
-                        circle_form.state.data,
-                        circle_form.zip_code.data,
-                        circle_form.country.data,
-                    )
-
-                    try:
-                        coordinates = geocode_address(address)
-                        if coordinates:
-                            new_circle.latitude, new_circle.longitude = coordinates
-                            logger.info(
-                                f"Successfully geocoded address for circle {new_circle.name}"
-                            )
-                        else:
-                            geocoding_failed = True
-                            logger.warning(
-                                f"Failed to geocode address for circle {new_circle.name}: {address}"
-                            )
-                    except GeocodingError as e:
-                        geocoding_failed = True
-                        logger.error(f"Geocoding error for circle {new_circle.name}: {e}")
-                    except Exception as e:
-                        geocoding_failed = True
-                        logger.error(
-                            f"Unexpected error during geocoding for circle {new_circle.name}: {e}"
-                        )
-                # If location_method is 'skip', don't set any location data
-
-                db.session.add(new_circle)
-                db.session.flush()  # Ensure circle has an ID
-
-                # Add creator as admin member
-                stmt = circle_members.insert().values(
-                    user_id=current_user.id,
-                    circle_id=new_circle.id,
-                    joined_at=datetime.now(UTC),
-                    is_admin=True,
-                )
-                db.session.execute(stmt)
-                db.session.commit()
-
-                # Provide appropriate feedback based on location choice
+            except ServiceError as exc:
+                flash(str(exc), exc.flash_category)
+            except Exception as exc:
+                current_app.logger.error(f"Error creating circle: {str(exc)}")
+                flash("There was an error creating the circle.", "danger")
+            else:
                 if circle_form.location_method.data == "skip":
                     flash(
                         "Circle created successfully! You can add a location later to help members find circles nearby.",
                         "success",
                     )
-                elif geocoding_failed:
+                elif result["geocoding_failed"]:
                     flash(
                         "Circle created successfully, but we couldn't determine the location from the address provided. "
                         "You can try entering coordinates directly, or update the location later.",
@@ -134,8 +79,7 @@ def manage_circles():
                 else:
                     flash("Circle created successfully!", "success")
 
-                # Redirect to the newly created circle's detail page
-                return redirect(url_for("circles.view_circle", circle_id=new_circle.id))
+                return redirect(url_for("circles.view_circle", circle_id=result["circle"].id))
 
         elif "search_circles" in request.form and search_form.validate_on_submit():
             # Handle Circle Search or Browse (open and closed circles, not secret)
@@ -282,54 +226,20 @@ def join_circle(circle_id):
 @login_required
 def leave_circle(circle_id):
     circle = db.get_or_404(Circle, circle_id)
-    if current_user not in circle.members:
-        flash("You are not a member of this circle.", "info")
+    try:
+        result = circle_service.leave_circle(circle, current_user)
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
+        return redirect(url_for("circles.view_circle", circle_id=circle_id))
+    except Exception as exc:
+        current_app.logger.error(f"Error leaving circle {circle_id}: {str(exc)}")
+        flash("There was an error leaving the circle.", "danger")
         return redirect(url_for("circles.view_circle", circle_id=circle_id))
 
-    # Check if current user is an admin and there are other members
-    if circle.is_admin(current_user) and len(circle.members) > 1:
-        admin_count = (
-            db.session.query(circle_members).filter_by(circle_id=circle.id, is_admin=True).count()
-        )
-
-        if admin_count == 1:
-            # Find earliest member to assign as new admin
-            next_admin_assoc = (
-                db.session.query(circle_members)
-                .filter(
-                    circle_members.c.circle_id == circle.id,
-                    circle_members.c.user_id != current_user.id,
-                )
-                .order_by(circle_members.c.joined_at)
-                .first()
-            )
-
-            if next_admin_assoc:
-                stmt = (
-                    circle_members.update()
-                    .where(
-                        and_(
-                            circle_members.c.circle_id == circle_id,
-                            circle_members.c.user_id == next_admin_assoc.user_id,
-                        )
-                    )
-                    .values(is_admin=True)
-                )
-                db.session.execute(stmt)
-
-    # Remove the member using the relationship
-    circle.members.remove(current_user)
-
-    # If this was the last member, delete the circle
-    if len(circle.members) == 0:
-        if circle.image_url:
-            delete_file(circle.image_url)
-        db.session.delete(circle)
-        db.session.commit()
+    if result["circle_deleted"]:
         flash("Circle has been deleted as it has no remaining members.", "info")
         return redirect(url_for("circles.manage_circles"))
 
-    db.session.commit()
     flash("You have left the circle.", "success")
     return redirect(url_for("circles.manage_circles"))
 
@@ -402,45 +312,38 @@ def toggle_admin(circle_id, user_id, action):
 def create_circle():
     form = CircleCreateForm()
     if form.validate_on_submit():
-        circle_name = form.name.data.strip()
-        existing_circle = Circle.query.filter(
-            db.func.lower(Circle.name) == db.func.lower(circle_name)
-        ).first()
-        if existing_circle:
-            flash(
-                "A circle with that name already exists. Please choose a different name.", "danger"
+        try:
+            result = circle_service.create_circle(
+                current_user,
+                name=form.name.data,
+                description=form.description.data,
+                circle_type=form.circle_type.data,
+                image_file=form.image.data,
+                location_method=form.location_method.data,
+                latitude=form.latitude.data,
+                longitude=form.longitude.data,
+                street=form.street.data,
+                city=form.city.data,
+                state=form.state.data,
+                zip_code=form.zip_code.data,
+                country=form.country.data,
             )
+        except ServiceError as exc:
+            if str(exc) == "A circle with this name already exists.":
+                flash(
+                    "A circle with that name already exists. Please choose a different name.",
+                    "danger",
+                )
+            else:
+                flash(str(exc), exc.flash_category)
+            return render_template("circles/create_circle.html", form=form)
+        except Exception as exc:
+            current_app.logger.error(f"Error creating circle: {str(exc)}")
+            flash("There was an error creating the circle.", "danger")
             return render_template("circles/create_circle.html", form=form)
 
-        image_url = None
-        if form.image.data and is_valid_file_upload(form.image.data):
-            image_url = upload_circle_image(form.image.data)
-            if image_url is None:
-                flash(
-                    "Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).",
-                    "error",
-                )
-                return render_template("circles/create_circle.html", form=form)
-
-        new_circle = Circle(
-            name=circle_name,
-            description=form.description.data.strip(),
-            circle_type=form.circle_type.data,
-            image_url=image_url,
-        )
-        db.session.add(new_circle)
-        db.session.flush()
-        stmt = circle_members.insert().values(
-            user_id=current_user.id,
-            circle_id=new_circle.id,
-            joined_at=datetime.now(UTC),
-            is_admin=True,
-        )
-        db.session.execute(stmt)
-        db.session.commit()
-
-        flash(f'Circle "{new_circle.name}" has been created successfully!', "success")
-        return redirect(url_for("circles.view_circle", circle_id=new_circle.id))
+        flash(f'Circle "{result["circle"].name}" has been created successfully!', "success")
+        return redirect(url_for("circles.view_circle", circle_id=result["circle"].id))
     return render_template("circles/create_circle.html", form=form)
 
 
@@ -448,31 +351,18 @@ def create_circle():
 @login_required
 def remove_member(circle_id, user_id):
     circle = db.get_or_404(Circle, circle_id)
-    if not circle.is_admin(current_user):
-        flash("You must be an admin to remove members.", "danger")
-        return redirect(url_for("circles.view_circle", circle_id=circle_id))
-
     user_to_remove = db.get_or_404(User, user_id)
-    if user_to_remove not in circle.members:
-        flash("User is not a member of this circle.", "warning")
+    try:
+        circle_service.remove_member(circle, user_to_remove, current_user)
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
         return redirect(url_for("circles.view_circle", circle_id=circle_id))
-
-    if user_to_remove == current_user:
-        flash("Use the leave circle button to remove yourself.", "warning")
-        return redirect(url_for("circles.view_circle", circle_id=circle_id))
-
-    # Check if this would leave the circle without admins
-    if circle.is_admin(user_to_remove):
-        admin_count = (
-            db.session.query(circle_members).filter_by(circle_id=circle.id, is_admin=True).count()
+    except Exception as exc:
+        current_app.logger.error(
+            f"Error removing user {user_id} from circle {circle_id}: {str(exc)}"
         )
-        if admin_count <= 1:
-            flash("Cannot remove the last admin. Make someone else an admin first.", "danger")
-            return redirect(url_for("circles.view_circle", circle_id=circle_id))
-
-    # Remove the member
-    circle.members.remove(user_to_remove)
-    db.session.commit()
+        flash("There was an error removing the member.", "danger")
+        return redirect(url_for("circles.view_circle", circle_id=circle_id))
 
     flash(
         f"{user_to_remove.first_name} {user_to_remove.last_name} has been removed from the circle.",
@@ -507,70 +397,39 @@ def edit_circle(circle_id):
             )
 
     if form.validate_on_submit():
-        circle.name = form.name.data.strip()
-        circle.description = form.description.data.strip()
-        circle.circle_type = form.circle_type.data
-
-        # Handle location based on input method
-        geocoding_failed = False
-        if form.location_method.data == "coordinates":
-            # Direct coordinate input
-            circle.latitude = form.latitude.data
-            circle.longitude = form.longitude.data
-            logger.info(
-                f"Circle {circle.name} location updated with coordinates: ({circle.latitude}, {circle.longitude})"
+        try:
+            result = circle_service.update_circle(
+                circle,
+                current_user,
+                name=form.name.data,
+                description=form.description.data,
+                circle_type=form.circle_type.data,
+                image_file=form.image.data,
+                delete_image=form.delete_image.data,
+                location_method=form.location_method.data,
+                latitude=form.latitude.data,
+                longitude=form.longitude.data,
+                street=form.street.data,
+                city=form.city.data,
+                state=form.state.data,
+                zip_code=form.zip_code.data,
+                country=form.country.data,
             )
-        elif form.location_method.data == "address":
-            # Address geocoding
-            address = build_address_string(
-                form.street.data,
-                form.city.data,
-                form.state.data,
-                form.zip_code.data,
-                form.country.data,
-            )
+        except ServiceError as exc:
+            flash(str(exc), exc.flash_category)
+            return render_template("circles/edit_circle.html", form=form, circle=circle)
+        except Exception as exc:
+            current_app.logger.error(f"Error updating circle {circle_id}: {str(exc)}")
+            flash("There was an error updating the circle.", "danger")
+            return render_template("circles/edit_circle.html", form=form, circle=circle)
 
-            try:
-                coordinates = geocode_address(address)
-                if coordinates:
-                    circle.latitude, circle.longitude = coordinates
-                    logger.info(f"Successfully geocoded address for circle {circle.name}")
-                else:
-                    geocoding_failed = True
-                    logger.warning(f"Failed to geocode address for circle {circle.name}: {address}")
-            except GeocodingError as e:
-                geocoding_failed = True
-                logger.error(f"Geocoding error for circle {circle.name}: {e}")
-            except Exception as e:
-                geocoding_failed = True
-                logger.error(f"Unexpected error during geocoding for circle {circle.name}: {e}")
-        # If location_method is 'skip', don't change location data
-
-        # Handle image deletion
-        if form.delete_image.data and circle.image_url:
-            delete_file(circle.image_url)
-            circle.image_url = None
+        if result["image_removed"]:
             flash("Circle image has been removed.", "success")
-
-        # Handle image upload
-        if form.image.data and is_valid_file_upload(form.image.data):
-            if circle.image_url:
-                delete_file(circle.image_url)
-            image_url = upload_circle_image(form.image.data)
-            if image_url:
-                circle.image_url = image_url
-                flash("Circle image updated.", "success")
-            else:
-                flash(
-                    "Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.).",
-                    "error",
-                )
-                return render_template("circles/edit_circle.html", form=form, circle=circle)
-
-        db.session.commit()
+        if result["image_updated"]:
+            flash("Circle image updated.", "success")
 
         # Provide appropriate feedback based on location update
-        if geocoding_failed:
+        if result["geocoding_failed"]:
             flash(
                 "Circle updated, but we couldn't determine the location from the address provided. "
                 "You can try entering coordinates directly.",

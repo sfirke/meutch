@@ -13,6 +13,11 @@ from app.utils.email import send_message_notification_email
 logger = logging.getLogger(__name__)
 
 
+def _ensure_item_is_lendable(item):
+    if item.is_giveaway:
+        raise ConflictError("This item is being offered as a giveaway, not a loan.")
+
+
 def _send_notification_email(message, error_prefix):
     try:
         send_message_notification_email(message)
@@ -35,8 +40,7 @@ def create_loan_request(item, borrower_id, start_date, end_date, message_body):
     if item.owner_id == borrower_id:
         raise ConflictError("You cannot request your own items.")
 
-    if item.is_giveaway:
-        raise ConflictError("This item is being offered as a giveaway, not a loan.")
+    _ensure_item_is_lendable(item)
 
     if not item.available:
         raise ConflictError("This item is not currently available to borrow.")
@@ -75,6 +79,8 @@ def process_loan_decision(loan, owner_id, action):
     if loan.item.owner_id != owner_id:
         raise AuthorizationError("You are not authorized to perform this action.")
 
+    _ensure_item_is_lendable(loan.item)
+
     normalized_action = action.lower()
     if normalized_action not in {"approve", "deny"}:
         raise InvalidActionError("Invalid action.")
@@ -108,6 +114,8 @@ def cancel_loan_request(loan, borrower_id):
     if loan.borrower_id != borrower_id:
         raise AuthorizationError("You are not authorized to cancel this request.")
 
+    _ensure_item_is_lendable(loan.item)
+
     if loan.status != "pending":
         raise ConflictError("This loan request cannot be canceled.")
 
@@ -129,6 +137,8 @@ def cancel_loan_request(loan, borrower_id):
 def complete_loan(loan, owner_id):
     if loan.item.owner_id != owner_id:
         raise AuthorizationError("You are not authorized to perform this action.")
+
+    _ensure_item_is_lendable(loan.item)
 
     if loan.status != "approved":
         raise ConflictError("This loan is not currently active.")
@@ -154,6 +164,8 @@ def owner_cancel_approved_loan(loan, owner_id):
     if loan.item.owner_id != owner_id:
         raise AuthorizationError("You are not authorized to perform this action.")
 
+    _ensure_item_is_lendable(loan.item)
+
     if loan.status != "approved":
         raise ConflictError("Only approved loans can be canceled.")
 
@@ -177,6 +189,8 @@ def owner_cancel_approved_loan(loan, owner_id):
 def extend_loan(loan, owner_id, new_end_date, owner_message):
     if loan.item.owner_id != owner_id:
         raise AuthorizationError("You are not authorized to extend this loan.")
+
+    _ensure_item_is_lendable(loan.item)
 
     if loan.status not in ["pending", "approved"]:
         raise ConflictError("Only pending or approved loans can be extended.")

@@ -226,6 +226,34 @@ class TestUser:
             assert viewer.shared_circles_with(None) == []
             assert viewer.shares_circle_with(None) is False
 
+    def test_get_active_loans_as_borrower_excludes_giveaway_items(self, app):
+        with app.app_context():
+            borrower = UserFactory()
+            owner = UserFactory()
+            loan_item = ItemFactory(owner=owner, is_giveaway=False, available=False)
+            giveaway_item = ItemFactory(owner=owner, is_giveaway=True, available=False)
+
+            LoanRequestFactory(item=loan_item, borrower=borrower, status="approved")
+            LoanRequestFactory(item=giveaway_item, borrower=borrower, status="approved")
+
+            borrowing = borrower.get_active_loans_as_borrower()
+
+            assert [item.id for item in borrowing] == [loan_item.id]
+
+    def test_get_active_loans_as_owner_excludes_giveaway_items(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            loan_item = ItemFactory(owner=owner, is_giveaway=False, available=False)
+            giveaway_item = ItemFactory(owner=owner, is_giveaway=True, available=False)
+
+            LoanRequestFactory(item=loan_item, borrower=borrower, status="approved")
+            LoanRequestFactory(item=giveaway_item, borrower=borrower, status="approved")
+
+            lending = owner.get_active_loans_as_owner()
+
+            assert [item.id for item in lending] == [loan_item.id]
+
 
 class TestItem:
     """Test Item model."""
