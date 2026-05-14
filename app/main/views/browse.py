@@ -1,11 +1,10 @@
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import and_, or_
-from sqlalchemy.orm import joinedload
 
 from app.main import bp as main_bp
-from app.models import Category, Item, Tag, User
+from app.models import Category, Tag
 from app.utils.home_feed import build_homepage_feed_events
+from app.utils.item_queries import build_category_items_pagination, build_tag_items_pagination
 
 from .helpers import (
     HOMEPAGE_DISTANCE_OPTIONS,
@@ -112,41 +111,12 @@ def tag_items(tag_id):
             item_type=item_type,
         )
 
-    shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
-    items_query = (
-        Item.query.join(Item.tags)
-        .join(User, Item.owner_id == User.id)
-        .filter(
-            Tag.id == tag_id,
-            Item.owner_id.in_(shared_circle_user_ids),
-            User.vacation_mode.is_(False),
-        )
-    )
-
-    if item_type == "loans":
-        items_query = items_query.filter(Item.is_giveaway.is_(False))
-    elif item_type == "giveaways":
-        items_query = items_query.filter(
-            Item.is_giveaway.is_(True),
-            or_(Item.claim_status == "unclaimed", Item.claim_status.is_(None)),
-        )
-    else:
-        items_query = items_query.filter(
-            or_(
-                Item.is_giveaway.is_(False),
-                and_(
-                    Item.is_giveaway.is_(True),
-                    or_(Item.claim_status == "unclaimed", Item.claim_status.is_(None)),
-                ),
-            )
-        )
-
-    items_pagination = (
-        items_query.options(
-            joinedload(Item.owner), joinedload(Item.category), joinedload(Item.tags)
-        )
-        .order_by(Item.created_at.desc())
-        .paginate(page=page, per_page=per_page, error_out=False)
+    items_pagination = build_tag_items_pagination(
+        current_user,
+        tag_id=tag_id,
+        item_type=item_type,
+        page=page,
+        per_page=per_page,
     )
 
     return render_template(
@@ -178,37 +148,12 @@ def category_items(category_id):
             item_type=item_type,
         )
 
-    shared_circle_user_ids = current_user.get_shared_circle_user_ids_query()
-    items_query = Item.query.join(User, Item.owner_id == User.id).filter(
-        Item.category_id == category_id,
-        Item.owner_id.in_(shared_circle_user_ids),
-        User.vacation_mode.is_(False),
-    )
-
-    if item_type == "loans":
-        items_query = items_query.filter(Item.is_giveaway.is_(False))
-    elif item_type == "giveaways":
-        items_query = items_query.filter(
-            Item.is_giveaway.is_(True),
-            or_(Item.claim_status == "unclaimed", Item.claim_status.is_(None)),
-        )
-    else:
-        items_query = items_query.filter(
-            or_(
-                Item.is_giveaway.is_(False),
-                and_(
-                    Item.is_giveaway.is_(True),
-                    or_(Item.claim_status == "unclaimed", Item.claim_status.is_(None)),
-                ),
-            )
-        )
-
-    items_pagination = (
-        items_query.options(
-            joinedload(Item.owner), joinedload(Item.category), joinedload(Item.tags)
-        )
-        .order_by(Item.created_at.desc())
-        .paginate(page=page, per_page=per_page, error_out=False)
+    items_pagination = build_category_items_pagination(
+        current_user,
+        category_id=category_id,
+        item_type=item_type,
+        page=page,
+        per_page=per_page,
     )
 
     return render_template(

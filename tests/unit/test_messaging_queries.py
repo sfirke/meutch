@@ -1,0 +1,124 @@
+from datetime import UTC, datetime, timedelta
+
+from app import db
+from app.utils.messaging_queries import (
+    build_inbox_summaries,
+    build_request_conversation_summaries,
+    find_request_conversation_message,
+    get_conversation_thread_state,
+)
+from tests.factories import (
+    ItemFactory,
+    ItemRequestFactory,
+    LoanRequestFactory,
+    MessageFactory,
+    UserFactory,
+)
+
+
+def test_build_inbox_summaries_groups_request_thread_and_counts_unread(app):
+    with app.app_context():
+        requester = UserFactory()
+        helper = UserFactory()
+        item_request = ItemRequestFactory(user=requester)
+        older_message = MessageFactory(
+            sender=requester,
+            recipient=helper,
+            item=None,
+            request=item_request,
+            is_read=True,
+        )
+        newer_message = MessageFactory(
+            sender=helper,
+            recipient=requester,
+            item=None,
+            request=item_request,
+            is_read=False,
+        )
+        older_message.timestamp = datetime.now(UTC) - timedelta(minutes=2)
+        newer_message.timestamp = datetime.now(UTC) - timedelta(minutes=1)
+        db.session.commit()
+
+        summaries = build_inbox_summaries(requester.id)
+
+        assert len(summaries) == 1
+        assert summaries[0]["latest_message"].id == newer_message.id
+        assert summaries[0]["item_request"].id == item_request.id
+        assert summaries[0]["unread_count"] == 1
+
+
+def test_get_conversation_thread_state_marks_non_pending_messages_read(app):
+    with app.app_context():
+        sender = UserFactory()
+        recipient = UserFactory()
+        item = ItemFactory(owner=sender)
+        first_message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
+        second_message = MessageFactory(sender=recipient, recipient=sender, item=item, is_read=True)
+        db.session.commit()
+
+        thread_state = get_conversation_thread_state(first_message, recipient.id)
+
+        assert thread_state["has_unread_messages"] is True
+        assert [message.id for message in thread_state["thread_messages"]] == [
+            first_message.id,
+            second_message.id,
+        ]
+
+        db.session.expire_all()
+        assert db.session.get(type(first_message), first_message.id).is_read is True
+
+
+def test_get_conversation_thread_state_skips_pending_loan_messages(app):
+    with app.app_context():
+        owner = UserFactory()
+        borrower = UserFactory()
+        item = ItemFactory(owner=owner)
+        loan_request = LoanRequestFactory(item=item, borrower=borrower, status="pending")
+        message = MessageFactory(
+            sender=owner,
+            recipient=borrower,
+            item=item,
+            loan_request=loan_request,
+            is_read=False,
+        )
+        db.session.commit()
+
+        thread_state = get_conversation_thread_state(message, borrower.id)
+
+        assert thread_state["has_unread_messages"] is False
+
+        db.session.expire_all()
+        assert db.session.get(type(message), message.id).is_read is False
+
+
+def test_request_conversation_helpers_group_and_find_existing_thread(app):
+    with app.app_context():
+        requester = UserFactory()
+        helper = UserFactory()
+        item_request = ItemRequestFactory(user=requester)
+        first_message = MessageFactory(
+            sender=helper,
+            recipient=requester,
+            item=None,
+            request=item_request,
+        )
+        reply_message = MessageFactory(
+            sender=requester,
+            recipient=helper,
+            item=None,
+            request=item_request,
+        )
+        first_message.timestamp = datetime.now(UTC) - timedelta(minutes=2)
+        reply_message.timestamp = datetime.now(UTC) - timedelta(minutes=1)
+        db.session.commit()
+
+        conversations = build_request_conversation_summaries(item_request.id, requester.id)
+        existing_message = find_request_conversation_message(
+            item_request.id,
+            helper.id,
+            requester.id,
+        )
+
+        assert len(conversations) == 1
+        assert conversations[0]["latest_message"].id == reply_message.id
+        assert existing_message.id == first_message.id

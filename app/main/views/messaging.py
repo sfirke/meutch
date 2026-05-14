@@ -1,12 +1,12 @@
 from flask import current_app, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import and_, func, or_
 
 from app import db
 from app.forms import ConfirmHandoffForm, EmptyForm, MessageForm, ReleaseToAllForm
 from app.main import bp as main_bp
-from app.models import GiveawayInterest, Item, ItemRequest, LoanRequest, Message, User
+from app.models import GiveawayInterest, Message, User
 from app.utils.email import send_message_notification_email
+from app.utils.messaging_queries import build_inbox_summaries, get_conversation_thread_state
 
 from .helpers import _conversation_other_user_id
 
@@ -14,116 +14,10 @@ from .helpers import _conversation_other_user_id
 @main_bp.route("/messages")
 @login_required
 def messages():
-    latest_messages_subquery = (
-        db.session.query(
-            func.least(Message.sender_id, Message.recipient_id).label("user1_id"),
-            func.greatest(Message.sender_id, Message.recipient_id).label("user2_id"),
-            Message.item_id,
-            Message.request_id,
-            Message.circle_id,
-            func.max(Message.timestamp).label("latest_timestamp"),  # pylint: disable=not-callable
-        )
-        .filter(or_(Message.sender_id == current_user.id, Message.recipient_id == current_user.id))
-        .group_by(
-            func.least(Message.sender_id, Message.recipient_id),
-            func.greatest(Message.sender_id, Message.recipient_id),
-            Message.item_id,
-            Message.request_id,
-            Message.circle_id,
-        )
-        .subquery()
+    return render_template(
+        "messaging/messages.html",
+        conversations=build_inbox_summaries(current_user.id),
     )
-
-    latest_conversations = (
-        db.session.query(Message)
-        .join(
-            latest_messages_subquery,
-            and_(
-                func.least(Message.sender_id, Message.recipient_id)
-                == latest_messages_subquery.c.user1_id,
-                func.greatest(Message.sender_id, Message.recipient_id)
-                == latest_messages_subquery.c.user2_id,
-                or_(
-                    and_(Message.item_id.is_(None), latest_messages_subquery.c.item_id.is_(None)),
-                    Message.item_id == latest_messages_subquery.c.item_id,
-                ),
-                or_(
-                    and_(
-                        Message.request_id.is_(None),
-                        latest_messages_subquery.c.request_id.is_(None),
-                    ),
-                    Message.request_id == latest_messages_subquery.c.request_id,
-                ),
-                or_(
-                    and_(
-                        Message.circle_id.is_(None),
-                        latest_messages_subquery.c.circle_id.is_(None),
-                    ),
-                    Message.circle_id == latest_messages_subquery.c.circle_id,
-                ),
-                Message.timestamp == latest_messages_subquery.c.latest_timestamp,
-            ),
-        )
-        .order_by(Message.timestamp.desc())
-        .all()
-    )
-
-    conversation_summaries = []
-    for convo in latest_conversations:
-        if convo.sender_id == current_user.id:
-            other_user = db.session.get(User, convo.recipient_id)
-        else:
-            other_user = db.session.get(User, convo.sender_id)
-
-        if not convo.is_request_message:
-            if convo.is_circle_message:
-                target_filter = and_(
-                    Message.circle_id == convo.circle_id,
-                    Message.item_id.is_(None),
-                    Message.request_id.is_(None),
-                )
-                item = None
-                item_request = None
-                circle = convo.circle
-            else:
-                target_filter = and_(
-                    Message.item_id == convo.item_id,
-                    Message.request_id.is_(None),
-                    Message.circle_id.is_(None),
-                )
-                item = db.session.get(Item, convo.item_id)
-                item_request = None
-                circle = None
-        else:
-            target_filter = and_(
-                Message.request_id == convo.request_id,
-                Message.item_id.is_(None),
-                Message.circle_id.is_(None),
-            )
-            item = None
-            item_request = db.session.get(ItemRequest, convo.request_id)
-            circle = None
-
-        unread_count = Message.query.filter(
-            target_filter,
-            Message.recipient_id == current_user.id,
-            Message.sender_id == other_user.id,
-            Message.is_read.is_(False),
-        ).count()
-
-        conversation_summaries.append(
-            {
-                "conversation_id": f"{min(convo.sender_id, convo.recipient_id)}_{max(convo.sender_id, convo.recipient_id)}_{convo.item_id}_{convo.request_id}_{convo.circle_id}",
-                "other_user": other_user,
-                "item": item,
-                "item_request": item_request,
-                "circle": circle,
-                "latest_message": convo,
-                "unread_count": unread_count,
-            }
-        )
-
-    return render_template("messaging/messages.html", conversations=conversation_summaries)
 
 
 @main_bp.route("/message/<uuid:message_id>", methods=["GET", "POST"])
@@ -139,76 +33,9 @@ def view_conversation(message_id):
         flash("You do not have permission to view this message.", "danger")
         return redirect(url_for("main.messages"))
 
-    if not message.is_request_message:
-        if message.is_circle_message:
-            target_filter = and_(
-                Message.circle_id == message.circle_id,
-                Message.item_id.is_(None),
-                Message.request_id.is_(None),
-            )
-        else:
-            target_filter = and_(
-                Message.item_id == message.item_id,
-                Message.request_id.is_(None),
-                Message.circle_id.is_(None),
-            )
-    else:
-        target_filter = and_(
-            Message.request_id == message.request_id,
-            Message.item_id.is_(None),
-            Message.circle_id.is_(None),
-        )
-
-    thread_messages = (
-        Message.query.filter(
-            target_filter,
-            or_(
-                and_(
-                    Message.sender_id == message.sender_id,
-                    Message.recipient_id == message.recipient_id,
-                ),
-                and_(
-                    Message.sender_id == message.recipient_id,
-                    Message.recipient_id == message.sender_id,
-                ),
-            ),
-        )
-        .order_by(Message.timestamp)
-        .all()
-    )
-
-    for msg in thread_messages:
-        msg.other_user = msg.recipient if msg.sender_id == current_user.id else msg.sender
-
-    unread_messages = Message.query.filter(
-        target_filter,
-        or_(
-            and_(
-                Message.sender_id == message.sender_id,
-                Message.recipient_id == message.recipient_id,
-            ),
-            and_(
-                Message.sender_id == message.recipient_id,
-                Message.recipient_id == message.sender_id,
-            ),
-        ),
-        Message.recipient_id == current_user.id,
-        Message.is_read.is_(False),
-        or_(
-            Message.loan_request_id.is_(None),
-            ~Message.loan_request.has(LoanRequest.status == "pending"),
-        ),
-    ).all()
-
-    has_unread_messages = len(unread_messages) > 0
-
-    for msg in unread_messages:
-        msg.is_read = True
-
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+    thread_state = get_conversation_thread_state(message, current_user.id)
+    thread_messages = thread_state["thread_messages"]
+    has_unread_messages = thread_state["has_unread_messages"]
 
     active_loan = None
     if not message.is_request_message:
