@@ -13,7 +13,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Address entry forms now use Canada-friendly "State/Province" and "Postal Code" wording, plus country dropdowns that put the United States of America and Canada first while keeping the existing geocoding flow ([#362](https://github.com/sfirke/meutch/pull/362)).
 
 ### Bug fixes
-- Geocoding now sends structured address components to Nominatim and retries without the postal code when that field blocks an otherwise valid street-level match, improving Canadian residential address lookups.
+- Geocoding now sends structured address components to Nominatim and retries without the postal code when that field blocks an otherwise valid street-level match ([#362](https://github.com/sfirke/meutch/pull/362)).
 
 ### Developer Experience
 - Massive refactor that split `routes.py` into many views and pushed the app logic down into a new service layer ([#352](https://github.com/sfirke/meutch/pull/352)).
