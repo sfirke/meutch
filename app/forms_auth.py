@@ -18,7 +18,12 @@ from wtforms.validators import (
     ValidationError,
 )
 
-from app.forms_shared import DIGEST_FREQUENCY_CHOICES
+from app.forms_shared import (
+    COUNTRY_CHOICES,
+    COUNTRY_DEFAULT,
+    DIGEST_FREQUENCY_CHOICES,
+    CountryChoice,
+)
 from app.models import User
 
 
@@ -111,13 +116,15 @@ class RegistrationForm(FlaskForm):
             Length(max=20, message="Postal Code must be under 20 characters."),
         ],
     )
-    country = StringField(
+    country = SelectField(
         "Country",
         validators=[
             Optional(),
-            Length(max=100, message="Country must be under 100 characters."),
+            CountryChoice(),
         ],
-        default="USA",
+        choices=COUNTRY_CHOICES,
+        default=COUNTRY_DEFAULT,
+        validate_choice=False,
     )
 
     latitude = FloatField(

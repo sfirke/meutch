@@ -101,7 +101,7 @@
         <div id="address-fields" class="mb-4">
             <h6 class="mb-3">Enter Address</h6>
             <p class="text-muted mb-3">
-                <small>Canadian addresses work too. Use your province and postal code, and change the country if needed.</small>
+                <small>Select the correct country from the list. If you're in Canada, choose Canada and use your province and postal code.</small>
             </p>
 
             <!-- Street Address -->
@@ -143,7 +143,7 @@
             <!-- Country -->
             <p>
                 {{ form.country.label }}<br>
-                {{ form.country(size=32) }}<br>
+                {{ form.country() }}<br>
                 {% for error in form.country.errors %}
                     <span style="color: red;">{{ error }}</span>
                 {% endfor %}

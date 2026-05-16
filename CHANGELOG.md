@@ -10,7 +10,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Profiles, loan-request conversations, and giveaway requester views now show the circles you have in common with the other user, with linked circle badges for quick context and an explicit empty state when a giveaway requester shares no circles with you ([#345](https://github.com/sfirke/meutch/pull/345)).
 - Digest emails now surface fulfilled requests and claimed giveaways, including clear labels when an item is both created and resolved within the same digest window ([#339](https://github.com/sfirke/meutch/pull/339)).
 - Admin panel now separates user management from analytics, with a new Monthly Active Users chart that tracks qualifying activity from January 2026 onward ([#342](https://github.com/sfirke/meutch/pull/342)).
-- Address entry forms now use Canada-friendly "State/Province" and "Postal Code" wording while keeping the existing geocoding flow and US-focused default examples ([#362](https://github.com/sfirke/meutch/pull/362)).
+- Address entry forms now use Canada-friendly "State/Province" and "Postal Code" wording, plus country dropdowns that put the United States of America and Canada first while keeping the existing geocoding flow ([#362](https://github.com/sfirke/meutch/pull/362)).
 
 ### Developer Experience
 - Massive refactor that split `routes.py` into many views and pushed the app logic down into a new service layer ([#352](https://github.com/sfirke/meutch/pull/352)).

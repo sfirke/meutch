@@ -124,6 +124,9 @@ class TestLocationUpdateEssentials:
                 )
 
                 assert response.status_code == 200
+                mock_geocode.assert_called_once_with(
+                    "123 Main St, New York, NY 10001, United States of America"
+                )
 
                 updated_user = db.session.get(User, user.id)
                 assert updated_user.latitude == 40.7128
@@ -277,7 +280,7 @@ class TestWorkflowEssentials:
                         "city": "New York",
                         "state": "NY",
                         "zip_code": "10001",
-                        "country": "USA",
+                        "country": "United States of America",
                         "csrf_token": "test",
                     },
                 )

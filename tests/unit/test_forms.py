@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from io import BytesIO
 
 import pytest
-from werkzeug.datastructures import FileStorage
+from werkzeug.datastructures import FileStorage, MultiDict
 
 from app.forms import (
     CircleCreateForm,
@@ -73,12 +73,22 @@ class TestRegistrationForm:
                 "city": "Anytown",
                 "state": "CA",
                 "zip_code": "12345",
-                "country": "USA",
+                "country": "United States of America",
                 "password": "password123",
                 "confirm_password": "password123",
             }
             form = RegistrationForm(data=form_data)
             assert form.validate() is True
+
+    def test_registration_country_dropdown_prioritizes_us_and_canada(self, app):
+        """Test the country dropdown keeps the two most common countries first."""
+        with app.app_context():
+            form = RegistrationForm()
+
+            assert form.country.choices[:2] == [
+                ("United States of America", "United States of America"),
+                ("Canada", "Canada"),
+            ]
 
     def test_valid_registration_form_coordinates(self, app):
         """Test valid registration form with coordinates."""
@@ -108,7 +118,7 @@ class TestRegistrationForm:
                 "city": "Anytown",
                 "state": "CA",
                 "zip_code": "12345",
-                "country": "USA",
+                "country": "United States of America",
                 "password": "password123",
                 "confirm_password": "differentpassword",
             }
@@ -131,7 +141,7 @@ class TestRegistrationForm:
                 "city": "Anytown",
                 "state": "CA",
                 "zip_code": "12345",
-                "country": "USA",
+                "country": "United States of America",
                 "password": "password123",
                 "confirm_password": "password123",
             }
@@ -141,6 +151,30 @@ class TestRegistrationForm:
                 "This email is already registered. Please choose a different one."
                 in form.email.errors
             )
+
+    def test_registration_form_rejects_invalid_country_choice(self, app):
+        """Test registration rejects arbitrary free-text country values."""
+        with app.app_context():
+            form = RegistrationForm(
+                formdata=MultiDict(
+                    {
+                        "email": "newuser@example.com",
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "location_method": "address",
+                        "street": "123 Main St",
+                        "city": "Anytown",
+                        "state": "CA",
+                        "zip_code": "12345",
+                        "country": "Atlantis",
+                        "password": "password123",
+                        "confirm_password": "password123",
+                    }
+                )
+            )
+
+            assert form.validate() is False
+            assert "Please choose a country from the list." in form.country.errors
 
     def test_address_method_missing_fields(self, app):
         """Test address method with missing required fields."""
