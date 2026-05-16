@@ -2,6 +2,7 @@
 
 import pytest
 from flask import request
+from marshmallow import ValidationError
 
 from app.api.v1 import bp as api_v1_bp
 from app.api.v1.responses import build_collection_response
@@ -29,6 +30,12 @@ def api_test_service_error():
         raise InvalidActionError("This transition is not allowed.")
 
     raise AssertionError(f"Unexpected service error kind: {kind}")
+
+
+@api_v1_bp.get("/__tests__/validation-error")
+def api_test_validation_error():
+    """Raise a Marshmallow ValidationError to verify 422 translation."""
+    raise ValidationError({"name": ["Missing data for required field."]})
 
 
 @api_v1_bp.get("/__tests__/paginated")
@@ -127,3 +134,25 @@ class TestApiFoundation:
                 "has_prev": True,
             },
         }
+
+    def test_validation_error_returns_422_with_field_details(self, client):
+        """Marshmallow ValidationErrors should map to 422 with field-level detail."""
+        response = client.get("/api/v1/__tests__/validation-error")
+
+        assert response.status_code == 422
+        assert response.is_json
+        assert response.get_json() == {
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Input validation failed.",
+                "details": {"name": ["Missing data for required field."]},
+            }
+        }
+
+    def test_wrong_method_on_api_route_returns_json_405(self, client):
+        """Using the wrong HTTP method on an API route should return a JSON 405."""
+        response = client.post("/api/v1/health")
+
+        assert response.status_code == 405
+        assert response.is_json
+        assert response.get_json()["error"]["code"] == "METHOD_NOT_ALLOWED"

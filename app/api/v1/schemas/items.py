@@ -6,6 +6,8 @@ from app.api.v1.schemas.base import ApiDateTime, ApiSchema
 from app.api.v1.schemas.reference import CategorySchema, TagSchema
 from app.api.v1.schemas.users import UserSummarySchema
 
+_tag_schema = TagSchema(many=True)
+
 
 class ItemSummarySchema(ApiSchema):
     """Compact item representation for list and detail reads."""
@@ -33,4 +35,4 @@ class ItemSummarySchema(ApiSchema):
     def get_tags(self, item):
         """Return tags in a stable display order for API consumers."""
         ordered_tags = sorted(item.tags, key=lambda tag: tag.name.casefold())
-        return TagSchema(many=True).dump(ordered_tags)
+        return _tag_schema.dump(ordered_tags)
