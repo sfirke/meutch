@@ -6,6 +6,7 @@ Flask-Login==0.6.3
 Flask-Migrate==4.0.5
 Flask-WTF==1.2.2
 gunicorn==21.2.0
+marshmallow==3.23.2
 Pillow==10.4.0
 psycopg2-binary==2.9.7
 python-dotenv==1.0.0
