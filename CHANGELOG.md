@@ -21,6 +21,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Extract shared read-side query helpers for item discovery, messaging inboxes/threads, request visibility, and circle browse/detail views so future API endpoints can reuse the web app's visibility and pagination rules ([#358](https://github.com/sfirke/meutch/pull/358)).
 - Extract shared write-side logic into service layer ([#360](https://github.com/sfirke/meutch/pull/360)).
 - Add the first reusable API foundation layer: structured JSON error handling, shared pagination helpers, and Marshmallow boundary schemas for upcoming read endpoints ([#361](https://github.com/sfirke/meutch/pull/361)).
+- Add JWT-backed `/api/v1/auth` endpoints with access/refresh tokens, refresh rotation and revocation, current-user identity, and mobile-facing register/reset workflows.
 
 ## Apr 2026
 

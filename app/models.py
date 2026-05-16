@@ -294,6 +294,54 @@ class User(UserMixin, db.Model):
         return f"<User {self.email}>"
 
 
+class ApiTokenFamily(db.Model):
+    __tablename__ = "api_token_family"
+
+    id = db.Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False
+    )
+    user_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    current_refresh_jti = db.Column(db.String(36), nullable=False, unique=True, index=True)
+    current_refresh_expires_at = db.Column(db.DateTime, nullable=False)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+    revoke_reason = db.Column(db.String(50), nullable=True)
+    created_at = db.Column(db.DateTime, default=func.now(), nullable=False)
+
+    user = db.relationship("User", backref="api_token_families")
+
+    def revoke(self, reason):
+        """Mark the token family revoked once."""
+        if self.revoked_at is not None:
+            return
+
+        self.revoked_at = datetime.now(UTC)
+        self.revoke_reason = reason
+
+
+class ApiTokenBlocklist(db.Model):
+    __tablename__ = "api_token_blocklist"
+
+    id = db.Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False
+    )
+    jti = db.Column(db.String(36), nullable=False, unique=True, index=True)
+    user_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    family_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("api_token_family.id", ondelete="CASCADE"), nullable=True
+    )
+    token_type = db.Column(db.String(20), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    revoked_at = db.Column(db.DateTime, default=func.now(), nullable=False)
+    reason = db.Column(db.String(50), nullable=True)
+
+    user = db.relationship("User", backref="api_revoked_tokens")
+    family = db.relationship("ApiTokenFamily", backref="revoked_tokens")
+
+
 class Item(db.Model):
     __tablename__ = "item"
     id = db.Column(
