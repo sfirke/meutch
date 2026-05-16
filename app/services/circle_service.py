@@ -378,9 +378,6 @@ def remove_member(circle, member_user, acting_user):
     if member_user == acting_user:
         raise InvalidActionError("Use the leave circle button to remove yourself.")
 
-    if circle.is_admin(member_user) and _count_circle_admins(circle.id) <= 1:
-        raise ConflictError("Cannot remove the last admin. Make someone else an admin first.")
-
     circle.members.remove(member_user)
     db.session.commit()
     return member_user
@@ -404,7 +401,11 @@ def toggle_admin(circle, user_id, acting_user, action):
     if action == "add":
         is_admin = True
     elif action == "remove":
-        if user_member.is_admin and _count_circle_admins(circle.id) <= 1:
+        if (
+            user_id == acting_user.id
+            and user_member.is_admin
+            and _count_circle_admins(circle.id) <= 1
+        ):
             raise ConflictError("Cannot remove the last admin. Make someone else an admin first.")
         is_admin = False
     else:

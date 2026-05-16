@@ -119,7 +119,7 @@ class TestCircleService:
             assert is_admin is True
             assert membership.is_admin is True
 
-    def test_toggle_admin_rejects_removing_last_admin(self, app):
+    def test_toggle_admin_rejects_self_demoting_last_admin(self, app):
         with app.app_context():
             admin = UserFactory()
             circle = CircleFactory()
