@@ -2,7 +2,7 @@ import logging
 import os
 from uuid import UUID
 
-from flask import Flask, flash, redirect, render_template, url_for
+from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -78,8 +78,10 @@ def create_app(config_class=None):
     app.register_blueprint(share_bp, url_prefix="/share")
 
     from app.api import v1_bp as api_v1_bp
+    from app.api.v1.errors import build_http_error_response, is_api_request_path
 
     app.register_blueprint(api_v1_bp, url_prefix="/api/v1")
+    csrf.exempt(api_v1_bp)
 
     # Register CLI commands
     try:
@@ -117,11 +119,21 @@ def create_app(config_class=None):
     # Register error handlers
     @app.errorhandler(403)
     def forbidden(e):
+        if is_api_request_path(request.path):
+            return build_http_error_response(e)
         return render_template("errors/403.html"), 403
 
     @app.errorhandler(404)
     def page_not_found(e):
+        if is_api_request_path(request.path):
+            return build_http_error_response(e)
         return render_template("errors/404.html"), 404
+
+    @app.errorhandler(405)
+    def method_not_allowed(e):
+        if is_api_request_path(request.path):
+            return build_http_error_response(e)
+        return e
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
