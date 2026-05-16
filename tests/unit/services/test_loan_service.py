@@ -82,6 +82,31 @@ class TestLoanService:
             assert loan.overdue_reminder_count == 0
             mock_email.assert_called_once_with(reminder_message)
 
+    def test_extend_loan_shortening_returns_false_and_uses_updated_message(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=False, available=False)
+            original_end = date.today() + timedelta(days=7)
+            new_end = date.today() + timedelta(days=3)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status="approved",
+                start_date=date.today() - timedelta(days=1),
+                end_date=original_end,
+            )
+
+            with patch("app.services.loan_service.send_message_notification_email") as mock_email:
+                is_extension = loan_service.extend_loan(loan, owner.id, new_end, "")
+
+            message = Message.query.one()
+            assert is_extension is False
+            assert loan.end_date == new_end
+            assert "Good news" not in message.body
+            assert "updated" in message.body.lower()
+            mock_email.assert_called_once_with(message)
+
     def test_create_loan_request_rejects_giveaway_items(self, app):
         with app.app_context():
             owner = UserFactory()

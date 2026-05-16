@@ -19,6 +19,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Add initial `app/api/v1` scaffolding, bootstrap JSON endpoints, and an API design document to prepare for a mobile client ([#354](https://github.com/sfirke/meutch/pull/354)).
 - Extract auth, profile, location, and account-setting workflows into reusable services so the web layer and upcoming API can share the same business logic ([#355](https://github.com/sfirke/meutch/pull/355)).
 - Extract shared read-side query helpers for item discovery, messaging inboxes/threads, request visibility, and circle browse/detail views so future API endpoints can reuse the web app's visibility and pagination rules ([#358](https://github.com/sfirke/meutch/pull/358)).
+- Extract shared write-side logic into service layer ([#360](https://github.com/sfirke/meutch/pull/360)).
 
 ## Apr 2026
 

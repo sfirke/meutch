@@ -1,5 +1,6 @@
 from app import db
 from app.models import GiveawayInterest, Item, ItemImage, LoanRequest, Message, Tag
+from app.services.exceptions import AuthorizationError, ConflictError
 from app.utils.storage import delete_item_images, upload_item_images
 
 
@@ -30,6 +31,51 @@ def get_loan_conversion_blocker(item):
         return "interested_users"
 
     return None
+
+
+def get_item_delete_blocker(item):
+    active_loan = LoanRequest.query.filter_by(item_id=item.id, status="approved").first()
+    if active_loan:
+        return "active_loan", active_loan
+
+    if item.is_giveaway and item.claim_status == "pending_pickup":
+        return "pending_pickup", None
+
+    if item.is_giveaway and item.claim_status == "claimed":
+        return "claimed", None
+
+    return None, None
+
+
+def _raise_item_transition_conflict(item, is_giveaway):
+    if is_giveaway:
+        _, blocking_loan_type = get_giveaway_conversion_blocker(item)
+        if blocking_loan_type == "active":
+            raise ConflictError(
+                "This item has an active loan. Mark it returned or cancel the loan before converting it to a giveaway."
+            )
+        if blocking_loan_type == "pending":
+            raise ConflictError(
+                "This item has a pending loan request. Resolve the request before converting it to a giveaway."
+            )
+        return
+
+    if not item.is_giveaway:
+        return
+
+    conversion_blocker = get_loan_conversion_blocker(item)
+    if conversion_blocker == "interested_users":
+        raise ConflictError(
+            "This giveaway already has interested users. It cannot be converted back into a loan item."
+        )
+    if conversion_blocker == "pending_pickup":
+        raise ConflictError(
+            "This giveaway is pending pickup. Complete the handoff or release it back to everyone before converting it to a loan item."
+        )
+    if conversion_blocker == "claimed":
+        raise ConflictError(
+            "This giveaway has already been handed off. Completed giveaways cannot be converted back into loan items."
+        )
 
 
 def _sync_item_tags(item, raw_tag_input):
@@ -100,6 +146,8 @@ def update_item(
     delete_entries,
     order_entries,
 ):
+    _raise_item_transition_conflict(item, is_giveaway)
+
     existing_images = list(item.images)
     existing_image_ids = {str(img.id) for img in existing_images}
     delete_ids = {entry for entry in delete_entries if entry in existing_image_ids}
@@ -168,6 +216,28 @@ def update_item(
 
     if removed_urls:
         delete_item_images(removed_urls)
+
+
+def delete_item(item, acting_user):
+    if item.owner_id != acting_user.id:
+        raise AuthorizationError("You can only delete your own items.")
+
+    blocker_type, _ = get_item_delete_blocker(item)
+    if blocker_type == "active_loan":
+        raise ConflictError(
+            "This item is currently out on loan. Mark it returned or cancel the loan before deleting the item."
+        )
+    if blocker_type == "pending_pickup":
+        raise ConflictError(
+            "This giveaway is still pending pickup. Mark the handoff complete or release it instead of deleting the item."
+        )
+    if blocker_type == "claimed":
+        raise ConflictError(
+            "You cannot delete a giveaway that has been claimed and handed off. This is a completed transaction."
+        )
+
+    delete_item_with_cleanup(item)
+    return item
 
 
 def delete_item_with_cleanup(item):

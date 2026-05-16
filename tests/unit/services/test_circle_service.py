@@ -1,9 +1,12 @@
 from datetime import UTC, datetime
 from unittest.mock import patch
 
+import pytest
+
 from app import db
 from app.models import CircleJoinRequest, Message, circle_members
 from app.services import circle_service
+from app.services.exceptions import ConflictError, InvalidActionError
 from tests.factories import CircleFactory, UserFactory
 
 
@@ -115,3 +118,91 @@ class TestCircleService:
 
             assert is_admin is True
             assert membership.is_admin is True
+
+    def test_toggle_admin_rejects_self_demoting_last_admin(self, app):
+        with app.app_context():
+            admin = UserFactory()
+            circle = CircleFactory()
+            db.session.execute(
+                circle_members.insert().values(
+                    user_id=admin.id,
+                    circle_id=circle.id,
+                    joined_at=datetime.now(UTC),
+                    is_admin=True,
+                )
+            )
+            db.session.commit()
+
+            with pytest.raises(ConflictError, match="last admin"):
+                circle_service.toggle_admin(circle, admin.id, admin, "remove")
+
+    def test_leave_circle_promotes_earliest_remaining_member(self, app):
+        with app.app_context():
+            admin = UserFactory()
+            member = UserFactory()
+            circle = CircleFactory()
+            db.session.execute(
+                circle_members.insert().values(
+                    user_id=admin.id,
+                    circle_id=circle.id,
+                    joined_at=datetime.now(UTC),
+                    is_admin=True,
+                )
+            )
+            db.session.execute(
+                circle_members.insert().values(
+                    user_id=member.id,
+                    circle_id=circle.id,
+                    joined_at=datetime.now(UTC),
+                    is_admin=False,
+                )
+            )
+            db.session.commit()
+
+            result = circle_service.leave_circle(circle, admin)
+            membership = (
+                db.session.query(circle_members)
+                .filter_by(circle_id=circle.id, user_id=member.id)
+                .first()
+            )
+
+            assert result == {"circle_deleted": False}
+            assert membership.is_admin is True
+
+    def test_leave_circle_deletes_last_member_circle_and_image(self, app):
+        with app.app_context():
+            user = UserFactory()
+            circle = CircleFactory(image_url="https://example.com/circle.jpg")
+            db.session.execute(
+                circle_members.insert().values(
+                    user_id=user.id,
+                    circle_id=circle.id,
+                    joined_at=datetime.now(UTC),
+                    is_admin=True,
+                )
+            )
+            db.session.commit()
+
+            with patch("app.services.circle_service.delete_file") as mock_delete_file:
+                result = circle_service.leave_circle(circle, user)
+
+            assert result == {"circle_deleted": True}
+            assert db.session.get(type(circle), circle.id) is None
+            mock_delete_file.assert_called_once_with("https://example.com/circle.jpg")
+
+    def test_remove_member_rejects_self_removal(self, app):
+        with app.app_context():
+            admin = UserFactory()
+            circle = CircleFactory()
+            db.session.execute(
+                circle_members.insert().values(
+                    user_id=admin.id,
+                    circle_id=circle.id,
+                    joined_at=datetime.now(UTC),
+                    is_admin=True,
+                )
+            )
+            db.session.commit()
+
+            with pytest.raises(InvalidActionError, match="leave circle button"):
+                circle_service.remove_member(circle, admin, admin)
