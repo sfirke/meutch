@@ -58,7 +58,7 @@
                         <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
-                
+
                 <!-- Location Section -->
                 <div class="mb-4">
                     <h5 class="mb-3"><i class="fas fa-map-marker-alt me-2"></i>Circle Location</h5>
@@ -69,7 +69,7 @@
                     {% else %}
                         <p class="text-muted small mb-3">No location set yet. Adding a location helps members find circles near them.</p>
                     {% endif %}
-                    
+
                     <!-- Location Method Choice -->
                     {{ form.location_method.label(class="form-label") }}
                     {% for subfield in form.location_method %}
@@ -82,10 +82,13 @@
                         <div class="text-danger small">{{ error }}</div>
                     {% endfor %}
                 </div>
-                
+
                 <!-- Address Fields -->
                 <div id="edit-address-fields" class="mb-4" style="display: none;">
                     <h6 class="mb-3">Enter Address</h6>
+                    <p class="text-muted small mb-3">
+                        Canadian addresses work too. Use your province and postal code, and change the country if needed.
+                    </p>
                     <div class="row">
                         <div class="col-12 mb-3">
                             {{ form.street.label(class="form-label") }}
@@ -128,7 +131,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Coordinate Fields -->
                 <div id="edit-coordinate-fields" class="mb-4" style="display: none;">
                     <h6 class="mb-3">Enter Coordinates</h6>
@@ -156,7 +159,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Submit -->
                 <div class="d-grid gap-2">
                     {{ form.submit(class="btn btn-primary") }}
@@ -178,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const locationMethodRadios = document.querySelectorAll('.edit-location-method-radio');
     const addressFields = document.getElementById('edit-address-fields');
     const coordinateFields = document.getElementById('edit-coordinate-fields');
-    
+
     function toggleLocationFields() {
         const selectedMethod = document.querySelector('.edit-location-method-radio:checked');
         if (selectedMethod) {
@@ -195,10 +198,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-    
+
     // Initialize on page load
     toggleLocationFields();
-    
+
     // Update when radio selection changes
     locationMethodRadios.forEach(function(radio) {
         radio.addEventListener('change', toggleLocationFields);

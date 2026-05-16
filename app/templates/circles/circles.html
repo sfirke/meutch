@@ -313,7 +313,7 @@
             <p class="text-muted mb-4">Create a community for sharing items with friends, neighbors, or colleagues.</p>
             <form method="post">
         {{ circle_form.csrf_token }}
-        
+
         <!-- Circle Name -->
         <div class="mb-3">
             {{ circle_form.name.label(class="form-label") }}
@@ -322,7 +322,7 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Description -->
         <div class="mb-3">
             {{ circle_form.description.label(class="form-label") }}
@@ -331,7 +331,7 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Circle Type -->
         <div class="mb-3">
             {{ circle_form.circle_type.label(class="form-label") }}
@@ -340,12 +340,12 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Location Section -->
         <div class="mb-4">
             <h5 class="mb-3"><i class="fas fa-map-marker-alt me-2"></i>Circle Location (Optional)</h5>
             <p class="text-muted small mb-3">Setting a location helps members find circles near them. This is optional and can be added or updated later.</p>
-            
+
             <!-- Location Method Choice -->
             {{ circle_form.location_method.label(class="form-label") }}
             {% for subfield in circle_form.location_method %}
@@ -358,10 +358,13 @@
                 <div class="text-danger small">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Address Fields -->
         <div id="create-address-fields" class="mb-4" style="display: none;">
             <h6 class="mb-3">Enter Address</h6>
+            <p class="text-muted small mb-3">
+                Canadian addresses work too. Use your province and postal code, and change the country if needed.
+            </p>
             <div class="row">
                 <div class="col-12 mb-3">
                     {{ circle_form.street.label(class="form-label") }}
@@ -404,7 +407,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Coordinate Fields -->
         <div id="create-coordinate-fields" class="mb-4" style="display: none;">
             <h6 class="mb-3">Enter Coordinates</h6>
@@ -432,7 +435,7 @@
                 </div>
             </div>
         </div>
-        
+
                 <!-- Submit Button -->
                 <div class="mb-3">
                     <button type="submit" class="btn btn-primary" name="create_circle"><i class="fas fa-check me-2"></i>{{ circle_form.submit.label.text }}</button>
@@ -446,7 +449,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Determine which tab should be active
     let activeTab = 'your-circles-tab';  // Default tab
-    
+
     // Check if we should show a specific tab based on form submissions or search results
     {% if searched_circles or show_browse %}
         // If there are search results, show the Find Circles tab
@@ -461,26 +464,26 @@ document.addEventListener('DOMContentLoaded', function() {
             activeTab = savedTab;
         }
     {% endif %}
-    
+
     // Activate the determined tab
     const tabTrigger = document.getElementById(activeTab);
     if (tabTrigger) {
         const tab = new bootstrap.Tab(tabTrigger);
         tab.show();
     }
-    
+
     // Save the active tab to localStorage when user clicks a tab
     document.querySelectorAll('#circlesTabs button[data-bs-toggle="tab"]').forEach(function(tabButton) {
         tabButton.addEventListener('shown.bs.tab', function(event) {
             localStorage.setItem('activeCirclesTab', event.target.id);
         });
     });
-    
+
     // Show/hide location fields based on location method selection for circle creation
     const locationMethodRadios = document.querySelectorAll('.location-method-radio');
     const addressFields = document.getElementById('create-address-fields');
     const coordinateFields = document.getElementById('create-coordinate-fields');
-    
+
     function toggleLocationFields() {
         const selectedMethod = document.querySelector('.location-method-radio:checked');
         if (selectedMethod) {
@@ -497,10 +500,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-    
+
     // Initialize on page load
     toggleLocationFields();
-    
+
     // Update when radio selection changes
     locationMethodRadios.forEach(function(radio) {
         radio.addEventListener('change', toggleLocationFields);

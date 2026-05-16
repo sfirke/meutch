@@ -129,6 +129,42 @@ class TestLocationUpdateEssentials:
                 assert updated_user.latitude == 40.7128
                 assert updated_user.longitude == -74.0060
 
+    def test_location_update_with_canadian_address_success(self, app, client):
+        """Test successful location update using Canadian address components."""
+        with app.app_context():
+            user = UserFactory(latitude=None, longitude=None)
+            db.session.commit()
+
+            with patch("app.utils.geocoding.geocode_address") as mock_geocode:
+                mock_geocode.return_value = (45.4215, -75.6972)
+
+                with client.session_transaction() as sess:
+                    sess["_user_id"] = str(user.id)
+                    sess["_fresh"] = True
+
+                response = client.post(
+                    url_for("main.update_location"),
+                    data={
+                        "location_method": "address",
+                        "street": "111 Wellington St",
+                        "city": "Ottawa",
+                        "state": "ON",
+                        "zip_code": "K1A 0A9",
+                        "country": "Canada",
+                        "csrf_token": "test",
+                    },
+                    follow_redirects=True,
+                )
+
+                assert response.status_code == 200
+                mock_geocode.assert_called_once_with(
+                    "111 Wellington St, Ottawa, ON K1A 0A9, Canada"
+                )
+
+                updated_user = db.session.get(User, user.id)
+                assert updated_user.latitude == 45.4215
+                assert updated_user.longitude == -75.6972
+
     def test_location_update_with_coordinates_success(self, app, client):
         """Test successful location update using direct coordinate input."""
         with app.app_context():

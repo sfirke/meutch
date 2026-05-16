@@ -42,17 +42,17 @@ class UpdateLocationForm(FlaskForm):
         ],
     )
     state = StringField(
-        "State",
+        "State/Province",
         validators=[
             Optional(),
-            Length(max=100, message="State must be under 100 characters."),
+            Length(max=100, message="State/Province must be under 100 characters."),
         ],
     )
     zip_code = StringField(
-        "ZIP Code",
+        "Postal Code",
         validators=[
             Optional(),
-            Length(max=20, message="ZIP Code must be under 20 characters."),
+            Length(max=20, message="Postal Code must be under 20 characters."),
         ],
     )
     country = StringField(

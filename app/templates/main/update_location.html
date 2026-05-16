@@ -14,11 +14,11 @@
                     <div class="alert alert-info">
                         <h6><i class="fas fa-info-circle me-2"></i>How we use your location</h6>
                         <p class="mb-2">
-                            Your coordinates are used to calculate distances to circles and items you might want to join or borrow. 
+                            Your coordinates are used to calculate distances to circles and items you might want to join or borrow.
                             This helps you find circles and items near you and helps others see how close they are to your items.
                         </p>
                         <p class="mb-2">
-                            <strong>Privacy note:</strong> We only store your latitude and longitude coordinates, not your address. 
+                            <strong>Privacy note:</strong> We only store your latitude and longitude coordinates, not your address.
                             Your exact location will never be shown to other users - they'll only see approximate distances.
                         </p>
                         <p class="mb-0">
@@ -28,7 +28,7 @@
 
                     <form method="post" id="locationForm">
                         {{ form.csrf_token }}
-                        
+
                         <!-- Location Method Choice -->
                         <div class="mb-4">
                             {{ form.location_method.label(class="form-label fw-bold") }}
@@ -42,10 +42,13 @@
                                 <div class="text-danger small">{{ error }}</div>
                             {% endfor %}
                         </div>
-                        
+
                         <!-- Address Fields (shown when address method is selected) -->
                         <div id="address-fields" class="mb-4">
                             <h5 class="mb-3">Enter Address</h5>
+                            <p class="text-muted small mb-3">
+                                Canadian addresses work too. Use your province and postal code, and change the country if needed.
+                            </p>
                             <div class="row">
                                 <div class="col-12 mb-3">
                                     {{ form.street.label(class="form-label") }}
@@ -88,7 +91,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Coordinate Fields (shown when coordinate method is selected) -->
                         <div id="coordinate-fields" class="mb-4" style="display: none;">
                             <h5 class="mb-3">Enter Coordinates</h5>
@@ -102,7 +105,7 @@
                                     </ul>
                                 </small>
                             </div>
-                            
+
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     {{ form.latitude.label(class="form-label") }}
@@ -122,7 +125,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Remove Location Section (shown when remove method is selected) -->
                         <div id="remove-fields" class="mb-4" style="display: none;">
                             <div class="alert alert-warning">
@@ -136,7 +139,7 @@
                                 <p class="mb-0">You can always add your location back later.</p>
                             </div>
                         </div>
-                        
+
                         <div class="d-flex gap-2">
                             {{ form.submit(class="btn btn-primary") }}
                             <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Cancel</a>
@@ -157,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const addressFields = document.getElementById('address-fields');
     const coordinateFields = document.getElementById('coordinate-fields');
     const removeFields = document.getElementById('remove-fields');
-    
+
     function toggleFields() {
         if (coordinateRadio.checked) {
             addressFields.style.display = 'none';
@@ -173,10 +176,10 @@ document.addEventListener('DOMContentLoaded', function() {
             removeFields.style.display = 'none';
         }
     }
-    
+
     // Initial state
     toggleFields();
-    
+
     // Listen for changes
     addressRadio.addEventListener('change', toggleFields);
     coordinateRadio.addEventListener('change', toggleFields);
