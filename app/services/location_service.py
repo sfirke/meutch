@@ -23,10 +23,14 @@ def _apply_coordinates(user, latitude, longitude):
 
 
 def _apply_address(user, street, city, state, zip_code, country):
-    address = geocoding.build_address_string(street, city, state, zip_code, country)
-
     try:
-        coordinates = geocoding.geocode_address(address)
+        coordinates = geocoding.geocode_address(
+            street=street,
+            city=city,
+            state=state,
+            zip_code=zip_code,
+            country=country,
+        )
         if coordinates:
             user.latitude, user.longitude = coordinates
             user.geocoded_at = datetime.now(UTC)
