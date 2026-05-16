@@ -5,9 +5,7 @@ from marshmallow import Schema, fields
 
 class ApiSchema(Schema):
     """Base schema with stable field ordering for API responses."""
-
-    class Meta:
-        ordered = True
+    pass
 
 
 class ApiDateTime(fields.DateTime):
