@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from marshmallow import ValidationError
 from werkzeug.exceptions import Forbidden, MethodNotAllowed, NotFound
 
 from app.services.exceptions import (
@@ -113,13 +114,29 @@ def build_service_error_response(error):
 
 def build_http_error_response(error):
     """Translate a routing or HTTP exception into the shared API error format."""
-    mapping = HTTP_ERROR_MAPPINGS[error.code]
+    mapping = HTTP_ERROR_MAPPINGS.get(error.code)
+
+    if mapping is None:
+        description = getattr(error, "description", None)
+        message = description or "An unexpected error occurred."
+        return build_error_response("ERROR", message, status_code=error.code)
+
     message = mapping.default_message
 
     if error.description and error.description != mapping.default_description:
         message = error.description
 
     return build_error_response(mapping.code, message, status_code=mapping.status_code)
+
+
+def build_validation_error_response(error):
+    """Translate a Marshmallow ValidationError into the shared API error format."""
+    return build_error_response(
+        "VALIDATION_ERROR",
+        "Input validation failed.",
+        status_code=422,
+        details=error.messages,
+    )
 
 
 def register_blueprint_error_handlers(blueprint):
@@ -129,10 +146,18 @@ def register_blueprint_error_handlers(blueprint):
     def handle_service_error(error):
         return build_service_error_response(error)
 
+    @blueprint.errorhandler(ValidationError)
+    def handle_validation_error(error):
+        return build_validation_error_response(error)
+
     @blueprint.errorhandler(Forbidden)
     def handle_forbidden(error):
         return build_http_error_response(error)
 
     @blueprint.errorhandler(NotFound)
     def handle_not_found(error):
+        return build_http_error_response(error)
+
+    @blueprint.errorhandler(MethodNotAllowed)
+    def handle_method_not_allowed(error):
         return build_http_error_response(error)

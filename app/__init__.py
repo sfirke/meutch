@@ -81,6 +81,7 @@ def create_app(config_class=None):
     from app.api.v1.errors import build_http_error_response, is_api_request_path
 
     app.register_blueprint(api_v1_bp, url_prefix="/api/v1")
+    csrf.exempt(api_v1_bp)
 
     # Register CLI commands
     try:
