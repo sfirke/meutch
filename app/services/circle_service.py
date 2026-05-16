@@ -65,7 +65,13 @@ def _apply_circle_location(
     address = build_address_string(street, city, state, zip_code, country)
 
     try:
-        coordinates = geocode_address(address)
+        coordinates = geocode_address(
+            street=street,
+            city=city,
+            state=state,
+            zip_code=zip_code,
+            country=country,
+        )
         if coordinates:
             circle.latitude, circle.longitude = coordinates
             logger.info("Successfully geocoded address for circle %s", circle.name)

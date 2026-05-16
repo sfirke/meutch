@@ -11,7 +11,7 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
-from app.forms_shared import OptionalFileAllowed
+from app.forms_shared import COUNTRY_CHOICES, COUNTRY_DEFAULT, CountryChoice, OptionalFileAllowed
 
 
 class CircleCreateForm(FlaskForm):
@@ -73,26 +73,28 @@ class CircleCreateForm(FlaskForm):
         ],
     )
     state = StringField(
-        "State",
+        "State/Province",
         validators=[
             Optional(),
-            Length(max=100, message="State must be under 100 characters."),
+            Length(max=100, message="State/Province must be under 100 characters."),
         ],
     )
     zip_code = StringField(
-        "ZIP Code",
+        "Postal Code",
         validators=[
             Optional(),
-            Length(max=20, message="ZIP Code must be under 20 characters."),
+            Length(max=20, message="Postal Code must be under 20 characters."),
         ],
     )
-    country = StringField(
+    country = SelectField(
         "Country",
         validators=[
             Optional(),
-            Length(max=100, message="Country must be under 100 characters."),
+            CountryChoice(),
         ],
-        default="USA",
+        choices=COUNTRY_CHOICES,
+        default=COUNTRY_DEFAULT,
+        validate_choice=False,
     )
 
     latitude = FloatField(

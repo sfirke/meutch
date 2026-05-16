@@ -9,6 +9,7 @@ gunicorn==21.2.0
 marshmallow==4.3.0
 Pillow==10.4.0
 psycopg2-binary==2.9.7
+pycountry==26.2.16
 python-dotenv==1.0.0
 requests==2.31.0
 SQLAlchemy==2.0.23

@@ -31,6 +31,63 @@ class TestGeocodingEssentials:
         assert result == (40.7128, -74.0060)
 
     @patch("app.utils.geocoding.requests.get")
+    def test_geocode_address_uses_structured_query_when_components_are_available(self, mock_get):
+        """Test structured geocoding queries for address components."""
+        mock_response = Mock()
+        mock_response.json.return_value = [{"lat": "49.2570773", "lon": "-123.0787301"}]
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        result = geocode_address(
+            street="1255 E 15th Avenue",
+            city="Vancouver",
+            state="BC",
+            zip_code="V5T 2S7",
+            country="Canada",
+        )
+
+        assert result == (49.2570773, -123.0787301)
+        params = mock_get.call_args.kwargs["params"]
+        assert params["street"] == "1255 E 15th Avenue"
+        assert params["city"] == "Vancouver"
+        assert params["state"] == "BC"
+        assert params["postalcode"] == "V5T 2S7"
+        assert params["country"] == "Canada"
+        assert "q" not in params
+
+    @patch("app.utils.geocoding.requests.get")
+    def test_geocode_address_retries_without_postal_code_when_needed(self, mock_get):
+        """Test structured geocoding falls back without postal code after a miss."""
+        first_response = Mock()
+        first_response.json.return_value = []
+        first_response.raise_for_status.return_value = None
+
+        second_response = Mock()
+        second_response.json.return_value = [{"lat": "49.2322956", "lon": "-123.1864962"}]
+        second_response.raise_for_status.return_value = None
+
+        mock_get.side_effect = [first_response, second_response]
+
+        result = geocode_address(
+            street="5976 Alma St",
+            city="Vancouver",
+            state="BC",
+            zip_code="V6N 1Y",
+            country="Canada",
+        )
+
+        assert result == (49.2322956, -123.1864962)
+        assert mock_get.call_count == 2
+        first_params = mock_get.call_args_list[0].kwargs["params"]
+        second_params = mock_get.call_args_list[1].kwargs["params"]
+        assert first_params["postalcode"] == "V6N 1Y"
+        assert second_params["street"] == "5976 Alma St"
+        assert second_params["city"] == "Vancouver"
+        assert second_params["state"] == "BC"
+        assert second_params["country"] == "Canada"
+        assert "postalcode" not in second_params
+
+    @patch("app.utils.geocoding.requests.get")
     def test_geocode_address_no_results(self, mock_get):
         """Test geocoding when no results are found."""
         mock_response = Mock()
@@ -124,10 +181,57 @@ class TestLocationUpdateEssentials:
                 )
 
                 assert response.status_code == 200
+                mock_geocode.assert_called_once_with(
+                    street="123 Main St",
+                    city="New York",
+                    state="NY",
+                    zip_code="10001",
+                    country="United States of America",
+                )
 
                 updated_user = db.session.get(User, user.id)
                 assert updated_user.latitude == 40.7128
                 assert updated_user.longitude == -74.0060
+
+    def test_location_update_with_canadian_address_success(self, app, client):
+        """Test successful location update using Canadian address components."""
+        with app.app_context():
+            user = UserFactory(latitude=None, longitude=None)
+            db.session.commit()
+
+            with patch("app.utils.geocoding.geocode_address") as mock_geocode:
+                mock_geocode.return_value = (45.4215, -75.6972)
+
+                with client.session_transaction() as sess:
+                    sess["_user_id"] = str(user.id)
+                    sess["_fresh"] = True
+
+                response = client.post(
+                    url_for("main.update_location"),
+                    data={
+                        "location_method": "address",
+                        "street": "111 Wellington St",
+                        "city": "Ottawa",
+                        "state": "ON",
+                        "zip_code": "K1A 0A9",
+                        "country": "Canada",
+                        "csrf_token": "test",
+                    },
+                    follow_redirects=True,
+                )
+
+                assert response.status_code == 200
+                mock_geocode.assert_called_once_with(
+                    street="111 Wellington St",
+                    city="Ottawa",
+                    state="ON",
+                    zip_code="K1A 0A9",
+                    country="Canada",
+                )
+
+                updated_user = db.session.get(User, user.id)
+                assert updated_user.latitude == 45.4215
+                assert updated_user.longitude == -75.6972
 
     def test_location_update_with_coordinates_success(self, app, client):
         """Test successful location update using direct coordinate input."""
@@ -241,7 +345,7 @@ class TestWorkflowEssentials:
                         "city": "New York",
                         "state": "NY",
                         "zip_code": "10001",
-                        "country": "USA",
+                        "country": "United States of America",
                         "csrf_token": "test",
                     },
                 )

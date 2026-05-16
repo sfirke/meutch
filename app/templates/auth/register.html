@@ -18,7 +18,7 @@
                 <span style="color: red;">{{ error }}</span>
             {% endfor %}
         </p>
-        
+
         <!-- Last Name -->
         <p>
             {{ form.last_name.label }}<br>
@@ -45,7 +45,7 @@
                 <span style="color: red;">{{ error }}</span>
             {% endfor %}
         </p>
-        
+
         <!-- Confirm Password -->
         <p>
             {{ form.confirm_password.label }}<br>
@@ -69,19 +69,19 @@
             <h6><i class="fas fa-exclamation-triangle me-2"></i>Heads up</h6>
             <p class="mb-0">If you choose never, you may miss nearby requests, giveaways, and circle activity.</p>
         </div>
-        
+
         <!-- Location Method Choice -->
         <div class="mb-4">
             <h5>Location</h5>
             <div id="location-info" class="alert alert-info mb-3">
                 <h6><i class="fas fa-shield-alt me-2"></i>Your Privacy is Protected</h6>
                 <p class="mb-2">
-                    <strong>We never store your address.</strong> 
-                    If you provide an address, we use it only to look up coordinates from OpenStreetMap, then discard it. 
+                    <strong>We never store your address.</strong>
+                    If you provide an address, we use it only to look up coordinates from OpenStreetMap, then discard it.
                     We store only your latitude and longitude to calculate distances.
                 </p>
                 <p class="mb-0">
-                    <strong>We never share your location.</strong> 
+                    <strong>We never share your location.</strong>
                     Other users only see approximate distance ranges like "2-5 mi".
                 </p>
             </div>
@@ -96,11 +96,14 @@
                 <span style="color: red;">{{ error }}</span>
             {% endfor %}
         </div>
-        
+
         <!-- Address Fields (shown when address method is selected) -->
         <div id="address-fields" class="mb-4">
             <h6 class="mb-3">Enter Address</h6>
-            
+            <p class="text-muted mb-3">
+                <small>Geocoding has been tested with addresses in USA and Canada.</small>
+            </p>
+
             <!-- Street Address -->
             <p>
                 {{ form.street.label }}<br>
@@ -109,7 +112,7 @@
                     <span style="color: red;">{{ error }}</span>
                 {% endfor %}
             </p>
-            
+
             <!-- City -->
             <p>
                 {{ form.city.label }}<br>
@@ -118,8 +121,8 @@
                     <span style="color: red;">{{ error }}</span>
                 {% endfor %}
             </p>
-            
-            <!-- State -->
+
+            <!-- State/Province -->
             <p>
                 {{ form.state.label }}<br>
                 {{ form.state(size=32) }}<br>
@@ -127,8 +130,8 @@
                     <span style="color: red;">{{ error }}</span>
                 {% endfor %}
             </p>
-            
-            <!-- ZIP Code -->
+
+            <!-- Postal Code -->
             <p>
                 {{ form.zip_code.label }}<br>
                 {{ form.zip_code(size=10) }}<br>
@@ -136,17 +139,17 @@
                     <span style="color: red;">{{ error }}</span>
                 {% endfor %}
             </p>
-            
+
             <!-- Country -->
             <p>
                 {{ form.country.label }}<br>
-                {{ form.country(size=32) }}<br>
+                {{ form.country() }}<br>
                 {% for error in form.country.errors %}
                     <span style="color: red;">{{ error }}</span>
                 {% endfor %}
             </p>
         </div>
-        
+
         <!-- Coordinate Fields (shown when coordinate method is selected) -->
         <div id="coordinate-fields" class="mb-4" style="display: none;">
             <h6 class="mb-3">Enter Coordinates</h6>
@@ -160,7 +163,7 @@
                     </ul>
                 </small>
             </div>
-            
+
             <!-- Latitude -->
             <p>
                 {{ form.latitude.label }}<br>
@@ -170,7 +173,7 @@
                     <span style="color: red;">{{ error }}</span>
                 {% endfor %}
             </p>
-            
+
             <!-- Longitude -->
             <p>
                 {{ form.longitude.label }}<br>
@@ -181,7 +184,7 @@
                 {% endfor %}
             </p>
         </div>
-        
+
         <!-- Warning for Skip Option -->
         <div id="skip-warning" class="alert alert-warning" style="display: none;">
             <h6><i class="fas fa-exclamation-triangle me-2"></i>Important Note</h6>
@@ -196,11 +199,11 @@
                 <strong>Note:</strong> You can always add your location later from your profile page.
             </p>
         </div>
-        
+
         <!-- Submit Button -->
         <p>{{ form.submit() }}</p>
     </form>
-    
+
     <script>
     // Show/hide fields based on location method selection
     document.addEventListener('DOMContentLoaded', function() {
@@ -213,7 +216,7 @@
         const locationInfo = document.getElementById('location-info');
         const digestFrequency = document.getElementById('digest_frequency');
         const digestNoneWarning = document.getElementById('digest-none-warning');
-        
+
         function toggleFields() {
             if (coordinateRadio.checked) {
                 addressFields.style.display = 'none';
@@ -232,10 +235,10 @@
                 locationInfo.style.display = 'block';
             }
         }
-        
+
         // Initial state
         toggleFields();
-        
+
         // Listen for changes
         addressRadio.addEventListener('change', toggleFields);
         coordinateRadio.addEventListener('change', toggleFields);

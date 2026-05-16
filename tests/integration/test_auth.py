@@ -140,7 +140,7 @@ class TestAuthenticationRoutes:
                         "city": "New City",
                         "state": "NC",
                         "zip_code": "12345",
-                        "country": "USA",
+                        "country": "United States of America",
                         "password": "newpassword123",
                         "confirm_password": "newpassword123",
                     },

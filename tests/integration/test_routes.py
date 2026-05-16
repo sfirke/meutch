@@ -832,8 +832,10 @@ class TestTagAndCategoryBrowsing:
             # Create items with this tag - owned by user in shared circle
             item1 = ItemFactory(name="Laptop", category=electronics_category, owner=item_owner)
             item2 = ItemFactory(name="Phone", category=electronics_category, owner=item_owner)
-            ItemFactory(
-                name="Book", category=books_category, owner=item_owner
+            excluded_item = ItemFactory(
+                name="ZZZ_NOT_RENDERED_TAG_ITEM_ZZZ",
+                category=books_category,
+                owner=item_owner,
             )  # Different category, no tag
 
             item1.tags.append(tag)
@@ -847,7 +849,9 @@ class TestTagAndCategoryBrowsing:
             assert b'Items Tagged "electronics"' in response.data
             assert b"Laptop" in response.data
             assert b"Phone" in response.data
-            assert b"Book" not in response.data  # Should not appear since it doesn't have the tag
+            assert (
+                excluded_item.name.encode() not in response.data
+            )  # Should not appear since it doesn't have the tag
 
     def test_tag_items_page_invalid_tag(self, client, app):
         """Test tag items page with invalid tag ID."""
@@ -953,8 +957,10 @@ class TestTagAndCategoryBrowsing:
             # Create items in this category - owned by circle member
             ItemFactory(name="Laptop", category=category, owner=item_owner)
             ItemFactory(name="Phone", category=category, owner=item_owner)
-            ItemFactory(
-                name="Book", category=books_category, owner=item_owner
+            excluded_item = ItemFactory(
+                name="ZZZ_NOT_RENDERED_CATEGORY_ITEM_ZZZ",
+                category=books_category,
+                owner=item_owner,
             )  # Different category
 
             db.session.commit()
@@ -965,7 +971,7 @@ class TestTagAndCategoryBrowsing:
             assert b"Laptop" in response.data
             assert b"Phone" in response.data
             assert (
-                b"Book" not in response.data
+                excluded_item.name.encode() not in response.data
             )  # Should not appear since it's in a different category
 
     def test_category_items_page_invalid_category(self, client, app):

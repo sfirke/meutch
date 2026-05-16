@@ -11,6 +11,39 @@ from tests.factories import CircleFactory, UserFactory
 
 
 class TestCircleService:
+    def test_create_circle_with_address_uses_structured_geocoding(self, app):
+        with app.app_context():
+            creator = UserFactory()
+            db.session.commit()
+
+            with patch(
+                "app.services.circle_service.geocode_address",
+                return_value=(49.2570773, -123.0787301),
+            ) as mock_geocode:
+                result = circle_service.create_circle(
+                    creator,
+                    name="Vancouver Homes",
+                    description="",
+                    circle_type="open",
+                    location_method="address",
+                    street="1255 E 15th Avenue",
+                    city="Vancouver",
+                    state="BC",
+                    zip_code="V5T 2S7",
+                    country="Canada",
+                )
+
+            assert result["geocoding_failed"] is False
+            assert result["circle"].latitude == 49.2570773
+            assert result["circle"].longitude == -123.0787301
+            mock_geocode.assert_called_once_with(
+                street="1255 E 15th Avenue",
+                city="Vancouver",
+                state="BC",
+                zip_code="V5T 2S7",
+                country="Canada",
+            )
+
     def test_join_circle_with_approval_creates_request_and_sends_email(self, app):
         with app.app_context():
             requester = UserFactory()
