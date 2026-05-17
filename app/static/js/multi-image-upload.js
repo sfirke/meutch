@@ -165,8 +165,9 @@
       var count = grid.querySelectorAll('.multi-image-thumb').length + pendingFilesCount;
       counter.textContent = count + ' / ' + maxImages;
       var atMax = count >= maxImages;
+      var showEmptyDropZone = count === 0 && !isTouchDevice;
 
-      if (count === 0) {
+      if (showEmptyDropZone) {
         emptyDropZone.style.display = 'block';
         grid.style.display = 'none';
       } else {
