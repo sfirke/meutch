@@ -1260,6 +1260,7 @@ footer h6 {
 
 .drag-drop-zone .browse-btn {
     pointer-events: all;
+    cursor: pointer;
 }
 
 .drag-drop-zone .file-info {
@@ -2120,6 +2121,18 @@ html {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 0.75rem;
     margin-bottom: 0.5rem;
+}
+
+.multi-image-grid.drag-over {
+    outline: 2px dashed var(--primary-color);
+    outline-offset: 4px;
+    border-radius: var(--border-radius);
+}
+
+.multi-image-grid.drag-over .multi-image-add-btn {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: #e6fffa;
 }
 
 .multi-image-thumb {
