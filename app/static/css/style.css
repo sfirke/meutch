@@ -1260,6 +1260,7 @@ footer h6 {
 
 .drag-drop-zone .browse-btn {
     pointer-events: all;
+    cursor: pointer;
 }
 
 .drag-drop-zone .file-info {
@@ -1299,21 +1300,74 @@ footer h6 {
 }
 
 /* Photo Preview - Cropper.js Customization */
-/* Make all corner handles mobile-friendly with large touch targets (48px minimum per WCAG) */
-/* but show as small, consistent circles for a polished appearance */
-/* Clip handles to the crop-box so all four corners show a consistent quarter-arc on load */
-.cropper-crop-box {
-    overflow: hidden !important;
-}
+/* Node sizes and symmetry - 30px circular handles with perfect centering */
 .cropper-point {
-    width: 48px !important;
-    height: 48px !important;
-    margin-top: -24px !important;
-    margin-left: -24px !important;
-    background-color: transparent !important;
-    border: 3px solid var(--primary-color) !important;
+    width: 30px !important;
+    height: 30px !important;
+    background-color: var(--primary-color) !important;
+    opacity: 0.9 !important;
     border-radius: 50% !important;
-    opacity: 0.75 !important;
+    transition: all 0.2s ease;
+    z-index: 10;
+    transform: translate(-50%, -50%) !important;
+    margin: 0 !important;
+}
+
+/* Bulletproof positioning using top/left percentages and translate */
+.cropper-point.point-e {
+    top: 50% !important;
+    left: 100% !important;
+    right: auto !important;
+}
+
+.cropper-point.point-n {
+    top: 0 !important;
+    left: 50% !important;
+}
+
+.cropper-point.point-w {
+    top: 50% !important;
+    left: 0 !important;
+}
+
+.cropper-point.point-s {
+    top: 100% !important;
+    left: 50% !important;
+    bottom: auto !important;
+}
+
+.cropper-point.point-ne {
+    top: 0 !important;
+    left: 100% !important;
+    right: auto !important;
+}
+
+.cropper-point.point-nw {
+    top: 0 !important;
+    left: 0 !important;
+}
+
+.cropper-point.point-sw {
+    top: 100% !important;
+    left: 0 !important;
+    bottom: auto !important;
+}
+
+.cropper-point.point-se {
+    top: 100% !important;
+    left: 100% !important;
+    right: auto !important;
+    bottom: auto !important;
+}
+
+/* Hover */
+.cropper-point:hover {
+    transform: translate(-50%, -50%) scale(1.1) !important;
+}
+
+/* Cleanup */
+.cropper-point::before {
+    display: none !important;
 }
 
 /* ============================================
@@ -2067,6 +2121,18 @@ html {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 0.75rem;
     margin-bottom: 0.5rem;
+}
+
+.multi-image-grid.drag-over {
+    outline: 2px dashed var(--primary-color);
+    outline-offset: 4px;
+    border-radius: var(--border-radius);
+}
+
+.multi-image-grid.drag-over .multi-image-add-btn {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: #e6fffa;
 }
 
 .multi-image-thumb {
