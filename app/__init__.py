@@ -3,6 +3,7 @@ import os
 from uuid import UUID
 
 from flask import Flask, flash, redirect, render_template, request, url_for
+from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -22,6 +23,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
+jwt = JWTManager()
 
 
 def create_app(config_class=None):
@@ -44,6 +46,11 @@ def create_app(config_class=None):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
+    jwt.init_app(app)
+
+    from app.api.v1.jwt_auth import register_jwt_callbacks
+
+    register_jwt_callbacks(jwt)
 
     configure_logging(app)
 

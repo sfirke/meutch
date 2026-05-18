@@ -42,6 +42,25 @@ MAILGUN_API_KEY=<your-mailgun-api-key>
 MAILGUN_DOMAIN=<your-mailgun-domain>
 ```
 
+### Optional: Mobile API JWT Auth
+
+The web app still uses Flask-Login sessions. These variables configure the parallel JWT auth surface under `/api/v1/auth` for mobile clients.
+
+```bash
+# Recommended: separate signing secret for API JWTs
+JWT_SECRET_KEY=<generate-with-secrets.token_hex(32)>
+
+# Token lifetimes
+JWT_ACCESS_TOKEN_EXPIRES_MINUTES=15
+JWT_REFRESH_TOKEN_EXPIRES_DAYS=30
+```
+
+Operational notes:
+- Access tokens are sent as `Authorization: Bearer <token>` headers and should stay short-lived.
+- Refresh tokens rotate on every successful `POST /api/v1/auth/refresh` call. Clients must replace the stored refresh token with the newly returned one each time.
+- `POST /api/v1/auth/logout` revokes the whole current token family (session). Reusing an already-rotated refresh token also revokes that family and forces the user to log in again.
+- If `JWT_SECRET_KEY` is unset, the app falls back to `SECRET_KEY`, but production deployments should set a dedicated JWT secret explicitly.
+
 ### Optional: Digest Scheduler Timezone
 
 Digest cadence boundaries are evaluated in one app timezone. The scheduler now prefers `TZ` (same timezone setting used by the server/runtime), then falls back to `DIGEST_TIMEZONE`, then UTC.
@@ -63,7 +82,7 @@ To prevent staging environments from sending emails to real users, configure an 
 EMAIL_ALLOWLIST=test1@example.com,test2@example.com
 ```
 
-When `EMAIL_ALLOWLIST` is set, only listed addresses will receive emails. All other email attempts are logged but blocked. This allows for selected testing while not spamming users with duplicated overdue notices, etc. that are already being sent from the production environment. 
+When `EMAIL_ALLOWLIST` is set, only listed addresses will receive emails. All other email attempts are logged but blocked. This allows for selected testing while not spamming users with duplicated overdue notices, etc. that are already being sent from the production environment.
 
 **Important:** Leave `EMAIL_ALLOWLIST` unset or empty in production to send emails to all users.
 
@@ -149,6 +168,7 @@ flask db upgrade
 3. **HTTPS**: Always use HTTPS in production (set `SERVER_NAME=https://...`).
 
 4. **Environment Variables**: Store sensitive values in your platform's secret management system, not in plain text files.
+5. **JWT Secrets**: Rotate `JWT_SECRET_KEY` with the same care as `SECRET_KEY`. Changing it invalidates all outstanding API tokens immediately.
 
 ## Additional Resources
 
