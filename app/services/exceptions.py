@@ -7,6 +7,10 @@ class ServiceError(Exception):
     flash_category = "danger"
 
 
+class AuthenticationError(ServiceError):
+    """The request could not be authenticated."""
+
+
 class AuthorizationError(ServiceError):
     """The acting user is not allowed to perform the requested action."""
 

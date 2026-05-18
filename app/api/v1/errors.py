@@ -3,9 +3,10 @@
 from dataclasses import dataclass
 
 from marshmallow import ValidationError
-from werkzeug.exceptions import Forbidden, MethodNotAllowed, NotFound
+from werkzeug.exceptions import Forbidden, MethodNotAllowed, NotFound, Unauthorized
 
 from app.services.exceptions import (
+    AuthenticationError,
     AuthorizationError,
     ConflictError,
     InformationalError,
@@ -27,6 +28,11 @@ class ErrorMapping:
 
 
 SERVICE_ERROR_MAPPINGS = {
+    AuthenticationError: ErrorMapping(
+        code="UNAUTHORIZED",
+        status_code=401,
+        default_message="Authentication is required to perform this action.",
+    ),
     AuthorizationError: ErrorMapping(
         code="FORBIDDEN",
         status_code=403,
@@ -50,6 +56,12 @@ SERVICE_ERROR_MAPPINGS = {
 }
 
 HTTP_ERROR_MAPPINGS = {
+    401: ErrorMapping(
+        code="UNAUTHORIZED",
+        status_code=401,
+        default_message="Authentication is required to access this resource.",
+        default_description=Unauthorized.description,
+    ),
     403: ErrorMapping(
         code="FORBIDDEN",
         status_code=403,
@@ -152,6 +164,10 @@ def register_blueprint_error_handlers(blueprint):
 
     @blueprint.errorhandler(Forbidden)
     def handle_forbidden(error):
+        return build_http_error_response(error)
+
+    @blueprint.errorhandler(Unauthorized)
+    def handle_unauthorized(error):
         return build_http_error_response(error)
 
     @blueprint.errorhandler(NotFound)

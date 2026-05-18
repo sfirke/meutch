@@ -13,3 +13,10 @@ class UserSummarySchema(ApiSchema):
     last_name = fields.String(required=True)
     full_name = fields.String(required=True)
     profile_image_url = fields.String(allow_none=True)
+
+
+class UserIdentitySchema(UserSummarySchema):
+    """Authenticated user identity exposed by auth endpoints."""
+
+    email = fields.Email(required=True)
+    email_confirmed = fields.Boolean(required=True)
