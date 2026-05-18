@@ -24,7 +24,7 @@
     </div>
     <p>{{ circle.description }}</p>
     <p><strong>Members:</strong> {{ circle.members|length }}</p>
-    
+
     {% set distance = get_distance_to_circle(circle) %}
     {% if distance %}
         <p><strong>Distance:</strong> {{ distance }} from you</p>
@@ -33,8 +33,8 @@
     {% else %}
         <p><strong>Location:</strong> Not set</p>
     {% endif %}
-    
-    <p><strong>Circle Type:</strong> 
+
+    <p><strong>Circle Type:</strong>
         {% if circle.circle_type == 'open' %}
             Open
         {% elif circle.circle_type == 'closed' %}
@@ -43,7 +43,7 @@
             Secret (requires approval)
         {% endif %}
     </p>
-    
+
     {% if circle.circle_type == 'secret' and is_member %}
         <div class="alert alert-info">
             <h5><i class="fas fa-info-circle me-2"></i>Share this circle</h5>
@@ -56,21 +56,21 @@
             </div>
             <small class="text-muted">They can use this UUID on the circles page to find and request to join this circle.</small>
         </div>
-        
+
         <script>
         function copyToClipboard() {
             const uuidInput = document.getElementById('circle-uuid');
             uuidInput.select();
             uuidInput.setSelectionRange(0, 99999); // For mobile devices
             navigator.clipboard.writeText(uuidInput.value);
-            
+
             // Show feedback
             const button = event.target.closest('button');
             const originalHTML = button.innerHTML;
             button.innerHTML = '<i class="fas fa-check"></i> Copied!';
             button.classList.add('btn-success');
             button.classList.remove('btn-outline-secondary');
-            
+
             setTimeout(() => {
                 button.innerHTML = originalHTML;
                 button.classList.remove('btn-success');
@@ -107,7 +107,7 @@
                             <i class="fas fa-shield-alt"></i>
                         </span>
                     {% endif %}
-                    <img src="{{ member.profile_image }}" alt="{{ member.first_name }} {{ member.last_name }}" 
+                    <img src="{{ member.profile_image }}" alt="{{ member.first_name }} {{ member.last_name }}"
                          class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;">
                     <div>
                         <a href="{{ url_for('main.user_profile', user_id=member.id) }}" class="text-decoration-none">
@@ -130,7 +130,7 @@
                         {% endif %}
                         <form action="{{ url_for('circles.remove_member', circle_id=circle.id, user_id=member.id) }}" method="POST">
                             {{ form.csrf_token }}
-                            <button type="submit" class="btn btn-danger btn-sm" 
+                            <button type="submit" class="btn btn-danger btn-sm"
                                     onclick="return confirm('Are you sure you want to remove this member from the circle?');">
                                 Remove
                             </button>
@@ -160,7 +160,7 @@
                                 <li class="list-group-item">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div class="d-flex align-items-center">
-                                            <img src="{{ request.user.profile_image }}" alt="{{ request.user.first_name }} {{ request.user.last_name }}" 
+                                            <img src="{{ request.user.profile_image }}" alt="{{ request.user.first_name }} {{ request.user.last_name }}"
                                                  class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;">
                                             <div>
                                                 <a href="{{ url_for('main.user_profile', user_id=request.user.id) }}" class="text-decoration-none">
@@ -197,16 +197,16 @@
             {{ form.hidden_tag() }}
             <button type="submit" class="btn btn-danger" id="leave-circle-btn">Leave Circle</button>
         </form>
-        
+
         {% if is_last_member %}
         <script>
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('leave-circle-form');
             const btn = document.getElementById('leave-circle-btn');
-            
+
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
-                
+
                 if (confirm('⚠️ Warning: You are the last member of this circle. If you leave, the circle will be permanently deleted. Do you want to continue?')) {
                     // User confirmed, submit the form
                     form.submit();
@@ -233,7 +233,13 @@
                         {{ join_form.message.label }} {{ join_form.message(class="form-control") }}
                     </div>
                 {% endif %}
-                <button type="submit" class="btn btn-primary">Join Circle</button>
+                <button type="submit" class="btn btn-primary">
+                    {% if circle.requires_join_approval %}
+                        Send Join Request
+                    {% else %}
+                        Join Circle
+                    {% endif %}
+                </button>
             </form>
         {% endif %}
     {% endif %}
