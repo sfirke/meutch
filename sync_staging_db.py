@@ -114,16 +114,47 @@ def sync_staging_db():
         # JWT_SECRET_KEY, so these rows can never be used here, but leaving them would
         # create confusing noise and preserve production session metadata unnecessarily.
         click.echo("🔑 Clearing production JWT sessions from staging...")
-        truncate_cmd = [
+        table_check_cmd = [
             "psql",
             staging_db_url,
+            "-t",
+            "-A",
             "-c",
-            "TRUNCATE TABLE api_token_blocklist, api_token_family;",
+            (
+                "SELECT tablename FROM pg_tables "
+                "WHERE schemaname = 'public' "
+                "AND tablename IN ('api_token_blocklist', 'api_token_family')"
+            ),
         ]
-        truncate_result = subprocess.run(truncate_cmd, capture_output=True, text=True)
-        if truncate_result.returncode != 0:
-            click.echo(f"❌ ERROR clearing JWT tables: {truncate_result.stderr}")
+        table_check_result = subprocess.run(table_check_cmd, capture_output=True, text=True)
+        if table_check_result.returncode != 0:
+            click.echo(f"❌ ERROR checking JWT tables: {table_check_result.stderr}")
             sys.exit(1)
+
+        existing_tables = {
+            table_name.strip()
+            for table_name in table_check_result.stdout.splitlines()
+            if table_name.strip()
+        }
+        jwt_tables = [
+            table_name
+            for table_name in ["api_token_blocklist", "api_token_family"]
+            if table_name in existing_tables
+        ]
+
+        if jwt_tables:
+            truncate_cmd = [
+                "psql",
+                staging_db_url,
+                "-c",
+                f"TRUNCATE TABLE {', '.join(jwt_tables)};",
+            ]
+            truncate_result = subprocess.run(truncate_cmd, capture_output=True, text=True)
+            if truncate_result.returncode != 0:
+                click.echo(f"❌ ERROR clearing JWT tables: {truncate_result.stderr}")
+                sys.exit(1)
+        else:
+            click.echo("   JWT tables not present in restored schema; skipping cleanup")
 
         # Verify restore succeeded
         count_cmd = [
