@@ -57,6 +57,25 @@ def _normalize_scope(scope):
     return "circles" if scope == "circles" else "all"
 
 
+def _build_giveaway_visibility_filter(shared_circle_user_ids, normalized_scope):
+    if normalized_scope == "circles":
+        if shared_circle_user_ids is None:
+            return None
+        return Item.owner_id.in_(shared_circle_user_ids)
+
+    public_filter = Item.giveaway_visibility == "public"
+    if shared_circle_user_ids is None:
+        return public_filter
+
+    return or_(
+        and_(
+            or_(Item.giveaway_visibility == "default", Item.giveaway_visibility.is_(None)),
+            Item.owner_id.in_(shared_circle_user_ids),
+        ),
+        public_filter,
+    )
+
+
 def _normalize_event_types(included_event_types):
     if included_event_types is None:
         return HOMEPAGE_FEED_EVENT_TYPES
@@ -212,28 +231,13 @@ def build_visible_giveaway_events(
     since=None,
     until=None,
 ):
-    if not scoped_circle_ids:
-        return []
-
     now = datetime.now(UTC)
     claimed_cutoff = _utc(since) or (now - timedelta(days=RESOLVED_FEED_WINDOW_DAYS))
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
-    all_circle_user_ids = select(circle_members.c.user_id).distinct()
     normalized_scope = _normalize_scope(scope)
-
-    if normalized_scope == "circles":
-        visibility_filter = Item.owner_id.in_(shared_circle_user_ids)
-    else:
-        visibility_filter = or_(
-            and_(
-                or_(Item.giveaway_visibility == "default", Item.giveaway_visibility.is_(None)),
-                Item.owner_id.in_(shared_circle_user_ids),
-            ),
-            and_(
-                Item.giveaway_visibility == "public",
-                Item.owner_id.in_(all_circle_user_ids),
-            ),
-        )
+    visibility_filter = _build_giveaway_visibility_filter(shared_circle_user_ids, normalized_scope)
+    if visibility_filter is None:
+        return []
 
     base_query = Item.query.join(User, Item.owner_id == User.id).filter(
         Item.is_giveaway.is_(True),
@@ -469,28 +473,13 @@ def build_digest_giveaway_events(
     since=None,
     until=None,
 ):
-    if not scoped_circle_ids:
-        return []
-
     since_utc = _utc(since)
     until_utc = _utc(until)
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
-    all_circle_user_ids = select(circle_members.c.user_id).distinct()
     normalized_scope = _normalize_scope(scope)
-
-    if normalized_scope == "circles":
-        visibility_filter = Item.owner_id.in_(shared_circle_user_ids)
-    else:
-        visibility_filter = or_(
-            and_(
-                or_(Item.giveaway_visibility == "default", Item.giveaway_visibility.is_(None)),
-                Item.owner_id.in_(shared_circle_user_ids),
-            ),
-            and_(
-                Item.giveaway_visibility == "public",
-                Item.owner_id.in_(all_circle_user_ids),
-            ),
-        )
+    visibility_filter = _build_giveaway_visibility_filter(shared_circle_user_ids, normalized_scope)
+    if visibility_filter is None:
+        return []
 
     base_query = Item.query.join(User, Item.owner_id == User.id).filter(
         Item.is_giveaway.is_(True),
