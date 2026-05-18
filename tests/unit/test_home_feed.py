@@ -146,6 +146,62 @@ def test_build_visible_giveaway_events_include_recently_claimed_items(app):
         assert claimed_event["created_at"] == claimed_item.claimed_at.replace(tzinfo=UTC)
 
 
+def test_build_visible_giveaway_events_include_public_giveaways_for_no_circle_viewer(app):
+    with app.app_context():
+        viewer = UserFactory()
+        public_owner = UserFactory()
+        default_owner = UserFactory()
+        category = CategoryFactory()
+
+        public_item = ItemFactory(
+            owner=public_owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility="public",
+            claim_status="unclaimed",
+            name="Public No Circle Giveaway",
+        )
+        default_item = ItemFactory(
+            owner=default_owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="unclaimed",
+            name="Default No Circle Giveaway",
+        )
+        db.session.commit()
+
+        events = build_visible_giveaway_events(viewer, scoped_circle_ids=set(), scope="all")
+
+        item_ids = {event["item_id"] for event in events}
+        assert public_item.id in item_ids
+        assert default_item.id not in item_ids
+
+
+def test_build_visible_giveaway_events_include_public_giveaway_from_no_circle_owner(app):
+    with app.app_context():
+        viewer = UserFactory()
+        shared_circle_member = UserFactory()
+        public_owner = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, shared_circle_member])
+
+        public_item = ItemFactory(
+            owner=public_owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility="public",
+            claim_status="unclaimed",
+            name="Public Giveaway From No Circle Owner",
+        )
+        db.session.commit()
+
+        events = build_visible_giveaway_events(viewer, scoped_circle_ids={circle.id}, scope="all")
+
+        assert public_item.id in {event["item_id"] for event in events}
+
+
 def test_build_recent_lent_events_hides_borrower_identity(app):
     with app.app_context():
         viewer = UserFactory()
@@ -270,6 +326,69 @@ def test_build_digest_payload_respects_window_and_include_toggles(app):
         assert payload["requests"] == []
         assert payload["circle_joins"] == []
         assert payload["loans"] == []
+
+
+def test_build_digest_payload_includes_public_giveaway_from_no_circle_user_when_enabled(app):
+    with app.app_context():
+        viewer = UserFactory(
+            digest_include_giveaways=True,
+            digest_include_requests=False,
+            digest_include_circle_joins=False,
+            digest_include_loans=False,
+            digest_giveaways_include_public=True,
+        )
+        shared_circle_member = UserFactory()
+        owner = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, shared_circle_member])
+        now = datetime.now(UTC)
+
+        public_item = ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility="public",
+            claim_status="unclaimed",
+            name="Digest Public Giveaway",
+            created_at=now - timedelta(hours=2),
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(viewer, since=now - timedelta(days=1), until=now)
+
+        assert [event["item_id"] for event in payload["giveaways"]] == [public_item.id]
+        assert payload["summary_stats"]["giveaways_count"] == 1
+
+
+def test_build_digest_payload_excludes_public_giveaway_from_no_circle_user_when_disabled(app):
+    with app.app_context():
+        viewer = UserFactory(
+            digest_include_giveaways=True,
+            digest_include_requests=False,
+            digest_include_circle_joins=False,
+            digest_include_loans=False,
+            digest_giveaways_include_public=False,
+        )
+        owner = UserFactory()
+        category = CategoryFactory()
+        now = datetime.now(UTC)
+
+        ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility="public",
+            claim_status="unclaimed",
+            name="Digest Hidden Giveaway",
+            created_at=now - timedelta(hours=2),
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(viewer, since=now - timedelta(days=1), until=now)
+
+        assert payload["giveaways"] == []
+        assert payload["events"] == []
 
 
 def test_build_digest_payload_summary_stats_counts_requests_and_giveaways(app):

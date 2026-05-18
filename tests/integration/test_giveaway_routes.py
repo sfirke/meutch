@@ -79,6 +79,34 @@ class TestGiveawayItemCreation:
             assert item.giveaway_visibility == "public"
             assert item.claim_status == "unclaimed"
 
+    def test_create_public_giveaway_shows_join_circle_nudge_for_no_circle_user(
+        self, client, app, auth_user
+    ):
+        """Posting a public giveaway without circles should land on the persistent join-circle nudge."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            login_user(client, user.email)
+
+            response = client.post(
+                "/list-item",
+                data={
+                    "name": "Starter Giveaway",
+                    "description": "Still useful and ready to share",
+                    "category": str(category.id),
+                    "is_giveaway": True,
+                    "giveaway_visibility": "public",
+                    "tags": "",
+                },
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            content = response.data.decode("utf-8")
+            assert "Starter Giveaway" in content
+            assert "Your giveaway is live. Join a circle to unlock the rest of Meutch." in content
+            assert "Find Circles to Join" in content
+
     def test_create_loan_item(self, client, app, auth_user):
         """Test creating a regular loan item (not giveaway)."""
         with app.app_context():

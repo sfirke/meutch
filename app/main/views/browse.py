@@ -2,7 +2,7 @@ from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.main import bp as main_bp
-from app.models import Category, Tag
+from app.models import Category, Item, Tag
 from app.utils.home_feed import build_homepage_feed_events
 from app.utils.item_queries import build_category_items_pagination, build_tag_items_pagination
 
@@ -31,6 +31,7 @@ def index():
     selected_circles = []
     item_type = "both"
     has_circles = False
+    show_public_giveaway_nudge = False
     result_count = 0
     selected_feed_scope = "all"
     selected_feed_types = ["requests", "giveaways", "circle_joins", "loans"]
@@ -41,6 +42,15 @@ def index():
         list(current_user.circles), key=lambda circle: (circle.name or "").lower()
     )
     has_circles = len(user_circles) > 0
+    if not has_circles:
+        show_public_giveaway_nudge = (
+            Item.query.filter(
+                Item.owner_id == current_user.id,
+                Item.is_giveaway.is_(True),
+                Item.giveaway_visibility == "public",
+            ).first()
+            is not None
+        )
     selected_circles = request.args.getlist("circles")
     filter_state = _parse_homepage_feed_filters(current_user)
     selected_feed_scope = filter_state["scope"]
@@ -71,6 +81,7 @@ def index():
         selected_circles=selected_circles,
         item_type=item_type,
         has_circles=has_circles,
+        show_public_giveaway_nudge=show_public_giveaway_nudge,
         result_count=result_count,
         selected_feed_scope=selected_feed_scope,
         selected_feed_types=selected_feed_types,

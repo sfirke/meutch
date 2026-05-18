@@ -122,6 +122,41 @@ class TestMainRoutes:
             assert "Shared Scope Giveaway" in circles_scope_content
             assert "Outsider Scope Giveaway" not in circles_scope_content
 
+    def test_home_feed_no_circle_viewer_sees_public_request_and_giveaway_with_join_prompt(
+        self, client, app, auth_user
+    ):
+        """No-circle viewers should still see public activity while being nudged to join a circle."""
+        with app.app_context():
+            viewer = auth_user()
+            requester = UserFactory()
+            giveaway_owner = UserFactory()
+            category = CategoryFactory()
+
+            ItemRequestFactory(
+                user=requester,
+                title="No Circle Public Request",
+                visibility="public",
+            )
+            ItemFactory(
+                owner=giveaway_owner,
+                category=category,
+                is_giveaway=True,
+                giveaway_visibility="public",
+                claim_status="unclaimed",
+                name="No Circle Public Giveaway",
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get("/")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "No Circle Public Request" in content
+            assert "No Circle Public Giveaway" in content
+            assert "Join a circle to get started" in content
+            assert "Find Circles to Join" in content
+
     def test_home_feed_distance_filter_hides_far_requests_and_giveaways(
         self, client, app, auth_user
     ):
