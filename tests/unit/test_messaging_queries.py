@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 from app import db
 from app.utils.messaging_queries import (
+    build_conversation_thread_state,
     build_inbox_summaries,
     build_request_conversation_summaries,
     find_request_conversation_message,
@@ -66,6 +67,22 @@ def test_get_conversation_thread_state_marks_non_pending_messages_read(app):
 
         db.session.expire_all()
         assert db.session.get(type(first_message), first_message.id).is_read is True
+
+
+def test_build_conversation_thread_state_does_not_mark_messages_read(app):
+    with app.app_context():
+        sender = UserFactory()
+        recipient = UserFactory()
+        item = ItemFactory(owner=sender)
+        message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
+        db.session.commit()
+
+        thread_state = build_conversation_thread_state(message, recipient.id)
+
+        assert thread_state["has_unread_messages"] is True
+
+        db.session.expire_all()
+        assert db.session.get(type(message), message.id).is_read is False
 
 
 def test_get_conversation_thread_state_skips_pending_loan_messages(app):

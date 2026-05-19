@@ -130,7 +130,7 @@ def build_inbox_summaries(viewer_id):
     return conversation_summaries
 
 
-def get_conversation_thread_state(message, viewer_id):
+def build_conversation_thread_state(message, viewer_id):
     target_filter = build_message_target_filter(message)
     participant_filter = build_message_participant_filter(message.sender_id, message.recipient_id)
 
@@ -156,6 +156,14 @@ def get_conversation_thread_state(message, viewer_id):
     ).all()
     has_unread_messages = len(unread_messages) > 0
 
+    return {
+        "thread_messages": thread_messages,
+        "has_unread_messages": has_unread_messages,
+        "unread_messages": unread_messages,
+    }
+
+
+def mark_conversation_messages_read(unread_messages):
     for unread_message in unread_messages:
         unread_message.is_read = True
 
@@ -164,9 +172,15 @@ def get_conversation_thread_state(message, viewer_id):
     except Exception:
         db.session.rollback()
 
+
+def get_conversation_thread_state(message, viewer_id):
+    thread_state = build_conversation_thread_state(message, viewer_id)
+
+    mark_conversation_messages_read(thread_state["unread_messages"])
+
     return {
-        "thread_messages": thread_messages,
-        "has_unread_messages": has_unread_messages,
+        "thread_messages": thread_state["thread_messages"],
+        "has_unread_messages": thread_state["has_unread_messages"],
     }
 
 

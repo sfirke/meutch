@@ -6,7 +6,10 @@ from app import db
 from app.models import Message
 from app.services.exceptions import AuthorizationError
 from app.utils.email import send_message_notification_email
-from app.utils.messaging_queries import get_conversation_thread_state as build_thread_state
+from app.utils.messaging_queries import (
+    build_conversation_thread_state,
+    mark_conversation_messages_read,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +72,16 @@ def reply_to_message(message, sender_id, body):
     )
 
 
-def get_conversation_thread_state(message, viewer_id):
+def get_conversation_thread_state(message, viewer_id, *, mark_read=True):
     if viewer_id not in {message.sender_id, message.recipient_id}:
         raise AuthorizationError("You do not have permission to view this message.")
 
-    return build_thread_state(message, viewer_id)
+    thread_state = build_conversation_thread_state(message, viewer_id)
+
+    if mark_read:
+        mark_conversation_messages_read(thread_state["unread_messages"])
+
+    return {
+        "thread_messages": thread_state["thread_messages"],
+        "has_unread_messages": thread_state["has_unread_messages"],
+    }

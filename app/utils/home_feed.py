@@ -788,6 +788,8 @@ def _assemble_feed_events(
     events.sort(
         key=lambda event: event.get("created_at") or datetime.min.replace(tzinfo=UTC), reverse=True
     )
+    if max_events is None:
+        return events
     return events[:max_events]
 
 
