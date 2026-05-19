@@ -73,3 +73,8 @@ class TestApiProfile:
                 "digest_requests_include_public": True,
             }
         }
+
+    def test_me_profile_requires_authentication(self, client, app):
+        response = client.get("/api/v1/me/profile")
+
+        assert response.status_code == 401

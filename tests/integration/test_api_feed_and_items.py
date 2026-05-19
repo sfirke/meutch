@@ -80,6 +80,11 @@ class TestApiFeed:
         }
         assert event_titles <= {"Shared feed request", "Shared feed giveaway"}
 
+    def test_feed_requires_authentication(self, client, app):
+        response = client.get("/api/v1/feed")
+
+        assert response.status_code == 401
+
 
 class TestApiItems:
     """Exercise API item list and detail reads."""
@@ -206,3 +211,34 @@ class TestApiItems:
 
         assert response.status_code == 200
         assert response.get_json()["viewer"]["is_active_borrower"] is True
+
+    def test_item_detail_returns_404_for_claimed_giveaway_past_visibility_window(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            claimer = UserFactory()
+            category = CategoryFactory()
+            item = ItemFactory(
+                owner=owner,
+                category=category,
+                name="Old claimed giveaway",
+                is_giveaway=True,
+                giveaway_visibility="public",
+                claim_status="claimed",
+                claimed_by=claimer,
+                claimed_at=datetime.now(UTC) - timedelta(days=100),
+            )
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+
+        response = client.get(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 404
+
+    def test_items_list_requires_authentication(self, client, app):
+        response = client.get("/api/v1/items")
+
+        assert response.status_code == 401

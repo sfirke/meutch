@@ -1,5 +1,6 @@
 """Item read endpoints for API v1."""
 
+from flask import abort
 from flask_jwt_extended import jwt_required
 
 from app import db
@@ -59,7 +60,7 @@ def get_item(item_id):
     access_state = build_item_access_state(item, current_user)
     if not access_state["can_view"]:
         if access_state["claimed_unavailable"]:
-            raise AuthorizationError("This giveaway is no longer available.")
+            abort(404)
         raise AuthorizationError("You are not allowed to view this item.")
 
     viewer_interest = None
@@ -72,9 +73,9 @@ def get_item(item_id):
     item.api_viewer_interest_status = viewer_interest.status if viewer_interest else None
     item.api_interested_count = None
     if item.is_giveaway and item.owner_id == current_user.id:
-        item.api_interested_count = sum(
-            1 for interest in item.giveaway_interests if interest.status == "active"
-        )
+        item.api_interested_count = GiveawayInterest.query.filter_by(
+            item_id=item.id, status="active"
+        ).count()
 
     return ITEM_DETAIL_RESPONSE_SCHEMA.dump(
         {

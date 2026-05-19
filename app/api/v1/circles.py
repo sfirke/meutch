@@ -1,5 +1,6 @@
 """Circle read endpoints for API v1."""
 
+from flask import abort
 from flask_jwt_extended import jwt_required
 
 from app import db
@@ -9,12 +10,11 @@ from app.api.v1.parsing import load_query_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.circles import CircleDetailResponseSchema, CircleSummarySchema
 from app.api.v1.schemas.query import CircleListQuerySchema
-from app.models import Circle
+from app.models import Circle, CircleJoinRequest
 from app.utils.circle_queries import (
     get_admin_circle_pending_counts,
     get_listed_circles,
     get_ordered_circle_members,
-    get_pending_circle_join_request,
     get_sorted_user_circles,
     should_show_circle_members,
 )
@@ -25,10 +25,22 @@ CIRCLE_SUMMARY_SCHEMA = CircleSummarySchema(many=True)
 CIRCLE_DETAIL_RESPONSE_SCHEMA = CircleDetailResponseSchema()
 
 
-def _annotate_circle(circle, admin_pending_counts):
+def _fetch_pending_requests_by_circle(user_id, circle_ids):
+    """Return a dict mapping circle_id -> pending CircleJoinRequest for the user."""
+    if not circle_ids:
+        return {}
+    requests = CircleJoinRequest.query.filter(
+        CircleJoinRequest.user_id == user_id,
+        CircleJoinRequest.circle_id.in_(circle_ids),
+        CircleJoinRequest.status == "pending",
+    ).all()
+    return {req.circle_id: req for req in requests}
+
+
+def _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle):
     circle.api_is_member = current_user in circle.members
     circle.api_is_admin = circle.is_admin(current_user) if circle.api_is_member else False
-    circle.api_pending_join_request = get_pending_circle_join_request(circle.id, current_user.id)
+    circle.api_pending_join_request = pending_requests_by_circle.get(circle.id)
     circle.api_pending_join_request_count = admin_pending_counts.get(str(circle.id), 0)
     circle.api_distance_miles = circle.distance_to_user(current_user)
     return circle
@@ -51,7 +63,12 @@ def list_circles():
         )
 
     admin_pending_counts = get_admin_circle_pending_counts(current_user.id)
-    annotated_circles = [_annotate_circle(circle, admin_pending_counts) for circle in circles]
+    circle_ids = [c.id for c in circles]
+    pending_requests_by_circle = _fetch_pending_requests_by_circle(current_user.id, circle_ids)
+    annotated_circles = [
+        _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle)
+        for circle in circles
+    ]
     pagination = ListPagination(
         items=annotated_circles,
         page=query_data["page"],
@@ -70,8 +87,11 @@ def list_circles():
 def get_circle(circle_id):
     """Return circle details for the authenticated user."""
     circle = db.get_or_404(Circle, circle_id)
+    if circle.circle_type == "secret" and current_user not in circle.members:
+        abort(404)
     admin_pending_counts = get_admin_circle_pending_counts(current_user.id)
-    circle = _annotate_circle(circle, admin_pending_counts)
+    pending_requests_by_circle = _fetch_pending_requests_by_circle(current_user.id, [circle.id])
+    circle = _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle)
     circle.api_can_view_members = should_show_circle_members(circle, current_user)
     circle.api_is_last_member = circle.api_is_member and len(circle.members) == 1
     circle.api_members = []

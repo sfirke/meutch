@@ -73,6 +73,28 @@ class TestApiCircles:
         assert response.get_json()["circle"]["can_view_members"] is False
         assert response.get_json()["circle"]["members"] == []
 
+    def test_circle_detail_returns_404_for_secret_circle_non_member(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            member = UserFactory()
+            circle = CircleFactory(circle_type="secret")
+            circle.members.append(member)
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            circle_id = circle.id
+
+        response = client.get(
+            f"/api/v1/circles/{circle_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 404
+
+    def test_circles_list_requires_authentication(self, client, app):
+        response = client.get("/api/v1/circles")
+
+        assert response.status_code == 401
+
 
 class TestApiRequests:
     """Exercise request list and detail reads."""
@@ -144,6 +166,11 @@ class TestApiRequests:
 
         assert response.status_code == 403
         assert response.get_json()["error"]["code"] == "FORBIDDEN"
+
+    def test_requests_list_requires_authentication(self, client, app):
+        response = client.get("/api/v1/requests")
+
+        assert response.status_code == 401
 
 
 class TestApiMessaging:
@@ -230,3 +257,26 @@ class TestApiMessaging:
         with app.app_context():
             db.session.expire_all()
             assert db.session.get(Message, message_id).is_read is False
+
+    def test_message_thread_returns_403_for_non_participant(self, client, app):
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            viewer = UserFactory(email_confirmed=True)
+            message = MessageFactory(sender=sender, recipient=recipient)
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            message_id = message.id
+
+        response = client.get(
+            f"/api/v1/messages/{message_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 403
+        assert response.get_json()["error"]["code"] == "FORBIDDEN"
+
+    def test_messages_list_requires_authentication(self, client, app):
+        response = client.get("/api/v1/messages")
+
+        assert response.status_code == 401

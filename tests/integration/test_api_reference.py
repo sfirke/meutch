@@ -3,10 +3,7 @@
 from app import db
 from tests.factories import CategoryFactory, TagFactory, UserFactory
 
-
-def auth_headers(token):
-    """Return Authorization headers for a bearer token."""
-    return {"Authorization": f"Bearer {token}"}
+from .api_test_helpers import auth_headers, login_api_user
 
 
 class TestApiReference:
@@ -29,11 +26,7 @@ class TestApiReference:
                 for category in sorted(categories, key=lambda category: category.name)
             ]
 
-        login_response = client.post(
-            "/api/v1/auth/login",
-            json={"email": user_email, "password": "testpassword123"},
-        )
-        access_token = login_response.get_json()["access_token"]
+        access_token = login_api_user(client, user_email)
 
         response = client.get("/api/v1/categories", headers=auth_headers(access_token))
 
@@ -53,11 +46,7 @@ class TestApiReference:
             user_email = user.email
             expected_ids_in_order = [str(tag.id) for tag in sorted(tags, key=lambda tag: tag.name)]
 
-        login_response = client.post(
-            "/api/v1/auth/login",
-            json={"email": user_email, "password": "testpassword123"},
-        )
-        access_token = login_response.get_json()["access_token"]
+        access_token = login_api_user(client, user_email)
 
         response = client.get("/api/v1/tags", headers=auth_headers(access_token))
 

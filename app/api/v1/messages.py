@@ -1,5 +1,6 @@
 """Messaging read endpoints for API v1."""
 
+from flask import abort
 from flask_jwt_extended import jwt_required
 
 from app import db
@@ -50,6 +51,8 @@ def get_message_thread(message_id):
     )
     other_user_id = get_conversation_other_user_id(message, current_user.id)
     other_user = db.session.get(User, other_user_id)
+    if other_user is None:
+        abort(404)
     shared_circles = current_user.shared_circles_with(other_user)
 
     active_loan = None
