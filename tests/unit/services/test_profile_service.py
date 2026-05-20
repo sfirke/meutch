@@ -21,13 +21,11 @@ class TestProfileService:
                         "platform": "other",
                         "custom_name": "GitHub",
                         "url": "https://github.com/example",
-                        "display_order": 1,
                     },
                     {
                         "platform": "linkedin",
                         "custom_name": "",
                         "url": "https://linkedin.com/in/example",
-                        "display_order": 2,
                     },
                 ],
             )
@@ -42,7 +40,9 @@ class TestProfileService:
             assert len(links) == 2
             assert links[0].platform_type == "other"
             assert links[0].platform_name == "GitHub"
+            assert links[0].display_order == 1
             assert links[1].platform_type == "linkedin"
+            assert links[1].display_order == 2
 
     def test_update_profile_replaces_existing_profile_image(self, app):
         with app.app_context():
@@ -83,11 +83,12 @@ class TestProfileService:
 
     def test_update_digest_settings_returns_opt_out_state(self, app):
         with app.app_context():
-            user = UserFactory(digest_frequency="weekly")
+            user = UserFactory(digest_frequency="weekly", vacation_mode=False)
             db.session.commit()
 
             opted_out = profile_service.update_digest_settings(
                 user,
+                vacation_mode=True,
                 digest_frequency=User.DIGEST_FREQUENCY_NONE,
                 digest_radius_miles=20,
                 digest_include_giveaways=True,
@@ -100,6 +101,7 @@ class TestProfileService:
 
             db.session.refresh(user)
             assert opted_out is True
+            assert user.vacation_mode is True
             assert user.digest_frequency == User.DIGEST_FREQUENCY_NONE
             assert user.digest_radius_miles == 20
             assert user.digest_include_requests is False

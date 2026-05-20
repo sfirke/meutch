@@ -30,7 +30,7 @@ def update_profile(user, *, about_me, links, profile_image=None, delete_image=Fa
     user.about_me = about_me
     UserWebLink.query.filter_by(user_id=user.id).delete()
 
-    for link in links:
+    for display_order, link in enumerate(links, start=1):
         platform = link["platform"]
         url = link["url"]
         if not platform or not url or not url.strip():
@@ -42,7 +42,7 @@ def update_profile(user, *, about_me, links, profile_image=None, delete_image=Fa
             platform_type=platform,
             platform_name=custom_name.strip() if custom_name else None,
             url=url.strip(),
-            display_order=link["display_order"],
+            display_order=display_order,
         )
         db.session.add(web_link)
 
@@ -53,6 +53,7 @@ def update_profile(user, *, about_me, links, profile_image=None, delete_image=Fa
 def update_digest_settings(
     user,
     *,
+    vacation_mode=None,
     digest_frequency,
     digest_radius_miles,
     digest_include_giveaways,
@@ -62,6 +63,9 @@ def update_digest_settings(
     digest_giveaways_include_public,
     digest_requests_include_public,
 ):
+    if vacation_mode is not None:
+        user.vacation_mode = vacation_mode
+
     user.digest_frequency = digest_frequency
     user.digest_radius_miles = digest_radius_miles
     user.digest_include_giveaways = digest_include_giveaways

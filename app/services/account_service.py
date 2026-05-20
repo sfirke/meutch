@@ -72,7 +72,6 @@ def delete_user_account(user):
         )
 
         if has_active_loans:
-            item.owner_id = None
             item.available = False
         else:
             for image in item.images:
