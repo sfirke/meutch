@@ -93,7 +93,7 @@ class ItemDetailResponseSchema(ApiSchema):
 class ItemWritePayloadSchema(ApiSchema):
     """Write payload for item create and update endpoints."""
 
-    name = fields.String(required=True, validate=validate.Length(max=100))
+    name = fields.String(required=True, validate=validate.Length(min=1, max=100))
     description = fields.String(
         load_default=None,
         allow_none=True,
@@ -139,6 +139,13 @@ class GiveawayInterestCreateSchema(ApiSchema):
     )
 
 
+def _validate_manual_selection_user_id(data):
+    if data["selection_method"] == "manual" and data.get("user_id") is None:
+        raise ValidationError(
+            {"user_id": ["This field is required when selection_method is 'manual'."]}
+        )
+
+
 class GiveawayRecipientSelectionSchema(ApiSchema):
     """Write payload for selecting a giveaway recipient."""
 
@@ -150,10 +157,7 @@ class GiveawayRecipientSelectionSchema(ApiSchema):
 
     @validates_schema
     def validate_manual_user_id(self, data, **kwargs):
-        if data["selection_method"] == "manual" and data.get("user_id") is None:
-            raise ValidationError(
-                {"user_id": ["This field is required when selection_method is 'manual'."]}
-            )
+        _validate_manual_selection_user_id(data)
 
 
 class GiveawayRecipientChangeSchema(ApiSchema):
@@ -167,7 +171,4 @@ class GiveawayRecipientChangeSchema(ApiSchema):
 
     @validates_schema
     def validate_manual_user_id(self, data, **kwargs):
-        if data["selection_method"] == "manual" and data.get("user_id") is None:
-            raise ValidationError(
-                {"user_id": ["This field is required when selection_method is 'manual'."]}
-            )
+        _validate_manual_selection_user_id(data)

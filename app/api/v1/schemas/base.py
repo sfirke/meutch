@@ -2,7 +2,7 @@
 
 import json
 
-from marshmallow import Schema, ValidationError, fields, pre_load
+from marshmallow import Schema, ValidationError, fields, pre_load, validate
 from werkzeug.datastructures import FileStorage
 
 _JSON_NOT_PARSED = object()
@@ -69,24 +69,22 @@ class ApiUploadedFile(fields.Field):
         return value
 
 
-def validate_location_method_fields(data, *, location_method_field="location_method"):
+def validate_location_method_fields(data):
     """Require address or coordinate fields based on the selected location method."""
-    location_method = data.get(location_method_field)
+    location_method = data.get("location_method")
     errors = {}
 
     if location_method == "address":
         for field_name in ("street", "city", "state", "zip_code", "country"):
             field_value = data.get(field_name)
             if field_value is None or not str(field_value).strip():
-                errors[field_name] = [
-                    f"This field is required when {location_method_field} is 'address'."
-                ]
+                errors[field_name] = ["This field is required when location_method is 'address'."]
 
     if location_method == "coordinates":
         for field_name in ("latitude", "longitude"):
             if data.get(field_name) is None:
                 errors[field_name] = [
-                    f"This field is required when {location_method_field} is 'coordinates'."
+                    "This field is required when location_method is 'coordinates'."
                 ]
 
     if errors:
@@ -140,6 +138,9 @@ class ApiSchema(Schema):
         if parsed_value is not _JSON_NOT_PARSED:
             return parsed_value
 
+        if isinstance(value, str):
+            return value.strip()
+
         return value
 
     def _parse_json_value(self, field, value):
@@ -185,3 +186,31 @@ class ApiDateTime(fields.DateTime):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("format", "iso")
         super().__init__(*args, **kwargs)
+
+
+class LocationFieldsMixin:
+    """Shared optional location fields for schemas that accept address or coordinate input."""
+
+    street = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=200))
+    city = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=100))
+    state = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=100))
+    zip_code = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=20),
+    )
+    country = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=100),
+    )
+    latitude = fields.Float(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Range(min=-90, max=90),
+    )
+    longitude = fields.Float(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Range(min=-180, max=180),
+    )

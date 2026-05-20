@@ -56,7 +56,7 @@ class ItemRequestDetailResponseSchema(ApiSchema):
 class RequestWritePayloadSchema(ApiSchema):
     """Write payload for request create and update endpoints."""
 
-    title = fields.String(required=True, validate=validate.Length(max=100))
+    title = fields.String(required=True, validate=validate.Length(min=1, max=100))
     description = fields.String(
         load_default=None,
         allow_none=True,

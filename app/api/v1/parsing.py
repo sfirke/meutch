@@ -14,11 +14,6 @@ def load_request_data(schema):
     return schema.load(_get_request_input())
 
 
-def load_json_data(schema):
-    """Load and validate a JSON request body with the provided schema."""
-    return load_request_data(schema)
-
-
 def load_query_data(schema):
     """Load and validate query parameters with the provided schema."""
     return schema.load(request.args)

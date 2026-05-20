@@ -7,6 +7,7 @@ from app.api.v1.schemas.base import (
     ApiDateTime,
     ApiSchema,
     ApiUploadedFile,
+    LocationFieldsMixin,
     validate_location_method_fields,
 )
 from app.api.v1.schemas.users import UserSummarySchema
@@ -102,10 +103,10 @@ class CircleDetailResponseSchema(ApiSchema):
     circle = fields.Nested(CircleDetailSchema(), required=True)
 
 
-class CircleWritePayloadSchema(ApiSchema):
+class CircleWritePayloadSchema(LocationFieldsMixin, ApiSchema):
     """Write payload for circle create and update endpoints."""
 
-    name = fields.String(required=True, validate=validate.Length(max=100))
+    name = fields.String(required=True, validate=validate.Length(min=1, max=100))
     description = fields.String(
         load_default=None,
         allow_none=True,
@@ -120,29 +121,6 @@ class CircleWritePayloadSchema(ApiSchema):
     location_method = fields.String(
         required=True,
         validate=validate.OneOf(["address", "coordinates", "skip"]),
-    )
-    street = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=200))
-    city = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=100))
-    state = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=100))
-    zip_code = fields.String(
-        load_default=None,
-        allow_none=True,
-        validate=validate.Length(max=20),
-    )
-    country = fields.String(
-        load_default=None,
-        allow_none=True,
-        validate=validate.Length(max=100),
-    )
-    latitude = fields.Float(
-        load_default=None,
-        allow_none=True,
-        validate=validate.Range(min=-90, max=90),
-    )
-    longitude = fields.Float(
-        load_default=None,
-        allow_none=True,
-        validate=validate.Range(min=-180, max=180),
     )
 
     @validates_schema

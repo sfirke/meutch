@@ -237,3 +237,32 @@ class TestApiWriteSchemas:
         assert excinfo.value.messages == {
             "end_date": ["End date must be on or after the start date."]
         }
+
+    def test_item_write_schema_rejects_blank_name(self):
+        schema = ItemWritePayloadSchema()
+
+        with pytest.raises(ValidationError) as excinfo:
+            schema.load(
+                {
+                    "name": "  ",
+                    "category_id": str(uuid4()),
+                    "is_giveaway": False,
+                }
+            )
+
+        assert "name" in excinfo.value.messages
+
+    def test_request_write_schema_rejects_blank_title(self):
+        schema = RequestWritePayloadSchema()
+
+        with pytest.raises(ValidationError) as excinfo:
+            schema.load(
+                {
+                    "title": "",
+                    "expires_at": date.today() + timedelta(days=30),
+                    "seeking": "either",
+                    "visibility": "circles",
+                }
+            )
+
+        assert "title" in excinfo.value.messages
