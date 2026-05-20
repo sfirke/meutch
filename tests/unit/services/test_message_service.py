@@ -5,7 +5,7 @@ import pytest
 from app import db
 from app.models import Message
 from app.services import message_service
-from app.services.exceptions import AuthorizationError
+from app.services.exceptions import AuthorizationError, InvalidActionError
 from tests.factories import ItemFactory, ItemRequestFactory, MessageFactory, UserFactory
 
 
@@ -60,6 +60,36 @@ class TestMessageService:
             assert reply.circle_id is None
             assert reply.sender_id == requester.id
             assert reply.recipient_id == helper.id
+
+    def test_start_item_conversation_rejects_self_messaging(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            item = ItemFactory(owner=owner)
+
+            with pytest.raises(InvalidActionError, match="own item"):
+                message_service.start_item_conversation(item, owner, "Checking in")
+
+    def test_start_item_conversation_rejects_invisible_item(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            viewer = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=False)
+
+            with pytest.raises(AuthorizationError, match="message the owner about this item"):
+                message_service.start_item_conversation(item, viewer, "I can pick this up")
+
+    def test_start_request_conversation_rejects_invisible_request(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            viewer = UserFactory()
+            item_request = ItemRequestFactory(user=owner, visibility="circles")
+
+            with pytest.raises(AuthorizationError, match="message this request owner"):
+                message_service.start_request_conversation(
+                    item_request,
+                    viewer,
+                    "I can help",
+                )
 
     def test_get_conversation_thread_state_rejects_non_participant(self, app):
         with app.app_context():

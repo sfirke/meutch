@@ -1,9 +1,16 @@
 """Current-user profile and settings schemas for API v1."""
 
-from marshmallow import fields
+from marshmallow import ValidationError, fields, validate, validates_schema
 
-from app.api.v1.schemas.base import ApiDateTime, ApiSchema
+from app.api.v1.schemas.base import (
+    ApiBoolean,
+    ApiDateTime,
+    ApiSchema,
+    ApiUploadedFile,
+    validate_location_method_fields,
+)
 from app.api.v1.schemas.users import UserIdentitySchema
+from app.models import User, UserWebLink
 
 
 class UserWebLinkSchema(ApiSchema):
@@ -63,3 +70,106 @@ class CurrentUserSettingsResponseSchema(ApiSchema):
     """Wrapper for the authenticated user's settings response."""
 
     settings = fields.Nested(UserSettingsSchema(), required=True)
+
+
+class UserWebLinkWriteSchema(ApiSchema):
+    """Write payload for an ordered external profile link."""
+
+    platform = fields.String(
+        required=True,
+        validate=validate.OneOf([choice[0] for choice in UserWebLink.PLATFORM_CHOICES]),
+    )
+    custom_name = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=50),
+    )
+    url = fields.Url(required=True, validate=validate.Length(max=500))
+
+    @validates_schema
+    def validate_custom_name(self, data, **kwargs):
+        if data["platform"] == "other":
+            custom_name = data.get("custom_name")
+            if custom_name is None or not custom_name.strip():
+                raise ValidationError(
+                    {"custom_name": ['This field is required when platform is "other".']}
+                )
+
+
+class ProfileUpdateSchema(ApiSchema):
+    """Write payload for the authenticated user's profile."""
+
+    about_me = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=500),
+    )
+    delete_image = ApiBoolean(load_default=False)
+    profile_image = ApiUploadedFile(load_default=None, allow_none=True)
+    links = fields.List(fields.Nested(UserWebLinkWriteSchema()), load_default=list)
+
+
+class SettingsUpdateSchema(ApiSchema):
+    """Write payload for digest settings and vacation mode."""
+
+    vacation_mode = ApiBoolean(required=True)
+    digest_frequency = fields.String(
+        required=True,
+        validate=validate.OneOf(User.DIGEST_FREQUENCY_CHOICES),
+    )
+    digest_radius_miles = fields.Integer(required=True, validate=validate.Range(min=1, max=50))
+    digest_include_giveaways = ApiBoolean(required=True)
+    digest_include_requests = ApiBoolean(required=True)
+    digest_include_circle_joins = ApiBoolean(required=True)
+    digest_include_loans = ApiBoolean(required=True)
+    digest_giveaways_include_public = ApiBoolean(required=True)
+    digest_requests_include_public = ApiBoolean(required=True)
+
+
+class LocationUpdateSchema(ApiSchema):
+    """Write payload for the authenticated user's location."""
+
+    location_method = fields.String(
+        required=True,
+        validate=validate.OneOf(["address", "coordinates", "remove"]),
+    )
+    street = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=200))
+    city = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=100))
+    state = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=100))
+    zip_code = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=20),
+    )
+    country = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=100),
+    )
+    latitude = fields.Float(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Range(min=-90, max=90),
+    )
+    longitude = fields.Float(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Range(min=-180, max=180),
+    )
+
+    @validates_schema
+    def validate_location_fields(self, data, **kwargs):
+        validate_location_method_fields(data)
+
+
+class DeleteAccountSchema(ApiSchema):
+    """Write payload for confirmed account deletion."""
+
+    confirmation = fields.String(required=True, validate=validate.Length(max=50))
+
+    @validates_schema
+    def validate_confirmation(self, data, **kwargs):
+        if data["confirmation"] != "DELETE MY ACCOUNT":
+            raise ValidationError(
+                {"confirmation": ['You must type "DELETE MY ACCOUNT" exactly to confirm deletion.']}
+            )

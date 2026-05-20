@@ -4,7 +4,13 @@ from datetime import UTC, datetime
 
 from app import db
 from app.models import ItemRequest
-from app.services.exceptions import AuthorizationError, ConflictError
+from app.services.exceptions import AuthorizationError, ConflictError, InformationalError
+
+PUBLIC_REQUEST_LOCATION_MESSAGE = (
+    "You must set your location before making a request public. "
+    "Public requests are visible to everyone on Meutch and users will have no idea where you "
+    "are located. Please update your location in your profile settings."
+)
 
 
 def _normalize_description(description):
@@ -21,7 +27,14 @@ def _ensure_request_owner(item_request, acting_user):
         raise AuthorizationError("You are not allowed to modify this request.")
 
 
+def _ensure_public_request_owner_is_geocoded(owner, visibility):
+    if visibility == "public" and not owner.is_geocoded:
+        raise InformationalError(PUBLIC_REQUEST_LOCATION_MESSAGE)
+
+
 def create_request(owner, title, description, expires_on, seeking, visibility):
+    _ensure_public_request_owner_is_geocoded(owner, visibility)
+
     item_request = ItemRequest(
         user_id=owner.id,
         title=title.strip(),
@@ -37,6 +50,7 @@ def create_request(owner, title, description, expires_on, seeking, visibility):
 
 def update_request(item_request, acting_user, title, description, expires_on, seeking, visibility):
     _ensure_request_owner(item_request, acting_user)
+    _ensure_public_request_owner_is_geocoded(acting_user, visibility)
     if item_request.status == "deleted":
         raise ConflictError("This request has already been removed.")
 

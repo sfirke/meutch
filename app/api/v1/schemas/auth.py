@@ -1,8 +1,8 @@
 """Authentication API schemas."""
 
-from marshmallow import ValidationError, fields, validate, validates_schema
+from marshmallow import fields, validate, validates_schema
 
-from app.api.v1.schemas.base import ApiDateTime, ApiSchema
+from app.api.v1.schemas.base import ApiDateTime, ApiSchema, validate_location_method_fields
 from app.api.v1.schemas.users import UserIdentitySchema
 from app.models import User
 
@@ -47,32 +47,7 @@ class RegisterRequestSchema(ApiSchema):
 
     @validates_schema
     def validate_location_fields(self, data, **kwargs):
-        location_method = data["location_method"]
-
-        if location_method == "address":
-            required_fields = ["street", "city", "state", "zip_code", "country"]
-            errors = {}
-            for field_name in required_fields:
-                field_value = data.get(field_name)
-                if field_value is None or not str(field_value).strip():
-                    errors[field_name] = [
-                        "This field is required when location_method is 'address'."
-                    ]
-            if errors:
-                raise ValidationError(errors)
-
-        if location_method == "coordinates":
-            errors = {}
-            if data.get("latitude") is None:
-                errors["latitude"] = [
-                    "This field is required when location_method is 'coordinates'."
-                ]
-            if data.get("longitude") is None:
-                errors["longitude"] = [
-                    "This field is required when location_method is 'coordinates'."
-                ]
-            if errors:
-                raise ValidationError(errors)
+        validate_location_method_fields(data)
 
 
 class EmailRequestSchema(ApiSchema):

@@ -1,9 +1,13 @@
 """Request read schemas for API v1."""
 
-from marshmallow import fields
+from datetime import date
+
+from dateutil.relativedelta import relativedelta
+from marshmallow import ValidationError, fields, validate, validates_schema
 
 from app.api.v1.schemas.base import ApiDateTime, ApiSchema
 from app.api.v1.schemas.users import UserSummarySchema
+from app.models import ItemRequest
 
 
 class RequestConversationMessageSchema(ApiSchema):
@@ -47,3 +51,36 @@ class ItemRequestDetailResponseSchema(ApiSchema):
 
     request = fields.Nested(ItemRequestSummarySchema(), required=True)
     conversations = fields.Nested(RequestConversationSummarySchema(), many=True, required=True)
+
+
+class RequestWritePayloadSchema(ApiSchema):
+    """Write payload for request create and update endpoints."""
+
+    title = fields.String(required=True, validate=validate.Length(max=100))
+    description = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=1000),
+    )
+    expires_at = fields.Date(required=True)
+    seeking = fields.String(
+        required=True,
+        validate=validate.OneOf([choice[0] for choice in ItemRequest.SEEKING_CHOICES]),
+    )
+    visibility = fields.String(
+        required=True,
+        validate=validate.OneOf([choice[0] for choice in ItemRequest.VISIBILITY_CHOICES]),
+    )
+
+    @validates_schema
+    def validate_expires_at(self, data, **kwargs):
+        expires_at = data["expires_at"]
+        today = date.today()
+        max_date = today + relativedelta(months=6)
+
+        if expires_at < today:
+            raise ValidationError({"expires_at": ["Expiration date cannot be in the past."]})
+        if expires_at > max_date:
+            raise ValidationError(
+                {"expires_at": ["Expiration date cannot be more than 6 months from today."]}
+            )

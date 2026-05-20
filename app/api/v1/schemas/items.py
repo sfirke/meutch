@@ -1,8 +1,8 @@
 """Item-focused API schemas."""
 
-from marshmallow import fields
+from marshmallow import ValidationError, fields, validate, validates_schema
 
-from app.api.v1.schemas.base import ApiDateTime, ApiSchema
+from app.api.v1.schemas.base import ApiBoolean, ApiDateTime, ApiSchema, ApiUploadedFile
 from app.api.v1.schemas.reference import CategorySchema, TagSchema
 from app.api.v1.schemas.users import UserSummarySchema
 
@@ -88,3 +88,86 @@ class ItemDetailResponseSchema(ApiSchema):
 
     item = fields.Nested(ItemDetailSchema(), required=True)
     viewer = fields.Nested(ItemViewerStateSchema(), required=True)
+
+
+class ItemWritePayloadSchema(ApiSchema):
+    """Write payload for item create and update endpoints."""
+
+    name = fields.String(required=True, validate=validate.Length(max=100))
+    description = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=500),
+    )
+    category_id = fields.UUID(required=True)
+    tags = fields.List(fields.String(validate=validate.Length(max=50)), load_default=list)
+    is_giveaway = ApiBoolean(required=True)
+    giveaway_visibility = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.OneOf(["default", "public"]),
+    )
+    images = fields.List(ApiUploadedFile(), load_default=list)
+
+    @validates_schema
+    def validate_giveaway_visibility(self, data, **kwargs):
+        if data["is_giveaway"] and not data.get("giveaway_visibility"):
+            raise ValidationError(
+                {"giveaway_visibility": ["This field is required when is_giveaway is true."]}
+            )
+
+
+class ItemImagesUploadSchema(ApiSchema):
+    """Write payload for appending new item images."""
+
+    images = fields.List(ApiUploadedFile(), required=True, validate=validate.Length(min=1))
+
+
+class ItemImageOrderSchema(ApiSchema):
+    """Write payload for reordering item images."""
+
+    image_ids = fields.List(fields.UUID(), required=True, validate=validate.Length(min=1))
+
+
+class GiveawayInterestCreateSchema(ApiSchema):
+    """Write payload for expressing giveaway interest."""
+
+    message = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=500),
+    )
+
+
+class GiveawayRecipientSelectionSchema(ApiSchema):
+    """Write payload for selecting a giveaway recipient."""
+
+    selection_method = fields.String(
+        required=True,
+        validate=validate.OneOf(["first", "random", "manual"]),
+    )
+    user_id = fields.UUID(load_default=None, allow_none=True)
+
+    @validates_schema
+    def validate_manual_user_id(self, data, **kwargs):
+        if data["selection_method"] == "manual" and data.get("user_id") is None:
+            raise ValidationError(
+                {"user_id": ["This field is required when selection_method is 'manual'."]}
+            )
+
+
+class GiveawayRecipientChangeSchema(ApiSchema):
+    """Write payload for changing a giveaway recipient."""
+
+    selection_method = fields.String(
+        required=True,
+        validate=validate.OneOf(["next", "random", "manual"]),
+    )
+    user_id = fields.UUID(load_default=None, allow_none=True)
+
+    @validates_schema
+    def validate_manual_user_id(self, data, **kwargs):
+        if data["selection_method"] == "manual" and data.get("user_id") is None:
+            raise ValidationError(
+                {"user_id": ["This field is required when selection_method is 'manual'."]}
+            )

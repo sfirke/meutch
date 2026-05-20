@@ -5,7 +5,7 @@ import pytest
 from app import db
 from app.models import ItemRequest
 from app.services import request_service
-from app.services.exceptions import AuthorizationError, ConflictError
+from app.services.exceptions import AuthorizationError, ConflictError, InformationalError
 from tests.factories import ItemRequestFactory, UserFactory
 
 
@@ -34,9 +34,24 @@ class TestRequestService:
             assert db_item_request.visibility == "circles"
             assert db_item_request.status == "open"
 
+    def test_create_request_rejects_public_request_for_non_geocoded_owner(self, app):
+        with app.app_context():
+            owner = UserFactory(latitude=None, longitude=None)
+            expires_on = date.today() + timedelta(days=30)
+
+            with pytest.raises(InformationalError, match="making a request public"):
+                request_service.create_request(
+                    owner,
+                    "Need a shovel",
+                    "Soon",
+                    expires_on,
+                    "either",
+                    "public",
+                )
+
     def test_update_request_updates_request_for_owner(self, app):
         with app.app_context():
-            owner = UserFactory()
+            owner = UserFactory(latitude=40.7128, longitude=-74.0060)
             item_request = ItemRequestFactory(user=owner, title="Old title")
             expires_on = date.today() + timedelta(days=45)
 

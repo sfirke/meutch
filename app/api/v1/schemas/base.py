@@ -1,10 +1,100 @@
 """Shared Marshmallow schema primitives for the API."""
 
-from marshmallow import Schema, fields, pre_load
+import json
+
+from marshmallow import Schema, ValidationError, fields, pre_load
+from werkzeug.datastructures import FileStorage
+
+_JSON_NOT_PARSED = object()
+_API_BOOLEAN_TRUTHY = {
+    True,
+    1,
+    "1",
+    "true",
+    "True",
+    "TRUE",
+    "t",
+    "T",
+    "yes",
+    "Yes",
+    "YES",
+    "y",
+    "Y",
+    "on",
+    "On",
+    "ON",
+}
+_API_BOOLEAN_FALSY = {
+    False,
+    0,
+    "0",
+    "false",
+    "False",
+    "FALSE",
+    "f",
+    "F",
+    "no",
+    "No",
+    "NO",
+    "n",
+    "N",
+    "off",
+    "Off",
+    "OFF",
+}
+
+
+class ApiBoolean(fields.Boolean):
+    """Boolean field with stable HTML and mobile string coercion."""
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("truthy", _API_BOOLEAN_TRUTHY)
+        kwargs.setdefault("falsy", _API_BOOLEAN_FALSY)
+        super().__init__(*args, **kwargs)
+
+
+class ApiUploadedFile(fields.Field):
+    """Validate an uploaded file while preserving the original FileStorage object."""
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if value is None:
+            return None
+
+        if not isinstance(value, FileStorage):
+            raise ValidationError("Not a valid uploaded file.")
+
+        if not (value.filename or "").strip():
+            raise ValidationError("Not a valid uploaded file.")
+
+        return value
+
+
+def validate_location_method_fields(data, *, location_method_field="location_method"):
+    """Require address or coordinate fields based on the selected location method."""
+    location_method = data.get(location_method_field)
+    errors = {}
+
+    if location_method == "address":
+        for field_name in ("street", "city", "state", "zip_code", "country"):
+            field_value = data.get(field_name)
+            if field_value is None or not str(field_value).strip():
+                errors[field_name] = [
+                    f"This field is required when {location_method_field} is 'address'."
+                ]
+
+    if location_method == "coordinates":
+        for field_name in ("latitude", "longitude"):
+            if data.get(field_name) is None:
+                errors[field_name] = [
+                    f"This field is required when {location_method_field} is 'coordinates'."
+                ]
+
+    if errors:
+        raise ValidationError(errors)
 
 
 class ApiSchema(Schema):
-    """Base schema for API response serialization."""
+    """Base schema for API request and response serialization."""
 
     @pre_load
     def normalize_multidict(self, data, **kwargs):
@@ -16,20 +106,71 @@ class ApiSchema(Schema):
         else:
             return data
 
-        normalized = {}
-        for key, value in raw_data.items():
-            field_name = self._get_field_name_for_input_key(key)
-            field = self.fields.get(field_name)
+        return {
+            key: self._normalize_input_value(
+                self.fields.get(self._get_field_name_for_input_key(key)),
+                value,
+            )
+            for key, value in raw_data.items()
+        }
 
-            if isinstance(value, list):
-                if isinstance(field, fields.List):
-                    normalized[key] = value
-                else:
-                    normalized[key] = value[-1] if value else None
-            else:
-                normalized[key] = value
+    def _normalize_input_value(self, field, value):
+        if isinstance(value, list):
+            if isinstance(field, fields.List):
+                return self._normalize_list_value(field, value)
+            return self._normalize_scalar_value(field, value[-1] if value else None)
 
-        return normalized
+        return self._normalize_scalar_value(field, value)
+
+    def _normalize_list_value(self, field, value):
+        normalized_values = [entry for entry in value if not self._is_empty_upload(entry)]
+
+        if len(normalized_values) == 1:
+            parsed_value = self._parse_json_value(field, normalized_values[0])
+            if parsed_value is not _JSON_NOT_PARSED:
+                return parsed_value
+
+        return normalized_values
+
+    def _normalize_scalar_value(self, field, value):
+        if self._is_empty_upload(value):
+            return None
+
+        parsed_value = self._parse_json_value(field, value)
+        if parsed_value is not _JSON_NOT_PARSED:
+            return parsed_value
+
+        return value
+
+    def _parse_json_value(self, field, value):
+        if not isinstance(value, str) or field is None:
+            return _JSON_NOT_PARSED
+
+        stripped_value = value.strip()
+        if not stripped_value:
+            return _JSON_NOT_PARSED
+
+        if isinstance(field, fields.List) and stripped_value.startswith("["):
+            return self._load_json_value(stripped_value, list)
+
+        if isinstance(field, fields.Nested) and stripped_value.startswith("{"):
+            return self._load_json_value(stripped_value, dict)
+
+        return _JSON_NOT_PARSED
+
+    def _load_json_value(self, value, expected_type):
+        try:
+            parsed_value = json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            return _JSON_NOT_PARSED
+
+        if not isinstance(parsed_value, expected_type):
+            return _JSON_NOT_PARSED
+
+        return parsed_value
+
+    def _is_empty_upload(self, value):
+        return isinstance(value, FileStorage) and not (value.filename or "").strip()
 
     def _get_field_name_for_input_key(self, key):
         for field_name, field in self.fields.items():

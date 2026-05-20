@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 from flask_jwt_extended import create_access_token
+from werkzeug.datastructures import MultiDict
 
 from app import db
 from app.models import ApiTokenFamily
@@ -36,6 +37,29 @@ class TestApiAuth:
         assert payload["refresh_token"]
         assert payload["user"]["email"] == user_email
         assert payload["user"]["email_confirmed"] is True
+
+    def test_login_accepts_form_encoded_body(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            db.session.commit()
+            user_email = user.email
+
+        response = client.post(
+            "/api/v1/auth/login",
+            data=MultiDict(
+                [
+                    ("email", user_email),
+                    ("password", "testpassword123"),
+                ]
+            ),
+            content_type="application/x-www-form-urlencoded",
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["access_token"]
+        assert payload["refresh_token"]
+        assert payload["user"]["email"] == user_email
 
     def test_login_rejects_invalid_credentials(self, client, app):
         with app.app_context():

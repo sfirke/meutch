@@ -1,8 +1,14 @@
 """Circle read schemas for API v1."""
 
-from marshmallow import fields
+from marshmallow import fields, validate, validates_schema
 
-from app.api.v1.schemas.base import ApiDateTime, ApiSchema
+from app.api.v1.schemas.base import (
+    ApiBoolean,
+    ApiDateTime,
+    ApiSchema,
+    ApiUploadedFile,
+    validate_location_method_fields,
+)
 from app.api.v1.schemas.users import UserSummarySchema
 
 
@@ -94,3 +100,61 @@ class CircleDetailResponseSchema(ApiSchema):
     """Wrapper for circle detail responses."""
 
     circle = fields.Nested(CircleDetailSchema(), required=True)
+
+
+class CircleWritePayloadSchema(ApiSchema):
+    """Write payload for circle create and update endpoints."""
+
+    name = fields.String(required=True, validate=validate.Length(max=100))
+    description = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=500),
+    )
+    circle_type = fields.String(
+        required=True,
+        validate=validate.OneOf(["open", "closed", "secret"]),
+    )
+    delete_image = ApiBoolean(load_default=False)
+    image = ApiUploadedFile(load_default=None, allow_none=True)
+    location_method = fields.String(
+        required=True,
+        validate=validate.OneOf(["address", "coordinates", "skip"]),
+    )
+    street = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=200))
+    city = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=100))
+    state = fields.String(load_default=None, allow_none=True, validate=validate.Length(max=100))
+    zip_code = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=20),
+    )
+    country = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=100),
+    )
+    latitude = fields.Float(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Range(min=-90, max=90),
+    )
+    longitude = fields.Float(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Range(min=-180, max=180),
+    )
+
+    @validates_schema
+    def validate_location_fields(self, data, **kwargs):
+        validate_location_method_fields(data)
+
+
+class CircleJoinRequestCreateSchema(ApiSchema):
+    """Write payload for submitting a circle join request."""
+
+    message = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=500),
+    )
