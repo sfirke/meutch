@@ -13,14 +13,12 @@ from app.forms import (
     WithdrawInterestForm,
 )
 from app.main import bp as main_bp
-from app.models import GiveawayInterest, Item, LoanRequest, Message
+from app.models import GiveawayInterest, Item, Message
 from app.services import item_service, message_service
 from app.services.exceptions import AuthorizationError, ConflictError
-from app.utils.giveaway_visibility import (
-    can_view_claimed_giveaway,
-    get_unavailable_giveaway_suggestions,
-)
-from app.utils.item_share import ITEM_SHARE_TOKEN_MAX_AGE_DAYS, token_grants_item_access
+from app.utils.giveaway_visibility import get_unavailable_giveaway_suggestions
+from app.utils.item_share import ITEM_SHARE_TOKEN_MAX_AGE_DAYS
+from app.utils.item_visibility import build_item_access_state
 from app.utils.storage import MAX_ITEM_IMAGE_COUNT
 
 from .helpers import (
@@ -92,29 +90,17 @@ def list_item():
 def item_detail(item_id):
     item = db.get_or_404(Item, item_id)
     share_token = request.values.get("share_token", "").strip() or None
-    has_token_access = False
-    shares_circle_with_owner = False
+    access_state = build_item_access_state(item, current_user, share_token=share_token)
+    has_token_access = access_state["has_token_access"]
+    shares_circle_with_owner = access_state["shares_circle_with_owner"]
 
-    if not item.is_giveaway and item.owner_id != current_user.id:
-        has_token_access = token_grants_item_access(share_token, item)
-        shares_circle_with_owner = current_user.shares_circle_with(item.owner)
-        is_active_borrower = (
-            LoanRequest.query.filter_by(
-                item_id=item.id,
-                borrower_id=current_user.id,
-                status="approved",
-            ).first()
-            is not None
-        )
-        if not shares_circle_with_owner and not has_token_access and not is_active_borrower:
-            abort(403)
-
-    if item.is_giveaway and item.claim_status == "claimed":
-        if not can_view_claimed_giveaway(item, current_user):
+    if not access_state["can_view"]:
+        if access_state["claimed_unavailable"]:
             suggestions = get_unavailable_giveaway_suggestions(
                 current_user, exclude_item_id=item.id
             )
             return render_template("main/item_unavailable.html", suggestions=suggestions)
+        abort(403)
 
     form = MessageForm()
     express_interest_form = ExpressInterestForm()

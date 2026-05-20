@@ -85,3 +85,21 @@ class TestMessageService:
             assert thread_state["has_unread_messages"] is True
             db.session.expire_all()
             assert db.session.get(Message, message.id).is_read is True
+
+    def test_get_conversation_thread_state_can_skip_mark_read(self, app):
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            item = ItemFactory(owner=sender)
+            message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
+            db.session.commit()
+
+            thread_state = message_service.get_conversation_thread_state(
+                message,
+                recipient.id,
+                mark_read=False,
+            )
+
+            assert thread_state["has_unread_messages"] is True
+            db.session.expire_all()
+            assert db.session.get(Message, message.id).is_read is False
