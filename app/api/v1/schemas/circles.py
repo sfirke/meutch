@@ -1,8 +1,15 @@
 """Circle read schemas for API v1."""
 
-from marshmallow import fields
+from marshmallow import fields, validate, validates_schema
 
-from app.api.v1.schemas.base import ApiDateTime, ApiSchema
+from app.api.v1.schemas.base import (
+    ApiBoolean,
+    ApiDateTime,
+    ApiSchema,
+    ApiUploadedFile,
+    LocationFieldsMixin,
+    validate_location_method_fields,
+)
 from app.api.v1.schemas.users import UserSummarySchema
 
 
@@ -94,3 +101,38 @@ class CircleDetailResponseSchema(ApiSchema):
     """Wrapper for circle detail responses."""
 
     circle = fields.Nested(CircleDetailSchema(), required=True)
+
+
+class CircleWritePayloadSchema(LocationFieldsMixin, ApiSchema):
+    """Write payload for circle create and update endpoints."""
+
+    name = fields.String(required=True, validate=validate.Length(min=1, max=100))
+    description = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=500),
+    )
+    circle_type = fields.String(
+        required=True,
+        validate=validate.OneOf(["open", "closed", "secret"]),
+    )
+    delete_image = ApiBoolean(load_default=False)
+    image = ApiUploadedFile(load_default=None, allow_none=True)
+    location_method = fields.String(
+        required=True,
+        validate=validate.OneOf(["address", "coordinates", "skip"]),
+    )
+
+    @validates_schema
+    def validate_location_fields(self, data, **kwargs):
+        validate_location_method_fields(data)
+
+
+class CircleJoinRequestCreateSchema(ApiSchema):
+    """Write payload for submitting a circle join request."""
+
+    message = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=500),
+    )

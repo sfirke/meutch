@@ -10,7 +10,12 @@ from app.forms import EmptyForm, ItemRequestForm, MessageForm
 from app.models import ItemRequest
 from app.requests import bp as requests_bp
 from app.services import message_service, request_service
-from app.services.exceptions import AuthorizationError, ConflictError
+from app.services.exceptions import (
+    AuthorizationError,
+    ConflictError,
+    InformationalError,
+    InvalidActionError,
+)
 from app.utils.messaging_queries import (
     build_request_conversation_summaries,
     find_request_conversation_message,
@@ -36,14 +41,18 @@ def new():
         form.expires_at.data = (datetime.now() + timedelta(days=30)).date()
 
     if form.validate_on_submit():
-        request_service.create_request(
-            current_user,
-            form.title.data,
-            form.description.data,
-            form.expires_at.data,
-            form.seeking.data,
-            form.visibility.data,
-        )
+        try:
+            request_service.create_request(
+                current_user,
+                form.title.data,
+                form.description.data,
+                form.expires_at.data,
+                form.seeking.data,
+                form.visibility.data,
+            )
+        except InformationalError as exc:
+            form.visibility.errors.append(str(exc))
+            return render_template("requests/new.html", form=form)
 
         flash("Your request has been posted!", "success")
         return redirect(url_for("requests.feed"))
@@ -88,6 +97,9 @@ def edit(request_id):
             abort(403)
         except ConflictError:
             abort(404)
+        except InformationalError as exc:
+            form.visibility.errors.append(str(exc))
+            return render_template("requests/edit.html", form=form, item_request=item_request)
 
         flash("Your request has been updated.", "success")
         return redirect(url_for("requests.feed"))
@@ -173,17 +185,21 @@ def conversation(request_id):
     if not item_request or item_request.status == "deleted":
         abort(404)
 
-    if item_request.user_id == current_user.id:
-        flash("You cannot message yourself about your own request.", "warning")
+    try:
+        recipient_id = message_service.get_request_conversation_recipient_id(
+            item_request,
+            current_user,
+        )
+    except InvalidActionError as exc:
+        flash(str(exc), "warning")
         return redirect(url_for("requests.detail", request_id=item_request.id))
-
-    if not can_view_request(item_request, current_user):
+    except AuthorizationError:
         abort(403)
 
     existing_message = find_request_conversation_message(
         item_request.id,
         current_user.id,
-        item_request.user_id,
+        recipient_id,
     )
 
     if existing_message:
@@ -191,11 +207,10 @@ def conversation(request_id):
 
     form = MessageForm()
     if form.validate_on_submit():
-        message = message_service.create_message(
-            current_user.id,
-            item_request.user_id,
+        message = message_service.start_request_conversation(
+            item_request,
+            current_user,
             form.body.data,
-            request_id=item_request.id,
         )
 
         flash("Your message has been sent.", "success")

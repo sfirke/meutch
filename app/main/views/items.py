@@ -15,7 +15,12 @@ from app.forms import (
 from app.main import bp as main_bp
 from app.models import GiveawayInterest, Item, Message
 from app.services import item_service, message_service
-from app.services.exceptions import AuthorizationError, ConflictError
+from app.services.exceptions import (
+    AuthorizationError,
+    ConflictError,
+    InformationalError,
+    InvalidActionError,
+)
 from app.utils.giveaway_visibility import get_unavailable_giveaway_suggestions
 from app.utils.item_share import ITEM_SHARE_TOKEN_MAX_AGE_DAYS
 from app.utils.item_visibility import build_item_access_state
@@ -55,6 +60,9 @@ def list_item():
                 form.tags.data,
                 uploaded_files,
             )
+        except InformationalError as exc:
+            form.giveaway_visibility.errors.append(str(exc))
+            return render_template("main/list_item.html", form=form)
         except ValueError:
             flash(
                 "Image upload failed. Please ensure you upload valid image files (JPG, PNG, GIF, etc.).",
@@ -107,12 +115,18 @@ def item_detail(item_id):
     withdraw_interest_form = WithdrawInterestForm()
 
     if form.validate_on_submit():
-        message_service.create_message(
-            current_user.id,
-            item.owner.id,
-            form.body.data,
-            item_id=item.id,
-        )
+        try:
+            message_service.start_item_conversation(
+                item,
+                current_user,
+                form.body.data,
+                share_token=share_token,
+            )
+        except InvalidActionError as exc:
+            flash(str(exc), "warning")
+            return redirect(_build_item_detail_url(item.id, share_token))
+        except AuthorizationError:
+            abort(403)
 
         flash("Your message has been sent.", "success")
         return redirect(_build_item_detail_url(item.id, share_token))
@@ -216,6 +230,9 @@ def edit_item(item_id):
                 delete_entries,
                 order_entries,
             )
+        except InformationalError as exc:
+            form.giveaway_visibility.errors.append(str(exc))
+            return render_template("main/edit_item.html", form=form, item=item)
         except ConflictError as exc:
             form.is_giveaway.errors.append(str(exc))
             return render_template("main/edit_item.html", form=form, item=item)

@@ -1,11 +1,16 @@
 """Integration tests for shared API error and response helpers."""
 
+from io import BytesIO
+
 import pytest
 from flask import request
-from marshmallow import ValidationError
+from marshmallow import ValidationError, fields
+from werkzeug.datastructures import MultiDict
 
 from app.api.v1 import bp as api_v1_bp
+from app.api.v1.parsing import load_request_data
 from app.api.v1.responses import build_collection_response
+from app.api.v1.schemas.base import ApiBoolean, ApiSchema, ApiUploadedFile
 from app.services.exceptions import (
     AuthorizationError,
     ConflictError,
@@ -50,6 +55,37 @@ def api_test_paginated_response():
     ]
     pagination = ListPagination(items=items, page=2, per_page=2)
     return build_collection_response("items", pagination.items, pagination=pagination)
+
+
+class ApiTestLinkSchema(ApiSchema):
+    """Schema used to exercise list and JSON form parsing in API tests."""
+
+    platform = fields.String(required=True)
+    url = fields.String(required=True)
+
+
+class ApiTestParsedBodySchema(ApiSchema):
+    """Schema used to verify shared request parsing across content types."""
+
+    enabled = ApiBoolean(required=True)
+    tags = fields.List(fields.String(), required=True)
+    links = fields.List(fields.Nested(ApiTestLinkSchema()), load_default=list)
+    images = fields.List(ApiUploadedFile(), load_default=list)
+
+
+TEST_PARSED_BODY_SCHEMA = ApiTestParsedBodySchema()
+
+
+@api_v1_bp.post("/__tests__/parsed-body")
+def api_test_parsed_body():
+    """Echo parsed request data so parsing behavior can be asserted end to end."""
+    data = load_request_data(TEST_PARSED_BODY_SCHEMA)
+    return {
+        "enabled": data["enabled"],
+        "tags": data["tags"],
+        "links": data["links"],
+        "image_names": [uploaded_file.filename for uploaded_file in data["images"]],
+    }
 
 
 class TestApiFoundation:
@@ -146,6 +182,54 @@ class TestApiFoundation:
                 "code": "VALIDATION_ERROR",
                 "message": "Input validation failed.",
                 "details": {"name": ["Missing data for required field."]},
+            }
+        }
+
+    def test_body_parser_loads_multipart_lists_files_and_json_arrays(self, client):
+        """Multipart bodies should preserve repeated values, uploads, and JSON list fields."""
+        response = client.post(
+            "/api/v1/__tests__/parsed-body",
+            data=MultiDict(
+                [
+                    ("enabled", "on"),
+                    ("tags", "ladders"),
+                    ("tags", "paint"),
+                    (
+                        "links",
+                        '[{"platform": "website", "url": "https://example.com/help"}]',
+                    ),
+                    ("images", (BytesIO(b"file-one"), "first.jpg")),
+                    ("images", (BytesIO(b"file-two"), "second.jpg")),
+                ]
+            ),
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 200
+        assert response.get_json() == {
+            "enabled": True,
+            "tags": ["ladders", "paint"],
+            "links": [{"platform": "website", "url": "https://example.com/help"}],
+            "image_names": ["first.jpg", "second.jpg"],
+        }
+
+    def test_body_parser_validation_errors_use_shared_422_response(self, client):
+        """Schema validation failures from the shared parser should keep the API error shape."""
+        response = client.post(
+            "/api/v1/__tests__/parsed-body",
+            data={"enabled": "sometimes"},
+            content_type="application/x-www-form-urlencoded",
+        )
+
+        assert response.status_code == 422
+        assert response.get_json() == {
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Input validation failed.",
+                "details": {
+                    "enabled": ["Not a valid boolean."],
+                    "tags": ["Missing data for required field."],
+                },
             }
         }
 
