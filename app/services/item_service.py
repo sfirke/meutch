@@ -1,12 +1,20 @@
+from dataclasses import dataclass
+
 from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models import GiveawayInterest, Item, ItemImage, LoanRequest, Message, Tag
-from app.services.exceptions import AuthorizationError, ConflictError, InformationalError
+from app.services.exceptions import AuthorizationError, ConflictError
 from app.utils.storage import delete_item_images, upload_item_images
 
 
-def get_item_by_creation_token(owner_id, creation_token):
+@dataclass
+class ItemCreationResult:
+    item: Item
+    was_created: bool
+
+
+def _get_item_by_creation_token(owner_id, creation_token):
     if creation_token is None:
         return None
 
@@ -114,9 +122,9 @@ def create_item(
     uploaded_files,
     creation_token=None,
 ):
-    existing_item = get_item_by_creation_token(owner.id, creation_token)
+    existing_item = _get_item_by_creation_token(owner.id, creation_token)
     if existing_item is not None:
-        raise InformationalError("This item was already listed from your earlier submission.")
+        return ItemCreationResult(item=existing_item, was_created=False)
 
     image_urls = []
     if uploaded_files:
@@ -141,16 +149,14 @@ def create_item(
 
     try:
         db.session.commit()
-    except IntegrityError as exc:
+    except IntegrityError:
         db.session.rollback()
         if image_urls:
             delete_item_images(image_urls)
 
-        existing_item = get_item_by_creation_token(owner.id, creation_token)
+        existing_item = _get_item_by_creation_token(owner.id, creation_token)
         if existing_item is not None:
-            raise InformationalError(
-                "This item was already listed from your earlier submission."
-            ) from exc
+            return ItemCreationResult(item=existing_item, was_created=False)
 
         raise
     except Exception:
@@ -159,7 +165,7 @@ def create_item(
             delete_item_images(image_urls)
         raise
 
-    return new_item
+    return ItemCreationResult(item=new_item, was_created=True)
 
 
 def update_item(
