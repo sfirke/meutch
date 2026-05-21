@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import patch
 
 import pytest
@@ -5,7 +6,7 @@ import pytest
 from app import db
 from app.models import GiveawayInterest, Item, LoanRequest, Message
 from app.services import item_service
-from app.services.exceptions import ConflictError
+from app.services.exceptions import ConflictError, InformationalError
 from tests.factories import (
     CategoryFactory,
     GiveawayInterestFactory,
@@ -46,6 +47,40 @@ class TestItemService:
             ]
             assert {tag.name for tag in db_item.tags} == {"drill", "repair"}
             mock_upload.assert_called_once()
+
+    def test_create_item_reuses_existing_item_when_creation_token_already_exists(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            category = CategoryFactory()
+            creation_token = uuid.uuid4()
+
+            existing_item = ItemFactory(
+                owner=owner,
+                category=category,
+                creation_token=creation_token,
+                name="Cordless Drill",
+            )
+            db.session.commit()
+
+            with patch("app.services.item_service.upload_item_images") as mock_upload_images:
+                with pytest.raises(InformationalError, match="already listed"):
+                    item_service.create_item(
+                        owner,
+                        "Cordless Drill",
+                        "Still works great",
+                        category.id,
+                        False,
+                        None,
+                        "Drill, Repair",
+                        [object()],
+                        creation_token=creation_token,
+                    )
+
+            assert db.session.get(Item, existing_item.id) is not None
+            assert (
+                Item.query.filter_by(owner_id=owner.id, creation_token=creation_token).count() == 1
+            )
+            mock_upload_images.assert_not_called()
 
     def test_update_item_reorders_images_and_replaces_tags(self, app):
         with app.app_context():

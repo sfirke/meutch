@@ -1,3 +1,5 @@
+import uuid
+
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
@@ -15,7 +17,7 @@ from app.forms import (
 from app.main import bp as main_bp
 from app.models import GiveawayInterest, Item, Message
 from app.services import item_service, message_service
-from app.services.exceptions import AuthorizationError, ConflictError
+from app.services.exceptions import AuthorizationError, ConflictError, InformationalError
 from app.utils.giveaway_visibility import get_unavailable_giveaway_suggestions
 from app.utils.item_share import ITEM_SHARE_TOKEN_MAX_AGE_DAYS
 from app.utils.item_visibility import build_item_access_state
@@ -29,11 +31,45 @@ from .helpers import (
 )
 
 
+def _ensure_item_creation_token(form):
+    try:
+        creation_token = uuid.UUID(str(form.creation_token.data))
+    except (AttributeError, TypeError, ValueError):
+        creation_token = uuid.uuid4()
+
+    form.creation_token.data = str(creation_token)
+    return creation_token
+
+
+def _duplicate_item_creation_response(item, submit_and_create_another):
+    from markupsafe import Markup, escape
+
+    item_link = url_for("main.item_detail", item_id=item.id)
+    message = Markup(
+        'We already listed this item from your earlier submission: <a href="{}" class="alert-link">{}</a>.'
+    ).format(item_link, escape(item.name))
+    flash(message, "info")
+
+    if submit_and_create_another:
+        return redirect(url_for("main.list_item"))
+
+    return redirect(url_for("main.index"))
+
+
 @main_bp.route("/list-item", methods=["GET", "POST"])
 @login_required
 def list_item():
     form = ListItemForm()
+    creation_token = _ensure_item_creation_token(form)
+
     if form.validate_on_submit():
+        existing_item = item_service.get_item_by_creation_token(current_user.id, creation_token)
+        if existing_item is not None:
+            return _duplicate_item_creation_response(
+                existing_item,
+                form.submit_and_create_another.data,
+            )
+
         uploaded_files, upload_errors = _collect_item_image_uploads(form.image.data)
         if upload_errors:
             for error in upload_errors:
@@ -54,6 +90,7 @@ def list_item():
                 form.giveaway_visibility.data,
                 form.tags.data,
                 uploaded_files,
+                creation_token=creation_token,
             )
         except ValueError:
             flash(
@@ -61,6 +98,23 @@ def list_item():
                 "error",
             )
             return render_template("main/list_item.html", form=form)
+        except InformationalError:
+            existing_item = item_service.get_item_by_creation_token(current_user.id, creation_token)
+            if existing_item is not None:
+                return _duplicate_item_creation_response(
+                    existing_item,
+                    form.submit_and_create_another.data,
+                )
+
+            current_app.logger.warning(
+                "Duplicate item creation was reported for user %s without a matching creation token row.",
+                current_user.id,
+            )
+            flash(
+                "We could not confirm whether this item was already created. Please check your profile.",
+                "warning",
+            )
+            return redirect(url_for("main.profile", tab="my-items"))
         except Exception as exc:
             current_app.logger.error(
                 f"Failed to create item for user {current_user.id}: {str(exc)}"
