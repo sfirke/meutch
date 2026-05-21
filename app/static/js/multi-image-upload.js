@@ -28,6 +28,7 @@
     var newFiles = new Map();
     var deletedIds = new Set();
     var clickedSubmitBtn = null;
+    var isSubmitting = false;
     var pendingFilesCount = 0;
     var maxImages = parsePositiveInt(container.dataset.maxImages, DEFAULT_MAX_IMAGES);
     var maxFileSize = parsePositiveInt(container.dataset.maxFileSizeBytes, DEFAULT_MAX_FILE_SIZE);
@@ -38,6 +39,15 @@
     var compressMaxWidth = parsePositiveInt(container.dataset.compressMaxWidth, DEFAULT_COMPRESS_MAX_WIDTH);
     var compressMaxHeight = parsePositiveInt(container.dataset.compressMaxHeight, DEFAULT_COMPRESS_MAX_HEIGHT);
     var compressionQuality = parseQuality(container.dataset.compressionQuality, DEFAULT_COMPRESSION_QUALITY);
+    var singleSubmit = form && form.dataset.singleSubmit === 'true';
+
+    function setSubmitControlsDisabled(disabled) {
+      if (!form) return;
+
+      form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (control) {
+        control.disabled = disabled;
+      });
+    }
 
     // Parse existing images from data attribute
     var existingImages = [];
@@ -631,6 +641,13 @@
 
     // Form submission
     if (form) {
+      window.addEventListener('pageshow', function () {
+        isSubmitting = false;
+        if (singleSubmit) {
+          setSubmitControlsDisabled(false);
+        }
+      });
+
       // Track which submit button was clicked
       form.addEventListener('click', function (e) {
         var btn = e.target.closest('button[type=submit], input[type=submit]');
@@ -643,6 +660,11 @@
         if (pendingFilesCount > 0) {
           e.preventDefault();
           showNotification('Please wait for photos to finish processing.', 'warning');
+          return;
+        }
+
+        if (singleSubmit && isSubmitting) {
+          e.preventDefault();
           return;
         }
 
@@ -683,6 +705,11 @@
           hidden.value = clickedSubmitBtn.value;
           hidden.className = 'multi-image-submit-proxy';
           form.appendChild(hidden);
+        }
+
+        if (singleSubmit) {
+          isSubmitting = true;
+          setSubmitControlsDisabled(true);
         }
 
         // Let the form submit naturally

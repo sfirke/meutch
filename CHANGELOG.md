@@ -15,6 +15,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Bug fixes
 - Geocoding now sends structured address components to Nominatim and retries without the postal code when that field blocks an otherwise valid street-level match ([#362](https://github.com/sfirke/meutch/pull/362)).
 - Public giveaways from user without circles now appear in home feed and digest, consistent with how requests are treated ([#369](https://github.com/sfirke/meutch/pull/369)).
+- Fixes to block block dual-item creation: adopt idempotency token, disable form submission button ([#377](https://github.com/sfirke/meutch/pull/377)).
+- Delete item modal is no longer grayed out and untouchable when deleting an item from profile page (fixes #376) ([#377](https://github.com/sfirke/meutch/pull/377)).
+
 
 ### Developer Experience
 - Massive refactor that split `routes.py` into many views and pushed the app logic down into a new service layer ([#352](https://github.com/sfirke/meutch/pull/352)).

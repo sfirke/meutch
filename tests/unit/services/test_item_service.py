@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import patch
 
 import pytest
@@ -27,7 +28,7 @@ class TestItemService:
                 "app.services.item_service.upload_item_images",
                 return_value=["https://example.com/1.jpg", "https://example.com/2.jpg"],
             ) as mock_upload:
-                item = item_service.create_item(
+                result = item_service.create_item(
                     owner,
                     "Cordless Drill",
                     "Still works great",
@@ -38,7 +39,9 @@ class TestItemService:
                     [object(), object()],
                 )
 
-            db_item = db.session.get(Item, item.id)
+            assert result.was_created is True
+
+            db_item = db.session.get(Item, result.item.id)
             assert db_item is not None
             assert [image.url for image in db_item.images] == [
                 "https://example.com/1.jpg",
@@ -63,6 +66,41 @@ class TestItemService:
                     "",
                     [],
                 )
+
+    def test_create_item_reuses_existing_item_when_creation_token_already_exists(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            category = CategoryFactory()
+            creation_token = uuid.uuid4()
+
+            existing_item = ItemFactory(
+                owner=owner,
+                category=category,
+                creation_token=creation_token,
+                name="Cordless Drill",
+            )
+            db.session.commit()
+
+            with patch("app.services.item_service.upload_item_images") as mock_upload_images:
+                result = item_service.create_item(
+                    owner,
+                    "Cordless Drill",
+                    "Still works great",
+                    category.id,
+                    False,
+                    None,
+                    "Drill, Repair",
+                    [object()],
+                    creation_token=creation_token,
+                )
+
+            assert result.was_created is False
+            assert result.item.id == existing_item.id
+            assert db.session.get(Item, existing_item.id) is not None
+            assert (
+                Item.query.filter_by(owner_id=owner.id, creation_token=creation_token).count() == 1
+            )
+            mock_upload_images.assert_not_called()
 
     def test_update_item_reorders_images_and_replaces_tags(self, app):
         with app.app_context():
