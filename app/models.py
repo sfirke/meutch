@@ -352,6 +352,7 @@ class Item(db.Model):
     owner_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False)
     available = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=func.now())
+    creation_token = db.Column(UUID(as_uuid=True), unique=True, nullable=True)
     category_id = db.Column(UUID(as_uuid=True), db.ForeignKey("category.id"), nullable=False)
     loan_requests = db.relationship("LoanRequest", backref="item")
     is_giveaway = db.Column(db.Boolean, nullable=False, default=False, server_default="false")

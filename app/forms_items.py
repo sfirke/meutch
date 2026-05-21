@@ -21,6 +21,7 @@ class ListItemForm(FlaskForm):
     category = SelectField("Category", coerce=str, validators=[DataRequired()])
     tags = StringField("Tags (comma-separated)", validators=[Length(max=200)])
     image = MultipleFileField("Images", validators=[])
+    creation_token = HiddenField("Creation Token", validators=[Optional()])
     delete_images = HiddenField("Delete Images")
     image_order = HiddenField("Image Order")
     is_giveaway = BooleanField("This is a giveaway (free item)")

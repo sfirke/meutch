@@ -1,7 +1,24 @@
+from dataclasses import dataclass
+
+from sqlalchemy.exc import IntegrityError
+
 from app import db
 from app.models import GiveawayInterest, Item, ItemImage, LoanRequest, Message, Tag
 from app.services.exceptions import AuthorizationError, ConflictError
 from app.utils.storage import delete_item_images, upload_item_images
+
+
+@dataclass
+class ItemCreationResult:
+    item: Item
+    was_created: bool
+
+
+def _get_item_by_creation_token(owner_id, creation_token):
+    if creation_token is None:
+        return None
+
+    return Item.query.filter_by(owner_id=owner_id, creation_token=creation_token).first()
 
 
 def get_giveaway_conversion_blocker(item):
@@ -85,12 +102,13 @@ def _sync_item_tags(item, raw_tag_input):
         return
 
     tag_names = [tag.strip().lower() for tag in tag_input.split(",") if tag.strip()]
-    for tag_name in tag_names:
-        tag = Tag.query.filter_by(name=tag_name).first()
-        if not tag:
-            tag = Tag(name=tag_name)
-            db.session.add(tag)
-        item.tags.append(tag)
+    with db.session.no_autoflush:
+        for tag_name in tag_names:
+            tag = Tag.query.filter_by(name=tag_name).first()
+            if not tag:
+                tag = Tag(name=tag_name)
+                db.session.add(tag)
+            item.tags.append(tag)
 
 
 def create_item(
@@ -102,7 +120,12 @@ def create_item(
     giveaway_visibility,
     raw_tag_input,
     uploaded_files,
+    creation_token=None,
 ):
+    existing_item = _get_item_by_creation_token(owner.id, creation_token)
+    if existing_item is not None:
+        return ItemCreationResult(item=existing_item, was_created=False)
+
     image_urls = []
     if uploaded_files:
         image_urls = upload_item_images(uploaded_files)
@@ -112,6 +135,7 @@ def create_item(
         description=description.strip(),
         owner=owner,
         category_id=category_id,
+        creation_token=creation_token,
         is_giveaway=is_giveaway,
         giveaway_visibility=giveaway_visibility if is_giveaway else None,
         claim_status="unclaimed" if is_giveaway else None,
@@ -125,13 +149,23 @@ def create_item(
 
     try:
         db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        if image_urls:
+            delete_item_images(image_urls)
+
+        existing_item = _get_item_by_creation_token(owner.id, creation_token)
+        if existing_item is not None:
+            return ItemCreationResult(item=existing_item, was_created=False)
+
+        raise
     except Exception:
         db.session.rollback()
         if image_urls:
             delete_item_images(image_urls)
         raise
 
-    return new_item
+    return ItemCreationResult(item=new_item, was_created=True)
 
 
 def update_item(

@@ -1,3 +1,5 @@
+import uuid
+
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
@@ -29,10 +31,37 @@ from .helpers import (
 )
 
 
+def _ensure_item_creation_token(form):
+    try:
+        creation_token = uuid.UUID(str(form.creation_token.data))
+    except (AttributeError, TypeError, ValueError):
+        creation_token = uuid.uuid4()
+
+    form.creation_token.data = str(creation_token)
+    return creation_token
+
+
+def _duplicate_item_creation_response(item, submit_and_create_another):
+    from markupsafe import Markup, escape
+
+    item_link = url_for("main.item_detail", item_id=item.id)
+    message = Markup(
+        'We already listed this item from your earlier submission: <a href="{}" class="alert-link">{}</a>.'
+    ).format(item_link, escape(item.name))
+    flash(message, "info")
+
+    if submit_and_create_another:
+        return redirect(url_for("main.list_item"))
+
+    return redirect(url_for("main.index"))
+
+
 @main_bp.route("/list-item", methods=["GET", "POST"])
 @login_required
 def list_item():
     form = ListItemForm()
+    creation_token = _ensure_item_creation_token(form)
+
     if form.validate_on_submit():
         uploaded_files, upload_errors = _collect_item_image_uploads(form.image.data)
         if upload_errors:
@@ -45,7 +74,7 @@ def list_item():
             return render_template("main/list_item.html", form=form)
 
         try:
-            new_item = item_service.create_item(
+            creation_result = item_service.create_item(
                 current_user,
                 form.name.data,
                 form.description.data,
@@ -54,6 +83,7 @@ def list_item():
                 form.giveaway_visibility.data,
                 form.tags.data,
                 uploaded_files,
+                creation_token=creation_token,
             )
         except ValueError:
             flash(
@@ -68,12 +98,18 @@ def list_item():
             flash("We could not save your item. Please try again.", "error")
             return render_template("main/list_item.html", form=form)
 
+        if not creation_result.was_created:
+            return _duplicate_item_creation_response(
+                creation_result.item,
+                form.submit_and_create_another.data,
+            )
+
         from markupsafe import Markup, escape
 
-        item_link = url_for("main.item_detail", item_id=new_item.id)
+        item_link = url_for("main.item_detail", item_id=creation_result.item.id)
         message = Markup(
             'Item "<a href="{}" class="alert-link">{}</a>" has been listed successfully!'
-        ).format(item_link, escape(new_item.name))
+        ).format(item_link, escape(creation_result.item.name))
 
         if form.submit_and_create_another.data:
             flash(message, "success")

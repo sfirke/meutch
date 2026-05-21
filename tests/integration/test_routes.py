@@ -2,6 +2,7 @@
 
 import io
 import json
+import uuid
 from datetime import date, timedelta
 from unittest.mock import patch
 
@@ -482,6 +483,72 @@ class TestItemRoutes:
             item = Item.query.filter_by(name="Another Item").first()
             assert item is not None
             assert item.owner_id == user.id
+
+    def test_list_item_post_duplicate_creation_token_reuses_existing_item(
+        self, client, app, auth_user
+    ):
+        """Posting the same creation token twice should reuse the original item instead of creating a duplicate."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            creation_token = uuid.uuid4()
+            login_user(client, user.email)
+
+            post_data = {
+                "name": "Duplicate Guard Item",
+                "description": "A test item",
+                "category": str(category.id),
+                "tags": "electronics, test",
+                "creation_token": str(creation_token),
+            }
+
+            first_response = client.post("/list-item", data=post_data, follow_redirects=True)
+            assert first_response.status_code == 200
+            assert b"has been listed successfully!" in first_response.data
+
+            second_response = client.post("/list-item", data=post_data, follow_redirects=True)
+
+            assert second_response.status_code == 200
+            assert (
+                b"We already listed this item from your earlier submission" in second_response.data
+            )
+
+            item = Item.query.filter_by(owner_id=user.id, creation_token=creation_token).one()
+            assert item.name == "Duplicate Guard Item"
+            assert Item.query.filter_by(owner_id=user.id, name="Duplicate Guard Item").count() == 1
+
+    def test_list_item_duplicate_creation_token_create_another_redirects_back_to_form(
+        self, client, app, auth_user
+    ):
+        """Duplicate retries should preserve the create-another flow without creating a second item."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            creation_token = uuid.uuid4()
+            login_user(client, user.email)
+
+            post_data = {
+                "name": "Duplicate Create Another",
+                "description": "A test item",
+                "category": str(category.id),
+                "creation_token": str(creation_token),
+                "submit_and_create_another": "List Item & Create Another",
+            }
+
+            first_response = client.post("/list-item", data=post_data, follow_redirects=True)
+            assert first_response.status_code == 200
+            assert b"List a New Item" in first_response.data
+
+            second_response = client.post("/list-item", data=post_data, follow_redirects=True)
+
+            assert second_response.status_code == 200
+            assert b"List a New Item" in second_response.data
+            assert (
+                b"We already listed this item from your earlier submission" in second_response.data
+            )
+            assert (
+                Item.query.filter_by(owner_id=user.id, name="Duplicate Create Another").count() == 1
+            )
 
     def test_item_detail_requires_login(self, client, app):
         """Test that item detail requires login."""

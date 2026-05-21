@@ -52,13 +52,13 @@
             </div>
         </a>
     {% endif %}
-    
+
     <div class="card-body d-flex flex-column">
         <h5 class="card-title">
             <a href="{{ item_url }}" class="text-decoration-none text-reset">{{ item.name }}</a>
         </h5>
         <p class="card-text text-muted">{{ item.description|truncate(100) }}</p>
-        
+
         <!-- Distance indicator (only for other users' items) -->
         <div class="mb-2">
             {% if current_user.is_authenticated and current_user.id != item.owner_id %}
@@ -70,7 +70,7 @@
                 {% endif %}
             {% endif %}
         </div>
-        
+
         {% if item.category %}
             <div class="mb-2">
                 <a href="{{ url_for('main.category_items', category_id=item.category.id) }}" class="category text-decoration-none">
@@ -78,7 +78,7 @@
                 </a>
             </div>
         {% endif %}
-        
+
         {% if item.tags %}
             <div class="mb-3">
                 {% for tag in item.tags[:3] %}
@@ -93,7 +93,7 @@
                 {% endif %}
             </div>
         {% endif %}
-        
+
         {% if show_owner_controls and delete_forms %}
             <!-- Owner controls: Loan (if active), Edit, Delete -->
             <div class="mt-auto d-flex gap-2 justify-content-end">
@@ -110,11 +110,15 @@
                     <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#{{ delete_modal_id }}" title="Delete item">
                         <i class="fas fa-trash me-1"></i>Delete
                     </button>
-                    {% set item_delete_form = delete_forms[item.id] %}
-                    {% set item_confirm_handoff_form = confirm_handoff_forms[item.id] if confirm_handoff_forms is defined and item.id in confirm_handoff_forms else none %}
-                    {% include 'main/_delete_item_modal.html' %}
                 {% endif %}
             </div>
         {% endif %}
     </div>
 </div>
+
+{% if show_owner_controls and delete_forms and item.id in delete_forms %}
+    {% set delete_modal_id = 'deleteItemModal-' ~ item.id %}
+    {% set item_delete_form = delete_forms[item.id] %}
+    {% set item_confirm_handoff_form = confirm_handoff_forms[item.id] if confirm_handoff_forms is defined and item.id in confirm_handoff_forms else none %}
+    {% include 'main/_delete_item_modal.html' %}
+{% endif %}

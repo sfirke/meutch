@@ -1,109 +1,117 @@
 """Integration tests for profile giveaway display."""
-import pytest
-from datetime import datetime, UTC, timedelta
+
+import re
+from datetime import UTC, datetime, timedelta
+
 from app import db
 from app.models import Item
-from tests.factories import UserFactory, ItemFactory, CategoryFactory
 from conftest import login_user
+from tests.factories import CategoryFactory, ItemFactory, UserFactory
 
 
 class TestProfileGiveawaysSeparation:
     """Test that profile separates active and past giveaways."""
-    
+
     def test_profile_shows_active_giveaways(self, client, app, auth_user):
         """Test that profile displays unclaimed giveaways in active section."""
         with app.app_context():
             user = auth_user()
             category = CategoryFactory()
-            
+
             # Create unclaimed giveaway
-            unclaimed_giveaway = ItemFactory(
+            ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='unclaimed',
-                name='Unclaimed Item'
+                claim_status="unclaimed",
+                name="Unclaimed Item",
             )
             db.session.commit()
-            
+
             login_user(client, user.email)
-            response = client.get('/profile')
-            
+            response = client.get("/profile")
+
             assert response.status_code == 200
-            assert b'My Active Giveaways' in response.data
-            assert b'Unclaimed Item' in response.data
-    
+            assert b"My Active Giveaways" in response.data
+            assert b"Unclaimed Item" in response.data
+
     def test_profile_claimed_giveaways_cannot_be_deleted(self, client, app, auth_user):
         """Test that claimed giveaways don't have delete/edit buttons and can't be deleted."""
         with app.app_context():
             user = auth_user()
             recipient = UserFactory()
             category = CategoryFactory()
-            
+
             # Create claimed giveaway
             claimed_giveaway = ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='claimed',
+                claim_status="claimed",
                 claimed_by=recipient,
                 claimed_at=datetime.now(UTC) - timedelta(days=5),
-                name='Claimed Giveaway'
+                name="Claimed Giveaway",
             )
             item_id = claimed_giveaway.id
             db.session.commit()
-            
+
             login_user(client, user.email)
-            
+
             # Check profile page shows the claimed giveaway in past section
-            response = client.get('/profile')
+            response = client.get("/profile")
             assert response.status_code == 200
-            assert b'Claimed Giveaway' in response.data
-            assert b'My Past Giveaways' in response.data
-            
+            assert b"Claimed Giveaway" in response.data
+            assert b"My Past Giveaways" in response.data
+
             # Verify no edit or delete buttons are present on page
-            assert b'btn-warning' not in response.data, "Edit button should not appear for past giveaways"
-            assert b'btn-danger' not in response.data, "Delete button should not appear for past giveaways"
-            
+            assert (
+                b"btn-warning" not in response.data
+            ), "Edit button should not appear for past giveaways"
+            assert (
+                b"btn-danger" not in response.data
+            ), "Delete button should not appear for past giveaways"
+
             # Try to delete the claimed giveaway via POST
-            response = client.post(
-                f'/item/{item_id}/delete',
-                follow_redirects=True
-            )
-            
+            response = client.post(f"/item/{item_id}/delete", follow_redirects=True)
+
             # Should get an error message
-            assert b'cannot delete a giveaway that has been claimed' in response.data or b'completed transaction' in response.data
-            
+            assert (
+                b"cannot delete a giveaway that has been claimed" in response.data
+                or b"completed transaction" in response.data
+            )
+
             # Verify the item still exists
             item = db.session.get(Item, item_id)
             assert item is not None
-    
+
     def test_profile_shows_pending_pickup_in_active(self, client, app, auth_user):
         """Test that profile displays pending_pickup giveaways in active section."""
         with app.app_context():
             user = auth_user()
             recipient = UserFactory()
             category = CategoryFactory()
-            
+
             # Create pending_pickup giveaway
-            pending_giveaway = ItemFactory(
+            ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='pending_pickup',
+                claim_status="pending_pickup",
                 claimed_by=recipient,
-                name='Pending Pickup Item'
+                name="Pending Pickup Item",
             )
             db.session.commit()
-            
-            login_user(client, user.email)
-            response = client.get('/profile')
-            
-            assert response.status_code == 200
-            assert b'My Active Giveaways' in response.data
-            assert b'Pending Pickup Item' in response.data
 
-    def test_profile_pending_pickup_delete_modal_offers_handoff_completion(self, client, app, auth_user):
+            login_user(client, user.email)
+            response = client.get("/profile")
+
+            assert response.status_code == 200
+            assert b"My Active Giveaways" in response.data
+            assert b"Pending Pickup Item" in response.data
+
+    def test_profile_pending_pickup_delete_modal_offers_handoff_completion(
+        self, client, app, auth_user
+    ):
         """Pending-pickup giveaway cards should steer owners to complete the handoff instead of deleting."""
         with app.app_context():
             user = auth_user()
@@ -114,199 +122,217 @@ class TestProfileGiveawaysSeparation:
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='pending_pickup',
+                claim_status="pending_pickup",
                 claimed_by=recipient,
-                name='Pending Pickup Item'
+                name="Pending Pickup Item",
             )
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/profile')
+            response = client.get("/profile")
 
             assert response.status_code == 200
-            assert b'This giveaway is still pending pickup' in response.data
-            assert b'Mark Handoff Complete' in response.data
-    
+            assert b"This giveaway is still pending pickup" in response.data
+            assert b"Mark Handoff Complete" in response.data
+
+    def test_profile_delete_modal_renders_after_card_markup(self, client, app, auth_user):
+        """Profile item cards should render the delete modal outside the card so Bootstrap can own the backdrop."""
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            item = ItemFactory(
+                owner=user, category=category, is_giveaway=False, name="Modal Placement Item"
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get("/profile")
+
+            assert response.status_code == 200
+
+            content = response.data.decode("utf-8")
+            pattern = re.compile(
+                rf'</div>\s*</div>\s*</div>\s*<div class="modal fade" id="deleteItemModal-{item.id}"'
+            )
+            assert pattern.search(content)
+
     def test_profile_shows_recently_claimed_in_past(self, client, app, auth_user):
         """Test that profile displays recently claimed giveaways in past section."""
         with app.app_context():
             user = auth_user()
             recipient = UserFactory()
             category = CategoryFactory()
-            
+
             # Create claimed giveaway (10 days ago)
-            claimed_giveaway = ItemFactory(
+            ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='claimed',
+                claim_status="claimed",
                 claimed_by=recipient,
                 claimed_at=datetime.now(UTC) - timedelta(days=10),
-                name='Recently Claimed Item'
+                name="Recently Claimed Item",
             )
             db.session.commit()
-            
+
             login_user(client, user.email)
-            response = client.get('/profile')
-            
+            response = client.get("/profile")
+
             assert response.status_code == 200
-            assert b'My Past Giveaways' in response.data
+            assert b"My Past Giveaways" in response.data
             # Check that the visible "My Active Giveaways" heading is NOT present
             # (the HTML comment contains this text, so we check for the actual h4 heading)
-            assert b'>My Active Giveaways<' not in response.data
-            assert b'Recently Claimed Item' in response.data
-    
+            assert b">My Active Giveaways<" not in response.data
+            assert b"Recently Claimed Item" in response.data
+
     def test_profile_hides_old_claimed_giveaways(self, client, app, auth_user):
         """Test that profile does not display giveaways claimed > 90 days ago."""
         with app.app_context():
             user = auth_user()
             recipient = UserFactory()
             category = CategoryFactory()
-            
+
             # Create old claimed giveaway (91 days ago)
-            old_claimed_giveaway = ItemFactory(
+            ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='claimed',
+                claim_status="claimed",
                 claimed_by=recipient,
                 claimed_at=datetime.now(UTC) - timedelta(days=91),
-                name='Old Claimed Item'
+                name="Old Claimed Item",
             )
             db.session.commit()
-            
+
             login_user(client, user.email)
-            response = client.get('/profile')
-            
+            response = client.get("/profile")
+
             assert response.status_code == 200
-            assert b'Old Claimed Item' not in response.data
-    
+            assert b"Old Claimed Item" not in response.data
+
     def test_profile_shows_giveaway_exactly_90_days_old(self, client, app, auth_user):
         """Test that profile displays giveaways claimed exactly 90 days ago."""
         with app.app_context():
             user = auth_user()
             recipient = UserFactory()
             category = CategoryFactory()
-            
+
             # Create giveaway claimed exactly 90 days ago (minus 1 hour to avoid timing issues)
-            ninety_day_giveaway = ItemFactory(
+            ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='claimed',
+                claim_status="claimed",
                 claimed_by=recipient,
                 claimed_at=datetime.now(UTC) - timedelta(days=90, hours=-1),
-                name='Ninety Day Item'
+                name="Ninety Day Item",
             )
             db.session.commit()
-            
+
             login_user(client, user.email)
-            response = client.get('/profile')
-            
+            response = client.get("/profile")
+
             assert response.status_code == 200
-            assert b'My Past Giveaways' in response.data
-            assert b'Ninety Day Item' in response.data
-    
+            assert b"My Past Giveaways" in response.data
+            assert b"Ninety Day Item" in response.data
+
     def test_profile_shows_both_active_and_past_giveaways(self, client, app, auth_user):
         """Test that profile displays both sections when user has both types."""
         with app.app_context():
             user = auth_user()
             recipient = UserFactory()
             category = CategoryFactory()
-            
+
             # Create unclaimed giveaway
-            unclaimed = ItemFactory(
+            ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='unclaimed',
-                name='Active Item'
+                claim_status="unclaimed",
+                name="Active Item",
             )
-            
+
             # Create claimed giveaway
-            claimed = ItemFactory(
+            ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='claimed',
+                claim_status="claimed",
                 claimed_by=recipient,
                 claimed_at=datetime.now(UTC) - timedelta(days=5),
-                name='Past Item'
+                name="Past Item",
             )
             db.session.commit()
-            
+
             login_user(client, user.email)
-            response = client.get('/profile')
-            
+            response = client.get("/profile")
+
             assert response.status_code == 200
-            assert b'My Active Giveaways' in response.data
-            assert b'My Past Giveaways' in response.data
-            assert b'Active Item' in response.data
-            assert b'Past Item' in response.data
-    
+            assert b"My Active Giveaways" in response.data
+            assert b"My Past Giveaways" in response.data
+            assert b"Active Item" in response.data
+            assert b"Past Item" in response.data
+
     def test_profile_no_giveaways_shows_regular_items(self, client, app, auth_user):
         """Test that profile shows regular items section when no giveaways exist."""
         with app.app_context():
             user = auth_user()
             category = CategoryFactory()
-            
+
             # Create regular item (not a giveaway)
-            regular_item = ItemFactory(
-                owner=user,
-                category=category,
-                is_giveaway=False,
-                name='Regular Lending Item'
+            ItemFactory(
+                owner=user, category=category, is_giveaway=False, name="Regular Lending Item"
             )
             db.session.commit()
-            
+
             login_user(client, user.email)
-            response = client.get('/profile')
-            
+            response = client.get("/profile")
+
             assert response.status_code == 200
-            assert b'Regular Lending Item' in response.data
-    
+            assert b"Regular Lending Item" in response.data
+
     def test_profile_past_giveaways_sorted_by_claimed_date(self, client, app, auth_user):
         """Test that past giveaways are sorted by claimed date (newest first)."""
         with app.app_context():
             user = auth_user()
             recipient = UserFactory()
             category = CategoryFactory()
-            
+
             # Create giveaways with different claimed dates
-            older_giveaway = ItemFactory(
+            ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='claimed',
+                claim_status="claimed",
                 claimed_by=recipient,
                 claimed_at=datetime.now(UTC) - timedelta(days=20),
-                name='Older Claimed Item'
+                name="Older Claimed Item",
             )
-            
-            newer_giveaway = ItemFactory(
+
+            ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='claimed',
+                claim_status="claimed",
                 claimed_by=recipient,
                 claimed_at=datetime.now(UTC) - timedelta(days=5),
-                name='Newer Claimed Item'
+                name="Newer Claimed Item",
             )
             db.session.commit()
-            
+
             login_user(client, user.email)
-            response = client.get('/profile')
-            
+            response = client.get("/profile")
+
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
-            
+            content = response.data.decode("utf-8")
+
             # Verify both appear
-            assert 'Newer Claimed Item' in content
-            assert 'Older Claimed Item' in content
-            
+            assert "Newer Claimed Item" in content
+            assert "Older Claimed Item" in content
+
             # Verify newer appears before older in the HTML
-            newer_pos = content.find('Newer Claimed Item')
-            older_pos = content.find('Older Claimed Item')
+            newer_pos = content.find("Newer Claimed Item")
+            older_pos = content.find("Older Claimed Item")
             assert newer_pos < older_pos
 
 
@@ -325,25 +351,25 @@ class TestProfileGiveawayPagination:
                     owner=user,
                     category=category,
                     is_giveaway=True,
-                    claim_status='unclaimed',
-                    name=f'Giveaway {i}'
+                    claim_status="unclaimed",
+                    name=f"Giveaway {i}",
                 )
             db.session.commit()
 
             login_user(client, user.email)
 
             # First page should show 12 items
-            response = client.get('/profile')
+            response = client.get("/profile")
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
-            assert 'My Active Giveaways' in content
-            assert 'giveaway_page=2' in content
+            content = response.data.decode("utf-8")
+            assert "My Active Giveaways" in content
+            assert "giveaway_page=2" in content
 
             # Second page should show remaining 2 items
-            response = client.get('/profile?giveaway_page=2&tab=my-items')
+            response = client.get("/profile?giveaway_page=2&tab=my-items")
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
-            assert 'My Active Giveaways' in content
+            content = response.data.decode("utf-8")
+            assert "My Active Giveaways" in content
 
     def test_past_giveaways_paginate_at_12(self, client, app, auth_user):
         """Test that past giveaways paginate in pages of 12."""
@@ -358,27 +384,27 @@ class TestProfileGiveawayPagination:
                     owner=user,
                     category=category,
                     is_giveaway=True,
-                    claim_status='claimed',
+                    claim_status="claimed",
                     claimed_by=recipient,
                     claimed_at=datetime.now(UTC) - timedelta(days=5),
-                    name=f'Past Giveaway {i}'
+                    name=f"Past Giveaway {i}",
                 )
             db.session.commit()
 
             login_user(client, user.email)
 
             # First page should show 12 items and pagination
-            response = client.get('/profile')
+            response = client.get("/profile")
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
-            assert 'My Past Giveaways' in content
-            assert 'past_giveaway_page=2' in content
+            content = response.data.decode("utf-8")
+            assert "My Past Giveaways" in content
+            assert "past_giveaway_page=2" in content
 
             # Second page should show remaining items
-            response = client.get('/profile?past_giveaway_page=2&tab=my-items')
+            response = client.get("/profile?past_giveaway_page=2&tab=my-items")
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
-            assert 'My Past Giveaways' in content
+            content = response.data.decode("utf-8")
+            assert "My Past Giveaways" in content
 
 
 class TestProfileMyItemsSearch:
@@ -395,33 +421,33 @@ class TestProfileMyItemsSearch:
                 owner=user,
                 category=category,
                 is_giveaway=False,
-                name='Blue Ladder',
-                description='Useful ladder'
+                name="Blue Ladder",
+                description="Useful ladder",
             )
             ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=False,
-                name='Red Drill',
-                description='Power tool'
+                name="Red Drill",
+                description="Power tool",
             )
             ItemFactory(
                 owner=other_user,
                 category=category,
                 is_giveaway=False,
-                name='Blue Saw',
-                description='Should not show in my profile results'
+                name="Blue Saw",
+                description="Should not show in my profile results",
             )
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/profile?tab=my-items&search=  Blue  ')
+            response = client.get("/profile?tab=my-items&search=  Blue  ")
 
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
-            assert 'Blue Ladder' in content
-            assert 'Red Drill' not in content
-            assert 'Blue Saw' not in content
+            content = response.data.decode("utf-8")
+            assert "Blue Ladder" in content
+            assert "Red Drill" not in content
+            assert "Blue Saw" not in content
 
     def test_profile_search_matches_description(self, client, app, auth_user):
         """Search should match item description, not just name."""
@@ -433,25 +459,25 @@ class TestProfileMyItemsSearch:
                 owner=user,
                 category=category,
                 is_giveaway=False,
-                name='Toolbox',
-                description='Contains a rare cobalt wrench'
+                name="Toolbox",
+                description="Contains a rare cobalt wrench",
             )
             ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=False,
-                name='Hammer',
-                description='Basic hardware tool'
+                name="Hammer",
+                description="Basic hardware tool",
             )
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/profile?tab=my-items&search=cobalt')
+            response = client.get("/profile?tab=my-items&search=cobalt")
 
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
-            assert 'Toolbox' in content
-            assert 'Hammer' not in content
+            content = response.data.decode("utf-8")
+            assert "Toolbox" in content
+            assert "Hammer" not in content
 
     def test_profile_search_applies_to_active_past_and_regular_items(self, client, app, auth_user):
         """Search should filter all three My Items sections."""
@@ -464,66 +490,66 @@ class TestProfileMyItemsSearch:
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='unclaimed',
-                name='Needle Active Giveaway',
-                description='Active section match'
+                claim_status="unclaimed",
+                name="Needle Active Giveaway",
+                description="Active section match",
             )
             ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='claimed',
+                claim_status="claimed",
                 claimed_by=recipient,
                 claimed_at=datetime.now(UTC) - timedelta(days=2),
-                name='Needle Past Giveaway',
-                description='Past section match'
+                name="Needle Past Giveaway",
+                description="Past section match",
             )
             ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=False,
-                name='Needle Lending Item',
-                description='Regular items section match'
+                name="Needle Lending Item",
+                description="Regular items section match",
             )
 
             ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='unclaimed',
-                name='Other Active',
-                description='Not a match'
+                claim_status="unclaimed",
+                name="Other Active",
+                description="Not a match",
             )
             ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
-                claim_status='claimed',
+                claim_status="claimed",
                 claimed_by=recipient,
                 claimed_at=datetime.now(UTC) - timedelta(days=2),
-                name='Other Past',
-                description='Not a match'
+                name="Other Past",
+                description="Not a match",
             )
             ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=False,
-                name='Other Lending Item',
-                description='Not a match'
+                name="Other Lending Item",
+                description="Not a match",
             )
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/profile?tab=my-items&search=Needle')
+            response = client.get("/profile?tab=my-items&search=Needle")
 
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
-            assert 'Needle Active Giveaway' in content
-            assert 'Needle Past Giveaway' in content
-            assert 'Needle Lending Item' in content
-            assert 'Other Active' not in content
-            assert 'Other Past' not in content
-            assert 'Other Lending Item' not in content
+            content = response.data.decode("utf-8")
+            assert "Needle Active Giveaway" in content
+            assert "Needle Past Giveaway" in content
+            assert "Needle Lending Item" in content
+            assert "Other Active" not in content
+            assert "Other Past" not in content
+            assert "Other Lending Item" not in content
 
     def test_profile_search_pagination_links_include_search_param(self, client, app, auth_user):
         """When searching, all My Items pagination links should preserve search query."""
@@ -537,34 +563,34 @@ class TestProfileMyItemsSearch:
                     owner=user,
                     category=category,
                     is_giveaway=True,
-                    claim_status='unclaimed',
-                    name=f'Needle Active {i}',
-                    description='Active pagination'
+                    claim_status="unclaimed",
+                    name=f"Needle Active {i}",
+                    description="Active pagination",
                 )
                 ItemFactory(
                     owner=user,
                     category=category,
                     is_giveaway=True,
-                    claim_status='claimed',
+                    claim_status="claimed",
                     claimed_by=recipient,
                     claimed_at=datetime.now(UTC) - timedelta(days=3),
-                    name=f'Needle Past {i}',
-                    description='Past pagination'
+                    name=f"Needle Past {i}",
+                    description="Past pagination",
                 )
                 ItemFactory(
                     owner=user,
                     category=category,
                     is_giveaway=False,
-                    name=f'Needle Lending {i}',
-                    description='Regular pagination'
+                    name=f"Needle Lending {i}",
+                    description="Regular pagination",
                 )
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/profile?tab=my-items&search=needle')
+            response = client.get("/profile?tab=my-items&search=needle")
 
             assert response.status_code == 200
-            content = response.data.decode('utf-8')
-            assert 'giveaway_page=2&amp;tab=my-items&amp;search=needle' in content
-            assert 'past_giveaway_page=2&amp;tab=my-items&amp;search=needle' in content
-            assert 'page=2&amp;tab=my-items&amp;search=needle' in content
+            content = response.data.decode("utf-8")
+            assert "giveaway_page=2&amp;tab=my-items&amp;search=needle" in content
+            assert "past_giveaway_page=2&amp;tab=my-items&amp;search=needle" in content
+            assert "page=2&amp;tab=my-items&amp;search=needle" in content
