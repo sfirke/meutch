@@ -1,6 +1,6 @@
 """Messaging read schemas for API v1."""
 
-from marshmallow import fields
+from marshmallow import ValidationError, fields, validate, validates_schema
 
 from app.api.v1.schemas.base import ApiDateTime, ApiSchema
 from app.api.v1.schemas.items import LoanSummarySchema
@@ -72,3 +72,29 @@ class MessageThreadResponseSchema(ApiSchema):
     active_loan = fields.Nested(LoanSummarySchema(), allow_none=True)
     has_unread_messages = fields.Boolean(required=True)
     messages = fields.Nested(MessageSummarySchema(), many=True, required=True)
+
+
+class MessageStartSchema(ApiSchema):
+    """Write payload for starting an item or request conversation."""
+
+    body = fields.String(required=True, validate=validate.Length(min=1, max=1000))
+    item_id = fields.UUID(load_default=None, allow_none=True)
+    request_id = fields.UUID(load_default=None, allow_none=True)
+
+    @validates_schema
+    def validate_target(self, data, **kwargs):
+        has_item_id = data.get("item_id") is not None
+        has_request_id = data.get("request_id") is not None
+        if has_item_id == has_request_id:
+            raise ValidationError(
+                {
+                    "item_id": ["Provide exactly one of item_id or request_id."],
+                    "request_id": ["Provide exactly one of item_id or request_id."],
+                }
+            )
+
+
+class MessageReplySchema(ApiSchema):
+    """Write payload for replying inside an existing conversation."""
+
+    body = fields.String(required=True, validate=validate.Length(min=1, max=1000))

@@ -4,8 +4,14 @@ from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models import GiveawayInterest, Item, ItemImage, LoanRequest, Message, Tag
-from app.services.exceptions import AuthorizationError, ConflictError
+from app.services.exceptions import AuthorizationError, ConflictError, InformationalError
 from app.utils.storage import delete_item_images, upload_item_images
+
+PUBLIC_GIVEAWAY_LOCATION_MESSAGE = (
+    "You must set your location before making a giveaway public. "
+    "Public giveaways are visible to everyone on Meutch and users will have no idea where the "
+    "item is located. Please update your location in your profile settings."
+)
 
 
 @dataclass
@@ -111,6 +117,11 @@ def _sync_item_tags(item, raw_tag_input):
             item.tags.append(tag)
 
 
+def _ensure_public_giveaway_owner_is_geocoded(owner, is_giveaway, giveaway_visibility):
+    if is_giveaway and giveaway_visibility == "public" and not owner.is_geocoded:
+        raise InformationalError(PUBLIC_GIVEAWAY_LOCATION_MESSAGE)
+
+
 def create_item(
     owner,
     name,
@@ -125,6 +136,8 @@ def create_item(
     existing_item = _get_item_by_creation_token(owner.id, creation_token)
     if existing_item is not None:
         return ItemCreationResult(item=existing_item, was_created=False)
+
+    _ensure_public_giveaway_owner_is_geocoded(owner, is_giveaway, giveaway_visibility)
 
     image_urls = []
     if uploaded_files:
@@ -180,6 +193,7 @@ def update_item(
     delete_entries,
     order_entries,
 ):
+    _ensure_public_giveaway_owner_is_geocoded(item.owner, is_giveaway, giveaway_visibility)
     _raise_item_transition_conflict(item, is_giveaway)
 
     existing_images = list(item.images)

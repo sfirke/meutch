@@ -6,7 +6,7 @@ import pytest
 from app import db
 from app.models import GiveawayInterest, Item, LoanRequest, Message
 from app.services import item_service
-from app.services.exceptions import ConflictError
+from app.services.exceptions import ConflictError, InformationalError
 from tests.factories import (
     CategoryFactory,
     GiveawayInterestFactory,
@@ -49,6 +49,23 @@ class TestItemService:
             ]
             assert {tag.name for tag in db_item.tags} == {"drill", "repair"}
             mock_upload.assert_called_once()
+
+    def test_create_item_rejects_public_giveaway_for_non_geocoded_owner(self, app):
+        with app.app_context():
+            owner = UserFactory(latitude=None, longitude=None)
+            category = CategoryFactory()
+
+            with pytest.raises(InformationalError, match="making a giveaway public"):
+                item_service.create_item(
+                    owner,
+                    "Street Table",
+                    "Free to a good home",
+                    category.id,
+                    True,
+                    "public",
+                    "",
+                    [],
+                )
 
     def test_create_item_reuses_existing_item_when_creation_token_already_exists(self, app):
         with app.app_context():
@@ -129,7 +146,8 @@ class TestItemService:
 
     def test_update_item_rejects_giveaway_conversion_with_active_loan(self, app):
         with app.app_context():
-            item = ItemFactory(is_giveaway=False, available=False)
+            owner = UserFactory(latitude=40.7128, longitude=-74.0060)
+            item = ItemFactory(owner=owner, is_giveaway=False, available=False)
             borrower = UserFactory()
             LoanRequestFactory(item=item, borrower=borrower, status="approved")
 
