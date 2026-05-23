@@ -129,6 +129,14 @@ def join_circle(circle, user, message_text=None):
     if user in circle.members:
         raise InformationalError("You are already a member of this circle.")
 
+    existing_request = CircleJoinRequest.query.filter_by(
+        circle_id=circle.id,
+        user_id=user.id,
+        status="pending",
+    ).first()
+    if existing_request:
+        raise InformationalError("You already have a pending join request for this circle.")
+
     if circle.requires_join_approval:
         join_request = CircleJoinRequest(
             circle_id=circle.id,

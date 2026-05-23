@@ -1,4 +1,4 @@
-"""Circle read schemas for API v1."""
+"""Circle read and write schemas for API v1."""
 
 from marshmallow import fields, validate, validates_schema
 
@@ -103,6 +103,15 @@ class CircleDetailResponseSchema(ApiSchema):
     circle = fields.Nested(CircleDetailSchema(), required=True)
 
 
+class CircleMutationResponseSchema(ApiSchema):
+    """Response for circle create and update mutations."""
+
+    circle = fields.Nested(CircleDetailSchema(), required=True)
+    geocoding_failed = fields.Boolean(required=True)
+    image_removed = fields.Boolean(required=True)
+    image_updated = fields.Boolean(required=True)
+
+
 class CircleWritePayloadSchema(LocationFieldsMixin, ApiSchema):
     """Write payload for circle create and update endpoints."""
 
@@ -136,3 +145,52 @@ class CircleJoinRequestCreateSchema(ApiSchema):
         allow_none=True,
         validate=validate.Length(max=500),
     )
+
+
+class CircleJoinResponseSchema(ApiSchema):
+    """Response after a join or join-request mutation."""
+
+    membership_status = fields.String(
+        required=True,
+        validate=validate.OneOf(["member", "pending"]),
+    )
+    join_request = fields.Nested(PendingJoinRequestSchema(), allow_none=True, required=True)
+
+
+class CircleJoinRequestStatusSchema(ApiSchema):
+    """Minimal join-request status payload for admin actions."""
+
+    id = fields.UUID(required=True)
+    status = fields.String(required=True)
+
+
+class CircleJoinRequestActionResponseSchema(ApiSchema):
+    """Response after approving or rejecting a join request."""
+
+    action = fields.String(required=True, validate=validate.OneOf(["approve", "reject"]))
+    join_request = fields.Nested(CircleJoinRequestStatusSchema(), required=True)
+
+
+class CircleCancelJoinRequestResponseSchema(ApiSchema):
+    """Response after canceling a pending join request."""
+
+    canceled = fields.Boolean(required=True)
+
+
+class CircleLeaveResponseSchema(ApiSchema):
+    """Response after leaving a circle."""
+
+    circle_deleted = fields.Boolean(required=True)
+
+
+class CircleMemberRemovalResponseSchema(ApiSchema):
+    """Response after removing a member from a circle."""
+
+    removed_user_id = fields.UUID(required=True)
+
+
+class CircleAdminToggleResponseSchema(ApiSchema):
+    """Response after promoting or demoting a circle admin."""
+
+    user_id = fields.UUID(required=True)
+    is_admin = fields.Boolean(required=True)
