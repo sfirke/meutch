@@ -83,7 +83,6 @@ class MessageResponseSchema(ApiSchema):
 class MessageMarkReadResponseSchema(ApiSchema):
     """Response for explicit message-thread read-state mutations."""
 
-    marked_read_count = fields.Integer(required=True)
     has_unread_messages = fields.Boolean(required=True)
 
 

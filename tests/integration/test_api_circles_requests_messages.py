@@ -626,7 +626,6 @@ class TestApiMessaging:
 
         assert response.status_code == 200
         assert response.get_json() == {
-            "marked_read_count": 2,
             "has_unread_messages": False,
         }
 

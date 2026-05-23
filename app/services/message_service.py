@@ -135,6 +135,5 @@ def mark_message_thread_read(message, viewer_id):
         mark_conversation_messages_read(unread_messages)
 
     return {
-        "marked_read_count": len(unread_messages),
         "has_unread_messages": False,
     }

@@ -196,7 +196,7 @@ class TestMessageService:
             db.session.expire_all()
             assert db.session.get(Message, message.id).is_read is False
 
-    def test_mark_message_thread_read_returns_count_and_marks_messages(self, app):
+    def test_mark_message_thread_read_marks_messages(self, app):
         with app.app_context():
             sender = UserFactory()
             recipient = UserFactory()
@@ -218,7 +218,6 @@ class TestMessageService:
             read_result = message_service.mark_message_thread_read(first_message, recipient.id)
 
             assert read_result == {
-                "marked_read_count": 2,
                 "has_unread_messages": False,
             }
             db.session.expire_all()
