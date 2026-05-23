@@ -201,7 +201,9 @@ def join_circle(circle_id):
 
 def _handle_join_request_action(circle_id, request_id, action):
     circle = db.get_or_404(Circle, circle_id)
-    join_request = db.get_or_404(CircleJoinRequest, request_id)
+    join_request = CircleJoinRequest.query.filter_by(
+        id=request_id, circle_id=circle_id
+    ).first_or_404()
     handled_action = circle_service.handle_join_request(circle, join_request, current_user, action)
     return CIRCLE_JOIN_REQUEST_ACTION_RESPONSE_SCHEMA.dump(
         {

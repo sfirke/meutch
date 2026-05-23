@@ -564,6 +564,69 @@ class TestApiCircles:
             membership = _get_circle_membership(circle_id, member_id)
             assert membership.is_admin is False
 
+    def test_cancel_join_request_with_no_pending_request_returns_canceled_false(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            circle = CircleFactory(circle_type="closed")
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+            circle_id = circle.id
+
+        response = client.post(
+            f"/api/v1/circles/{circle_id}/cancel-request",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json() == {"canceled": False}
+
+    def test_non_admin_cannot_remove_member(self, client, app):
+        with app.app_context():
+            admin = UserFactory()
+            member = UserFactory(email_confirmed=True)
+            target = UserFactory()
+            circle = CircleFactory(circle_type="open")
+            _add_circle_membership(circle, admin, is_admin=True)
+            _add_circle_membership(circle, member, is_admin=False)
+            _add_circle_membership(circle, target, is_admin=False)
+            db.session.commit()
+            access_token = login_api_user(client, member.email)
+            circle_id = circle.id
+            target_id = target.id
+
+        response = client.delete(
+            f"/api/v1/circles/{circle_id}/members/{target_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 403
+        with app.app_context():
+            assert _get_circle_membership(circle_id, target_id) is not None
+
+    def test_join_request_action_with_wrong_circle_returns_404(self, client, app):
+        with app.app_context():
+            admin = UserFactory(email_confirmed=True)
+            requester = UserFactory()
+            circle_a = CircleFactory(circle_type="closed")
+            circle_b = CircleFactory(circle_type="closed")
+            _add_circle_membership(circle_a, admin, is_admin=True)
+            _add_circle_membership(circle_b, admin, is_admin=True)
+            join_request_b = CircleJoinRequestFactory(
+                circle=circle_b, user=requester, status="pending"
+            )
+            db.session.commit()
+            access_token = login_api_user(client, admin.email)
+            circle_a_id = circle_a.id
+            request_b_id = join_request_b.id
+
+        # Admin of circle A tries to act on a join request belonging to circle B
+        response = client.post(
+            f"/api/v1/circles/{circle_a_id}/join-requests/{request_b_id}/approve",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 404
+
 
 class TestApiRequests:
     """Exercise request list, detail, and mutation behavior."""
