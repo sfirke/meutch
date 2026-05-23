@@ -44,6 +44,44 @@ class TestProfileService:
             assert links[1].platform_type == "linkedin"
             assert links[1].display_order == 2
 
+    def test_update_profile_skips_blank_link_slots(self, app):
+        with app.app_context():
+            user = UserFactory(about_me="Old bio")
+            db.session.commit()
+
+            result = profile_service.update_profile(
+                user,
+                about_me="New bio",
+                links=[
+                    {
+                        "platform": None,
+                        "custom_name": None,
+                        "url": None,
+                    },
+                    {
+                        "platform": "instagram",
+                        "custom_name": "",
+                        "url": "https://instagram.com/example",
+                    },
+                    {
+                        "platform": "linkedin",
+                        "custom_name": "",
+                        "url": "   ",
+                    },
+                ],
+            )
+
+            links = (
+                UserWebLink.query.filter_by(user_id=user.id)
+                .order_by(UserWebLink.display_order)
+                .all()
+            )
+            assert result.image_upload_failed is False
+            assert user.about_me == "New bio"
+            assert len(links) == 1
+            assert links[0].platform_type == "instagram"
+            assert links[0].display_order == 2
+
     def test_update_profile_replaces_existing_profile_image(self, app):
         with app.app_context():
             user = UserFactory(profile_image_url="https://example.com/old.jpg")
