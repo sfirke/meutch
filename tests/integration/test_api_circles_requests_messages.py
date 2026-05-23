@@ -196,6 +196,69 @@ class TestApiRequests:
         assert payload["request"]["visibility"] == "public"
         assert payload["request"]["user"]["id"] == str(requester.id)
 
+    def test_request_detail_returns_404_for_deleted_request(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            owner = UserFactory()
+            item_request = ItemRequestFactory(user=owner, status="deleted")
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            request_id = item_request.id
+
+        response = client.get(
+            f"/api/v1/requests/{request_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 404
+
+    def test_request_write_with_invalid_date_returns_422_not_500(self, client, app):
+        with app.app_context():
+            requester = UserFactory(email_confirmed=True)
+            access_token = login_api_user(client, requester.email)
+
+        response = client.post(
+            "/api/v1/requests",
+            json={
+                "title": "Need a tent",
+                "expires_at": "not-a-date",
+                "seeking": "either",
+                "visibility": "circles",
+            },
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 422
+        assert response.get_json()["error"]["code"] == "VALIDATION_ERROR"
+
+    def test_fulfilled_request_can_still_be_updated(self, client, app):
+        # Web parity: the edit route only gates on 'deleted', not 'fulfilled'.
+        # This test pins that the API intentionally matches web behavior.
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            item_request = ItemRequestFactory(user=owner, status="open")
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            request_id = item_request.id
+
+        client.post(
+            f"/api/v1/requests/{request_id}/fulfill",
+            headers=auth_headers(access_token),
+        )
+        update_response = client.patch(
+            f"/api/v1/requests/{request_id}",
+            json={
+                "title": "Updated after fulfillment",
+                "expires_at": (date.today() + timedelta(days=7)).isoformat(),
+                "seeking": "loan",
+                "visibility": "circles",
+            },
+            headers=auth_headers(access_token),
+        )
+
+        assert update_response.status_code == 200
+        assert update_response.get_json()["request"]["title"] == "Updated after fulfillment"
+
     def test_request_create_rejects_public_visibility_for_non_geocoded_user(self, client, app):
         with app.app_context():
             requester = UserFactory(email_confirmed=True, latitude=None, longitude=None)

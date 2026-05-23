@@ -93,7 +93,9 @@ class RequestWritePayloadSchema(ApiSchema):
 
     @validates_schema
     def validate_expires_at(self, data, **kwargs):
-        expires_at = data["expires_at"]
+        expires_at = data.get("expires_at")
+        if expires_at is None:
+            return
         today = date.today()
         max_date = today + relativedelta(months=6)
 
