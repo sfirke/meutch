@@ -34,6 +34,8 @@ def update_profile(user, *, about_me, links, profile_image=None, delete_image=Fa
         platform = link["platform"]
         url = link["url"]
         custom_name = link["custom_name"]
+        if not url or not url.strip():
+            continue
         web_link = UserWebLink(
             user_id=user.id,
             platform_type=platform,
