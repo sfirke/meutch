@@ -19,6 +19,7 @@ from app.api.v1.schemas.profile import (
     SettingsUpdateSchema,
 )
 from app.services import account_service, api_token_service, location_service, profile_service
+from app.services.api_token_service import REVOKE_REASON_ACCOUNT_DELETED
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,7 @@ def delete_current_user_account():
     account_service.delete_user_account(current_user)
 
     try:
-        api_token_service.revoke_token_family(get_jwt())
+        api_token_service.revoke_token_family(get_jwt(), reason=REVOKE_REASON_ACCOUNT_DELETED)
     except Exception:
         logger.error("Token revocation failed after account deletion for user %s", current_user.id)
 

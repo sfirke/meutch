@@ -12,6 +12,7 @@ from app.api.v1.schemas.base import (
 )
 from app.api.v1.schemas.users import UserIdentitySchema
 from app.models import User, UserWebLink
+from app.services import location_service
 
 
 class UserWebLinkSchema(ApiSchema):
@@ -110,7 +111,7 @@ class ProfileUpdateSchema(ApiSchema):
     about_me = fields.String(allow_none=True, validate=validate.Length(max=500))
     delete_image = ApiBoolean(load_default=False)
     profile_image = ApiUploadedFile(allow_none=True)
-    links = fields.List(fields.Nested(UserWebLinkWriteSchema()))
+    links = fields.List(fields.Nested(UserWebLinkWriteSchema()), validate=validate.Length(max=5))
 
 
 class SettingsUpdateSchema(ApiSchema):
@@ -170,12 +171,12 @@ class LocationUpdateResponseSchema(ApiSchema):
         required=True,
         validate=validate.OneOf(
             [
-                "success",
-                "removed",
-                "rate_limited",
-                "geocoding_failed",
-                "geocoding_error",
-                "unexpected_error",
+                location_service.LOCATION_UPDATE_STATUS_SUCCESS,
+                location_service.LOCATION_UPDATE_STATUS_REMOVED,
+                location_service.LOCATION_UPDATE_STATUS_RATE_LIMITED,
+                location_service.LOCATION_UPDATE_STATUS_GEOCODING_FAILED,
+                location_service.LOCATION_UPDATE_STATUS_GEOCODING_ERROR,
+                location_service.LOCATION_UPDATE_STATUS_UNEXPECTED_ERROR,
             ]
         ),
     )

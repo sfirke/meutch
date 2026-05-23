@@ -16,6 +16,7 @@ TOKEN_TYPE_ACCESS = "access"
 TOKEN_TYPE_REFRESH = "refresh"
 
 REVOKE_REASON_LOGOUT = "logout"
+REVOKE_REASON_ACCOUNT_DELETED = "account_deleted"
 REVOKE_REASON_ROTATED = "refresh_rotated"
 REVOKE_REASON_REUSED = "refresh_reused"
 

@@ -440,6 +440,21 @@ class TestApiProfile:
             assert deleted_user.email.startswith("deleted_")
             assert deleted_user.circles == []
 
+    def test_patch_me_profile_rejects_more_than_five_links(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+
+        six_links = [{"platform": "website", "url": f"https://example.com/{i}"} for i in range(6)]
+        response = client.patch(
+            "/api/v1/me/profile",
+            headers=auth_headers(access_token),
+            json={"links": six_links},
+        )
+
+        assert response.status_code == 422
+
     def test_me_profile_requires_authentication(self, client, app):
         response = client.get("/api/v1/me/profile")
 
