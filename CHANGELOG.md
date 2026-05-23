@@ -33,6 +33,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Add read-only API endpoints with some minor related refactoring ([#370](https://github.com/sfirke/meutch/pull/370)).
 - Add foundation for API writes ([#374](https://github.com/sfirke/meutch/pull/374)).
 - Add API mutation parity for user profile/settings/location/acct deletion ([#382](https://github.com/sfirke/meutch/pull/382)).
+- Add API mutation parity for requests/messages ([#384](https://github.com/sfirke/meutch/pull/384)).
 
 ## Apr 2026
 

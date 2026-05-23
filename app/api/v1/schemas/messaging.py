@@ -74,6 +74,18 @@ class MessageThreadResponseSchema(ApiSchema):
     messages = fields.Nested(MessageSummarySchema(), many=True, required=True)
 
 
+class MessageResponseSchema(ApiSchema):
+    """Wrapper for message create and reply responses."""
+
+    message = fields.Nested(MessageSummarySchema(), required=True)
+
+
+class MessageMarkReadResponseSchema(ApiSchema):
+    """Response for explicit message-thread read-state mutations."""
+
+    has_unread_messages = fields.Boolean(required=True)
+
+
 class MessageStartSchema(ApiSchema):
     """Write payload for starting an item or request conversation."""
 

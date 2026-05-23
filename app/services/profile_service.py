@@ -33,10 +33,9 @@ def update_profile(user, *, about_me, links, profile_image=None, delete_image=Fa
     for display_order, link in enumerate(links, start=1):
         platform = link["platform"]
         url = link["url"]
-        if not platform or not url or not url.strip():
-            continue
-
         custom_name = link["custom_name"]
+        if not url or not url.strip():
+            continue
         web_link = UserWebLink(
             user_id=user.id,
             platform_type=platform,
