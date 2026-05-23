@@ -31,7 +31,8 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Add the first reusable API foundation layer: structured JSON error handling, shared pagination helpers, and Marshmallow boundary schemas for upcoming read endpoints ([#361](https://github.com/sfirke/meutch/pull/361)).
 - Add JWT-backed `/api/v1/auth` endpoints with access/refresh tokens, refresh rotation and revocation, current-user identity, and mobile-facing register/reset workflows ([#363](https://github.com/sfirke/meutch/pull/363)).
 - Add read-only API endpoints with some minor related refactoring ([#370](https://github.com/sfirke/meutch/pull/370)).
-
+- Add foundation for API writes ([#374](https://github.com/sfirke/meutch/pull/374)).
+- Add API mutation parity for user profile/settings/location/acct deletion ([#382](https://github.com/sfirke/meutch/pull/382)).
 
 ## Apr 2026
 
