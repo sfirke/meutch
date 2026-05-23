@@ -88,6 +88,22 @@ class TestRequestService:
                     item_request.visibility,
                 )
 
+    def test_update_request_rejects_deleted_request(self, app):
+        with app.app_context():
+            owner = UserFactory(latitude=40.7128, longitude=-74.0060)
+            item_request = ItemRequestFactory(user=owner, status="deleted")
+
+            with pytest.raises(ConflictError, match="already been removed"):
+                request_service.update_request(
+                    item_request,
+                    owner,
+                    "Updated title",
+                    "Updated description",
+                    date.today() + timedelta(days=30),
+                    "giveaway",
+                    "public",
+                )
+
     def test_delete_request_marks_request_deleted(self, app):
         with app.app_context():
             owner = UserFactory()
@@ -96,6 +112,15 @@ class TestRequestService:
             request_service.delete_request(item_request, owner)
 
             assert item_request.status == "deleted"
+
+    def test_delete_request_rejects_non_owner(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            other_user = UserFactory()
+            item_request = ItemRequestFactory(user=owner, status="open")
+
+            with pytest.raises(AuthorizationError):
+                request_service.delete_request(item_request, other_user)
 
     def test_delete_request_rejects_deleted_request(self, app):
         with app.app_context():
@@ -115,6 +140,23 @@ class TestRequestService:
 
             assert item_request.status == "fulfilled"
             assert item_request.fulfilled_at == fulfilled_at.replace(tzinfo=None)
+
+    def test_fulfill_request_rejects_non_owner(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            other_user = UserFactory()
+            item_request = ItemRequestFactory(user=owner, status="open")
+
+            with pytest.raises(AuthorizationError):
+                request_service.fulfill_request(item_request, other_user)
+
+    def test_fulfill_request_rejects_deleted_request(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            item_request = ItemRequestFactory(user=owner, status="deleted")
+
+            with pytest.raises(ConflictError, match="already been removed"):
+                request_service.fulfill_request(item_request, owner)
 
     def test_fulfill_request_rejects_already_fulfilled(self, app):
         with app.app_context():

@@ -108,11 +108,15 @@ def reply_to_message(message, sender_id, body):
     )
 
 
-def get_conversation_thread_state(message, viewer_id, *, mark_read=True):
+def _build_authorized_conversation_thread_state(message, viewer_id):
     if viewer_id not in {message.sender_id, message.recipient_id}:
         raise AuthorizationError("You do not have permission to view this message.")
 
-    thread_state = build_conversation_thread_state(message, viewer_id)
+    return build_conversation_thread_state(message, viewer_id)
+
+
+def get_conversation_thread_state(message, viewer_id, *, mark_read=True):
+    thread_state = _build_authorized_conversation_thread_state(message, viewer_id)
 
     if mark_read:
         mark_conversation_messages_read(thread_state["unread_messages"])
@@ -120,4 +124,17 @@ def get_conversation_thread_state(message, viewer_id, *, mark_read=True):
     return {
         "thread_messages": thread_state["thread_messages"],
         "has_unread_messages": thread_state["has_unread_messages"],
+    }
+
+
+def mark_message_thread_read(message, viewer_id):
+    thread_state = _build_authorized_conversation_thread_state(message, viewer_id)
+    unread_messages = thread_state["unread_messages"]
+
+    if unread_messages:
+        mark_conversation_messages_read(unread_messages)
+
+    return {
+        "marked_read_count": len(unread_messages),
+        "has_unread_messages": False,
     }

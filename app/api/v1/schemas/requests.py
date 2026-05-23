@@ -53,6 +53,25 @@ class ItemRequestDetailResponseSchema(ApiSchema):
     conversations = fields.Nested(RequestConversationSummarySchema(), many=True, required=True)
 
 
+class ItemRequestResponseSchema(ApiSchema):
+    """Wrapper for request mutation responses that return the full resource."""
+
+    request = fields.Nested(ItemRequestSummarySchema(), required=True)
+
+
+class ItemRequestStatusSchema(ApiSchema):
+    """Minimal request status payload for destructive or state-change endpoints."""
+
+    id = fields.UUID(required=True)
+    status = fields.String(required=True)
+
+
+class ItemRequestStatusResponseSchema(ApiSchema):
+    """Wrapper for request mutation responses that return only id and status."""
+
+    request = fields.Nested(ItemRequestStatusSchema(), required=True)
+
+
 class RequestWritePayloadSchema(ApiSchema):
     """Write payload for request create and update endpoints."""
 

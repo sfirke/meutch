@@ -1,6 +1,6 @@
-"""Integration tests for API circle, request, and messaging reads."""
+"""Integration tests for API circle, request, and messaging reads and writes."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from app import db
 from app.models import Message
@@ -97,7 +97,7 @@ class TestApiCircles:
 
 
 class TestApiRequests:
-    """Exercise request list and detail reads."""
+    """Exercise request list, detail, and mutation behavior."""
 
     def test_requests_list_ignores_distance_filter_for_non_geocoded_viewer(self, client, app):
         with app.app_context():
@@ -172,9 +172,140 @@ class TestApiRequests:
 
         assert response.status_code == 401
 
+    def test_request_create_returns_request_payload_for_geocoded_user(self, client, app):
+        with app.app_context():
+            requester = UserFactory(email_confirmed=True, latitude=40.7128, longitude=-74.0060)
+            access_token = login_api_user(client, requester.email)
+
+        response = client.post(
+            "/api/v1/requests",
+            json={
+                "title": "Need a folding table",
+                "description": "For a neighborhood swap.",
+                "expires_at": (date.today() + timedelta(days=30)).isoformat(),
+                "seeking": "either",
+                "visibility": "public",
+            },
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 201
+        payload = response.get_json()
+
+        assert payload["request"]["title"] == "Need a folding table"
+        assert payload["request"]["visibility"] == "public"
+        assert payload["request"]["user"]["id"] == str(requester.id)
+
+    def test_request_create_rejects_public_visibility_for_non_geocoded_user(self, client, app):
+        with app.app_context():
+            requester = UserFactory(email_confirmed=True, latitude=None, longitude=None)
+            access_token = login_api_user(client, requester.email)
+
+        response = client.post(
+            "/api/v1/requests",
+            json={
+                "title": "Need moving boxes",
+                "description": "Any sizes.",
+                "expires_at": (date.today() + timedelta(days=14)).isoformat(),
+                "seeking": "either",
+                "visibility": "public",
+            },
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()["error"]["code"] == "BAD_REQUEST"
+
+    def test_only_request_owner_can_update_delete_or_fulfill_request(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            other_user = UserFactory(email_confirmed=True)
+            item_request = ItemRequestFactory(user=owner, status="open")
+            db.session.commit()
+            other_access_token = login_api_user(client, other_user.email)
+            request_id = item_request.id
+
+        update_response = client.patch(
+            f"/api/v1/requests/{request_id}",
+            json={
+                "title": "Updated title",
+                "description": "Updated description",
+                "expires_at": (date.today() + timedelta(days=21)).isoformat(),
+                "seeking": "loan",
+                "visibility": "circles",
+            },
+            headers=auth_headers(other_access_token),
+        )
+        delete_response = client.delete(
+            f"/api/v1/requests/{request_id}",
+            headers=auth_headers(other_access_token),
+        )
+        fulfill_response = client.post(
+            f"/api/v1/requests/{request_id}/fulfill",
+            headers=auth_headers(other_access_token),
+        )
+
+        assert update_response.status_code == 403
+        assert delete_response.status_code == 403
+        assert fulfill_response.status_code == 403
+
+    def test_deleted_request_cannot_be_updated_or_fulfilled_again(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            item_request = ItemRequestFactory(user=owner, status="open")
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            request_id = item_request.id
+
+        delete_response = client.delete(
+            f"/api/v1/requests/{request_id}",
+            headers=auth_headers(access_token),
+        )
+        update_response = client.patch(
+            f"/api/v1/requests/{request_id}",
+            json={
+                "title": "Updated after delete",
+                "description": "Should fail",
+                "expires_at": (date.today() + timedelta(days=21)).isoformat(),
+                "seeking": "either",
+                "visibility": "circles",
+            },
+            headers=auth_headers(access_token),
+        )
+        fulfill_response = client.post(
+            f"/api/v1/requests/{request_id}/fulfill",
+            headers=auth_headers(access_token),
+        )
+
+        assert delete_response.status_code == 200
+        assert delete_response.get_json()["request"]["status"] == "deleted"
+        assert update_response.status_code == 409
+        assert fulfill_response.status_code == 409
+
+    def test_fulfilled_request_cannot_be_fulfilled_again(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            item_request = ItemRequestFactory(user=owner, status="open")
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            request_id = item_request.id
+
+        first_response = client.post(
+            f"/api/v1/requests/{request_id}/fulfill",
+            headers=auth_headers(access_token),
+        )
+        second_response = client.post(
+            f"/api/v1/requests/{request_id}/fulfill",
+            headers=auth_headers(access_token),
+        )
+
+        assert first_response.status_code == 200
+        assert first_response.get_json()["request"]["status"] == "fulfilled"
+        assert second_response.status_code == 409
+
 
 class TestApiMessaging:
-    """Exercise inbox summary and thread reads."""
+    """Exercise inbox summary and thread read/write behavior."""
 
     def test_messages_list_returns_unread_count_and_request_context(self, client, app):
         with app.app_context():
@@ -270,6 +401,189 @@ class TestApiMessaging:
 
         response = client.get(
             f"/api/v1/messages/{message_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 403
+        assert response.get_json()["error"]["code"] == "FORBIDDEN"
+
+    def test_item_conversation_start_derives_recipient_from_item_owner(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            sender = UserFactory(email_confirmed=True)
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+            access_token = login_api_user(client, sender.email)
+            item_id = item.id
+            owner_id = str(owner.id)
+            sender_id = str(sender.id)
+
+        response = client.post(
+            "/api/v1/messages",
+            json={
+                "body": "Interested in borrowing this.",
+                "item_id": str(item_id),
+            },
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 201
+        payload = response.get_json()
+
+        assert payload["message"]["sender"]["id"] == sender_id
+        assert payload["message"]["recipient"]["id"] == owner_id
+
+    def test_request_conversation_start_derives_recipient_from_request_owner(self, client, app):
+        with app.app_context():
+            requester = UserFactory(email_confirmed=True)
+            helper = UserFactory(email_confirmed=True)
+            item_request = ItemRequestFactory(user=requester, visibility="public")
+            db.session.commit()
+            access_token = login_api_user(client, helper.email)
+            request_id = item_request.id
+            requester_id = str(requester.id)
+            helper_id = str(helper.id)
+
+        response = client.post(
+            "/api/v1/messages",
+            json={
+                "body": "I might have one you can use.",
+                "request_id": str(request_id),
+            },
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 201
+        payload = response.get_json()
+
+        assert payload["message"]["sender"]["id"] == helper_id
+        assert payload["message"]["recipient"]["id"] == requester_id
+
+    def test_item_conversation_start_rejects_self_messaging(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+
+        response = client.post(
+            "/api/v1/messages",
+            json={
+                "body": "Checking in on my own item.",
+                "item_id": str(item_id),
+            },
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()["error"]["code"] == "INVALID_ACTION"
+
+    def test_request_conversation_start_rejects_self_messaging(self, client, app):
+        with app.app_context():
+            requester = UserFactory(email_confirmed=True)
+            item_request = ItemRequestFactory(user=requester, visibility="public")
+            db.session.commit()
+            access_token = login_api_user(client, requester.email)
+            request_id = item_request.id
+
+        response = client.post(
+            "/api/v1/messages",
+            json={
+                "body": "I can solve this myself.",
+                "request_id": str(request_id),
+            },
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()["error"]["code"] == "INVALID_ACTION"
+
+    def test_request_conversation_start_rejects_viewer_without_visibility(self, client, app):
+        with app.app_context():
+            requester = UserFactory(email_confirmed=True)
+            viewer = UserFactory(email_confirmed=True)
+            item_request = ItemRequestFactory(user=requester, visibility="circles")
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            request_id = item_request.id
+
+        response = client.post(
+            "/api/v1/messages",
+            json={
+                "body": "I can help.",
+                "request_id": str(request_id),
+            },
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 403
+        assert response.get_json()["error"]["code"] == "FORBIDDEN"
+
+    def test_mark_read_endpoint_marks_unread_messages_in_thread(self, client, app):
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory(email_confirmed=True)
+            item = ItemFactory(
+                owner=sender,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            first_message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                item=item,
+                is_read=False,
+            )
+            MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                item=item,
+                is_read=False,
+            )
+            db.session.commit()
+            access_token = login_api_user(client, recipient.email)
+            message_id = first_message.id
+
+        response = client.post(
+            f"/api/v1/messages/{message_id}/mark-read",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json() == {
+            "marked_read_count": 2,
+            "has_unread_messages": False,
+        }
+
+        with app.app_context():
+            db.session.expire_all()
+            assert db.session.get(Message, message_id).is_read is True
+
+    def test_reply_endpoint_rejects_non_participant(self, client, app):
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            viewer = UserFactory(email_confirmed=True)
+            message = MessageFactory(sender=sender, recipient=recipient)
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            message_id = message.id
+
+        response = client.post(
+            f"/api/v1/messages/{message_id}/reply",
+            json={"body": "Hello"},
             headers=auth_headers(access_token),
         )
 
