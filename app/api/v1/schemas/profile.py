@@ -12,6 +12,7 @@ from app.api.v1.schemas.base import (
 )
 from app.api.v1.schemas.users import UserIdentitySchema
 from app.models import User, UserWebLink
+from app.services import location_service
 
 
 class UserWebLinkSchema(ApiSchema):
@@ -53,6 +54,13 @@ class CurrentUserProfileResponseSchema(ApiSchema):
     user = fields.Nested(UserProfileSchema(), required=True)
 
 
+class ProfileUpdateResponseSchema(ApiSchema):
+    """Wrapper for the authenticated user's profile mutation response."""
+
+    user = fields.Nested(UserProfileSchema(), required=True)
+    image_upload_failed = fields.Boolean(required=True)
+
+
 class UserSettingsSchema(ApiSchema):
     """Current-user account settings exposed to API clients."""
 
@@ -89,7 +97,7 @@ class UserWebLinkWriteSchema(ApiSchema):
 
     @validates_schema
     def validate_custom_name(self, data, **kwargs):
-        if data["platform"] == "other":
+        if data.get("platform") == "other":
             custom_name = data.get("custom_name")
             if custom_name is None or not custom_name.strip():
                 raise ValidationError(
@@ -100,14 +108,10 @@ class UserWebLinkWriteSchema(ApiSchema):
 class ProfileUpdateSchema(ApiSchema):
     """Write payload for the authenticated user's profile."""
 
-    about_me = fields.String(
-        load_default=None,
-        allow_none=True,
-        validate=validate.Length(max=500),
-    )
+    about_me = fields.String(allow_none=True, validate=validate.Length(max=500))
     delete_image = ApiBoolean(load_default=False)
-    profile_image = ApiUploadedFile(load_default=None, allow_none=True)
-    links = fields.List(fields.Nested(UserWebLinkWriteSchema()), load_default=list)
+    profile_image = ApiUploadedFile(allow_none=True)
+    links = fields.List(fields.Nested(UserWebLinkWriteSchema()), validate=validate.Length(max=5))
 
 
 class SettingsUpdateSchema(ApiSchema):
@@ -147,7 +151,39 @@ class DeleteAccountSchema(ApiSchema):
 
     @validates_schema
     def validate_confirmation(self, data, **kwargs):
-        if data["confirmation"] != "DELETE MY ACCOUNT":
+        if data.get("confirmation") != "DELETE MY ACCOUNT":
             raise ValidationError(
                 {"confirmation": ['You must type "DELETE MY ACCOUNT" exactly to confirm deletion.']}
             )
+
+
+class LocationUpdateStatusUserSchema(ApiSchema):
+    """Location-related user flags returned after a location mutation."""
+
+    has_location = fields.Boolean(required=True)
+    geocoding_failed = fields.Boolean(required=True)
+
+
+class LocationUpdateResponseSchema(ApiSchema):
+    """Wrapper for the authenticated user's location mutation response."""
+
+    status = fields.String(
+        required=True,
+        validate=validate.OneOf(
+            [
+                location_service.LOCATION_UPDATE_STATUS_SUCCESS,
+                location_service.LOCATION_UPDATE_STATUS_REMOVED,
+                location_service.LOCATION_UPDATE_STATUS_RATE_LIMITED,
+                location_service.LOCATION_UPDATE_STATUS_GEOCODING_FAILED,
+                location_service.LOCATION_UPDATE_STATUS_GEOCODING_ERROR,
+                location_service.LOCATION_UPDATE_STATUS_UNEXPECTED_ERROR,
+            ]
+        ),
+    )
+    user = fields.Nested(LocationUpdateStatusUserSchema(), required=True)
+
+
+class DeleteAccountResponseSchema(ApiSchema):
+    """Wrapper for confirmed account deletion responses."""
+
+    deleted = fields.Boolean(required=True)
