@@ -35,6 +35,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Add API mutation parity for user profile/settings/location/acct deletion ([#382](https://github.com/sfirke/meutch/pull/382)).
 - Add API mutation parity for requests/messages ([#384](https://github.com/sfirke/meutch/pull/384)).
 - Add API mutation parity for circles, including create/edit flows, join-request actions, leave/delete behavior, and admin/member management.
+- Add API mutation parity for items, including item create/edit/delete flows, image upload/reorder/delete endpoints, and shared giveaway-versus-loan invariant enforcement.
 
 ## Apr 2026
 

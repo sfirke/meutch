@@ -5,12 +5,15 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models import GiveawayInterest, Item, ItemImage, LoanRequest, Message, Tag
 from app.services.exceptions import AuthorizationError, ConflictError, InformationalError
-from app.utils.storage import delete_item_images, upload_item_images
+from app.utils.storage import MAX_ITEM_IMAGE_COUNT, delete_item_images, upload_item_images
 
 PUBLIC_GIVEAWAY_LOCATION_MESSAGE = (
     "You must set your location before making a giveaway public. "
     "Public giveaways are visible to everyone on Meutch and users will have no idea where the "
     "item is located. Please update your location in your profile settings."
+)
+ITEM_IMAGE_LIMIT_MESSAGE = (
+    f"Maximum {MAX_ITEM_IMAGE_COUNT} images per item. Please remove some images first."
 )
 
 
@@ -102,19 +105,53 @@ def _raise_item_transition_conflict(item, is_giveaway):
 
 
 def _sync_item_tags(item, raw_tag_input):
-    tag_input = raw_tag_input.strip() if raw_tag_input else ""
     item.tags.clear()
-    if not tag_input:
-        return
-
-    tag_names = [tag.strip().lower() for tag in tag_input.split(",") if tag.strip()]
     with db.session.no_autoflush:
-        for tag_name in tag_names:
+        for tag_name in _normalize_tag_names(raw_tag_input):
             tag = Tag.query.filter_by(name=tag_name).first()
             if not tag:
                 tag = Tag(name=tag_name)
                 db.session.add(tag)
             item.tags.append(tag)
+
+
+def _normalize_tag_names(raw_tag_input):
+    if not raw_tag_input:
+        return []
+
+    tag_values = raw_tag_input
+    if isinstance(raw_tag_input, str):
+        tag_values = raw_tag_input.split(",")
+
+    normalized_names = []
+    seen_names = set()
+    for raw_tag in tag_values:
+        if raw_tag is None:
+            continue
+        tag_name = str(raw_tag).strip().lower()
+        if not tag_name or tag_name in seen_names:
+            continue
+        normalized_names.append(tag_name)
+        seen_names.add(tag_name)
+
+    return normalized_names
+
+
+def _normalize_text_value(value):
+    if value is None:
+        return None
+
+    return value.strip() if isinstance(value, str) else value
+
+
+def _ensure_item_owner(item, acting_user):
+    if item.owner_id != acting_user.id:
+        raise AuthorizationError("You can only manage your own items.")
+
+
+def _ensure_item_image_capacity(existing_count, new_count):
+    if existing_count + new_count > MAX_ITEM_IMAGE_COUNT:
+        raise InformationalError(ITEM_IMAGE_LIMIT_MESSAGE)
 
 
 def _ensure_public_giveaway_owner_is_geocoded(owner, is_giveaway, giveaway_visibility):
@@ -138,14 +175,15 @@ def create_item(
         return ItemCreationResult(item=existing_item, was_created=False)
 
     _ensure_public_giveaway_owner_is_geocoded(owner, is_giveaway, giveaway_visibility)
+    _ensure_item_image_capacity(0, len(uploaded_files or []))
 
     image_urls = []
     if uploaded_files:
         image_urls = upload_item_images(uploaded_files)
 
     new_item = Item(
-        name=name.strip(),
-        description=description.strip(),
+        name=_normalize_text_value(name),
+        description=_normalize_text_value(description),
         owner=owner,
         category_id=category_id,
         creation_token=creation_token,
@@ -200,13 +238,14 @@ def update_item(
     existing_image_ids = {str(img.id) for img in existing_images}
     delete_ids = {entry for entry in delete_entries if entry in existing_image_ids}
     surviving_images = [img for img in existing_images if str(img.id) not in delete_ids]
+    _ensure_item_image_capacity(len(surviving_images), len(new_files or []))
 
     new_urls = []
     if new_files:
         new_urls = upload_item_images(new_files)
 
-    item.name = name
-    item.description = description
+    item.name = _normalize_text_value(name)
+    item.description = _normalize_text_value(description)
     item.category_id = category_id
     item.is_giveaway = is_giveaway
     item.giveaway_visibility = giveaway_visibility if is_giveaway else None
@@ -264,6 +303,66 @@ def update_item(
 
     if removed_urls:
         delete_item_images(removed_urls)
+
+
+def append_item_images(item, acting_user, new_files):
+    _ensure_item_owner(item, acting_user)
+    _ensure_item_image_capacity(len(item.images), len(new_files or []))
+
+    if not new_files:
+        return item
+
+    new_urls = upload_item_images(new_files)
+    start_position = len(item.images)
+    for offset, url in enumerate(new_urls):
+        db.session.add(ItemImage(item=item, url=url, position=start_position + offset))
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        delete_item_images(new_urls)
+        raise
+
+    return item
+
+
+def reorder_item_images(item, acting_user, image_ids):
+    _ensure_item_owner(item, acting_user)
+
+    requested_ids = [str(image_id) for image_id in image_ids]
+    existing_images = list(item.images)
+    existing_ids = [str(image.id) for image in existing_images]
+    if len(requested_ids) != len(existing_ids) or set(requested_ids) != set(existing_ids):
+        raise InformationalError("image_ids must include every existing item image exactly once.")
+
+    existing_by_id = {str(image.id): image for image in existing_images}
+    for position, image_id in enumerate(requested_ids):
+        existing_by_id[image_id].position = position
+
+    db.session.commit()
+    return item
+
+
+def delete_item_image(item, image, acting_user):
+    _ensure_item_owner(item, acting_user)
+
+    remaining_images = [
+        existing_image for existing_image in item.images if existing_image.id != image.id
+    ]
+    for position, remaining_image in enumerate(remaining_images):
+        remaining_image.position = position
+
+    image_url = image.url
+    db.session.delete(image)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+    delete_item_images([image_url])
+    return item
 
 
 def delete_item(item, acting_user):

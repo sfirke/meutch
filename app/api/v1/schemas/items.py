@@ -91,7 +91,7 @@ class ItemDetailResponseSchema(ApiSchema):
 
 
 class ItemWritePayloadSchema(ApiSchema):
-    """Write payload for item create and update endpoints."""
+    """Write payload for item create endpoints."""
 
     name = fields.String(required=True, validate=validate.Length(min=1, max=100))
     description = fields.String(
@@ -117,6 +117,32 @@ class ItemWritePayloadSchema(ApiSchema):
             )
 
 
+class ItemUpdatePayloadSchema(ApiSchema):
+    """Write payload for item update endpoints."""
+
+    name = fields.String(required=True, validate=validate.Length(min=1, max=100))
+    description = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=500),
+    )
+    category_id = fields.UUID(required=True)
+    tags = fields.List(fields.String(validate=validate.Length(max=50)), load_default=list)
+    is_giveaway = ApiBoolean(required=True)
+    giveaway_visibility = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.OneOf(["default", "public"]),
+    )
+
+    @validates_schema
+    def validate_giveaway_visibility(self, data, **kwargs):
+        if data["is_giveaway"] and not data.get("giveaway_visibility"):
+            raise ValidationError(
+                {"giveaway_visibility": ["This field is required when is_giveaway is true."]}
+            )
+
+
 class ItemImagesUploadSchema(ApiSchema):
     """Write payload for appending new item images."""
 
@@ -127,6 +153,13 @@ class ItemImageOrderSchema(ApiSchema):
     """Write payload for reordering item images."""
 
     image_ids = fields.List(fields.UUID(), required=True, validate=validate.Length(min=1))
+
+
+class ItemDeleteResponseSchema(ApiSchema):
+    """Response payload for item deletion."""
+
+    deleted = fields.Boolean(required=True)
+    item_id = fields.UUID(required=True)
 
 
 class GiveawayInterestCreateSchema(ApiSchema):
