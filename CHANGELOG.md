@@ -11,6 +11,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Digest emails now surface fulfilled requests and claimed giveaways, including clear labels when an item is both created and resolved within the same digest window ([#339](https://github.com/sfirke/meutch/pull/339)).
 - Admin panel now separates user management from analytics, with a new Monthly Active Users chart that tracks qualifying activity from January 2026 onward ([#342](https://github.com/sfirke/meutch/pull/342)).
 - Address entry forms now use Canada-friendly "State/Province" and "Postal Code" wording, plus country dropdowns that put the United States of America and Canada first while keeping the existing geocoding flow ([#362](https://github.com/sfirke/meutch/pull/362)).
+- Registration now lands on a clearer email-confirmation guidance page that explains the next step, keeps resend as a secondary action until it is needed, routes unconfirmed logins back into the same flow, and offers a start-over path for mistyped email addresses.
 
 ### Bug fixes
 - Geocoding now sends structured address components to Nominatim and retries without the postal code when that field blocks an otherwise valid street-level match ([#362](https://github.com/sfirke/meutch/pull/362)).
