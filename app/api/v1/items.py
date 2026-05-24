@@ -128,10 +128,10 @@ def create_item():
         creation_result = item_service.create_item(
             current_user,
             data["name"],
-            data.get("description"),
+            data["description"],
             data["category_id"],
             data["is_giveaway"],
-            data.get("giveaway_visibility"),
+            data["giveaway_visibility"],
             data["tags"],
             data["images"],
         )
@@ -151,10 +151,10 @@ def update_item(item_id):
     item_service.update_item(
         item,
         data["name"],
-        data.get("description"),
+        data["description"],
         data["category_id"],
         data["is_giveaway"],
-        data.get("giveaway_visibility"),
+        data["giveaway_visibility"],
         data["tags"],
         [],
         [],

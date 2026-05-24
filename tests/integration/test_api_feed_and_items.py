@@ -708,3 +708,58 @@ class TestApiItemMutations:
         ]
         assert [image["position"] for image in payload["item"]["images"]] == [0, 1]
         mock_delete_images.assert_called_once_with([second_image_url])
+
+    def test_non_owner_cannot_upload_images_to_item(self, client, app):
+        with app.app_context():
+            owner = UserFactory()
+            non_owner = UserFactory(email_confirmed=True)
+            item = ItemFactory(owner=owner)
+            access_token = login_api_user(client, non_owner.email)
+            item_id = item.id
+
+        response = client.post(
+            f"/api/v1/items/{item_id}/images",
+            headers=auth_headers(access_token),
+            data=MultiDict([("images", (BytesIO(b"file"), "photo.jpg"))]),
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 403
+        assert response.get_json()["error"]["code"] == "FORBIDDEN"
+
+    def test_non_owner_cannot_reorder_item_images(self, client, app):
+        with app.app_context():
+            owner = UserFactory()
+            non_owner = UserFactory(email_confirmed=True)
+            item = ItemFactory(owner=owner)
+            image = ItemImageFactory(item=item, position=0)
+            access_token = login_api_user(client, non_owner.email)
+            item_id = item.id
+            image_id = image.id
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}/images/order",
+            headers=auth_headers(access_token),
+            json={"image_ids": [str(image_id)]},
+        )
+
+        assert response.status_code == 403
+        assert response.get_json()["error"]["code"] == "FORBIDDEN"
+
+    def test_non_owner_cannot_delete_item_image(self, client, app):
+        with app.app_context():
+            owner = UserFactory()
+            non_owner = UserFactory(email_confirmed=True)
+            item = ItemFactory(owner=owner)
+            image = ItemImageFactory(item=item, position=0)
+            access_token = login_api_user(client, non_owner.email)
+            item_id = item.id
+            image_id = image.id
+
+        response = client.delete(
+            f"/api/v1/items/{item_id}/images/{image_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 403
+        assert response.get_json()["error"]["code"] == "FORBIDDEN"
