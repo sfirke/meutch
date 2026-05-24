@@ -1,96 +1,112 @@
 """End-to-end functional tests for user workflows."""
-import pytest
+
 from datetime import date, timedelta
-from app.models import User, Item, db, Circle, CircleJoinRequest, LoanRequest, Message
-from tests.factories import UserFactory, CategoryFactory, CircleFactory, ItemFactory, TagFactory
+
+from app.models import Circle, CircleJoinRequest, Item, LoanRequest, Message, User, db
 from conftest import login_user
+from tests.factories import CategoryFactory, CircleFactory, ItemFactory, TagFactory, UserFactory
+
 
 class TestUserRegistrationWorkflow:
     """Test complete user registration workflow."""
-    
+
     def test_user_registration_and_login_flow(self, client, app):
         """Test user can register, confirm email, and login."""
         with app.app_context():
             # User registration
-            response = client.post('/register', data={
-                'email': 'newuser@example.com',
-                'first_name': 'New',
-                'last_name': 'User',
-                'location_method': 'skip',
-                'password': 'newpassword123',
-                'confirm_password': 'newpassword123'
-            }, follow_redirects=True)
-            
+            response = client.post(
+                "/register",
+                data={
+                    "email": "newuser@example.com",
+                    "first_name": "New",
+                    "last_name": "User",
+                    "location_method": "skip",
+                    "password": "newpassword123",
+                    "confirm_password": "newpassword123",
+                },
+                follow_redirects=True,
+            )
+
             assert response.status_code == 200
-            assert b'confirmation email has been sent' in response.data
-            
+            assert b"Check your email" in response.data
+
             # Verify user was created but not confirmed
-            user = User.query.filter_by(email='newuser@example.com').first()
+            user = User.query.filter_by(email="newuser@example.com").first()
             assert user is not None
             assert user.email_confirmed is False
-            
+
             # Simulate email confirmation
             user.email_confirmed = True
             db.session.commit()
-            
+
             # Login after confirmation
-            response = login_user(client, 'newuser@example.com', 'newpassword123')
-            
+            response = login_user(client, "newuser@example.com", "newpassword123")
+
             assert response.status_code == 200
-            assert b'Community Activity' in response.data or b'Find Circles' in response.data
+            assert b"Community Activity" in response.data or b"Find Circles" in response.data
+
 
 class TestItemManagementWorkflow:
     """Test complete item management workflow."""
-    
+
     def test_create_edit_delete_item_flow(self, client, app, auth_user):
         """Test user can create, edit, and delete an item."""
         with app.app_context():
             user = auth_user()  # Call the function to get fresh user
             # Login
             login_user(client, user.email)
-            
+
             # Create an item
-            category = CategoryFactory(name='Test Category')
-            
-            response = client.post('/list-item', data={
-                'name': 'Test Item',
-                'description': 'A test item for testing',
-                'category': str(category.id),
-                'tags': 'test, sample'
-            }, follow_redirects=True)
-            
+            category = CategoryFactory(name="Test Category")
+
+            response = client.post(
+                "/list-item",
+                data={
+                    "name": "Test Item",
+                    "description": "A test item for testing",
+                    "category": str(category.id),
+                    "tags": "test, sample",
+                },
+                follow_redirects=True,
+            )
+
             assert response.status_code == 200
-            assert b'Test Item' in response.data
-            
+            assert b"Test Item" in response.data
+
             # Find the created item
-            item = Item.query.filter_by(name='Test Item').first()
+            item = Item.query.filter_by(name="Test Item").first()
             assert item is not None
             assert item.owner_id == user.id
-            
+
             # Edit the item
-            response = client.post(f'/item/{item.id}/edit', data={
-                'name': 'Updated Test Item',
-                'description': 'An updated test item',
-                'category': str(category.id),
-                'tags': 'updated, test'
-            }, follow_redirects=True)
-            
+            response = client.post(
+                f"/item/{item.id}/edit",
+                data={
+                    "name": "Updated Test Item",
+                    "description": "An updated test item",
+                    "category": str(category.id),
+                    "tags": "updated, test",
+                },
+                follow_redirects=True,
+            )
+
             assert response.status_code == 200
-            
+
             # Verify changes
             db.session.refresh(item)
-            assert item.name == 'Updated Test Item'
-            assert item.description == 'An updated test item'
-            
+            assert item.name == "Updated Test Item"
+            assert item.description == "An updated test item"
+
             # Delete the item
-            response = client.post(f'/item/{item.id}/delete', follow_redirects=True)
-            
+            response = client.post(f"/item/{item.id}/delete", follow_redirects=True)
+
             assert response.status_code == 200
-            assert b'deleted successfully' in response.data
-            
+            assert b"deleted successfully" in response.data
+
             # Verify item is deleted
             deleted_item = db.session.get(Item, item.id)
             assert deleted_item is None
+
 
 class TestLoanRequestWorkflow:
     """Test loan request workflow."""
@@ -98,8 +114,8 @@ class TestLoanRequestWorkflow:
     def test_blank_message_shows_validation_error(self, client, app):
         """Test that submitting a loan request with a blank message shows validation feedback."""
         with app.app_context():
-            borrower = UserFactory(email='borrower-blank-message@test.com')
-            lender = UserFactory(email='lender-blank-message@test.com')
+            borrower = UserFactory(email="borrower-blank-message@test.com")
+            lender = UserFactory(email="lender-blank-message@test.com")
             circle = CircleFactory()
             circle.members.extend([borrower, lender])
 
@@ -108,132 +124,143 @@ class TestLoanRequestWorkflow:
 
             login_user(client, borrower.email)
 
-            start_date = (date.today() + timedelta(days=3)).strftime('%Y-%m-%d')
-            end_date = (date.today() + timedelta(days=8)).strftime('%Y-%m-%d')
+            start_date = (date.today() + timedelta(days=3)).strftime("%Y-%m-%d")
+            end_date = (date.today() + timedelta(days=8)).strftime("%Y-%m-%d")
 
-            response = client.post(f'/items/{item.id}/request', data={
-                'start_date': start_date,
-                'end_date': end_date,
-                'message': ''
-            }, follow_redirects=True)
+            response = client.post(
+                f"/items/{item.id}/request",
+                data={"start_date": start_date, "end_date": end_date, "message": ""},
+                follow_redirects=True,
+            )
 
             assert response.status_code == 200
-            assert b'Please include a message with your request.' in response.data
-    
+            assert b"Please include a message with your request." in response.data
+
     def test_complete_loan_request_flow(self, client, app):
         """Test complete loan request from request to completion."""
         with app.app_context():
             # Create two users
-            borrower = UserFactory(email='borrower@test.com')
-            lender = UserFactory(email='lender@test.com')
+            borrower = UserFactory(email="borrower@test.com")
+            lender = UserFactory(email="lender@test.com")
             circle = CircleFactory()
             circle.members.extend([borrower, lender])
-            
+
             # Create an item
 
             item = ItemFactory(owner=lender)
             db.session.commit()
-            
+
             # Borrower logs in and requests item
             login_user(client, borrower.email)
-            
+
             # Generate dynamic dates - start date 3 days from now, end date 8 days from now
-            start_date = (date.today() + timedelta(days=3)).strftime('%Y-%m-%d')
-            end_date = (date.today() + timedelta(days=8)).strftime('%Y-%m-%d')
-            
-            response = client.post(f'/items/{item.id}/request', data={
-                'start_date': start_date,
-                'end_date': end_date,
-                'message': 'I would like to borrow this item'
-            }, follow_redirects=True)
-            
+            start_date = (date.today() + timedelta(days=3)).strftime("%Y-%m-%d")
+            end_date = (date.today() + timedelta(days=8)).strftime("%Y-%m-%d")
+
+            response = client.post(
+                f"/items/{item.id}/request",
+                data={
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "message": "I would like to borrow this item",
+                },
+                follow_redirects=True,
+            )
+
             assert response.status_code == 200
-            
+
             # Logout borrower and login lender
-            client.get('/logout', follow_redirects=True)
+            client.get("/logout", follow_redirects=True)
             login_user(client, lender.email)
-            
+
             # Lender checks messages and approves loan
-            response = client.get('/messages')
+            response = client.get("/messages")
             assert response.status_code == 200
-            
+
             # Find the loan request and approve it
             loan_request = LoanRequest.query.filter_by(
-                item_id=item.id,
-                borrower_id=borrower.id
+                item_id=item.id, borrower_id=borrower.id
             ).first()
-            
+
             assert loan_request is not None
-            assert loan_request.status == 'pending'
-            
-            response = client.post(f'/loan/{loan_request.id}/approve', follow_redirects=True)
+            assert loan_request.status == "pending"
+
+            response = client.post(f"/loan/{loan_request.id}/approve", follow_redirects=True)
             assert response.status_code == 200
-            
+
             # Verify loan is approved
             db.session.refresh(loan_request)
-            assert loan_request.status == 'approved'
+            assert loan_request.status == "approved"
             assert item.available is False
+
 
 class TestCircleWorkflow:
     """Test circle management workflow."""
-    
+
     def test_create_and_manage_circle_flow(self, client, app):
         """Test creating and managing a circle."""
         with app.app_context():
             # Create users
-            admin_user = UserFactory(email='admin@test.com')
-            member_user = UserFactory(email='member@test.com')
-            
+            admin_user = UserFactory(email="admin@test.com")
+            member_user = UserFactory(email="member@test.com")
+
             # Admin creates circle
             login_user(client, admin_user.email)
-            
-            response = client.post('/circles', data={
-                'create_circle': True,
-                'name': 'Test Circle',
-                'description': 'A test circle',
-                'circle_type': 'closed'
-            }, follow_redirects=True)
-            
+
+            response = client.post(
+                "/circles",
+                data={
+                    "create_circle": True,
+                    "name": "Test Circle",
+                    "description": "A test circle",
+                    "circle_type": "closed",
+                },
+                follow_redirects=True,
+            )
+
             assert response.status_code == 200
-            assert b'Test Circle' in response.data
-            
+            assert b"Test Circle" in response.data
+
             # Find created circle
-            circle = Circle.query.filter_by(name='Test Circle').first()
+            circle = Circle.query.filter_by(name="Test Circle").first()
             assert circle is not None
             assert circle.is_admin(admin_user)
-            
+
             # Member requests to join
-            client.get('/logout', follow_redirects=True)
+            client.get("/logout", follow_redirects=True)
             login_user(client, member_user.email)
-            
-            response = client.post(f'/circles/join/{circle.id}', data={
-                'message': 'I would like to join this circle'
-            }, follow_redirects=True)
-            
+
+            response = client.post(
+                f"/circles/join/{circle.id}",
+                data={"message": "I would like to join this circle"},
+                follow_redirects=True,
+            )
+
             assert response.status_code == 200
-            
+
             # Admin approves request
-            client.get('/logout', follow_redirects=True)
+            client.get("/logout", follow_redirects=True)
             login_user(client, admin_user.email)
-            
+
             # Find join request
             join_request = CircleJoinRequest.query.filter_by(
-                circle_id=circle.id,
-                user_id=member_user.id
+                circle_id=circle.id, user_id=member_user.id
             ).first()
-            
+
             assert join_request is not None
-            
-            response = client.post(f'/circles/{circle.id}/request/{join_request.id}/approve', 
-                                   follow_redirects=True)
+
+            response = client.post(
+                f"/circles/{circle.id}/request/{join_request.id}/approve", follow_redirects=True
+            )
             assert response.status_code == 200
-            
+
             # Verify member was added
             assert member_user in circle.members
 
+
 class TestSearchAndBrowsingWorkflow:
     """Test search and browsing functionality."""
-    
+
     def test_search_and_browse_items(self, client, app):
         """Test searching and browsing items."""
         with app.app_context():
@@ -241,125 +268,124 @@ class TestSearchAndBrowsingWorkflow:
             user1 = UserFactory()  # searcher
             user2 = UserFactory()  # item owner
             category = CategoryFactory()
-                        
+
             # Create a shared circle
             circle = CircleFactory()
             circle.members.append(user1)
             circle.members.append(user2)
             db.session.commit()
-            
-            tag1 = TagFactory(name='laptop')
-            tag2 = TagFactory(name='computer')
-            
+
+            tag1 = TagFactory(name="laptop")
+            tag2 = TagFactory(name="computer")
+
             item1 = ItemFactory(
-                name='Gaming Laptop',
-                description='High-performance gaming laptop',
+                name="Gaming Laptop",
+                description="High-performance gaming laptop",
                 owner=user2,
-                category=category
+                category=category,
             )
             item1.tags.append(tag1)
             item1.tags.append(tag2)
-            
+
             db.session.commit()
-            
+
             # Login as user1 to search
             login_user(client, user1.email)
-            
+
             # Search for items
-            response = client.get('/find?q=laptop')
+            response = client.get("/find?q=laptop")
             assert response.status_code == 200
-            assert b'Gaming Laptop' in response.data
-            assert b'Office Monitor' not in response.data
-            
+            assert b"Gaming Laptop" in response.data
+            assert b"Office Monitor" not in response.data
+
             # Tag string shows up in search results
-            response = client.get('/find?q=computer')
+            response = client.get("/find?q=computer")
             assert response.status_code == 200
+
 
 class TestMessagingWorkflow:
     """Test messaging functionality."""
-    
+
     def test_send_and_receive_messages(self, client, app):
         """Test messaging between users."""
         with app.app_context():
             # Create users and item
-            sender = UserFactory(email='sender@test.com')
-            recipient = UserFactory(email='recipient@test.com')
+            sender = UserFactory(email="sender@test.com")
+            recipient = UserFactory(email="recipient@test.com")
             circle = CircleFactory()
             circle.members.extend([sender, recipient])
-            
+
             item = ItemFactory(owner=recipient)
             db.session.commit()
-            
+
             # Sender logs in and sends message
             login_user(client, sender.email)
-            
-            response = client.post(f'/item/{item.id}', data={
-                'body': 'Hello, I am interested in this item!'
-            }, follow_redirects=True)
-            
+
+            response = client.post(
+                f"/item/{item.id}",
+                data={"body": "Hello, I am interested in this item!"},
+                follow_redirects=True,
+            )
+
             assert response.status_code == 200
-            assert b'message has been sent' in response.data
-            
+            assert b"message has been sent" in response.data
+
             # Recipient logs in and checks messages
-            client.get('/logout', follow_redirects=True)
+            client.get("/logout", follow_redirects=True)
             login_user(client, recipient.email)
-            
-            response = client.get('/messages')
+
+            response = client.get("/messages")
             assert response.status_code == 200
-            assert b'interested in this item' in response.data
-            
+            assert b"interested in this item" in response.data
+
             # Check unread count - recipient should have 1 unread message
-            unread_count = Message.query.filter_by(
-                recipient_id=recipient.id,
-                is_read=False
-            ).count()
-            
+            unread_count = Message.query.filter_by(recipient_id=recipient.id, is_read=False).count()
+
             assert unread_count == 1, f"Expected 1 unread message, but found {unread_count}"
-            
+
             # Also verify the specific message exists and is unread
             message = Message.query.filter_by(
-                sender_id=sender.id,
-                recipient_id=recipient.id,
-                item_id=item.id
+                sender_id=sender.id, recipient_id=recipient.id, item_id=item.id
             ).first()
-            
+
             assert message is not None
             assert message.is_read is False
-            
+
             # View conversation
-            response = client.get(f'/message/{message.id}')
+            response = client.get(f"/message/{message.id}")
             assert response.status_code == 200
-            assert b'interested in this item' in response.data
-            
+            assert b"interested in this item" in response.data
+
             # Message should be marked as read
             db.session.refresh(message)
             assert message.is_read is True
 
+
 class TestUserProfileWorkflow:
     """Test user profile functionality."""
-    
+
     def test_user_profile_access_control(self, client, app, auth_user):
         """Test user profile access control - requires authentication."""
         with app.app_context():
             user = auth_user()
-            
+
             # Login for authenticated test
             login_user(client, user.email)
-            
+
             # Test authenticated access works
-            response = client.get(f'/user/{user.id}')
+            response = client.get(f"/user/{user.id}")
             assert response.status_code == 200
-            assert bytes(user.first_name, encoding='utf-8') in response.data
-            
+            assert bytes(user.first_name, encoding="utf-8") in response.data
+
             # Test unauthenticated access redirects to login
-            client.get('/logout', follow_redirects=True)
-            
+            client.get("/logout", follow_redirects=True)
+
             # First verify we get redirected (without following)
-            response = client.get(f'/user/{user.id}')
+            response = client.get(f"/user/{user.id}")
             assert response.status_code == 302
-            assert '/login' in response.location
-            
+            assert "/login" in response.location
+
             # Then verify following redirect lands on login page
-            response = client.get(f'/user/{user.id}', follow_redirects=True)
+            response = client.get(f"/user/{user.id}", follow_redirects=True)
             assert response.status_code == 200
-            assert b'Login' in response.data
+            assert b"Login" in response.data

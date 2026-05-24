@@ -236,4 +236,4 @@ class ResendConfirmationForm(FlaskForm):
             Length(max=120, message="Email must be under 120 characters."),
         ],
     )
-    submit = SubmitField("Send Confirmation Email")
+    submit = SubmitField("Resend Confirmation Email")
