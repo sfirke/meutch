@@ -43,7 +43,7 @@
                         <li class="mb-2">Open your email inbox{% if email_address %} for <strong>{{ email_address }}</strong>{% endif %}.</li>
                         <li class="mb-2">Look for the subject line <strong>"Welcome to Meutch - Please confirm your email"</strong>.</li>
                         <li class="mb-2">Click the confirmation link in that email.</li>
-                        <li>Come back to Meutch and log in after the confirmation is complete.</li>
+                        <li>Come back to Meutch and log in.</li>
                     </ol>
                 </div>
             </div>
@@ -67,7 +67,7 @@
                             <h2 class="h6 mb-3">Good to know</h2>
                             <ul class="mb-0 ps-3">
                                 <li class="mb-2">Each confirmation link works for 24 hours.</li>
-                                <li class="mb-2">The newest confirmation email is the best one to use.</li>
+                                <li class="mb-2">If you requested multiple confirmation emails, use the newest one.</li>
                                 <li>You cannot log in until your email address is confirmed.</li>
                             </ul>
                         </div>
@@ -115,7 +115,7 @@
             <div class="card border-warning shadow-sm mb-4">
                 <div class="card-body p-4">
                     <h2 class="h5 mb-2">Wrong email address?</h2>
-                    <p class="mb-3">If you signed up with a typo or the wrong email address, Meutch cannot change the email on an unconfirmed account yet. Create a new account with the correct email address instead.</p>
+                    <p class="mb-3">If you signed up with a typo or the wrong email address, Meutch cannot change the email on an unconfirmed account. Create a new account with the correct email address instead.</p>
                     <a class="btn btn-outline-dark" href="{{ url_for('auth.register') }}">Start over with a different email</a>
                 </div>
             </div>
