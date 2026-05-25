@@ -1,5 +1,6 @@
 """Integration tests for authentication routes."""
 
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -81,14 +82,34 @@ class TestAuthenticationRoutes:
         assert b"Invalid email or password" in response.data
 
     def test_login_unconfirmed_email(self, client, app):
-        """Test login with unconfirmed email."""
+        """Test login with unconfirmed email redirects to guidance page."""
         with app.app_context():
             user = UserFactory(email_confirmed=False)
 
-            response = client.post("/login", data={"email": user.email, "password": TEST_PASSWORD})
+            response = client.post(
+                "/login",
+                data={"email": user.email, "password": TEST_PASSWORD},
+                follow_redirects=False,
+            )
+
+            assert response.status_code == 302
+            assert "/resend-confirmation" in response.location
+
+    def test_login_unconfirmed_email_prefills_confirmation_guidance(self, client, app):
+        """Test login with unconfirmed email lands on guidance with resend open."""
+        with app.app_context():
+            user = UserFactory(email_confirmed=False)
+
+            response = client.post(
+                "/login",
+                data={"email": user.email, "password": TEST_PASSWORD},
+                follow_redirects=True,
+            )
 
             assert response.status_code == 200
-            assert b"Please confirm your email" in response.data
+            assert b"Confirm your email to keep going" in response.data
+            assert user.email.encode() in response.data
+            assert b'class="collapse show" id="resend-confirmation-panel"' in response.data
 
     def test_logout(self, client, app, auth_user):
         """Test logout functionality."""
@@ -148,7 +169,7 @@ class TestAuthenticationRoutes:
                 )
 
                 assert response.status_code == 200
-                assert b"A confirmation email has been sent to you by email." in response.data
+                assert b"Check your email" in response.data
 
                 # Verify user was created with coordinates
                 user = User.query.filter_by(email="newuser@example.com").first()
@@ -176,7 +197,7 @@ class TestAuthenticationRoutes:
             )
 
             assert response.status_code == 200
-            assert b"A confirmation email has been sent to you by email." in response.data
+            assert b"Check your email" in response.data
 
             # Verify user was created with coordinates
             user = User.query.filter_by(email="coorduser@example.com").first()
@@ -202,7 +223,7 @@ class TestAuthenticationRoutes:
             )
 
             assert response.status_code == 200
-            assert b"A confirmation email has been sent to you by email." in response.data
+            assert b"Check your email" in response.data
 
             # Verify user was created without coordinates
             user = User.query.filter_by(email="skipuser@example.com").first()
@@ -252,6 +273,28 @@ class TestAuthenticationRoutes:
         assert response.status_code == 302
         assert "/resend-confirmation" in response.location
 
+    def test_register_confirmation_guidance_prefills_email_and_hides_resend(self, client):
+        """Test post-registration guidance highlights next steps before resend."""
+        response = client.post(
+            "/register",
+            data={
+                "email": "guidanceuser@example.com",
+                "first_name": "Guidance",
+                "last_name": "User",
+                "location_method": "skip",
+                "password": "guidancepassword123",
+                "confirm_password": "guidancepassword123",
+            },
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert b"Check your email" in response.data
+        assert b"guidanceuser@example.com" in response.data
+        assert b"Didn't get the confirmation email? Click here to resend." in response.data
+        assert b'class="collapse" id="resend-confirmation-panel"' in response.data
+        assert b"Wrong email address?" in response.data
+
     def test_register_with_next_embeds_in_confirmation_url(self, app, client):
         """?next param on /register is embedded in the confirmation link so
         it survives cross-device / cross-browser email opens."""
@@ -292,7 +335,6 @@ class TestAuthenticationRoutes:
         )
 
         assert response.status_code == 302
-        assert "/login" in response.location
         assert "next=" in response.location
         assert "abc123" in response.location
 
@@ -369,7 +411,9 @@ class TestAuthenticationRoutes:
                 )
 
                 assert response.status_code == 200
-                assert b"Error sending confirmation email" in response.data
+                assert b"could not send the confirmation email yet" in response.data
+                assert b"Your account is ready" in response.data
+                assert b'class="collapse show" id="resend-confirmation-panel"' in response.data
 
     def test_case_insensitive_login(self, client, app):
         """Test that login is case-insensitive for email addresses."""
@@ -451,11 +495,15 @@ class TestAuthenticationRoutes:
             ]
 
             for email in test_emails:
-                response = client.post("/resend-confirmation", data={"email": email})
+                response = client.post(
+                    "/resend-confirmation",
+                    data={"email": email},
+                    follow_redirects=True,
+                )
 
                 assert response.status_code == 200, f"Failed for email: {email}"
                 assert (
-                    b"A new confirmation email has been sent" in response.data
+                    b"We sent a new confirmation email" in response.data
                 ), f"Failed for email: {email}"
 
     def test_registration_stores_lowercase_email(self, client, app):
@@ -540,7 +588,9 @@ class TestEmailConfirmation:
         """Test resend confirmation page."""
         response = client.get("/resend-confirmation")
         assert response.status_code == 200
-        assert b"Resend Confirmation" in response.data
+        assert b"Still need to confirm your email?" in response.data
+        assert b'class="collapse show" id="resend-confirmation-panel"' in response.data
+        assert b"Wrong email address?" in response.data
 
     def test_resend_confirmation_valid_email(self, client, app):
         """Test resending confirmation for valid unconfirmed email."""
@@ -552,7 +602,8 @@ class TestEmailConfirmation:
             )
 
             assert response.status_code == 200
-            assert b"confirmation email has been sent" in response.data
+            assert b"We sent a new confirmation email" in response.data
+            assert user.email.encode() in response.data
 
     def test_resend_confirmation_already_confirmed(self, client, app):
         """Test resending confirmation for already confirmed email."""
@@ -566,10 +617,33 @@ class TestEmailConfirmation:
 
     def test_resend_confirmation_nonexistent_email(self, client):
         """Test resending confirmation for nonexistent email."""
-        response = client.post("/resend-confirmation", data={"email": "nonexistent@example.com"})
+        response = client.post(
+            "/resend-confirmation",
+            data={"email": "nonexistent@example.com"},
+            follow_redirects=True,
+        )
 
         assert response.status_code == 200
-        assert b"No account found" in response.data
+        assert b"could not find an account with that email address" in response.data
+        assert b'class="collapse show" id="resend-confirmation-panel"' in response.data
+
+    def test_expired_confirmation_link_redirects_to_resend_guidance(self, client, app):
+        """Test expired confirmation links land on resend-ready guidance."""
+        with app.app_context():
+            user = UserFactory(email_confirmed=False)
+            token = user.generate_confirmation_token()
+            user_email = user.email
+            user.email_confirmation_sent_at = datetime.now(UTC) - timedelta(hours=25)
+            from app import db as _db
+
+            _db.session.commit()
+
+        response = client.get(f"/confirm/{token}", follow_redirects=True)
+
+        assert response.status_code == 200
+        assert b"Get a new confirmation link" in response.data
+        assert user_email.encode() in response.data
+        assert b'class="collapse show" id="resend-confirmation-panel"' in response.data
 
 
 class TestPasswordReset:
