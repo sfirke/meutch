@@ -115,3 +115,12 @@ class ConversationListQuerySchema(PaginationQuerySchema):
         load_default=DEFAULT_FEED_PER_PAGE,
         validate=validate.Range(min=1, max=MAX_COLLECTION_PER_PAGE),
     )
+
+
+class LoanListQuerySchema(PaginationQuerySchema):
+    """Query parameters for authenticated loan-activity reads."""
+
+    role = fields.String(
+        required=True,
+        validate=validate.OneOf(["borrowing", "lending"]),
+    )

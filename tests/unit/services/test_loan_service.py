@@ -66,7 +66,7 @@ class TestLoanService:
             loan.overdue_reminder_count = 3
 
             with patch("app.services.loan_service.send_message_notification_email") as mock_email:
-                is_extension = loan_service.extend_loan(
+                extend_result = loan_service.extend_loan(
                     loan,
                     owner.id,
                     date.today() + timedelta(days=5),
@@ -74,7 +74,8 @@ class TestLoanService:
                 )
 
             reminder_message = Message.query.one()
-            assert is_extension is True
+            assert extend_result.is_extension is True
+            assert extend_result.message.id == reminder_message.id
             assert loan.end_date == date.today() + timedelta(days=5)
             assert loan.due_soon_reminder_sent is None
             assert loan.due_date_reminder_sent is None
@@ -98,13 +99,60 @@ class TestLoanService:
             )
 
             with patch("app.services.loan_service.send_message_notification_email") as mock_email:
-                is_extension = loan_service.extend_loan(loan, owner.id, new_end, "")
+                extend_result = loan_service.extend_loan(loan, owner.id, new_end, "")
 
             message = Message.query.one()
-            assert is_extension is False
+            assert extend_result.is_extension is False
+            assert extend_result.message.id == message.id
             assert loan.end_date == new_end
             assert "Good news" not in message.body
             assert "updated" in message.body.lower()
+            mock_email.assert_called_once_with(message)
+
+    def test_process_loan_decision_approve_marks_item_unavailable(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=False, available=True)
+            loan = LoanRequestFactory(item=item, borrower=borrower, status="pending")
+
+            with patch("app.services.loan_service.send_message_notification_email") as mock_email:
+                message = loan_service.process_loan_decision(loan, owner.id, "approve")
+
+            assert loan.status == "approved"
+            assert item.available is False
+            assert message.loan_request_id == loan.id
+            assert message.recipient_id == borrower.id
+            mock_email.assert_called_once_with(message)
+
+    def test_owner_cancel_approved_loan_marks_item_available(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=False, available=False)
+            loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
+
+            with patch("app.services.loan_service.send_message_notification_email") as mock_email:
+                message = loan_service.owner_cancel_approved_loan(loan, owner.id)
+
+            assert loan.status == "canceled"
+            assert item.available is True
+            assert message.loan_request_id == loan.id
+            mock_email.assert_called_once_with(message)
+
+    def test_complete_loan_marks_item_available(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=False, available=False)
+            loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
+
+            with patch("app.services.loan_service.send_message_notification_email") as mock_email:
+                message = loan_service.complete_loan(loan, owner.id)
+
+            assert loan.status == "completed"
+            assert item.available is True
+            assert message.loan_request_id == loan.id
             mock_email.assert_called_once_with(message)
 
     def test_create_loan_request_rejects_giveaway_items(self, app):
