@@ -3,12 +3,20 @@ from datetime import UTC, datetime, timedelta
 from app import db
 from app.models import CircleJoinRequest, circle_members
 from app.utils.circle_queries import (
+    build_circle_recommendations,
     get_admin_circle_pending_counts,
+    get_circle_unlock_counts,
     get_listed_circles,
     get_ordered_circle_members,
     should_show_circle_members,
 )
-from tests.factories import CircleFactory, UserFactory
+from tests.factories import (
+    CategoryFactory,
+    CircleFactory,
+    ItemFactory,
+    ItemRequestFactory,
+    UserFactory,
+)
 
 
 def test_get_admin_circle_pending_counts_only_counts_pending_admin_circles(app):
@@ -122,3 +130,77 @@ def test_get_listed_circles_excludes_secret_and_sorts_by_membership(app):
 
         assert [circle.id for circle in circles] == [large_circle.id, small_circle.id]
         assert secret_circle.id not in {circle.id for circle in circles}
+
+
+def test_get_circle_unlock_counts_counts_circle_visible_content(app):
+    with app.app_context():
+        category = CategoryFactory()
+        owner = UserFactory()
+        vacation_owner = UserFactory(vacation_mode=True)
+        circle = CircleFactory()
+        circle.members.extend([owner, vacation_owner])
+
+        ItemFactory(owner=owner, category=category, available=True, is_giveaway=False)
+        ItemFactory(owner=owner, category=category, available=False, is_giveaway=False)
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=True,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="unclaimed",
+        )
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=True,
+            is_giveaway=True,
+            giveaway_visibility="public",
+            claim_status="unclaimed",
+        )
+        ItemFactory(owner=vacation_owner, category=category, available=True, is_giveaway=False)
+
+        ItemRequestFactory(user=owner, visibility="circles", status="open")
+        ItemRequestFactory(user=owner, visibility="public", status="open")
+        ItemRequestFactory(
+            user=owner,
+            visibility="circles",
+            status="open",
+            expires_at=datetime.now(UTC) - timedelta(days=1),
+        )
+        ItemRequestFactory(user=vacation_owner, visibility="circles", status="open")
+        db.session.commit()
+
+        counts = get_circle_unlock_counts(circle)
+
+        assert counts == {
+            "borrowable_items": 1,
+            "giveaways": 1,
+            "requests": 1,
+        }
+
+
+def test_build_circle_recommendations_prioritizes_open_then_distance_then_membership(app):
+    with app.app_context():
+        viewer = UserFactory(latitude=40.7128, longitude=-74.0060)
+
+        near_open = CircleFactory(circle_type="open", latitude=40.7135, longitude=-74.0050)
+        far_open = CircleFactory(circle_type="open", latitude=42.3601, longitude=-71.0589)
+        nearby_closed = CircleFactory(circle_type="closed", latitude=40.7130, longitude=-74.0055)
+
+        near_open.members.append(UserFactory())
+        far_open.members.extend([UserFactory(), UserFactory(), UserFactory()])
+        nearby_closed.members.extend([UserFactory(), UserFactory(), UserFactory(), UserFactory()])
+        db.session.commit()
+
+        recommendations = build_circle_recommendations(
+            viewer,
+            circles=[nearby_closed, far_open, near_open],
+            limit=3,
+        )
+
+        assert [recommendation["circle"].id for recommendation in recommendations] == [
+            near_open.id,
+            far_open.id,
+            nearby_closed.id,
+        ]

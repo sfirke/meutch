@@ -5,7 +5,13 @@ from flask import url_for
 
 from app.models import db
 from conftest import login_user
-from tests.factories import CategoryFactory, CircleFactory, ItemFactory, UserFactory
+from tests.factories import (
+    CategoryFactory,
+    CircleFactory,
+    ItemFactory,
+    ItemRequestFactory,
+    UserFactory,
+)
 
 
 @pytest.mark.usefixtures("app")
@@ -100,6 +106,38 @@ class TestSearchCircleFiltering:
             assert response.status_code == 200
             assert b"Join a circle" in response.data
             assert b"Find Circles to Join" in response.data
+
+    def test_manage_circles_highlights_recommended_circle_when_user_has_no_circles(self, client):
+        """The circles page should spotlight a recommended circle for zero-circle users."""
+        user = UserFactory(latitude=40.7128, longitude=-74.0060)
+        category = CategoryFactory()
+        owner = UserFactory()
+        circle = CircleFactory(name="Neighborhood Helpers", latitude=40.7135, longitude=-74.0050)
+        circle.members.extend([owner, UserFactory()])
+
+        ItemFactory(owner=owner, category=category, available=True, is_giveaway=False)
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=True,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="unclaimed",
+        )
+        ItemRequestFactory(user=owner, visibility="circles", status="open")
+        db.session.commit()
+
+        login_user(client, user.email)
+        response = client.get(url_for("circles.manage_circles"))
+        content = response.data.decode("utf-8")
+
+        assert response.status_code == 200
+        assert "Join a circle before you browse Meutch" in content
+        assert "Neighborhood Helpers" in content
+        assert "1 borrowable item" in content
+        assert "1 giveaway" in content
+        assert "1 request" in content
+        assert "Join Circle" in content
 
     def test_search_returns_empty_when_no_matching_items_in_circles(self, client):
         """Test that search returns empty results when no items match in circles."""
