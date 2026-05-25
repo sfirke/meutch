@@ -71,12 +71,20 @@ def _ensure_item_is_requestable(item):
         raise AuthorizationError("You are not allowed to request this item.")
 
 
+_STATUS_FILTERS = {
+    "active": ["approved"],
+    "pending": ["pending"],
+    "all": ["approved", "pending"],
+}
+
+
 @bp.get("/me/loans")
 @jwt_required()
 def list_my_loans():
-    """Return paginated active borrowing or lending entries for the authenticated user."""
+    """Return paginated borrowing or lending entries for the authenticated user."""
     query_data = load_query_data(LOAN_LIST_QUERY_SCHEMA)
-    loans_query = _base_loan_query().join(Item).filter(LoanRequest.status == "approved")
+    status_values = _STATUS_FILTERS[query_data["status"]]
+    loans_query = _base_loan_query().join(Item).filter(LoanRequest.status.in_(status_values))
 
     if query_data["role"] == "borrowing":
         loans_query = loans_query.filter(LoanRequest.borrower_id == current_user.id)

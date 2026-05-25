@@ -1,5 +1,7 @@
 """Loan read and write schemas for API v1."""
 
+from datetime import date
+
 from marshmallow import ValidationError, fields, validate, validates_schema
 
 from app.api.v1.schemas.base import ApiDateTime, ApiSchema
@@ -43,16 +45,12 @@ class LoanActivitySummarySchema(ApiSchema):
     days_overdue = fields.Method("get_days_overdue")
 
     def get_latest_conversation_message_id(self, loan):
-        latest_message_id = getattr(loan, "api_latest_conversation_message_id", None)
-        if latest_message_id is not None:
-            return latest_message_id
-
-        if not loan.messages:
-            return None
-
-        return max(loan.messages, key=lambda message: message.timestamp).id
+        return loan.api_latest_conversation_message_id
 
     def get_due_state(self, loan):
+        if loan.status != "approved":
+            return None
+
         if loan.is_overdue():
             return "overdue"
 
@@ -64,9 +62,14 @@ class LoanActivitySummarySchema(ApiSchema):
         return "on_time"
 
     def get_days_until_due(self, loan):
-        return loan.days_until_due()
+        if loan.status != "approved":
+            return None
+        days = loan.days_until_due()
+        return max(days, 0) if not loan.is_overdue() else None
 
     def get_days_overdue(self, loan):
+        if loan.status != "approved":
+            return None
         return loan.days_overdue()
 
     def get_owner(self, loan):
@@ -77,10 +80,6 @@ class LoanDetailSchema(LoanActivitySummarySchema):
     """Expanded loan representation for detail and mutation responses."""
 
     created_at = ApiDateTime(required=True)
-    due_soon_reminder_sent = ApiDateTime(allow_none=True)
-    due_date_reminder_sent = ApiDateTime(allow_none=True)
-    last_overdue_reminder_sent = ApiDateTime(allow_none=True)
-    overdue_reminder_count = fields.Integer(required=True)
 
 
 class LoanDetailResponseSchema(ApiSchema):
@@ -124,3 +123,8 @@ class LoanExtendSchema(ApiSchema):
         allow_none=True,
         validate=validate.Length(max=1000),
     )
+
+    @validates_schema
+    def validate_new_end_date(self, data, **kwargs):
+        if "new_end_date" in data and data["new_end_date"] < date.today():
+            raise ValidationError({"new_end_date": ["New end date cannot be in the past."]})

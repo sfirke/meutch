@@ -480,3 +480,140 @@ class TestApiLoans:
             assert refreshed_loan.due_date_reminder_sent is None
             assert refreshed_loan.last_overdue_reminder_sent is None
             assert refreshed_loan.overdue_reminder_count == 0
+
+    def test_me_loans_pending_returns_borrowers_pending_requests(self, client, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory(email_confirmed=True)
+            _share_circle(owner, borrower)
+            item = ItemFactory(owner=owner, available=True)
+            pending_loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status="pending",
+                start_date=date.today() + timedelta(days=3),
+                end_date=date.today() + timedelta(days=10),
+            )
+            MessageFactory(sender=borrower, recipient=owner, item=item, loan_request=pending_loan)
+            db.session.commit()
+            access_token = login_api_user(client, borrower.email)
+            pending_loan_id = str(pending_loan.id)
+
+        response = client.get(
+            "/api/v1/me/loans?role=borrowing&status=pending",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["pagination"]["total"] == 1
+        assert payload["loans"][0]["id"] == pending_loan_id
+        assert payload["loans"][0]["status"] == "pending"
+        assert payload["loans"][0]["due_state"] is None
+        assert payload["loans"][0]["days_until_due"] is None
+        assert payload["loans"][0]["days_overdue"] is None
+
+    def test_me_loans_all_returns_approved_and_pending(self, client, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory(email_confirmed=True)
+            _share_circle(owner, borrower)
+            active_item = ItemFactory(owner=owner, available=False)
+            pending_item = ItemFactory(owner=owner, available=True)
+            approved_loan = LoanRequestFactory(
+                item=active_item,
+                borrower=borrower,
+                status="approved",
+                start_date=date.today() - timedelta(days=1),
+                end_date=date.today() + timedelta(days=5),
+            )
+            pending_loan = LoanRequestFactory(
+                item=pending_item,
+                borrower=borrower,
+                status="pending",
+                start_date=date.today() + timedelta(days=7),
+                end_date=date.today() + timedelta(days=14),
+            )
+            MessageFactory(
+                sender=borrower, recipient=owner, item=active_item, loan_request=approved_loan
+            )
+            MessageFactory(
+                sender=borrower, recipient=owner, item=pending_item, loan_request=pending_loan
+            )
+            db.session.commit()
+            access_token = login_api_user(client, borrower.email)
+
+        response = client.get(
+            "/api/v1/me/loans?role=borrowing&status=all",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        statuses = {loan["status"] for loan in payload["loans"]}
+        assert payload["pagination"]["total"] == 2
+        assert statuses == {"approved", "pending"}
+
+    def test_me_loans_active_default_excludes_pending(self, client, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory(email_confirmed=True)
+            _share_circle(owner, borrower)
+            active_item = ItemFactory(owner=owner, available=False)
+            pending_item = ItemFactory(owner=owner, available=True)
+            approved_loan = LoanRequestFactory(
+                item=active_item,
+                borrower=borrower,
+                status="approved",
+                start_date=date.today() - timedelta(days=1),
+                end_date=date.today() + timedelta(days=5),
+            )
+            pending_loan = LoanRequestFactory(
+                item=pending_item,
+                borrower=borrower,
+                status="pending",
+                start_date=date.today() + timedelta(days=7),
+                end_date=date.today() + timedelta(days=14),
+            )
+            MessageFactory(
+                sender=borrower, recipient=owner, item=active_item, loan_request=approved_loan
+            )
+            MessageFactory(
+                sender=borrower, recipient=owner, item=pending_item, loan_request=pending_loan
+            )
+            db.session.commit()
+            access_token = login_api_user(client, borrower.email)
+
+        default_response = client.get(
+            "/api/v1/me/loans?role=borrowing",
+            headers=auth_headers(access_token),
+        )
+
+        assert default_response.status_code == 200
+        payload = default_response.get_json()
+        assert payload["pagination"]["total"] == 1
+        assert payload["loans"][0]["status"] == "approved"
+
+    def test_me_loans_pending_lending_shows_owner_inbox(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            borrower_a = UserFactory()
+            borrower_b = UserFactory()
+            item = ItemFactory(owner=owner, available=True)
+            other_item = ItemFactory(owner=owner, available=True)
+            loan_a = LoanRequestFactory(item=item, borrower=borrower_a, status="pending")
+            loan_b = LoanRequestFactory(item=other_item, borrower=borrower_b, status="pending")
+            MessageFactory(sender=borrower_a, recipient=owner, item=item, loan_request=loan_a)
+            MessageFactory(sender=borrower_b, recipient=owner, item=other_item, loan_request=loan_b)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        response = client.get(
+            "/api/v1/me/loans?role=lending&status=pending",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["pagination"]["total"] == 2
+        assert all(loan["status"] == "pending" for loan in payload["loans"])

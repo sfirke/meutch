@@ -124,3 +124,7 @@ class LoanListQuerySchema(PaginationQuerySchema):
         required=True,
         validate=validate.OneOf(["borrowing", "lending"]),
     )
+    status = fields.String(
+        load_default="active",
+        validate=validate.OneOf(["active", "pending", "all"]),
+    )
