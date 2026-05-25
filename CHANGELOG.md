@@ -35,6 +35,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Add foundation for API writes ([#374](https://github.com/sfirke/meutch/pull/374)).
 - Add API mutation parity for user profile/settings/location/acct deletion ([#382](https://github.com/sfirke/meutch/pull/382)).
 - Add API mutation parity for requests/messages ([#384](https://github.com/sfirke/meutch/pull/384)).
+- Add API mutation parity for circles, including create/edit flows, join-request actions, leave/delete behavior, and admin/member management ([#385](https://github.com/sfirke/meutch/pull/385)).
 
 ## Apr 2026
 

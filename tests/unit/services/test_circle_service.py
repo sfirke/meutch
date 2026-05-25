@@ -6,7 +6,7 @@ import pytest
 from app import db
 from app.models import CircleJoinRequest, Message, circle_members
 from app.services import circle_service
-from app.services.exceptions import ConflictError, InvalidActionError
+from app.services.exceptions import ConflictError, InformationalError, InvalidActionError
 from tests.factories import CircleFactory, UserFactory
 
 
@@ -118,6 +118,32 @@ class TestCircleService:
             assert join_request.status == "approved"
             assert "approved" in decision_message.body.lower()
             mock_email.assert_called_once_with(join_request)
+
+    def test_join_circle_rejects_duplicate_pending_request(self, app):
+        with app.app_context():
+            requester = UserFactory()
+            admin = UserFactory()
+            circle = CircleFactory(circle_type="closed")
+            db.session.execute(
+                circle_members.insert().values(
+                    user_id=admin.id,
+                    circle_id=circle.id,
+                    joined_at=datetime.now(UTC),
+                    is_admin=True,
+                )
+            )
+            db.session.add(
+                CircleJoinRequest(
+                    circle_id=circle.id,
+                    user_id=requester.id,
+                    message="Please let me in",
+                    status="pending",
+                )
+            )
+            db.session.commit()
+
+            with pytest.raises(InformationalError, match="pending join request"):
+                circle_service.join_circle(circle, requester, "Trying again")
 
     def test_toggle_admin_updates_membership_flag(self, app):
         with app.app_context():
