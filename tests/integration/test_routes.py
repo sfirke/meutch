@@ -158,8 +158,10 @@ class TestMainRoutes:
             assert "Join a circle to get started" in content
             assert "Find Circles to Join" in content
 
-    def test_home_feed_no_circle_viewer_highlights_recommended_circle(self, client, app, auth_user):
-        """Homepage prompt should spotlight a recommended circle with unlock counts."""
+    def test_home_feed_no_circle_viewer_links_recommended_circle_and_hides_zero_counts(
+        self, client, app, auth_user
+    ):
+        """Homepage prompt should link the recommendation and omit zero-value unlock categories."""
         with app.app_context():
             viewer = auth_user()
             category = CategoryFactory()
@@ -168,15 +170,6 @@ class TestMainRoutes:
             circle.members.extend([owner, UserFactory()])
 
             ItemFactory(owner=owner, category=category, available=True, is_giveaway=False)
-            ItemFactory(
-                owner=owner,
-                category=category,
-                available=True,
-                is_giveaway=True,
-                giveaway_visibility="default",
-                claim_status="unclaimed",
-            )
-            ItemRequestFactory(user=owner, title="Circle Only Request", visibility="circles")
             db.session.commit()
 
             login_user(client, viewer.email)
@@ -186,9 +179,10 @@ class TestMainRoutes:
             assert response.status_code == 200
             assert "Helpful Neighbors" in content
             assert "can open up 1 borrowable item" in content
+            assert f'href="/circles/{circle.id}"' in content
             assert "1 borrowable item" in content
-            assert "1 giveaway" in content
-            assert "1 request" in content
+            assert "0 giveaways" not in content
+            assert "0 requests" not in content
 
     def test_home_feed_distance_filter_hides_far_requests_and_giveaways(
         self, client, app, auth_user

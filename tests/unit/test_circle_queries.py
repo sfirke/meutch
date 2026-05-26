@@ -180,27 +180,29 @@ def test_get_circle_unlock_counts_counts_circle_visible_content(app):
         }
 
 
-def test_build_circle_recommendations_prioritizes_open_then_distance_then_membership(app):
+def test_build_circle_recommendations_prioritizes_distance_tiers_then_membership(app):
     with app.app_context():
         viewer = UserFactory(latitude=40.7128, longitude=-74.0060)
 
-        near_open = CircleFactory(circle_type="open", latitude=40.7135, longitude=-74.0050)
-        far_open = CircleFactory(circle_type="open", latitude=42.3601, longitude=-71.0589)
-        nearby_closed = CircleFactory(circle_type="closed", latitude=40.7130, longitude=-74.0055)
+        block_closed = CircleFactory(circle_type="closed", latitude=40.7190, longitude=-74.0060)
+        one_to_two_large = CircleFactory(circle_type="closed", latitude=40.7320, longitude=-74.0060)
+        one_to_two_small = CircleFactory(circle_type="open", latitude=40.7300, longitude=-74.0060)
 
-        near_open.members.append(UserFactory())
-        far_open.members.extend([UserFactory(), UserFactory(), UserFactory()])
-        nearby_closed.members.extend([UserFactory(), UserFactory(), UserFactory(), UserFactory()])
+        block_closed.members.append(UserFactory())
+        one_to_two_large.members.extend(
+            [UserFactory(), UserFactory(), UserFactory(), UserFactory()]
+        )
+        one_to_two_small.members.extend([UserFactory(), UserFactory()])
         db.session.commit()
 
         recommendations = build_circle_recommendations(
             viewer,
-            circles=[nearby_closed, far_open, near_open],
+            circles=[one_to_two_small, one_to_two_large, block_closed],
             limit=3,
         )
 
         assert [recommendation["circle"].id for recommendation in recommendations] == [
-            near_open.id,
-            far_open.id,
-            nearby_closed.id,
+            block_closed.id,
+            one_to_two_large.id,
+            one_to_two_small.id,
         ]

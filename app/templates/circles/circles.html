@@ -27,7 +27,6 @@
                     {% if featured_circle_recommendation %}
                         {% set featured_circle = featured_circle_recommendation.circle %}
                         {% set featured_distance = get_distance_to_circle(featured_circle) %}
-                        {% set featured_counts = featured_circle_recommendation.unlock_counts %}
                         <div class="border rounded-3 h-100 p-3 bg-light">
                             <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
                                 <div>
@@ -48,13 +47,13 @@
                                 </span>
                             </div>
                             <p class="mb-3">{{ featured_circle.description }}</p>
-                            {% if featured_circle_recommendation.unlock_total > 0 %}
+                            {% if featured_circle_recommendation.visible_unlock_counts %}
                             <div class="d-flex flex-wrap gap-2 mb-3">
-                                <span class="badge text-bg-light border">{{ featured_counts.borrowable_items }} borrowable item{{ 's' if featured_counts.borrowable_items != 1 }}</span>
-                                <span class="badge text-bg-light border">{{ featured_counts.giveaways }} giveaway{{ 's' if featured_counts.giveaways != 1 }}</span>
-                                <span class="badge text-bg-light border">{{ featured_counts.requests }} request{{ 's' if featured_counts.requests != 1 }}</span>
+                                {% for count in featured_circle_recommendation.visible_unlock_counts %}
+                                <span class="badge text-bg-light border">{{ count.text }}</span>
+                                {% endfor %}
                             </div>
-                            <p class="small text-muted mb-3">Joining this circle lets you browse {{ featured_counts.borrowable_items }} borrowable item{{ 's' if featured_counts.borrowable_items != 1 }}, {{ featured_counts.giveaways }} giveaway{{ 's' if featured_counts.giveaways != 1 }}, and {{ featured_counts.requests }} request{{ 's' if featured_counts.requests != 1 }} from members.</p>
+                            <p class="small text-muted mb-3">Joining this circle lets you browse {{ featured_circle_recommendation.visible_unlock_text }} from members.</p>
                             {% else %}
                             <p class="small text-muted mb-3">This circle already has {{ featured_circle.members|length }} members and is a strong place to start building local sharing.</p>
                             {% endif %}
@@ -85,7 +84,6 @@
                 {% for recommendation in secondary_circle_recommendations %}
                     {% set recommended_circle = recommendation.circle %}
                     {% set recommended_distance = get_distance_to_circle(recommended_circle) %}
-                    {% set recommended_counts = recommendation.unlock_counts %}
                 <div class="col-md-6 col-xl-4">
                     <div class="border rounded-3 h-100 p-3">
                         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
@@ -106,8 +104,8 @@
                                 {% if recommendation.is_open %}Open{% else %}Approval{% endif %}
                             </span>
                         </div>
-                        {% if recommendation.unlock_total > 0 %}
-                        <p class="small text-muted mb-3">{{ recommended_counts.borrowable_items }} item{{ 's' if recommended_counts.borrowable_items != 1 }}, {{ recommended_counts.giveaways }} giveaway{{ 's' if recommended_counts.giveaways != 1 }}, {{ recommended_counts.requests }} request{{ 's' if recommended_counts.requests != 1 }}</p>
+                        {% if recommendation.visible_unlock_counts %}
+                        <p class="small text-muted mb-3">{{ recommendation.visible_unlock_text }}</p>
                         {% else %}
                         <p class="small text-muted mb-3">Meet members who are already active in this circle.</p>
                         {% endif %}

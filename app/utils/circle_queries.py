@@ -30,15 +30,61 @@ def _circle_member_user_ids_query(circle_id):
     )
 
 
+def _distance_tier(distance):
+    if distance is None:
+        return float("inf")
+    if distance < 1:
+        return 0
+    return int(distance)
+
+
 def _recommendation_sort_key(circle, user):
     distance = circle.distance_to_user(user)
+    distance_tier = _distance_tier(distance)
     return (
-        circle.circle_type != "open",
-        distance is None,
-        distance if distance is not None else float("inf"),
+        distance_tier,
         -len(circle.members),
+        distance if distance is not None else float("inf"),
+        circle.circle_type != "open",
         (circle.name or "").casefold(),
     )
+
+
+def _format_unlock_count_text(value, label):
+    suffix = "" if value == 1 else "s"
+    return f"{value} {label}{suffix}"
+
+
+def _build_visible_unlock_counts(unlock_counts):
+    visible_counts = []
+    for key, label in (
+        ("borrowable_items", "borrowable item"),
+        ("giveaways", "giveaway"),
+        ("requests", "request"),
+    ):
+        value = unlock_counts[key]
+        if value <= 0:
+            continue
+        visible_counts.append(
+            {
+                "key": key,
+                "value": value,
+                "label": label,
+                "text": _format_unlock_count_text(value, label),
+            }
+        )
+
+    return visible_counts
+
+
+def _join_human_readable(parts):
+    if not parts:
+        return ""
+    if len(parts) == 1:
+        return parts[0]
+    if len(parts) == 2:
+        return f"{parts[0]} and {parts[1]}"
+    return ", ".join(parts[:-1]) + f", and {parts[-1]}"
 
 
 def get_circle_unlock_counts(circle):
@@ -117,6 +163,7 @@ def build_circle_recommendations(user, *, circles=None, limit=3, radius=None):
     recommendations = []
     for circle in ranked_circles[:limit]:
         unlock_counts = get_circle_unlock_counts(circle)
+        visible_unlock_counts = _build_visible_unlock_counts(unlock_counts)
         recommendations.append(
             {
                 "circle": circle,
@@ -124,6 +171,10 @@ def build_circle_recommendations(user, *, circles=None, limit=3, radius=None):
                 "join_label": "Join Circle" if circle.circle_type == "open" else "Request to Join",
                 "unlock_counts": unlock_counts,
                 "unlock_total": sum(unlock_counts.values()),
+                "visible_unlock_counts": visible_unlock_counts,
+                "visible_unlock_text": _join_human_readable(
+                    [count["text"] for count in visible_unlock_counts]
+                ),
             }
         )
 
