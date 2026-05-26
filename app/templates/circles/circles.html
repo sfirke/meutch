@@ -15,7 +15,8 @@
                 <div class="col-lg-6">
                     <span class="badge bg-info text-dark mb-2">Best next step</span>
                     <h2 class="h4 mb-2">Join a circle before you browse Meutch</h2>
-                    <p class="text-muted mb-3">Most borrowing, lending, and requesting happens inside circles. Start with a circle that already has members and active sharing.</p>
+                    <p class="text-muted mb-3">Most sharing happens inside circles. Right now you're only seeing public giveaways and requests, no borrowable items.</p>
+                    <p class="text-muted mb-3">Here are some suggested circles near you. Scroll down to browse and search the full list.</p>
                     {% if needs_location_hint %}
                     <p class="small text-muted mb-0">
                         <i class="fas fa-map-marker-alt me-1"></i>
@@ -47,13 +48,12 @@
                                 </span>
                             </div>
                             <p class="mb-3">{{ featured_circle.description }}</p>
-                            {% if featured_circle_recommendation.visible_unlock_counts %}
+                            {% if featured_circle_recommendation.visible_display_counts %}
                             <div class="d-flex flex-wrap gap-2 mb-3">
-                                {% for count in featured_circle_recommendation.visible_unlock_counts %}
+                                {% for count in featured_circle_recommendation.visible_display_counts %}
                                 <span class="badge text-bg-light border">{{ count.text }}</span>
                                 {% endfor %}
                             </div>
-                            <p class="small text-muted mb-3">Joining this circle lets you browse {{ featured_circle_recommendation.visible_unlock_text }} from members.</p>
                             {% else %}
                             <p class="small text-muted mb-3">This circle already has {{ featured_circle.members|length }} members and is a strong place to start building local sharing.</p>
                             {% endif %}
@@ -80,11 +80,19 @@
             </div>
 
             {% if secondary_circle_recommendations %}
+            {% set secondary_count = secondary_circle_recommendations|length %}
             <div class="row g-3 mt-1">
                 {% for recommendation in secondary_circle_recommendations %}
                     {% set recommended_circle = recommendation.circle %}
                     {% set recommended_distance = get_distance_to_circle(recommended_circle) %}
-                <div class="col-md-6 col-xl-4">
+                    {% if secondary_count == 1 %}
+                        {% set secondary_card_class = 'col-12 col-lg-8 mx-auto' %}
+                    {% elif secondary_count == 2 %}
+                        {% set secondary_card_class = 'col-12 col-md-6' %}
+                    {% else %}
+                        {% set secondary_card_class = 'col-12 col-md-6 col-xl-4' %}
+                    {% endif %}
+                <div class="{{ secondary_card_class }}">
                     <div class="border rounded-3 h-100 p-3">
                         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                             <div>

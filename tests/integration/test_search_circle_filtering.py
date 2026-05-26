@@ -124,7 +124,16 @@ class TestSearchCircleFiltering:
             giveaway_visibility="default",
             claim_status="unclaimed",
         )
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=True,
+            is_giveaway=True,
+            giveaway_visibility="public",
+            claim_status="unclaimed",
+        )
         ItemRequestFactory(user=owner, visibility="circles", status="open")
+        ItemRequestFactory(user=owner, visibility="public", status="open")
         db.session.commit()
 
         login_user(client, user.email)
@@ -135,8 +144,9 @@ class TestSearchCircleFiltering:
         assert "Join a circle before you browse Meutch" in content
         assert "Neighborhood Helpers" in content
         assert "1 borrowable item" in content
-        assert "1 giveaway" in content
-        assert "1 request" in content
+        assert "2 giveaways" in content
+        assert "2 requests" in content
+        assert "These members also have" not in content
         assert "Join Circle" in content
 
     def test_search_returns_empty_when_no_matching_items_in_circles(self, client):

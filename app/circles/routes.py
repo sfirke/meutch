@@ -146,7 +146,7 @@ def manage_circles():
         circle_recommendations = build_circle_recommendations(
             current_user,
             circles=source_circles if source_circles else None,
-            limit=3,
+            limit=4,
             radius=selected_radius,
         )
         if circle_recommendations:

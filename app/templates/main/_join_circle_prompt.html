@@ -12,15 +12,13 @@
             {% if featured_circle_recommendation %}
                 {% set recommended_circle = featured_circle_recommendation.circle %}
                 {% set recommended_distance = get_distance_to_circle(recommended_circle) %}
-                {% if featured_circle_recommendation.visible_unlock_counts %}
-                <p class="text-muted mb-2">Start with <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="fw-semibold text-decoration-none">{{ recommended_circle.name }}</a>{% if recommended_distance %}, {{ recommended_distance }} away{% endif %}. It has {{ recommended_circle.members|length }} members and can open up {{ featured_circle_recommendation.visible_unlock_text }}.</p>
+                <p class="text-muted {% if featured_circle_recommendation.visible_display_counts %}mb-2{% else %}mb-3{% endif %}">Start with <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="fw-semibold text-decoration-none">{{ recommended_circle.name }}</a>{% if recommended_distance %}, {{ recommended_distance }} away{% endif %}. It has {{ recommended_circle.members|length }} members.</p>
+                {% if featured_circle_recommendation.visible_display_counts %}
                 <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
-                    {% for count in featured_circle_recommendation.visible_unlock_counts %}
+                    {% for count in featured_circle_recommendation.visible_display_counts %}
                     <span class="badge text-bg-light border">{{ count.text }}</span>
                     {% endfor %}
                 </div>
-                {% else %}
-                <p class="text-muted mb-3">Start with <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="fw-semibold text-decoration-none">{{ recommended_circle.name }}</a>{% if recommended_distance %}, {{ recommended_distance }} away{% endif %}. It has {{ recommended_circle.members|length }} members and is a strong place to start meeting nearby members.</p>
                 {% endif %}
             {% else %}
                 <p class="text-muted mb-3">Circles connect you with nearby people who share, request, and lend items.</p>

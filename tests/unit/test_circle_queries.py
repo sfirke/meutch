@@ -5,6 +5,7 @@ from app.models import CircleJoinRequest, circle_members
 from app.utils.circle_queries import (
     build_circle_recommendations,
     get_admin_circle_pending_counts,
+    get_circle_public_activity_counts,
     get_circle_unlock_counts,
     get_listed_circles,
     get_ordered_circle_members,
@@ -180,6 +181,52 @@ def test_get_circle_unlock_counts_counts_circle_visible_content(app):
         }
 
 
+def test_get_circle_public_activity_counts_counts_public_content_from_members(app):
+    with app.app_context():
+        category = CategoryFactory()
+        owner = UserFactory()
+        vacation_owner = UserFactory(vacation_mode=True)
+        circle = CircleFactory()
+        circle.members.extend([owner, vacation_owner])
+
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=True,
+            is_giveaway=True,
+            giveaway_visibility="public",
+            claim_status="unclaimed",
+        )
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=True,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="unclaimed",
+        )
+        ItemFactory(
+            owner=vacation_owner,
+            category=category,
+            available=True,
+            is_giveaway=True,
+            giveaway_visibility="public",
+            claim_status="unclaimed",
+        )
+
+        ItemRequestFactory(user=owner, visibility="public", status="open")
+        ItemRequestFactory(user=owner, visibility="circles", status="open")
+        ItemRequestFactory(user=vacation_owner, visibility="public", status="open")
+        db.session.commit()
+
+        counts = get_circle_public_activity_counts(circle)
+
+        assert counts == {
+            "public_giveaways": 1,
+            "public_requests": 1,
+        }
+
+
 def test_build_circle_recommendations_prioritizes_distance_tiers_then_membership(app):
     with app.app_context():
         viewer = UserFactory(latitude=40.7128, longitude=-74.0060)
@@ -206,3 +253,44 @@ def test_build_circle_recommendations_prioritizes_distance_tiers_then_membership
             one_to_two_large.id,
             one_to_two_small.id,
         ]
+
+
+def test_build_circle_recommendations_combines_public_and_circle_activity_for_display(app):
+    with app.app_context():
+        viewer = UserFactory()
+        category = CategoryFactory()
+        owner = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([owner, UserFactory()])
+
+        ItemFactory(owner=owner, category=category, available=True, is_giveaway=False)
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=True,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="unclaimed",
+        )
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=True,
+            is_giveaway=True,
+            giveaway_visibility="public",
+            claim_status="unclaimed",
+        )
+        ItemRequestFactory(user=owner, visibility="public", status="open")
+        db.session.commit()
+
+        recommendation = build_circle_recommendations(viewer, circles=[circle], limit=1)[0]
+
+        assert recommendation["visible_unlock_text"] == "1 borrowable item and 1 giveaway"
+        assert recommendation["public_activity_counts"] == {
+            "public_giveaways": 1,
+            "public_requests": 1,
+        }
+        assert (
+            recommendation["visible_display_text"]
+            == "1 borrowable item, 2 giveaways, and 1 request"
+        )
