@@ -147,7 +147,9 @@ class TestSearchCircleFiltering:
         assert "2 giveaways" in content
         assert "2 requests" in content
         assert "These members also have" not in content
-        assert "Join Circle" in content
+        assert "View Circle" in content
+        assert "Join Circle" not in content
+        assert "Request to Join" not in content
 
     def test_search_returns_empty_when_no_matching_items_in_circles(self, client):
         """Test that search returns empty results when no items match in circles."""

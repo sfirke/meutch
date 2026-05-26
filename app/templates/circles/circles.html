@@ -58,15 +58,7 @@
                             <p class="small text-muted mb-3">This circle already has {{ featured_circle.members|length }} members and is a strong place to start building local sharing.</p>
                             {% endif %}
                             <div class="d-flex flex-wrap gap-2">
-                                {% if featured_circle_recommendation.is_open %}
-                                <form action="{{ url_for('circles.join_circle', circle_id=featured_circle.id) }}" method="post" class="d-inline">
-                                    {{ recommendation_form.csrf_token }}
-                                    <button type="submit" class="btn btn-primary">{{ featured_circle_recommendation.join_label }}</button>
-                                </form>
-                                {% else %}
-                                <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="btn btn-primary">{{ featured_circle_recommendation.join_label }}</a>
-                                {% endif %}
-                                <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="btn btn-outline-primary">View Circle</a>
+                                <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="btn btn-primary">View Circle</a>
                             </div>
                         </div>
                     {% else %}
@@ -118,15 +110,7 @@
                         <p class="small text-muted mb-3">Meet members who are already active in this circle.</p>
                         {% endif %}
                         <div class="d-flex flex-wrap gap-2">
-                            {% if recommendation.is_open %}
-                            <form action="{{ url_for('circles.join_circle', circle_id=recommended_circle.id) }}" method="post" class="d-inline">
-                                {{ recommendation_form.csrf_token }}
-                                <button type="submit" class="btn btn-outline-primary btn-sm">{{ recommendation.join_label }}</button>
-                            </form>
-                            {% else %}
-                            <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="btn btn-outline-primary btn-sm">{{ recommendation.join_label }}</a>
-                            {% endif %}
-                            <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="btn btn-link btn-sm px-0">View</a>
+                            <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="btn btn-outline-primary btn-sm">View Circle</a>
                         </div>
                     </div>
                 </div>
