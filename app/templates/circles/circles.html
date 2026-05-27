@@ -16,7 +16,7 @@
                     <span class="badge bg-info text-dark mb-2">Best next step</span>
                     <h2 class="h4 mb-2">Join a circle before you browse Meutch</h2>
                     <p class="text-muted mb-3">Most sharing happens inside circles. Right now you're only seeing public giveaways and requests, no borrowable items.</p>
-                    <p class="text-muted mb-3">Here are some suggested circles near you. Scroll down to browse and search the full list.</p>
+                    <p class="text-muted mb-3">Here are some suggested circles near you. Scroll down for the full list.</p>
                     {% if needs_location_hint %}
                     <p class="small text-muted mb-0">
                         <i class="fas fa-map-marker-alt me-1"></i>
@@ -101,7 +101,7 @@
                                 </p>
                             </div>
                             <span class="badge {% if recommendation.is_open %}bg-success{% else %}bg-secondary{% endif %}">
-                                {% if recommendation.is_open %}Open{% else %}Approval{% endif %}
+                                {% if recommendation.is_open %}Open{% else %}Approval Req'd{% endif %}
                             </span>
                         </div>
                         {% if recommendation.visible_unlock_counts %}
