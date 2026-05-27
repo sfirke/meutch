@@ -217,3 +217,62 @@ class TestGiveawayService:
 
             with pytest.raises(ConflictError, match="not pending pickup"):
                 giveaway_service.change_recipient(item, owner.id, "next")
+
+    def test_release_to_all_reactivates_selected_interest_and_notifies_previous_recipient(
+        self, app
+    ):
+        with app.app_context():
+            owner = UserFactory()
+            previous_recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="pending_pickup",
+                claimed_by=previous_recipient,
+                available=False,
+                giveaway_visibility="default",
+            )
+            previous_interest = GiveawayInterestFactory(
+                item=item,
+                user=previous_recipient,
+                status="selected",
+            )
+
+            with patch(
+                "app.services.giveaway_service.send_message_notification_email"
+            ) as mock_email:
+                giveaway_service.release_to_all(item, owner.id)
+
+            notification = Message.query.one()
+            assert item.claim_status == "unclaimed"
+            assert item.claimed_by_id is None
+            assert item.available is True
+            assert previous_interest.status == "active"
+            assert notification.recipient_id == previous_recipient.id
+            mock_email.assert_called_once_with(notification)
+
+    def test_confirm_handoff_marks_item_claimed(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="pending_pickup",
+                claimed_by=recipient,
+                available=False,
+                giveaway_visibility="default",
+            )
+            selected_interest = GiveawayInterestFactory(
+                item=item,
+                user=recipient,
+                status="selected",
+            )
+
+            giveaway_service.confirm_handoff(item, owner.id)
+
+            assert item.claim_status == "claimed"
+            assert item.claimed_by_id == recipient.id
+            assert item.available is False
+            assert item.claimed_at is not None
+            assert selected_interest.status == "selected"
