@@ -90,8 +90,8 @@ class ItemDetailResponseSchema(ApiSchema):
     viewer = fields.Nested(ItemViewerStateSchema(), required=True)
 
 
-class ItemWritePayloadSchema(ApiSchema):
-    """Write payload for item create and update endpoints."""
+class ItemWriteBaseSchema(ApiSchema):
+    """Shared fields for item create and update payloads."""
 
     name = fields.String(required=True, validate=validate.Length(min=1, max=100))
     description = fields.String(
@@ -100,14 +100,13 @@ class ItemWritePayloadSchema(ApiSchema):
         validate=validate.Length(max=500),
     )
     category_id = fields.UUID(required=True)
-    tags = fields.List(fields.String(validate=validate.Length(max=50)), load_default=list)
+    tags = fields.List(fields.String(validate=validate.Length(min=1, max=50)), load_default=list)
     is_giveaway = ApiBoolean(required=True)
     giveaway_visibility = fields.String(
         load_default=None,
         allow_none=True,
         validate=validate.OneOf(["default", "public"]),
     )
-    images = fields.List(ApiUploadedFile(), load_default=list)
 
     @validates_schema
     def validate_giveaway_visibility(self, data, **kwargs):
@@ -115,6 +114,16 @@ class ItemWritePayloadSchema(ApiSchema):
             raise ValidationError(
                 {"giveaway_visibility": ["This field is required when is_giveaway is true."]}
             )
+
+
+class ItemWritePayloadSchema(ItemWriteBaseSchema):
+    """Write payload for item create endpoints."""
+
+    images = fields.List(ApiUploadedFile(), load_default=list)
+
+
+class ItemUpdatePayloadSchema(ItemWriteBaseSchema):
+    """Write payload for item update endpoints."""
 
 
 class ItemImagesUploadSchema(ApiSchema):
@@ -127,6 +136,13 @@ class ItemImageOrderSchema(ApiSchema):
     """Write payload for reordering item images."""
 
     image_ids = fields.List(fields.UUID(), required=True, validate=validate.Length(min=1))
+
+
+class ItemDeleteResponseSchema(ApiSchema):
+    """Response payload for item deletion."""
+
+    deleted = fields.Boolean(required=True)
+    item_id = fields.UUID(required=True)
 
 
 class GiveawayInterestCreateSchema(ApiSchema):
