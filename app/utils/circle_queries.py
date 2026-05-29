@@ -50,6 +50,25 @@ def _recommendation_sort_key(circle, user):
     )
 
 
+def _regional_recommendation_sort_key(circle, user):
+    distance = circle.distance_to_user(user)
+    return (
+        distance if distance is not None else float("inf"),
+        -len(circle.members),
+        (circle.name or "").casefold(),
+    )
+
+
+def _user_within_regional_circle(circle, user):
+    if not circle.is_regional or circle.regional_radius_miles is None:
+        return False
+    if not (circle.is_geocoded and user.is_geocoded):
+        return False
+
+    distance = circle.distance_to_user(user)
+    return distance is not None and distance <= circle.regional_radius_miles
+
+
 def _format_unlock_count_text(value, label):
     suffix = "" if value == 1 else "s"
     return f"{value} {label}{suffix}"
@@ -226,6 +245,48 @@ def _build_display_counts(unlock_counts, member_activity_counts):
     }
 
 
+def _build_circle_recommendation(circle):
+    unlock_counts = get_circle_unlock_counts(circle)
+    visible_unlock_counts = _build_visible_unlock_counts(unlock_counts)
+    member_activity_counts = get_circle_member_activity_counts(circle)
+    display_counts = _build_display_counts(unlock_counts, member_activity_counts)
+    visible_display_counts = _build_visible_display_counts(display_counts)
+    return {
+        "circle": circle,
+        "is_open": circle.circle_type == "open",
+        "is_regional": circle.is_regional,
+        "regional_radius_miles": circle.regional_radius_miles,
+        "join_label": "Join Circle" if circle.circle_type == "open" else "Request to Join",
+        "unlock_counts": unlock_counts,
+        "unlock_total": sum(unlock_counts.values()),
+        "visible_unlock_counts": visible_unlock_counts,
+        "visible_unlock_text": _join_human_readable(
+            [count["text"] for count in visible_unlock_counts]
+        ),
+        "member_activity_counts": member_activity_counts,
+        "display_counts": display_counts,
+        "visible_display_counts": visible_display_counts,
+        "visible_display_text": _join_human_readable(
+            [count["text"] for count in visible_display_counts]
+        ),
+    }
+
+
+def _get_pinned_regional_circles(user, user_circle_ids, limit):
+    if limit <= 0 or not user.is_geocoded:
+        return []
+
+    regional_candidates = [
+        circle
+        for circle in get_listed_circles(user)
+        if circle.id not in user_circle_ids and _user_within_regional_circle(circle, user)
+    ]
+    return sorted(
+        regional_candidates,
+        key=lambda circle: _regional_recommendation_sort_key(circle, user),
+    )[: min(limit, 2)]
+
+
 def build_circle_recommendations(user, *, circles=None, limit=3, radius=None):
     user_circle_ids = {circle.id for circle in user.circles}
     candidate_circles = circles if circles is not None else get_listed_circles(user, radius=radius)
@@ -234,32 +295,24 @@ def build_circle_recommendations(user, *, circles=None, limit=3, radius=None):
         candidate_circles, key=lambda circle: _recommendation_sort_key(circle, user)
     )
 
+    selected_circles = []
+    selected_circle_ids = set()
+
+    for circle in _get_pinned_regional_circles(user, user_circle_ids, limit):
+        selected_circles.append(circle)
+        selected_circle_ids.add(circle.id)
+
+    for circle in ranked_circles:
+        if circle.id in selected_circle_ids:
+            continue
+        selected_circles.append(circle)
+        selected_circle_ids.add(circle.id)
+        if len(selected_circles) >= limit:
+            break
+
     recommendations = []
-    for circle in ranked_circles[:limit]:
-        unlock_counts = get_circle_unlock_counts(circle)
-        visible_unlock_counts = _build_visible_unlock_counts(unlock_counts)
-        member_activity_counts = get_circle_member_activity_counts(circle)
-        display_counts = _build_display_counts(unlock_counts, member_activity_counts)
-        visible_display_counts = _build_visible_display_counts(display_counts)
-        recommendations.append(
-            {
-                "circle": circle,
-                "is_open": circle.circle_type == "open",
-                "join_label": "Join Circle" if circle.circle_type == "open" else "Request to Join",
-                "unlock_counts": unlock_counts,
-                "unlock_total": sum(unlock_counts.values()),
-                "visible_unlock_counts": visible_unlock_counts,
-                "visible_unlock_text": _join_human_readable(
-                    [count["text"] for count in visible_unlock_counts]
-                ),
-                "member_activity_counts": member_activity_counts,
-                "display_counts": display_counts,
-                "visible_display_counts": visible_display_counts,
-                "visible_display_text": _join_human_readable(
-                    [count["text"] for count in visible_display_counts]
-                ),
-            }
-        )
+    for circle in selected_circles[:limit]:
+        recommendations.append(_build_circle_recommendation(circle))
 
     return recommendations
 

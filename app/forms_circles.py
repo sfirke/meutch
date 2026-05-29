@@ -3,6 +3,7 @@ from flask_wtf.file import FileField
 from wtforms import (
     BooleanField,
     FloatField,
+    IntegerField,
     RadioField,
     SelectField,
     StringField,
@@ -184,3 +185,30 @@ class CircleJoinRequestForm(FlaskForm):
         validators=[Optional(), Length(max=500)],
     )
     submit = SubmitField("Request to Join")
+
+
+class CircleRegionalSettingsForm(FlaskForm):
+    is_regional = BooleanField("Make this a regional circle")
+    regional_radius_miles = IntegerField("Circle's radius in miles", validators=[Optional()])
+    submit = SubmitField("Save Regional Settings")
+
+    def validate(self, extra_validators=None):
+        rv = FlaskForm.validate(self, extra_validators)
+        if not rv:
+            return False
+
+        if self.is_regional.data and self.regional_radius_miles.data is None:
+            self.regional_radius_miles.errors.append(
+                "Circle radius is required when regional status is enabled."
+            )
+            return False
+        if (
+            self.regional_radius_miles.data is not None
+            and not 1 <= self.regional_radius_miles.data <= 100
+        ):
+            self.regional_radius_miles.errors.append(
+                "Circle radius must be between 1 and 100 miles."
+            )
+            return False
+
+        return True

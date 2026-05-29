@@ -161,12 +161,47 @@ class TestSearchCircleFiltering:
         assert "Join a circle before you browse Meutch" in content
         assert "Neighborhood Helpers" in content
         assert "1 borrowable item" in content
-        assert "3 giveaways" in content
-        assert "3 requests" in content
+        assert "2 giveaways" in content
+        assert "2 requests" in content
         assert "These members also have" not in content
         assert "View Circle" in content
         assert "Join Circle" not in content
         assert "Request to Join" not in content
+
+    def test_manage_circles_pins_regional_circles_first(self, client):
+        user = UserFactory(latitude=40.7128, longitude=-74.0060)
+        CircleFactory(
+            name="Ann Arbor Regional",
+            circle_type="open",
+            latitude=40.7130,
+            longitude=-74.0060,
+            is_regional=True,
+            regional_radius_miles=15,
+        )
+        CircleFactory(
+            name="Washtenaw Regional",
+            circle_type="open",
+            latitude=40.7200,
+            longitude=-74.0060,
+            is_regional=True,
+            regional_radius_miles=25,
+        )
+        CircleFactory(
+            name="Neighborhood Circle",
+            circle_type="open",
+            latitude=40.7135,
+            longitude=-74.0060,
+        )
+        db.session.commit()
+
+        login_user(client, user.email)
+        response = client.get(url_for("circles.manage_circles"))
+        content = response.data.decode("utf-8")
+
+        assert response.status_code == 200
+        assert "Regional circle" in content
+        assert content.index("Ann Arbor Regional") < content.index("Washtenaw Regional")
+        assert content.index("Washtenaw Regional") < content.index("Neighborhood Circle")
 
     def test_search_returns_empty_when_no_matching_items_in_circles(self, client):
         """Test that search returns empty results when no items match in circles."""

@@ -100,6 +100,30 @@ class TestApiCircles:
 
         assert response.status_code == 404
 
+    def test_circle_detail_includes_regional_fields(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            circle = CircleFactory(
+                circle_type="open",
+                latitude=42.2808,
+                longitude=-83.7430,
+                is_regional=True,
+                regional_radius_miles=25,
+            )
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            circle_id = circle.id
+
+        response = client.get(
+            f"/api/v1/circles/{circle_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()["circle"]
+        assert payload["is_regional"] is True
+        assert payload["regional_radius_miles"] == 25
+
     def test_circles_list_requires_authentication(self, client, app):
         response = client.get("/api/v1/circles")
 
@@ -484,6 +508,32 @@ class TestApiCircles:
 
         with app.app_context():
             assert db.session.get(Circle, circle_id) is None
+
+    def test_leave_regional_circle_returns_invalid_action(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            circle = CircleFactory(
+                circle_type="open",
+                latitude=42.2808,
+                longitude=-83.7430,
+                is_regional=True,
+                regional_radius_miles=25,
+            )
+            _add_circle_membership(circle, user, is_admin=True)
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+            circle_id = circle.id
+
+        response = client.post(
+            f"/api/v1/circles/{circle_id}/leave",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()["error"]["code"] == "INVALID_ACTION"
+
+        with app.app_context():
+            assert db.session.get(Circle, circle_id) is not None
 
     def test_remove_member_rejects_self_removal(self, client, app):
         with app.app_context():
