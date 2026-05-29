@@ -5,7 +5,7 @@ from app.models import CircleJoinRequest, circle_members
 from app.utils.circle_queries import (
     build_circle_recommendations,
     get_admin_circle_pending_counts,
-    get_circle_public_activity_counts,
+    get_circle_member_activity_counts,
     get_circle_unlock_counts,
     get_listed_circles,
     get_ordered_circle_members,
@@ -181,7 +181,7 @@ def test_get_circle_unlock_counts_counts_circle_visible_content(app):
         }
 
 
-def test_get_circle_public_activity_counts_counts_public_content_from_members(app):
+def test_get_circle_member_activity_counts_counts_all_member_content(app):
     with app.app_context():
         category = CategoryFactory()
         owner = UserFactory()
@@ -200,30 +200,37 @@ def test_get_circle_public_activity_counts_counts_public_content_from_members(ap
         ItemFactory(
             owner=owner,
             category=category,
-            available=True,
+            available=False,
             is_giveaway=True,
             giveaway_visibility="default",
-            claim_status="unclaimed",
+            claim_status="claimed",
         )
         ItemFactory(
             owner=vacation_owner,
             category=category,
-            available=True,
+            available=False,
             is_giveaway=True,
             giveaway_visibility="public",
-            claim_status="unclaimed",
+            claim_status="pending_pickup",
         )
+        ItemFactory(owner=owner, category=category, available=True, is_giveaway=False)
 
         ItemRequestFactory(user=owner, visibility="public", status="open")
-        ItemRequestFactory(user=owner, visibility="circles", status="open")
+        ItemRequestFactory(
+            user=owner,
+            visibility="circles",
+            status="fulfilled",
+            fulfilled_at=datetime.now(UTC) - timedelta(days=30),
+        )
         ItemRequestFactory(user=vacation_owner, visibility="public", status="open")
+        ItemRequestFactory(user=owner, visibility="public", status="deleted")
         db.session.commit()
 
-        counts = get_circle_public_activity_counts(circle)
+        counts = get_circle_member_activity_counts(circle)
 
         assert counts == {
-            "public_giveaways": 1,
-            "public_requests": 1,
+            "giveaways": 3,
+            "requests": 3,
         }
 
 
@@ -255,7 +262,7 @@ def test_build_circle_recommendations_prioritizes_distance_tiers_then_membership
         ]
 
 
-def test_build_circle_recommendations_combines_public_and_circle_activity_for_display(app):
+def test_build_circle_recommendations_uses_total_member_activity_for_display(app):
     with app.app_context():
         viewer = UserFactory()
         category = CategoryFactory()
@@ -275,22 +282,50 @@ def test_build_circle_recommendations_combines_public_and_circle_activity_for_di
         ItemFactory(
             owner=owner,
             category=category,
-            available=True,
+            available=False,
             is_giveaway=True,
             giveaway_visibility="public",
-            claim_status="unclaimed",
+            claim_status="claimed",
         )
-        ItemRequestFactory(user=owner, visibility="public", status="open")
+        ItemRequestFactory(
+            user=owner,
+            visibility="circles",
+            status="fulfilled",
+            fulfilled_at=datetime.now(UTC) - timedelta(days=30),
+        )
         db.session.commit()
 
         recommendation = build_circle_recommendations(viewer, circles=[circle], limit=1)[0]
 
         assert recommendation["visible_unlock_text"] == "1 borrowable item and 1 giveaway"
-        assert recommendation["public_activity_counts"] == {
-            "public_giveaways": 1,
-            "public_requests": 1,
+        assert recommendation["member_activity_counts"] == {
+            "giveaways": 2,
+            "requests": 1,
         }
         assert (
             recommendation["visible_display_text"]
             == "1 borrowable item, 2 giveaways, and 1 request"
         )
+
+
+def test_get_circle_unlock_counts_includes_null_visibility_giveaways(app):
+    """Giveaways with NULL giveaway_visibility (legacy items) should count in unlock_counts."""
+    with app.app_context():
+        category = CategoryFactory()
+        owner = UserFactory()
+        circle = CircleFactory()
+        circle.members.append(owner)
+
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=True,
+            is_giveaway=True,
+            giveaway_visibility=None,
+            claim_status="unclaimed",
+        )
+        db.session.commit()
+
+        counts = get_circle_unlock_counts(circle)
+
+        assert counts["giveaways"] == 1

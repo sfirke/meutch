@@ -104,8 +104,8 @@
                                 {% if recommendation.is_open %}Open{% else %}Approval Required{% endif %}
                             </span>
                         </div>
-                        {% if recommendation.visible_unlock_counts %}
-                        <p class="small text-muted mb-3">{{ recommendation.visible_unlock_text }}</p>
+                        {% if recommendation.visible_display_counts %}
+                        <p class="small text-muted mb-3">{{ recommendation.visible_display_text }}</p>
                         {% else %}
                         <p class="small text-muted mb-3">Meet members who are already active in this circle.</p>
                         {% endif %}

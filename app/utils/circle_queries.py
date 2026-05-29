@@ -170,19 +170,18 @@ def get_circle_unlock_counts(circle):
     }
 
 
-def get_circle_public_activity_counts(circle):
+def get_circle_member_activity_counts(circle):
     member_user_ids = _circle_member_user_ids_query(circle.id)
     now = datetime.now(UTC)
     fulfilled_cutoff = now - timedelta(days=7)
 
-    public_giveaways = (
+    giveaways = (
         db.session.query(db.func.count(Item.id))
         .join(User, Item.owner_id == User.id)
         .filter(
             Item.owner_id.in_(member_user_ids),
             Item.available.is_(True),
             Item.is_giveaway.is_(True),
-            Item.giveaway_visibility == "public",
             or_(Item.claim_status == "unclaimed", Item.claim_status.is_(None)),
             User.is_deleted.is_(False),
             User.vacation_mode.is_(False),
@@ -191,12 +190,11 @@ def get_circle_public_activity_counts(circle):
         or 0
     )
 
-    public_requests = (
+    requests = (
         db.session.query(db.func.count(ItemRequest.id))
         .join(User, ItemRequest.user_id == User.id)
         .filter(
             ItemRequest.user_id.in_(member_user_ids),
-            ItemRequest.visibility == "public",
             User.is_deleted.is_(False),
             User.vacation_mode.is_(False),
             or_(
@@ -215,16 +213,16 @@ def get_circle_public_activity_counts(circle):
     )
 
     return {
-        "public_giveaways": public_giveaways,
-        "public_requests": public_requests,
+        "giveaways": giveaways,
+        "requests": requests,
     }
 
 
-def _build_display_counts(unlock_counts, public_activity_counts):
+def _build_display_counts(unlock_counts, member_activity_counts):
     return {
         "borrowable_items": unlock_counts["borrowable_items"],
-        "giveaways": unlock_counts["giveaways"] + public_activity_counts["public_giveaways"],
-        "requests": unlock_counts["requests"] + public_activity_counts["public_requests"],
+        "giveaways": member_activity_counts["giveaways"],
+        "requests": member_activity_counts["requests"],
     }
 
 
@@ -240,8 +238,8 @@ def build_circle_recommendations(user, *, circles=None, limit=3, radius=None):
     for circle in ranked_circles[:limit]:
         unlock_counts = get_circle_unlock_counts(circle)
         visible_unlock_counts = _build_visible_unlock_counts(unlock_counts)
-        public_activity_counts = get_circle_public_activity_counts(circle)
-        display_counts = _build_display_counts(unlock_counts, public_activity_counts)
+        member_activity_counts = get_circle_member_activity_counts(circle)
+        display_counts = _build_display_counts(unlock_counts, member_activity_counts)
         visible_display_counts = _build_visible_display_counts(display_counts)
         recommendations.append(
             {
@@ -254,7 +252,7 @@ def build_circle_recommendations(user, *, circles=None, limit=3, radius=None):
                 "visible_unlock_text": _join_human_readable(
                     [count["text"] for count in visible_unlock_counts]
                 ),
-                "public_activity_counts": public_activity_counts,
+                "member_activity_counts": member_activity_counts,
                 "display_counts": display_counts,
                 "visible_display_counts": visible_display_counts,
                 "visible_display_text": _join_human_readable(

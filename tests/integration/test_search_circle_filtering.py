@@ -1,5 +1,7 @@
 """Integration tests for search with circle-based filtering."""
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from flask import url_for
 
@@ -132,8 +134,23 @@ class TestSearchCircleFiltering:
             giveaway_visibility="public",
             claim_status="unclaimed",
         )
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=False,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="claimed",
+        )
         ItemRequestFactory(user=owner, visibility="circles", status="open")
         ItemRequestFactory(user=owner, visibility="public", status="open")
+        ItemRequestFactory(
+            user=owner,
+            visibility="public",
+            status="fulfilled",
+            expires_at=datetime.now(UTC) - timedelta(days=30),
+            fulfilled_at=datetime.now(UTC) - timedelta(days=30),
+        )
         db.session.commit()
 
         login_user(client, user.email)
@@ -144,8 +161,8 @@ class TestSearchCircleFiltering:
         assert "Join a circle before you browse Meutch" in content
         assert "Neighborhood Helpers" in content
         assert "1 borrowable item" in content
-        assert "2 giveaways" in content
-        assert "2 requests" in content
+        assert "3 giveaways" in content
+        assert "3 requests" in content
         assert "These members also have" not in content
         assert "View Circle" in content
         assert "Join Circle" not in content
