@@ -272,13 +272,13 @@ def _build_circle_recommendation(circle):
     }
 
 
-def _get_pinned_regional_circles(user, user_circle_ids, limit):
+def _get_pinned_regional_circles(user, user_circle_ids, limit, radius=None):
     if limit <= 0 or not user.is_geocoded:
         return []
 
     regional_candidates = [
         circle
-        for circle in get_listed_circles(user)
+        for circle in get_listed_circles(user, radius=radius)
         if circle.id not in user_circle_ids and _user_within_regional_circle(circle, user)
     ]
     return sorted(
@@ -298,7 +298,7 @@ def build_circle_recommendations(user, *, circles=None, limit=3, radius=None):
     selected_circles = []
     selected_circle_ids = set()
 
-    for circle in _get_pinned_regional_circles(user, user_circle_ids, limit):
+    for circle in _get_pinned_regional_circles(user, user_circle_ids, limit, radius=radius):
         selected_circles.append(circle)
         selected_circle_ids.add(circle.id)
 

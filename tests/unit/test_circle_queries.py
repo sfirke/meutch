@@ -378,3 +378,34 @@ def test_build_circle_recommendations_falls_back_to_regular_order_when_outside_r
             "Regular Near",
             "Regional Outside",
         ]
+
+
+def test_build_circle_recommendations_respects_selected_radius_when_pinning_regionals(app):
+    with app.app_context():
+        viewer = UserFactory(latitude=40.7128, longitude=-74.0060)
+        CircleFactory(
+            name="Regional Beyond Selected Radius",
+            circle_type="open",
+            latitude=40.8600,
+            longitude=-74.0060,
+            is_regional=True,
+            regional_radius_miles=50,
+        )
+        nearby_regular_circle = CircleFactory(
+            name="Nearby Regular Circle",
+            circle_type="open",
+            latitude=40.7130,
+            longitude=-74.0060,
+        )
+        db.session.commit()
+
+        recommendations = build_circle_recommendations(
+            viewer,
+            circles=[nearby_regular_circle],
+            limit=2,
+            radius=5,
+        )
+
+        assert [recommendation["circle"].name for recommendation in recommendations] == [
+            "Nearby Regular Circle",
+        ]
