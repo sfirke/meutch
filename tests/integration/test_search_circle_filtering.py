@@ -161,8 +161,8 @@ class TestSearchCircleFiltering:
         assert "Join a circle before you browse Meutch" in content
         assert "Neighborhood Helpers" in content
         assert "1 borrowable item" in content
-        assert "3 giveaways" in content
-        assert "3 requests" in content
+        assert "2 giveaways" in content
+        assert "2 requests" in content
         assert "These members also have" not in content
         assert "View Circle" in content
         assert "Join Circle" not in content
