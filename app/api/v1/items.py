@@ -2,6 +2,7 @@
 
 from flask import abort
 from flask_jwt_extended import jwt_required
+from sqlalchemy import and_, or_
 
 from app import db
 from app.api.v1 import bp
@@ -32,7 +33,6 @@ from app.services import giveaway_service, item_service
 from app.services.exceptions import AuthorizationError, InformationalError
 from app.utils.item_queries import build_find_results
 from app.utils.item_visibility import build_item_access_state
-from app.utils.messaging_queries import build_message_participant_filter
 from app.utils.pagination import ListPagination
 
 ITEM_LIST_QUERY_SCHEMA = ItemListQuerySchema()
@@ -85,15 +85,33 @@ def _annotate_giveaway_interests(item, owner_id):
         .all()
     )
 
-    for interest in interests:
-        conversation_messages = (
-            Message.query.filter(
-                Message.item_id == item.id,
-                build_message_participant_filter(owner_id, interest.user_id),
-            )
-            .order_by(Message.timestamp)
-            .all()
+    interest_user_ids = {interest.user_id for interest in interests}
+    all_messages = (
+        Message.query.filter(
+            Message.item_id == item.id,
+            or_(
+                and_(
+                    Message.sender_id == owner_id,
+                    Message.recipient_id.in_(interest_user_ids),
+                ),
+                and_(
+                    Message.sender_id.in_(interest_user_ids),
+                    Message.recipient_id == owner_id,
+                ),
+            ),
         )
+        .order_by(Message.timestamp)
+        .all()
+    )
+    messages_by_user = {}
+    for message in all_messages:
+        counterpart_id = (
+            message.recipient_id if message.sender_id == owner_id else message.sender_id
+        )
+        messages_by_user.setdefault(counterpart_id, []).append(message)
+
+    for interest in interests:
+        conversation_messages = messages_by_user.get(interest.user_id, [])
         latest_message = conversation_messages[-1] if conversation_messages else None
         interest.api_conversation_message_id = latest_message.id if latest_message else None
         interest.api_unread_count = sum(
@@ -152,10 +170,6 @@ def _serialize_item_response(item):
 
 def _prepare_item_resource(item):
     return _build_item_response_payload(item)["item"]
-
-
-def _serialize_item_resource(item):
-    return ITEM_DETAIL_SCHEMA.dump(_prepare_item_resource(item))
 
 
 def _ensure_current_user_owns_item(item):
@@ -310,6 +324,7 @@ def list_giveaway_interests(item_id):
 def express_interest(item_id):
     """Express interest in a giveaway item visible to the authenticated user."""
     item = db.get_or_404(Item, item_id)
+    _build_item_access_state_or_raise(item)
     data = load_request_data(GIVEAWAY_INTEREST_CREATE_SCHEMA)
     interest = giveaway_service.express_interest(item, current_user.id, data["message"])
     return GIVEAWAY_INTEREST_MUTATION_RESPONSE_SCHEMA.dump(

@@ -3,11 +3,15 @@
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
-import pytest
-
 from app import db
 from app.models import GiveawayInterest
-from tests.factories import GiveawayInterestFactory, ItemFactory, MessageFactory, UserFactory
+from tests.factories import (
+    CircleFactory,
+    GiveawayInterestFactory,
+    ItemFactory,
+    MessageFactory,
+    UserFactory,
+)
 
 from .api_test_helpers import auth_headers, login_api_user
 
@@ -185,6 +189,12 @@ class TestApiGiveawayInterestMutations:
         with app.app_context():
             owner = UserFactory()
             requester = UserFactory(email_confirmed=True)
+            # Place both users in a shared circle so the item is visible;
+            # the INVALID_ACTION rejection must come from the service, not the
+            # access check firing first.
+            circle = CircleFactory()
+            circle.members.append(owner)
+            circle.members.append(requester)
             item = ItemFactory(owner=owner, is_giveaway=False, available=True)
             db.session.commit()
             access_token = login_api_user(client, requester.email)
@@ -199,8 +209,7 @@ class TestApiGiveawayInterestMutations:
         assert response.status_code == 400
         assert response.get_json()["error"]["code"] == "INVALID_ACTION"
 
-    @pytest.mark.parametrize("claim_status", ["pending_pickup", "claimed"])
-    def test_express_interest_rejects_unavailable_giveaway_states(self, client, app, claim_status):
+    def test_express_interest_rejects_pending_pickup_giveaway(self, client, app):
         with app.app_context():
             owner = UserFactory()
             requester = UserFactory(email_confirmed=True)
@@ -209,9 +218,8 @@ class TestApiGiveawayInterestMutations:
                 owner=owner,
                 is_giveaway=True,
                 giveaway_visibility="default",
-                claim_status=claim_status,
+                claim_status="pending_pickup",
                 claimed_by=recipient,
-                claimed_at=datetime.now(UTC) if claim_status == "claimed" else None,
                 available=False,
             )
             db.session.commit()
@@ -226,6 +234,34 @@ class TestApiGiveawayInterestMutations:
 
         assert response.status_code == 409
         assert response.get_json()["error"]["code"] == "CONFLICT"
+
+    def test_express_interest_rejects_claimed_giveaway_as_not_found(self, client, app):
+        # A claimed giveaway is not visible to non-owners; the correct
+        # response is 404 so we don't leak item state to unauthorized viewers.
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory(email_confirmed=True)
+            recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="claimed",
+                claimed_by=recipient,
+                claimed_at=datetime.now(UTC),
+                available=False,
+            )
+            db.session.commit()
+            access_token = login_api_user(client, requester.email)
+            item_id = item.id
+
+        response = client.post(
+            f"/api/v1/items/{item_id}/interest",
+            headers=auth_headers(access_token),
+            json={"message": "Still interested."},
+        )
+
+        assert response.status_code == 404
 
     def test_duplicate_interest_is_rejected_without_duplicate_rows(self, client, app):
         with app.app_context():
