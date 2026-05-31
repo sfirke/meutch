@@ -95,6 +95,43 @@ class TestApiAuth:
         assert response.status_code == 403
         assert response.get_json()["error"]["code"] == "FORBIDDEN"
 
+    def test_login_returns_429_after_rate_limit_is_exceeded(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            db.session.commit()
+            user_email = user.email
+
+        original_rate_limit_enabled = app.config["API_V1_RATE_LIMITS_ENABLED"]
+        original_login_limit = app.config["API_V1_AUTH_LOGIN_RATE_LIMIT"]
+
+        try:
+            app.config["API_V1_RATE_LIMITS_ENABLED"] = True
+            app.config["API_V1_AUTH_LOGIN_RATE_LIMIT"] = "2 per minute"
+
+            for _ in range(2):
+                response = client.post(
+                    "/api/v1/auth/login",
+                    json={"email": user_email, "password": "wrongpassword"},
+                )
+                assert response.status_code == 401
+
+            limited_response = client.post(
+                "/api/v1/auth/login",
+                json={"email": user_email, "password": "wrongpassword"},
+            )
+
+            assert limited_response.status_code == 429
+            assert limited_response.get_json() == {
+                "error": {
+                    "code": "RATE_LIMIT_EXCEEDED",
+                    "message": "Too many requests. Please try again later.",
+                    "details": {},
+                }
+            }
+        finally:
+            app.config["API_V1_RATE_LIMITS_ENABLED"] = original_rate_limit_enabled
+            app.config["API_V1_AUTH_LOGIN_RATE_LIMIT"] = original_login_limit
+
     def test_me_requires_jwt_even_when_web_session_exists(self, client, app, auth_user):
         with app.app_context():
             user = auth_user()

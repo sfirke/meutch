@@ -2,8 +2,28 @@
 
 from dataclasses import dataclass
 
+from flask import current_app
+from flask_jwt_extended.exceptions import (
+    FreshTokenRequired,
+    InvalidHeaderError,
+    JWTDecodeError,
+    NoAuthorizationError,
+    RevokedTokenError,
+    UserClaimsVerificationError,
+    UserLookupError,
+    WrongTokenError,
+)
+from jwt.exceptions import ExpiredSignatureError
+from jwt.exceptions import InvalidTokenError as PyJwtInvalidTokenError
 from marshmallow import ValidationError
-from werkzeug.exceptions import Forbidden, MethodNotAllowed, NotFound, Unauthorized
+from werkzeug.exceptions import (
+    Forbidden,
+    HTTPException,
+    MethodNotAllowed,
+    NotFound,
+    TooManyRequests,
+    Unauthorized,
+)
 
 from app.services.exceptions import (
     AuthenticationError,
@@ -80,6 +100,12 @@ HTTP_ERROR_MAPPINGS = {
         default_message="This method is not allowed for the requested resource.",
         default_description=MethodNotAllowed.description,
     ),
+    429: ErrorMapping(
+        code="RATE_LIMIT_EXCEEDED",
+        status_code=429,
+        default_message="Too many requests. Please try again later.",
+        default_description=TooManyRequests.description,
+    ),
 }
 
 
@@ -97,6 +123,19 @@ def build_error_response(code, message, *, status_code, details=None):
             "details": details or {},
         }
     }, status_code
+
+
+def build_error_response_with_headers(code, message, *, status_code, details=None, headers=None):
+    """Return a standardized JSON error response payload with optional headers."""
+    error_response = build_error_response(
+        code,
+        message,
+        status_code=status_code,
+        details=details,
+    )
+    if headers:
+        return error_response[0], error_response[1], headers
+    return error_response
 
 
 def _resolve_service_error_mapping(error):
@@ -135,10 +174,23 @@ def build_http_error_response(error):
 
     message = mapping.default_message
 
-    if error.description and error.description != mapping.default_description:
+    if error.code != 429 and error.description and error.description != mapping.default_description:
         message = error.description
 
-    return build_error_response(mapping.code, message, status_code=mapping.status_code)
+    headers = None
+    if error.code == 429:
+        retry_after = getattr(error, "retry_after", None)
+        if retry_after is None and getattr(error, "response", None) is not None:
+            retry_after = error.response.headers.get("Retry-After")
+        if retry_after is not None:
+            headers = {"Retry-After": str(retry_after)}
+
+    return build_error_response_with_headers(
+        mapping.code,
+        message,
+        status_code=mapping.status_code,
+        headers=headers,
+    )
 
 
 def build_validation_error_response(error):
@@ -177,3 +229,64 @@ def register_blueprint_error_handlers(blueprint):
     @blueprint.errorhandler(MethodNotAllowed)
     def handle_method_not_allowed(error):
         return build_http_error_response(error)
+
+    @blueprint.errorhandler(TooManyRequests)
+    def handle_too_many_requests(error):
+        return build_http_error_response(error)
+
+    @blueprint.errorhandler(Exception)
+    def handle_unexpected_exception(error):
+        if isinstance(error, NoAuthorizationError):
+            return build_error_response(
+                "AUTHENTICATION_REQUIRED",
+                "Authentication is required to access this resource.",
+                status_code=401,
+            )
+
+        if isinstance(error, RevokedTokenError):
+            return build_error_response(
+                "TOKEN_REVOKED",
+                "The token is no longer valid.",
+                status_code=401,
+            )
+
+        if isinstance(error, FreshTokenRequired):
+            return build_error_response(
+                "FRESH_TOKEN_REQUIRED",
+                "A fresh token is required to access this resource.",
+                status_code=401,
+            )
+
+        if isinstance(error, ExpiredSignatureError):
+            return build_error_response(
+                "TOKEN_EXPIRED",
+                "The token has expired.",
+                status_code=401,
+            )
+
+        if isinstance(
+            error,
+            (
+                InvalidHeaderError,
+                JWTDecodeError,
+                PyJwtInvalidTokenError,
+                UserClaimsVerificationError,
+                UserLookupError,
+                WrongTokenError,
+            ),
+        ):
+            return build_error_response(
+                "INVALID_TOKEN",
+                "The supplied token is invalid.",
+                status_code=401,
+            )
+
+        if isinstance(error, HTTPException):
+            return build_http_error_response(error)
+
+        current_app.logger.exception("Unhandled API exception")
+        return build_error_response(
+            "INTERNAL_SERVER_ERROR",
+            "An unexpected error occurred.",
+            status_code=500,
+        )

@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required
 from app import db
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
+from app.api.v1.operational import mutation_limit
 from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.messaging import (
@@ -90,6 +91,7 @@ def get_message_thread(message_id):
 
 @bp.post("/messages")
 @jwt_required()
+@mutation_limit()
 def start_message_thread():
     """Start a new item or request conversation."""
     data = load_request_data(MESSAGE_START_REQUEST_SCHEMA)
@@ -110,6 +112,7 @@ def start_message_thread():
 
 @bp.post("/messages/<uuid:message_id>/reply")
 @jwt_required()
+@mutation_limit()
 def reply_to_message(message_id):
     """Reply within an existing conversation thread."""
     message = db.get_or_404(Message, message_id)
@@ -120,6 +123,7 @@ def reply_to_message(message_id):
 
 @bp.post("/messages/<uuid:message_id>/mark-read")
 @jwt_required()
+@mutation_limit()
 def mark_message_thread_read(message_id):
     """Mark unread messages in a thread as read from a message anchor."""
     message = db.get_or_404(Message, message_id)
