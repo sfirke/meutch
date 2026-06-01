@@ -863,6 +863,33 @@ class TestRequestConversations:
             assert b"You are the selected recipient for this giveaway." in response.data
             assert b"Mark Handoff Complete" not in response.data
 
+    def test_view_conversation_claimed_giveaway_shows_rehomed(self, client, app):
+        """Claimed giveaways should show Rehomed, not Borrowed, in conversation header."""
+        with app.app_context():
+            owner = UserFactory()
+            claimant = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="claimed",
+                claimed_by=claimant,
+                available=False,
+            )
+            first_message = MessageFactory(
+                sender=owner,
+                recipient=claimant,
+                item=giveaway,
+                body="Thanks for taking it off my hands!",
+            )
+            db.session.commit()
+
+            login_user(client, claimant.email)
+            response = client.get(f"/message/{first_message.id}")
+
+            assert response.status_code == 200
+            assert b"Rehomed" in response.data
+            assert b"Borrowed" not in response.data
+
     def test_view_conversation_owner_loan_request_uses_consolidated_summary(self, client, app):
         """Owner loan conversations should keep the request context in one summary card without a borrower row."""
         with app.app_context():

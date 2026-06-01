@@ -18,6 +18,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Public giveaways from user without circles now appear in home feed and digest, consistent with how requests are treated ([#369](https://github.com/sfirke/meutch/pull/369)).
 - Fixes to block block dual-item creation: adopt idempotency token, disable form submission button ([#377](https://github.com/sfirke/meutch/pull/377)).
 - Delete item modal is no longer grayed out and untouchable when deleting an item from profile page (fixes #376) ([#377](https://github.com/sfirke/meutch/pull/377)).
+- Claimed giveaways no longer show a "Borrowed" status badge in the conversation "Item Status" card — they now correctly display "Rehomed" ([#39X](https://github.com/sfirke/meutch/pull/39X)).
 
 
 ### Developer Experience
