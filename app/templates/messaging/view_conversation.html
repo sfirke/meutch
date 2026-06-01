@@ -103,11 +103,15 @@
                                             {% if conversation_item.current_loan and conversation_item.current_loan.borrower == current_user %}
                                                 <span class="badge bg-info">You are currently borrowing this item</span>
                                             {% elif not conversation_item.available %}
-                                                {% if conversation_item.is_giveaway and conversation_item.claim_status == 'pending_pickup' %}
+                                                {% if conversation_item.is_giveaway and conversation_item.claim_status == 'claimed' %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fas fa-heart me-1"></i>Rehomed
+                                                    </span>
+                                                {% elif conversation_item.is_giveaway and conversation_item.claim_status == 'pending_pickup' %}
                                                     <span class="badge bg-warning text-dark">
                                                         <i class="fas fa-clock me-1"></i>Pending Pickup
                                                     </span>
-                                                {% else %}
+                                                {% elif not conversation_item.is_giveaway %}
                                                     <span class="badge bg-warning text-dark">
                                                         <i class="fas fa-clock me-1"></i>Borrowed
                                                     </span>
