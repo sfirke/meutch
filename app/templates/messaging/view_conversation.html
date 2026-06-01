@@ -111,11 +111,7 @@
                                                     <span class="badge bg-warning text-dark">
                                                         <i class="fas fa-clock me-1"></i>Pending Pickup
                                                     </span>
-                                                {% elif conversation_item.is_giveaway %}
-                                                    <span class="badge bg-warning text-dark">
-                                                        <i class="fas fa-clock me-1"></i>Pending Pickup
-                                                    </span>
-                                                {% else %}
+                                                {% elif not conversation_item.is_giveaway %}
                                                     <span class="badge bg-warning text-dark">
                                                         <i class="fas fa-clock me-1"></i>Borrowed
                                                     </span>
