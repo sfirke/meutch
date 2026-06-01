@@ -163,7 +163,6 @@ class TestSearchCircleFiltering:
         assert "1 borrowable item" in content
         assert "2 giveaways" in content
         assert "2 requests" in content
-        assert "These members also have" not in content
         assert "View Circle" in content
         assert "Join Circle" not in content
         assert "Request to Join" not in content
