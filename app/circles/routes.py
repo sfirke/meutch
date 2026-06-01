@@ -142,13 +142,9 @@ def manage_circles():
         show_browse = True
 
     if not has_circles:
-        selected_radius = search_form.radius.data or search_form.radius.default
-        source_circles = searched_circles if searched_circles else browse_circles
         circle_recommendations = build_circle_recommendations(
             current_user,
-            circles=source_circles if source_circles else None,
             limit=4,
-            radius=selected_radius,
         )
         if circle_recommendations:
             featured_circle_recommendation = circle_recommendations[0]

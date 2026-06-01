@@ -203,6 +203,36 @@ class TestSearchCircleFiltering:
         assert content.index("Ann Arbor Regional") < content.index("Washtenaw Regional")
         assert content.index("Washtenaw Regional") < content.index("Neighborhood Circle")
 
+    def test_manage_circles_recommendations_ignore_search_filters(self, client):
+        user = UserFactory(latitude=40.7128, longitude=-74.0060)
+        CircleFactory(
+            name="Recommended Circle",
+            circle_type="open",
+            latitude=40.8628,
+            longitude=-74.0060,
+        )
+        CircleFactory(
+            name="Library Exchange",
+            circle_type="open",
+            latitude=40.7130,
+            longitude=-74.0060,
+        )
+        db.session.commit()
+
+        login_user(client, user.email)
+        response = client.post(
+            url_for("circles.manage_circles"),
+            data={"search_circles": True, "search_query": "Library", "radius": "5"},
+        )
+        content = response.data.decode("utf-8")
+        search_results_section = content.split("Search Results", 1)[1]
+
+        assert response.status_code == 200
+        assert "Join a circle before you browse Meutch" in content
+        assert "Recommended Circle" in content
+        assert "Library Exchange" in search_results_section
+        assert "Recommended Circle" not in search_results_section
+
     def test_search_returns_empty_when_no_matching_items_in_circles(self, client):
         """Test that search returns empty results when no items match in circles."""
         category = CategoryFactory()
