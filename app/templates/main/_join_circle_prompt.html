@@ -1,4 +1,5 @@
 {% set show_public_giveaway_nudge = show_public_giveaway_nudge|default(false) %}
+{% set featured_circle_recommendation = featured_circle_recommendation|default(None) %}
 
 <div class="card border-info mb-4">
     <div class="card-body text-center py-4">
@@ -8,7 +9,20 @@
             <p class="text-muted mb-3">Public giveaways can help you get started, but circles connect you with trusted nearby people, surface more requests, and let you borrow too.</p>
         {% else %}
             <h5>Join a circle to get started</h5>
-            <p class="text-muted mb-3">Circles connect you with nearby people who share, request, and lend items.</p>
+            {% if featured_circle_recommendation %}
+                {% set recommended_circle = featured_circle_recommendation.circle %}
+                {% set recommended_distance = get_distance_to_circle(recommended_circle) %}
+                <p class="text-muted {% if featured_circle_recommendation.visible_display_counts %}mb-2{% else %}mb-3{% endif %}">Start with <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="fw-semibold text-decoration-none">{{ recommended_circle.name }}</a>{% if recommended_distance %}, {{ recommended_distance }} away{% endif %}. It has {{ recommended_circle.members|length }} members.</p>
+                {% if featured_circle_recommendation.visible_display_counts %}
+                <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
+                    {% for count in featured_circle_recommendation.visible_display_counts %}
+                    <span class="badge text-bg-light border">{{ count.text }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% else %}
+                <p class="text-muted mb-3">Circles connect you with nearby people who share, request, and lend items.</p>
+            {% endif %}
         {% endif %}
         <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
             <i class="fas fa-search me-1"></i>Find Circles to Join

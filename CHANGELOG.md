@@ -2,6 +2,16 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
+## June 2026
+
+### Features
+**Minor**:
+- New members who have not joined any circles yet are now redirected into circle discovery after login, with a stronger onboarding prompt and personalized recommendations that preview what each suggested circle would unlock ([#395](https://github.com/sfirke/meutch/pull/395)).
+
+### Bug fixes
+- Claimed giveaways no longer show a "Borrowed" status badge in the conversation "Item Status" card — they now correctly display "Rehomed" ([#398](https://github.com/sfirke/meutch/pull/398)).
+
+
 ## May 2026
 
 ### Features
@@ -18,7 +28,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Public giveaways from user without circles now appear in home feed and digest, consistent with how requests are treated ([#369](https://github.com/sfirke/meutch/pull/369)).
 - Fixes to block block dual-item creation: adopt idempotency token, disable form submission button ([#377](https://github.com/sfirke/meutch/pull/377)).
 - Delete item modal is no longer grayed out and untouchable when deleting an item from profile page (fixes #376) ([#377](https://github.com/sfirke/meutch/pull/377)).
-- Claimed giveaways no longer show a "Borrowed" status badge in the conversation "Item Status" card — they now correctly display "Rehomed" ([#398](https://github.com/sfirke/meutch/pull/398)).
 
 
 ### Developer Experience
