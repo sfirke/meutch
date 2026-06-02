@@ -1,6 +1,7 @@
-from flask import redirect, render_template, request, url_for
+from flask import abort, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
+from app import db
 from app.main import bp as main_bp
 from app.models import Category, Item, Tag
 from app.utils.circle_queries import build_circle_recommendations
@@ -112,7 +113,9 @@ def giveaways():
 @main_bp.route("/tag/<uuid:tag_id>")
 @login_required
 def tag_items(tag_id):
-    tag = Tag.query.get_or_404(tag_id)
+    tag = db.session.get(Tag, tag_id)
+    if not tag:
+        abort(404)
     page = request.args.get("page", 1, type=int)
     item_type = request.args.get("item_type", "both")
     per_page = 12
@@ -149,7 +152,9 @@ def tag_items(tag_id):
 @main_bp.route("/category/<uuid:category_id>")
 @login_required
 def category_items(category_id):
-    category = Category.query.get_or_404(category_id)
+    category = db.session.get(Category, category_id)
+    if not category:
+        abort(404)
     page = request.args.get("page", 1, type=int)
     item_type = request.args.get("item_type", "both")
     per_page = 12
