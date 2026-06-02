@@ -69,6 +69,36 @@ def _user_within_regional_circle(circle, user):
     return distance is not None and distance <= circle.regional_radius_miles
 
 
+def _pin_regional_circles_in_results(circles, user):
+    """Pin up to 2 regional circles the user falls within to the top of the list."""
+    if not user.is_geocoded:
+        return circles
+
+    user_circle_ids = {c.id for c in user.circles}
+    regional = [
+        c for c in circles if c.id not in user_circle_ids and _user_within_regional_circle(c, user)
+    ]
+    if not regional:
+        return circles
+
+    pinned = sorted(regional, key=lambda c: _regional_recommendation_sort_key(c, user))[:2]
+    pinned_ids = {c.id for c in pinned}
+    rest = [c for c in circles if c.id not in pinned_ids]
+    return pinned + rest
+
+
+def get_regional_circle_ids_for_user(circles, user):
+    """Return a set of circle IDs for regional circles the user falls within (and doesn't belong to)."""
+    if not user.is_geocoded:
+        return set()
+    user_circle_ids = {c.id for c in user.circles}
+    return {
+        c.id
+        for c in circles
+        if c.id not in user_circle_ids and _user_within_regional_circle(c, user)
+    }
+
+
 def _format_unlock_count_text(value, label):
     suffix = "" if value == 1 else "s"
     return f"{value} {label}{suffix}"
@@ -351,7 +381,9 @@ def get_listed_circles(user, search_query="", radius=None):
 
     circles = circles_query.all()
     circles = filter_circles_by_distance(circles, user, radius)
-    return sort_circles_by_membership(circles)
+    circles = sort_circles_by_membership(circles)
+    circles = _pin_regional_circles_in_results(circles, user)
+    return circles
 
 
 def get_sorted_user_circles(user):

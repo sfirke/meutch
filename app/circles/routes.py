@@ -20,6 +20,7 @@ from app.utils.circle_queries import (
     get_listed_circles,
     get_ordered_circle_members,
     get_pending_circle_join_request,
+    get_regional_circle_ids_for_user,
     get_sorted_user_circles,
     should_show_circle_members,
 )
@@ -150,6 +151,11 @@ def manage_circles():
             featured_circle_recommendation = circle_recommendations[0]
             secondary_circle_recommendations = circle_recommendations[1:]
 
+    regional_circle_ids = get_regional_circle_ids_for_user(
+        (searched_circles or []) + (browse_circles or []),
+        current_user,
+    )
+
     return render_template(
         "circles/circles.html",
         circle_form=circle_form,
@@ -168,6 +174,7 @@ def manage_circles():
         secondary_circle_recommendations=secondary_circle_recommendations,
         show_browse=show_browse,
         user_circle_ids=user_circle_ids,
+        regional_circle_ids=regional_circle_ids,
     )
 
 

@@ -303,6 +303,11 @@
                                 <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
                                     {{ circle.name }}
                                 </a>
+                                {% if circle.id in regional_circle_ids %}
+                                    <span class="badge bg-success ms-2">
+                                        <i class="fas fa-star me-1"></i>Regional
+                                    </span>
+                                {% endif %}
                                 {% if circle.id in user_circle_ids %}
                                     <span class="badge bg-success ms-2">
                                         <i class="fas fa-check-circle me-1"></i>Member
