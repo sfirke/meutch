@@ -132,11 +132,11 @@ def test_circle_details_shows_regional_settings_only_to_site_admin(client, app):
 
         login_user(client, site_admin.email)
         admin_response = client.get(url_for("circles.view_circle", circle_id=circle.id))
-        assert b"Make this a regional circle" in admin_response.data
+        assert b"This is a regional circle" in admin_response.data
 
         login_user(client, regular_user.email)
         regular_response = client.get(url_for("circles.view_circle", circle_id=circle.id))
-        assert b"Make this a regional circle" not in regular_response.data
+        assert b"This is a regional circle" not in regular_response.data
 
 
 def test_site_admin_can_update_regional_settings_from_circle_details(client, app):

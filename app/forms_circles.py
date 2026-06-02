@@ -188,7 +188,7 @@ class CircleJoinRequestForm(FlaskForm):
 
 
 class CircleRegionalSettingsForm(FlaskForm):
-    is_regional = BooleanField("Make this a regional circle")
+    is_regional = BooleanField("This is a regional circle")
     regional_radius_miles = IntegerField("Circle's radius in miles", validators=[Optional()])
     submit = SubmitField("Save Regional Settings")
 

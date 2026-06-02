@@ -67,7 +67,7 @@
 
                     <div id="regional-radius-fields" class="mb-3"{% if not circle.is_regional %} style="display: none;"{% endif %}>
                         {{ regional_form.regional_radius_miles.label(class="form-label") }}
-                        {{ regional_form.regional_radius_miles(class="form-control", id="regionalRadiusInput", min="1", max="100", placeholder="25") }}
+                        {{ regional_form.regional_radius_miles(class="form-control", id="regionalRadiusInput", min="1", max="100") }}
                         {% for error in regional_form.regional_radius_miles.errors %}
                             <div class="text-danger small">{{ error }}</div>
                         {% endfor %}
