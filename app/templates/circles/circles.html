@@ -34,7 +34,7 @@
                                     {% if featured_circle_recommendation.is_regional %}
                                     <div class="mb-2">
                                         <span class="badge bg-success"><i class="fas fa-star me-1"></i>Regional circle</span>
-                                        <span class="small text-success ms-2">{{ featured_circle_recommendation.regional_radius_miles }}-mile radius</span>
+                                        {% if current_user.is_admin %}<span class="small text-success ms-2">{{ featured_circle_recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
                                     </div>
                                     {% endif %}
                                     <h3 class="h5 mb-1">
@@ -97,7 +97,7 @@
                                 {% if recommendation.is_regional %}
                                 <div class="mb-2">
                                     <span class="badge bg-success"><i class="fas fa-star me-1"></i>Regional circle</span>
-                                    <span class="small text-success ms-2">{{ recommendation.regional_radius_miles }}-mile radius</span>
+                                    {% if current_user.is_admin %}<span class="small text-success ms-2">{{ recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
                                 </div>
                                 {% endif %}
                                 <h3 class="h6 mb-1">
