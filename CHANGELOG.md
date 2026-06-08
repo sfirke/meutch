@@ -11,6 +11,8 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Bug fixes
 - Claimed giveaways no longer show a "Borrowed" status badge in the conversation "Item Status" card — they now correctly display "Rehomed" ([#398](https://github.com/sfirke/meutch/pull/398)).
 
+### API development (continued)
+- Add API loan activity reads and loan actions, including active borrowing/lending views plus loan request, approve/deny, cancel, complete, and extend endpoints ([#393](https://github.com/sfirke/meutch/pull/393)).
 
 ## May 2026
 
@@ -47,7 +49,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Add API mutation parity for requests/messages ([#384](https://github.com/sfirke/meutch/pull/384)).
 - Add API mutation parity for circles, including create/edit flows, join-request actions, leave/delete behavior, and admin/member management ([#385](https://github.com/sfirke/meutch/pull/385)).
 - Add API mutation parity for items, including item create/edit/delete flows, image upload/reorder/delete endpoints, and shared giveaway-versus-loan invariant enforcement ([#391](https://github.com/sfirke/meutch/pull/391)).
-- Add API loan activity reads and loan actions, including active borrowing/lending views plus loan request, approve/deny, cancel, complete, and extend endpoints ([#393](https://github.com/sfirke/meutch/pull/393)).
+
 
 ## Apr 2026
 
