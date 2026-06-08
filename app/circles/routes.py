@@ -14,6 +14,7 @@ from app.services import circle_service
 from app.services.exceptions import ServiceError
 from app.utils.circle_members import build_circle_member_samples
 from app.utils.circle_queries import (
+    build_circle_recommendations,
     get_admin_circle_pending_counts,
     get_listed_circles,
     get_ordered_circle_members,
@@ -31,10 +32,14 @@ def manage_circles():
     circle_form = CircleCreateForm()
     search_form = CircleSearchForm()
     uuid_search_form = CircleUuidSearchForm()
+    recommendation_form = EmptyForm()
     searched_circles = None
     browse_circles = None
     searched_circle_samples = {}
     browse_circle_samples = {}
+    circle_recommendations = []
+    featured_circle_recommendation = None
+    secondary_circle_recommendations = []
     show_browse = False
 
     user_admin_circles = get_admin_circle_pending_counts(current_user.id)
@@ -122,6 +127,7 @@ def manage_circles():
 
     # Fetch user's circles and sort by member count (descending)
     user_circles = get_sorted_user_circles(current_user)
+    has_circles = len(user_circles) > 0
 
     # If no search was performed on GET request, show browse results (all listed circles)
     if request.method == "GET":
@@ -134,10 +140,20 @@ def manage_circles():
 
         show_browse = True
 
+    if not has_circles:
+        circle_recommendations = build_circle_recommendations(
+            current_user,
+            limit=4,
+        )
+        if circle_recommendations:
+            featured_circle_recommendation = circle_recommendations[0]
+            secondary_circle_recommendations = circle_recommendations[1:]
+
     return render_template(
         "circles/circles.html",
         circle_form=circle_form,
         search_form=search_form,
+        recommendation_form=recommendation_form,
         uuid_search_form=uuid_search_form,
         user_circles=user_circles,
         user_admin_circles=user_admin_circles,
@@ -145,6 +161,10 @@ def manage_circles():
         browse_circles=browse_circles,
         searched_circle_samples=searched_circle_samples,
         browse_circle_samples=browse_circle_samples,
+        show_circle_onboarding=not has_circles,
+        needs_location_hint=not current_user.is_geocoded,
+        featured_circle_recommendation=featured_circle_recommendation,
+        secondary_circle_recommendations=secondary_circle_recommendations,
         show_browse=show_browse,
         user_circle_ids=user_circle_ids,
     )

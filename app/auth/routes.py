@@ -99,6 +99,16 @@ def _build_confirmation_page_context(form, *, force_show_resend=False):
     }
 
 
+def _get_post_login_redirect_target(user, next_page=None):
+    if next_page and _is_safe_url(next_page):
+        return next_page
+
+    if len(user.circles) == 0:
+        return url_for("circles.manage_circles")
+
+    return url_for("main.index")
+
+
 @auth.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
@@ -168,9 +178,7 @@ def login():
             _clear_confirmation_page_state()
             login_user(authentication_result.user, remember=form.remember_device.data)
             next_page = request.args.get("next")
-            if next_page and _is_safe_url(next_page):
-                return redirect(next_page)
-            return redirect(url_for("main.index"))
+            return redirect(_get_post_login_redirect_target(authentication_result.user, next_page))
 
         if authentication_result.status == auth_service.LOGIN_STATUS_UNCONFIRMED:
             _set_confirmation_page_state(

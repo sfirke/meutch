@@ -8,6 +8,119 @@
 <div class="container mt-5">
     <h1 class="mb-4">Circles</h1>
 
+    {% if show_circle_onboarding %}
+    <section class="card border-info shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="row g-4 align-items-start">
+                <div class="col-lg-6">
+                    <span class="badge bg-info text-dark mb-2">Best next step</span>
+                    <h2 class="h4 mb-2">Join a circle before you browse Meutch</h2>
+                    <p class="text-muted mb-3">Most sharing happens inside circles. Right now you're only seeing public giveaways and requests, no borrowable items.</p>
+                    <p class="text-muted mb-3">Here are some suggested circles near you. Scroll down for the full list.</p>
+                    {% if needs_location_hint %}
+                    <p class="small text-muted mb-0">
+                        <i class="fas fa-map-marker-alt me-1"></i>
+                        <a href="{{ url_for('main.update_location') }}">Set your location</a> to rank circles by distance. For now we're featuring larger circles first.
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="col-lg-6">
+                    {% if featured_circle_recommendation %}
+                        {% set featured_circle = featured_circle_recommendation.circle %}
+                        {% set featured_distance = get_distance_to_circle(featured_circle) %}
+                        <div class="border rounded-3 h-100 p-3 bg-light">
+                            <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                                <div>
+                                    <h3 class="h5 mb-1">
+                                        <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="text-decoration-none">
+                                            {{ featured_circle.name }}
+                                        </a>
+                                    </h3>
+                                    <p class="text-muted small mb-0">
+                                        {{ featured_circle.members|length }} members
+                                        {% if featured_distance %}
+                                            <span class="ms-2"><i class="fas fa-map-marker-alt me-1"></i>{{ featured_distance }}</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <span class="badge {% if featured_circle_recommendation.is_open %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {% if featured_circle_recommendation.is_open %}Open circle{% else %}Approval required{% endif %}
+                                </span>
+                            </div>
+                            <p class="mb-3">{{ featured_circle.description }}</p>
+                            {% if featured_circle_recommendation.visible_display_counts %}
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                {% for count in featured_circle_recommendation.visible_display_counts %}
+                                <span class="badge text-bg-light border">{{ count.text }}</span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="small text-muted mb-3">This circle already has {{ featured_circle.members|length }} members and is a strong place to start building local sharing.</p>
+                            {% endif %}
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="btn btn-primary">View Circle</a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="border rounded-3 h-100 p-3 bg-light">
+                            <h3 class="h5 mb-2">No listed circles yet</h3>
+                            <p class="text-muted mb-3">If there isn't a public circle to join yet, you can create one and invite people nearby.</p>
+                            <button class="btn btn-primary" type="button" data-bs-toggle="tab" data-bs-target="#create-circle">Create a Circle</button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if secondary_circle_recommendations %}
+            {% set secondary_count = secondary_circle_recommendations|length %}
+            <div class="row g-3 mt-1">
+                {% for recommendation in secondary_circle_recommendations %}
+                    {% set recommended_circle = recommendation.circle %}
+                    {% set recommended_distance = get_distance_to_circle(recommended_circle) %}
+                    {% if secondary_count == 1 %}
+                        {% set secondary_card_class = 'col-12 col-lg-8 mx-auto' %}
+                    {% elif secondary_count == 2 %}
+                        {% set secondary_card_class = 'col-12 col-md-6' %}
+                    {% else %}
+                        {% set secondary_card_class = 'col-12 col-md-6 col-xl-4' %}
+                    {% endif %}
+                <div class="{{ secondary_card_class }}">
+                    <div class="border rounded-3 h-100 p-3">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <h3 class="h6 mb-1">
+                                    <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="text-decoration-none">
+                                        {{ recommended_circle.name }}
+                                    </a>
+                                </h3>
+                                <p class="text-muted small mb-0">
+                                    {{ recommended_circle.members|length }} members
+                                    {% if recommended_distance %}
+                                        <span class="ms-1">| {{ recommended_distance }}</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <span class="badge {% if recommendation.is_open %}bg-success{% else %}bg-secondary{% endif %}">
+                                {% if recommendation.is_open %}Open{% else %}Approval Required{% endif %}
+                            </span>
+                        </div>
+                        {% if recommendation.visible_display_counts %}
+                        <p class="small text-muted mb-3">{{ recommendation.visible_display_text }}</p>
+                        {% else %}
+                        <p class="small text-muted mb-3">Meet members who are already active in this circle.</p>
+                        {% endif %}
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="btn btn-outline-primary btn-sm">View Circle</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
+
     {% if total_pending > 0 %}
     <section id="pending-requests" class="card border-warning mb-4">
         <div class="card-header bg-warning text-dark fw-semibold">
