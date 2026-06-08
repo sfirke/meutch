@@ -5,9 +5,10 @@ from unittest.mock import patch
 
 import pytest
 
+from app import db
 from app.models import User
 from conftest import TEST_PASSWORD, login_user
-from tests.factories import ItemFactory, UserFactory
+from tests.factories import CircleFactory, ItemFactory, UserFactory
 
 
 class TestAuthenticationRoutes:
@@ -30,7 +31,8 @@ class TestAuthenticationRoutes:
             )
 
             assert response.status_code == 200
-            assert b"Community Activity" in response.data  # Redirected to home
+            assert b"Circles" in response.data
+            assert b"Find Circles" in response.data
 
     @pytest.mark.filterwarnings("ignore::DeprecationWarning:flask_login")
     def test_login_with_remember_device_sets_cookie(self, client, app, auth_user):
@@ -419,7 +421,10 @@ class TestAuthenticationRoutes:
         """Test that login is case-insensitive for email addresses."""
         with app.app_context():
             # Create a user with lowercase email
-            UserFactory(email="test@example.com", email_confirmed=True)
+            user = UserFactory(email="test@example.com", email_confirmed=True)
+            circle = CircleFactory()
+            circle.members.append(user)
+            db.session.commit()
 
             # Test login with a small set of different cases (original + one variant)
             test_emails = [
@@ -684,10 +689,30 @@ class TestRedirectAfterLogin:
     4. Gets redirected back to the original page
     """
 
-    def test_login_without_next_redirects_to_home(self, client, app, auth_user):
-        """Test login without 'next' parameter redirects to home page."""
+    def test_login_without_next_redirects_to_circle_discovery_for_no_circle_user(
+        self, client, app, auth_user
+    ):
+        """Test login without 'next' redirects zero-circle users to circle discovery."""
         with app.app_context():
             user = auth_user()
+            response = client.post(
+                "/login",
+                data={"email": user.email, "password": TEST_PASSWORD},
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert b"Circles" in response.data
+            assert b"Find Circles" in response.data
+
+    def test_login_without_next_redirects_home_when_user_has_circles(self, client, app, auth_user):
+        """Test login without 'next' still redirects members to the homepage."""
+        with app.app_context():
+            user = auth_user()
+            circle = CircleFactory()
+            circle.members.append(user)
+            db.session.commit()
+
             response = client.post(
                 "/login",
                 data={"email": user.email, "password": TEST_PASSWORD},
@@ -715,6 +740,10 @@ class TestRedirectAfterLogin:
         """Test that external URLs in 'next' parameter are ignored for security."""
         with app.app_context():
             user = auth_user()
+            circle = CircleFactory()
+            circle.members.append(user)
+            db.session.commit()
+
             response = client.post(
                 "/login?next=http://evil.com/phishing",
                 data={"email": user.email, "password": TEST_PASSWORD},
@@ -729,6 +758,10 @@ class TestRedirectAfterLogin:
         """Test that protocol-relative URLs are ignored for security."""
         with app.app_context():
             user = auth_user()
+            circle = CircleFactory()
+            circle.members.append(user)
+            db.session.commit()
+
             response = client.post(
                 "/login?next=//evil.com/phishing",
                 data={"email": user.email, "password": TEST_PASSWORD},
