@@ -199,7 +199,7 @@ def extend_loan(loan_id):
 
     if form.validate_on_submit():
         try:
-            is_extension = loan_service.extend_loan(
+            extend_result = loan_service.extend_loan(
                 loan,
                 current_user.id,
                 form.new_end_date.data,
@@ -211,7 +211,7 @@ def extend_loan(loan_id):
             flash("An error occurred while updating the loan due date.", "danger")
             current_app.logger.error(f"Error updating loan due date {loan_id}: {str(exc)}")
         else:
-            if is_extension:
+            if extend_result.is_extension:
                 flash(
                     f"Loan has been extended until {form.new_end_date.data.strftime('%B %d, %Y')}.",
                     "success",

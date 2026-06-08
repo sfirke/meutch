@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 
 from app import db
 from app.models import LoanRequest, Message
@@ -11,6 +12,14 @@ from app.services.exceptions import (
 from app.utils.email import send_message_notification_email
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class LoanExtendResult:
+    """Result payload for loan due-date mutations."""
+
+    message: Message
+    is_extension: bool
 
 
 def _ensure_item_is_lendable(item):
@@ -236,8 +245,8 @@ def extend_loan(loan, owner_id, new_end_date, owner_message):
         loan_request_id=loan.id,
     )
     db.session.add(message)
-    _commit_and_notify(
+    message = _commit_and_notify(
         message,
         f"Failed to send email notification for loan extension message {message.id}",
     )
-    return is_extension
+    return LoanExtendResult(message=message, is_extension=is_extension)

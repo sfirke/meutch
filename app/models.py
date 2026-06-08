@@ -579,6 +579,26 @@ class LoanRequest(db.Model):
         days = self.days_until_due()
         return abs(days) if days < 0 else 0
 
+    @property
+    def due_state(self):
+        """Returns a string representing the due state of the loan.
+
+        Returns None for non-approved loans. For approved loans, returns one of:
+        'overdue', 'due_today', 'due_soon', 'on_time'.
+        """
+        if self.status != "approved":
+            return None
+
+        if self.is_overdue():
+            return "overdue"
+
+        days = self.days_until_due()
+        if days == 0:
+            return "due_today"
+        if self.is_due_soon():
+            return "due_soon"
+        return "on_time"
+
     def __repr__(self):
         return f"<LoanRequest {self.id} for Item {self.item_id} by User {self.borrower_id}>"
 
