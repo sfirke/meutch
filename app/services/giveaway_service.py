@@ -32,6 +32,112 @@ def _commit():
         raise
 
 
+def get_giveaway_interest_annotations(item_id, owner_id):
+    """Return per-user conversation metadata for each active or selected interest.
+
+    Returns a dict keyed by user_id (UUID) with:
+        conversation_message_id: UUID or None
+        unread_count: int
+        message_count: int
+        has_conversation: bool
+        latest_message: Message or None
+
+    Uses a single batched Message query so callers never need N+1 per-user queries.
+    """
+    from sqlalchemy import and_, or_
+
+    interests = (
+        GiveawayInterest.query.filter(
+            GiveawayInterest.item_id == item_id,
+            GiveawayInterest.status.in_(["active", "selected"]),
+        )
+        .order_by(GiveawayInterest.created_at)
+        .all()
+    )
+
+    interest_user_ids = {interest.user_id for interest in interests}
+    if not interest_user_ids:
+        return {}
+
+    all_messages = (
+        Message.query.filter(
+            Message.item_id == item_id,
+            or_(
+                and_(
+                    Message.sender_id == owner_id,
+                    Message.recipient_id.in_(interest_user_ids),
+                ),
+                and_(
+                    Message.sender_id.in_(interest_user_ids),
+                    Message.recipient_id == owner_id,
+                ),
+            ),
+        )
+        .order_by(Message.timestamp)
+        .all()
+    )
+
+    messages_by_user = {}
+    for message in all_messages:
+        counterpart_id = (
+            message.recipient_id if message.sender_id == owner_id else message.sender_id
+        )
+        messages_by_user.setdefault(counterpart_id, []).append(message)
+
+    annotations = {}
+    for interest in interests:
+        conversation_messages = messages_by_user.get(interest.user_id, [])
+        latest_message = conversation_messages[-1] if conversation_messages else None
+        annotations[interest.user_id] = {
+            "conversation_message_id": latest_message.id if latest_message else None,
+            "unread_count": sum(
+                1
+                for message in conversation_messages
+                if message.recipient_id == owner_id and not message.is_read
+            ),
+            "message_count": len(conversation_messages),
+            "has_conversation": len(conversation_messages) > 0,
+            "latest_message": latest_message,
+        }
+
+    return annotations
+
+
+def get_giveaway_interest_state(item, user_id):
+    """Return the authenticated user's giveaway-interest context for one item.
+
+    Returns a dict with:
+        viewer_interest_status: None, "active", or "selected"
+        interested_count: int (owner only) or None
+    """
+    viewer_interest_status = None
+    interested_count = None
+
+    if not item.is_giveaway:
+        return {
+            "viewer_interest_status": viewer_interest_status,
+            "interested_count": interested_count,
+        }
+
+    viewer_interest = GiveawayInterest.query.filter_by(
+        item_id=item.id,
+        user_id=user_id,
+    ).first()
+    if viewer_interest:
+        viewer_interest_status = viewer_interest.status
+
+    if item.owner_id == user_id:
+        interested_count = GiveawayInterest.query.filter_by(
+            item_id=item.id,
+            status="active",
+        ).count()
+
+    return {
+        "viewer_interest_status": viewer_interest_status,
+        "interested_count": interested_count,
+    }
+
+
 def _build_selection_message(item, sender_id, recipient_id):
     notification_message = Message(
         sender_id=sender_id,

@@ -148,36 +148,15 @@ def select_recipient(item_id):
         flash("No users have expressed interest in this giveaway yet.", "info")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
+    annotations = giveaway_service.get_giveaway_interest_annotations(item.id, current_user.id)
     user_messaging_info = {}
     for interest in interested_users:
-        conversation_messages = (
-            Message.query.filter(
-                Message.item_id == item.id,
-                or_(
-                    and_(
-                        Message.sender_id == current_user.id,
-                        Message.recipient_id == interest.user_id,
-                    ),
-                    and_(
-                        Message.sender_id == interest.user_id,
-                        Message.recipient_id == current_user.id,
-                    ),
-                ),
-            )
-            .order_by(Message.timestamp)
-            .all()
-        )
-
-        latest_message = conversation_messages[-1] if conversation_messages else None
+        annotation = annotations.get(interest.user_id, {})
         user_messaging_info[str(interest.user_id)] = {
-            "has_conversation": len(conversation_messages) > 0,
-            "unread_count": sum(
-                1
-                for msg in conversation_messages
-                if msg.recipient_id == current_user.id and not msg.is_read
-            ),
-            "message_count": len(conversation_messages),
-            "latest_message": latest_message,
+            "has_conversation": annotation.get("has_conversation", False),
+            "unread_count": annotation.get("unread_count", 0),
+            "message_count": annotation.get("message_count", 0),
+            "latest_message": annotation.get("latest_message"),
         }
 
     next_form = ChangeRecipientForm(selection_method="next")
