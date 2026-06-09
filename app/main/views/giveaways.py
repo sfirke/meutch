@@ -148,15 +148,15 @@ def select_recipient(item_id):
         flash("No users have expressed interest in this giveaway yet.", "info")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    annotations = giveaway_service.get_giveaway_interest_annotations(item.id, current_user.id)
+    messaging_info = giveaway_service.get_giveaway_interest_messaging_info(item.id, current_user.id)
     user_messaging_info = {}
     for interest in interested_users:
-        annotation = annotations.get(interest.user_id, {})
+        info = messaging_info.get(interest.user_id, {})
         user_messaging_info[str(interest.user_id)] = {
-            "has_conversation": annotation.get("has_conversation", False),
-            "unread_count": annotation.get("unread_count", 0),
-            "message_count": annotation.get("message_count", 0),
-            "latest_message": annotation.get("latest_message"),
+            "has_conversation": info.get("has_conversation", False),
+            "unread_count": info.get("unread_count", 0),
+            "message_count": info.get("message_count", 0),
+            "latest_message": info.get("latest_message"),
         }
 
     next_form = ChangeRecipientForm(selection_method="next")

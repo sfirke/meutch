@@ -32,7 +32,7 @@ def _commit():
         raise
 
 
-def get_giveaway_interest_annotations(item_id, owner_id):
+def get_giveaway_interest_messaging_info(item_id, owner_id):
     """Return per-user conversation metadata for each active or selected interest.
 
     Returns a dict keyed by user_id (UUID) with:
@@ -84,11 +84,11 @@ def get_giveaway_interest_annotations(item_id, owner_id):
         )
         messages_by_user.setdefault(counterpart_id, []).append(message)
 
-    annotations = {}
+    messaging_info = {}
     for interest in interests:
         conversation_messages = messages_by_user.get(interest.user_id, [])
         latest_message = conversation_messages[-1] if conversation_messages else None
-        annotations[interest.user_id] = {
+        messaging_info[interest.user_id] = {
             "conversation_message_id": latest_message.id if latest_message else None,
             "unread_count": sum(
                 1
@@ -100,7 +100,7 @@ def get_giveaway_interest_annotations(item_id, owner_id):
             "latest_message": latest_message,
         }
 
-    return annotations
+    return messaging_info
 
 
 def get_giveaway_interest_state(item, user_id):

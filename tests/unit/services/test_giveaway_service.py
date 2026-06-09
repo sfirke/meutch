@@ -277,9 +277,9 @@ class TestGiveawayService:
             assert item.claimed_at is not None
             assert selected_interest.status == "selected"
 
-    # --- get_giveaway_interest_annotations ---
+    # --- get_giveaway_interest_messaging_info ---
 
-    def test_get_annotations_returns_conversation_metadata_per_user(self, app):
+    def test_get_messaging_info_returns_conversation_metadata_per_user(self, app):
         with app.app_context():
             owner = UserFactory()
             user_a = UserFactory()
@@ -304,16 +304,18 @@ class TestGiveawayService:
                 is_read=False,
             )
 
-            annotations = giveaway_service.get_giveaway_interest_annotations(item.id, owner.id)
+            messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+                item.id, owner.id
+            )
 
-            assert annotations[user_a.id] == {
+            assert messaging_info[user_a.id] == {
                 "conversation_message_id": msg_from_a.id,
                 "unread_count": 0,
                 "message_count": 1,
                 "has_conversation": True,
                 "latest_message": msg_from_a,
             }
-            assert annotations[user_b.id] == {
+            assert messaging_info[user_b.id] == {
                 "conversation_message_id": msg_from_b.id,
                 "unread_count": 1,
                 "message_count": 1,
@@ -321,7 +323,7 @@ class TestGiveawayService:
                 "latest_message": msg_from_b,
             }
 
-    def test_get_annotations_handles_users_with_no_conversation(self, app):
+    def test_get_messaging_info_handles_users_with_no_conversation(self, app):
         with app.app_context():
             owner = UserFactory()
             silent_user = UserFactory()
@@ -332,9 +334,11 @@ class TestGiveawayService:
             )
             GiveawayInterestFactory(item=item, user=silent_user, status="active")
 
-            annotations = giveaway_service.get_giveaway_interest_annotations(item.id, owner.id)
+            messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+                item.id, owner.id
+            )
 
-            assert annotations[silent_user.id] == {
+            assert messaging_info[silent_user.id] == {
                 "conversation_message_id": None,
                 "unread_count": 0,
                 "message_count": 0,
@@ -342,7 +346,7 @@ class TestGiveawayService:
                 "latest_message": None,
             }
 
-    def test_get_annotations_returns_empty_dict_when_no_interests(self, app):
+    def test_get_messaging_info_returns_empty_dict_when_no_interests(self, app):
         with app.app_context():
             owner = UserFactory()
             item = ItemFactory(
@@ -351,9 +355,11 @@ class TestGiveawayService:
                 giveaway_visibility="default",
             )
 
-            annotations = giveaway_service.get_giveaway_interest_annotations(item.id, owner.id)
+            messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+                item.id, owner.id
+            )
 
-            assert annotations == {}
+            assert messaging_info == {}
 
     # --- get_giveaway_interest_state ---
 

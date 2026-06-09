@@ -74,7 +74,7 @@ def _build_giveaway_interest_actions(item, interests):
     }
 
 
-def _annotate_giveaway_interests(item, owner_id):
+def _enrich_giveaway_interests(item, owner_id):
     interests = (
         GiveawayInterest.query.filter(
             GiveawayInterest.item_id == item.id,
@@ -84,18 +84,18 @@ def _annotate_giveaway_interests(item, owner_id):
         .all()
     )
 
-    annotations = giveaway_service.get_giveaway_interest_annotations(item.id, owner_id)
+    messaging_info = giveaway_service.get_giveaway_interest_messaging_info(item.id, owner_id)
     for interest in interests:
-        annotation = annotations.get(interest.user_id, {})
-        interest.api_conversation_message_id = annotation.get("conversation_message_id")
-        interest.api_unread_count = annotation.get("unread_count", 0)
-        interest.api_message_count = annotation.get("message_count", 0)
+        info = messaging_info.get(interest.user_id, {})
+        interest.api_conversation_message_id = info.get("conversation_message_id")
+        interest.api_unread_count = info.get("unread_count", 0)
+        interest.api_message_count = info.get("message_count", 0)
 
     return interests
 
 
 def _serialize_giveaway_interest_collection(item):
-    interests = _annotate_giveaway_interests(item, current_user.id)
+    interests = _enrich_giveaway_interests(item, current_user.id)
     item.api_interest_pool_count = len(interests)
     return GIVEAWAY_INTEREST_COLLECTION_RESPONSE_SCHEMA.dump(
         {
