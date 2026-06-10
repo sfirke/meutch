@@ -195,12 +195,6 @@ def give_to_user(item_id, user_id):
             return redirect(url_for("main.view_conversation", message_id=conversation_message.id))
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    if not item.is_giveaway:
-        flash("This item is not a giveaway.", "danger")
-        if conversation_message:
-            return redirect(url_for("main.view_conversation", message_id=conversation_message.id))
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
     if item.claim_status not in [None, "unclaimed"]:
         flash("This giveaway is no longer awaiting recipient selection.", "warning")
         if conversation_message:
@@ -356,10 +350,6 @@ def release_to_all(item_id):
         flash("You do not have permission to manage this giveaway.", "danger")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    if not item.is_giveaway:
-        flash("This item is not a giveaway.", "danger")
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
     if item.claim_status != "pending_pickup":
         flash("This giveaway is not pending pickup.", "warning")
         return redirect(url_for("main.item_detail", item_id=item.id))
@@ -395,10 +385,6 @@ def confirm_handoff(item_id):
 
     if item.owner_id != current_user.id:
         flash("You do not have permission to manage this giveaway.", "danger")
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
-    if not item.is_giveaway:
-        flash("This item is not a giveaway.", "danger")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
     if item.claim_status != "pending_pickup":
