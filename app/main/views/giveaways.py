@@ -135,20 +135,14 @@ def select_recipient(item_id):
             return redirect(url_for("main.item_detail", item_id=item.id))
 
     is_reassignment = item.claim_status == "pending_pickup"
-    interested_users = (
-        GiveawayInterest.query.filter(
-            GiveawayInterest.item_id == item.id,
-            GiveawayInterest.status.in_(["active", "selected"]),
-        )
-        .order_by(GiveawayInterest.created_at)
-        .all()
+    interested_users, messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+        item.id, current_user.id
     )
 
     if not interested_users:
         flash("No users have expressed interest in this giveaway yet.", "info")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    messaging_info = giveaway_service.get_giveaway_interest_messaging_info(item.id, current_user.id)
     user_messaging_info = {}
     for interest in interested_users:
         info = messaging_info.get(interest.user_id, {})

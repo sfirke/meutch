@@ -33,14 +33,16 @@ def _commit():
 
 
 def get_giveaway_interest_messaging_info(item_id, owner_id):
-    """Return per-user conversation metadata for each active or selected interest.
+    """Return interests and per-user conversation metadata for an item's giveaway pool.
 
-    Returns a dict keyed by user_id (UUID) with:
-        conversation_message_id: UUID or None
-        unread_count: int
-        message_count: int
-        has_conversation: bool
-        latest_message: Message or None
+    Returns a (interests, messaging_info) tuple:
+        interests: list[GiveawayInterest] — active and selected interests
+        messaging_info: dict keyed by user_id (UUID) with:
+            conversation_message_id: UUID or None
+            unread_count: int
+            message_count: int
+            has_conversation: bool
+            latest_message: Message or None
 
     Uses a single batched Message query so callers never need N+1 per-user queries.
     """
@@ -57,7 +59,7 @@ def get_giveaway_interest_messaging_info(item_id, owner_id):
 
     interest_user_ids = {interest.user_id for interest in interests}
     if not interest_user_ids:
-        return {}
+        return interests, {}
 
     all_messages = (
         Message.query.filter(
@@ -100,7 +102,7 @@ def get_giveaway_interest_messaging_info(item_id, owner_id):
             "latest_message": latest_message,
         }
 
-    return messaging_info
+    return interests, messaging_info
 
 
 def get_giveaway_interest_state(item, user_id):

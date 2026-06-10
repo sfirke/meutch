@@ -304,10 +304,12 @@ class TestGiveawayService:
                 is_read=False,
             )
 
-            messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+            interests, messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
                 item.id, owner.id
             )
 
+            assert len(interests) == 2
+            assert {i.user_id for i in interests} == {user_a.id, user_b.id}
             assert messaging_info[user_a.id] == {
                 "conversation_message_id": msg_from_a.id,
                 "unread_count": 0,
@@ -334,10 +336,12 @@ class TestGiveawayService:
             )
             GiveawayInterestFactory(item=item, user=silent_user, status="active")
 
-            messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+            interests, messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
                 item.id, owner.id
             )
 
+            assert len(interests) == 1
+            assert interests[0].user_id == silent_user.id
             assert messaging_info[silent_user.id] == {
                 "conversation_message_id": None,
                 "unread_count": 0,
@@ -355,10 +359,11 @@ class TestGiveawayService:
                 giveaway_visibility="default",
             )
 
-            messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+            interests, messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
                 item.id, owner.id
             )
 
+            assert interests == []
             assert messaging_info == {}
 
     # --- get_giveaway_interest_state ---
