@@ -212,6 +212,9 @@ def express_interest(item, user_id, message_text):
 
 
 def withdraw_interest(item, user_id):
+    if not item.is_giveaway:
+        raise InvalidActionError("This item is not a giveaway.")
+
     interest = GiveawayInterest.query.filter_by(item_id=item.id, user_id=user_id).first()
     if not interest:
         raise ConflictError("You have not expressed interest in this giveaway.")

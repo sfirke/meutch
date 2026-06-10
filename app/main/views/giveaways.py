@@ -81,10 +81,6 @@ def select_recipient(item_id):
         flash("You do not have permission to manage this giveaway.", "danger")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    if not item.is_giveaway:
-        flash("This item is not a giveaway.", "danger")
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
     if item.claim_status not in [None, "unclaimed", "pending_pickup"]:
         flash("This giveaway has already been claimed.", "warning")
         return redirect(url_for("main.item_detail", item_id=item.id))
@@ -316,10 +312,6 @@ def change_recipient(item_id):
 
     if item.owner_id != current_user.id:
         flash("You do not have permission to manage this giveaway.", "danger")
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
-    if not item.is_giveaway:
-        flash("This item is not a giveaway.", "danger")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
     if item.claim_status != "pending_pickup":
