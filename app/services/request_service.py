@@ -53,6 +53,8 @@ def update_request(item_request, acting_user, title, description, expires_on, se
     _ensure_public_request_owner_is_geocoded(acting_user, visibility)
     if item_request.status == "deleted":
         raise ConflictError("This request has already been removed.")
+    if item_request.status == "fulfilled":
+        raise ConflictError("Fulfilled requests cannot be edited.")
 
     item_request.title = title.strip()
     item_request.description = _normalize_description(description)
