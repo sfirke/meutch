@@ -1293,7 +1293,7 @@ class TestRecipientSelection:
             )
 
             assert response.status_code == 200
-            assert b"not a giveaway" in response.data
+            assert b"No users have expressed interest in this giveaway" in response.data
 
 
 class TestConversationGiveawaySelection:

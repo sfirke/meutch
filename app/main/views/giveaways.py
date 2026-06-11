@@ -81,10 +81,6 @@ def select_recipient(item_id):
         flash("You do not have permission to manage this giveaway.", "danger")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    if not item.is_giveaway:
-        flash("This item is not a giveaway.", "danger")
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
     if item.claim_status not in [None, "unclaimed", "pending_pickup"]:
         flash("This giveaway has already been claimed.", "warning")
         return redirect(url_for("main.item_detail", item_id=item.id))
@@ -135,13 +131,8 @@ def select_recipient(item_id):
             return redirect(url_for("main.item_detail", item_id=item.id))
 
     is_reassignment = item.claim_status == "pending_pickup"
-    interested_users = (
-        GiveawayInterest.query.filter(
-            GiveawayInterest.item_id == item.id,
-            GiveawayInterest.status.in_(["active", "selected"]),
-        )
-        .order_by(GiveawayInterest.created_at)
-        .all()
+    interested_users, messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+        item.id, current_user.id
     )
 
     if not interested_users:
@@ -150,34 +141,12 @@ def select_recipient(item_id):
 
     user_messaging_info = {}
     for interest in interested_users:
-        conversation_messages = (
-            Message.query.filter(
-                Message.item_id == item.id,
-                or_(
-                    and_(
-                        Message.sender_id == current_user.id,
-                        Message.recipient_id == interest.user_id,
-                    ),
-                    and_(
-                        Message.sender_id == interest.user_id,
-                        Message.recipient_id == current_user.id,
-                    ),
-                ),
-            )
-            .order_by(Message.timestamp)
-            .all()
-        )
-
-        latest_message = conversation_messages[-1] if conversation_messages else None
+        info = messaging_info.get(interest.user_id, {})
         user_messaging_info[str(interest.user_id)] = {
-            "has_conversation": len(conversation_messages) > 0,
-            "unread_count": sum(
-                1
-                for msg in conversation_messages
-                if msg.recipient_id == current_user.id and not msg.is_read
-            ),
-            "message_count": len(conversation_messages),
-            "latest_message": latest_message,
+            "has_conversation": info.get("has_conversation", False),
+            "unread_count": info.get("unread_count", 0),
+            "message_count": info.get("message_count", 0),
+            "latest_message": info.get("latest_message"),
         }
 
     next_form = ChangeRecipientForm(selection_method="next")
@@ -222,12 +191,6 @@ def give_to_user(item_id, user_id):
 
     if item.owner_id != current_user.id:
         flash("You do not have permission to manage this giveaway.", "danger")
-        if conversation_message:
-            return redirect(url_for("main.view_conversation", message_id=conversation_message.id))
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
-    if not item.is_giveaway:
-        flash("This item is not a giveaway.", "danger")
         if conversation_message:
             return redirect(url_for("main.view_conversation", message_id=conversation_message.id))
         return redirect(url_for("main.item_detail", item_id=item.id))
@@ -345,10 +308,6 @@ def change_recipient(item_id):
         flash("You do not have permission to manage this giveaway.", "danger")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    if not item.is_giveaway:
-        flash("This item is not a giveaway.", "danger")
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
     if item.claim_status != "pending_pickup":
         flash("This giveaway is not pending pickup.", "warning")
         return redirect(url_for("main.item_detail", item_id=item.id))
@@ -391,10 +350,6 @@ def release_to_all(item_id):
         flash("You do not have permission to manage this giveaway.", "danger")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    if not item.is_giveaway:
-        flash("This item is not a giveaway.", "danger")
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
     if item.claim_status != "pending_pickup":
         flash("This giveaway is not pending pickup.", "warning")
         return redirect(url_for("main.item_detail", item_id=item.id))
@@ -430,10 +385,6 @@ def confirm_handoff(item_id):
 
     if item.owner_id != current_user.id:
         flash("You do not have permission to manage this giveaway.", "danger")
-        return redirect(url_for("main.item_detail", item_id=item.id))
-
-    if not item.is_giveaway:
-        flash("This item is not a giveaway.", "danger")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
     if item.claim_status != "pending_pickup":

@@ -16,7 +16,7 @@ from app.forms import (
 )
 from app.main import bp as main_bp
 from app.models import GiveawayInterest, Item, Message
-from app.services import item_service, message_service
+from app.services import giveaway_service, item_service, message_service
 from app.services.exceptions import (
     AuthorizationError,
     ConflictError,
@@ -173,17 +173,14 @@ def item_detail(item_id):
         .all()
     )
 
+    interest_state = giveaway_service.get_giveaway_interest_state(item, current_user.id)
     user_interest = None
-    if item.is_giveaway:
+    if interest_state["viewer_interest_status"]:
         user_interest = GiveawayInterest.query.filter_by(
             item_id=item.id, user_id=current_user.id
         ).first()
 
-    interested_count = 0
-    if item.is_giveaway and item.owner_id == current_user.id:
-        interested_count = GiveawayInterest.query.filter_by(
-            item_id=item.id, status="active"
-        ).count()
+    interested_count = interest_state["interested_count"] or 0
 
     delete_form = DeleteItemForm()
     generate_share_link_form = EmptyForm()
