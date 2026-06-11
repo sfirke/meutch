@@ -48,18 +48,7 @@ class LoanActivitySummarySchema(ApiSchema):
         return loan.api_latest_conversation_message_id
 
     def get_due_state(self, loan):
-        if loan.status != "approved":
-            return None
-
-        if loan.is_overdue():
-            return "overdue"
-
-        days_until_due = loan.days_until_due()
-        if days_until_due == 0:
-            return "due_today"
-        if days_until_due <= 3:
-            return "due_soon"
-        return "on_time"
+        return loan.due_state
 
     def get_days_until_due(self, loan):
         if loan.status != "approved":

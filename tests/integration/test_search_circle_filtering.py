@@ -1,11 +1,19 @@
 """Integration tests for search with circle-based filtering."""
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from flask import url_for
 
 from app.models import db
 from conftest import login_user
-from tests.factories import CategoryFactory, CircleFactory, ItemFactory, UserFactory
+from tests.factories import (
+    CategoryFactory,
+    CircleFactory,
+    ItemFactory,
+    ItemRequestFactory,
+    UserFactory,
+)
 
 
 @pytest.mark.usefixtures("app")
@@ -100,6 +108,94 @@ class TestSearchCircleFiltering:
             assert response.status_code == 200
             assert b"Join a circle" in response.data
             assert b"Find Circles to Join" in response.data
+
+    def test_manage_circles_highlights_recommended_circle_when_user_has_no_circles(self, client):
+        """The circles page should spotlight a recommended circle for zero-circle users."""
+        user = UserFactory(latitude=40.7128, longitude=-74.0060)
+        category = CategoryFactory()
+        owner = UserFactory()
+        circle = CircleFactory(name="Neighborhood Helpers", latitude=40.7135, longitude=-74.0050)
+        circle.members.extend([owner, UserFactory()])
+
+        ItemFactory(owner=owner, category=category, available=True, is_giveaway=False)
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=True,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="unclaimed",
+        )
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=True,
+            is_giveaway=True,
+            giveaway_visibility="public",
+            claim_status="unclaimed",
+        )
+        ItemFactory(
+            owner=owner,
+            category=category,
+            available=False,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="claimed",
+        )
+        ItemRequestFactory(user=owner, visibility="circles", status="open")
+        ItemRequestFactory(user=owner, visibility="public", status="open")
+        ItemRequestFactory(
+            user=owner,
+            visibility="public",
+            status="fulfilled",
+            expires_at=datetime.now(UTC) - timedelta(days=30),
+            fulfilled_at=datetime.now(UTC) - timedelta(days=30),
+        )
+        db.session.commit()
+
+        login_user(client, user.email)
+        response = client.get(url_for("circles.manage_circles"))
+        content = response.data.decode("utf-8")
+
+        assert response.status_code == 200
+        assert "Join a circle before you browse Meutch" in content
+        assert "Neighborhood Helpers" in content
+        assert "1 borrowable item" in content
+        assert "2 giveaways" in content
+        assert "2 requests" in content
+        assert "View Circle" in content
+        assert "Join Circle" not in content
+        assert "Request to Join" not in content
+
+    def test_manage_circles_recommendations_ignore_search_filters(self, client):
+        user = UserFactory(latitude=40.7128, longitude=-74.0060)
+        CircleFactory(
+            name="Recommended Circle",
+            circle_type="open",
+            latitude=40.8628,
+            longitude=-74.0060,
+        )
+        CircleFactory(
+            name="Library Exchange",
+            circle_type="open",
+            latitude=40.7130,
+            longitude=-74.0060,
+        )
+        db.session.commit()
+
+        login_user(client, user.email)
+        response = client.post(
+            url_for("circles.manage_circles"),
+            data={"search_circles": True, "search_query": "Library", "radius": "5"},
+        )
+        content = response.data.decode("utf-8")
+        search_results_section = content.split("Search Results", 1)[1]
+
+        assert response.status_code == 200
+        assert "Join a circle before you browse Meutch" in content
+        assert "Recommended Circle" in content
+        assert "Library Exchange" in search_results_section
+        assert "Recommended Circle" not in search_results_section
 
     def test_search_returns_empty_when_no_matching_items_in_circles(self, client):
         """Test that search returns empty results when no items match in circles."""

@@ -2,7 +2,6 @@
 
 from flask import abort
 from flask_jwt_extended import jwt_required
-from sqlalchemy import and_, or_
 
 from app import db
 from app.api.v1 import bp
@@ -29,7 +28,7 @@ from app.api.v1.schemas.items import (
     ItemWritePayloadSchema,
 )
 from app.api.v1.schemas.query import ItemListQuerySchema
-from app.models import GiveawayInterest, Item, ItemImage, Message
+from app.models import Item, ItemImage
 from app.services import giveaway_service, item_service
 from app.services.exceptions import AuthorizationError, InformationalError
 from app.utils.item_queries import build_find_results
@@ -76,57 +75,21 @@ def _build_giveaway_interest_actions(item, interests):
     }
 
 
-def _annotate_giveaway_interests(item, owner_id):
-    interests = (
-        GiveawayInterest.query.filter(
-            GiveawayInterest.item_id == item.id,
-            GiveawayInterest.status.in_(["active", "selected"]),
-        )
-        .order_by(GiveawayInterest.created_at)
-        .all()
+def _enrich_giveaway_interests(item, owner_id):
+    interests, messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+        item.id, owner_id
     )
-
-    interest_user_ids = {interest.user_id for interest in interests}
-    all_messages = (
-        Message.query.filter(
-            Message.item_id == item.id,
-            or_(
-                and_(
-                    Message.sender_id == owner_id,
-                    Message.recipient_id.in_(interest_user_ids),
-                ),
-                and_(
-                    Message.sender_id.in_(interest_user_ids),
-                    Message.recipient_id == owner_id,
-                ),
-            ),
-        )
-        .order_by(Message.timestamp)
-        .all()
-    )
-    messages_by_user = {}
-    for message in all_messages:
-        counterpart_id = (
-            message.recipient_id if message.sender_id == owner_id else message.sender_id
-        )
-        messages_by_user.setdefault(counterpart_id, []).append(message)
-
     for interest in interests:
-        conversation_messages = messages_by_user.get(interest.user_id, [])
-        latest_message = conversation_messages[-1] if conversation_messages else None
-        interest.api_conversation_message_id = latest_message.id if latest_message else None
-        interest.api_unread_count = sum(
-            1
-            for message in conversation_messages
-            if message.recipient_id == owner_id and not message.is_read
-        )
-        interest.api_message_count = len(conversation_messages)
+        info = messaging_info.get(interest.user_id, {})
+        interest.api_conversation_message_id = info.get("conversation_message_id")
+        interest.api_unread_count = info.get("unread_count", 0)
+        interest.api_message_count = info.get("message_count", 0)
 
     return interests
 
 
 def _serialize_giveaway_interest_collection(item):
-    interests = _annotate_giveaway_interests(item, current_user.id)
+    interests = _enrich_giveaway_interests(item, current_user.id)
     item.api_interest_pool_count = len(interests)
     return GIVEAWAY_INTEREST_COLLECTION_RESPONSE_SCHEMA.dump(
         {
@@ -140,20 +103,9 @@ def _serialize_giveaway_interest_collection(item):
 def _build_item_response_payload(item):
     access_state = _build_item_access_state_or_raise(item)
 
-    viewer_interest = None
-    if item.is_giveaway:
-        viewer_interest = GiveawayInterest.query.filter_by(
-            item_id=item.id,
-            user_id=current_user.id,
-        ).first()
-
-    item.api_viewer_interest_status = viewer_interest.status if viewer_interest else None
-    item.api_interested_count = None
-    if item.is_giveaway and item.owner_id == current_user.id:
-        item.api_interested_count = GiveawayInterest.query.filter_by(
-            item_id=item.id,
-            status="active",
-        ).count()
+    interest_state = giveaway_service.get_giveaway_interest_state(item, current_user.id)
+    item.api_viewer_interest_status = interest_state["viewer_interest_status"]
+    item.api_interested_count = interest_state["interested_count"]
 
     return {
         "item": item,
