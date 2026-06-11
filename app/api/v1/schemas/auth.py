@@ -11,7 +11,7 @@ class LoginRequestSchema(ApiSchema):
     """Credential payload for API login."""
 
     email = fields.Email(required=True, validate=validate.Length(max=120))
-    password = fields.String(required=True, validate=validate.Length(min=8))
+    password = fields.String(required=True, validate=validate.Length(min=8, max=100))
 
 
 class RegisterRequestSchema(ApiSchema):
@@ -20,7 +20,7 @@ class RegisterRequestSchema(ApiSchema):
     email = fields.Email(required=True, validate=validate.Length(max=120))
     first_name = fields.String(required=True, validate=validate.Length(max=50))
     last_name = fields.String(required=True, validate=validate.Length(max=50))
-    password = fields.String(required=True, validate=validate.Length(min=8))
+    password = fields.String(required=True, validate=validate.Length(min=8, max=100))
     digest_frequency = fields.String(
         load_default=User.DIGEST_FREQUENCY_WEEKLY,
         validate=validate.OneOf(User.DIGEST_FREQUENCY_CHOICES),
@@ -60,7 +60,7 @@ class ResetPasswordRequestSchema(ApiSchema):
     """Password reset payload for API clients."""
 
     token = fields.String(required=True, validate=validate.Length(min=1, max=128))
-    password = fields.String(required=True, validate=validate.Length(min=8))
+    password = fields.String(required=True, validate=validate.Length(min=8, max=100))
 
 
 class MessageResponseSchema(ApiSchema):

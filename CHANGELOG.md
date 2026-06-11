@@ -16,6 +16,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Add API loan activity reads and loan actions, including active borrowing/lending views plus loan request, approve/deny, cancel, complete, and extend endpoints ([#393](https://github.com/sfirke/meutch/pull/393)).
 - Add API giveaway-interest reads and giveaway actions, including owner-side interest management, express/withdraw interest, recipient select/change, release-to-all, and confirm-handoff endpoints([#405](https://github.com/sfirke/meutch/pull/405)).
 - Harden the API for production with request-level throttles on auth and write endpoints, rollout controls for full-disable and read-only modes, request-id correlation headers, JSON `429`/`500` handling, and deployment guidance for shared limiter storage. ([#407](https://github.com/sfirke/meutch/pull/407)).
+- Add progressive account lockout after repeated failed logins, raise API password minimum to 8 characters with digit and special-character requirements, add per-user read-endpoint rate limits, enforce request body size limits with `413` responses, add security and version response headers, and ship a `flask api cleanup-expired-tokens` CLI command for token blocklist maintenance ([#](https://github.com/sfirke/meutch/pull/)).
 
 ## May 2026
 
