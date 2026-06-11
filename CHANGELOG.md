@@ -15,6 +15,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### API development (continued)
 - Add API loan activity reads and loan actions, including active borrowing/lending views plus loan request, approve/deny, cancel, complete, and extend endpoints ([#393](https://github.com/sfirke/meutch/pull/393)).
 - Add API giveaway-interest reads and giveaway actions, including owner-side interest management, express/withdraw interest, recipient select/change, release-to-all, and confirm-handoff endpoints([#405](https://github.com/sfirke/meutch/pull/405)).
+- Finish PR 8 API closeout with the final registered route surface, updated API design documentation, and full targeted plus repository-wide validation for the complete mobile-parity endpoint set.
 
 ## May 2026
 
@@ -55,8 +56,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Add API mutation parity for items, including item create/edit/delete flows, image upload/reorder/delete endpoints, and shared giveaway-versus-loan invariant enforcement ([#391](https://github.com/sfirke/meutch/pull/391)).
 - Add API loan activity reads and loan mutation parity, including loan requests, approvals, denials, cancellations, completion, extensions, and mobile-ready due-state metadata.
 - Add API giveaway management parity, including owner-side interest reads, interest and withdrawal flows, recipient selection and reassignment, release-to-all, and handoff confirmation.
-- Finish PR 8 API closeout with the final registered route surface, updated API design documentation, and full targeted plus repository-wide validation for the complete mobile-parity endpoint set.
-- Harden the API for production with request-level throttles on auth and write endpoints, rollout controls for full-disable and read-only modes, request-id correlation headers, JSON `429`/`500` handling, and deployment guidance for shared limiter storage.
 
 ## Apr 2026
 
