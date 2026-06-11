@@ -75,7 +75,9 @@ def _build_giveaway_interest_actions(item, interests):
 
 
 def _enrich_giveaway_interests(item, owner_id):
-    interests, messaging_info = giveaway_service.get_giveaway_interest_messaging_info(item.id, owner_id)
+    interests, messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+        item.id, owner_id
+    )
     for interest in interests:
         info = messaging_info.get(interest.user_id, {})
         interest.api_conversation_message_id = info.get("conversation_message_id")
