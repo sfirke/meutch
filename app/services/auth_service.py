@@ -15,6 +15,11 @@ PASSWORD_RESET_TOKEN_TTL = timedelta(hours=1)
 LOGIN_STATUS_SUCCESS = "success"
 LOGIN_STATUS_INVALID_CREDENTIALS = "invalid_credentials"
 LOGIN_STATUS_UNCONFIRMED = "unconfirmed"
+LOGIN_STATUS_LOCKED = "locked"
+
+MAX_FAILED_LOGIN_ATTEMPTS = 5
+INITIAL_LOCKOUT_MINUTES = 15
+MAX_LOCKOUT_MINUTES = 60
 
 CONFIRM_EMAIL_STATUS_CONFIRMED = "confirmed"
 CONFIRM_EMAIL_STATUS_EXPIRED = "expired"
@@ -133,15 +138,42 @@ def register_user(
     )
 
 
+def _lockout_minutes(previous_lockout_count):
+    """Escalate lockout duration: double per successive lockout up to a hard cap."""
+    minutes = INITIAL_LOCKOUT_MINUTES * (2 ** (previous_lockout_count - 1))
+    return min(minutes, MAX_LOCKOUT_MINUTES)
+
+
 def authenticate_user(email, password):
     user = _get_user_by_email(email)
+
+    if user is not None and user.locked_until is not None:
+        if user.locked_until > datetime.now(UTC):
+            return AuthenticationResult(status=LOGIN_STATUS_LOCKED)
+
+        user.locked_until = None
+
     if not user or not user.check_password(password):
+        if user is not None:
+            user.failed_login_attempts += 1
+
+            if user.failed_login_attempts >= MAX_FAILED_LOGIN_ATTEMPTS:
+                lockout_count = user.failed_login_attempts // MAX_FAILED_LOGIN_ATTEMPTS
+                user.locked_until = datetime.now(UTC) + timedelta(
+                    minutes=_lockout_minutes(lockout_count)
+                )
+                user.failed_login_attempts = 0
+
+            db.session.commit()
+
         return AuthenticationResult(status=LOGIN_STATUS_INVALID_CREDENTIALS)
 
     if not user.is_confirmed():
         return AuthenticationResult(status=LOGIN_STATUS_UNCONFIRMED, user=user)
 
     user.last_login = datetime.now(UTC)
+    user.failed_login_attempts = 0
+    user.locked_until = None
     db.session.commit()
     return AuthenticationResult(status=LOGIN_STATUS_SUCCESS, user=user)
 

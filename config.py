@@ -204,6 +204,8 @@ class Config:
     API_V1_WRITE_ENABLED = parse_bool_env(os.environ.get("API_V1_WRITE_ENABLED"), True)
     API_V1_RATE_LIMITS_ENABLED = parse_bool_env(os.environ.get("API_V1_RATE_LIMITS_ENABLED"), True)
 
+    MAX_CONTENT_LENGTH = parse_int_env(os.environ.get("MAX_CONTENT_LENGTH"), 1 * 1024 * 1024)
+
     RATELIMIT_ENABLED = parse_bool_env(os.environ.get("RATELIMIT_ENABLED"), True)
     RATELIMIT_HEADERS_ENABLED = True
     RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
@@ -220,6 +222,7 @@ class Config:
     )
     API_V1_WRITE_RATE_LIMIT = os.environ.get("API_V1_WRITE_RATE_LIMIT", "30 per minute")
     API_V1_IMAGE_WRITE_RATE_LIMIT = os.environ.get("API_V1_IMAGE_WRITE_RATE_LIMIT", "10 per minute")
+    API_V1_READ_RATE_LIMIT = os.environ.get("API_V1_READ_RATE_LIMIT", "60 per minute")
 
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or SECRET_KEY
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(
