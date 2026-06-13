@@ -121,3 +121,42 @@ def test_remove_circle_image(mock_delete, client, app):
         assert circle.image_url is None
         assert b"Circle image has been removed." in response.data
         mock_delete.assert_called_once_with("https://example.com/old.jpg")
+
+
+def test_circle_details_shows_regional_settings_only_to_site_admin(client, app):
+    with app.app_context():
+        site_admin = UserFactory(is_admin=True)
+        regular_user = UserFactory()
+        circle = CircleFactory(circle_type="open", latitude=42.2808, longitude=-83.7430)
+        db.session.commit()
+
+        login_user(client, site_admin.email)
+        admin_response = client.get(url_for("circles.view_circle", circle_id=circle.id))
+        assert b"This is a regional circle" in admin_response.data
+
+        login_user(client, regular_user.email)
+        regular_response = client.get(url_for("circles.view_circle", circle_id=circle.id))
+        assert b"This is a regional circle" not in regular_response.data
+
+
+def test_site_admin_can_update_regional_settings_from_circle_details(client, app):
+    with app.app_context():
+        site_admin = UserFactory(is_admin=True)
+        circle = CircleFactory(circle_type="open", latitude=42.2808, longitude=-83.7430)
+        db.session.commit()
+
+        login_user(client, site_admin.email)
+        response = client.post(
+            url_for("circles.update_regional_circle_settings", circle_id=circle.id),
+            data={
+                "is_regional": "y",
+                "regional_radius_miles": "25",
+            },
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        db.session.refresh(circle)
+        assert circle.is_regional is True
+        assert circle.regional_radius_miles == 25
+        assert b"Regional circle status enabled." in response.data

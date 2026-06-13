@@ -183,11 +183,13 @@ class TestMainRoutes:
             assert "It has 2 members." in content
             assert "0 giveaways" not in content
             assert "0 requests" not in content
+            assert "can open up" not in content
+            assert "These members also have" not in content
 
     def test_home_feed_no_circle_viewer_shows_public_activity_context_for_recommendation(
         self, client, app, auth_user
     ):
-        """Homepage prompt should show total member activity counts for the recommended circle."""
+        """Homepage prompt should distinguish already-public activity from circle-only unlocks."""
         with app.app_context():
             viewer = auth_user()
             category = CategoryFactory()
@@ -215,6 +217,7 @@ class TestMainRoutes:
             assert "1 borrowable item" in content
             assert "1 giveaway" in content
             assert "1 request" in content
+            assert "These members also have" not in content
 
     def test_home_feed_distance_filter_hides_far_requests_and_giveaways(
         self, client, app, auth_user
