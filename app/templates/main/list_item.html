@@ -10,6 +10,12 @@
     <form method="post" enctype="multipart/form-data" data-single-submit="true">
         {{ form.csrf_token }}
         {{ form.creation_token() }}
+        {% if return_to %}
+            <input type="hidden" name="return_to" value="{{ return_to }}">
+        {% endif %}
+        {% if return_request_id %}
+            <input type="hidden" name="request_id" value="{{ return_request_id }}">
+        {% endif %}
 
         <!-- Item Name -->
         <div class="mb-3">

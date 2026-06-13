@@ -105,3 +105,14 @@ class RequestWritePayloadSchema(ApiSchema):
             raise ValidationError(
                 {"expires_at": ["Expiration date cannot be more than 6 months from today."]}
             )
+
+
+class RequestRespondSchema(ApiSchema):
+    """Write payload for responding to a request with one of your items."""
+
+    item_id = fields.UUID(required=True)
+    body = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(max=1000),
+    )

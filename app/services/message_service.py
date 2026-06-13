@@ -2,10 +2,13 @@
 
 import logging
 
+from flask import url_for
+
 from app import db
 from app.models import Message
 from app.services.exceptions import AuthorizationError, InvalidActionError
 from app.utils.email import send_message_notification_email
+from app.utils.item_share import generate_item_share_token
 from app.utils.item_visibility import build_item_access_state
 from app.utils.messaging_queries import (
     build_conversation_thread_state,
@@ -44,6 +47,68 @@ def start_item_conversation(item, sender, body, *, share_token=None):
 
 def start_request_conversation(item_request, sender, body):
     recipient_id = get_request_conversation_recipient_id(item_request, sender)
+    return create_message(sender.id, recipient_id, body, request_id=item_request.id)
+
+
+def _build_item_url_for_requester(item, item_owner, requester):
+    """Return the best URL so *requester* can view *item*.
+
+    - Public giveaways → public preview URL.
+    - Regular items where owner and requester share a circle → direct URL.
+    - Regular items without shared circles → tokenized share-preview URL.
+    - Default-visibility giveaways are visible to everyone → direct URL.
+    """
+    if item.is_giveaway and item.giveaway_visibility == "public":
+        return url_for("share.giveaway_preview", item_id=item.id, _external=True)
+
+    if item.is_giveaway or item_owner.shares_circle_with(requester):
+        return url_for("main.item_detail", item_id=item.id, _external=True)
+
+    token = generate_item_share_token(item)
+    return url_for("share.item_preview", token=token, _external=True)
+
+
+_RESPOND_BODY_TEMPLATE = (
+    "Hi {requester_name}! I have a {item_name} that might help with "
+    "your request for '{request_title}'. You can see it here: {item_url}"
+)
+
+
+def respond_to_request_with_item(item_request, sender, item, body=None):
+    """Respond to *item_request* by sharing *item* with the requester.
+
+    Creates a message in the request conversation that includes an
+    item link.  When the requester cannot see the item directly a share
+    token is generated automatically.
+
+    Args:
+        item_request: The :class:`ItemRequest` being responded to.
+        sender: The :class:`User` responding (must own *item*).
+        item: The :class:`Item` being offered in response.
+        body: Optional custom message body.  When ``None`` a
+            pre-formatted message is generated.
+
+    Returns:
+        The newly created :class:`Message`.
+    """
+    if item_request.status != "open" or item_request.is_expired:
+        raise InvalidActionError("This request is no longer open.")
+
+    if item.owner_id != sender.id:
+        raise AuthorizationError("You can only respond with your own items.")
+
+    recipient_id = get_request_conversation_recipient_id(item_request, sender)
+
+    item_url = _build_item_url_for_requester(item, sender, item_request.user)
+
+    if body is None:
+        body = _RESPOND_BODY_TEMPLATE.format(
+            requester_name=item_request.user.full_name,
+            item_name=item.name,
+            request_title=item_request.title,
+            item_url=item_url,
+        )
+
     return create_message(sender.id, recipient_id, body, request_id=item_request.id)
 
 
