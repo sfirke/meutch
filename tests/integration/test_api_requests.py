@@ -143,7 +143,7 @@ class TestApiRequests:
         assert response.status_code == 422
         assert response.get_json()["error"]["code"] == "VALIDATION_ERROR"
 
-    def test_fulfilled_request_can_still_be_updated(self, client, app):
+    def test_fulfilled_request_cannot_be_updated(self, client, app):
         with app.app_context():
             owner = UserFactory(email_confirmed=True)
             item_request = ItemRequestFactory(user=owner, status="open")
@@ -166,8 +166,8 @@ class TestApiRequests:
             headers=auth_headers(access_token),
         )
 
-        assert update_response.status_code == 200
-        assert update_response.get_json()["request"]["title"] == "Updated after fulfillment"
+        assert update_response.status_code == 409
+        assert update_response.get_json()["error"]["code"] == "CONFLICT"
 
     def test_request_create_rejects_public_visibility_for_non_geocoded_user(self, client, app):
         with app.app_context():

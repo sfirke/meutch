@@ -10,7 +10,11 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Bug fixes
 - Claimed giveaways no longer show a "Borrowed" status badge in the conversation "Item Status" card — they now correctly display "Rehomed" ([#398](https://github.com/sfirke/meutch/pull/398)).
+- Can no longer edit a fulfilled giveaway ([#406](https://github.com/sfirke/meutch/pull/406)).
 
+### API development (continued)
+- Add API loan activity reads and loan actions, including active borrowing/lending views plus loan request, approve/deny, cancel, complete, and extend endpoints ([#393](https://github.com/sfirke/meutch/pull/393)).
+- Add API giveaway-interest reads and giveaway actions, including owner-side interest management, express/withdraw interest, recipient select/change, release-to-all, and confirm-handoff endpoints([#405](https://github.com/sfirke/meutch/pull/405)).
 
 ## May 2026
 

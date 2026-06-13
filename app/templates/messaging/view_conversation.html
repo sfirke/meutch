@@ -83,14 +83,12 @@
                                                 {{ active_loan.status|title }}
                                             </span>
                                             {% if active_loan.status == 'approved' %}
-                                                {% if active_loan.is_overdue() %}
+                                                {% if active_loan.due_state == 'overdue' %}
                                                     <span class="badge bg-danger">Overdue by {{ active_loan.days_overdue() }} day{{ 's' if active_loan.days_overdue() != 1 else '' }}</span>
-                                                {% elif active_loan.is_due_soon() %}
-                                                    {% if active_loan.days_until_due() == 0 %}
-                                                        <span class="badge bg-warning text-dark">Due today</span>
-                                                    {% else %}
-                                                        <span class="badge bg-warning text-dark">Due in {{ active_loan.days_until_due() }} day{{ 's' if active_loan.days_until_due() != 1 else '' }}</span>
-                                                    {% endif %}
+                                                {% elif active_loan.due_state == 'due_today' %}
+                                                    <span class="badge bg-warning text-dark">Due today</span>
+                                                {% elif active_loan.due_state == 'due_soon' %}
+                                                    <span class="badge bg-warning text-dark">Due in {{ active_loan.days_until_due() }} day{{ 's' if active_loan.days_until_due() != 1 else '' }}</span>
                                                 {% endif %}
                                             {% endif %}
                                         </div>
@@ -173,12 +171,12 @@
                                                 </form>
                                             </div>
                                         {% elif active_loan.borrower_id == current_user.id %}
-                                            {% if active_loan.is_overdue() %}
+                                            {% if active_loan.due_state == 'overdue' %}
                                                 <div class="alert alert-danger mb-0">
                                                     <i class="fas fa-exclamation-triangle me-2"></i>
                                                     <strong>This item is overdue!</strong> Please return it as soon as possible. It was due {{ active_loan.end_date.strftime('%B %d, %Y') }}.
                                                 </div>
-                                            {% elif active_loan.is_due_soon() %}
+                                            {% elif active_loan.due_state in ('due_today', 'due_soon') %}
                                                 <div class="alert alert-warning mb-0">
                                                     <i class="fas fa-clock me-2"></i>
                                                     <strong>Due soon!</strong> Please return this item by {{ active_loan.end_date.strftime('%B %d, %Y') }}.
@@ -348,14 +346,12 @@
                         <p>
                             <strong>Duration:</strong> {{ msg.loan_request.start_date.strftime('%Y-%m-%d') }} to {{ msg.loan_request.end_date.strftime('%Y-%m-%d') }}
                             {% if msg.loan_request.status == 'approved' %}
-                                {% if msg.loan_request.is_overdue() %}
+                                {% if msg.loan_request.due_state == 'overdue' %}
                                     <span class="badge bg-danger ms-2">Overdue by {{ msg.loan_request.days_overdue() }} day{{ 's' if msg.loan_request.days_overdue() != 1 else '' }}</span>
-                                {% elif msg.loan_request.is_due_soon() %}
-                                    {% if msg.loan_request.days_until_due() == 0 %}
-                                        <span class="badge bg-warning text-dark ms-2">Due today</span>
-                                    {% else %}
-                                        <span class="badge bg-warning text-dark ms-2">Due in {{ msg.loan_request.days_until_due() }} day{{ 's' if msg.loan_request.days_until_due() != 1 else '' }}</span>
-                                    {% endif %}
+                                {% elif msg.loan_request.due_state == 'due_today' %}
+                                    <span class="badge bg-warning text-dark ms-2">Due today</span>
+                                {% elif msg.loan_request.due_state == 'due_soon' %}
+                                    <span class="badge bg-warning text-dark ms-2">Due in {{ msg.loan_request.days_until_due() }} day{{ 's' if msg.loan_request.days_until_due() != 1 else '' }}</span>
                                 {% endif %}
                             {% endif %}
                         </p>

@@ -188,3 +188,94 @@ class GiveawayRecipientChangeSchema(ApiSchema):
     @validates_schema
     def validate_manual_user_id(self, data, **kwargs):
         _validate_manual_selection_user_id(data)
+
+
+class GiveawayInterestItemStateSchema(ApiSchema):
+    """Minimal giveaway state returned by interest-management endpoints."""
+
+    id = fields.UUID(required=True)
+    claim_status = fields.String(allow_none=True)
+    claimed_by = fields.Method("get_claimed_by", allow_none=True)
+    interested_count = fields.Method("get_interested_count")
+
+    def get_claimed_by(self, item):
+        return item.claimed_by_id
+
+    def get_interested_count(self, item):
+        return item.api_interest_pool_count
+
+
+class GiveawayInterestActionsSchema(ApiSchema):
+    """Allowed giveaway-recipient actions for the current owner state."""
+
+    select_recipient = fields.Boolean(required=True)
+    change_recipient = fields.Boolean(required=True)
+    release_to_all = fields.Boolean(required=True)
+    confirm_handoff = fields.Boolean(required=True)
+
+
+class GiveawayInterestSummarySchema(ApiSchema):
+    """Owner-facing giveaway interest summary with thread metadata."""
+
+    id = fields.UUID(required=True)
+    status = fields.String(required=True)
+    created_at = ApiDateTime(required=True)
+    message = fields.String(allow_none=True)
+    user = fields.Nested(UserSummarySchema(), required=True)
+    conversation_message_id = fields.Method("get_conversation_message_id", allow_none=True)
+    unread_count = fields.Method("get_unread_count")
+    message_count = fields.Method("get_message_count")
+
+    def get_conversation_message_id(self, interest):
+        return getattr(interest, "api_conversation_message_id", None)
+
+    def get_unread_count(self, interest):
+        return getattr(interest, "api_unread_count", 0)
+
+    def get_message_count(self, interest):
+        return getattr(interest, "api_message_count", 0)
+
+
+class GiveawayInterestCollectionResponseSchema(ApiSchema):
+    """Owner-only giveaway interest-management read payload."""
+
+    item = fields.Nested(GiveawayInterestItemStateSchema(), required=True)
+    actions = fields.Nested(GiveawayInterestActionsSchema(), required=True)
+    interests = fields.Nested(GiveawayInterestSummarySchema(), many=True, required=True)
+
+
+class GiveawayInterestResponseSchema(ApiSchema):
+    """Minimal giveaway-interest payload returned by mutation endpoints."""
+
+    id = fields.UUID(required=True)
+    status = fields.String(required=True)
+    created_at = ApiDateTime(required=True)
+    message = fields.String(allow_none=True)
+    user = fields.Nested(UserSummarySchema(), required=True)
+
+
+class GiveawayInterestMutationResponseSchema(ApiSchema):
+    """Response for expressing interest in a giveaway."""
+
+    interest = fields.Nested(GiveawayInterestResponseSchema(), required=True)
+    item = fields.Nested(ItemDetailSchema(), required=True)
+
+
+class GiveawayInterestWithdrawResponseSchema(ApiSchema):
+    """Response for withdrawing giveaway interest."""
+
+    withdrawn = fields.Boolean(required=True)
+    item = fields.Nested(ItemDetailSchema(), required=True)
+
+
+class GiveawayRecipientMutationResponseSchema(ApiSchema):
+    """Response for owner-side recipient selection mutations."""
+
+    item = fields.Nested(ItemDetailSchema(), required=True)
+    selected_interest = fields.Nested(GiveawayInterestResponseSchema(), required=True)
+
+
+class GiveawayItemResponseSchema(ApiSchema):
+    """Response for giveaway item state transitions without interest payloads."""
+
+    item = fields.Nested(ItemDetailSchema(), required=True)

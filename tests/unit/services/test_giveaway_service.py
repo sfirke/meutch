@@ -5,7 +5,7 @@ import pytest
 from app.models import Message
 from app.services import giveaway_service
 from app.services.exceptions import AuthorizationError, ConflictError, InvalidActionError
-from tests.factories import GiveawayInterestFactory, ItemFactory, UserFactory
+from tests.factories import GiveawayInterestFactory, ItemFactory, MessageFactory, UserFactory
 
 
 class TestGiveawayService:
@@ -154,6 +154,15 @@ class TestGiveawayService:
             with pytest.raises(ConflictError, match="not expressed interest"):
                 giveaway_service.withdraw_interest(item, requester.id)
 
+    def test_withdraw_interest_raises_invalid_action_for_non_giveaway(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=False, available=True)
+
+            with pytest.raises(InvalidActionError, match="not a giveaway"):
+                giveaway_service.withdraw_interest(item, requester.id)
+
     def test_select_recipient_raises_auth_error_for_non_owner(self, app):
         with app.app_context():
             owner = UserFactory()
@@ -217,3 +226,184 @@ class TestGiveawayService:
 
             with pytest.raises(ConflictError, match="not pending pickup"):
                 giveaway_service.change_recipient(item, owner.id, "next")
+
+    def test_release_to_all_reactivates_selected_interest_and_notifies_previous_recipient(
+        self, app
+    ):
+        with app.app_context():
+            owner = UserFactory()
+            previous_recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="pending_pickup",
+                claimed_by=previous_recipient,
+                available=False,
+                giveaway_visibility="default",
+            )
+            previous_interest = GiveawayInterestFactory(
+                item=item,
+                user=previous_recipient,
+                status="selected",
+            )
+
+            with patch(
+                "app.services.giveaway_service.send_message_notification_email"
+            ) as mock_email:
+                giveaway_service.release_to_all(item, owner.id)
+
+            notification = Message.query.one()
+            assert item.claim_status == "unclaimed"
+            assert item.claimed_by_id is None
+            assert item.available is True
+            assert previous_interest.status == "active"
+            assert notification.recipient_id == previous_recipient.id
+            mock_email.assert_called_once_with(notification)
+
+    def test_confirm_handoff_marks_item_claimed(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            recipient = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="pending_pickup",
+                claimed_by=recipient,
+                available=False,
+                giveaway_visibility="default",
+            )
+            selected_interest = GiveawayInterestFactory(
+                item=item,
+                user=recipient,
+                status="selected",
+            )
+
+            giveaway_service.confirm_handoff(item, owner.id)
+
+            assert item.claim_status == "claimed"
+            assert item.claimed_by_id == recipient.id
+            assert item.available is False
+            assert item.claimed_at is not None
+            assert selected_interest.status == "selected"
+
+    # --- get_giveaway_interest_messaging_info ---
+
+    def test_get_messaging_info_returns_conversation_metadata_per_user(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            user_a = UserFactory()
+            user_b = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+            )
+            GiveawayInterestFactory(item=item, user=user_a, status="active")
+            GiveawayInterestFactory(item=item, user=user_b, status="active")
+            msg_from_a = MessageFactory(
+                item=item,
+                sender=user_a,
+                recipient=owner,
+                is_read=True,
+            )
+            msg_from_b = MessageFactory(
+                item=item,
+                sender=user_b,
+                recipient=owner,
+                is_read=False,
+            )
+
+            interests, messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+                item.id, owner.id
+            )
+
+            assert len(interests) == 2
+            assert {i.user_id for i in interests} == {user_a.id, user_b.id}
+            assert messaging_info[user_a.id] == {
+                "conversation_message_id": msg_from_a.id,
+                "unread_count": 0,
+                "message_count": 1,
+                "has_conversation": True,
+                "latest_message": msg_from_a,
+            }
+            assert messaging_info[user_b.id] == {
+                "conversation_message_id": msg_from_b.id,
+                "unread_count": 1,
+                "message_count": 1,
+                "has_conversation": True,
+                "latest_message": msg_from_b,
+            }
+
+    def test_get_messaging_info_handles_users_with_no_conversation(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            silent_user = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+            )
+            GiveawayInterestFactory(item=item, user=silent_user, status="active")
+
+            interests, messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+                item.id, owner.id
+            )
+
+            assert len(interests) == 1
+            assert interests[0].user_id == silent_user.id
+            assert messaging_info[silent_user.id] == {
+                "conversation_message_id": None,
+                "unread_count": 0,
+                "message_count": 0,
+                "has_conversation": False,
+                "latest_message": None,
+            }
+
+    def test_get_messaging_info_returns_empty_dict_when_no_interests(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+            )
+
+            interests, messaging_info = giveaway_service.get_giveaway_interest_messaging_info(
+                item.id, owner.id
+            )
+
+            assert interests == []
+            assert messaging_info == {}
+
+    # --- get_giveaway_interest_state ---
+
+    def test_get_interest_state_returns_viewer_status_and_owner_count(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+            )
+            GiveawayInterestFactory(item=item, user=requester, status="active")
+
+            owner_state = giveaway_service.get_giveaway_interest_state(item, owner.id)
+            assert owner_state["viewer_interest_status"] is None
+            assert owner_state["interested_count"] == 1
+
+            requester_state = giveaway_service.get_giveaway_interest_state(item, requester.id)
+            assert requester_state["viewer_interest_status"] == "active"
+            assert requester_state["interested_count"] is None
+
+    def test_get_interest_state_returns_none_for_non_giveaway(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=False)
+
+            state = giveaway_service.get_giveaway_interest_state(item, owner.id)
+
+            assert state == {
+                "viewer_interest_status": None,
+                "interested_count": None,
+            }
