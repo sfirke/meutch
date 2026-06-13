@@ -7,6 +7,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Features
 **Minor**:
 - New members who have not joined any circles yet are now redirected into circle discovery after login, with a stronger onboarding prompt and personalized recommendations that preview what each suggested circle would unlock ([#395](https://github.com/sfirke/meutch/pull/395)).
+- When answering a request, there's now an option to click "I have this item" and then choose or list it.
 
 ### Bug fixes
 - Claimed giveaways no longer show a "Borrowed" status badge in the conversation "Item Status" card — they now correctly display "Rehomed" ([#398](https://github.com/sfirke/meutch/pull/398)).

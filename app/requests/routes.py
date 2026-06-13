@@ -7,9 +7,9 @@ from flask_login import current_user, login_required
 
 from app import db
 from app.forms import EmptyForm, ItemRequestForm, MessageForm
-from app.models import ItemRequest
+from app.models import Item, ItemRequest
 from app.requests import bp as requests_bp
-from app.services import message_service, request_service
+from app.services import item_service, message_service, request_service
 from app.services.exceptions import (
     AuthorizationError,
     ConflictError,
@@ -217,3 +217,107 @@ def conversation(request_id):
         return redirect(url_for("main.view_conversation", message_id=message.id))
 
     return render_template("requests/conversation_start.html", form=form, item_request=item_request)
+
+
+@requests_bp.route("/<uuid:request_id>/respond")
+@login_required
+def respond(request_id):
+    """Browse the current user's items to respond to a request."""
+    item_request = db.session.get(ItemRequest, request_id)
+    if not item_request or item_request.status == "deleted":
+        abort(404)
+
+    if item_request.user_id == current_user.id:
+        flash("You cannot respond to your own request.", "warning")
+        return redirect(url_for("requests.detail", request_id=item_request.id))
+
+    if item_request.status != "open" or item_request.is_expired:
+        flash("This request is no longer open.", "warning")
+        return redirect(url_for("requests.detail", request_id=item_request.id))
+
+    try:
+        message_service.get_request_conversation_recipient_id(item_request, current_user)
+    except (InvalidActionError, AuthorizationError):
+        abort(403)
+
+    search_query = request.args.get("q", "").strip() or None
+    page = request.args.get("page", 1, type=int)
+    per_page = 12
+
+    pagination = item_service.list_user_items(
+        current_user,
+        search_query=search_query,
+        page=page,
+        per_page=per_page,
+    )
+
+    return render_template(
+        "requests/respond.html",
+        item_request=item_request,
+        pagination=pagination,
+        search_query=search_query or "",
+    )
+
+
+@requests_bp.route("/<uuid:request_id>/respond/<uuid:item_id>", methods=["GET", "POST"])
+@login_required
+def respond_with_item(request_id, item_id):
+    """Compose a message responding to a request with a specific item."""
+    item_request = db.session.get(ItemRequest, request_id)
+    if not item_request or item_request.status == "deleted":
+        abort(404)
+
+    if item_request.user_id == current_user.id:
+        flash("You cannot respond to your own request.", "warning")
+        return redirect(url_for("requests.detail", request_id=item_request.id))
+
+    if item_request.status != "open" or item_request.is_expired:
+        flash("This request is no longer open.", "warning")
+        return redirect(url_for("requests.detail", request_id=item_request.id))
+
+    item = db.session.get(Item, item_id)
+    if not item or item.owner_id != current_user.id:
+        abort(404)
+
+    try:
+        message_service.get_request_conversation_recipient_id(item_request, current_user)
+    except (InvalidActionError, AuthorizationError):
+        abort(403)
+
+    form = MessageForm()
+    if form.validate_on_submit():
+        try:
+            message = message_service.respond_to_request_with_item(
+                item_request,
+                current_user,
+                item,
+                body=form.body.data,
+            )
+        except (InvalidActionError, AuthorizationError) as exc:
+            flash(str(exc), "warning")
+            return redirect(url_for("requests.respond", request_id=item_request.id))
+
+        flash("Your message has been sent.", "success")
+        return redirect(url_for("main.view_conversation", message_id=message.id))
+
+    # Pre-fill the message body on GET
+    if request.method == "GET":
+        from app.services.message_service import (
+            _RESPOND_BODY_TEMPLATE,
+            _build_item_url_for_requester,
+        )
+
+        item_url = _build_item_url_for_requester(item, current_user, item_request.user)
+        form.body.data = _RESPOND_BODY_TEMPLATE.format(
+            requester_name=item_request.user.full_name,
+            item_name=item.name,
+            request_title=item_request.title,
+            item_url=item_url,
+        )
+
+    return render_template(
+        "requests/respond_message.html",
+        form=form,
+        item_request=item_request,
+        item=item,
+    )

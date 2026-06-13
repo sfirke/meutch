@@ -26,7 +26,7 @@ from app.api.v1.schemas.items import (
     ItemUpdatePayloadSchema,
     ItemWritePayloadSchema,
 )
-from app.api.v1.schemas.query import ItemListQuerySchema
+from app.api.v1.schemas.query import ItemListQuerySchema, MyItemsQuerySchema
 from app.models import Item, ItemImage
 from app.services import giveaway_service, item_service
 from app.services.exceptions import AuthorizationError, InformationalError
@@ -35,6 +35,7 @@ from app.utils.item_visibility import build_item_access_state
 from app.utils.pagination import ListPagination
 
 ITEM_LIST_QUERY_SCHEMA = ItemListQuerySchema()
+MY_ITEMS_QUERY_SCHEMA = MyItemsQuerySchema()
 ITEM_SUMMARY_SCHEMA = ItemSummarySchema(many=True)
 ITEM_DETAIL_SCHEMA = ItemDetailSchema()
 ITEM_DETAIL_RESPONSE_SCHEMA = ItemDetailResponseSchema()
@@ -157,6 +158,24 @@ def list_items():
             per_page=query_data["per_page"],
         )
 
+    return build_collection_response(
+        "items",
+        ITEM_SUMMARY_SCHEMA.dump(pagination.items),
+        pagination=pagination,
+    )
+
+
+@bp.get("/me/items")
+@jwt_required()
+def list_my_items():
+    """Return paginated items owned by the authenticated user."""
+    query_data = load_query_data(MY_ITEMS_QUERY_SCHEMA)
+    pagination = item_service.list_user_items(
+        current_user,
+        search_query=query_data["q"] or None,
+        page=query_data["page"],
+        per_page=query_data["per_page"],
+    )
     return build_collection_response(
         "items",
         ITEM_SUMMARY_SCHEMA.dump(pagination.items),
