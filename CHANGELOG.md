@@ -16,12 +16,15 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### API development (continued)
 - Add API loan activity reads and loan actions, including active borrowing/lending views plus loan request, approve/deny, cancel, complete, and extend endpoints ([#393](https://github.com/sfirke/meutch/pull/393)).
 - Add API giveaway-interest reads and giveaway actions, including owner-side interest management, express/withdraw interest, recipient select/change, release-to-all, and confirm-handoff endpoints([#405](https://github.com/sfirke/meutch/pull/405)).
+- Harden the API for production with request-level throttles on auth and write endpoints, rollout controls for full-disable and read-only modes, request-id correlation headers, JSON `429`/`500` handling, and deployment guidance for shared limiter storage. ([#407](https://github.com/sfirke/meutch/pull/407)).
 
 ## May 2026
 
 ### Features
 
 **Minor**:
+- New members who have not joined any circles yet are now redirected into circle discovery after login, with a stronger onboarding prompt and personalized recommendations that preview what each suggested circle would unlock.
+- Site admins can now mark geocoded public circles as regional, set a 1-100 mile service radius, lock those circles against visibility changes or deletion while regional status is active, and prioritize in-region regional circles at the top of zero-circle onboarding recommendations.
 - Profiles, loan-request conversations, and giveaway requester views now show the circles you have in common with the other user, with linked circle badges for quick context and an explicit empty state when a giveaway requester shares no circles with you ([#345](https://github.com/sfirke/meutch/pull/345)).
 - Digest emails now surface fulfilled requests and claimed giveaways, including clear labels when an item is both created and resolved within the same digest window ([#339](https://github.com/sfirke/meutch/pull/339)).
 - Admin panel now separates user management from analytics, with a new Monthly Active Users chart that tracks qualifying activity from January 2026 onward ([#342](https://github.com/sfirke/meutch/pull/342)).
@@ -52,6 +55,8 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Add API mutation parity for requests/messages ([#384](https://github.com/sfirke/meutch/pull/384)).
 - Add API mutation parity for circles, including create/edit flows, join-request actions, leave/delete behavior, and admin/member management ([#385](https://github.com/sfirke/meutch/pull/385)).
 - Add API mutation parity for items, including item create/edit/delete flows, image upload/reorder/delete endpoints, and shared giveaway-versus-loan invariant enforcement ([#391](https://github.com/sfirke/meutch/pull/391)).
+- Add API loan activity reads and loan mutation parity, including loan requests, approvals, denials, cancellations, completion, extensions, and mobile-ready due-state metadata.
+- Add API giveaway management parity, including owner-side interest reads, interest and withdrawal flows, recipient selection and reassignment, release-to-all, and handoff confirmation.
 
 ## Apr 2026
 
