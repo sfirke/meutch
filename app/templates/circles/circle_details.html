@@ -22,7 +22,7 @@
             {% include 'share/_share_button.html' %}
         {% endif %}
     </div>
-    <p>{{ circle.description }}</p>
+    <p>{{ circle.description|linkify }}</p>
     <p><strong>Members:</strong> {{ circle.members|length }}</p>
 
     {% set distance = get_distance_to_circle(circle) %}

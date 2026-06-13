@@ -57,7 +57,7 @@
         <h5 class="card-title">
             <a href="{{ item_url }}" class="text-decoration-none text-reset">{{ item.name }}</a>
         </h5>
-        <p class="card-text text-muted">{{ item.description|truncate(100) }}</p>
+        <p class="card-text text-muted">{{ item.description|truncate(100)|linkify }}</p>
 
         <!-- Distance indicator (only for other users' items) -->
         <div class="mb-2">

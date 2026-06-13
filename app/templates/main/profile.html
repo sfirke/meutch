@@ -457,7 +457,7 @@
                     <div class="col-md-8">
                         <h5 class="mb-3">About Me</h5>
                         {% if current_user.about_me %}
-                            <p>{{ current_user.about_me }}</p>
+                            <p>{{ current_user.about_me|linkify }}</p>
                         {% else %}
                             <p class="text-muted">No bio set yet. Click "Edit Profile" to add one.</p>
                         {% endif %}

@@ -83,7 +83,7 @@
 
             <!-- Description -->
             {% if req.description %}
-                <p class="mb-2 {% if is_fulfilled %}text-muted{% else %}text-body{% endif %}">{{ req.description|truncate(200) }}</p>
+                <p class="mb-2 {% if is_fulfilled %}text-muted{% else %}text-body{% endif %}">{{ req.description|truncate(200)|linkify }}</p>
             {% endif %}
 
             <!-- Badges row -->

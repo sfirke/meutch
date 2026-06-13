@@ -47,7 +47,7 @@
                                     {% if featured_circle_recommendation.is_open %}Open circle{% else %}Approval required{% endif %}
                                 </span>
                             </div>
-                            <p class="mb-3">{{ featured_circle.description }}</p>
+                            <p class="mb-3">{{ featured_circle.description|linkify }}</p>
                             {% if featured_circle_recommendation.visible_display_counts %}
                             <div class="d-flex flex-wrap gap-2 mb-3">
                                 {% for count in featured_circle_recommendation.visible_display_counts %}
@@ -204,7 +204,7 @@
                                         </span>
                                     {% endif %}
                                 </h5>
-                                <p class="mb-1">{{ circle.description }}</p>
+                                <p class="mb-1">{{ circle.description|linkify }}</p>
                                 <small>Members: {{ circle.members|length }}
                                 {% set distance = get_distance_to_circle(circle) %}
                                 {% if distance %}
@@ -297,7 +297,7 @@
                                     </span>
                                 {% endif %}
                             </h5>
-                            <p class="mb-1">{{ circle.description }}</p>
+                            <p class="mb-1">{{ circle.description|linkify }}</p>
                             <small>{{ circle.members|length }} members
                             {% set distance = get_distance_to_circle(circle) %}
                             {% if distance %}
@@ -363,7 +363,7 @@
                                     </span>
                                 {% endif %}
                             </h5>
-                            <p class="mb-1">{{ circle.description }}</p>
+                            <p class="mb-1">{{ circle.description|linkify }}</p>
                             <small>{{ circle.members|length }} members
                             {% set distance = get_distance_to_circle(circle) %}
                             {% if distance %}

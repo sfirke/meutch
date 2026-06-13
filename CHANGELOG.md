@@ -6,6 +6,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Minor**:
+- URLs posted in item descriptions, request descriptions, circle descriptions, messages, user bios, and giveaway interest messages are now automatically converted to clickable hyperlinks. This includes `https://`, `http://`, and `www.` links. HTML in user content is safely escaped to prevent XSS ([#PR]()).
 - New members who have not joined any circles yet are now redirected into circle discovery after login, with a stronger onboarding prompt and personalized recommendations that preview what each suggested circle would unlock ([#395](https://github.com/sfirke/meutch/pull/395)).
 
 ### Bug fixes

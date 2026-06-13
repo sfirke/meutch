@@ -56,7 +56,7 @@
                             </a>
                         </div>
                         {% if conversation_item.description %}
-                            <p class="conversation-summary-description mb-4">{{ conversation_item.description }}</p>
+                            <p class="conversation-summary-description mb-4">{{ conversation_item.description|linkify }}</p>
                         {% endif %}
 
                         <div class="row g-3">
@@ -365,7 +365,7 @@
                         {% endif %}
                     </div>
                 {% endif %}
-                    <p>{{ msg.body | replace('\n', '<br>') | safe }}</p>
+                    <p>{{ msg.body|linkify }}</p>
                 </div>
             </div>
         {% endfor %}

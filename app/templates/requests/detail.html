@@ -43,7 +43,7 @@
 
                     <!-- Description -->
                     {% if item_request.description %}
-                        <p class="mb-3 fs-5 {% if item_request.is_fulfilled %}text-muted{% endif %}">{{ item_request.description }}</p>
+                        <p class="mb-3 fs-5 {% if item_request.is_fulfilled %}text-muted{% endif %}">{{ item_request.description|linkify }}</p>
                     {% endif %}
 
                     <!-- Badges -->
@@ -126,7 +126,7 @@
                                         <img src="{{ conv.other_user.profile_image }}" alt="{{ conv.other_user.full_name }}" class="rounded-circle me-2 flex-shrink-0" width="40" height="40">
                                         <div class="flex-grow-1 min-width-0">
                                             <strong class="d-block">{{ conv.other_user.full_name }}</strong>
-                                            <small class="text-muted d-block text-truncate">{{ conv.latest_message.body|truncate(100) }}</small>
+                                            <small class="text-muted d-block text-truncate">{{ conv.latest_message.body|truncate(100)|linkify }}</small>
                                         </div>
                                         <small class="text-muted flex-shrink-0 ms-2">
                                             {{ conv.latest_message.timestamp|utc_timestamp('message') if conv.latest_message.timestamp else '' }}
@@ -142,5 +142,3 @@
     </div>
 </div>
 {% endblock %}
-
-

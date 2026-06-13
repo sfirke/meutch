@@ -43,7 +43,7 @@
                     <h1 class="card-title h2 mb-3">{{ item.name }}</h1>
 
                     {% if item.description %}
-                        <p class="card-text fs-5 text-muted mb-4">{{ item.description }}</p>
+                        <p class="card-text fs-5 text-muted mb-4">{{ item.description|linkify }}</p>
                     {% endif %}
 
                     <div class="row mb-4">
