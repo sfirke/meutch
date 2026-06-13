@@ -33,7 +33,7 @@
                                 <div>
                                     {% if featured_circle_recommendation.is_regional %}
                                     <div class="mb-2">
-                                        <span class="badge bg-success"><i class="fas fa-star me-1"></i>Regional circle</span>
+                                        <span class="badge bg-success"><i class="fas fa-map-pin me-1"></i>Regional circle</span>
                                         {% if current_user.is_admin %}<span class="small text-success ms-2">{{ featured_circle_recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
                                     </div>
                                     {% endif %}
@@ -96,7 +96,7 @@
                             <div>
                                 {% if recommendation.is_regional %}
                                 <div class="mb-2">
-                                    <span class="badge bg-success"><i class="fas fa-star me-1"></i>Regional circle</span>
+                                    <span class="badge bg-success"><i class="fas fa-map-pin me-1"></i>Regional circle</span>
                                     {% if current_user.is_admin %}<span class="small text-success ms-2">{{ recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
                                 </div>
                                 {% endif %}
@@ -209,6 +209,9 @@
                                     <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}text-dark{% endif %}">
                                         {{ circle.name }}
                                     </a>
+                                    {% if circle.is_regional %}
+                                        <span class="badge bg-success ms-2"><i class="fas fa-map-pin me-1"></i>Regional</span>
+                                    {% endif %}
                                     {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}
                                         <span class="badge bg-warning text-dark ms-2">
                                             <i class="fas fa-bell me-1"></i>
@@ -303,6 +306,9 @@
                                 <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
                                     {{ circle.name }}
                                 </a>
+                                {% if circle.is_regional %}
+                                    <span class="badge bg-success ms-2"><i class="fas fa-map-pin me-1"></i>Regional</span>
+                                {% endif %}
                                 {% if circle.id in user_circle_ids %}
                                     <span class="badge bg-success ms-2">
                                         <i class="fas fa-check-circle me-1"></i>Member
@@ -369,6 +375,9 @@
                                 <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
                                     {{ circle.name }}
                                 </a>
+                                {% if circle.is_regional %}
+                                    <span class="badge bg-success ms-2"><i class="fas fa-map-pin me-1"></i>Regional</span>
+                                {% endif %}
                                 {% if circle.id in user_circle_ids %}
                                     <span class="badge bg-success ms-2">
                                         <i class="fas fa-check-circle me-1"></i>Member

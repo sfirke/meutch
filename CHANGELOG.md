@@ -7,6 +7,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Features
 **Minor**:
 - New members who have not joined any circles yet are now redirected into circle discovery after login, with a stronger onboarding prompt and personalized recommendations that preview what each suggested circle would unlock ([#395](https://github.com/sfirke/meutch/pull/395)).
+- Site admins can now mark geocoded public circles as regional, set a 1-100 mile service radius, lock those circles against visibility changes or deletion while regional status is active, and prioritize in-region regional circles at the top of zero-circle onboarding recommendations ([#400](https://github.com/sfirke/meutch/pull/400)).
 
 ### Bug fixes
 - Claimed giveaways no longer show a "Borrowed" status badge in the conversation "Item Status" card — they now correctly display "Rehomed" ([#398](https://github.com/sfirke/meutch/pull/398)).
@@ -23,7 +24,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 **Minor**:
 - New members who have not joined any circles yet are now redirected into circle discovery after login, with a stronger onboarding prompt and personalized recommendations that preview what each suggested circle would unlock.
-- Site admins can now mark geocoded public circles as regional, set a 1-100 mile service radius, lock those circles against visibility changes or deletion while regional status is active, and prioritize in-region regional circles at the top of zero-circle onboarding recommendations.
 - Profiles, loan-request conversations, and giveaway requester views now show the circles you have in common with the other user, with linked circle badges for quick context and an explicit empty state when a giveaway requester shares no circles with you ([#345](https://github.com/sfirke/meutch/pull/345)).
 - Digest emails now surface fulfilled requests and claimed giveaways, including clear labels when an item is both created and resolved within the same digest window ([#339](https://github.com/sfirke/meutch/pull/339)).
 - Admin panel now separates user management from analytics, with a new Monthly Active Users chart that tracks qualifying activity from January 2026 onward ([#342](https://github.com/sfirke/meutch/pull/342)).
