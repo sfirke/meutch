@@ -92,17 +92,6 @@ def _build_visible_counts(counts, specs):
     return visible_counts
 
 
-def _build_visible_unlock_counts(unlock_counts):
-    return _build_visible_counts(
-        unlock_counts,
-        (
-            ("borrowable_items", "borrowable item"),
-            ("giveaways", "giveaway"),
-            ("requests", "request"),
-        ),
-    )
-
-
 def _build_visible_display_counts(display_counts):
     return _build_visible_counts(
         display_counts,
@@ -247,7 +236,7 @@ def _build_display_counts(unlock_counts, member_activity_counts):
 
 def _build_circle_recommendation(circle):
     unlock_counts = get_circle_unlock_counts(circle)
-    visible_unlock_counts = _build_visible_unlock_counts(unlock_counts)
+    visible_unlock_counts = _build_visible_display_counts(unlock_counts)
     member_activity_counts = get_circle_member_activity_counts(circle)
     display_counts = _build_display_counts(unlock_counts, member_activity_counts)
     visible_display_counts = _build_visible_display_counts(display_counts)
