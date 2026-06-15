@@ -137,6 +137,7 @@ def build_visible_requests_events(
     scope="all",
     max_distance=None,
     distance_explicit=False,
+    include_own_activity=True,
     since=None,
     until=None,
 ):
@@ -147,7 +148,6 @@ def build_visible_requests_events(
     normalized_scope = _normalize_scope(scope)
 
     base_query = ItemRequest.query.join(User, ItemRequest.user_id == User.id).filter(
-        ItemRequest.user_id != user.id,
         User.is_deleted.is_(False),
         User.vacation_mode.is_(False),
         or_(
@@ -161,20 +161,34 @@ def build_visible_requests_events(
             ),
         ),
     )
+    if not include_own_activity:
+        base_query = base_query.filter(ItemRequest.user_id != user.id)
 
     if until_utc is not None:
         base_query = base_query.filter(ItemRequest.created_at <= until_utc)
 
     if normalized_scope == "circles":
         if shared_circle_user_ids is None:
-            return []
-        base_query = base_query.filter(ItemRequest.user_id.in_(shared_circle_user_ids))
-    else:
-        if shared_circle_user_ids is None:
-            base_query = base_query.filter(ItemRequest.visibility == "public")
+            base_query = base_query.filter(ItemRequest.user_id == user.id)
         else:
             base_query = base_query.filter(
                 or_(
+                    ItemRequest.user_id == user.id,
+                    ItemRequest.user_id.in_(shared_circle_user_ids),
+                )
+            )
+    else:
+        if shared_circle_user_ids is None:
+            base_query = base_query.filter(
+                or_(
+                    ItemRequest.user_id == user.id,
+                    ItemRequest.visibility == "public",
+                )
+            )
+        else:
+            base_query = base_query.filter(
+                or_(
+                    ItemRequest.user_id == user.id,
                     ItemRequest.visibility == "public",
                     and_(
                         ItemRequest.visibility == "circles",
@@ -228,6 +242,7 @@ def build_visible_giveaway_events(
     scope="all",
     max_distance=None,
     distance_explicit=False,
+    include_own_activity=True,
     since=None,
     until=None,
 ):
@@ -236,8 +251,14 @@ def build_visible_giveaway_events(
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
     normalized_scope = _normalize_scope(scope)
     visibility_filter = _build_giveaway_visibility_filter(shared_circle_user_ids, normalized_scope)
-    if visibility_filter is None:
+    if visibility_filter is None and not include_own_activity:
         return []
+    if include_own_activity:
+        own_activity_filter = Item.owner_id == user.id
+        if visibility_filter is None:
+            visibility_filter = own_activity_filter
+        else:
+            visibility_filter = or_(own_activity_filter, visibility_filter)
 
     base_query = Item.query.join(User, Item.owner_id == User.id).filter(
         Item.is_giveaway.is_(True),
@@ -253,9 +274,10 @@ def build_visible_giveaway_events(
                 ),
             ),
             visibility_filter,
-            Item.owner_id != user.id,
         ),
     )
+    if not include_own_activity:
+        base_query = base_query.filter(Item.owner_id != user.id)
 
     until_utc = _utc(until)
     if until_utc is not None:
@@ -570,7 +592,14 @@ def build_digest_giveaway_events(
     return events
 
 
-def build_recent_lent_events(user, scoped_circle_ids=None, days=30, since=None, until=None):
+def build_recent_lent_events(
+    user,
+    scoped_circle_ids=None,
+    days=30,
+    include_own_activity=True,
+    since=None,
+    until=None,
+):
     if not scoped_circle_ids:
         return []
 
@@ -585,11 +614,12 @@ def build_recent_lent_events(user, scoped_circle_ids=None, days=30, since=None, 
             LoanRequest.status == "approved",
             LoanRequest.borrower_id.isnot(None),
             LoanRequest.created_at >= recent_cutoff,
-            Item.owner_id != user.id,
             User.vacation_mode.is_(False),
             Item.owner_id.in_(shared_circle_user_ids),
         )
     )
+    if not include_own_activity:
+        base_query = base_query.filter(Item.owner_id != user.id)
 
     if until_utc is not None:
         base_query = base_query.filter(LoanRequest.created_at <= until_utc)
@@ -663,7 +693,14 @@ def consolidate_circle_join_activity(join_rows, circle_sizes):
     return events
 
 
-def build_circle_join_events(user, scoped_circle_ids=None, days=30, since=None, until=None):
+def build_circle_join_events(
+    user,
+    scoped_circle_ids=None,
+    days=30,
+    include_own_activity=True,
+    since=None,
+    until=None,
+):
     if not scoped_circle_ids:
         return []
 
@@ -676,11 +713,12 @@ def build_circle_join_events(user, scoped_circle_ids=None, days=30, since=None, 
         .filter(
             CircleJoinRequest.status == "approved",
             CircleJoinRequest.created_at >= recent_cutoff,
-            CircleJoinRequest.user_id != user.id,
             CircleJoinRequest.circle_id.in_(scoped_circle_ids),
             User.is_deleted.is_(False),
         )
     )
+    if not include_own_activity:
+        base_query = base_query.filter(CircleJoinRequest.user_id != user.id)
 
     if until_utc is not None:
         base_query = base_query.filter(CircleJoinRequest.created_at <= until_utc)
@@ -734,6 +772,7 @@ def _assemble_feed_events(
     giveaway_distance=None,
     giveaway_distance_explicit=False,
     included_event_types=None,
+    include_own_activity=True,
     since=None,
     until=None,
     max_events=100,
@@ -750,6 +789,7 @@ def _assemble_feed_events(
                 scope=request_scope,
                 max_distance=giveaway_distance,
                 distance_explicit=giveaway_distance_explicit,
+                include_own_activity=include_own_activity,
                 since=since,
                 until=until,
             )
@@ -762,6 +802,7 @@ def _assemble_feed_events(
                 scope=giveaway_scope,
                 max_distance=giveaway_distance,
                 distance_explicit=giveaway_distance_explicit,
+                include_own_activity=include_own_activity,
                 since=since,
                 until=until,
             )
@@ -771,6 +812,7 @@ def _assemble_feed_events(
             build_recent_lent_events(
                 user,
                 scoped_circle_ids=scoped_circle_ids,
+                include_own_activity=include_own_activity,
                 since=since,
                 until=until,
             )
@@ -780,6 +822,7 @@ def _assemble_feed_events(
             build_circle_join_events(
                 user,
                 scoped_circle_ids=scoped_circle_ids,
+                include_own_activity=include_own_activity,
                 since=since,
                 until=until,
             )
@@ -800,6 +843,7 @@ def build_homepage_feed_events(
     giveaway_distance=None,
     giveaway_distance_explicit=False,
     included_event_types=None,
+    include_own_activity=True,
     max_events=100,
 ):
     return _assemble_feed_events(
@@ -810,6 +854,7 @@ def build_homepage_feed_events(
         giveaway_distance=giveaway_distance,
         giveaway_distance_explicit=giveaway_distance_explicit,
         included_event_types=included_event_types,
+        include_own_activity=include_own_activity,
         max_events=max_events,
     )
 
@@ -867,6 +912,7 @@ def build_digest_payload(user, since=None, until=None, max_events=200):
             build_recent_lent_events(
                 user,
                 scoped_circle_ids=scoped_circle_ids,
+                include_own_activity=False,
                 since=window_start,
                 until=window_end,
             )
@@ -876,6 +922,7 @@ def build_digest_payload(user, since=None, until=None, max_events=200):
             build_circle_join_events(
                 user,
                 scoped_circle_ids=scoped_circle_ids,
+                include_own_activity=False,
                 since=window_start,
                 until=window_end,
             )
