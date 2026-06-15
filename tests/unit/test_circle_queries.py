@@ -6,7 +6,6 @@ from app.utils.circle_queries import (
     build_circle_recommendations,
     get_admin_circle_pending_counts,
     get_circle_member_activity_counts,
-    get_circle_unlock_counts,
     get_listed_circles,
     get_ordered_circle_members,
     should_show_circle_members,
@@ -133,54 +132,6 @@ def test_get_listed_circles_excludes_secret_and_sorts_by_membership(app):
         assert secret_circle.id not in {circle.id for circle in circles}
 
 
-def test_get_circle_unlock_counts_counts_circle_visible_content(app):
-    with app.app_context():
-        category = CategoryFactory()
-        owner = UserFactory()
-        vacation_owner = UserFactory(vacation_mode=True)
-        circle = CircleFactory()
-        circle.members.extend([owner, vacation_owner])
-
-        ItemFactory(owner=owner, category=category, available=True, is_giveaway=False)
-        ItemFactory(owner=owner, category=category, available=False, is_giveaway=False)
-        ItemFactory(
-            owner=owner,
-            category=category,
-            available=True,
-            is_giveaway=True,
-            giveaway_visibility="default",
-            claim_status="unclaimed",
-        )
-        ItemFactory(
-            owner=owner,
-            category=category,
-            available=True,
-            is_giveaway=True,
-            giveaway_visibility="public",
-            claim_status="unclaimed",
-        )
-        ItemFactory(owner=vacation_owner, category=category, available=True, is_giveaway=False)
-
-        ItemRequestFactory(user=owner, visibility="circles", status="open")
-        ItemRequestFactory(user=owner, visibility="public", status="open")
-        ItemRequestFactory(
-            user=owner,
-            visibility="circles",
-            status="open",
-            expires_at=datetime.now(UTC) - timedelta(days=1),
-        )
-        ItemRequestFactory(user=vacation_owner, visibility="circles", status="open")
-        db.session.commit()
-
-        counts = get_circle_unlock_counts(circle)
-
-        assert counts == {
-            "borrowable_items": 1,
-            "giveaways": 1,
-            "requests": 1,
-        }
-
-
 def test_get_circle_member_activity_counts_counts_active_member_content_across_visibility_scopes(
     app,
 ):
@@ -191,6 +142,7 @@ def test_get_circle_member_activity_counts_counts_active_member_content_across_v
         circle = CircleFactory()
         circle.members.extend([owner, vacation_owner])
 
+        ItemFactory(owner=owner, category=category, available=True, is_giveaway=False)
         ItemFactory(
             owner=owner,
             category=category,
@@ -226,6 +178,7 @@ def test_get_circle_member_activity_counts_counts_active_member_content_across_v
         counts = get_circle_member_activity_counts(circle)
 
         assert counts == {
+            "borrowable_items": 2,
             "giveaways": 2,
             "requests": 2,
         }
@@ -289,8 +242,8 @@ def test_build_circle_recommendations_uses_total_member_activity_for_display(app
 
         recommendation = build_circle_recommendations(viewer, circles=[circle], limit=1)[0]
 
-        assert recommendation["visible_unlock_text"] == "1 borrowable item and 1 giveaway"
         assert recommendation["member_activity_counts"] == {
+            "borrowable_items": 1,
             "giveaways": 2,
             "requests": 1,
         }
