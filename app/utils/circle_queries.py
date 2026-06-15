@@ -1,3 +1,5 @@
+"""Query helpers for circles: listing, recommendations, counts, and membership."""
+
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_, or_, select
@@ -324,7 +326,7 @@ def get_admin_circle_pending_counts(user_id):
         .group_by(Circle.id)
         .all()
     )
-    return {circle_id: count for circle_id, count in admin_circle_counts}
+    return dict(admin_circle_counts)
 
 
 def get_listed_circles(user, search_query="", radius=None):
