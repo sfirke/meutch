@@ -239,8 +239,8 @@ class TestRequestsFeedFiltering:
             assert response.status_code == 200
             assert b"Old fulfilled request" not in response.data
 
-    def test_feed_excludes_own_fulfilled_requests(self, client, app, auth_user):
-        """Test that the homepage feed never shows a user's own fulfilled requests."""
+    def test_feed_excludes_old_fulfilled_requests_even_when_own(self, client, app, auth_user):
+        """Own fulfilled requests past the 7-day window are still hidden by time filtering."""
         with app.app_context():
             user = auth_user()
             db.session.commit()
@@ -259,8 +259,30 @@ class TestRequestsFeedFiltering:
             assert response.status_code == 200
             assert b"My request from 30 days ago" not in response.data
 
-    def test_feed_excludes_own_expired_requests(self, client, app, auth_user):
-        """Test that the homepage feed never shows a user's own expired requests."""
+    def test_feed_shows_own_recently_fulfilled_request(self, client, app, auth_user):
+        """Own fulfilled requests within the 7-day window are shown by default."""
+        with app.app_context():
+            user = auth_user()
+            circle = CircleFactory()
+            circle.members.append(user)
+            db.session.commit()
+
+            ItemRequestFactory(
+                user=user,
+                title="My recently fulfilled request",
+                visibility="circles",
+                status="fulfilled",
+                fulfilled_at=datetime.now(UTC) - timedelta(days=3),
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get("/")
+            assert response.status_code == 200
+            assert b"My recently fulfilled request" in response.data
+
+    def test_feed_excludes_expired_requests_even_when_own(self, client, app, auth_user):
+        """Own expired requests (expires_at in the past) are still hidden by time filtering."""
         with app.app_context():
             user = auth_user()
             db.session.commit()
