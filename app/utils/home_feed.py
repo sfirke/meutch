@@ -57,6 +57,25 @@ def _normalize_scope(scope):
     return "circles" if scope == "circles" else "all"
 
 
+def _build_request_visibility_filter(shared_circle_user_ids, normalized_scope):
+    if normalized_scope == "circles":
+        if shared_circle_user_ids is None:
+            return None
+        return ItemRequest.user_id.in_(shared_circle_user_ids)
+
+    public_filter = ItemRequest.visibility == "public"
+    if shared_circle_user_ids is None:
+        return public_filter
+
+    return or_(
+        and_(
+            ItemRequest.visibility == "circles",
+            ItemRequest.user_id.in_(shared_circle_user_ids),
+        ),
+        public_filter,
+    )
+
+
 def _build_giveaway_visibility_filter(shared_circle_user_ids, normalized_scope):
     if normalized_scope == "circles":
         if shared_circle_user_ids is None:
@@ -147,6 +166,16 @@ def build_visible_requests_events(
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
     normalized_scope = _normalize_scope(scope)
 
+    visibility_filter = _build_request_visibility_filter(shared_circle_user_ids, normalized_scope)
+    if visibility_filter is None and not include_own_activity:
+        return []
+    if include_own_activity:
+        own_activity_filter = ItemRequest.user_id == user.id
+        if visibility_filter is None:
+            visibility_filter = own_activity_filter
+        else:
+            visibility_filter = or_(own_activity_filter, visibility_filter)
+
     base_query = ItemRequest.query.join(User, ItemRequest.user_id == User.id).filter(
         User.is_deleted.is_(False),
         User.vacation_mode.is_(False),
@@ -160,42 +189,13 @@ def build_visible_requests_events(
                 ItemRequest.fulfilled_at > fulfilled_cutoff,
             ),
         ),
+        visibility_filter,
     )
     if not include_own_activity:
         base_query = base_query.filter(ItemRequest.user_id != user.id)
 
     if until_utc is not None:
         base_query = base_query.filter(ItemRequest.created_at <= until_utc)
-
-    if normalized_scope == "circles":
-        if shared_circle_user_ids is None:
-            base_query = base_query.filter(ItemRequest.user_id == user.id)
-        else:
-            base_query = base_query.filter(
-                or_(
-                    ItemRequest.user_id == user.id,
-                    ItemRequest.user_id.in_(shared_circle_user_ids),
-                )
-            )
-    else:
-        if shared_circle_user_ids is None:
-            base_query = base_query.filter(
-                or_(
-                    ItemRequest.user_id == user.id,
-                    ItemRequest.visibility == "public",
-                )
-            )
-        else:
-            base_query = base_query.filter(
-                or_(
-                    ItemRequest.user_id == user.id,
-                    ItemRequest.visibility == "public",
-                    and_(
-                        ItemRequest.visibility == "circles",
-                        ItemRequest.user_id.in_(shared_circle_user_ids),
-                    ),
-                )
-            )
 
     visible_requests = base_query.order_by(ItemRequest.created_at.desc()).all()
     effective_distance = _effective_giveaway_distance(max_distance, distance_explicit)
