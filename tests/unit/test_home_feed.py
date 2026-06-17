@@ -273,6 +273,51 @@ def test_build_visible_requests_events_defaults_to_20_miles_for_geocoded_user(ap
         assert far_request.id in explicit_request_ids
 
 
+def test_build_visible_requests_events_includes_viewers_own_request(app):
+    with app.app_context():
+        viewer = UserFactory()
+        item_request = ItemRequestFactory(
+            user=viewer,
+            title="My own feed request",
+            visibility="circles",
+        )
+        db.session.commit()
+
+        events = build_visible_requests_events(viewer, scoped_circle_ids=set(), scope="all")
+
+        assert [event["request_id"] for event in events] == [item_request.id]
+
+
+def test_build_visible_requests_events_can_hide_viewers_own_request(app):
+    with app.app_context():
+        viewer = UserFactory()
+        other_user = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, other_user])
+        own_request = ItemRequestFactory(
+            user=viewer,
+            title="My hidden feed request",
+            visibility="circles",
+        )
+        other_request = ItemRequestFactory(
+            user=other_user,
+            title="Other visible feed request",
+            visibility="circles",
+        )
+        db.session.commit()
+
+        events = build_visible_requests_events(
+            viewer,
+            scoped_circle_ids={circle.id},
+            scope="all",
+            include_own_activity=False,
+        )
+
+        request_ids = {event["request_id"] for event in events}
+        assert own_request.id not in request_ids
+        assert other_request.id in request_ids
+
+
 def test_build_digest_payload_respects_window_and_include_toggles(app):
     with app.app_context():
         viewer = UserFactory(

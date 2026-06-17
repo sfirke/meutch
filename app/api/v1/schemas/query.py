@@ -35,6 +35,7 @@ class FeedQuerySchema(PaginationQuerySchema):
         allow_none=True,
         validate=validate.OneOf(FEED_DISTANCE_CHOICES),
     )
+    show_own_activity = fields.Boolean(load_default=True)
     per_page = fields.Integer(
         load_default=DEFAULT_FEED_PER_PAGE,
         validate=validate.Range(min=1, max=MAX_COLLECTION_PER_PAGE),

@@ -8,6 +8,7 @@
     --success-color: #38b2ac;        /* Teal green */
     --warning-color: #f6ad55;        /* Goldenrod */
     --danger-color: #fc8181;         /* Coral */
+    --regional-color: #198754;       /* Emerald green (giveaway ribbon, regional badges) */
     --light-bg: #fffffe;             /* Off-white */
     --dark-text: #2d3748;            /* Dark gray */
     --muted-text: #718096;           /* Muted gray */
@@ -353,13 +354,21 @@ h1 {
     background-color: var(--danger-color) !important;
 }
 
+.badge.bg-regional {
+    background-color: var(--regional-color) !important;
+}
+
+.border-regional {
+    border-color: var(--regional-color) !important;
+}
+
 .giveaway-ribbon {
     position: absolute;
     top: 1.1rem;
     left: -3.1rem;
     width: 11rem;
     padding: 0.3rem 0;
-    background-color: #198754;
+    background-color: var(--regional-color);
     color: #fff;
     text-align: center;
     font-size: 0.72rem;

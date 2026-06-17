@@ -41,6 +41,8 @@ class CircleSummarySchema(ApiSchema):
     name = fields.String(required=True)
     description = fields.String(allow_none=True)
     circle_type = fields.String(required=True)
+    is_regional = fields.Boolean(required=True)
+    regional_radius_miles = fields.Integer(allow_none=True)
     created_at = ApiDateTime(required=True)
     image_url = fields.String(allow_none=True)
     requires_join_approval = fields.Boolean(required=True)

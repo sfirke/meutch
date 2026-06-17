@@ -125,7 +125,7 @@ class TestMyActivityConversationLinks:
             circle.members.append(owner)
             item = ItemFactory(owner=owner, category=category)
             ItemImageFactory(item=item, url="https://example.com/img.jpg", position=0)
-            LoanRequestFactory(
+            loan = LoanRequestFactory(
                 item=item,
                 borrower=borrower,
                 status="approved",
@@ -136,6 +136,7 @@ class TestMyActivityConversationLinks:
                 sender=borrower,
                 recipient=owner,
                 item=item,
+                loan_request=loan,
                 body="Can I borrow this?",
             )
             db.session.commit()
@@ -187,4 +188,64 @@ class TestMyActivityConversationLinks:
             assert f'href="/item/{item.id}"' in content
             # Dedicated View Loan button links to conversation
             assert f'href="/message/{msg.id}"' in content
+            assert "View Loan" in content
+
+    def test_view_loan_links_to_current_active_loan_not_old_loan(self, client, app, auth_user):
+        """When an item has been loaned multiple times, the View Loan button on the
+        lending table links to the current active loan's conversation, not an old
+        completed one."""
+        with app.app_context():
+            owner = auth_user()
+            borrower1 = UserFactory()
+            borrower2 = UserFactory()
+            category = CategoryFactory()
+            circle = CircleFactory()
+            circle.members.append(owner)
+            circle.members.append(borrower1)
+            circle.members.append(borrower2)
+            item = ItemFactory(owner=owner, category=category, available=False)
+
+            # First loan: already completed
+            loan1 = LoanRequestFactory(
+                item=item,
+                borrower=borrower1,
+                status="approved",
+                start_date=date.today() - timedelta(days=30),
+                end_date=date.today() - timedelta(days=10),
+            )
+            msg1 = MessageFactory(
+                sender=borrower1,
+                recipient=owner,
+                item=item,
+                loan_request=loan1,
+                body="Can I borrow this? (first loan)",
+            )
+            loan1.status = "completed"
+
+            # Second loan: currently active
+            loan2 = LoanRequestFactory(
+                item=item,
+                borrower=borrower2,
+                status="approved",
+                start_date=date.today() - timedelta(days=5),
+                end_date=date.today() + timedelta(days=10),
+            )
+            msg2 = MessageFactory(
+                sender=borrower2,
+                recipient=owner,
+                item=item,
+                loan_request=loan2,
+                body="Can I borrow this? (second loan)",
+            )
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get("/profile?tab=my-activity")
+            assert response.status_code == 200
+            content = response.data.decode("utf-8")
+
+            # View Loan button must link to the current active loan's conversation
+            assert f'href="/message/{msg2.id}"' in content
+            # View Loan button must NOT link to the old completed loan's conversation
+            assert f'href="/message/{msg1.id}"' not in content
             assert "View Loan" in content
