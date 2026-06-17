@@ -80,3 +80,60 @@ class TestApiFeed:
         response = client.get("/api/v1/feed")
 
         assert response.status_code == 401
+
+    def test_feed_show_own_activity_toggle(self, client, app):
+        """API feed respects show_own_activity — default includes own, false hides it."""
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            other_user = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, other_user])
+
+            ItemRequestFactory(
+                user=viewer,
+                title="My own API request",
+                visibility="circles",
+            )
+            ItemRequestFactory(
+                user=other_user,
+                title="Other API request",
+                visibility="circles",
+            )
+            ItemFactory(
+                owner=viewer,
+                name="My own API giveaway",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            ItemFactory(
+                owner=other_user,
+                name="Other API giveaway",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+
+        # Default: own activity is included
+        default_response = client.get(
+            "/api/v1/feed",
+            headers=auth_headers(access_token),
+        )
+        assert default_response.status_code == 200
+        default_titles = {e["title"] for e in default_response.get_json()["events"]}
+        assert "My own API request" in default_titles
+        assert "My own API giveaway" in default_titles
+
+        # Explicit false: own activity is hidden, others' still visible
+        hidden_response = client.get(
+            "/api/v1/feed?show_own_activity=false",
+            headers=auth_headers(access_token),
+        )
+        assert hidden_response.status_code == 200
+        hidden_titles = {e["title"] for e in hidden_response.get_json()["events"]}
+        assert "My own API request" not in hidden_titles
+        assert "My own API giveaway" not in hidden_titles
+        assert "Other API request" in hidden_titles
+        assert "Other API giveaway" in hidden_titles

@@ -239,8 +239,8 @@ class TestRequestsFeedFiltering:
             assert response.status_code == 200
             assert b"Old fulfilled request" not in response.data
 
-    def test_feed_excludes_own_fulfilled_requests(self, client, app, auth_user):
-        """Test that the homepage feed never shows a user's own fulfilled requests."""
+    def test_feed_excludes_old_fulfilled_requests_even_when_own(self, client, app, auth_user):
+        """Own fulfilled requests past the 7-day window are still hidden by time filtering."""
         with app.app_context():
             user = auth_user()
             db.session.commit()
@@ -259,8 +259,30 @@ class TestRequestsFeedFiltering:
             assert response.status_code == 200
             assert b"My request from 30 days ago" not in response.data
 
-    def test_feed_excludes_own_expired_requests(self, client, app, auth_user):
-        """Test that the homepage feed never shows a user's own expired requests."""
+    def test_feed_shows_own_recently_fulfilled_request(self, client, app, auth_user):
+        """Own fulfilled requests within the 7-day window are shown by default."""
+        with app.app_context():
+            user = auth_user()
+            circle = CircleFactory()
+            circle.members.append(user)
+            db.session.commit()
+
+            ItemRequestFactory(
+                user=user,
+                title="My recently fulfilled request",
+                visibility="circles",
+                status="fulfilled",
+                fulfilled_at=datetime.now(UTC) - timedelta(days=3),
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get("/")
+            assert response.status_code == 200
+            assert b"My recently fulfilled request" in response.data
+
+    def test_feed_excludes_expired_requests_even_when_own(self, client, app, auth_user):
+        """Own expired requests (expires_at in the past) are still hidden by time filtering."""
         with app.app_context():
             user = auth_user()
             db.session.commit()
@@ -322,8 +344,8 @@ class TestRequestsFeedFiltering:
             assert response.status_code == 200
             assert b"Vacation request" not in response.data
 
-    def test_feed_never_shows_own_requests(self, client, app, auth_user):
-        """Test that the homepage feed never shows a user's own open requests."""
+    def test_feed_shows_own_open_requests(self, client, app, auth_user):
+        """Test that the homepage feed shows a user's own open requests."""
         with app.app_context():
             user = auth_user()
             circle = CircleFactory()
@@ -331,13 +353,58 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             ItemRequestFactory(user=user, title="My own request")
+            ItemFactory(
+                owner=user,
+                name="My own giveaway",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
             db.session.commit()
 
             login_user(client, user.email)
             response = client.get("/")
             assert response.status_code == 200
-            assert b"My own request" not in response.data
-            assert b"My Requests" not in response.data
+            assert b"My own request" in response.data
+            assert b"My own giveaway" in response.data
+            assert b"Show my own activity" in response.data
+
+    def test_feed_can_hide_own_open_requests(self, client, app, auth_user):
+        """Test that the homepage feed can hide a user's own activity."""
+        with app.app_context():
+            user = auth_user()
+            other_user = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([user, other_user])
+            db.session.commit()
+
+            ItemRequestFactory(user=user, title="My hidden request")
+            ItemRequestFactory(user=other_user, title="Other visible request", visibility="circles")
+            ItemFactory(
+                owner=user,
+                name="My hidden giveaway",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            ItemFactory(
+                owner=other_user,
+                name="Other visible giveaway",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get(
+                "/?own_activity_present=1&types_present=1&types=requests&types=giveaways&distance=none"
+            )
+            assert response.status_code == 200
+            assert b"My hidden request" not in response.data
+            assert b"My hidden giveaway" not in response.data
+            assert b"Other visible request" in response.data
+            assert b"Other visible giveaway" in response.data
 
     def test_feed_public_distance_filter(self, client, app, auth_user):
         """Test homepage distance controls can narrow and expand visible public requests."""

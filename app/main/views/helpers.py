@@ -133,6 +133,9 @@ def _parse_homepage_feed_filters(user):
         selected_distance = 20
 
     distance_param_value = "none" if selected_distance is None else str(selected_distance)
+    show_own_activity = True
+    if "own_activity_present" in request.args:
+        show_own_activity = request.args.get("show_own_activity") == "1"
 
     return {
         "scope": scope,
@@ -140,6 +143,7 @@ def _parse_homepage_feed_filters(user):
         "distance": selected_distance,
         "distance_explicit": distance_explicit,
         "distance_param_value": distance_param_value,
+        "show_own_activity": show_own_activity,
     }
 
 
