@@ -142,6 +142,7 @@ def test_get_circle_member_activity_counts_counts_active_member_content_across_v
         circle = CircleFactory()
         circle.members.extend([owner, vacation_owner])
 
+        ItemFactory(owner=owner, category=category, available=True, is_giveaway=False)
         ItemFactory(
             owner=owner,
             category=category,
@@ -177,7 +178,7 @@ def test_get_circle_member_activity_counts_counts_active_member_content_across_v
         counts = get_circle_member_activity_counts(circle)
 
         assert counts == {
-            "borrowable_items": 1,
+            "borrowable_items": 2,
             "giveaways": 2,
             "requests": 2,
         }
@@ -250,3 +251,114 @@ def test_build_circle_recommendations_uses_total_member_activity_for_display(app
             recommendation["visible_display_text"]
             == "1 borrowable item, 2 giveaways, and 1 request"
         )
+
+
+def test_build_circle_recommendations_pins_closest_regional_circles_before_other_matches(app):
+    with app.app_context():
+        viewer = UserFactory(latitude=40.7128, longitude=-74.0060)
+        CircleFactory(
+            name="Regional Near",
+            circle_type="open",
+            latitude=40.7130,
+            longitude=-74.0060,
+            is_regional=True,
+            regional_radius_miles=10,
+        )
+        CircleFactory(
+            name="Regional Far",
+            circle_type="open",
+            latitude=40.7210,
+            longitude=-74.0060,
+            is_regional=True,
+            regional_radius_miles=25,
+        )
+        regular_closer = CircleFactory(
+            name="Regular Closer",
+            circle_type="open",
+            latitude=40.7135,
+            longitude=-74.0060,
+        )
+        regular_other = CircleFactory(
+            name="Regular Other",
+            circle_type="open",
+            latitude=40.7300,
+            longitude=-74.0060,
+        )
+        db.session.commit()
+
+        recommendations = build_circle_recommendations(
+            viewer,
+            circles=[regular_other, regular_closer],
+            limit=4,
+        )
+
+        assert [recommendation["circle"].name for recommendation in recommendations] == [
+            "Regional Near",
+            "Regional Far",
+            "Regular Closer",
+            "Regular Other",
+        ]
+        assert recommendations[0]["is_regional"] is True
+        assert recommendations[1]["is_regional"] is True
+
+
+def test_build_circle_recommendations_falls_back_to_regular_order_when_outside_regional_radius(app):
+    with app.app_context():
+        viewer = UserFactory(latitude=40.7128, longitude=-74.0060)
+        regional_outside = CircleFactory(
+            name="Regional Outside",
+            circle_type="open",
+            latitude=40.7600,
+            longitude=-74.0060,
+            is_regional=True,
+            regional_radius_miles=1,
+        )
+        regular_near = CircleFactory(
+            name="Regular Near",
+            circle_type="open",
+            latitude=40.7130,
+            longitude=-74.0060,
+        )
+        db.session.commit()
+
+        recommendations = build_circle_recommendations(
+            viewer,
+            circles=[regional_outside, regular_near],
+            limit=2,
+        )
+
+        assert [recommendation["circle"].name for recommendation in recommendations] == [
+            "Regular Near",
+            "Regional Outside",
+        ]
+
+
+def test_build_circle_recommendations_respects_selected_radius_when_pinning_regionals(app):
+    with app.app_context():
+        viewer = UserFactory(latitude=40.7128, longitude=-74.0060)
+        CircleFactory(
+            name="Regional Beyond Selected Radius",
+            circle_type="open",
+            latitude=40.8600,
+            longitude=-74.0060,
+            is_regional=True,
+            regional_radius_miles=50,
+        )
+        nearby_regular_circle = CircleFactory(
+            name="Nearby Regular Circle",
+            circle_type="open",
+            latitude=40.7130,
+            longitude=-74.0060,
+        )
+        db.session.commit()
+
+        recommendations = build_circle_recommendations(
+            viewer,
+            circles=[nearby_regular_circle],
+            limit=2,
+            radius=5,
+        )
+
+        assert [recommendation["circle"].name for recommendation in recommendations] == [
+            "Nearby Regular Circle",
+        ]

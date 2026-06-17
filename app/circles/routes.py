@@ -9,6 +9,7 @@ from app.forms import (
     CircleUuidSearchForm,
     EmptyForm,
 )
+from app.forms_circles import CircleRegionalSettingsForm
 from app.models import Circle, CircleJoinRequest, User, db
 from app.services import circle_service
 from app.services.exceptions import ServiceError
@@ -179,6 +180,11 @@ def view_circle(circle_id):
     # Create form instance for CSRF protection
     form = EmptyForm()  # Use this for all basic forms including cancel
     join_form = CircleJoinRequestForm() if circle.requires_join_approval and not is_member else None
+    regional_form = None
+    if current_user.is_admin:
+        regional_form = CircleRegionalSettingsForm()
+        regional_form.is_regional.data = circle.is_regional
+        regional_form.regional_radius_miles.data = circle.regional_radius_miles
 
     # Check for pending request
     pending_request = get_pending_circle_join_request(circle_id, current_user.id)
@@ -199,9 +205,45 @@ def view_circle(circle_id):
         is_last_member=is_last_member,
         form=form,
         join_form=join_form,
+        regional_form=regional_form,
         ordered_members=ordered_members,
         pending_request=pending_request,
     )
+
+
+@circles_bp.route("/<uuid:circle_id>/regional-settings", methods=["POST"])
+@login_required
+def update_regional_circle_settings(circle_id):
+    circle = db.get_or_404(Circle, circle_id)
+    form = CircleRegionalSettingsForm()
+
+    if not form.validate_on_submit():
+        for errors in form.errors.values():
+            for error in errors:
+                flash(error, "danger")
+        return redirect(url_for("circles.view_circle", circle_id=circle_id))
+
+    try:
+        circle_service.update_regional_circle_settings(
+            circle,
+            current_user,
+            is_regional=form.is_regional.data,
+            regional_radius_miles=form.regional_radius_miles.data,
+        )
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
+    except Exception as exc:
+        current_app.logger.error(
+            f"Error updating regional settings for circle {circle_id}: {str(exc)}"
+        )
+        flash("There was an error updating the regional circle settings.", "danger")
+    else:
+        if form.is_regional.data:
+            flash("Regional circle status enabled.", "success")
+        else:
+            flash("Regional circle status removed.", "success")
+
+    return redirect(url_for("circles.view_circle", circle_id=circle_id))
 
 
 @circles_bp.route("/join/<uuid:circle_id>", methods=["POST"])

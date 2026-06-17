@@ -16,6 +16,7 @@ from app.forms import (
     OptionalFileAllowed,
     RegistrationForm,
 )
+from app.forms_circles import CircleRegionalSettingsForm
 from tests.factories import CategoryFactory, UserFactory
 
 
@@ -427,6 +428,36 @@ class TestCircleCreateForm:
             form = CircleCreateForm(data=form_data)
             assert form.validate() is False
             assert "Circle name is required." in form.name.errors
+
+
+class TestCircleRegionalSettingsForm:
+    def test_requires_radius_when_enabled(self, app):
+        with app.app_context():
+            form = CircleRegionalSettingsForm(data={"is_regional": True})
+
+            assert form.validate() is False
+            assert (
+                "Circle radius is required when regional status is enabled."
+                in form.regional_radius_miles.errors
+            )
+
+    def test_rejects_radius_above_maximum(self, app):
+        with app.app_context():
+            form = CircleRegionalSettingsForm(
+                data={"is_regional": True, "regional_radius_miles": 101}
+            )
+
+            assert form.validate() is False
+            assert (
+                "Circle radius must be between 1 and 100 miles."
+                in form.regional_radius_miles.errors
+            )
+
+    def test_allows_disabling_without_radius(self, app):
+        with app.app_context():
+            form = CircleRegionalSettingsForm(data={"is_regional": False})
+
+            assert form.validate() is True
 
 
 class TestLoanRequestForm:

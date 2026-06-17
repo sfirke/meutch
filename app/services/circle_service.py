@@ -19,6 +19,11 @@ from app.utils.storage import delete_file, is_valid_file_upload, upload_circle_i
 logger = logging.getLogger(__name__)
 
 
+REGIONAL_CIRCLE_LOCK_MESSAGE = (
+    "Remove the regional circle status from this circle before making this change."
+)
+
+
 def _count_circle_admins(circle_id):
     return db.session.query(circle_members).filter_by(circle_id=circle_id, is_admin=True).count()
 
@@ -98,6 +103,20 @@ def _upload_circle_image_or_raise(image_file):
             "Image upload failed. Please ensure you upload a valid image file (JPG, PNG, GIF, etc.)."
         )
     return image_url
+
+
+def _validate_regional_circle_settings(circle, *, is_regional, regional_radius_miles):
+    if not is_regional:
+        return
+
+    if circle.circle_type != "open":
+        raise InvalidActionError("Only public circles can be marked as regional.")
+    if not circle.is_geocoded:
+        raise InvalidActionError("Set a circle location before marking it as a regional circle.")
+    if regional_radius_miles is None:
+        raise InvalidActionError("Circle radius is required for regional circles.")
+    if not 1 <= regional_radius_miles <= 100:
+        raise InvalidActionError("Circle radius must be between 1 and 100 miles.")
 
 
 def _promote_earliest_member(circle_id, excluded_user_id):
@@ -292,6 +311,28 @@ def create_circle(
     }
 
 
+def update_regional_circle_settings(
+    circle,
+    acting_user,
+    *,
+    is_regional,
+    regional_radius_miles,
+):
+    if not acting_user.is_admin:
+        raise AuthorizationError("Only site admins can update regional circle settings.")
+
+    _validate_regional_circle_settings(
+        circle,
+        is_regional=is_regional,
+        regional_radius_miles=regional_radius_miles,
+    )
+
+    circle.is_regional = is_regional
+    circle.regional_radius_miles = regional_radius_miles if is_regional else None
+    db.session.commit()
+    return circle
+
+
 def update_circle(
     circle,
     acting_user,
@@ -316,6 +357,8 @@ def update_circle(
     cleaned_name = name.strip()
     if _find_circle_by_name(cleaned_name, exclude_circle_id=circle.id):
         raise ConflictError("A circle with this name already exists.")
+    if circle.is_regional and circle_type != "open":
+        raise InvalidActionError(REGIONAL_CIRCLE_LOCK_MESSAGE)
 
     circle.name = cleaned_name
     circle.description = _clean_circle_description(description)
@@ -363,6 +406,8 @@ def update_circle(
 def leave_circle(circle, acting_user):
     if acting_user not in circle.members:
         raise InformationalError("You are not a member of this circle.")
+    if len(circle.members) == 1 and circle.is_regional:
+        raise InvalidActionError(REGIONAL_CIRCLE_LOCK_MESSAGE)
 
     if circle.is_admin(acting_user) and len(circle.members) > 1:
         admin_count = _count_circle_admins(circle.id)

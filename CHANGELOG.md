@@ -7,6 +7,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Features
 **Minor**:
 - New members who have not joined any circles yet are now redirected into circle discovery after login, with a stronger onboarding prompt and personalized recommendations that preview what each suggested circle would unlock ([#395](https://github.com/sfirke/meutch/pull/395)).
+- Introduced "regional" circles that are stand-ins for e.g., a Craigslist region. Admins promote these circles to official regional status, at which point they get pinned at the top of zero-circle onboarding recommendations ([#400](https://github.com/sfirke/meutch/pull/400)).
 
 ### Bug fixes
 - Claimed giveaways no longer show a "Borrowed" status badge in the conversation "Item Status" card — they now correctly display "Rehomed" ([#398](https://github.com/sfirke/meutch/pull/398)).

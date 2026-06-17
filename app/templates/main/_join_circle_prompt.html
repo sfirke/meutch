@@ -12,6 +12,12 @@
             {% if featured_circle_recommendation %}
                 {% set recommended_circle = featured_circle_recommendation.circle %}
                 {% set recommended_distance = get_distance_to_circle(recommended_circle) %}
+                {% if featured_circle_recommendation.is_regional %}
+                <div class="mb-2">
+                    <span class="badge bg-regional"><i class="fas fa-map-pin me-1"></i>Regional circle</span>
+                    {% if current_user.is_admin %}<span class="small text-success ms-2">{{ featured_circle_recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
+                </div>
+                {% endif %}
                 <p class="text-muted {% if featured_circle_recommendation.visible_display_counts %}mb-2{% else %}mb-3{% endif %}">Start with <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="fw-semibold text-decoration-none">{{ recommended_circle.name }}</a>{% if recommended_distance %}, {{ recommended_distance }} away{% endif %}. It has {{ recommended_circle.members|length }} members.</p>
                 {% if featured_circle_recommendation.visible_display_counts %}
                 <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
