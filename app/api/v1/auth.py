@@ -5,6 +5,7 @@ from flask_jwt_extended import get_jwt, jwt_required
 from app.api.v1 import bp
 from app.api.v1.errors import build_error_response
 from app.api.v1.jwt_auth import current_user
+from app.api.v1.operational import auth_limit, session_limit
 from app.api.v1.parsing import load_request_data
 from app.api.v1.schemas.auth import (
     CurrentUserResponseSchema,
@@ -30,6 +31,7 @@ REGISTRATION_RESPONSE_SCHEMA = RegistrationResponseSchema()
 
 
 @bp.post("/auth/login")
+@auth_limit("API_V1_AUTH_LOGIN_RATE_LIMIT")
 def login():
     """Authenticate credentials and return an access/refresh token pair."""
     data = load_request_data(LOGIN_REQUEST_SCHEMA)
@@ -39,6 +41,7 @@ def login():
 
 @bp.post("/auth/refresh")
 @jwt_required(refresh=True)
+@session_limit()
 def refresh():
     """Rotate a refresh token and return a new token pair."""
     token_bundle = api_token_service.rotate_refresh_token(current_user, get_jwt())
@@ -47,6 +50,7 @@ def refresh():
 
 @bp.post("/auth/logout")
 @jwt_required(verify_type=False)
+@session_limit()
 def logout():
     """Revoke the current JWT session."""
     api_token_service.revoke_token_family(get_jwt())
@@ -61,6 +65,7 @@ def me():
 
 
 @bp.post("/auth/register")
+@auth_limit("API_V1_AUTH_REGISTER_RATE_LIMIT")
 def register():
     """Create a new account while preserving the existing email-confirmation flow."""
     registration_data = load_request_data(REGISTER_REQUEST_SCHEMA)
@@ -79,6 +84,7 @@ def register():
 
 
 @bp.post("/auth/resend-confirmation")
+@auth_limit("API_V1_AUTH_RECOVERY_RATE_LIMIT")
 def resend_confirmation():
     """Re-trigger the existing confirmation-email workflow."""
     data = load_request_data(EMAIL_REQUEST_SCHEMA)
@@ -102,6 +108,7 @@ def resend_confirmation():
 
 
 @bp.post("/auth/forgot-password")
+@auth_limit("API_V1_AUTH_RECOVERY_RATE_LIMIT")
 def forgot_password():
     """Start the existing password-reset email workflow."""
     data = load_request_data(EMAIL_REQUEST_SCHEMA)
@@ -125,6 +132,7 @@ def forgot_password():
 
 
 @bp.post("/auth/reset-password")
+@auth_limit("API_V1_AUTH_RECOVERY_RATE_LIMIT")
 def reset_password():
     """Reset a password using the existing web-token flow."""
     data = load_request_data(RESET_PASSWORD_REQUEST_SCHEMA)

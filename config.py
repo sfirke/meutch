@@ -200,6 +200,27 @@ class Config:
     REMEMBER_COOKIE_DURATION = timedelta(days=30)
     REMEMBER_COOKIE_REFRESH_EACH_REQUEST = False
 
+    API_V1_ENABLED = parse_bool_env(os.environ.get("API_V1_ENABLED"), True)
+    API_V1_WRITE_ENABLED = parse_bool_env(os.environ.get("API_V1_WRITE_ENABLED"), True)
+    API_V1_RATE_LIMITS_ENABLED = parse_bool_env(os.environ.get("API_V1_RATE_LIMITS_ENABLED"), True)
+
+    RATELIMIT_ENABLED = parse_bool_env(os.environ.get("RATELIMIT_ENABLED"), True)
+    RATELIMIT_HEADERS_ENABLED = True
+    RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
+
+    API_V1_AUTH_LOGIN_RATE_LIMIT = os.environ.get("API_V1_AUTH_LOGIN_RATE_LIMIT", "10 per minute")
+    API_V1_AUTH_REGISTER_RATE_LIMIT = os.environ.get(
+        "API_V1_AUTH_REGISTER_RATE_LIMIT", "5 per hour"
+    )
+    API_V1_AUTH_RECOVERY_RATE_LIMIT = os.environ.get(
+        "API_V1_AUTH_RECOVERY_RATE_LIMIT", "5 per hour"
+    )
+    API_V1_AUTH_SESSION_RATE_LIMIT = os.environ.get(
+        "API_V1_AUTH_SESSION_RATE_LIMIT", "60 per minute"
+    )
+    API_V1_WRITE_RATE_LIMIT = os.environ.get("API_V1_WRITE_RATE_LIMIT", "30 per minute")
+    API_V1_IMAGE_WRITE_RATE_LIMIT = os.environ.get("API_V1_IMAGE_WRITE_RATE_LIMIT", "10 per minute")
+
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or SECRET_KEY
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(
         minutes=parse_int_env(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES_MINUTES"), 15)
@@ -225,6 +246,13 @@ class TestingConfig(Config):
     PREFERRED_URL_SCHEME = "http"
     SESSION_COOKIE_SECURE = False
     REMEMBER_COOKIE_SECURE = False
+    API_V1_RATE_LIMITS_ENABLED = True
+    API_V1_AUTH_LOGIN_RATE_LIMIT = "1000 per minute"
+    API_V1_AUTH_REGISTER_RATE_LIMIT = "1000 per minute"
+    API_V1_AUTH_RECOVERY_RATE_LIMIT = "1000 per minute"
+    API_V1_AUTH_SESSION_RATE_LIMIT = "1000 per minute"
+    API_V1_WRITE_RATE_LIMIT = "1000 per minute"
+    API_V1_IMAGE_WRITE_RATE_LIMIT = "1000 per minute"
 
 
 class StagingConfig(Config):

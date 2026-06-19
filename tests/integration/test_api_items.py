@@ -526,6 +526,52 @@ class TestApiItemMutations:
             "https://example.com/items/three.jpg",
         ]
 
+    @patch(
+        "app.services.item_service.upload_item_images",
+        return_value=["https://example.com/items/two.jpg"],
+    )
+    def test_upload_item_images_returns_429_after_image_limit_is_exceeded(
+        self, _mock_upload, client, app
+    ):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            item = ItemFactory(owner=owner)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+
+        original_rate_limit_enabled = app.config["API_V1_RATE_LIMITS_ENABLED"]
+        original_image_limit = app.config["API_V1_IMAGE_WRITE_RATE_LIMIT"]
+
+        try:
+            app.config["API_V1_RATE_LIMITS_ENABLED"] = True
+            app.config["API_V1_IMAGE_WRITE_RATE_LIMIT"] = "1 per minute"
+
+            first_response = client.post(
+                f"/api/v1/items/{item_id}/images",
+                headers=auth_headers(access_token),
+                data=MultiDict([("images", (BytesIO(b"file-two"), "second.jpg"))]),
+                content_type="multipart/form-data",
+            )
+            limited_response = client.post(
+                f"/api/v1/items/{item_id}/images",
+                headers=auth_headers(access_token),
+                data=MultiDict([("images", (BytesIO(b"file-three"), "third.jpg"))]),
+                content_type="multipart/form-data",
+            )
+
+            assert first_response.status_code == 200
+            assert limited_response.status_code == 429
+            assert limited_response.get_json() == {
+                "error": {
+                    "code": "RATE_LIMIT_EXCEEDED",
+                    "message": "Too many requests. Please try again later.",
+                    "details": {},
+                }
+            }
+        finally:
+            app.config["API_V1_RATE_LIMITS_ENABLED"] = original_rate_limit_enabled
+            app.config["API_V1_IMAGE_WRITE_RATE_LIMIT"] = original_image_limit
+
     @patch("app.services.item_service.upload_item_images", side_effect=ValueError("upload failed"))
     def test_upload_item_images_failure_preserves_existing_images(self, _mock_upload, client, app):
         with app.app_context():

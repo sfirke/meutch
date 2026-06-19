@@ -280,6 +280,63 @@ class TestApiProfile:
             assert updated_user.digest_frequency == "daily"
             assert updated_user.digest_radius_miles == 25
 
+    def test_patch_me_settings_returns_429_after_mutation_limit_is_exceeded(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+
+        original_rate_limit_enabled = app.config["API_V1_RATE_LIMITS_ENABLED"]
+        original_write_limit = app.config["API_V1_WRITE_RATE_LIMIT"]
+
+        try:
+            app.config["API_V1_RATE_LIMITS_ENABLED"] = True
+            app.config["API_V1_WRITE_RATE_LIMIT"] = "1 per minute"
+
+            first_response = client.patch(
+                "/api/v1/me/settings",
+                headers=auth_headers(access_token),
+                json={
+                    "vacation_mode": True,
+                    "digest_frequency": "daily",
+                    "digest_radius_miles": 25,
+                    "digest_include_giveaways": False,
+                    "digest_include_requests": True,
+                    "digest_include_circle_joins": False,
+                    "digest_include_loans": True,
+                    "digest_giveaways_include_public": False,
+                    "digest_requests_include_public": True,
+                },
+            )
+            limited_response = client.patch(
+                "/api/v1/me/settings",
+                headers=auth_headers(access_token),
+                json={
+                    "vacation_mode": False,
+                    "digest_frequency": "weekly",
+                    "digest_radius_miles": 10,
+                    "digest_include_giveaways": True,
+                    "digest_include_requests": False,
+                    "digest_include_circle_joins": True,
+                    "digest_include_loans": False,
+                    "digest_giveaways_include_public": True,
+                    "digest_requests_include_public": False,
+                },
+            )
+
+            assert first_response.status_code == 200
+            assert limited_response.status_code == 429
+            assert limited_response.get_json() == {
+                "error": {
+                    "code": "RATE_LIMIT_EXCEEDED",
+                    "message": "Too many requests. Please try again later.",
+                    "details": {},
+                }
+            }
+        finally:
+            app.config["API_V1_RATE_LIMITS_ENABLED"] = original_rate_limit_enabled
+            app.config["API_V1_WRITE_RATE_LIMIT"] = original_write_limit
+
     def test_patch_me_location_updates_coordinates(self, client, app):
         with app.app_context():
             user = UserFactory(email_confirmed=True, latitude=None, longitude=None)
