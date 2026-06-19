@@ -127,15 +127,15 @@ def build_error_response(code, message, *, status_code, details=None):
 
 def build_error_response_with_headers(code, message, *, status_code, details=None, headers=None):
     """Return a standardized JSON error response payload with optional headers."""
-    error_response = build_error_response(
+    body, status = build_error_response(
         code,
         message,
         status_code=status_code,
         details=details,
     )
     if headers:
-        return error_response[0], error_response[1], headers
-    return error_response
+        return body, status, headers
+    return body, status
 
 
 def _resolve_service_error_mapping(error):
