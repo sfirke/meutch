@@ -44,6 +44,52 @@
         {% endif %}
     </p>
 
+    {% if circle.is_regional %}
+        <div class="alert alert-success py-2">
+            <i class="fas fa-map-pin me-2"></i>
+            Regional circle: this is the designated large circle for this area, like a Buy Nothing group or a Craigslist region.
+        </div>
+    {% endif %}
+
+    {% if current_user.is_admin and regional_form %}
+        {% set regional_disabled = (circle.circle_type != 'open' or not circle.is_geocoded) and not circle.is_regional %}
+        <div class="card border-success mb-4">
+            <div class="card-header bg-success-subtle">
+                <strong><i class="fas fa-map-pin me-2"></i>Regional Circle Settings</strong>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('circles.update_regional_circle_settings', circle_id=circle.id) }}">
+                    {{ regional_form.hidden_tag() }}
+                    <div class="form-check form-switch mb-3">
+                        {{ regional_form.is_regional(class="form-check-input", id="regionalCircleToggle", disabled=regional_disabled) }}
+                        {{ regional_form.is_regional.label(class="form-check-label", for_="regionalCircleToggle") }}
+                    </div>
+
+                    <div id="regional-radius-fields" class="mb-3"{% if not circle.is_regional %} style="display: none;"{% endif %}>
+                        {{ regional_form.regional_radius_miles.label(class="form-label") }}
+                        {{ regional_form.regional_radius_miles(class="form-control", id="regionalRadiusInput", min="1", max="100") }}
+                        {% for error in regional_form.regional_radius_miles.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">Enter a whole number between 1 and 100.</div>
+                    </div>
+
+                    {% if regional_disabled %}
+                        <p class="small text-muted mb-3">
+                            Regional status is only available for public circles with a saved location.
+                        </p>
+                    {% endif %}
+
+                    <p class="small text-muted mb-3">
+                        Regional circles must stay public and cannot be deleted until regional status is removed.
+                    </p>
+
+                    {{ regional_form.submit(class="btn btn-success btn-sm") }}
+                </form>
+            </div>
+        </div>
+    {% endif %}
+
     {% if circle.circle_type == 'secret' and is_member %}
         <div class="alert alert-info">
             <h5><i class="fas fa-info-circle me-2"></i>Share this circle</h5>
@@ -92,6 +138,26 @@
                 <i class="fas fa-edit me-1"></i>Edit Circle
             </a>
         </div>
+    {% endif %}
+
+    {% if current_user.is_admin and regional_form %}
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const regionalToggle = document.getElementById('regionalCircleToggle');
+            const radiusFields = document.getElementById('regional-radius-fields');
+
+            if (!regionalToggle || !radiusFields) {
+                return;
+            }
+
+            function toggleRegionalRadius() {
+                radiusFields.style.display = regionalToggle.checked ? 'block' : 'none';
+            }
+
+            toggleRegionalRadius();
+            regionalToggle.addEventListener('change', toggleRegionalRadius);
+        });
+        </script>
     {% endif %}
 
     {% if not circle.requires_join_approval or is_member %}

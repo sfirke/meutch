@@ -463,6 +463,22 @@ class GiveawayInterest(db.Model):
 
 
 class Circle(db.Model):
+    __table_args__ = (
+        db.CheckConstraint(
+            "(NOT is_regional AND regional_radius_miles IS NULL) OR "
+            "(is_regional AND regional_radius_miles BETWEEN 1 AND 100)",
+            name="ck_circle_regional_radius",
+        ),
+        db.CheckConstraint(
+            "NOT is_regional OR circle_type = 'open'",
+            name="ck_circle_regional_requires_open",
+        ),
+        db.CheckConstraint(
+            "NOT is_regional OR (latitude IS NOT NULL AND longitude IS NOT NULL)",
+            name="ck_circle_regional_requires_coordinates",
+        ),
+    )
+
     id = db.Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False
     )
@@ -473,6 +489,8 @@ class Circle(db.Model):
     image_url = db.Column(db.String(500), nullable=True)
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
+    is_regional = db.Column(db.Boolean, default=False, nullable=False)
+    regional_radius_miles = db.Column(db.Integer, nullable=True)
 
     members = db.relationship("User", secondary=circle_members, back_populates="circles")
 

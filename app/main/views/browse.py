@@ -39,6 +39,7 @@ def index():
     selected_feed_scope = "all"
     selected_feed_types = ["requests", "giveaways", "circle_joins", "loans"]
     selected_feed_distance = "none"
+    selected_show_own_activity = True
     feed_distance_options = sorted(HOMEPAGE_DISTANCE_OPTIONS)
 
     user_circles = sorted(
@@ -62,6 +63,7 @@ def index():
     selected_feed_scope = filter_state["scope"]
     selected_feed_types = filter_state["selected_feed_types"]
     selected_feed_distance = filter_state["distance_param_value"]
+    selected_show_own_activity = filter_state["show_own_activity"]
 
     feed_events = build_homepage_feed_events(
         current_user,
@@ -70,6 +72,7 @@ def index():
         giveaway_distance=filter_state["distance"],
         giveaway_distance_explicit=filter_state["distance_explicit"],
         included_event_types=selected_feed_types,
+        include_own_activity=selected_show_own_activity,
     )
 
     return render_template(
@@ -93,6 +96,7 @@ def index():
         selected_feed_scope=selected_feed_scope,
         selected_feed_types=selected_feed_types,
         selected_feed_distance=selected_feed_distance,
+        selected_show_own_activity=selected_show_own_activity,
         feed_distance_options=feed_distance_options,
     )
 
