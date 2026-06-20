@@ -1,10 +1,9 @@
-import pytest
-from unittest.mock import patch, MagicMock
-from flask import url_for
+from unittest.mock import MagicMock, patch
 
-from app.models import User, Item, Message
-from app.utils.email import send_message_notification_email
-from tests.factories import UserFactory, ItemFactory, MessageFactory
+import pytest
+
+from app.utils.email import build_message_reply_address, send_message_notification_email
+from tests.factories import ItemFactory, MessageFactory, UserFactory
 
 
 class TestMessageNotifications:
@@ -41,6 +40,33 @@ class TestMessageNotifications:
                 assert 'John Doe' in call_args[0][2]  # text content includes sender name
                 assert 'Hi, I am interested in this item!' in call_args[0][2]  # text content includes message body
                 assert call_args[0][3] is not None  # HTML content provided as 4th positional argument
+
+    def test_send_message_notification_email_sets_reply_to(self, app):
+        """Test message notifications include a reply-to address for email replies."""
+        with app.app_context():
+            app.config["MAILGUN_INBOUND_DOMAIN"] = "reply.example.com"
+            sender = UserFactory(email="sender@test.com")
+            recipient = UserFactory(email="recipient@test.com")
+            item = ItemFactory(name="Test Item", owner=recipient)
+            message = MessageFactory(sender=sender, recipient=recipient, item=item)
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_message_notification_email(message)
+
+                assert result is True
+                assert mock_send_email.call_args.kwargs["reply_to"] == (
+                    f"Meutch Replies <reply+{message.id}@reply.example.com>"
+                )
+
+    def test_build_message_reply_address_returns_none_without_domain(self, app):
+        with app.app_context():
+            app.config["MAILGUN_INBOUND_DOMAIN"] = None
+            app.config["MAILGUN_DOMAIN"] = None
+            message = MessageFactory()
+
+            assert build_message_reply_address(message) is None
 
     def test_send_message_notification_email_loan_request(self, app):
         """Test sending email notification for a loan request message."""

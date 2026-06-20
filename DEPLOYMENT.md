@@ -40,6 +40,16 @@ DO_SPACES_BUCKET=<your-bucket-name>
 ```bash
 MAILGUN_API_KEY=<your-mailgun-api-key>
 MAILGUN_DOMAIN=<your-mailgun-domain>
+MAILGUN_WEBHOOK_SIGNING_KEY=<your-mailgun-webhook-signing-key>
+
+# Optional: use a separate inbound domain for reply-by-email addresses.
+MAILGUN_INBOUND_DOMAIN=<your-inbound-mailgun-domain>
+```
+
+For reply-by-email, configure a Mailgun inbound route that forwards parsed messages to:
+
+```text
+https://your-domain.com/webhooks/mailgun/messages
 ```
 
 ### Optional: Mobile API JWT Auth

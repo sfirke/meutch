@@ -6,6 +6,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Minor**:
+- Message notification emails can now be replied to by email; Mailgun inbound replies create normal conversation replies in Meutch ([#423](https://github.com/sfirke/meutch/issues/423)).
 - Added a Privacy Policy and Terms & Conditions, linked from the site footer ([#421](https://github.com/sfirke/meutch/pull/421)).
 - Make it the default to view one's own activity in feed, add a toggle to disable if desired ([#414](https://github.com/sfirke/meutch/pull/414)).
 - New members who have not joined any circles yet are now redirected into circle discovery after login, with a stronger onboarding prompt and personalized recommendations that preview what each suggested circle would unlock ([#395](https://github.com/sfirke/meutch/pull/395)).
