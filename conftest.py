@@ -147,6 +147,12 @@ class TestConfig(Config):
     )
     SECRET_KEY = "test-secret-key"
 
+    # pool_pre_ping detects and replaces stale connections that may
+    # have been left in a broken state by an aborted test.
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+    }
+
     # File storage - always use local for tests
     STORAGE_BACKEND = "local"
 
@@ -247,13 +253,20 @@ def clean_db(app):
             "users",
         ]
 
+        # Truncate each table in its own transaction.  This prevents a
+        # deadlock on one table from aborting the entire cleanup and
+        # lets PostgreSQL resolve contention immediately by rolling back
+        # only the conflicting statement.
         for table in tables_to_truncate:
             try:
                 db.session.execute(db.text(f"TRUNCATE TABLE {table} CASCADE"))
+                db.session.commit()
             except Exception:
-                pass  # Table might not exist or be empty
+                db.session.rollback()
+                # Continue to the next table rather than aborting the
+                # entire cleanup; a single table left un-truncated is
+                # far less harmful than a cascading transaction failure.
 
-        db.session.commit()
         db.session.remove()
 
     yield
