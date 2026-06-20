@@ -50,3 +50,13 @@ def about():
 def how_it_works():
     """Public page that explains how Meutch works for new users."""
     return render_template("main/how_it_works.html")
+
+
+@main_bp.route("/privacy-policy")
+def privacy_policy():
+    return render_template("main/privacy_policy.html")
+
+
+@main_bp.route("/terms")
+def terms():
+    return render_template("main/terms.html")

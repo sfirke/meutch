@@ -836,6 +836,7 @@ class TestRegisterNextParam:
                         "first_name": "New",
                         "last_name": "User",
                         "location_method": "skip",
+                        "age_confirm": True,
                     },
                 )
             # Should redirect to resend-confirmation page

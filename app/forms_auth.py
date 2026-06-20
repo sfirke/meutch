@@ -158,6 +158,12 @@ class RegistrationForm(FlaskForm):
             EqualTo("password", message="Passwords must match."),
         ],
     )
+    age_confirm = BooleanField(
+        "I confirm I am at least 13 years old",
+        validators=[
+            DataRequired(message="You must be at least 13 years old to use Meutch."),
+        ],
+    )
     submit = SubmitField("Register")
 
     def validate_email(self, email):
