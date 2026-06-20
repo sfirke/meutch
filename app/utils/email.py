@@ -4,7 +4,7 @@ from flask import current_app, url_for
 from app.utils.digest_tokens import generate_digest_manage_token
 
 
-def send_email(to_email, subject, text_content, html_content=None):
+def send_email(to_email, subject, text_content, html_content=None, reply_to=None):
     """Send email using Mailgun API"""
     try:
         api_key = current_app.config.get("MAILGUN_API_KEY")
@@ -29,6 +29,9 @@ def send_email(to_email, subject, text_content, html_content=None):
 
         if html_content:
             data["html"] = html_content
+
+        if reply_to:
+            data["h:Reply-To"] = reply_to
 
         response = requests.post(
             f"https://api.mailgun.net/v3/{domain}/messages", auth=("api", api_key), data=data
@@ -113,6 +116,15 @@ The Meutch Team
     """.strip()
 
     return send_email(user.email, subject, text_content)
+
+
+def build_message_reply_address(message):
+    domain = current_app.config.get("MAILGUN_INBOUND_DOMAIN") or current_app.config.get(
+        "MAILGUN_DOMAIN"
+    )
+    if not domain:
+        return None
+    return f"Meutch Replies <reply+{message.id}@{domain}>"
 
 
 def send_message_notification_email(message):
@@ -235,7 +247,13 @@ The Meutch Team
     </html>
     """
 
-    return send_email(recipient.email, subject, text_content, html_content)
+    return send_email(
+        recipient.email,
+        subject,
+        text_content,
+        html_content,
+        reply_to=build_message_reply_address(message),
+    )
 
 
 def send_circle_join_request_notification_email(join_request):
