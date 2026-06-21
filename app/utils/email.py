@@ -640,7 +640,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         "Giveaways \u2014 Claimed", claimed_giveaways, include_description=True, include_image=False
     )
     append_text_section("Requests \u2014 Posted", posted_requests, include_description=True)
-    append_text_section("Requests \u2014 Fulfilled", fulfilled_requests, include_description=True)
+    append_text_section("Requests \u2014 Fulfilled", fulfilled_requests, include_description=False)
 
     if circle_joins:
         grouped_joins = _group_circle_joins_for_digest(circle_joins)
@@ -787,7 +787,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         {build_html_section('Giveaways \u2014 Posted', posted_giveaways, include_description=True)}
         {build_html_section('Giveaways \u2014 Claimed', claimed_giveaways, include_description=True, include_image=False)}
         {build_html_section('Requests \u2014 Posted', posted_requests, include_description=True)}
-        {build_html_section('Requests \u2014 Fulfilled', fulfilled_requests, include_description=True)}
+        {build_html_section('Requests \u2014 Fulfilled', fulfilled_requests, include_description=False)}
         {_build_circle_joins_html_section(circle_joins)}
         {build_html_section('Loans', loans)}
 
