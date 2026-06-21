@@ -571,6 +571,9 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     # Split giveaways into posted (still available) and claimed
     posted_giveaways = [g for g in giveaways if g.get("resolution_status") != "claimed"]
     claimed_giveaways = [g for g in giveaways if g.get("resolution_status") == "claimed"]
+    # Split requests into posted (still open) and fulfilled
+    posted_requests = [r for r in requests if r.get("resolution_status") != "fulfilled"]
+    fulfilled_requests = [r for r in requests if r.get("resolution_status") == "fulfilled"]
 
     events = digest_payload.get("events")
     if events is None:
@@ -636,7 +639,8 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     append_text_section(
         "Giveaways \u2014 Claimed", claimed_giveaways, include_description=True, include_image=False
     )
-    append_text_section("Requests", requests, include_description=True)
+    append_text_section("Requests \u2014 Posted", posted_requests, include_description=True)
+    append_text_section("Requests \u2014 Fulfilled", fulfilled_requests, include_description=True)
 
     if circle_joins:
         grouped_joins = _group_circle_joins_for_digest(circle_joins)
@@ -782,7 +786,8 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
 
         {build_html_section('Giveaways \u2014 Posted', posted_giveaways, include_description=True)}
         {build_html_section('Giveaways \u2014 Claimed', claimed_giveaways, include_description=True, include_image=False)}
-        {build_html_section('Requests', requests, include_description=True)}
+        {build_html_section('Requests \u2014 Posted', posted_requests, include_description=True)}
+        {build_html_section('Requests \u2014 Fulfilled', fulfilled_requests, include_description=True)}
         {_build_circle_joins_html_section(circle_joins)}
         {build_html_section('Loans', loans)}
 
