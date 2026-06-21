@@ -447,6 +447,16 @@ class TestMainRoutes:
         response = client.get("/about")
         assert response.status_code == 200
 
+    def test_privacy_policy_page(self, client):
+        """Test privacy policy page loads correctly."""
+        response = client.get("/privacy-policy")
+        assert response.status_code == 200
+
+    def test_terms_page(self, client):
+        """Test terms and conditions page loads correctly."""
+        response = client.get("/terms")
+        assert response.status_code == 200
+
 
 class TestItemRoutes:
     """Test item-related routes."""

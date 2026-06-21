@@ -77,6 +77,7 @@ class TestRegistrationForm:
                 "country": "United States of America",
                 "password": "password123",
                 "confirm_password": "password123",
+                "age_confirm": True,
             }
             form = RegistrationForm(data=form_data)
             assert form.validate() is True
@@ -103,6 +104,7 @@ class TestRegistrationForm:
                 "longitude": -74.0060,
                 "password": "password123",
                 "confirm_password": "password123",
+                "age_confirm": True,
             }
             form = RegistrationForm(data=form_data)
             assert form.validate() is True
@@ -122,6 +124,7 @@ class TestRegistrationForm:
                 "country": "United States of America",
                 "password": "password123",
                 "confirm_password": "differentpassword",
+                "age_confirm": True,
             }
             form = RegistrationForm(data=form_data)
             assert form.validate() is False
@@ -145,6 +148,7 @@ class TestRegistrationForm:
                 "country": "United States of America",
                 "password": "password123",
                 "confirm_password": "password123",
+                "age_confirm": True,
             }
             form = RegistrationForm(data=form_data)
             assert form.validate() is False
@@ -170,6 +174,7 @@ class TestRegistrationForm:
                         "country": "Atlantis",
                         "password": "password123",
                         "confirm_password": "password123",
+                        "age_confirm": True,
                     }
                 )
             )
@@ -189,6 +194,7 @@ class TestRegistrationForm:
                 # Missing city, state, zip_code, country
                 "password": "password123",
                 "confirm_password": "password123",
+                "age_confirm": True,
             }
             form = RegistrationForm(data=form_data)
             assert form.validate() is False
@@ -208,6 +214,7 @@ class TestRegistrationForm:
                 # Missing latitude and longitude
                 "password": "password123",
                 "confirm_password": "password123",
+                "age_confirm": True,
             }
             form = RegistrationForm(data=form_data)
             assert form.validate() is False
@@ -229,6 +236,7 @@ class TestRegistrationForm:
                 # No location fields provided
                 "password": "password123",
                 "confirm_password": "password123",
+                "age_confirm": True,
             }
             form = RegistrationForm(data=form_data)
             assert form.validate() is True
@@ -250,6 +258,7 @@ class TestRegistrationForm:
                 "digest_frequency": "none",
                 "password": "password123",
                 "confirm_password": "password123",
+                "age_confirm": True,
             }
             form = RegistrationForm(data=form_data)
             assert form.validate() is True

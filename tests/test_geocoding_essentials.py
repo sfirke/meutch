@@ -346,6 +346,7 @@ class TestWorkflowEssentials:
                         "state": "NY",
                         "zip_code": "10001",
                         "country": "United States of America",
+                        "age_confirm": True,
                         "csrf_token": "test",
                     },
                 )
@@ -371,6 +372,7 @@ class TestWorkflowEssentials:
                     "location_method": "coordinates",
                     "latitude": "34.0522",
                     "longitude": "-118.2437",
+                    "age_confirm": True,
                     "csrf_token": "test",
                 },
             )
@@ -394,6 +396,7 @@ class TestWorkflowEssentials:
                     "password": "testpassword123",
                     "confirm_password": "testpassword123",
                     "location_method": "skip",
+                    "age_confirm": True,
                     "csrf_token": "test",
                 },
             )

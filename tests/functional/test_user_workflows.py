@@ -23,6 +23,7 @@ class TestUserRegistrationWorkflow:
                     "location_method": "skip",
                     "password": "newpassword123",
                     "confirm_password": "newpassword123",
+                    "age_confirm": True,
                 },
                 follow_redirects=True,
             )
