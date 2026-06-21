@@ -568,6 +568,10 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     circle_joins = digest_payload.get("circle_joins", [])
     loans = digest_payload.get("loans", [])
 
+    # Split giveaways into posted (still available) and claimed
+    posted_giveaways = [g for g in giveaways if g.get("resolution_status") != "claimed"]
+    claimed_giveaways = [g for g in giveaways if g.get("resolution_status") == "claimed"]
+
     events = digest_payload.get("events")
     if events is None:
         events = giveaways + requests + circle_joins + loans
@@ -600,7 +604,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         text_lines.extend(summary_lines)
         text_lines.append("")
 
-    def append_text_section(section_title, events, include_description=False):
+    def append_text_section(section_title, events, include_description=False, include_image=True):
         if not events:
             return
         text_lines.append(f"{section_title}:")
@@ -623,14 +627,15 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
                 text_lines.append(line)
             if include_description and not is_resolution_only and event.get("description"):
                 text_lines.append(f"  {event['description']}")
-            if not is_resolution_only and event.get("image_url"):
-                text_lines.append(f"  Image: {event['image_url']}")
-            if is_resolution_only and event.get("image_url"):
+            if include_image and event.get("image_url"):
                 text_lines.append(f"  Image: {event['image_url']}")
             text_lines.append(f"  {_digest_event_url(event)}")
         text_lines.append("")
 
-    append_text_section("Giveaways", giveaways, include_description=True)
+    append_text_section("Giveaways \u2014 Posted", posted_giveaways, include_description=True)
+    append_text_section(
+        "Giveaways \u2014 Claimed", claimed_giveaways, include_description=True, include_image=False
+    )
     append_text_section("Requests", requests, include_description=True)
 
     if circle_joins:
@@ -657,7 +662,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         ]
     )
 
-    def build_html_section(title, events, include_description=False):
+    def build_html_section(title, events, include_description=False, include_image=True):
         if not events:
             return ""
 
@@ -673,7 +678,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
                 )
 
             image_html = ""
-            if event.get("image_url"):
+            if include_image and event.get("image_url"):
                 image_html = (
                     f"<div style=\"margin: 8px 0;\">"
                     f"<img src=\"{event['image_url']}\" alt=\"Activity image\" "
@@ -775,7 +780,8 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
 
         {summary_html}
 
-        {build_html_section('Giveaways', giveaways, include_description=True)}
+        {build_html_section('Giveaways \u2014 Posted', posted_giveaways, include_description=True)}
+        {build_html_section('Giveaways \u2014 Claimed', claimed_giveaways, include_description=True, include_image=False)}
         {build_html_section('Requests', requests, include_description=True)}
         {_build_circle_joins_html_section(circle_joins)}
         {build_html_section('Loans', loans)}

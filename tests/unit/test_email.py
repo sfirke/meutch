@@ -382,7 +382,8 @@ class TestEmailUtils:
             assert "Free Chair offered by Alex was claimed" in content["text"]
             assert "Need a ladder was marked fulfilled" in content["text"]
             assert "This should not be repeated" not in content["text"]
-            assert "Image: https://example.com/chair.jpg" in content["text"]
+            # Claimed giveaways should not show images
+            assert "Image: https://example.com/chair.jpg" not in content["text"]
             assert "Free Chair offered by Alex was claimed" in content["html"]
             assert "Need a ladder was marked fulfilled" in content["html"]
 
