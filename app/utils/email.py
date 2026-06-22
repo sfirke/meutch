@@ -575,6 +575,16 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     posted_requests = [r for r in requests if r.get("resolution_status") != "fulfilled"]
     fulfilled_requests = [r for r in requests if r.get("resolution_status") == "fulfilled"]
 
+    # Sort fulfilled/claimed so new-resolved-in-window items appear first.
+    # Python sort is stable, so within each subgroup the existing order
+    # (created_at descending from build_digest_payload) is preserved.
+    claimed_giveaways.sort(
+        key=lambda e: (0 if e.get("digest_variant") == "new-resolved-in-window" else 1)
+    )
+    fulfilled_requests.sort(
+        key=lambda e: (0 if e.get("digest_variant") == "new-resolved-in-window" else 1)
+    )
+
     events = digest_payload.get("events")
     if events is None:
         events = giveaways + requests + circle_joins + loans
@@ -613,22 +623,26 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         text_lines.append(f"{section_title}:")
         for event in events:
             actor = event["actor_name"]
-            is_resolution_only = event.get("digest_variant") == "resolved-in-window"
+            is_resolution_only = event.get("digest_variant") in (
+                "resolved-in-window",
+                "new-resolved-in-window",
+            )
+            is_new_in_window = event.get("digest_variant") == "new-resolved-in-window"
             if is_resolution_only:
                 # For giveaways, the message already includes the actor name
                 if event["event_type"] == "giveaway":
-                    text_lines.append(f"- {_digest_resolution_only_text(event)}")
+                    line = f"- {_digest_resolution_only_text(event)}"
                 else:
-                    text_lines.append(f"- {actor}: {_digest_resolution_only_text(event)}")
+                    line = f"- {actor}: {_digest_resolution_only_text(event)}"
             else:
                 title = _digest_event_title(event)
                 action = event["action"]
-                resolution_label = _digest_resolution_label(event)
                 line = f"- {actor} {action}: {title}"
-                if resolution_label:
-                    line = f"{line} [{resolution_label}]"
-                text_lines.append(line)
-            if include_description and not is_resolution_only and event.get("description"):
+            if is_new_in_window:
+                line = f"{line} [New]"
+            text_lines.append(line)
+            show_desc = (not is_resolution_only and include_description) or is_new_in_window
+            if show_desc and event.get("description"):
                 text_lines.append(f"  {event['description']}")
             if include_image and event.get("image_url"):
                 text_lines.append(f"  Image: {event['image_url']}")
@@ -674,9 +688,14 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         for event in events:
             actor = event["actor_name"]
             link = _digest_event_url(event)
-            is_resolution_only = event.get("digest_variant") == "resolved-in-window"
+            is_resolution_only = event.get("digest_variant") in (
+                "resolved-in-window",
+                "new-resolved-in-window",
+            )
+            is_new_in_window = event.get("digest_variant") == "new-resolved-in-window"
+            show_desc = (not is_resolution_only and include_description) or is_new_in_window
             description_html = ""
-            if include_description and not is_resolution_only and event.get("description"):
+            if show_desc and event.get("description"):
                 description_html = (
                     f"<p style=\"margin: 6px 0 0 0; color: #555;\">{event['description']}</p>"
                 )
@@ -693,23 +712,18 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             if is_resolution_only:
                 # For giveaways, the message already includes the actor name
                 if event["event_type"] == "giveaway":
-                    activity_html = f"{_digest_resolution_only_text(event)}<br>"
+                    activity_html = f"{_digest_resolution_only_text(event)}"
                 else:
                     activity_html = (
-                        f"<strong>{actor}</strong>: {_digest_resolution_only_text(event)}<br>"
+                        f"<strong>{actor}</strong>: {_digest_resolution_only_text(event)}"
                     )
+                if is_new_in_window:
+                    activity_html += ' <span style="color: #6c757d; font-size: 12px;">New</span>'
+                activity_html += "<br>"
             else:
                 item_title = _digest_event_title(event)
                 action = event["action"]
-                resolution_label = _digest_resolution_label(event)
-                label_html = ""
-                if resolution_label:
-                    label_html = (
-                        f' <span style="display: inline-block; margin-left: 6px; padding: 1px 8px; '
-                        f'background-color: #198754; color: #fff; border-radius: 999px; font-size: 12px;">'
-                        f"{resolution_label}</span>"
-                    )
-                activity_html = f"<strong>{actor}</strong> {action}: {item_title}{label_html}<br>"
+                activity_html = f"<strong>{actor}</strong> {action}: {item_title}<br>"
 
             items_html.append(
                 f"""
