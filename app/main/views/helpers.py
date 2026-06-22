@@ -136,6 +136,7 @@ def _parse_homepage_feed_filters(user):
     show_own_activity = True
     if "own_activity_present" in request.args:
         show_own_activity = request.args.get("show_own_activity") == "1"
+    show_claimed_giveaways = request.args.get("show_claimed_giveaways") == "1"
 
     return {
         "scope": scope,
@@ -144,6 +145,7 @@ def _parse_homepage_feed_filters(user):
         "distance_explicit": distance_explicit,
         "distance_param_value": distance_param_value,
         "show_own_activity": show_own_activity,
+        "show_claimed_giveaways": show_claimed_giveaways,
     }
 
 

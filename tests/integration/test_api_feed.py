@@ -1,5 +1,7 @@
 """Integration tests for API feed endpoints."""
 
+from datetime import UTC, datetime, timedelta
+
 from app import db
 from tests.factories import (
     CategoryFactory,
@@ -137,3 +139,49 @@ class TestApiFeed:
         assert "My own API giveaway" not in hidden_titles
         assert "Other API request" in hidden_titles
         assert "Other API giveaway" in hidden_titles
+
+    def test_feed_show_claimed_giveaways_toggle(self, client, app):
+        """API feed hides claimed giveaways by default and can include them."""
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            owner = UserFactory()
+            claimer = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, owner, claimer])
+
+            ItemFactory(
+                owner=owner,
+                name="API unclaimed giveaway",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            ItemFactory(
+                owner=owner,
+                name="API claimed giveaway",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="claimed",
+                claimed_by=claimer,
+                claimed_at=datetime.now(UTC) - timedelta(days=2),
+            )
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+
+        default_response = client.get(
+            "/api/v1/feed?types=giveaways",
+            headers=auth_headers(access_token),
+        )
+        assert default_response.status_code == 200
+        default_titles = {e["title"] for e in default_response.get_json()["events"]}
+        assert "API unclaimed giveaway" in default_titles
+        assert "API claimed giveaway" not in default_titles
+
+        shown_response = client.get(
+            "/api/v1/feed?types=giveaways&show_claimed_giveaways=true",
+            headers=auth_headers(access_token),
+        )
+        assert shown_response.status_code == 200
+        shown_titles = {e["title"] for e in shown_response.get_json()["events"]}
+        assert "API unclaimed giveaway" in shown_titles
+        assert "API claimed giveaway" in shown_titles
