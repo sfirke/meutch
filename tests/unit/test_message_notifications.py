@@ -40,6 +40,8 @@ class TestMessageNotifications:
                 assert 'John Doe' in call_args[0][2]  # text content includes sender name
                 assert 'Hi, I am interested in this item!' in call_args[0][2]  # text content includes message body
                 assert call_args[0][3] is not None  # HTML content provided as 4th positional argument
+                assert "Reply to this email directly" in call_args[0][2]
+                assert "reply to this email directly" in call_args[0][3]
 
     def test_send_message_notification_email_sets_reply_to(self, app):
         """Test message notifications include a reply-to address for email replies."""
@@ -107,6 +109,11 @@ class TestMessageNotifications:
                 assert call_args[0][0] == 'owner@test.com'  # to_email
                 assert 'New Loan Request for Test Item' in call_args[0][1]  # subject for pending loan request
                 assert 'loan request' in call_args[0][2]  # text content indicates loan request
+                assert "Reply to this email directly" not in call_args[0][2]
+                assert "reply to this email directly" not in call_args[0][3]
+                assert "and respond" not in call_args[0][2]
+                assert "& Respond" not in call_args[0][3]
+                assert mock_send_email.call_args.kwargs["reply_to"] is None
 
     def test_send_message_notification_email_missing_users(self, app):
         """Test handling of missing users."""
@@ -194,6 +201,9 @@ class TestMessageNotifications:
                 assert 'loan cancellation' in text_content.lower()
                 assert 'canceled by the borrower' in text_content
                 assert 'loan cancellation' in html_content.lower()
+                assert "Reply to this email directly" not in text_content
+                assert "reply to this email directly" not in html_content
+                assert kwargs["reply_to"] is None
 
     def test_send_message_notification_email_invalid_status(self, app):
         """Test that invalid loan request status raises ValueError."""

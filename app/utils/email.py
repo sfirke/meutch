@@ -191,6 +191,26 @@ def send_message_notification_email(message):
         subject = f"Meutch - New Message about {context_label}"
         email_type = "message"
 
+    can_reply_by_email = not message.is_loan_request_message
+    if can_reply_by_email:
+        response_text = f"""Reply to this email directly, or view the conversation on Meutch:
+{conversation_url}"""
+        response_html = f"""
+        <p style="color: #666; font-size: 14px;">
+            You can reply to this email directly, or
+            <a href="{conversation_url}" style="color: #007bff;">view the conversation on Meutch</a>.
+        </p>
+        """
+    else:
+        response_text = f"""To view the full conversation on Meutch, click here:
+{conversation_url}"""
+        response_html = f"""
+        <p style="color: #666; font-size: 14px;">
+            To view the full conversation on Meutch,
+            <a href="{conversation_url}" style="color: #007bff;">click here</a>.
+        </p>
+        """
+
     text_content = f"""
 Hello {recipient.first_name},
 
@@ -202,8 +222,7 @@ From: {sender.first_name} {sender.last_name}
 Message:
 {message.body}
 
-To view the full conversation and respond, click here:
-{conversation_url}
+{response_text}
 
 You can also log into your Meutch account to view all your messages at any time.
 
@@ -230,13 +249,11 @@ The Meutch Team
         <div style="text-align: center; margin: 30px 0;">
             <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Conversation & Respond
+                View Conversation
             </a>
         </div>
 
-        <p style="color: #666; font-size: 14px;">
-            You can also log into your Meutch account to view all your messages at any time.
-        </p>
+        {response_html}
 
         <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
         <p style="color: #999; font-size: 12px;">
@@ -252,7 +269,7 @@ The Meutch Team
         subject,
         text_content,
         html_content,
-        reply_to=build_message_reply_address(message),
+        reply_to=build_message_reply_address(message) if can_reply_by_email else None,
     )
 
 
