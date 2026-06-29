@@ -121,6 +121,12 @@ def issue_login_tokens(email, password):
     if authentication_result.status == auth_service.LOGIN_STATUS_INVALID_CREDENTIALS:
         raise AuthenticationError("Invalid email or password.")
 
+    if authentication_result.status == auth_service.LOGIN_STATUS_LOCKED:
+        raise AuthenticationError(
+            "Your account is temporarily locked due to too many failed login attempts. "
+            "Please try again later."
+        )
+
     if authentication_result.status == auth_service.LOGIN_STATUS_UNCONFIRMED:
         raise AuthorizationError("Please confirm your email address before logging in.")
 

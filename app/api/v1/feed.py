@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required
 
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
+from app.api.v1.operational import read_limit
 from app.api.v1.parsing import load_query_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.feed import FeedEventSchema
@@ -19,6 +20,7 @@ DEFAULT_GEOLOCATED_FEED_DISTANCE = 20
 
 @bp.get("/feed")
 @jwt_required()
+@read_limit()
 def list_feed_events():
     """Return paginated feed events for the authenticated user."""
     query_data = load_query_data(FEED_QUERY_SCHEMA)

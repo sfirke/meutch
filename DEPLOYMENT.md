@@ -80,6 +80,10 @@ API_V1_RATE_LIMITS_ENABLED=true
 # Strongly recommended for production and staging when using multiple workers or instances.
 RATELIMIT_STORAGE_URI=redis://redis:6379/0
 
+# Maximum request body size in bytes (default 1 MB).
+# Set higher on the web/API gateway if uploads are proxied through it.
+MAX_CONTENT_LENGTH=1048576
+
 # Default endpoint-family limits.
 API_V1_AUTH_LOGIN_RATE_LIMIT=10 per minute
 API_V1_AUTH_REGISTER_RATE_LIMIT=5 per hour
@@ -87,13 +91,28 @@ API_V1_AUTH_RECOVERY_RATE_LIMIT=5 per hour
 API_V1_AUTH_SESSION_RATE_LIMIT=60 per minute
 API_V1_WRITE_RATE_LIMIT=30 per minute
 API_V1_IMAGE_WRITE_RATE_LIMIT=10 per minute
+API_V1_READ_RATE_LIMIT=60 per minute
 ```
 
 Operational notes:
-- API responses now include `X-Request-ID`. If a client sends its own `X-Request-ID`, the API echoes it back so application logs and client-side error reports can be correlated.
+- API responses include `X-Request-ID`, `X-API-Version: v1`, and security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`). If a client sends its own `X-Request-ID`, the API echoes it back so application logs and client-side error reports can be correlated.
 - `/api/v1/health` reports `ok`, `read_only`, or `disabled` so deploy checks can distinguish normal traffic, emergency read-only mode, and a full API shutdown.
 - `memory://` limiter storage is process-local. It is acceptable for local development and isolated test runs, but it will not enforce a shared bucket across multiple Gunicorn workers or multiple app instances.
 - Use Redis-backed limiter storage whenever staging or production can run more than one worker or instance.
+
+### Optional: API Maintenance
+
+```bash
+# Purge token blocklist entries whose tokens have expired.
+# Default cutoff: entries older than 7 days past their token expiry.
+flask api cleanup-expired-tokens --older-than-days 7
+```
+
+Schedule this command as a periodic cron job (e.g. daily) to prevent unbounded growth of the `api_token_blocklist` table.
+
+### Optional: Account Lockout
+
+After 5 consecutive failed login attempts, the account is locked for 15 minutes. Successive lockouts double in duration up to a 60-minute cap. Successful authentication resets the counter. Lockouts are enforced at the service layer for both web and API login paths.
 
 ### Optional: Digest Scheduler Timezone
 
