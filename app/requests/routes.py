@@ -99,12 +99,16 @@ def edit(request_id):
             abort(404)
         except InformationalError as exc:
             form.visibility.errors.append(str(exc))
-            return render_template("requests/edit.html", form=form, item_request=item_request)
+            return render_template(
+                "requests/edit.html", form=form, item_request=item_request, fulfill_form=EmptyForm()
+            )
 
         flash("Your request has been updated.", "success")
         return redirect(url_for("requests.feed"))
 
-    return render_template("requests/edit.html", form=form, item_request=item_request)
+    return render_template(
+        "requests/edit.html", form=form, item_request=item_request, fulfill_form=EmptyForm()
+    )
 
 
 @requests_bp.route("/<uuid:request_id>/detail")

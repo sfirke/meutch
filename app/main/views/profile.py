@@ -11,6 +11,7 @@ from app.forms import (
     DeleteItemForm,
     DigestSettingsForm,
     EditProfileForm,
+    EmptyForm,
     UpdateLocationForm,
     VacationModeForm,
 )
@@ -175,6 +176,8 @@ def profile():
     if show_edit:
         active_tab = "about-me"
 
+    fulfill_form = EmptyForm()
+    delete_form = EmptyForm()
     return render_template(
         "main/profile.html",
         form=form,
@@ -196,6 +199,8 @@ def profile():
         show_edit=show_edit,
         active_requests=active_requests,
         past_requests=past_requests,
+        fulfill_form=fulfill_form,
+        delete_form=delete_form,
     )
 
 

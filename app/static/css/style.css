@@ -335,6 +335,66 @@ h1 {
     color: white !important;
 }
 
+.btn-outline-secondary {
+    border: 2px solid var(--secondary-color, #6c757d) !important;
+    color: var(--secondary-color, #6c757d) !important;
+    background: transparent !important;
+}
+
+.btn-outline-secondary:hover {
+    background: var(--secondary-color, #6c757d) !important;
+    border-color: var(--secondary-color, #6c757d) !important;
+    color: white !important;
+}
+
+.btn-outline-danger {
+    border: 2px solid var(--danger-color, #dc3545) !important;
+    color: var(--danger-color, #dc3545) !important;
+    background: transparent !important;
+}
+
+.btn-outline-danger:hover {
+    background: var(--danger-color, #dc3545) !important;
+    border-color: var(--danger-color, #dc3545) !important;
+    color: white !important;
+}
+
+.btn-outline-info {
+    border: 2px solid #0dcaf0 !important;
+    color: #0dcaf0 !important;
+    background: transparent !important;
+}
+
+.btn-outline-info:hover {
+    background: #0dcaf0 !important;
+    border-color: #0dcaf0 !important;
+    color: #000 !important;
+}
+
+.btn-outline-success {
+    border: 2px solid var(--success-color, #198754) !important;
+    color: var(--success-color, #198754) !important;
+    background: transparent !important;
+}
+
+.btn-outline-success:hover {
+    background: var(--success-color, #198754) !important;
+    border-color: var(--success-color, #198754) !important;
+    color: white !important;
+}
+
+.btn-outline-warning {
+    border: 2px solid var(--warning-color, #f6ad55) !important;
+    color: var(--warning-color, #f6ad55) !important;
+    background: transparent !important;
+}
+
+.btn-outline-warning:hover {
+    background: var(--warning-color, #f6ad55) !important;
+    border-color: var(--warning-color, #f6ad55) !important;
+    color: #000 !important;
+}
+
 /* Badges */
 .badge {
     font-weight: 500;
