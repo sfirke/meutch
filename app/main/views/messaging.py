@@ -81,6 +81,17 @@ def view_conversation(message_id):
             giveaway_handoff_form = ConfirmHandoffForm()
             giveaway_release_form = ReleaseToAllForm()
 
+    fulfillable_request = None
+    request_fulfill_form = None
+    if (
+        message.is_request_message
+        and message.request.user_id == current_user.id
+        and message.request.status == "open"
+        and not message.request.is_expired
+    ):
+        fulfillable_request = message.request
+        request_fulfill_form = EmptyForm()
+
     form = MessageForm()
     if form.validate_on_submit():
         message_service.reply_to_message(message, current_user.id, form.body.data)
@@ -105,4 +116,6 @@ def view_conversation(message_id):
         giveaway_release_form=giveaway_release_form,
         loan_action_form=loan_action_form,
         has_unread_messages=has_unread_messages,
+        fulfillable_request=fulfillable_request,
+        request_fulfill_form=request_fulfill_form,
     )

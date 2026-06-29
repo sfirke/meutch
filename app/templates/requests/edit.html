@@ -72,6 +72,22 @@
                             {{ form.submit(class="btn btn-primary") }}
                         </div>
                     </form>
+
+                    {% if item_request.status == 'open' and not item_request.is_expired %}
+                        <hr>
+                        <div class="alert alert-success d-flex align-items-center justify-content-between mb-0" role="alert">
+                            <div>
+                                <i class="fas fa-check-circle me-2"></i>
+                                <strong>Has this request been fulfilled?</strong> Mark it as fulfilled instead of editing.
+                            </div>
+                            <form method="POST" action="{{ url_for('requests.fulfill', request_id=item_request.id) }}" class="d-inline ms-3 flex-shrink-0">
+                                {{ fulfill_form.hidden_tag() }}
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <i class="fas fa-check-circle me-1"></i>Mark Fulfilled
+                                </button>
+                            </form>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

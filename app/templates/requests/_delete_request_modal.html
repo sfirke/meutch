@@ -1,0 +1,40 @@
+<!-- app/templates/requests/_delete_request_modal.html -->
+{#
+  Reusable delete confirmation modal for request detail page.
+  Accepts: delete_modal_id, request_title, fulfill_url, delete_url, fulfill_form, delete_form
+#}
+<div class="modal fade" id="{{ delete_modal_id }}" tabindex="-1" aria-labelledby="{{ delete_modal_id }}Label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="{{ delete_modal_id }}Label">
+                    <i class="fas fa-question-circle me-2"></i>Delete request?
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">
+                    If <strong>{{ request_title }}</strong> has been satisfied, consider marking it as fulfilled instead.
+                </p>
+                <p class="text-muted small mb-0">
+                    If you still want to delete it, this request will be removed from public view.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ delete_url }}" class="d-inline">
+                    {{ delete_form.hidden_tag() }}
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="fas fa-trash me-1"></i>Delete Request
+                    </button>
+                </form>
+                <form method="POST" action="{{ fulfill_url }}" class="d-inline">
+                    {{ fulfill_form.hidden_tag() }}
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check-circle me-1"></i>Mark Fulfilled
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

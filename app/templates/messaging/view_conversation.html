@@ -317,6 +317,25 @@
     </div>
     {% endif %}
 
+    {% if fulfillable_request %}
+    <div class="card mb-4 border-success shadow-sm">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-check-circle me-2"></i>Request Fulfillment
+            </h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-3">If this request has been satisfied, mark it as fulfilled.</p>
+            <form method="POST" action="{{ url_for('requests.fulfill', request_id=fulfillable_request.id) }}" class="d-inline">
+                {{ request_fulfill_form.hidden_tag() }}
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-check-circle me-1"></i>Mark Request Fulfilled
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <h3>Messages</h3>
     <div class="thread-container">
         {% for msg in thread_messages %}

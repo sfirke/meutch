@@ -38,6 +38,7 @@ class ItemRequestConversationContextSchema(ApiSchema):
     title = fields.String(required=True)
     status = fields.String(required=True)
     visibility = fields.String(required=True)
+    expires_at = ApiDateTime(allow_none=True)
 
 
 class CircleConversationContextSchema(ApiSchema):
