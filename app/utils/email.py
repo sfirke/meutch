@@ -119,12 +119,11 @@ The Meutch Team
 
 
 def build_message_reply_address(message):
-    domain = current_app.config.get("MAILGUN_INBOUND_DOMAIN") or current_app.config.get(
-        "MAILGUN_DOMAIN"
-    )
+    domain = current_app.config.get("MAILGUN_DOMAIN")
     if not domain:
         return None
-    return f"Meutch Replies <reply+{message.id}@{domain}>"
+    prefix = current_app.config.get("MAILGUN_REPLY_PREFIX", "")
+    return f"Meutch Replies <reply+{prefix}{message.id}@{domain}>"
 
 
 def send_message_notification_email(message):

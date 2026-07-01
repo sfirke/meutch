@@ -120,3 +120,57 @@ class TestMailgunInboundReplies:
 
         with app.app_context():
             assert Message.query.filter_by(parent_id=original_id).count() == 0
+
+    def test_mailgun_reply_with_prefixed_recipient(self, client, app):
+        """Webhook handles reply+staging-{uuid} prefix format for shared-domain setups."""
+        with app.app_context():
+            app.config["MAILGUN_WEBHOOK_SIGNING_KEY"] = SIGNING_KEY
+            sender = UserFactory(email="sender@example.com")
+            recipient = UserFactory(email="recipient@example.com")
+            item = ItemFactory(owner=recipient)
+            original = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                item=item,
+                body="Can I borrow this?",
+            )
+            db.session.commit()
+            original_id = original.id
+            sender_id = sender.id
+            recipient_id = recipient.id
+            item_id = item.id
+
+        payload = mailgun_payload(original_id, sender="recipient@example.com", body="Yes.")
+        # Override recipient to use staging- prefix format
+        payload["recipient"] = f"Meutch Replies <reply+staging-{original_id}@meutch.com>"
+
+        response = client.post("/webhooks/mailgun/messages", data=payload)
+
+        assert response.status_code == 200
+
+        with app.app_context():
+            reply = Message.query.filter_by(parent_id=original_id).one()
+            assert reply.sender_id == recipient_id
+            assert reply.recipient_id == sender_id
+            assert reply.item_id == item_id
+            assert reply.body == "Yes."
+
+    def test_mailgun_reply_rejects_malformed_recipient(self, client, app):
+        """Webhook rejects recipient addresses that don't contain a valid UUID."""
+        with app.app_context():
+            app.config["MAILGUN_WEBHOOK_SIGNING_KEY"] = SIGNING_KEY
+            original = MessageFactory()
+            db.session.commit()
+            original_id = original.id
+            recipient_email = original.recipient.email
+
+        payload = mailgun_payload(original_id, sender=recipient_email)
+        # Replace UUID with non-UUID text — regex won't match the 36-char pattern
+        payload["recipient"] = "Meutch Replies <reply+not-a-valid-uuid@meutch.com>"
+
+        response = client.post("/webhooks/mailgun/messages", data=payload)
+
+        assert response.status_code == 406
+
+        with app.app_context():
+            assert Message.query.filter_by(parent_id=original_id).count() == 0

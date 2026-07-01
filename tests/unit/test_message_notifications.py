@@ -52,7 +52,7 @@ class TestMessageNotifications:
     def test_send_message_notification_email_sets_reply_to(self, app):
         """Test message notifications include a reply-to address for email replies."""
         with app.app_context():
-            app.config["MAILGUN_INBOUND_DOMAIN"] = "reply.example.com"
+            app.config["MAILGUN_DOMAIN"] = "meutch.com"
             sender = UserFactory(email="sender@test.com")
             recipient = UserFactory(email="recipient@test.com")
             item = ItemFactory(name="Test Item", owner=recipient)
@@ -65,16 +65,35 @@ class TestMessageNotifications:
 
                 assert result is True
                 assert mock_send_email.call_args.kwargs["reply_to"] == (
-                    f"Meutch Replies <reply+{message.id}@reply.example.com>"
+                    f"Meutch Replies <reply+{message.id}@meutch.com>"
                 )
 
     def test_build_message_reply_address_returns_none_without_domain(self, app):
         with app.app_context():
-            app.config["MAILGUN_INBOUND_DOMAIN"] = None
             app.config["MAILGUN_DOMAIN"] = None
             message = MessageFactory()
 
             assert build_message_reply_address(message) is None
+
+    def test_build_message_reply_address_with_prefix(self, app):
+        """Reply address includes MAILGUN_REPLY_PREFIX when configured."""
+        with app.app_context():
+            app.config["MAILGUN_DOMAIN"] = "meutch.com"
+            app.config["MAILGUN_REPLY_PREFIX"] = "staging-"
+            message = MessageFactory()
+
+            address = build_message_reply_address(message)
+            assert address == f"Meutch Replies <reply+staging-{message.id}@meutch.com>"
+
+    def test_build_message_reply_address_without_prefix(self, app):
+        """Reply address omits prefix when MAILGUN_REPLY_PREFIX is empty."""
+        with app.app_context():
+            app.config["MAILGUN_DOMAIN"] = "meutch.com"
+            app.config["MAILGUN_REPLY_PREFIX"] = ""
+            message = MessageFactory()
+
+            address = build_message_reply_address(message)
+            assert address == f"Meutch Replies <reply+{message.id}@meutch.com>"
 
     def test_send_message_notification_email_loan_request(self, app):
         """Test sending email notification for a loan request message."""

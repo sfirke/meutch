@@ -14,7 +14,7 @@ from app.services import message_service
 from app.services.exceptions import AuthorizationError, InvalidActionError
 from app.webhooks import bp
 
-REPLY_RECIPIENT_RE = re.compile(r"^reply\+([0-9a-fA-F-]{36})$")
+REPLY_RECIPIENT_RE = re.compile(r"^reply\+(?:[a-z]+-)?([0-9a-fA-F-]{36})$")
 
 
 def verify_mailgun_signature(timestamp, token, signature):
