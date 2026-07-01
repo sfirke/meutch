@@ -62,8 +62,8 @@ to encode the environment in the reply-to local part:
 
 Create two Mailgun routes on the same domain (routes are free):
 
-1. `match_recipient("reply+staging-.*@meutch.com")` → forward to `https://staging.meutch.com/webhooks/mailgun/messages`
-2. `match_recipient("reply+.*@meutch.com")` → forward to `https://meutch.com/webhooks/mailgun/messages`
+1. `match_recipient("reply\+staging-.*@meutch.com")` → forward to `https://staging.meutch.com/webhooks/mailgun/messages`
+2. `match_recipient("reply\+.*@meutch.com")` → forward to `https://meutch.com/webhooks/mailgun/messages`
 
 Route order matters — put the more specific `staging-` rule first.
 
