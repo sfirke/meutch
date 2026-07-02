@@ -506,16 +506,6 @@ def _digest_event_title(event):
     return event["title"]
 
 
-def _digest_resolution_label(event):
-    if event.get("digest_variant") != "new-resolved-in-window":
-        return None
-    if event["event_type"] == "request" and event.get("resolution_status") == "fulfilled":
-        return "Fulfilled"
-    if event["event_type"] == "giveaway" and event.get("resolution_status") == "claimed":
-        return "Claimed"
-    return None
-
-
 def _digest_resolution_only_text(event):
     title = _digest_event_title(event)
     if event["event_type"] == "request":
