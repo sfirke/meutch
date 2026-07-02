@@ -23,6 +23,7 @@ from app.utils.circle_queries import (
     get_sorted_user_circles,
     should_show_circle_members,
 )
+from app.utils.pagination import ListPagination
 
 # Circles -----------------------------------------------------
 
@@ -195,8 +196,12 @@ def view_circle(circle_id):
     else:
         ordered_members = []
 
+    page = request.args.get("page", 1, type=int)
+    members_pagination = ListPagination(items=ordered_members, page=page, per_page=20)
+    total_members = members_pagination.total
+
     # Check if current user is the last member
-    is_last_member = is_member and len(circle.members) == 1
+    is_last_member = is_member and total_members == 1
 
     return render_template(
         "circles/circle_details.html",
@@ -206,7 +211,8 @@ def view_circle(circle_id):
         form=form,
         join_form=join_form,
         regional_form=regional_form,
-        ordered_members=ordered_members,
+        members_pagination=members_pagination,
+        total_members=total_members,
         pending_request=pending_request,
     )
 
