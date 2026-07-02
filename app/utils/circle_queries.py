@@ -6,6 +6,7 @@ from sqlalchemy import and_, or_, select
 
 from app import db
 from app.models import Circle, CircleJoinRequest, Item, ItemRequest, User, circle_members
+from app.utils.pagination import ListPagination
 
 
 def filter_circles_by_distance(circles, user, radius=None):
@@ -303,3 +304,13 @@ def get_ordered_circle_members(circle_id):
         .all()
     )
     return sorted(members_info, key=lambda member: (not member.is_admin, member.joined_at))
+
+
+def get_paginated_circle_members(circle_id, page=1, per_page=20):
+    """Return ListPagination of ordered members for a circle.
+
+    This wraps get_ordered_circle_members() with pagination so that
+    both the web UI and the API use the same member-listing logic.
+    """
+    ordered = get_ordered_circle_members(circle_id)
+    return ListPagination(items=ordered, page=page, per_page=per_page)

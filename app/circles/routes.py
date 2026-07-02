@@ -18,7 +18,7 @@ from app.utils.circle_queries import (
     build_circle_recommendations,
     get_admin_circle_pending_counts,
     get_listed_circles,
-    get_ordered_circle_members,
+    get_paginated_circle_members,
     get_pending_circle_join_request,
     get_sorted_user_circles,
     should_show_circle_members,
@@ -190,14 +190,11 @@ def view_circle(circle_id):
     # Check for pending request
     pending_request = get_pending_circle_join_request(circle_id, current_user.id)
 
-    # Only query member details if open circle or user is member
-    if should_show_circle_members(circle, current_user):
-        ordered_members = get_ordered_circle_members(circle_id)
-    else:
-        ordered_members = []
-
     page = request.args.get("page", 1, type=int)
-    members_pagination = ListPagination(items=ordered_members, page=page, per_page=20)
+    if should_show_circle_members(circle, current_user):
+        members_pagination = get_paginated_circle_members(circle_id, page=page, per_page=20)
+    else:
+        members_pagination = ListPagination(items=[], page=1, per_page=20)
     total_members = members_pagination.total
 
     # Check if current user is the last member
