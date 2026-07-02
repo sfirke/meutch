@@ -4,6 +4,10 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ## July 2026
 
+### Features
+**Minor**:
+- On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
+
 ### Bug fixes
 - Streamlined email digest fulfilled/claimed rendering: unified phrasing across both resolution variants, replaced green status pills with a subtle gray "New" label for items the user hasn't seen before, kept descriptions only for first-time items, and grouped new-resolved entries before previously-seen resolutions ([#427](https://github.com/sfirke/meutch/pull/427)).
 
