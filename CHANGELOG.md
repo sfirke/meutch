@@ -2,6 +2,12 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
+## July 2026
+
+### Bug fixes
+- Streamlined email digest fulfilled/claimed rendering: unified phrasing across both resolution variants, replaced green status pills with a subtle gray "New" label for items the user hasn't seen before, kept descriptions only for first-time items, and grouped new-resolved entries before previously-seen resolutions ([#427](https://github.com/sfirke/meutch/pull/427)).
+
+
 ## June 2026
 
 ### Features
@@ -15,8 +21,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Claimed giveaways no longer show a "Borrowed" status badge in the conversation "Item Status" card — they now correctly display "Rehomed" ([#398](https://github.com/sfirke/meutch/pull/398)).
 - Can no longer edit a fulfilled giveaway ([#406](https://github.com/sfirke/meutch/pull/406)).
 - Clicking "View Loan" on My Activity page now takes you to the current loan, not the first time the item was loaned (affected both borrowers and lenders) ([#410](https://github.com/sfirke/meutch/pull/410)).
-- Don't show details in email digest for requests marked fulfilled or giveaways marked completed ([#427](https://github.com/sfirke/meutch/pull/427)).
-- Streamlined email digest fulfilled/claimed rendering: unified phrasing across both resolution variants, replaced green status pills with a subtle gray "New" label for items the user hasn't seen before, kept descriptions only for first-time items, and grouped new-resolved entries before previously-seen resolutions within each section for faster scanning.
 
 ### API development (continued)
 - Add API loan activity reads and loan actions, including active borrowing/lending views plus loan request, approve/deny, cancel, complete, and extend endpoints ([#393](https://github.com/sfirke/meutch/pull/393)).
