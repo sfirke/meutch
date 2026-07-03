@@ -185,22 +185,33 @@ class TestPaginatedCircleMembers:
             assert f'href="/circles/{circle.id}?page=2"' in html
 
     def test_page_two_shows_remaining_members(self, client, app):
-        """Page 2 should show members beyond the first 20."""
+        """Page 2 should show the 5 members that don't fit on page 1 (25 total, 20 per page)."""
         with app.app_context():
             circle = CircleFactory()
             members = [UserFactory() for _ in range(25)]
             circle.members.extend(members)
             db.session.commit()
 
+            all_ids = {str(m.id) for m in members}
             login_user(client, members[0].email)
 
-            response = client.get(url_for("circles.view_circle", circle_id=circle.id, page=2))
-            assert response.status_code == 200
+            # Collect member IDs visible on page 1
+            resp1 = client.get(url_for("circles.view_circle", circle_id=circle.id, page=1))
+            assert resp1.status_code == 200
+            html1 = resp1.data.decode()
+            page1_ids = {str(m.id) for m in members if str(m.id) in html1}
 
-            html = response.data.decode()
-            # Page 2 should contain the 21st member (index 20)
-            assert members[20].first_name in html
-            assert '<li class="page-item active"><span class="page-link">2</span></li>' in html
+            # Collect member IDs visible on page 2
+            resp2 = client.get(url_for("circles.view_circle", circle_id=circle.id, page=2))
+            assert resp2.status_code == 200
+            html2 = resp2.data.decode()
+            page2_ids = {str(m.id) for m in members if str(m.id) in html2}
+
+            # Page 2 should show exactly 5 members, all distinct from page 1
+            assert len(page2_ids) == 5
+            assert page1_ids.isdisjoint(page2_ids)
+            assert page1_ids | page2_ids == all_ids
+            assert '<li class="page-item active"><span class="page-link">2</span></li>' in html2
 
     def test_join_leave_button_above_members(self, client, app):
         """The Join/Leave button should appear before the members heading in HTML."""
