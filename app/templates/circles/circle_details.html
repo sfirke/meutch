@@ -224,28 +224,28 @@
                     <ul class="list-group">
                         {% for request in circle.join_requests %}
                             {% if request.status == 'pending' %}
-                                <li class="list-group-item">
+                                <li class="list-group-item join-request-item">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <div class="d-flex align-items-center">
+                                        <div class="d-flex align-items-center" style="min-width: 0;">
                                             <img src="{{ request.user.profile_image }}" alt="{{ request.user.first_name }} {{ request.user.last_name }}"
-                                                 class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;">
-                                            <div>
+                                                 class="rounded-circle me-3 flex-shrink-0" style="width: 40px; height: 40px; object-fit: cover;">
+                                            <div style="min-width: 0;">
                                                 <a href="{{ url_for('main.user_profile', user_id=request.user.id) }}" class="text-decoration-none">
-                                                    <strong>{{ request.user.first_name }} {{ request.user.last_name }}</strong>
+                                                    <strong class="d-block member-list-name">{{ request.user.first_name }} {{ request.user.last_name }}</strong>
                                                 </a>
                                                 {% if request.message %}
-                                                    <p class="mb-0 text-muted small">{{ request.message }}</p>
+                                                    <p class="mb-0 text-muted small member-list-name">{{ request.message }}</p>
                                                 {% endif %}
                                             </div>
                                         </div>
                                         <div class="button-group">
                                             <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='approve') }}" method="POST">
                                                 {{ form.csrf_token }}
-                                                <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                                                <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check me-1"></i>Approve</button>
                                             </form>
                                             <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='reject') }}" method="POST">
                                                 {{ form.csrf_token }}
-                                                <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                                                <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-times me-1"></i>Reject</button>
                                             </form>
                                         </div>
                                     </div>
@@ -265,18 +265,18 @@
             <ul class="list-group mb-4">
                 {% for member, joined_at, is_admin in members_pagination.items %}
 
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center">
+                <li class="list-group-item circle-member-item d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center" style="min-width: 0;">
                         {% if is_admin %}
-                            <span class="badge bg-primary me-2" title="Circle Admin">
+                            <span class="badge bg-primary me-2 flex-shrink-0" title="Circle Admin">
                                 <i class="fas fa-shield-alt"></i>
                             </span>
                         {% endif %}
                         <img src="{{ member.profile_image }}" alt="{{ member.first_name }} {{ member.last_name }}"
-                             class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;">
-                        <div>
+                             class="rounded-circle me-3 flex-shrink-0" style="width: 40px; height: 40px; object-fit: cover;">
+                        <div style="min-width: 0;">
                             <a href="{{ url_for('main.user_profile', user_id=member.id) }}" class="text-decoration-none">
-                                {{ member.first_name }} {{ member.last_name }}
+                                <span class="d-block member-list-name">{{ member.first_name }} {{ member.last_name }}</span>
                             </a>
                         </div>
                     </div>
@@ -285,19 +285,19 @@
                             {% if is_admin %}
                                 <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='remove') }}" method="POST">
                                     {{ form.csrf_token }}
-                                    <button type="submit" class="btn btn-warning btn-sm">Remove Admin</button>
+                                    <button type="submit" class="btn btn-warning btn-sm"><i class="fas fa-user-minus me-1"></i>Remove Admin</button>
                                 </form>
                             {% else %}
                                 <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='add') }}" method="POST">
                                     {{ form.csrf_token }}
-                                    <button type="submit" class="btn btn-primary btn-sm">Make Admin</button>
+                                    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-user-shield me-1"></i>Make Admin</button>
                                 </form>
                             {% endif %}
                             <form action="{{ url_for('circles.remove_member', circle_id=circle.id, user_id=member.id) }}" method="POST">
                                 {{ form.csrf_token }}
                                 <button type="submit" class="btn btn-danger btn-sm"
                                         onclick="return confirm('Are you sure you want to remove this member from the circle?');">
-                                    Remove
+                                    <i class="fas fa-user-xmark me-1"></i>Remove
                                 </button>
                             </form>
                         </div>
