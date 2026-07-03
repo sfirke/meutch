@@ -1,6 +1,6 @@
 # pylint: disable=not-callable
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app import db
@@ -101,7 +101,7 @@ def build_inbox_summaries(viewer_id, *, include_archived=False):
             Message.conversation_id,
             func.max(Message.timestamp).label("latest_timestamp"),
         )
-        .filter(Message.conversation_id.in_(participant_conversations))
+        .filter(Message.conversation_id.in_(select(participant_conversations)))
         .group_by(Message.conversation_id)
         .subquery()
     )
@@ -221,7 +221,7 @@ def build_request_conversation_summaries(request_id, viewer_id):
     )
 
     messages = (
-        Message.query.filter(Message.conversation_id.in_(conv_ids))
+        Message.query.filter(Message.conversation_id.in_(select(conv_ids)))
         .order_by(Message.timestamp.desc())
         .all()
     )

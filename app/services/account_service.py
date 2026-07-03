@@ -1,7 +1,7 @@
 import logging
 from datetime import UTC, date, datetime
 
-from sqlalchemy import and_
+from sqlalchemy import and_, select
 
 from app import db
 from app.models import (
@@ -95,11 +95,11 @@ def delete_user_account(user):
                 )
                 .subquery()
             )
-            Message.query.filter(Message.conversation_id.in_(conv_ids)).delete(
+            Message.query.filter(Message.conversation_id.in_(select(conv_ids))).delete(
                 synchronize_session=False
             )
             ConversationParticipant.query.filter(
-                ConversationParticipant.conversation_id.in_(conv_ids)
+                ConversationParticipant.conversation_id.in_(select(conv_ids))
             ).delete(synchronize_session=False)
             Conversation.query.filter(
                 Conversation.context_type == "item",

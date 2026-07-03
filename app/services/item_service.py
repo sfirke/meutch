@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app import db
@@ -407,12 +408,12 @@ def delete_item_with_cleanup(item):
         )
         .subquery()
     )
-    Message.query.filter(Message.conversation_id.in_(conversation_ids)).delete(
+    Message.query.filter(Message.conversation_id.in_(select(conversation_ids))).delete(
         synchronize_session=False
     )
     # Delete conversation participants and conversations for this item
     ConversationParticipant.query.filter(
-        ConversationParticipant.conversation_id.in_(conversation_ids)
+        ConversationParticipant.conversation_id.in_(select(conversation_ids))
     ).delete(synchronize_session=False)
     Conversation.query.filter(
         Conversation.context_type == "item",
