@@ -1,6 +1,6 @@
 """Circle read and write endpoints for API v1."""
 
-from flask import abort
+from flask import abort, request
 from flask_jwt_extended import jwt_required
 
 from app import db
@@ -28,7 +28,7 @@ from app.services import circle_service
 from app.utils.circle_queries import (
     get_admin_circle_pending_counts,
     get_listed_circles,
-    get_ordered_circle_members,
+    get_paginated_circle_members,
     get_sorted_user_circles,
     should_show_circle_members,
 )
@@ -69,22 +69,30 @@ def _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle):
     return circle
 
 
-def _annotate_circle_detail(circle):
+def _annotate_circle_detail(circle, members_page=1, members_per_page=20):
     admin_pending_counts = get_admin_circle_pending_counts(current_user.id)
     pending_requests_by_circle = _fetch_pending_requests_by_circle(current_user.id, [circle.id])
     circle = _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle)
     circle.api_can_view_members = should_show_circle_members(circle, current_user)
-    circle.api_is_last_member = circle.api_is_member and len(circle.members) == 1
     circle.api_members = []
+    circle.api_members_total = 0
+    circle.api_members_page = members_page
+    circle.api_members_pages = 0
     if circle.api_can_view_members:
+        pagination = get_paginated_circle_members(
+            circle.id, page=members_page, per_page=members_per_page
+        )
         circle.api_members = [
             {
                 "user": member.User,
                 "joined_at": member.joined_at,
                 "is_admin": member.is_admin,
             }
-            for member in get_ordered_circle_members(circle.id)
+            for member in pagination.items
         ]
+        circle.api_members_total = pagination.total
+        circle.api_members_pages = pagination.pages
+    circle.api_is_last_member = circle.api_is_member and circle.api_members_total == 1
     return circle
 
 
@@ -131,7 +139,15 @@ def get_circle(circle_id):
     circle = db.get_or_404(Circle, circle_id)
     if circle.circle_type == "secret" and current_user not in circle.members:
         abort(404)
-    return CIRCLE_DETAIL_RESPONSE_SCHEMA.dump({"circle": _annotate_circle_detail(circle)})
+    members_page = request.args.get("members_page", 1, type=int)
+    members_per_page = request.args.get("members_per_page", 20, type=int)
+    return CIRCLE_DETAIL_RESPONSE_SCHEMA.dump(
+        {
+            "circle": _annotate_circle_detail(
+                circle, members_page=members_page, members_per_page=members_per_page
+            )
+        }
+    )
 
 
 @bp.post("/circles")
