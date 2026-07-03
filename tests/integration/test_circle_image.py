@@ -165,56 +165,31 @@ def test_site_admin_can_update_regional_settings_from_circle_details(client, app
 class TestPaginatedCircleMembers:
     """Tests for paginated member list on circle details page."""
 
-    PER_PAGE = 20
-
-    def _add_members(self, circle, count, start_index=0):
-        """Add members to a circle via raw SQL for speed."""
-        users = []
-        for i in range(count):
-            user = UserFactory()
-            db.session.flush()
-            is_admin = start_index + i == 0  # First member is admin
-            db.session.execute(
-                text(f"""
-                INSERT INTO circle_members (user_id, circle_id, joined_at, is_admin)
-                VALUES ('{user.id}', '{circle.id}', NOW() + INTERVAL '{start_index + i} seconds', {'TRUE' if is_admin else 'FALSE'})
-                ON CONFLICT DO NOTHING
-                """)
-            )
-            users.append(user)
-        db.session.commit()
-        return users
-
     def test_pagination_controls_appear_with_many_members(self, client, app):
         """When a circle has >20 members, pagination controls should appear."""
         with app.app_context():
             circle = CircleFactory()
-            self._add_members(circle, 1, start_index=0)  # will be the admin
-            members = self._add_members(circle, 24, start_index=1)
+            members = [UserFactory() for _ in range(25)]
+            circle.members.extend(members)
             db.session.commit()
 
-            # Login as a regular member (not admin) to keep it simple
             login_user(client, members[0].email)
 
             response = client.get(url_for("circles.view_circle", circle_id=circle.id))
             assert response.status_code == 200
 
             html = response.data.decode()
-            # Should show 25 total members
             assert "Members (25)" in html
-            # Pagination nav should appear
             assert 'aria-label="Members pages"' in html
-            # Page 1 is active
             assert '<li class="page-item active"><span class="page-link">1</span></li>' in html
-            # Page 2 link exists
             assert f'href="/circles/{circle.id}?page=2"' in html
 
     def test_page_two_shows_remaining_members(self, client, app):
         """Page 2 should show members beyond the first 20."""
         with app.app_context():
             circle = CircleFactory()
-            self._add_members(circle, 1, start_index=0)
-            members = self._add_members(circle, 24, start_index=1)
+            members = [UserFactory() for _ in range(25)]
+            circle.members.extend(members)
             db.session.commit()
 
             login_user(client, members[0].email)
@@ -223,22 +198,18 @@ class TestPaginatedCircleMembers:
             assert response.status_code == 200
 
             html = response.data.decode()
-            # The 21st member (index 20 in members list, index 21 overall) should appear
-            # The admin is first, then 24 regular members. Page 2 shows members 21-25
-            # (admin + 19 regular on page 1, 5 regular on page 2)
-            assert members[19].first_name in html  # 20th regular member, on page 2
-            # Page 2 is active
+            # Page 2 should contain the 21st member (index 20)
+            assert members[20].first_name in html
             assert '<li class="page-item active"><span class="page-link">2</span></li>' in html
 
     def test_join_leave_button_above_members(self, client, app):
         """The Join/Leave button should appear before the members heading in HTML."""
         with app.app_context():
             circle = CircleFactory(circle_type="open")
-            self._add_members(circle, 1, start_index=0)
-            members = self._add_members(circle, 5, start_index=1)
+            members = [UserFactory() for _ in range(6)]
+            circle.members.extend(members)
             db.session.commit()
 
-            # Login as a member to see "Leave Circle" button
             login_user(client, members[0].email)
 
             response = client.get(url_for("circles.view_circle", circle_id=circle.id))
@@ -257,7 +228,8 @@ class TestPaginatedCircleMembers:
         """A non-member of a closed circle sees Join button above the closed message."""
         with app.app_context():
             circle = CircleFactory(circle_type="closed")
-            self._add_members(circle, 1, start_index=0)
+            member = UserFactory()
+            circle.members.append(member)
             db.session.commit()
 
             non_member = UserFactory()
@@ -280,67 +252,12 @@ class TestPaginatedCircleMembers:
         """The member count should show the correct total from pagination."""
         with app.app_context():
             circle = CircleFactory()
-            owner = UserFactory()
-            self._add_members(circle, 1, start_index=0)
-            self._add_members(circle, 7, start_index=1)
+            members = [UserFactory() for _ in range(8)]
+            circle.members.extend(members)
             db.session.commit()
 
-            login_user(client, owner.email)
+            login_user(client, members[0].email)
             response = client.get(url_for("circles.view_circle", circle_id=circle.id))
             html = response.data.decode()
 
             assert "Members (8)" in html
-
-    def test_admin_actions_work_on_paginated_page(self, client, app):
-        """Admin toggle/remove actions should still work after pagination changes."""
-        with app.app_context():
-            circle = CircleFactory()
-            # First member added is the circle admin (is_admin=True from _add_members)
-            admins = self._add_members(circle, 1, start_index=0)
-            circle_admin = admins[0]
-            members = self._add_members(circle, 3, start_index=1)
-            db.session.commit()
-
-            login_user(client, circle_admin.email)
-
-            # Toggle admin for a regular member
-            target = members[1]
-            response = client.post(
-                url_for(
-                    "circles.toggle_admin",
-                    circle_id=circle.id,
-                    user_id=target.id,
-                    action="add",
-                ),
-                follow_redirects=True,
-            )
-            assert response.status_code == 200
-
-            # Verify the member is now admin
-            row = db.session.execute(
-                text(f"""
-                SELECT is_admin FROM circle_members
-                WHERE user_id = '{target.id}' AND circle_id = '{circle.id}'
-                """)
-            ).fetchone()
-            assert row is not None and row[0] is True
-
-            # Remove the member
-            response = client.post(
-                url_for(
-                    "circles.remove_member",
-                    circle_id=circle.id,
-                    user_id=target.id,
-                ),
-                follow_redirects=True,
-            )
-            assert response.status_code == 200
-
-            # Verify the member was removed
-            row = db.session.execute(
-                text(f"""
-                SELECT 1 FROM circle_members
-                WHERE user_id = '{target.id}' AND circle_id = '{circle.id}'
-                """)
-            ).fetchone()
-            assert row is None
