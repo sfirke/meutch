@@ -72,7 +72,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Details Column -->
         <div class="col-lg-7">
             <div class="item-detail-content">
@@ -88,7 +88,7 @@
                                 {% include 'share/_share_button.html' %}
                             {% endif %}
                         </div>
-                        
+
                         {% if item.description %}
                             <p class="card-text lead text-muted mb-4">{{ item.description }}</p>
                         {% endif %}
@@ -98,20 +98,20 @@
                                 <i class="fas fa-link me-2"></i>You are viewing this item through a shared link that will expire 30 days after its creation. You can request to borrow it even though you do not share a circle with the owner.
                             </div>
                         {% endif %}
-                        
+
                         <!-- Owner -->
                         <div class="row mb-4">
                             <div class="col-sm-6">
                                 <div class="d-flex align-items-center mb-2">
                                     <i class="fas fa-user me-2 text-primary"></i>
                                     <span class="fw-bold">Owner:</span>
-                                    <a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}" 
+                                    <a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}"
                                        class="ms-2 text-decoration-none">
                                         {{ item.owner.first_name }} {{ item.owner.last_name }}
                                     </a>
                                 </div>
                             </div>
-                            
+
                             <!-- Distance (only for other users' items) -->
                             {% if current_user.is_authenticated and current_user.id != item.owner.id %}
                                 {% set distance = get_distance_to_item(item) %}
@@ -126,18 +126,18 @@
                                 {% endif %}
                             {% endif %}
                         </div>
-                        
+
                         <!-- Category and Tags -->
                         <div class="mb-4">
                             <div class="d-flex align-items-center mb-3">
                                 <i class="fas fa-folder me-2 text-muted"></i>
                                 <span class="fw-bold me-2">Category:</span>
-                                <a href="{{ url_for('main.category_items', category_id=item.category.id) }}" 
+                                <a href="{{ url_for('main.category_items', category_id=item.category.id) }}"
                                    class="category text-decoration-none">
                                     <i class="fas fa-folder me-1"></i>{{ item.category.name }}
                                 </a>
                             </div>
-                            
+
                             {% if item.tags %}
                                 <div class="d-flex align-items-start">
                                     <i class="fas fa-tags me-2 text-primary mt-1"></i>
@@ -155,7 +155,7 @@
                                 </div>
                             {% endif %}
                         </div>
-                        
+
                         <!-- Action Buttons -->
                         <div class="d-grid gap-2 d-md-flex">
                             {% if current_user.is_authenticated and current_user.id != item.owner.id %}
@@ -165,14 +165,14 @@
                                         {% if not user_interest %}
                                             <div class="w-100 d-flex flex-column gap-3 giveaway-interest-panel">
                                                 <!-- Show "I Want This!" button if not already interested -->
-                                                <button type="button" class="btn btn-success btn-lg align-self-start" 
-                                                        data-bs-toggle="collapse" 
+                                                <button type="button" class="btn btn-success btn-lg align-self-start"
+                                                        data-bs-toggle="collapse"
                                                         data-bs-target="#expressInterestForm"
-                                                        aria-expanded="false" 
+                                                        aria-expanded="false"
                                                         aria-controls="expressInterestForm">
                                                     <i class="fas fa-gift me-2"></i>I Want This!
                                                 </button>
-                                                
+
                                                 <!-- Collapsible Interest Expression Form (for giveaways) -->
                                                 <div class="collapse" id="expressInterestForm">
                                                     <div class="card card-body">
@@ -187,8 +187,8 @@
                                                                 <button type="submit" class="btn btn-success">
                                                                     <i class="fas fa-paper-plane me-2"></i>Submit Interest
                                                                 </button>
-                                                                <button type="button" class="btn btn-secondary" 
-                                                                        data-bs-toggle="collapse" 
+                                                                <button type="button" class="btn btn-secondary"
+                                                                        data-bs-toggle="collapse"
                                                                         data-bs-target="#expressInterestForm">
                                                                     Cancel
                                                                 </button>
@@ -202,8 +202,8 @@
                                             <div class="alert alert-success mb-0" role="alert">
                                                 <i class="fas fa-check-circle me-2"></i>You've expressed interest! The owner will contact you if selected.
                                             </div>
-                                            <form action="{{ url_for('main.withdraw_interest', item_id=item.id) }}" 
-                                                  method="post" 
+                                            <form action="{{ url_for('main.withdraw_interest', item_id=item.id) }}"
+                                                  method="post"
                                                   class="d-inline"
                                                   onsubmit="return confirm('Are you sure you want to withdraw your interest?');">
                                                 {{ withdraw_interest_form.hidden_tag() }}
@@ -222,19 +222,19 @@
                                 {% else %}
                                     <!-- Regular loan item actions -->
                                     {% if item.available %}
-                                        <a href="{{ url_for('main.request_item', item_id=item.id, share_token=share_token) if share_token else url_for('main.request_item', item_id=item.id) }}" 
+                                        <a href="{{ url_for('main.request_item', item_id=item.id, share_token=share_token) if share_token else url_for('main.request_item', item_id=item.id) }}"
                                            class="btn btn-primary btn-lg">
                                             <i class="fas fa-hand-holding me-2"></i>Request to Borrow
                                         </a>
                                     {% endif %}
                                 {% endif %}
                             {% endif %}
-                            
+
                             {% if current_user.is_authenticated and current_user.id == item.owner.id %}
                                 <!-- Owner actions -->
                                 {% if item.is_giveaway %}
                                     {% if item.claim_status in [None, 'unclaimed'] and interested_count > 0 %}
-                                        <a href="{{ url_for('main.select_recipient', item_id=item.id) }}" 
+                                        <a href="{{ url_for('main.select_recipient', item_id=item.id) }}"
                                            class="btn btn-primary btn-lg">
                                             <i class="fas fa-user-check me-2"></i>View Interested Users
                                             <span class="badge bg-light text-dark ms-2">{{ interested_count }}</span>
@@ -252,25 +252,25 @@
                                                     </span>
                                                 </div>
                                                 <p class="text-muted mb-3">Once they have the item, mark the handoff complete so this giveaway closes out cleanly.</p>
-                                                
+
                                                 <!-- Primary action: Confirm Handoff -->
-                                                <form action="{{ url_for('main.confirm_handoff', item_id=item.id) }}" 
-                                                      method="post" 
+                                                <form action="{{ url_for('main.confirm_handoff', item_id=item.id) }}"
+                                                      method="post"
                                                       class="mb-3">
                                                     {{ confirm_handoff_form.hidden_tag() }}
                                                     <button type="submit" class="btn btn-success btn-lg w-100">
                                                         <i class="fas fa-check-circle me-2"></i>Mark Handoff Complete
                                                     </button>
                                                 </form>
-                                                
+
                                                 <!-- Secondary actions -->
                                                 <div class="d-flex gap-2">
-                                                    <a href="{{ url_for('main.select_recipient', item_id=item.id) }}" 
+                                                    <a href="{{ url_for('main.select_recipient', item_id=item.id) }}"
                                                        class="btn btn-outline-secondary btn-sm flex-fill">
                                                         <i class="fas fa-exchange-alt me-1"></i>Change Recipient
                                                     </a>
-                                                    <form action="{{ url_for('main.release_to_all', item_id=item.id) }}" 
-                                                          method="post" 
+                                                    <form action="{{ url_for('main.release_to_all', item_id=item.id) }}"
+                                                          method="post"
                                                           class="flex-fill"
                                                           onsubmit="return confirm('Release this giveaway back to everyone? The item will reappear in the feed and all interested users will remain in the pool.');">
                                                         {{ release_to_all_form.hidden_tag() }}
@@ -322,13 +322,13 @@
                                         </div>
                                     </div>
                                 {% endif %}
-                                
+
                             {% endif %}
                         </div>
                     </div>
                     {% set is_claimed_giveaway = item.is_giveaway and item.claim_status == 'claimed' %}
                     {% if current_user.is_authenticated and current_user.id == item.owner.id and not is_claimed_giveaway %}
-                        <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div class="card-footer d-flex flex-wrap gap-2 align-items-center justify-content-between">
                             <a href="{{ url_for('main.edit_item', item_id=item.id) }}"
                                class="btn btn-sm btn-outline-secondary">
                                 <i class="fas fa-pencil-alt me-1"></i>Edit Item
@@ -351,7 +351,7 @@
                     {% set item_confirm_handoff_form = confirm_handoff_form %}
                     {% include 'main/_delete_item_modal.html' %}
                 {% endif %}
-                
+
                 <!-- Message Owner Card -->
                 {% if current_user.is_authenticated and current_user.id != item.owner.id %}
                     <div class="card">
@@ -369,7 +369,7 @@
                                     <input type="hidden" name="share_token" value="{{ share_token }}">
                                 {% endif %}
                                 {{ form.hidden_tag() }}
-                                
+
                                 <div class="mb-3">
                                     {{ form.body.label(class="form-label") }}
                                     {{ form.body(class="form-control", rows="4", placeholder="What do you want to know about the item or lending it?" if not item.is_giveaway else "What do you want to know about this giveaway?") }}

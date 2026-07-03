@@ -684,6 +684,25 @@ footer h6 {
         margin-top: 1rem !important;
         text-align: left;
     }
+
+    /* Circle member list — stack vertically on mobile */
+    .circle-member-item,
+    .join-request-item {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.5rem !important;
+    }
+
+    .circle-member-item .button-group,
+    .join-request-item .button-group {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .circle-member-item .btn-sm,
+    .join-request-item .btn-sm {
+        padding: 0.4rem 0.75rem;
+    }
 }
 
 @media (max-width: 576px) {
@@ -1018,6 +1037,16 @@ footer h6 {
 .button-group {
     display: flex;
     gap: 5px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+/* Circle member list — prevent long names from pushing action buttons out of view */
+.member-list-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Smaller Form Control for Datepickers */
