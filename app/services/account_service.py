@@ -4,7 +4,15 @@ from datetime import UTC, date, datetime
 from sqlalchemy import and_
 
 from app import db
-from app.models import CircleJoinRequest, Feedback, LoanRequest, Message, circle_members
+from app.models import (
+    CircleJoinRequest,
+    Conversation,
+    ConversationParticipant,
+    Feedback,
+    LoanRequest,
+    Message,
+    circle_members,
+)
 from app.utils.email import send_account_deletion_email
 from app.utils.storage import delete_file
 
@@ -78,7 +86,25 @@ def delete_user_account(user):
                 delete_file(image.url)
 
             LoanRequest.query.filter_by(item_id=item.id).delete()
-            Message.query.filter_by(item_id=item.id).delete()
+            # Delete messages via conversation lookup
+            conv_ids = (
+                db.session.query(Conversation.id)
+                .filter(
+                    Conversation.context_type == "item",
+                    Conversation.context_id == item.id,
+                )
+                .subquery()
+            )
+            Message.query.filter(Message.conversation_id.in_(conv_ids)).delete(
+                synchronize_session=False
+            )
+            ConversationParticipant.query.filter(
+                ConversationParticipant.conversation_id.in_(conv_ids)
+            ).delete(synchronize_session=False)
+            Conversation.query.filter(
+                Conversation.context_type == "item",
+                Conversation.context_id == item.id,
+            ).delete(synchronize_session=False)
             db.session.delete(item)
 
     if user.profile_image_url:

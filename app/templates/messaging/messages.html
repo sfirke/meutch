@@ -12,7 +12,7 @@
     {% if conversations %}
         <div class="conversations-list">
             {% for convo in conversations %}
-                <a href="{{ url_for('main.view_conversation', message_id=convo.latest_message.id) }}" class="conversation-link-wrapper text-decoration-none">
+                <a href="{{ url_for('main.view_conversation', conversation_id=convo.latest_message.conversation_id) }}" class="conversation-link-wrapper text-decoration-none">
                     <div class="card conversation-card {% if convo.unread_count > 0 %}conversation-unread{% endif %}">
                         <div class="card-body">
                             <div class="row g-0">

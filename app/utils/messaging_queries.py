@@ -1,7 +1,16 @@
+# pylint: disable=not-callable
+
 from sqlalchemy import and_, func, or_
+from sqlalchemy.exc import IntegrityError
 
 from app import db
-from app.models import LoanRequest, Message, User
+from app.models import (
+    Conversation,
+    ConversationParticipant,
+    LoanRequest,
+    Message,
+    User,
+)
 
 
 def get_conversation_other_user_id(message, viewer_id):
@@ -12,130 +21,147 @@ def get_conversation_other_user_id(message, viewer_id):
     return None
 
 
-def build_message_target_filter(message):
-    if message.is_request_message:
-        return and_(
-            Message.request_id == message.request_id,
-            Message.item_id.is_(None),
-            Message.circle_id.is_(None),
+def _find_conversation(context_type, context_id, user1_id, user2_id):
+    """Look up an existing conversation between two users in a given context."""
+    conv_subq = (
+        db.session.query(ConversationParticipant.conversation_id)
+        .filter(
+            ConversationParticipant.user_id.in_([user1_id, user2_id]),
         )
-    if message.is_circle_message:
-        return and_(
-            Message.circle_id == message.circle_id,
-            Message.item_id.is_(None),
-            Message.request_id.is_(None),
+        .group_by(ConversationParticipant.conversation_id)
+        .having(func.count(ConversationParticipant.user_id) == 2)
+        .subquery()
+    )
+    return (
+        db.session.query(Conversation)
+        .join(conv_subq, Conversation.id == conv_subq.c.conversation_id)
+        .filter(
+            Conversation.context_type == context_type,
+            Conversation.context_id == context_id,
         )
-    return and_(
-        Message.item_id == message.item_id,
-        Message.request_id.is_(None),
-        Message.circle_id.is_(None),
+        .first()
     )
 
 
-def build_message_participant_filter(sender_id, recipient_id):
-    return or_(
-        and_(
-            Message.sender_id == sender_id,
-            Message.recipient_id == recipient_id,
-        ),
-        and_(
-            Message.sender_id == recipient_id,
-            Message.recipient_id == sender_id,
-        ),
-    )
+def resolve_conversation(context_type, context_id, user1_id, user2_id):
+    """Find or create a conversation WITHOUT committing.
+
+    Returns (conversation, is_new) where is_new is True if the conversation
+    was freshly created.
+    """
+    u1, u2 = sorted([user1_id, user2_id])
+    existing = _find_conversation(context_type, context_id, u1, u2)
+    if existing:
+        return existing, False
+
+    conv = Conversation(context_type=context_type, context_id=context_id)
+    db.session.add(conv)
+    db.session.flush()  # get the ID
+    for uid in {u1, u2}:
+        db.session.add(ConversationParticipant(conversation_id=conv.id, user_id=uid))
+    db.session.flush()  # ensure participants are visible to later queries
+    return conv, True
 
 
-def build_inbox_summaries(viewer_id):
-    latest_messages_subquery = (
-        db.session.query(
-            func.least(Message.sender_id, Message.recipient_id).label("user1_id"),
-            func.greatest(Message.sender_id, Message.recipient_id).label("user2_id"),
-            Message.item_id,
-            Message.request_id,
-            Message.circle_id,
-            func.max(Message.timestamp).label("latest_timestamp"),  # pylint: disable=not-callable
-        )
-        .filter(or_(Message.sender_id == viewer_id, Message.recipient_id == viewer_id))
-        .group_by(
-            func.least(Message.sender_id, Message.recipient_id),
-            func.greatest(Message.sender_id, Message.recipient_id),
-            Message.item_id,
-            Message.request_id,
-            Message.circle_id,
-        )
+def get_or_create_conversation(context_type, context_id, user1_id, user2_id):
+    """Find an existing conversation or create one with two participants.
+
+    Normalizes user order for deterministic lookup.  Handles the race
+    where two simultaneous requests both try to create the same
+    conversation by catching IntegrityError and re-querying.
+    """
+    u1, u2 = sorted([user1_id, user2_id])
+    existing = _find_conversation(context_type, context_id, u1, u2)
+    if existing:
+        return existing
+
+    try:
+        conv = Conversation(context_type=context_type, context_id=context_id)
+        db.session.add(conv)
+        db.session.flush()  # get the ID
+        for uid in (u1, u2):
+            db.session.add(ConversationParticipant(conversation_id=conv.id, user_id=uid))
+        db.session.commit()
+        return conv
+    except IntegrityError:
+        db.session.rollback()
+        return _find_conversation(context_type, context_id, u1, u2)
+
+
+def build_inbox_summaries(viewer_id, *, include_archived=False):
+    """Return inbox summaries for the viewer, keyed by conversation."""
+    participant_conversations = (
+        db.session.query(ConversationParticipant.conversation_id)
+        .filter(ConversationParticipant.user_id == viewer_id)
         .subquery()
     )
 
-    latest_conversations = (
+    latest_msg_subq = (
+        db.session.query(
+            Message.conversation_id,
+            func.max(Message.timestamp).label("latest_timestamp"),
+        )
+        .filter(Message.conversation_id.in_(participant_conversations))
+        .group_by(Message.conversation_id)
+        .subquery()
+    )
+
+    latest_messages = (
         db.session.query(Message)
         .join(
-            latest_messages_subquery,
+            latest_msg_subq,
             and_(
-                func.least(Message.sender_id, Message.recipient_id)
-                == latest_messages_subquery.c.user1_id,
-                func.greatest(Message.sender_id, Message.recipient_id)
-                == latest_messages_subquery.c.user2_id,
-                or_(
-                    and_(Message.item_id.is_(None), latest_messages_subquery.c.item_id.is_(None)),
-                    Message.item_id == latest_messages_subquery.c.item_id,
-                ),
-                or_(
-                    and_(
-                        Message.request_id.is_(None),
-                        latest_messages_subquery.c.request_id.is_(None),
-                    ),
-                    Message.request_id == latest_messages_subquery.c.request_id,
-                ),
-                or_(
-                    and_(
-                        Message.circle_id.is_(None),
-                        latest_messages_subquery.c.circle_id.is_(None),
-                    ),
-                    Message.circle_id == latest_messages_subquery.c.circle_id,
-                ),
-                Message.timestamp == latest_messages_subquery.c.latest_timestamp,
+                Message.conversation_id == latest_msg_subq.c.conversation_id,
+                Message.timestamp == latest_msg_subq.c.latest_timestamp,
             ),
         )
         .order_by(Message.timestamp.desc())
         .all()
     )
 
-    conversation_summaries = []
-    for conversation in latest_conversations:
-        other_user_id = get_conversation_other_user_id(conversation, viewer_id)
-        other_user = db.session.get(User, other_user_id)
-        target_filter = build_message_target_filter(conversation)
+    summaries = []
+    for msg in latest_messages:
+        conversation = msg.conversation
+        participant = ConversationParticipant.query.filter_by(
+            conversation_id=conversation.id, user_id=viewer_id
+        ).first()
+        other_participant = ConversationParticipant.query.filter(
+            ConversationParticipant.conversation_id == conversation.id,
+            ConversationParticipant.user_id != viewer_id,
+        ).first()
 
-        conversation_summaries.append(
+        summaries.append(
             {
-                "conversation_id": (
-                    f"{min(conversation.sender_id, conversation.recipient_id)}_"
-                    f"{max(conversation.sender_id, conversation.recipient_id)}_"
-                    f"{conversation.item_id}_{conversation.request_id}_{conversation.circle_id}"
+                "conversation_id": str(conversation.id),
+                "other_user": other_participant.user if other_participant else None,
+                "item": conversation.item if conversation.context_type == "item" else None,
+                "item_request": (
+                    conversation.request if conversation.context_type == "request" else None
                 ),
-                "other_user": other_user,
-                "item": conversation.item if not conversation.is_request_message else None,
-                "item_request": conversation.request if conversation.is_request_message else None,
-                "circle": conversation.circle if conversation.is_circle_message else None,
-                "latest_message": conversation,
-                "unread_count": Message.query.filter(
-                    target_filter,
-                    Message.recipient_id == viewer_id,
-                    Message.sender_id == other_user.id,
-                    Message.is_read.is_(False),
+                "circle": conversation.circle if conversation.context_type == "circle" else None,
+                "latest_message": msg,
+                "unread_count": Message.query.filter_by(
+                    conversation_id=conversation.id,
+                    recipient_id=viewer_id,
+                    is_read=False,
                 ).count(),
+                "is_archived": participant.is_archived if participant else False,
             }
         )
 
-    return conversation_summaries
+    if not include_archived:
+        summaries = [s for s in summaries if not s.get("is_archived")]
+
+    return summaries
 
 
 def build_conversation_thread_state(message, viewer_id):
-    target_filter = build_message_target_filter(message)
-    participant_filter = build_message_participant_filter(message.sender_id, message.recipient_id)
+    """Return thread messages and unread state for a conversation."""
 
     thread_messages = (
-        Message.query.filter(target_filter, participant_filter).order_by(Message.timestamp).all()
+        Message.query.filter_by(conversation_id=message.conversation_id)
+        .order_by(Message.timestamp)
+        .all()
     )
     for thread_message in thread_messages:
         thread_message.other_user = (
@@ -145,8 +171,7 @@ def build_conversation_thread_state(message, viewer_id):
         )
 
     unread_messages = Message.query.filter(
-        target_filter,
-        participant_filter,
+        Message.conversation_id == message.conversation_id,
         Message.recipient_id == viewer_id,
         Message.is_read.is_(False),
         or_(
@@ -185,11 +210,18 @@ def get_conversation_thread_state(message, viewer_id):
 
 
 def build_request_conversation_summaries(request_id, viewer_id):
-    messages = (
-        Message.query.filter(
-            Message.request_id == request_id,
-            Message.item_id.is_(None),
+    """Return conversation summaries for an item request."""
+    conv_ids = (
+        db.session.query(Conversation.id)
+        .filter(
+            Conversation.context_type == "request",
+            Conversation.context_id == request_id,
         )
+        .subquery()
+    )
+
+    messages = (
+        Message.query.filter(Message.conversation_id.in_(conv_ids))
         .order_by(Message.timestamp.desc())
         .all()
     )
@@ -214,12 +246,10 @@ def build_request_conversation_summaries(request_id, viewer_id):
 
 
 def find_request_conversation_message(request_id, sender_id, recipient_id):
+    """Find the first message in a request conversation between two users."""
+    conv = _find_conversation("request", request_id, sender_id, recipient_id)
+    if conv is None:
+        return None
     return (
-        Message.query.filter(
-            Message.request_id == request_id,
-            Message.item_id.is_(None),
-            build_message_participant_filter(sender_id, recipient_id),
-        )
-        .order_by(Message.timestamp.asc())
-        .first()
+        Message.query.filter_by(conversation_id=conv.id).order_by(Message.timestamp.asc()).first()
     )

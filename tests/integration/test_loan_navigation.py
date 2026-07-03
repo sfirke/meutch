@@ -45,7 +45,7 @@ class TestItemCardLoanButton:
             response = client.get("/profile?tab=my-items")
             assert response.status_code == 200
             content = response.data.decode("utf-8")
-            assert f'href="/message/{msg.id}"' in content
+            assert f'href="/conversation/{msg.conversation_id}"' in content
             assert "View active loan" in content
 
     def test_item_card_hides_loan_button_when_no_active_loan(self, client, app, auth_user):
@@ -94,7 +94,7 @@ class TestItemDetailLoanLink:
             assert response.status_code == 200
             content = response.data.decode("utf-8")
             assert "View Active Loan" in content
-            assert f'href="/message/{msg.id}"' in content
+            assert f'href="/conversation/{msg.conversation_id}"' in content
 
     def test_item_detail_hides_loan_link_when_no_active_loan(self, client, app, auth_user):
         """Owner does not see 'View Active Loan' button when item has no active loan."""
@@ -149,7 +149,7 @@ class TestMyActivityConversationLinks:
             # Both item name and thumbnail link to item detail
             assert f'href="/item/{item.id}"' in content
             # Dedicated View Loan button links to conversation
-            assert f'href="/message/{msg.id}"' in content
+            assert f'href="/conversation/{msg.conversation_id}"' in content
             assert "View Loan" in content
 
     def test_lending_table_item_name_links_to_conversation(self, client, app, auth_user):
@@ -187,7 +187,7 @@ class TestMyActivityConversationLinks:
             # Both item name and thumbnail link to item detail
             assert f'href="/item/{item.id}"' in content
             # Dedicated View Loan button links to conversation
-            assert f'href="/message/{msg.id}"' in content
+            assert f'href="/conversation/{msg.conversation_id}"' in content
             assert "View Loan" in content
 
     def test_view_loan_links_to_current_active_loan_not_old_loan(self, client, app, auth_user):
@@ -245,7 +245,7 @@ class TestMyActivityConversationLinks:
             content = response.data.decode("utf-8")
 
             # View Loan button must link to the current active loan's conversation
-            assert f'href="/message/{msg2.id}"' in content
+            assert f'href="/conversation/{msg2.conversation_id}"' in content
             # View Loan button must NOT link to the old completed loan's conversation
-            assert f'href="/message/{msg1.id}"' not in content
+            assert f'href="/conversation/{msg1.conversation_id}"' not in content
             assert "View Loan" in content

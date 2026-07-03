@@ -131,43 +131,67 @@ def send_message_notification_email(message):
         return False
 
     # Generate the conversation URL
-    conversation_url = url_for("main.view_conversation", message_id=message.id, _external=True)
+    conversation_url = url_for(
+        "main.view_conversation", conversation_id=message.conversation_id, _external=True
+    )
 
+    conversation = message.conversation
     context_label = None
     context_type_label = None  # User-facing label for email
-    if message.item is not None:
-        context_label = message.item.name
-        context_type_label = f"Item: {message.item.name}"
-    elif message.is_request_message:
-        context_label = f"request: {message.request.title}"
-        context_type_label = f"Request: {message.request.title}"
-    elif message.is_circle_message:
-        context_label = f"circle: {message.circle.name}"
-        context_type_label = f"Circle: {message.circle.name}"
+    if conversation.context_type == "item":
+        item = conversation.item
+        if item is None:
+            current_app.logger.error(
+                f"Message {message.id} conversation {conversation.id}: item not found"
+            )
+            return False
+        context_label = item.name
+        context_type_label = f"Item: {item.name}"
+    elif conversation.context_type == "request":
+        req = conversation.request
+        if req is None:
+            current_app.logger.error(
+                f"Message {message.id} conversation {conversation.id}: request not found"
+            )
+            return False
+        context_label = f"request: {req.title}"
+        context_type_label = f"Request: {req.title}"
+    elif conversation.context_type == "circle":
+        circle = conversation.circle
+        if circle is None:
+            current_app.logger.error(
+                f"Message {message.id} conversation {conversation.id}: circle not found"
+            )
+            return False
+        context_label = f"circle: {circle.name}"
+        context_type_label = f"Circle: {circle.name}"
     else:
-        current_app.logger.error(f"Message {message.id} has no item, request, or circle context")
+        current_app.logger.error(
+            f"Message {message.id} has unknown context_type '{conversation.context_type}'"
+        )
         return False
 
     # Determine the subject and email content based on message type
     if message.is_loan_request_message:
+        item_name = conversation.item.name if conversation.item else "Unknown Item"
         # Check if this is a loan extension message (owner extending the due date)
         if message.loan_request.status == "approved" and "has been extended" in message.body:
-            subject = f"Meutch - Loan Extended for {message.item.name}"
+            subject = f"Meutch - Loan Extended for {item_name}"
             email_type = "loan extension"
         elif message.loan_request.status == "pending":
-            subject = f"Meutch - New Loan Request for {message.item.name}"
+            subject = f"Meutch - New Loan Request for {item_name}"
             email_type = "loan request"
         elif message.loan_request.status == "approved":
-            subject = f"Meutch - Loan Request Approved for {message.item.name}"
+            subject = f"Meutch - Loan Request Approved for {item_name}"
             email_type = "loan approval"
         elif message.loan_request.status == "denied":
-            subject = f"Meutch - Loan Request Denied for {message.item.name}"
+            subject = f"Meutch - Loan Request Denied for {item_name}"
             email_type = "loan denial"
         elif message.loan_request.status == "completed":
-            subject = f"Meutch - Loan Completed for {message.item.name}"
+            subject = f"Meutch - Loan Completed for {item_name}"
             email_type = "loan completion"
         elif message.loan_request.status == "canceled":
-            subject = f"Meutch - Loan Request Canceled for {message.item.name}"
+            subject = f"Meutch - Loan Request Canceled for {item_name}"
             email_type = "loan cancellation"
         else:
             # Strict validation: raise exception for unknown statuses

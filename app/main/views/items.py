@@ -15,7 +15,7 @@ from app.forms import (
     WithdrawInterestForm,
 )
 from app.main import bp as main_bp
-from app.models import GiveawayInterest, Item, Message
+from app.models import Conversation, GiveawayInterest, Item, Message
 from app.services import giveaway_service, item_service, message_service
 from app.services.exceptions import (
     AuthorizationError,
@@ -168,7 +168,12 @@ def item_detail(item_id):
         return redirect(_build_item_detail_url(item.id, share_token))
 
     messages = (
-        Message.query.filter_by(item_id=item.id, recipient_id=current_user.id)
+        Message.query.join(Conversation)
+        .filter(
+            Conversation.context_type == "item",
+            Conversation.context_id == item.id,
+            Message.recipient_id == current_user.id,
+        )
         .order_by(Message.timestamp.desc())
         .all()
     )
@@ -296,7 +301,10 @@ def delete_item(item_id):
         )
         if blocking_loan.messages:
             return redirect(
-                url_for("main.view_conversation", message_id=blocking_loan.messages[0].id)
+                url_for(
+                    "main.view_conversation",
+                    conversation_id=blocking_loan.messages[0].conversation_id,
+                )
             )
         return redirect(url_for("main.item_detail", item_id=item.id))
 

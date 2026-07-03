@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from app import db
-from app.models import GiveawayInterest, ItemRequest, Message
+from app.models import Conversation, GiveawayInterest, ItemRequest, Message
 from conftest import login_user
 from tests.factories import (
     CircleFactory,
@@ -821,9 +821,16 @@ class TestRequestConversations:
             assert response.status_code == 200
             assert b"I have one you can borrow!" in response.data
 
-            message = Message.query.filter_by(request_id=item_request.id).first()
+            message = (
+                Message.query.join(Conversation)
+                .filter(
+                    Conversation.context_type == "request",
+                    Conversation.context_id == item_request.id,
+                )
+                .first()
+            )
             assert message is not None
-            assert message.item_id is None
+            assert message.conversation.context_type == "request"
             assert message.sender_id == helper.id
             assert message.recipient_id == requester.id
 
@@ -846,7 +853,9 @@ class TestRequestConversations:
             response = client.get(f"/requests/{item_request.id}/conversation")
 
             assert response.status_code == 302
-            assert f"/message/{existing_message.id}" in response.headers["Location"]
+            assert (
+                f"/conversation/{existing_message.conversation_id}" in response.headers["Location"]
+            )
 
     def test_messages_inbox_shows_request_title(self, client, app):
         """Request-linked conversations should show Re: title in inbox."""
@@ -872,7 +881,7 @@ class TestRequestConversations:
             assert b"Re: Need a melon baller" in response.data
 
     def test_view_conversation_reply_preserves_request_context(self, client, app):
-        """Replies in request threads should keep request_id and null item_id."""
+        """Replies in request threads should keep the request conversation context."""
         with app.app_context():
             requester = UserFactory()
             helper = UserFactory()
@@ -888,7 +897,7 @@ class TestRequestConversations:
 
             login_user(client, requester.email)
             response = client.post(
-                f"/message/{first_message.id}",
+                f"/conversation/{first_message.conversation_id}",
                 data={"body": "Thanks, messaging you now!"},
                 follow_redirects=True,
             )
@@ -898,8 +907,8 @@ class TestRequestConversations:
                 Message.parent_id == first_message.id, Message.body == "Thanks, messaging you now!"
             ).first()
             assert reply is not None
-            assert reply.request_id == item_request.id
-            assert reply.item_id is None
+            assert reply.conversation.context_type == "request"
+            assert reply.conversation.context_id == item_request.id
 
     def test_view_conversation_pending_pickup_giveaway_shows_pending_pickup(self, client, app):
         """Pending-pickup giveaways should show Pending Pickup, not Borrowed, in conversation header."""
@@ -922,7 +931,7 @@ class TestRequestConversations:
             db.session.commit()
 
             login_user(client, claimant.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Pending Pickup" in response.data
@@ -951,7 +960,7 @@ class TestRequestConversations:
             db.session.commit()
 
             login_user(client, claimant.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Rehomed" in response.data
@@ -987,7 +996,7 @@ class TestRequestConversations:
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
             content = response.get_data(as_text=True)
 
             assert response.status_code == 200
@@ -1024,7 +1033,7 @@ class TestRequestConversations:
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Giveaway Pickup" in response.data
@@ -1060,7 +1069,7 @@ class TestRequestConversations:
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Choose Recipient" in response.data
@@ -1100,7 +1109,7 @@ class TestRequestConversations:
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Circles in common:" in response.data
@@ -1139,7 +1148,7 @@ class TestRequestConversations:
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"2 people are interested in this giveaway." in response.data
@@ -1173,7 +1182,7 @@ class TestRequestConversations:
             db.session.commit()
 
             login_user(client, requester.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Choose Recipient" not in response.data
@@ -1201,7 +1210,7 @@ class TestRequestConversations:
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Choose Recipient" not in response.data
@@ -1299,7 +1308,7 @@ class TestRequestEmailNotifications:
                 mock_send_email.return_value = True
 
                 response = client.post(
-                    f"/message/{initial_message.id}",
+                    f"/conversation/{initial_message.conversation_id}",
                     data={"body": "Great! When can I pick it up?"},
                     follow_redirects=True,
                 )

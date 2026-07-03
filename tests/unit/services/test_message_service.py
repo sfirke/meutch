@@ -6,6 +6,7 @@ from app import db
 from app.models import Message
 from app.services import message_service
 from app.services.exceptions import AuthorizationError, InvalidActionError
+from app.utils.messaging_queries import get_or_create_conversation
 from tests.factories import ItemFactory, ItemRequestFactory, MessageFactory, UserFactory
 
 
@@ -15,6 +16,7 @@ class TestMessageService:
             sender = UserFactory()
             recipient = UserFactory()
             item = ItemFactory(owner=recipient)
+            conversation = get_or_create_conversation("item", item.id, sender.id, recipient.id)
 
             with patch(
                 "app.services.message_service.send_message_notification_email"
@@ -23,15 +25,15 @@ class TestMessageService:
                     sender.id,
                     recipient.id,
                     "Interested in borrowing this.",
-                    item_id=item.id,
+                    conversation_id=conversation.id,
                 )
 
             db_message = db.session.get(Message, message.id)
             assert db_message is not None
             assert db_message.sender_id == sender.id
             assert db_message.recipient_id == recipient.id
-            assert db_message.item_id == item.id
-            assert db_message.request_id is None
+            assert db_message.conversation.context_type == "item"
+            assert db_message.conversation.context_id == item.id
             mock_email.assert_called_once_with(message)
 
     def test_reply_to_message_preserves_request_context(self, app):
@@ -42,7 +44,6 @@ class TestMessageService:
             message = MessageFactory(
                 sender=helper,
                 recipient=requester,
-                item=None,
                 request=item_request,
                 body="I can help.",
             )
@@ -55,9 +56,9 @@ class TestMessageService:
                 )
 
             assert reply.parent_id == message.id
-            assert reply.request_id == item_request.id
-            assert reply.item_id is None
-            assert reply.circle_id is None
+            assert reply.conversation_id == message.conversation_id
+            assert reply.conversation.context_type == "request"
+            assert reply.conversation.context_id == item_request.id
             assert reply.sender_id == requester.id
             assert reply.recipient_id == helper.id
 
@@ -81,7 +82,8 @@ class TestMessageService:
 
             assert message.sender_id == sender.id
             assert message.recipient_id == owner.id
-            assert message.item_id == item.id
+            assert message.conversation.context_type == "item"
+            assert message.conversation.context_id == item.id
 
     def test_start_request_conversation_uses_request_owner_as_recipient(self, app):
         with app.app_context():
@@ -98,8 +100,8 @@ class TestMessageService:
 
             assert message.sender_id == helper.id
             assert message.recipient_id == requester.id
-            assert message.request_id == item_request.id
-            assert message.item_id is None
+            assert message.conversation.context_type == "request"
+            assert message.conversation.context_id == item_request.id
 
     def test_start_item_conversation_rejects_self_messaging(self, app):
         with app.app_context():

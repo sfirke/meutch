@@ -207,7 +207,12 @@ def conversation(request_id):
     )
 
     if existing_message:
-        return redirect(url_for("main.view_conversation", message_id=existing_message.id))
+        return redirect(
+            url_for(
+                "main.view_conversation",
+                conversation_id=existing_message.conversation_id,
+            )
+        )
 
     form = MessageForm()
     if form.validate_on_submit():
@@ -218,6 +223,6 @@ def conversation(request_id):
         )
 
         flash("Your message has been sent.", "success")
-        return redirect(url_for("main.view_conversation", message_id=message.id))
+        return redirect(url_for("main.view_conversation", conversation_id=message.conversation_id))
 
     return render_template("requests/conversation_start.html", form=form, item_request=item_request)

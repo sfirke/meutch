@@ -67,8 +67,9 @@ def get_message_thread(message_id):
         abort(404)
     shared_circles = current_user.shared_circles_with(other_user)
 
+    conversation = message.conversation
     active_loan = None
-    if not message.is_request_message:
+    if conversation.context_type == "item":
         for thread_message in thread_state["thread_messages"]:
             loan_request = thread_message.loan_request
             if loan_request and loan_request.status in {"pending", "approved"}:
@@ -79,9 +80,11 @@ def get_message_thread(message_id):
         {
             "other_user": other_user,
             "shared_circles": shared_circles,
-            "item": message.item if not message.is_request_message else None,
-            "item_request": message.request if message.is_request_message else None,
-            "circle": message.circle if message.is_circle_message else None,
+            "item": conversation.item if conversation.context_type == "item" else None,
+            "item_request": (
+                conversation.request if conversation.context_type == "request" else None
+            ),
+            "circle": conversation.circle if conversation.context_type == "circle" else None,
             "active_loan": active_loan,
             "has_unread_messages": thread_state["has_unread_messages"],
             "messages": thread_state["thread_messages"],

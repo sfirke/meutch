@@ -14,6 +14,8 @@ from app.models import (
     Category,
     Circle,
     CircleJoinRequest,
+    Conversation,
+    ConversationParticipant,
     GiveawayInterest,
     Item,
     ItemImage,
@@ -130,8 +132,62 @@ class LoanRequestFactory(SQLAlchemyModelFactory):
     status = "pending"
 
 
+class ConversationFactory(SQLAlchemyModelFactory):
+    """Factory for Conversation model.
+
+    Requires ``context_type`` and ``context_id`` to be passed explicitly,
+    or accepts an ``item`` parameter that derives them automatically.
+    """
+
+    class Meta:
+        model = Conversation
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+        exclude = ("item", "request", "circle")
+
+    context_type = "item"
+
+    # Transient helpers — not model fields
+    item = None
+    request = None
+    circle = None
+
+    @factory.lazy_attribute
+    def context_id(self):
+        """Derive context_id from the transient item/request/circle param."""
+        if self.item is not None:
+            return self.item.id
+        if self.request is not None:
+            return self.request.id
+        if self.circle is not None:
+            return self.circle.id
+        # Fall back to auto-creating a default item
+        default_item = ItemFactory()
+        return default_item.id
+
+
+class ConversationParticipantFactory(SQLAlchemyModelFactory):
+    """Factory for ConversationParticipant model."""
+
+    class Meta:
+        model = ConversationParticipant
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+
+    conversation = factory.SubFactory(ConversationFactory)
+    user = factory.SubFactory(UserFactory)
+    is_archived = False
+
+
 class MessageFactory(SQLAlchemyModelFactory):
-    """Factory for Message model."""
+    """Factory for Message model.
+
+    Supports legacy ``item``, ``request``, and ``circle`` keyword arguments
+    by resolving the appropriate Conversation via ``get_or_create_conversation``
+    so that multiple messages with the same context are grouped correctly.
+
+    For new code, pass ``conversation=`` directly.
+    """
 
     class Meta:
         model = Message
@@ -140,9 +196,72 @@ class MessageFactory(SQLAlchemyModelFactory):
 
     sender = factory.SubFactory(UserFactory)
     recipient = factory.SubFactory(UserFactory)
-    item = factory.SubFactory(ItemFactory)
     body = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=500))
     is_read = False
+    # conversation handled in _create, NOT a SubFactory here
+
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        """Resolve conversation before creating the Message instance."""
+        from app.utils.messaging_queries import resolve_conversation
+
+        # Pop legacy context kwargs before they reach the model constructor
+        item = kwargs.pop("item", None)
+        request = kwargs.pop("request", None)
+        circle = kwargs.pop("circle", None)
+
+        # If conversation was explicitly provided, keep it
+        if "conversation" in kwargs:
+            return super()._create(model_class, *args, **kwargs)
+
+        context_type = None
+        context_id = None
+        if item is not None:
+            context_type = "item"
+            context_id = item.id
+        elif request is not None:
+            context_type = "request"
+            context_id = request.id
+        elif circle is not None:
+            context_type = "circle"
+            context_id = circle.id
+
+        if context_type is not None:
+            sender = kwargs.get("sender")
+            recipient = kwargs.get("recipient")
+            sender_id = sender.id if hasattr(sender, "id") else sender
+            recipient_id = recipient.id if hasattr(recipient, "id") else recipient
+            real_conv, _is_new = resolve_conversation(
+                context_type, context_id, sender_id, recipient_id
+            )
+            kwargs["conversation"] = real_conv
+        else:
+            kwargs["conversation"] = ConversationFactory()
+
+        return super()._create(model_class, *args, **kwargs)
+
+    @factory.post_generation
+    def ensure_participants(self, create, extracted, **kwargs):
+        """Ensure both sender and recipient are participants in the conversation."""
+        if not create:
+            return
+        seen = set()
+        for user in [self.sender, self.recipient]:
+            if user.id in seen:
+                continue
+            seen.add(user.id)
+            existing = ConversationParticipant.query.filter_by(
+                conversation_id=self.conversation_id, user_id=user.id
+            ).first()
+            if not existing:
+                try:
+                    participant = ConversationParticipant(
+                        conversation_id=self.conversation_id, user_id=user.id
+                    )
+                    db.session.add(participant)
+                except Exception:
+                    db.session.rollback()
+                    # Participant already exists — that's fine
 
 
 class CircleJoinRequestFactory(SQLAlchemyModelFactory):
