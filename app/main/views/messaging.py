@@ -50,13 +50,6 @@ def view_conversation(conversation_id):
         flash("This conversation has no messages.", "danger")
         return redirect(url_for("main.messages"))
 
-    if (
-        latest_message.recipient_id != current_user.id
-        and latest_message.sender_id != current_user.id
-    ):
-        flash("You do not have permission to view this conversation.", "danger")
-        return redirect(url_for("main.messages"))
-
     thread_state = message_service.get_conversation_thread_state(latest_message, current_user.id)
     thread_messages = thread_state["thread_messages"]
     has_unread_messages = thread_state["has_unread_messages"]
