@@ -2,15 +2,12 @@ import logging
 import random
 from datetime import UTC, datetime
 
-from sqlalchemy.exc import IntegrityError
-
 from app import db
 from app.models import Conversation, GiveawayInterest, Message, User
 from app.services import message_service
 from app.services.exceptions import (
     AuthorizationError,
     ConflictError,
-    InformationalError,
     InvalidActionError,
 )
 from app.utils.messaging_queries import get_or_create_conversation
@@ -162,6 +159,10 @@ def express_interest(item, user_id, message_text):
     cleaned_message = message_text.strip() if message_text else None
     notification_body = cleaned_message or f"Hi! I'm interested in your giveaway '{item.name}'."
 
+    existing = GiveawayInterest.query.filter_by(item_id=item.id, user_id=user_id).first()
+    if existing:
+        raise ConflictError("You have already expressed interest in this giveaway.")
+
     interest = GiveawayInterest(
         item_id=item.id,
         user_id=user_id,
@@ -169,12 +170,6 @@ def express_interest(item, user_id, message_text):
         status="active",
     )
     db.session.add(interest)
-
-    try:
-        db.session.flush()  # trigger IntegrityError if duplicate, without committing
-    except IntegrityError as exc:
-        db.session.rollback()
-        raise InformationalError("You have already expressed interest in this giveaway.") from exc
 
     conversation = get_or_create_conversation("item", item.id, user_id, item.owner_id)
     message_service.create_message(
@@ -195,11 +190,7 @@ def withdraw_interest(item, user_id):
         raise ConflictError("You have not expressed interest in this giveaway.")
 
     db.session.delete(interest)
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
+    db.session.commit()
 
 
 def select_recipient(item, owner_id, selection_method, selected_user_id=None):
@@ -295,7 +286,9 @@ def change_recipient(item, owner_id, selection_method, selected_user_id=None):
 
         previous_recipient = db.session.get(User, previous_claimed_by_id)
         if previous_recipient:
-            prev_conversation = get_or_create_conversation("item", item.id, owner_id, previous_recipient.id)
+            prev_conversation = get_or_create_conversation(
+                "item", item.id, owner_id, previous_recipient.id
+            )
             message_service.create_message(
                 owner_id,
                 previous_recipient.id,
@@ -343,11 +336,7 @@ def release_to_all(item, owner_id):
     item.claimed_by_id = None
     item.available = True
 
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
+    db.session.commit()
 
 
 def confirm_handoff(item, owner_id):
@@ -363,8 +352,4 @@ def confirm_handoff(item, owner_id):
     item.claim_status = "claimed"
     item.claimed_at = datetime.now(UTC)
     item.available = False
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
+    db.session.commit()
