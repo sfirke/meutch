@@ -18,11 +18,6 @@ from app.utils.messaging_queries import get_or_create_conversation
 logger = logging.getLogger(__name__)
 
 
-def _ensure_giveaway_conversation(item, user1_id, user2_id):
-    """Get or create the item conversation for a giveaway between two users."""
-    return get_or_create_conversation("item", item.id, user1_id, user2_id)
-
-
 def get_giveaway_interest_messaging_info(item_id, owner_id):
     """Return interests and per-user conversation metadata for an item's giveaway pool.
 
@@ -141,7 +136,7 @@ def _finalize_recipient_selection(item, selected_interest, sender_id):
     item.available = False
     selected_interest.status = "selected"
 
-    conversation = _ensure_giveaway_conversation(item, sender_id, selected_interest.user_id)
+    conversation = get_or_create_conversation("item", item.id, sender_id, selected_interest.user_id)
     message_service.create_message(
         sender_id,
         selected_interest.user_id,
@@ -181,7 +176,7 @@ def express_interest(item, user_id, message_text):
         db.session.rollback()
         raise InformationalError("You have already expressed interest in this giveaway.") from exc
 
-    conversation = _ensure_giveaway_conversation(item, user_id, item.owner_id)
+    conversation = get_or_create_conversation("item", item.id, user_id, item.owner_id)
     message_service.create_message(
         user_id,
         item.owner_id,
@@ -300,7 +295,7 @@ def change_recipient(item, owner_id, selection_method, selected_user_id=None):
 
         previous_recipient = db.session.get(User, previous_claimed_by_id)
         if previous_recipient:
-            prev_conversation = _ensure_giveaway_conversation(item, owner_id, previous_recipient.id)
+            prev_conversation = get_or_create_conversation("item", item.id, owner_id, previous_recipient.id)
             message_service.create_message(
                 owner_id,
                 previous_recipient.id,
@@ -333,7 +328,7 @@ def release_to_all(item, owner_id):
         if previous_interest:
             previous_interest.status = "active"
 
-        conversation = _ensure_giveaway_conversation(item, owner_id, previous_recipient_id)
+        conversation = get_or_create_conversation("item", item.id, owner_id, previous_recipient_id)
         message_service.create_message(
             owner_id,
             previous_recipient_id,
