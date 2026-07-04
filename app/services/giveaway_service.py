@@ -176,7 +176,7 @@ def express_interest(item, user_id, message_text):
     db.session.add(interest)
 
     try:
-        db.session.commit()
+        db.session.flush()  # trigger IntegrityError if duplicate, without committing
     except IntegrityError as exc:
         db.session.rollback()
         raise InformationalError("You have already expressed interest in this giveaway.") from exc
@@ -286,31 +286,31 @@ def change_recipient(item, owner_id, selection_method, selected_user_id=None):
     if not selected_interest:
         raise InvalidActionError("Invalid selection. Please try again.")
 
-    previous_interest = GiveawayInterest.query.filter_by(
-        item_id=item.id,
-        user_id=previous_claimed_by_id,
-    ).first()
-    if previous_interest:
-        previous_interest.status = "active"
-
-    previous_recipient = (
-        db.session.get(User, previous_claimed_by_id) if previous_claimed_by_id else None
-    )
-    if previous_recipient:
-        prev_conversation = _ensure_giveaway_conversation(item, owner_id, previous_recipient.id)
-        message_service.create_message(
-            owner_id,
-            previous_recipient.id,
-            (
-                f"The owner has selected a different recipient for the giveaway '{item.name}'. "
-                "Your interest remains active and you may still be selected in the future."
-            ),
-            conversation_id=prev_conversation.id,
-        )
-
-    item.claimed_by_id = selected_interest.user_id
-    selected_interest.status = "selected"
+    # Finalize the new selection first (commits via create_message internally)
     _finalize_recipient_selection(item, selected_interest, owner_id)
+
+    # Then revert the previous recipient's state and notify them
+    if previous_claimed_by_id:
+        previous_interest = GiveawayInterest.query.filter_by(
+            item_id=item.id,
+            user_id=previous_claimed_by_id,
+        ).first()
+        if previous_interest:
+            previous_interest.status = "active"
+
+        previous_recipient = db.session.get(User, previous_claimed_by_id)
+        if previous_recipient:
+            prev_conversation = _ensure_giveaway_conversation(item, owner_id, previous_recipient.id)
+            message_service.create_message(
+                owner_id,
+                previous_recipient.id,
+                (
+                    f"The owner has selected a different recipient for the giveaway '{item.name}'. "
+                    "Your interest remains active and you may still be selected in the future."
+                ),
+                conversation_id=prev_conversation.id,
+            )
+
     return selected_interest
 
 

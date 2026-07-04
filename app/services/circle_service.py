@@ -211,7 +211,6 @@ def handle_join_request(circle, join_request, acting_user, action):
         )
         db.session.execute(stmt)
         join_request.status = "approved"
-        db.session.commit()
         message_service.create_message(
             acting_user.id,
             join_request.user_id,
@@ -220,7 +219,6 @@ def handle_join_request(circle, join_request, acting_user, action):
         )
     elif action == "reject":
         join_request.status = "rejected"
-        db.session.commit()
         message_service.create_message(
             acting_user.id,
             join_request.user_id,

@@ -93,8 +93,6 @@ def process_loan_decision(loan, owner_id, action):
         loan.status = "denied"
         message_body = f"The loan request for '{loan.item.name}' has been denied."
 
-    db.session.commit()
-
     return message_service.create_message(
         owner_id,
         loan.borrower_id,
@@ -115,7 +113,6 @@ def cancel_loan_request(loan, borrower_id):
 
     conversation = _ensure_item_conversation(loan.item, borrower_id, loan.item.owner_id)
     loan.status = "canceled"
-    db.session.commit()
 
     return message_service.create_message(
         borrower_id,
@@ -138,7 +135,6 @@ def complete_loan(loan, owner_id):
     conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
     loan.status = "completed"
     loan.item.available = True
-    db.session.commit()
 
     return message_service.create_message(
         owner_id,
@@ -161,7 +157,6 @@ def owner_cancel_approved_loan(loan, owner_id):
     conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
     loan.status = "canceled"
     loan.item.available = True
-    db.session.commit()
 
     return message_service.create_message(
         owner_id,
@@ -215,7 +210,6 @@ def extend_loan(loan, owner_id, new_end_date, owner_message):
         )
 
     conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
-    db.session.commit()
 
     message = message_service.create_message(
         owner_id,
