@@ -31,10 +31,7 @@ def view_conversation(conversation_id):
         flash("You do not have permission to view this conversation.", "danger")
         return redirect(url_for("main.messages"))
 
-    other_participant = ConversationParticipant.query.filter(
-        ConversationParticipant.conversation_id == conversation.id,
-        ConversationParticipant.user_id != current_user.id,
-    ).first()
+    other_participant = conversation.other_participant(current_user.id)
 
     if not other_participant:
         flash("This conversation is missing a participant.", "danger")

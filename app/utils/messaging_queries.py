@@ -125,10 +125,7 @@ def build_inbox_summaries(viewer_id, *, include_archived=False):
         participant = ConversationParticipant.query.filter_by(
             conversation_id=conversation.id, user_id=viewer_id
         ).first()
-        other_participant = ConversationParticipant.query.filter(
-            ConversationParticipant.conversation_id == conversation.id,
-            ConversationParticipant.user_id != viewer_id,
-        ).first()
+        other_participant = conversation.other_participant(viewer_id)
 
         summaries.append(
             {

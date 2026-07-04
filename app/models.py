@@ -675,7 +675,6 @@ class Conversation(db.Model):
             return db.session.get(Circle, self.context_id)
         return None
 
-    @property
     def other_participant(self, viewer_id):
         """Return the ConversationParticipant row for the user who is NOT viewer_id."""
         return ConversationParticipant.query.filter(

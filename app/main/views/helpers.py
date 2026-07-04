@@ -8,7 +8,6 @@ from app.models import Category
 from app.utils.home_feed import HOMEPAGE_FEED_EVENT_TYPES
 from app.utils.item_queries import build_find_results
 from app.utils.item_share import token_grants_item_access
-from app.utils.messaging_queries import get_conversation_other_user_id
 from app.utils.storage import (
     MAX_UPLOAD_FILE_SIZE_BYTES,
     MAX_UPLOAD_FILE_SIZE_LABEL,
@@ -86,10 +85,6 @@ def _generated_item_share_link(item_id):
         session.pop(f"generated-item-share-link:{item_id}", None)
         return None
     return entry["url"]
-
-
-def _conversation_other_user_id(message, viewer_id):
-    return get_conversation_other_user_id(message, viewer_id)
 
 
 def _shares_circle_or_has_item_token_access(item, share_token=None):
