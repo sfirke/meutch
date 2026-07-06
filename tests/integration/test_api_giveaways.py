@@ -285,8 +285,8 @@ class TestApiGiveawayInterestMutations:
             json={"message": "Another try."},
         )
 
-        assert response.status_code == 400
-        assert response.get_json()["error"]["code"] == "BAD_REQUEST"
+        assert response.status_code == 409
+        assert response.get_json()["error"]["code"] == "CONFLICT"
 
         with app.app_context():
             assert (
