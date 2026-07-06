@@ -18,7 +18,7 @@ from app.services.exceptions import (
 )
 from app.utils.messaging_queries import (
     build_request_conversation_summaries,
-    find_request_conversation_message,
+    find_context_conversation,
 )
 from app.utils.request_queries import can_view_request
 
@@ -200,17 +200,18 @@ def conversation(request_id):
     except AuthorizationError:
         abort(403)
 
-    existing_message = find_request_conversation_message(
+    existing_conv = find_context_conversation(
+        "request",
         item_request.id,
         current_user.id,
         recipient_id,
     )
 
-    if existing_message:
+    if existing_conv:
         return redirect(
             url_for(
                 "main.view_conversation",
-                conversation_id=existing_message.conversation_id,
+                conversation_id=existing_conv.id,
             )
         )
 

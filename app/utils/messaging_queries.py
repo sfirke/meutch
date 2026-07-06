@@ -21,7 +21,7 @@ def get_conversation_other_user_id(message, viewer_id):
     return None
 
 
-def _find_conversation(context_type, context_id, user1_id, user2_id):
+def find_context_conversation(context_type, context_id, user1_id, user2_id):
     """Look up an existing conversation between two users in a given context."""
     conv_subq = (
         db.session.query(ConversationParticipant.conversation_id)
@@ -51,7 +51,7 @@ def get_or_create_conversation(context_type, context_id, user1_id, user2_id):
     conversation by catching IntegrityError and re-querying.
     """
     u1, u2 = sorted([user1_id, user2_id])
-    existing = _find_conversation(context_type, context_id, u1, u2)
+    existing = find_context_conversation(context_type, context_id, u1, u2)
     if existing:
         return existing
 
@@ -65,7 +65,7 @@ def get_or_create_conversation(context_type, context_id, user1_id, user2_id):
         return conv
     except IntegrityError:
         db.session.rollback()
-        return _find_conversation(context_type, context_id, u1, u2)
+        return find_context_conversation(context_type, context_id, u1, u2)
 
 
 def build_inbox_summaries(viewer_id, *, include_archived=False):
@@ -220,13 +220,3 @@ def build_request_conversation_summaries(request_id, viewer_id):
         )
 
     return conversations
-
-
-def find_request_conversation_message(request_id, sender_id, recipient_id):
-    """Find the first message in a request conversation between two users."""
-    conv = _find_conversation("request", request_id, sender_id, recipient_id)
-    if conv is None:
-        return None
-    return (
-        Message.query.filter_by(conversation_id=conv.id).order_by(Message.timestamp.asc()).first()
-    )

@@ -26,7 +26,7 @@ from app.models import (
     User,
     UserWebLink,
 )
-from app.utils.messaging_queries import _find_conversation
+from app.utils.messaging_queries import find_context_conversation
 
 fake = Faker()
 
@@ -41,7 +41,7 @@ def _find_or_build_conversation(context_type, context_id, user1_id, user2_id):
     Returns (conversation, is_new).
     """
     u1, u2 = sorted([user1_id, user2_id])
-    existing = _find_conversation(context_type, context_id, u1, u2)
+    existing = find_context_conversation(context_type, context_id, u1, u2)
     if existing:
         return existing, False
 

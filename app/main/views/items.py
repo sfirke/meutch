@@ -152,7 +152,7 @@ def item_detail(item_id):
 
     if form.validate_on_submit():
         try:
-            message_service.start_item_conversation(
+            message = message_service.start_item_conversation(
                 item,
                 current_user,
                 form.body.data,
@@ -165,7 +165,7 @@ def item_detail(item_id):
             abort(403)
 
         flash("Your message has been sent.", "success")
-        return redirect(_build_item_detail_url(item.id, share_token))
+        return redirect(url_for("main.view_conversation", conversation_id=message.conversation_id))
 
     messages = (
         Message.query.join(Conversation)

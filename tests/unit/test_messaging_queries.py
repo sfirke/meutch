@@ -5,7 +5,7 @@ from app.utils.messaging_queries import (
     build_conversation_thread_state,
     build_inbox_summaries,
     build_request_conversation_summaries,
-    find_request_conversation_message,
+    find_context_conversation,
     get_conversation_thread_state,
 )
 from tests.factories import (
@@ -130,7 +130,8 @@ def test_request_conversation_helpers_group_and_find_existing_thread(app):
         db.session.commit()
 
         conversations = build_request_conversation_summaries(item_request.id, requester.id)
-        existing_message = find_request_conversation_message(
+        existing_conv = find_context_conversation(
+            "request",
             item_request.id,
             helper.id,
             requester.id,
@@ -138,4 +139,5 @@ def test_request_conversation_helpers_group_and_find_existing_thread(app):
 
         assert len(conversations) == 1
         assert conversations[0]["latest_message"].id == reply_message.id
-        assert existing_message.id == first_message.id
+        assert existing_conv is not None
+        assert existing_conv.id == first_message.conversation_id
