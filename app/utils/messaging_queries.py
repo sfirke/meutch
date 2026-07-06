@@ -43,7 +43,7 @@ def _find_conversation(context_type, context_id, user1_id, user2_id):
     )
 
 
-def resolve_conversation(context_type, context_id, user1_id, user2_id):
+def find_or_create_conversation(context_type, context_id, user1_id, user2_id):
     """Find or create a conversation WITHOUT committing.
 
     Returns (conversation, is_new) where is_new is True if the conversation

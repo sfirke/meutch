@@ -203,7 +203,7 @@ class MessageFactory(SQLAlchemyModelFactory):
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
         """Resolve conversation before creating the Message instance."""
-        from app.utils.messaging_queries import resolve_conversation
+        from app.utils.messaging_queries import find_or_create_conversation
 
         # Pop legacy context kwargs before they reach the model constructor
         item = kwargs.pop("item", None)
@@ -231,7 +231,7 @@ class MessageFactory(SQLAlchemyModelFactory):
             recipient = kwargs.get("recipient")
             sender_id = sender.id if hasattr(sender, "id") else sender
             recipient_id = recipient.id if hasattr(recipient, "id") else recipient
-            real_conv, _is_new = resolve_conversation(
+            real_conv, _is_new = find_or_create_conversation(
                 context_type, context_id, sender_id, recipient_id
             )
             kwargs["conversation"] = real_conv
