@@ -43,26 +43,6 @@ def _find_conversation(context_type, context_id, user1_id, user2_id):
     )
 
 
-def find_or_create_conversation(context_type, context_id, user1_id, user2_id):
-    """Find or create a conversation WITHOUT committing.
-
-    Returns (conversation, is_new) where is_new is True if the conversation
-    was freshly created.
-    """
-    u1, u2 = sorted([user1_id, user2_id])
-    existing = _find_conversation(context_type, context_id, u1, u2)
-    if existing:
-        return existing, False
-
-    conv = Conversation(context_type=context_type, context_id=context_id)
-    db.session.add(conv)
-    db.session.flush()  # get the ID
-    for uid in {u1, u2}:
-        db.session.add(ConversationParticipant(conversation_id=conv.id, user_id=uid))
-    db.session.flush()  # ensure participants are visible to later queries
-    return conv, True
-
-
 def get_or_create_conversation(context_type, context_id, user1_id, user2_id):
     """Find an existing conversation or create one with two participants.
 

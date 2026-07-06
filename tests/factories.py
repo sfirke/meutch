@@ -26,8 +26,33 @@ from app.models import (
     User,
     UserWebLink,
 )
+from app.utils.messaging_queries import _find_conversation
 
 fake = Faker()
+
+
+def _find_or_build_conversation(context_type, context_id, user1_id, user2_id):
+    """Test-only helper: find or build a conversation WITHOUT committing.
+
+    Used by MessageFactory so that conversations can be resolved inside
+    ``_create`` (which runs with ``sqlalchemy_session_persistence = "flush"``)
+    without prematurely committing the message under construction.
+
+    Returns (conversation, is_new).
+    """
+    u1, u2 = sorted([user1_id, user2_id])
+    existing = _find_conversation(context_type, context_id, u1, u2)
+    if existing:
+        return existing, False
+
+    conv = Conversation(context_type=context_type, context_id=context_id)
+    db.session.add(conv)
+    db.session.flush()  # get the ID
+    for uid in {u1, u2}:
+        db.session.add(ConversationParticipant(conversation_id=conv.id, user_id=uid))
+    db.session.flush()  # ensure participants are visible to later queries
+    return conv, True
+
 
 # Pre-compute password hash once to avoid slow bcrypt on every user creation
 # This matches TEST_PASSWORD in conftest.py
@@ -183,7 +208,7 @@ class MessageFactory(SQLAlchemyModelFactory):
     """Factory for Message model.
 
     Supports legacy ``item``, ``request``, and ``circle`` keyword arguments
-    by resolving the appropriate Conversation via ``get_or_create_conversation``
+    by resolving the appropriate Conversation via ``_find_or_build_conversation``
     so that multiple messages with the same context are grouped correctly.
 
     For new code, pass ``conversation=`` directly.
@@ -203,8 +228,6 @@ class MessageFactory(SQLAlchemyModelFactory):
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
         """Resolve conversation before creating the Message instance."""
-        from app.utils.messaging_queries import find_or_create_conversation
-
         # Pop legacy context kwargs before they reach the model constructor
         item = kwargs.pop("item", None)
         request = kwargs.pop("request", None)
@@ -231,7 +254,7 @@ class MessageFactory(SQLAlchemyModelFactory):
             recipient = kwargs.get("recipient")
             sender_id = sender.id if hasattr(sender, "id") else sender
             recipient_id = recipient.id if hasattr(recipient, "id") else recipient
-            real_conv, _is_new = find_or_create_conversation(
+            real_conv, _is_new = _find_or_build_conversation(
                 context_type, context_id, sender_id, recipient_id
             )
             kwargs["conversation"] = real_conv
