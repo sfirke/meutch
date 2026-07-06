@@ -5,6 +5,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ## July 2026
 
 ### Features
+**Major**:
+- Refactor messages infrastructure to create conversations, enabling archiving of messages ([#436](https://github.com/sfirke/meutch/pull/436)).
+
 **Minor**:
 - On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
 

@@ -8,6 +8,16 @@ from conftest import login_user
 from tests.factories import CircleFactory, UserFactory
 
 
+def get_single_email_by_subject(mock, subject_substring):
+    """Return the (to, subject, text, html) args tuple of the one email whose
+    subject contains *subject_substring*. Asserts exactly one match."""
+    matches = [call.args for call in mock.call_args_list if subject_substring in call.args[1]]
+    assert len(matches) == 1, (
+        f"Expected 1 email with subject containing {subject_substring!r}, " f"got {len(matches)}"
+    )
+    return matches[0]
+
+
 class TestCircleJoinRequestEmailIntegration:
     """Integration tests for email notifications during circle join request workflows."""
 
@@ -201,13 +211,9 @@ class TestCircleJoinRequestEmailIntegration:
                 # (message-notification email suppressed via notify=False in handle_join_request)
                 assert mock_send_email.call_count == 1
                 # Verify the circle-join approval email was sent
-                approval_emails = [
-                    c
-                    for c in mock_send_email.call_args_list
-                    if "Join Request Approved for Test Circle" in c[0][1]
-                ]
-                assert len(approval_emails) == 1
-                to_email, subject, text_content, html_content = approval_emails[0][0]
+                to_email, subject, text_content, html_content = get_single_email_by_subject(
+                    mock_send_email, "Join Request Approved for Test Circle"
+                )
 
                 assert to_email == requesting_user.email
                 assert "approved" in text_content.lower()
@@ -269,13 +275,9 @@ class TestCircleJoinRequestEmailIntegration:
                 # (message-notification email suppressed via notify=False in handle_join_request)
                 assert mock_send_email.call_count == 1
                 # Verify the circle-join rejection email was sent
-                rejection_emails = [
-                    c
-                    for c in mock_send_email.call_args_list
-                    if "Join Request Denied for Test Circle" in c[0][1]
-                ]
-                assert len(rejection_emails) == 1
-                to_email, subject, text_content, html_content = rejection_emails[0][0]
+                to_email, subject, text_content, html_content = get_single_email_by_subject(
+                    mock_send_email, "Join Request Denied for Test Circle"
+                )
 
                 assert to_email == requesting_user.email
                 assert "denied" in text_content.lower()
