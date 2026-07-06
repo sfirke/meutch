@@ -2,7 +2,6 @@ from uuid import UUID
 
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import and_, or_
 
 from app import db
 from app.forms import (
@@ -16,10 +15,14 @@ from app.forms import (
     WithdrawInterestForm,
 )
 from app.main import bp as main_bp
-from app.models import Conversation, GiveawayInterest, Item, Message, User
+from app.models import GiveawayInterest, Item, Message, User
 from app.services import giveaway_service, message_service
 from app.services.exceptions import ConflictError, ServiceError
-from app.utils.messaging_queries import get_conversation_other_user_id, get_or_create_conversation
+from app.utils.messaging_queries import (
+    find_context_conversation,
+    get_conversation_other_user_id,
+    get_or_create_conversation,
+)
 
 
 @main_bp.route("/item/<uuid:item_id>/express-interest", methods=["POST"])
@@ -293,26 +296,10 @@ def message_giveaway_requester(item_id, user_id):
         flash("This user has not expressed interest in this giveaway.", "warning")
         return redirect(url_for("main.select_recipient", item_id=item.id))
 
-    existing_message = (
-        Message.query.join(Conversation)
-        .filter(
-            Conversation.context_type == "item",
-            Conversation.context_id == item.id,
-            or_(
-                and_(Message.sender_id == current_user.id, Message.recipient_id == user_id),
-                and_(Message.sender_id == user_id, Message.recipient_id == current_user.id),
-            ),
-        )
-        .first()
-    )
+    existing_conv = find_context_conversation("item", item.id, current_user.id, user_id)
 
-    if existing_message:
-        return redirect(
-            url_for(
-                "main.view_conversation",
-                conversation_id=existing_message.conversation_id,
-            )
-        )
+    if existing_conv:
+        return redirect(url_for("main.view_conversation", conversation_id=existing_conv.id))
 
     form = MessageForm()
     if form.validate_on_submit():
