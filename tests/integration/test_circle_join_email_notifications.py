@@ -121,8 +121,9 @@ class TestCircleJoinRequestEmailIntegration:
 
                 join_request = db.session.get(CircleJoinRequest, join_request.id)
                 assert join_request.status == "approved"
-                # 2 emails: message notification + circle-join approval notification
-                assert mock_send_email.call_count == 2
+                # 1 email: circle-join approval notification only
+                # (message-notification email suppressed via notify=False in handle_join_request)
+                assert mock_send_email.call_count == 1
 
                 first_decision_count = (
                     Message.query.join(Conversation)
@@ -145,7 +146,7 @@ class TestCircleJoinRequestEmailIntegration:
                 join_request = db.session.get(CircleJoinRequest, join_request.id)
                 assert join_request.status == "approved"
                 # No new emails sent for the ignored second action
-                assert mock_send_email.call_count == 2
+                assert mock_send_email.call_count == 1
 
                 second_decision_count = (
                     Message.query.join(Conversation)
@@ -196,8 +197,9 @@ class TestCircleJoinRequestEmailIntegration:
 
                 assert response.status_code == 200
 
-                # 2 emails: message notification + circle-join approval notification
-                assert mock_send_email.call_count >= 1
+                # 1 email: circle-join approval notification only
+                # (message-notification email suppressed via notify=False in handle_join_request)
+                assert mock_send_email.call_count == 1
                 # Verify the circle-join approval email was sent
                 approval_emails = [
                     c
@@ -263,8 +265,9 @@ class TestCircleJoinRequestEmailIntegration:
 
                 assert response.status_code == 200
 
-                # 2 emails: message notification + circle-join rejection notification
-                assert mock_send_email.call_count >= 1
+                # 1 email: circle-join rejection notification only
+                # (message-notification email suppressed via notify=False in handle_join_request)
+                assert mock_send_email.call_count == 1
                 # Verify the circle-join rejection email was sent
                 rejection_emails = [
                     c

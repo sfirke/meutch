@@ -65,11 +65,26 @@ def _commit_and_notify(message, error_prefix):
     return message
 
 
+def _commit_only(message):
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+    return message
+
+
 def create_message(
     sender_id,
     recipient_id,
     body,
     *,
+    # `notify=False` lets callers suppress the message-notification email.
+    # Use this when a dedicated, context-specific email is already being sent
+    # for the same event (e.g. circle join-request decisions already send a
+    # separate approval/rejection email via send_circle_join_request_decision_email).
+    notify=True,
     conversation_id=None,
     parent_id=None,
     loan_request_id=None,
@@ -93,10 +108,13 @@ def create_message(
         conversation_id=conversation_id, user_id=recipient_id, is_archived=True
     ).update({"is_archived": False, "archived_at": None}, synchronize_session=False)
 
-    return _commit_and_notify(
-        message,
-        f"Failed to send email notification for message {message.id}",
-    )
+    if notify:
+        return _commit_and_notify(
+            message,
+            f"Failed to send email notification for message {message.id}",
+        )
+
+    return _commit_only(message)
 
 
 def reply_to_message(message, sender_id, body):

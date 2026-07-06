@@ -216,6 +216,7 @@ def handle_join_request(circle, join_request, acting_user, action):
             join_request.user_id,
             f"Your request to join '{circle.name}' has been approved.",
             conversation_id=conversation.id,
+            notify=False,
         )
     elif action == "reject":
         join_request.status = "rejected"
@@ -224,6 +225,7 @@ def handle_join_request(circle, join_request, acting_user, action):
             join_request.user_id,
             f"Your request to join '{circle.name}' has been denied.",
             conversation_id=conversation.id,
+            notify=False,
         )
     else:
         raise InvalidActionError("Invalid action.")
