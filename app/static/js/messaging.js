@@ -4,8 +4,8 @@
  * Behaviour:
  *  - "Select All" toggles every conversation checkbox on the page.
  *  - Changing any individual checkbox updates the bulk-action bar.
- *  - Clicking a conversation card follows its link, but clicking the
- *    checkbox itself does NOT navigate (stopPropagation).
+ *  - Clicking a conversation row navigates to that conversation, but
+ *    clicking the checkbox itself does NOT navigate (stopPropagation).
  *  - The bulk-action bar is sticky at the bottom of the viewport;
  *    it slides in/out via CSS class toggling.
  */
@@ -50,10 +50,9 @@
             });
         }
 
-        // Individual checkboxes
+        // Individual checkboxes — stopPropagation prevents row navigation
         checkboxes.forEach(function (cb) {
             cb.addEventListener('change', updateBulkBar);
-            // Prevent card navigation when clicking the checkbox
             cb.addEventListener('click', function (e) { e.stopPropagation(); });
         });
     }

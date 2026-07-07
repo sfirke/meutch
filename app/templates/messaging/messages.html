@@ -67,68 +67,61 @@
     </div>
     {% endif %}
 
-    {# ── Conversation Grid ────────────────────────────────────────────── #}
+    {# ── Conversation List ──────────────────────────────────────────── #}
     {% if conversations %}
-        <div class="conversations-grid">
+        <div class="conversation-list">
             {% for convo in conversations %}
-                <div class="card conversation-card {% if convo.unread_count > 0 %}conversation-unread{% endif %}"
-                     onclick="window.location='{{ url_for('main.view_conversation', conversation_id=convo.latest_message.conversation_id) }}'">
-                    {# Checkbox — stopPropagation handled in JS #}
-                    <input class="form-check-input conversation-checkbox" type="checkbox"
+                <a href="{{ url_for('main.view_conversation', conversation_id=convo.latest_message.conversation_id) }}"
+                   class="conversation-row {% if convo.unread_count > 0 %}conversation-unread{% endif %}">
+
+                    {# Checkbox #}
+                    <input class="form-check-input conversation-checkbox conv-checkbox" type="checkbox"
                            value="{{ convo.latest_message.conversation_id }}">
 
-                    <div class="card-body">
-                        {# Avatar with initials #}
-                        <div class="conversation-avatar">
+                    {# Avatar #}
+                    <div class="conv-avatar">
+                        {% if convo.other_user %}
+                            {{ convo.other_user.first_name[0]|upper }}{{ convo.other_user.last_name[0]|upper }}
+                        {% else %}
+                            <i class="fas fa-user"></i>
+                        {% endif %}
+                    </div>
+
+                    {# Body: name + preview row with context badge #}
+                    <div class="conv-body">
+                        <span class="conv-name">
                             {% if convo.other_user %}
-                                {{ convo.other_user.first_name[0]|upper }}{{ convo.other_user.last_name[0]|upper }}
+                                {{ convo.other_user.first_name }} {{ convo.other_user.last_name }}
                             {% else %}
-                                <i class="fas fa-user"></i>
+                                Unknown User
                             {% endif %}
-                        </div>
-
-                        {# Content #}
-                        <div class="conversation-content">
-                            <div class="d-flex align-items-center gap-2 mb-1">
-                                <strong class="text-primary">
-                                    {% if convo.other_user %}
-                                        {{ convo.other_user.first_name }} {{ convo.other_user.last_name }}
-                                    {% else %}
-                                        Unknown User
-                                    {% endif %}
-                                </strong>
-                            </div>
-
-                            {# Context badge #}
+                        </span>
+                        <div class="conv-preview-row">
+                            <span class="conv-preview">{{ convo.latest_message.body }}</span>
                             {% if convo.item %}
-                                <span class="context-badge context-badge--item mb-1">
+                                <span class="context-badge context-badge--item">
                                     <i class="fas fa-box"></i> {{ convo.item.name }}
                                 </span>
                             {% elif convo.item_request %}
-                                <span class="context-badge context-badge--request mb-1">
+                                <span class="context-badge context-badge--request">
                                     <i class="fas fa-hand-holding-heart"></i> Re: {{ convo.item_request.title }}
                                 </span>
                             {% elif convo.circle %}
-                                <span class="context-badge context-badge--circle mb-1">
+                                <span class="context-badge context-badge--circle">
                                     <i class="fas fa-users"></i> Circle: {{ convo.circle.name }}
                                 </span>
                             {% endif %}
-
-                            {# Message preview #}
-                            <p class="message-preview mb-0 text-truncate-2">
-                                {{ convo.latest_message.body }}
-                            </p>
-                        </div>
-
-                        {# Meta: timestamp + unread badge #}
-                        <div class="conversation-meta">
-                            <span class="text-muted small">{{ convo.latest_message.timestamp|utc_timestamp('message') }}</span>
-                            {% if convo.unread_count > 0 %}
-                                <span class="badge bg-warning text-dark">{{ convo.unread_count }} New</span>
-                            {% endif %}
                         </div>
                     </div>
-                </div>
+
+                    {# Meta: timestamp + unread dot #}
+                    <div class="conv-meta">
+                        <span class="conv-time">{{ convo.latest_message.timestamp|utc_timestamp('message') }}</span>
+                        {% if convo.unread_count > 0 %}
+                            <span class="unread-dot" title="{{ convo.unread_count }} unread"></span>
+                        {% endif %}
+                    </div>
+                </a>
             {% endfor %}
         </div>
 
