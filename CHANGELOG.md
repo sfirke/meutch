@@ -7,7 +7,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Features
 **Major**:
 - Refactor messages infrastructure to create conversations, enabling archiving of messages ([#436](https://github.com/sfirke/meutch/pull/436)).
-- Add message archive, pagination, sorting, and bulk actions to the messaging backend, including archive/unarchive per-conversation, bulk archive/mark-read, mark-all-read scoped to view, and optimized inbox query layer ([#PR_PLACEHOLDER](https://github.com/sfirke/meutch/pull/PR_PLACEHOLDER)).
+- Add message archive, pagination, sorting, and bulk actions to the messaging backend, including archive/unarchive per-conversation, bulk archive/mark-read, mark-all-read scoped to view, and optimized inbox query layer ([#438](https://github.com/sfirke/meutch/pull/438)).
 
 **Minor**:
 - On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
