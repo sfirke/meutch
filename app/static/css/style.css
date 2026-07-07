@@ -1033,11 +1033,18 @@ footer h6 {
     color: #1a202c;
 }
 
-.conversation-row .conv-preview-row {
+/* ── Name line: name + context subtitle ── */
+.conversation-row .conv-name-line {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    align-items: baseline;
+    gap: 0.35rem;
     min-width: 0;
+}
+
+.conversation-row .conv-context-sep {
+    color: var(--muted-text);
+    font-size: 0.85rem;
+    flex-shrink: 0;
 }
 
 .conversation-row .conv-preview {
@@ -1046,8 +1053,6 @@ footer h6 {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex: 1;
-    min-width: 0;
 }
 
 .conversation-row.conversation-unread .conv-preview {
@@ -1077,13 +1082,12 @@ footer h6 {
     flex-shrink: 0;
 }
 
-/* ── Context Badge (inline in preview row) ── */
+/* ── Context Badge (subtitle next to sender name) ── */
 .context-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
-    font-size: 0.75rem;
-    padding: 0.1rem 0.45rem;
+    display: inline;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.1rem 0.4rem;
     border-radius: 0.25rem;
     white-space: nowrap;
     flex-shrink: 0;
@@ -1092,6 +1096,37 @@ footer h6 {
 .context-badge--item { background: #e3f2fd; color: #1565c0; }
 .context-badge--request { background: #fce4ec; color: #c62828; }
 .context-badge--circle { background: #e8f5e9; color: #2e7d32; }
+
+/* ── Inbox Action Bar (inside conversation list) ── */
+.inbox-action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    background: #fafbfc;
+    gap: 1rem;
+}
+
+.inbox-action-bar__left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.inbox-action-bar__right {
+    display: flex;
+    align-items: center;
+}
+
+.inbox-action-bar .form-check {
+    margin-bottom: 0;
+}
+
+.inbox-action-bar .btn-link {
+    font-size: 0.875rem;
+    padding: 0;
+}
 
 /* ── Bulk Action Bar ── */
 .bulk-action-bar {
@@ -1125,7 +1160,6 @@ footer h6 {
 /* ── Sort Dropdown ── */
 .sort-dropdown .dropdown-toggle {
     font-size: 0.875rem;
-    color: var(--muted-text);
 }
 
 /* ── Responsive ── */
@@ -1148,10 +1182,6 @@ footer h6 {
     .conversation-row .conv-preview {
         font-size: 0.8rem;
     }
-
-    .conversation-row .context-badge {
-        display: none;
-    }
 }
 
 /* ── Messaging Toolbar ── */
@@ -1164,13 +1194,24 @@ footer h6 {
     margin-bottom: 1rem;
 }
 
-.messaging-toolbar .nav-pills .nav-link {
-    padding: 0.375rem 1rem;
+.messaging-toolbar .nav-tabs .nav-link {
+    padding: 0.5rem 1.25rem;
     font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted-text);
+    border: none;
 }
 
-.messaging-toolbar .nav-pills .nav-link.active {
+.messaging-toolbar .nav-tabs .nav-link.active {
     font-weight: 600;
+    color: var(--primary-dark);
+    background: transparent;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.messaging-toolbar .nav-tabs .nav-link:hover:not(.active) {
+    color: var(--dark-text);
+    border-bottom: 2px solid transparent;
 }
 
 .button-group {
