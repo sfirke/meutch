@@ -177,9 +177,9 @@ class TestSortConversationSummaries:
         with app.app_context():
             now = datetime.now(UTC)
             summaries = [
-                _make_summary("c1", None, now - timedelta(minutes=3)),
-                _make_summary("c2", None, now - timedelta(minutes=1)),
-                _make_summary("c3", None, now - timedelta(minutes=2)),
+                _make_summary("c1", None, now - timedelta(minutes=1)),
+                _make_summary("c2", None, now - timedelta(minutes=2)),
+                _make_summary("c3", None, now - timedelta(minutes=3)),
             ]
             sorted_summaries = sort_conversation_summaries(summaries, "newest")
             # Preserves input order (already DESC from query)
@@ -189,12 +189,12 @@ class TestSortConversationSummaries:
         with app.app_context():
             now = datetime.now(UTC)
             summaries = [
-                _make_summary("c1", None, now - timedelta(minutes=3)),
-                _make_summary("c2", None, now - timedelta(minutes=1)),
-                _make_summary("c3", None, now - timedelta(minutes=2)),
+                _make_summary("c1", None, now - timedelta(minutes=1)),
+                _make_summary("c2", None, now - timedelta(minutes=2)),
+                _make_summary("c3", None, now - timedelta(minutes=3)),
             ]
             sorted_summaries = sort_conversation_summaries(summaries, "oldest")
-            assert [s["conversation_id"] for s in sorted_summaries] == ["c1", "c3", "c2"]
+            assert [s["conversation_id"] for s in sorted_summaries] == ["c3", "c2", "c1"]
 
     def test_unread_first_order(self, app):
         with app.app_context():
