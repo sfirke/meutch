@@ -116,6 +116,14 @@ class ConversationListQuerySchema(PaginationQuerySchema):
         load_default=DEFAULT_FEED_PER_PAGE,
         validate=validate.Range(min=1, max=MAX_COLLECTION_PER_PAGE),
     )
+    status = fields.String(
+        load_default="inbox",
+        validate=validate.OneOf(["inbox", "archived"]),
+    )
+    sort = fields.String(
+        load_default="newest",
+        validate=validate.OneOf(["newest", "oldest", "unread", "name_asc"]),
+    )
 
 
 class LoanListQuerySchema(PaginationQuerySchema):

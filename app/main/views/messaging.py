@@ -1,4 +1,4 @@
-from flask import flash, redirect, render_template, url_for
+from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db
@@ -6,16 +6,78 @@ from app.forms import ConfirmHandoffForm, EmptyForm, MessageForm, ReleaseToAllFo
 from app.main import bp as main_bp
 from app.models import Conversation, ConversationParticipant, GiveawayInterest, Message
 from app.services import message_service
-from app.utils.messaging_queries import build_inbox_summaries
+from app.utils.messaging_queries import (
+    build_inbox_summaries,
+    filter_by_archive_status,
+    sort_conversation_summaries,
+)
+from app.utils.pagination import ListPagination
 
 
 @main_bp.route("/messages")
 @login_required
 def messages():
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+    sort = request.args.get("sort", "newest")
+    status = request.args.get("status", "inbox")
+
+    summaries = build_inbox_summaries(current_user.id, include_archived=True)
+    summaries = filter_by_archive_status(summaries, status)
+    summaries = sort_conversation_summaries(summaries, sort)
+
+    pagination = ListPagination(items=summaries, page=page, per_page=per_page)
+
     return render_template(
         "messaging/messages.html",
-        conversations=build_inbox_summaries(current_user.id),
+        conversations=pagination.items,
+        pagination=pagination,
+        current_sort=sort,
+        current_status=status,
     )
+
+
+@main_bp.route("/messages/bulk-archive", methods=["POST"])
+@login_required
+def bulk_archive():
+    conversation_ids = _parse_bulk_ids()
+    if conversation_ids:
+        message_service.bulk_archive(current_user.id, conversation_ids)
+        flash(f"{len(conversation_ids)} conversation(s) archived.", "success")
+    return redirect(url_for("main.messages", status=request.args.get("status", "inbox")))
+
+
+@main_bp.route("/messages/bulk-mark-read", methods=["POST"])
+@login_required
+def bulk_mark_read():
+    conversation_ids = _parse_bulk_ids()
+    if conversation_ids:
+        message_service.bulk_mark_read(current_user.id, conversation_ids)
+        flash(f"{len(conversation_ids)} conversation(s) marked as read.", "success")
+    return redirect(url_for("main.messages", status=request.args.get("status", "inbox")))
+
+
+@main_bp.route("/messages/mark-all-read", methods=["POST"])
+@login_required
+def mark_all_read():
+    status = request.args.get("status", "inbox")
+    message_service.mark_all_read_in_view(current_user.id, status=status)
+    flash("All visible messages marked as read.", "success")
+    return redirect(url_for("main.messages", status=status))
+
+
+def _parse_bulk_ids():
+    """Extract conversation IDs from POST body (JSON or form)."""
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        ids_raw = data.get("conversation_ids", [])
+    else:
+        ids_raw = request.form.get("conversation_ids", "")
+        if ids_raw:
+            ids_raw = ids_raw.split(",")
+        else:
+            ids_raw = []
+    return [cid.strip() for cid in ids_raw if cid.strip()]
 
 
 @main_bp.route("/conversation/<uuid:conversation_id>", methods=["GET", "POST"])
@@ -133,3 +195,34 @@ def view_conversation(conversation_id):
         fulfillable_request=fulfillable_request,
         request_fulfill_form=request_fulfill_form,
     )
+
+
+@main_bp.route("/conversation/<uuid:conversation_id>/archive", methods=["POST"])
+@login_required
+def archive_conversation(conversation_id):
+    conversation = db.get_or_404(Conversation, conversation_id)
+    _require_participant(conversation, current_user.id)
+    message_service.archive_conversation(current_user.id, conversation_id)
+    flash("Conversation archived.", "success")
+    return redirect(url_for("main.messages"))
+
+
+@main_bp.route("/conversation/<uuid:conversation_id>/unarchive", methods=["POST"])
+@login_required
+def unarchive_conversation(conversation_id):
+    conversation = db.get_or_404(Conversation, conversation_id)
+    _require_participant(conversation, current_user.id)
+    message_service.unarchive_conversation(current_user.id, conversation_id)
+    flash("Conversation unarchived.", "success")
+    return redirect(url_for("main.messages", status="archived"))
+
+
+def _require_participant(conversation, user_id):
+    """Abort 404 if the user is not a participant in the conversation."""
+    participant = ConversationParticipant.query.filter_by(
+        conversation_id=conversation.id, user_id=user_id
+    ).first()
+    if not participant:
+        from flask import abort
+
+        abort(404)

@@ -5,8 +5,10 @@ from app.utils.messaging_queries import (
     build_conversation_thread_state,
     build_inbox_summaries,
     build_request_conversation_summaries,
+    filter_by_archive_status,
     find_context_conversation,
     get_conversation_thread_state,
+    sort_conversation_summaries,
 )
 from tests.factories import (
     ConversationFactory,
@@ -151,3 +153,94 @@ def test_request_conversation_helpers_group_and_find_existing_thread(app):
         assert conversations[0]["latest_message"].id == reply_message.id
         assert existing_conv is not None
         assert existing_conv.id == first_message.conversation_id
+
+
+# ── Sort & filter helpers ──────────────────────────────────────────────
+
+
+def _make_summary(conversation_id, other_user, timestamp, unread_count=0, is_archived=False):
+    """Build a minimal summary dict for sort/filter tests."""
+    return {
+        "conversation_id": conversation_id,
+        "other_user": other_user,
+        "latest_message": type("FakeMsg", (), {"timestamp": timestamp})(),
+        "unread_count": unread_count,
+        "is_archived": is_archived,
+        "item": None,
+        "item_request": None,
+        "circle": None,
+    }
+
+
+class TestSortConversationSummaries:
+    def test_default_is_newest_order(self, app):
+        with app.app_context():
+            now = datetime.now(UTC)
+            summaries = [
+                _make_summary("c1", None, now - timedelta(minutes=3)),
+                _make_summary("c2", None, now - timedelta(minutes=1)),
+                _make_summary("c3", None, now - timedelta(minutes=2)),
+            ]
+            sorted_summaries = sort_conversation_summaries(summaries, "newest")
+            # Preserves input order (already DESC from query)
+            assert [s["conversation_id"] for s in sorted_summaries] == ["c1", "c2", "c3"]
+
+    def test_oldest_order(self, app):
+        with app.app_context():
+            now = datetime.now(UTC)
+            summaries = [
+                _make_summary("c1", None, now - timedelta(minutes=3)),
+                _make_summary("c2", None, now - timedelta(minutes=1)),
+                _make_summary("c3", None, now - timedelta(minutes=2)),
+            ]
+            sorted_summaries = sort_conversation_summaries(summaries, "oldest")
+            assert [s["conversation_id"] for s in sorted_summaries] == ["c1", "c3", "c2"]
+
+    def test_unread_first_order(self, app):
+        with app.app_context():
+            now = datetime.now(UTC)
+            summaries = [
+                _make_summary("c1", None, now, unread_count=2),
+                _make_summary("c2", None, now, unread_count=5),
+                _make_summary("c3", None, now, unread_count=0),
+            ]
+            sorted_summaries = sort_conversation_summaries(summaries, "unread")
+            assert [s["conversation_id"] for s in sorted_summaries] == ["c2", "c1", "c3"]
+
+    def test_name_asc_order(self, app):
+        with app.app_context():
+            now = datetime.now(UTC)
+            alice = type("FakeUser", (), {"first_name": "Alice", "last_name": "Zeta"})()
+            bob = type("FakeUser", (), {"first_name": "Bob", "last_name": "Alpha"})()
+            carol = type("FakeUser", (), {"first_name": "Carol", "last_name": "Beta"})()
+            summaries = [
+                _make_summary("c1", alice, now),
+                _make_summary("c2", bob, now),
+                _make_summary("c3", carol, now),
+            ]
+            sorted_summaries = sort_conversation_summaries(summaries, "name_asc")
+            assert [s["conversation_id"] for s in sorted_summaries] == ["c1", "c2", "c3"]
+
+
+class TestFilterByArchiveStatus:
+    def test_inbox_excludes_archived(self, app):
+        with app.app_context():
+            now = datetime.now(UTC)
+            summaries = [
+                _make_summary("c1", None, now, is_archived=False),
+                _make_summary("c2", None, now, is_archived=True),
+                _make_summary("c3", None, now, is_archived=False),
+            ]
+            filtered = filter_by_archive_status(summaries, "inbox")
+            assert [s["conversation_id"] for s in filtered] == ["c1", "c3"]
+
+    def test_archived_only_shows_archived(self, app):
+        with app.app_context():
+            now = datetime.now(UTC)
+            summaries = [
+                _make_summary("c1", None, now, is_archived=False),
+                _make_summary("c2", None, now, is_archived=True),
+                _make_summary("c3", None, now, is_archived=False),
+            ]
+            filtered = filter_by_archive_status(summaries, "archived")
+            assert [s["conversation_id"] for s in filtered] == ["c2"]
