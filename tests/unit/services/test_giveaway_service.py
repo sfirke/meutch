@@ -22,7 +22,7 @@ class TestGiveawayService:
             )
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 interest = giveaway_service.express_interest(
                     item, requester.id, "I can pick this up"
@@ -51,7 +51,7 @@ class TestGiveawayService:
 
             with patch("app.services.giveaway_service.random.choice", return_value=second_interest):
                 with patch(
-                    "app.services.giveaway_service.send_message_notification_email"
+                    "app.services.message_service.send_message_notification_email"
                 ) as mock_email:
                     selected_interest = giveaway_service.select_recipient(item, owner.id, "random")
 
@@ -85,7 +85,7 @@ class TestGiveawayService:
             next_interest = GiveawayInterestFactory(item=item, user=next_user, status="active")
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 selected_interest = giveaway_service.change_recipient(item, owner.id, "next")
 
@@ -248,7 +248,7 @@ class TestGiveawayService:
             )
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 giveaway_service.release_to_all(item, owner.id)
 

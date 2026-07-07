@@ -3,12 +3,13 @@
 import logging
 
 from app import db
-from app.models import Message
+from app.models import ConversationParticipant, Message
 from app.services.exceptions import AuthorizationError, InvalidActionError
 from app.utils.email import send_message_notification_email
 from app.utils.item_visibility import build_item_access_state
 from app.utils.messaging_queries import (
     build_conversation_thread_state,
+    get_or_create_conversation,
     mark_conversation_messages_read,
 )
 from app.utils.request_queries import can_view_request
@@ -39,12 +40,14 @@ def get_request_conversation_recipient_id(item_request, sender):
 
 def start_item_conversation(item, sender, body, *, share_token=None):
     recipient_id = get_item_conversation_recipient_id(item, sender, share_token=share_token)
-    return create_message(sender.id, recipient_id, body, item_id=item.id)
+    conversation = get_or_create_conversation("item", item.id, sender.id, recipient_id)
+    return create_message(sender.id, recipient_id, body, conversation_id=conversation.id)
 
 
 def start_request_conversation(item_request, sender, body):
     recipient_id = get_request_conversation_recipient_id(item_request, sender)
-    return create_message(sender.id, recipient_id, body, request_id=item_request.id)
+    conversation = get_or_create_conversation("request", item_request.id, sender.id, recipient_id)
+    return create_message(sender.id, recipient_id, body, conversation_id=conversation.id)
 
 
 def _commit_and_notify(message, error_prefix):
@@ -62,15 +65,29 @@ def _commit_and_notify(message, error_prefix):
     return message
 
 
+def _commit_only(message):
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+    return message
+
+
 def create_message(
     sender_id,
     recipient_id,
     body,
     *,
-    item_id=None,
-    request_id=None,
-    circle_id=None,
+    # `notify=False` lets callers suppress the message-notification email.
+    # Use this when a dedicated, context-specific email is already being sent
+    # for the same event (e.g. circle join-request decisions already send a
+    # separate approval/rejection email via send_circle_join_request_decision_email).
+    notify=True,
+    conversation_id=None,
     parent_id=None,
+    loan_request_id=None,
 ):
     if sender_id == recipient_id:
         raise InvalidActionError("You cannot message yourself.")
@@ -78,18 +95,26 @@ def create_message(
     message = Message(
         sender_id=sender_id,
         recipient_id=recipient_id,
-        item_id=item_id,
-        request_id=request_id,
-        circle_id=circle_id,
+        conversation_id=conversation_id,
         body=body,
         is_read=False,
         parent_id=parent_id,
+        loan_request_id=loan_request_id,
     )
     db.session.add(message)
-    return _commit_and_notify(
-        message,
-        f"Failed to send email notification for message {message.id}",
-    )
+
+    # Auto-unarchive for the recipient when a new message arrives
+    ConversationParticipant.query.filter_by(
+        conversation_id=conversation_id, user_id=recipient_id, is_archived=True
+    ).update({"is_archived": False, "archived_at": None}, synchronize_session=False)
+
+    if notify:
+        return _commit_and_notify(
+            message,
+            f"Failed to send email notification for message {message.id}",
+        )
+
+    return _commit_only(message)
 
 
 def reply_to_message(message, sender_id, body):
@@ -101,9 +126,7 @@ def reply_to_message(message, sender_id, body):
         sender_id,
         recipient_id,
         body,
-        item_id=message.item_id,
-        request_id=message.request_id,
-        circle_id=message.circle_id,
+        conversation_id=message.conversation_id,
         parent_id=message.id,
     )
 

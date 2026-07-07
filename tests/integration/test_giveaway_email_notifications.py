@@ -11,7 +11,7 @@ Tests verify:
 from unittest.mock import patch
 
 from app import db
-from app.models import GiveawayInterest, Message
+from app.models import Conversation, GiveawayInterest, Message
 from conftest import login_user
 from tests.factories import CategoryFactory, CircleFactory, ItemFactory, UserFactory
 
@@ -41,7 +41,7 @@ class TestGiveawaySelectionEmail:
             login_user(client, owner.email)
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 mock_email.return_value = True
 
@@ -84,7 +84,7 @@ class TestGiveawaySelectionEmail:
             login_user(client, owner.email)
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 with patch(
                     "random.choice",
@@ -125,7 +125,7 @@ class TestGiveawaySelectionEmail:
             login_user(client, owner.email)
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 mock_email.side_effect = Exception("Email service unavailable")
 
@@ -179,7 +179,7 @@ class TestGiveawayReassignmentEmail:
             login_user(client, owner.email)
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 mock_email.return_value = True
 
@@ -233,7 +233,7 @@ class TestGiveawayReassignmentEmail:
             login_user(client, owner.email)
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 mock_email.return_value = True
 
@@ -246,9 +246,15 @@ class TestGiveawayReassignmentEmail:
                 assert response.status_code == 200
 
                 # Verify message was created for previous recipient
-                prev_message = Message.query.filter_by(
-                    recipient_id=previous_recipient.id, item_id=giveaway.id
-                ).first()
+                prev_message = (
+                    Message.query.join(Conversation)
+                    .filter(
+                        Conversation.context_type == "item",
+                        Conversation.context_id == giveaway.id,
+                        Message.recipient_id == previous_recipient.id,
+                    )
+                    .first()
+                )
                 assert prev_message is not None
                 assert (
                     "different recipient" in prev_message.body.lower()
@@ -292,7 +298,7 @@ class TestGiveawayReassignmentEmail:
             login_user(client, owner.email)
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 mock_email.side_effect = Exception("Email service unavailable")
 
@@ -334,7 +340,7 @@ class TestGiveawayInterestEmail:
             login_user(client, requester.email)
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 mock_email.return_value = True
 
@@ -348,9 +354,16 @@ class TestGiveawayInterestEmail:
                 assert b"Your interest has been recorded" in response.data
 
                 # Verify owner received in-app message
-                notification = Message.query.filter_by(
-                    sender_id=requester.id, recipient_id=owner.id, item_id=giveaway.id
-                ).first()
+                notification = (
+                    Message.query.join(Conversation)
+                    .filter(
+                        Conversation.context_type == "item",
+                        Conversation.context_id == giveaway.id,
+                        Message.sender_id == requester.id,
+                        Message.recipient_id == owner.id,
+                    )
+                    .first()
+                )
                 assert notification is not None
                 assert notification.body == "I would love this item!"
 
@@ -387,7 +400,7 @@ class TestGiveawayReleaseEmail:
             login_user(client, owner.email)
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 mock_email.return_value = True
 
@@ -397,7 +410,12 @@ class TestGiveawayReleaseEmail:
 
                 # Verify message was created for previous recipient about release
                 release_message = (
-                    Message.query.filter_by(recipient_id=previous_recipient.id, item_id=giveaway.id)
+                    Message.query.join(Conversation)
+                    .filter(
+                        Message.recipient_id == previous_recipient.id,
+                        Conversation.context_type == "item",
+                        Conversation.context_id == giveaway.id,
+                    )
                     .order_by(Message.timestamp.desc())
                     .first()
                 )
@@ -442,7 +460,7 @@ class TestGiveawayReleaseEmail:
             login_user(client, owner.email)
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 mock_email.return_value = True
 
@@ -451,7 +469,14 @@ class TestGiveawayReleaseEmail:
                 assert response.status_code == 200
 
                 # Check messages created
-                messages = Message.query.filter_by(item_id=giveaway.id).all()
+                messages = (
+                    Message.query.join(Conversation)
+                    .filter(
+                        Conversation.context_type == "item",
+                        Conversation.context_id == giveaway.id,
+                    )
+                    .all()
+                )
                 recipient_ids = [m.recipient_id for m in messages]
 
                 # Only previous recipient should receive a message, not the other interested user
@@ -494,7 +519,7 @@ class TestGiveawayHandoffNoEmail:
             login_user(client, owner.email)
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 mock_email.return_value = True
 

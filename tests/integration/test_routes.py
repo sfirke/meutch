@@ -896,7 +896,7 @@ class TestItemRoutes:
                 body="I still have this item and can return it this weekend.",
             )
             item_id = item.id
-            loan_message_id = loan_message.id
+            loan_conversation_id = loan_message.conversation_id
             db.session.commit()
 
             login_user(client, owner.email)
@@ -904,7 +904,7 @@ class TestItemRoutes:
             response = client.post(f"/item/{item.id}/delete", follow_redirects=False)
 
             assert response.status_code == 302
-            assert response.headers["Location"].endswith(f"/message/{loan_message_id}")
+            assert response.headers["Location"].endswith(f"/conversation/{loan_conversation_id}")
             assert db.session.get(Item, item_id) is not None
 
     def test_delete_modal_for_active_loan_shows_resolution_guidance(self, client, app, auth_user):
@@ -1344,12 +1344,12 @@ class TestProfileRoutes:
             # Borrowing section: lender profile + item links (name + thumbnail) + View Loan button
             assert f'href="/user/{lender.id}"' in content
             assert f'href="/item/{borrowed_item.id}"' in content
-            assert f'href="/message/{borrowed_msg.id}"' in content
+            assert f'href="/conversation/{borrowed_msg.conversation_id}"' in content
 
             # Lending section: borrower profile + item links (name + thumbnail) + View Loan button
             assert f'href="/user/{borrower.id}"' in content
             assert f'href="/item/{lent_item.id}"' in content
-            assert f'href="/message/{lent_msg.id}"' in content
+            assert f'href="/conversation/{lent_msg.conversation_id}"' in content
 
     def test_profile_displays_custom_other_site_name(self, client, app, auth_user):
         """Test that custom name for 'Other' web links is shown in read-only profile view."""

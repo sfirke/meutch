@@ -2,7 +2,7 @@
 
 from datetime import date, timedelta
 
-from app.models import Circle, CircleJoinRequest, Item, LoanRequest, Message, User, db
+from app.models import Circle, CircleJoinRequest, Conversation, Item, LoanRequest, Message, User, db
 from conftest import login_user
 from tests.factories import CategoryFactory, CircleFactory, ItemFactory, TagFactory, UserFactory
 
@@ -345,15 +345,22 @@ class TestMessagingWorkflow:
             assert unread_count == 1, f"Expected 1 unread message, but found {unread_count}"
 
             # Also verify the specific message exists and is unread
-            message = Message.query.filter_by(
-                sender_id=sender.id, recipient_id=recipient.id, item_id=item.id
-            ).first()
+            message = (
+                Message.query.join(Conversation)
+                .filter(
+                    Conversation.context_type == "item",
+                    Conversation.context_id == item.id,
+                    Message.sender_id == sender.id,
+                    Message.recipient_id == recipient.id,
+                )
+                .first()
+            )
 
             assert message is not None
             assert message.is_read is False
 
             # View conversation
-            response = client.get(f"/message/{message.id}")
+            response = client.get(f"/conversation/{message.conversation_id}")
             assert response.status_code == 200
             assert b"interested in this item" in response.data
 

@@ -282,7 +282,7 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <a href="{{ url_for('main.view_conversation', message_id=item.current_loan.messages[0].id) }}" class="btn btn-sm btn-outline-primary">
+                                                <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}" class="btn btn-sm btn-outline-primary">
                                                     <i class="fas fa-exchange-alt me-1"></i>View Loan
                                                 </a>
                                             </td>
@@ -335,7 +335,7 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <a href="{{ url_for('main.view_conversation', message_id=item.current_loan.messages[0].id) }}" class="btn btn-sm btn-outline-primary">
+                                                <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}" class="btn btn-sm btn-outline-primary">
                                                     <i class="fas fa-exchange-alt me-1"></i>View Loan
                                                 </a>
                                             </td>

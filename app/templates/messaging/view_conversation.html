@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
-    {% set conversation_item = thread_messages[0].item if thread_messages else None %}
-    {% set conversation_request = thread_messages[0].request if thread_messages else None %}
-    {% set conversation_circle = thread_messages[0].circle if thread_messages else None %}
+    {% set conversation_item = thread_messages[0].conversation.item if thread_messages else None %}
+    {% set conversation_request = thread_messages[0].conversation.request if thread_messages else None %}
+    {% set conversation_circle = thread_messages[0].conversation.circle if thread_messages else None %}
     {% set conversation_partner = thread_messages[0].other_user if thread_messages else None %}
     {% set is_item_owner = conversation_item and conversation_item.owner_id == current_user.id %}
 

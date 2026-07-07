@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import text
 
 from app import db
-from app.models import GiveawayInterest, Item, Message
+from app.models import Conversation, GiveawayInterest, Item, Message
 from conftest import login_user
 from tests.factories import (
     CategoryFactory,
@@ -1115,7 +1115,15 @@ class TestRecipientSelection:
             assert interest2.status == "selected"
 
             # Verify message sent to selected user
-            message = Message.query.filter_by(recipient_id=user2.id, item_id=giveaway.id).first()
+            message = (
+                Message.query.join(Conversation)
+                .filter(
+                    Message.recipient_id == user2.id,
+                    Conversation.context_type == "item",
+                    Conversation.context_id == giveaway.id,
+                )
+                .first()
+            )
             assert message is not None
             assert "selected" in message.body.lower()
 
@@ -1346,8 +1354,10 @@ class TestConversationGiveawaySelection:
             assert interest.status == "selected"
 
             notification_message = (
-                Message.query.filter(
-                    Message.item_id == giveaway.id,
+                Message.query.join(Conversation)
+                .filter(
+                    Conversation.context_type == "item",
+                    Conversation.context_id == giveaway.id,
                     Message.recipient_id == requester.id,
                     Message.body.contains("selected for the giveaway"),
                 )
@@ -1580,9 +1590,16 @@ class TestGiveawayOwnerMessaging:
             assert response.status_code == 200
 
             # Verify message was created
-            message = Message.query.filter_by(
-                sender_id=owner.id, recipient_id=requester.id, item_id=giveaway.id
-            ).first()
+            message = (
+                Message.query.join(Conversation)
+                .filter(
+                    Conversation.context_type == "item",
+                    Conversation.context_id == giveaway.id,
+                    Message.sender_id == owner.id,
+                    Message.recipient_id == requester.id,
+                )
+                .first()
+            )
 
             assert message is not None
             assert message.body == "Can you pick this up today?"
@@ -1648,10 +1665,10 @@ class TestGiveawayOwnerMessaging:
             db.session.add(interest)
 
             # Create existing message
-            existing_message = Message(
-                sender_id=requester.id,
-                recipient_id=owner.id,
-                item_id=giveaway.id,
+            existing_message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=giveaway,
                 body="I have a question",
             )
             db.session.add(existing_message)
@@ -1665,7 +1682,7 @@ class TestGiveawayOwnerMessaging:
 
             # Should redirect to existing conversation
             assert response.status_code == 302
-            assert f"/message/{existing_message.id}" in response.location
+            assert f"/conversation/{existing_message.conversation_id}" in response.location
 
     def test_message_button_appears_on_select_recipient_page(self, client, app, auth_user):
         """Test that Message button appears for each interested user."""
@@ -2440,10 +2457,10 @@ class TestItemDetailPageForGiveaways:
             giveaway = ItemFactory(
                 owner=owner, category=category, is_giveaway=True, claim_status="unclaimed"
             )
-            message = Message(
-                sender_id=requester.id,
-                recipient_id=owner.id,
-                item_id=giveaway.id,
+            message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=giveaway,
                 body="Could I claim this?",
             )
             db.session.add(message)
@@ -2528,10 +2545,10 @@ class TestDataIntegrity:
                 claimed_by=requester,
                 available=False,
             )
-            message = Message(
-                sender_id=requester.id,
-                recipient_id=owner.id,
-                item_id=giveaway.id,
+            message = MessageFactory(
+                sender=requester,
+                recipient=owner,
+                item=giveaway,
                 body="I can pick it up this afternoon.",
             )
             db.session.add(message)

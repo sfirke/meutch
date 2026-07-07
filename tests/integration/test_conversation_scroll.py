@@ -23,7 +23,7 @@ class TestConversationScrollBehavior:
             message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
 
             login_user(client, recipient.email)
-            response = client.get(f"/message/{message.id}")
+            response = client.get(f"/conversation/{message.conversation_id}")
 
         assert b"scrollIntoView" in response.data
         assert response.data.count(b"scrollIntoView") == 1
@@ -37,7 +37,7 @@ class TestConversationScrollBehavior:
             message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=True)
 
             login_user(client, recipient.email)
-            response = client.get(f"/message/{message.id}")
+            response = client.get(f"/conversation/{message.conversation_id}")
 
         assert response.status_code == 200
         assert b"scrollIntoView" not in response.data
@@ -49,19 +49,19 @@ class TestConversationScrollBehavior:
             recipient = UserFactory()
             item = ItemFactory(owner=sender)
             message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
-            message_id = message.id
+            conv_id = message.conversation_id
 
-            assert db.session.get(Message, message_id).is_read is False
+            assert db.session.get(Message, message.id).is_read is False
 
             login_user(client, recipient.email)
-            response = client.get(f"/message/{message_id}")
+            response = client.get(f"/conversation/{conv_id}")
             assert response.status_code == 200
 
             db.session.expire_all()
-            assert db.session.get(Message, message_id).is_read is True
+            assert db.session.get(Message, message.id).is_read is True
 
             # View again — should load without scrolling
-            response = client.get(f"/message/{message_id}")
+            response = client.get(f"/conversation/{conv_id}")
             assert response.status_code == 200
             assert b"scrollIntoView" not in response.data
 
@@ -74,7 +74,7 @@ class TestConversationScrollBehavior:
             message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
 
             login_user(client, sender.email)
-            response = client.get(f"/message/{message.id}")
+            response = client.get(f"/conversation/{message.conversation_id}")
 
         assert response.status_code == 200
         assert b"scrollIntoView" not in response.data

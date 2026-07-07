@@ -119,7 +119,7 @@
                         </h5>
                         <div class="list-group">
                             {% for conv in conversations %}
-                                <a href="{{ url_for('main.view_conversation', message_id=conv.latest_message.id) }}" class="list-group-item list-group-item-action">
+                                <a href="{{ url_for('main.view_conversation', conversation_id=conv.latest_message.conversation_id) }}" class="list-group-item list-group-item-action">
                                     <div class="d-flex w-100 align-items-center">
                                         <img src="{{ conv.other_user.profile_image }}" alt="{{ conv.other_user.full_name }}" class="rounded-circle me-2 flex-shrink-0" width="40" height="40">
                                         <div class="flex-grow-1 min-width-0">

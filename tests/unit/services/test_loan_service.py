@@ -16,7 +16,9 @@ class TestLoanService:
             borrower = UserFactory()
             item = ItemFactory(owner=owner, is_giveaway=False, available=True)
 
-            with patch("app.services.loan_service.send_message_notification_email") as mock_email:
+            with patch(
+                "app.services.message_service.send_message_notification_email"
+            ) as mock_email:
                 message = loan_service.create_loan_request(
                     item,
                     borrower.id,
@@ -65,7 +67,9 @@ class TestLoanService:
             loan.last_overdue_reminder_sent = date.today()
             loan.overdue_reminder_count = 3
 
-            with patch("app.services.loan_service.send_message_notification_email") as mock_email:
+            with patch(
+                "app.services.message_service.send_message_notification_email"
+            ) as mock_email:
                 extend_result = loan_service.extend_loan(
                     loan,
                     owner.id,
@@ -98,7 +102,9 @@ class TestLoanService:
                 end_date=original_end,
             )
 
-            with patch("app.services.loan_service.send_message_notification_email") as mock_email:
+            with patch(
+                "app.services.message_service.send_message_notification_email"
+            ) as mock_email:
                 extend_result = loan_service.extend_loan(loan, owner.id, new_end, "")
 
             message = Message.query.one()
@@ -116,7 +122,9 @@ class TestLoanService:
             item = ItemFactory(owner=owner, is_giveaway=False, available=True)
             loan = LoanRequestFactory(item=item, borrower=borrower, status="pending")
 
-            with patch("app.services.loan_service.send_message_notification_email") as mock_email:
+            with patch(
+                "app.services.message_service.send_message_notification_email"
+            ) as mock_email:
                 message = loan_service.process_loan_decision(loan, owner.id, "approve")
 
             assert loan.status == "approved"
@@ -132,7 +140,9 @@ class TestLoanService:
             item = ItemFactory(owner=owner, is_giveaway=False, available=False)
             loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
 
-            with patch("app.services.loan_service.send_message_notification_email") as mock_email:
+            with patch(
+                "app.services.message_service.send_message_notification_email"
+            ) as mock_email:
                 message = loan_service.owner_cancel_approved_loan(loan, owner.id)
 
             assert loan.status == "canceled"
@@ -147,7 +157,9 @@ class TestLoanService:
             item = ItemFactory(owner=owner, is_giveaway=False, available=False)
             loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
 
-            with patch("app.services.loan_service.send_message_notification_email") as mock_email:
+            with patch(
+                "app.services.message_service.send_message_notification_email"
+            ) as mock_email:
                 message = loan_service.complete_loan(loan, owner.id)
 
             assert loan.status == "completed"
@@ -217,7 +229,7 @@ class TestLoanService:
             item = ItemFactory(owner=owner, is_giveaway=False, available=False)
             loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
 
-            with patch("app.services.loan_service.send_message_notification_email"):
+            with patch("app.services.message_service.send_message_notification_email"):
                 with pytest.raises(ConflictError, match="already been processed"):
                     loan_service.process_loan_decision(loan, owner.id, "approve")
 
