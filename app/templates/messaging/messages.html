@@ -100,13 +100,16 @@
                             </span>
                             {% if convo.item %}
                                 <span class="conv-context-sep">·</span>
-                                <span class="context-badge context-badge--item">{{ convo.item.name }}</span>
+                                <span class="context-badge context-badge--item d-none d-md-inline">{{ convo.item.name|truncate(60) }}</span>
+                                <span class="context-badge context-badge--item d-md-none">{{ convo.item.name|truncate(30) }}</span>
                             {% elif convo.item_request %}
                                 <span class="conv-context-sep">·</span>
-                                <span class="context-badge context-badge--request">Request: {{ convo.item_request.title }}</span>
+                                <span class="context-badge context-badge--request d-none d-md-inline">{{ convo.item_request.title|truncate(60) }}</span>
+                                <span class="context-badge context-badge--request d-md-none">{{ convo.item_request.title|truncate(30) }}</span>
                             {% elif convo.circle %}
                                 <span class="conv-context-sep">·</span>
-                                <span class="context-badge context-badge--circle">Circle: {{ convo.circle.name }}</span>
+                                <span class="context-badge context-badge--circle d-none d-md-inline">{{ convo.circle.name|truncate(60) }}</span>
+                                <span class="context-badge context-badge--circle d-md-none">{{ convo.circle.name|truncate(30) }}</span>
                             {% endif %}
                         </div>
                         <span class="conv-preview">{{ convo.latest_message.body }}</span>

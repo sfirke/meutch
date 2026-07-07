@@ -859,7 +859,7 @@ class TestRequestConversations:
             )
 
     def test_messages_inbox_shows_request_title(self, client, app):
-        """Request-linked conversations should show Request: title in inbox."""
+        """Request-linked conversations should show the request title in inbox."""
         with app.app_context():
             requester = UserFactory()
             helper = UserFactory()
@@ -879,7 +879,7 @@ class TestRequestConversations:
             response = client.get("/messages")
 
             assert response.status_code == 200
-            assert b"Request: Need a melon baller" in response.data
+            assert b"Need a melon baller" in response.data
 
     def test_view_conversation_reply_preserves_request_context(self, client, app):
         """Replies in request threads should keep the request conversation context."""
