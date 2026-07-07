@@ -307,8 +307,8 @@ def sort_conversation_summaries(summaries, sort_by="newest"):
                 s["other_user"].last_name if s["other_user"] else "",
             ),
         )
-    # newest (default) — already sorted by timestamp DESC from query
-    return summaries
+    # newest (default) — sort by timestamp DESC
+    return sorted(summaries, key=lambda s: s["latest_message"].timestamp, reverse=True)
 
 
 def filter_by_archive_status(summaries, status):
