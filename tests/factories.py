@@ -26,33 +26,8 @@ from app.models import (
     User,
     UserWebLink,
 )
-from app.utils.messaging_queries import find_context_conversation
 
 fake = Faker()
-
-
-def _find_or_build_conversation(context_type, context_id, user1_id, user2_id):
-    """Test-only helper: find or build a conversation WITHOUT committing.
-
-    Used by MessageFactory so that conversations can be resolved inside
-    ``_create`` (which runs with ``sqlalchemy_session_persistence = "flush"``)
-    without prematurely committing the message under construction.
-
-    Returns (conversation, is_new).
-    """
-    u1, u2 = sorted([user1_id, user2_id])
-    existing = find_context_conversation(context_type, context_id, u1, u2)
-    if existing:
-        return existing, False
-
-    conv = Conversation(context_type=context_type, context_id=context_id)
-    db.session.add(conv)
-    db.session.flush()  # get the ID
-    for uid in {u1, u2}:
-        db.session.add(ConversationParticipant(conversation_id=conv.id, user_id=uid))
-    db.session.flush()  # ensure participants are visible to later queries
-    return conv, True
-
 
 # Pre-compute password hash once to avoid slow bcrypt on every user creation
 # This matches TEST_PASSWORD in conftest.py
@@ -160,35 +135,21 @@ class LoanRequestFactory(SQLAlchemyModelFactory):
 class ConversationFactory(SQLAlchemyModelFactory):
     """Factory for Conversation model.
 
-    Requires ``context_type`` and ``context_id`` to be passed explicitly,
-    or accepts an ``item`` parameter that derives them automatically.
+    Pass ``context_type`` and ``context_id`` explicitly to target a specific
+    entity.  When called with no arguments a default item-backed conversation
+    is created automatically.
     """
 
     class Meta:
         model = Conversation
         sqlalchemy_session = db.session
         sqlalchemy_session_persistence = "flush"
-        exclude = ("item", "request", "circle")
 
     context_type = "item"
 
-    # Transient helpers — not model fields
-    item = None
-    request = None
-    circle = None
-
     @factory.lazy_attribute
     def context_id(self):
-        """Derive context_id from the transient item/request/circle param."""
-        if self.item is not None:
-            return self.item.id
-        if self.request is not None:
-            return self.request.id
-        if self.circle is not None:
-            return self.circle.id
-        # Fall back to auto-creating a default item
-        default_item = ItemFactory()
-        return default_item.id
+        return ItemFactory().id
 
 
 class ConversationParticipantFactory(SQLAlchemyModelFactory):
@@ -207,11 +168,9 @@ class ConversationParticipantFactory(SQLAlchemyModelFactory):
 class MessageFactory(SQLAlchemyModelFactory):
     """Factory for Message model.
 
-    Supports legacy ``item``, ``request``, and ``circle`` keyword arguments
-    by resolving the appropriate Conversation via ``_find_or_build_conversation``
-    so that multiple messages with the same context are grouped correctly.
-
-    For new code, pass ``conversation=`` directly.
+    Pass ``conversation=`` to target a specific conversation.  When called
+    with only ``sender`` and ``recipient`` a default item-backed
+    conversation is created automatically.
     """
 
     class Meta:
@@ -223,44 +182,11 @@ class MessageFactory(SQLAlchemyModelFactory):
     recipient = factory.SubFactory(UserFactory)
     body = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=500))
     is_read = False
-    # conversation handled in _create, NOT a SubFactory here
 
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
-        """Resolve conversation before creating the Message instance."""
-        # Pop legacy context kwargs before they reach the model constructor
-        item = kwargs.pop("item", None)
-        request = kwargs.pop("request", None)
-        circle = kwargs.pop("circle", None)
-
-        # If conversation was explicitly provided, keep it
-        if "conversation" in kwargs:
-            return super()._create(model_class, *args, **kwargs)
-
-        context_type = None
-        context_id = None
-        if item is not None:
-            context_type = "item"
-            context_id = item.id
-        elif request is not None:
-            context_type = "request"
-            context_id = request.id
-        elif circle is not None:
-            context_type = "circle"
-            context_id = circle.id
-
-        if context_type is not None:
-            sender = kwargs.get("sender")
-            recipient = kwargs.get("recipient")
-            sender_id = sender.id if hasattr(sender, "id") else sender
-            recipient_id = recipient.id if hasattr(recipient, "id") else recipient
-            real_conv, _is_new = _find_or_build_conversation(
-                context_type, context_id, sender_id, recipient_id
-            )
-            kwargs["conversation"] = real_conv
-        else:
+        if "conversation" not in kwargs:
             kwargs["conversation"] = ConversationFactory()
-
         return super()._create(model_class, *args, **kwargs)
 
     @factory.post_generation
@@ -277,14 +203,10 @@ class MessageFactory(SQLAlchemyModelFactory):
                 conversation_id=self.conversation_id, user_id=user.id
             ).first()
             if not existing:
-                try:
-                    participant = ConversationParticipant(
-                        conversation_id=self.conversation_id, user_id=user.id
-                    )
-                    db.session.add(participant)
-                except Exception:
-                    db.session.rollback()
-                    # Participant already exists — that's fine
+                participant = ConversationParticipant(
+                    conversation_id=self.conversation_id, user_id=user.id
+                )
+                db.session.add(participant)
 
 
 class CircleJoinRequestFactory(SQLAlchemyModelFactory):

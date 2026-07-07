@@ -8,6 +8,7 @@ from app.models import Conversation, GiveawayInterest, ItemRequest, Message
 from conftest import login_user
 from tests.factories import (
     CircleFactory,
+    ConversationFactory,
     ItemFactory,
     ItemRequestFactory,
     LoanRequestFactory,
@@ -840,11 +841,11 @@ class TestRequestConversations:
             requester = UserFactory()
             helper = UserFactory()
             item_request = ItemRequestFactory(user=requester, visibility="public")
+            conversation = ConversationFactory(context_type="request", context_id=item_request.id)
             existing_message = MessageFactory(
                 sender=helper,
                 recipient=requester,
-                item=None,
-                request=item_request,
+                conversation=conversation,
                 body="Existing request thread",
             )
             db.session.commit()
@@ -865,11 +866,11 @@ class TestRequestConversations:
             item_request = ItemRequestFactory(
                 user=requester, title="Need a melon baller", visibility="public"
             )
+            conversation = ConversationFactory(context_type="request", context_id=item_request.id)
             MessageFactory(
                 sender=helper,
                 recipient=requester,
-                item=None,
-                request=item_request,
+                conversation=conversation,
                 body="I can help with this.",
             )
             db.session.commit()
@@ -886,11 +887,11 @@ class TestRequestConversations:
             requester = UserFactory()
             helper = UserFactory()
             item_request = ItemRequestFactory(user=requester, visibility="public")
+            conversation = ConversationFactory(context_type="request", context_id=item_request.id)
             first_message = MessageFactory(
                 sender=helper,
                 recipient=requester,
-                item=None,
-                request=item_request,
+                conversation=conversation,
                 body="Initial request message",
             )
             db.session.commit()
@@ -925,7 +926,7 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=owner,
                 recipient=claimant,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Ready for pickup when you are.",
             )
             db.session.commit()
@@ -954,7 +955,7 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=owner,
                 recipient=claimant,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Thanks for taking it off my hands!",
             )
             db.session.commit()
@@ -989,7 +990,7 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 loan_request=loan,
                 body="Could I borrow this next week?",
             )
@@ -1027,7 +1028,7 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=owner,
                 recipient=claimant,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Let me know when you are on your way.",
             )
             db.session.commit()
@@ -1062,7 +1063,7 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="I would love to pick this up.",
             )
             db.session.add(interest)
@@ -1102,7 +1103,7 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="I can pick this up after work.",
             )
             db.session.add(interest)
@@ -1142,7 +1143,7 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Happy to collect it this week.",
             )
             db.session.commit()
@@ -1175,7 +1176,7 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=owner,
                 recipient=requester,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Thanks for reaching out.",
             )
             db.session.add(interest)
@@ -1204,7 +1205,7 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=chatter,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Is this still available?",
             )
             db.session.commit()
@@ -1292,11 +1293,11 @@ class TestRequestEmailNotifications:
                 title="Need a hammer drill",
                 visibility="public",
             )
+            conversation = ConversationFactory(context_type="request", context_id=item_request.id)
             initial_message = MessageFactory(
                 sender=helper,
                 recipient=requester,
-                item=None,
-                request=item_request,
+                conversation=conversation,
                 body="I have one you can borrow!",
             )
             db.session.commit()

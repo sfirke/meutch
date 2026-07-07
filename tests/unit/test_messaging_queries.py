@@ -9,6 +9,7 @@ from app.utils.messaging_queries import (
     get_conversation_thread_state,
 )
 from tests.factories import (
+    ConversationFactory,
     ItemFactory,
     ItemRequestFactory,
     LoanRequestFactory,
@@ -22,18 +23,17 @@ def test_build_inbox_summaries_groups_request_thread_and_counts_unread(app):
         requester = UserFactory()
         helper = UserFactory()
         item_request = ItemRequestFactory(user=requester)
+        conversation = ConversationFactory(context_type="request", context_id=item_request.id)
         older_message = MessageFactory(
             sender=requester,
             recipient=helper,
-            item=None,
-            request=item_request,
+            conversation=conversation,
             is_read=True,
         )
         newer_message = MessageFactory(
             sender=helper,
             recipient=requester,
-            item=None,
-            request=item_request,
+            conversation=conversation,
             is_read=False,
         )
         older_message.timestamp = datetime.now(UTC) - timedelta(minutes=2)
@@ -53,8 +53,13 @@ def test_get_conversation_thread_state_marks_non_pending_messages_read(app):
         sender = UserFactory()
         recipient = UserFactory()
         item = ItemFactory(owner=sender)
-        first_message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
-        second_message = MessageFactory(sender=recipient, recipient=sender, item=item, is_read=True)
+        conversation = ConversationFactory(context_type="item", context_id=item.id)
+        first_message = MessageFactory(
+            sender=sender, recipient=recipient, conversation=conversation, is_read=False
+        )
+        second_message = MessageFactory(
+            sender=recipient, recipient=sender, conversation=conversation, is_read=True
+        )
         db.session.commit()
 
         thread_state = get_conversation_thread_state(first_message, recipient.id)
@@ -74,7 +79,12 @@ def test_build_conversation_thread_state_does_not_mark_messages_read(app):
         sender = UserFactory()
         recipient = UserFactory()
         item = ItemFactory(owner=sender)
-        message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
+        message = MessageFactory(
+            sender=sender,
+            recipient=recipient,
+            conversation=ConversationFactory(context_type="item", context_id=item.id),
+            is_read=False,
+        )
         db.session.commit()
 
         thread_state = build_conversation_thread_state(message, recipient.id)
@@ -91,10 +101,11 @@ def test_get_conversation_thread_state_skips_pending_loan_messages(app):
         borrower = UserFactory()
         item = ItemFactory(owner=owner)
         loan_request = LoanRequestFactory(item=item, borrower=borrower, status="pending")
+        conversation = ConversationFactory(context_type="item", context_id=item.id)
         message = MessageFactory(
             sender=owner,
             recipient=borrower,
-            item=item,
+            conversation=conversation,
             loan_request=loan_request,
             is_read=False,
         )
@@ -113,17 +124,16 @@ def test_request_conversation_helpers_group_and_find_existing_thread(app):
         requester = UserFactory()
         helper = UserFactory()
         item_request = ItemRequestFactory(user=requester)
+        conversation = ConversationFactory(context_type="request", context_id=item_request.id)
         first_message = MessageFactory(
             sender=helper,
             recipient=requester,
-            item=None,
-            request=item_request,
+            conversation=conversation,
         )
         reply_message = MessageFactory(
             sender=requester,
             recipient=helper,
-            item=None,
-            request=item_request,
+            conversation=conversation,
         )
         first_message.timestamp = datetime.now(UTC) - timedelta(minutes=2)
         reply_message.timestamp = datetime.now(UTC) - timedelta(minutes=1)

@@ -7,6 +7,7 @@ from conftest import login_user
 from tests.factories import (
     CategoryFactory,
     CircleFactory,
+    ConversationFactory,
     ItemFactory,
     ItemImageFactory,
     LoanRequestFactory,
@@ -35,7 +36,7 @@ class TestItemCardLoanButton:
             msg = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 body="Can I borrow this?",
                 loan_request=loan,
             )
@@ -83,7 +84,7 @@ class TestItemDetailLoanLink:
             msg = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 body="Can I borrow this?",
                 loan_request=loan,
             )
@@ -135,7 +136,7 @@ class TestMyActivityConversationLinks:
             msg = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 loan_request=loan,
                 body="Can I borrow this?",
             )
@@ -173,7 +174,7 @@ class TestMyActivityConversationLinks:
             msg = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 loan_request=loan,
                 body="Can I borrow this?",
             )
@@ -216,7 +217,7 @@ class TestMyActivityConversationLinks:
             msg1 = MessageFactory(
                 sender=borrower1,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 loan_request=loan1,
                 body="Can I borrow this? (first loan)",
             )
@@ -233,7 +234,7 @@ class TestMyActivityConversationLinks:
             msg2 = MessageFactory(
                 sender=borrower2,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 loan_request=loan2,
                 body="Can I borrow this? (second loan)",
             )

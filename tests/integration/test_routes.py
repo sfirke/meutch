@@ -14,6 +14,7 @@ from tests.factories import (
     CategoryFactory,
     CircleFactory,
     CircleJoinRequestFactory,
+    ConversationFactory,
     ItemFactory,
     ItemImageFactory,
     ItemRequestFactory,
@@ -891,7 +892,7 @@ class TestItemRoutes:
             loan_message = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 loan_request=loan,
                 body="I still have this item and can return it this weekend.",
             )
@@ -923,7 +924,7 @@ class TestItemRoutes:
             MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 loan_request=loan,
                 body="Thanks again for lending this to me.",
             )
@@ -1320,17 +1321,19 @@ class TestProfileRoutes:
             lent_loan = LoanRequestFactory(item=lent_item, borrower=borrower, status="approved")
 
             # Create messages so View Loan buttons appear
+            borrowed_conv = ConversationFactory(context_type="item", context_id=borrowed_item.id)
             borrowed_msg = MessageFactory(
                 sender=user,
                 recipient=lender,
-                item=borrowed_item,
+                conversation=borrowed_conv,
                 loan_request=borrowed_loan,
                 body="Can I borrow this?",
             )
+            lent_conv = ConversationFactory(context_type="item", context_id=lent_item.id)
             lent_msg = MessageFactory(
                 sender=borrower,
                 recipient=user,
-                item=lent_item,
+                conversation=lent_conv,
                 loan_request=lent_loan,
                 body="Can I borrow this?",
             )

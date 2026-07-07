@@ -9,6 +9,7 @@ from app.models import Conversation, Message
 from conftest import login_user
 from tests.factories import (
     CircleFactory,
+    ConversationFactory,
     ItemFactory,
     LoanRequestFactory,
     MessageFactory,
@@ -235,10 +236,11 @@ class TestLoanExtension:
                 end_date=date.today() + timedelta(days=7),
                 status="pending",
             )
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             msg = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=conversation,
                 body="Can I borrow this?",
                 is_read=False,
             )
@@ -274,10 +276,11 @@ class TestLoanExtension:
                 end_date=date.today() + timedelta(days=7),
                 status="pending",
             )
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             msg = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=conversation,
                 body="Could I borrow this next week?",
                 is_read=False,
             )

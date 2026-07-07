@@ -10,6 +10,7 @@ from conftest import login_user
 from tests.factories import (
     CategoryFactory,
     CircleFactory,
+    ConversationFactory,
     GiveawayInterestFactory,
     ItemFactory,
     LoanRequestFactory,
@@ -1329,7 +1330,7 @@ class TestConversationGiveawaySelection:
             first_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Interested if it is still available.",
             )
             db.session.add(interest)
@@ -1388,7 +1389,7 @@ class TestConversationGiveawaySelection:
             first_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Can I have this?",
             )
             db.session.add(interest)
@@ -1424,7 +1425,7 @@ class TestConversationGiveawaySelection:
             first_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Checking whether this is still around.",
             )
             db.session.commit()
@@ -1465,7 +1466,7 @@ class TestConversationGiveawaySelection:
             first_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Still planning to come by later today.",
             )
             db.session.add(interest)
@@ -1668,7 +1669,7 @@ class TestGiveawayOwnerMessaging:
             existing_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="I have a question",
             )
             db.session.add(existing_message)
@@ -2460,7 +2461,7 @@ class TestItemDetailPageForGiveaways:
             message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Could I claim this?",
             )
             db.session.add(message)
@@ -2548,7 +2549,7 @@ class TestDataIntegrity:
             message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="I can pick it up this afternoon.",
             )
             db.session.add(message)
