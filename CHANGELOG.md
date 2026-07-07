@@ -6,7 +6,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Major**:
-- Refactor messages infrastructure to create conversations, enabling archiving of messages ([#436](https://github.com/sfirke/meutch/pull/436)).
+- Refactor messages infrastructure to create conversations, enabling archiving of messages and an overhaul of the inbox with pagination, sorting, and bulk actions to mark-read and archive ([#436](https://github.com/sfirke/meutch/pull/436)), ([#438](https://github.com/sfirke/meutch/pull/438)).
 
 **Minor**:
 - On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).

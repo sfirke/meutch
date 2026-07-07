@@ -1,6 +1,7 @@
 """Messaging workflow service helpers."""
 
 import logging
+from datetime import UTC, datetime
 
 from app import db
 from app.models import ConversationParticipant, Message
@@ -160,3 +161,68 @@ def mark_message_thread_read(message, viewer_id):
     return {
         "has_unread_messages": False,
     }
+
+
+# ── Archive & bulk-action helpers ──────────────────────────────────────────
+
+
+def archive_conversation(user_id, conversation_id):
+    """Archive a conversation for a user. Each user's archive state is independent."""
+    ConversationParticipant.query.filter_by(
+        conversation_id=conversation_id, user_id=user_id
+    ).update({"is_archived": True, "archived_at": datetime.now(UTC)}, synchronize_session=False)
+    db.session.commit()
+
+
+def unarchive_conversation(user_id, conversation_id):
+    """Unarchive a conversation for a user."""
+    ConversationParticipant.query.filter_by(
+        conversation_id=conversation_id, user_id=user_id
+    ).update({"is_archived": False, "archived_at": None}, synchronize_session=False)
+    db.session.commit()
+
+
+def bulk_archive(user_id, conversation_ids):
+    """Archive multiple conversations in a single UPDATE."""
+    if not conversation_ids:
+        return
+    ConversationParticipant.query.filter(
+        ConversationParticipant.conversation_id.in_(conversation_ids),
+        ConversationParticipant.user_id == user_id,
+    ).update({"is_archived": True, "archived_at": datetime.now(UTC)}, synchronize_session=False)
+    db.session.commit()
+
+
+def bulk_mark_read(user_id, conversation_ids):
+    """Mark all unread messages as read in the given conversations."""
+    if not conversation_ids:
+        return
+    Message.query.filter(
+        Message.conversation_id.in_(conversation_ids),
+        Message.recipient_id == user_id,
+        Message.is_read.is_(False),
+    ).update({"is_read": True}, synchronize_session=False)
+    db.session.commit()
+
+
+def mark_all_read_in_view(user_id, status="inbox"):
+    """Mark all unread messages as read for conversations in the active view.
+
+    ``status`` is ``"inbox"`` (non-archived conversations) or ``"archived"``.
+    """
+    is_archived_flag = status == "archived"
+    view_conversation_ids = (
+        db.session.query(ConversationParticipant.conversation_id)
+        .filter(
+            ConversationParticipant.user_id == user_id,
+            ConversationParticipant.is_archived == is_archived_flag,
+        )
+        .scalar_subquery()
+    )
+
+    Message.query.filter(
+        Message.conversation_id.in_(view_conversation_ids),
+        Message.recipient_id == user_id,
+        Message.is_read.is_(False),
+    ).update({"is_read": True}, synchronize_session=False)
+    db.session.commit()

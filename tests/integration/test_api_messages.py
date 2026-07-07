@@ -3,10 +3,11 @@
 from datetime import UTC, datetime, timedelta
 
 from app import db
-from app.models import Message
+from app.models import ConversationParticipant, Message
 from tests.factories import (
     CircleFactory,
     ConversationFactory,
+    ConversationParticipantFactory,
     ItemFactory,
     ItemRequestFactory,
     MessageFactory,
@@ -306,3 +307,180 @@ class TestApiMessaging:
         response = client.get("/api/v1/messages")
 
         assert response.status_code == 401
+
+
+class TestApiConversationArchive:
+    """Exercise conversation-level archive / unarchive endpoints."""
+
+    def test_archive_conversation_sets_flag(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=user)
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+            conv_id = conversation.id
+
+        response = client.post(
+            f"/api/v1/conversations/{conv_id}/archive",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json() == {"status": "ok"}
+
+        with app.app_context():
+            participant = ConversationParticipant.query.filter_by(
+                conversation_id=conv_id, user_id=user.id
+            ).first()
+            assert participant.is_archived is True
+
+    def test_unarchive_conversation_clears_flag(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=user, is_archived=True)
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+            conv_id = conversation.id
+
+        response = client.post(
+            f"/api/v1/conversations/{conv_id}/unarchive",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json() == {"status": "ok"}
+
+        with app.app_context():
+            participant = ConversationParticipant.query.filter_by(
+                conversation_id=conv_id, user_id=user.id
+            ).first()
+            assert participant.is_archived is False
+
+    def test_archive_returns_404_for_non_participant(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            conversation = ConversationFactory()
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+            conv_id = conversation.id
+
+        response = client.post(
+            f"/api/v1/conversations/{conv_id}/archive",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 404
+
+    def test_bulk_archive_archives_multiple(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            conv1 = ConversationFactory()
+            conv2 = ConversationFactory()
+            ConversationParticipantFactory(conversation=conv1, user=user)
+            ConversationParticipantFactory(conversation=conv2, user=user)
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+            c1_id = str(conv1.id)
+            c2_id = str(conv2.id)
+
+        response = client.post(
+            "/api/v1/conversations/bulk-archive",
+            json={"conversation_ids": [c1_id, c2_id]},
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json() == {"status": "ok", "archived": 2}
+
+    def test_bulk_mark_read_marks_unread(self, client, app):
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory(email_confirmed=True)
+            conv1 = ConversationFactory()
+            conv2 = ConversationFactory()
+            ConversationParticipantFactory(conversation=conv1, user=recipient)
+            ConversationParticipantFactory(conversation=conv2, user=recipient)
+            msg1 = MessageFactory(
+                sender=sender, recipient=recipient, conversation=conv1, is_read=False
+            )
+            msg2 = MessageFactory(
+                sender=sender, recipient=recipient, conversation=conv2, is_read=False
+            )
+            db.session.commit()
+            access_token = login_api_user(client, recipient.email)
+            c1_id = str(conv1.id)
+            c2_id = str(conv2.id)
+            m1_id = msg1.id
+            m2_id = msg2.id
+
+        response = client.post(
+            "/api/v1/conversations/bulk-mark-read",
+            json={"conversation_ids": [c1_id, c2_id]},
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json() == {"status": "ok", "marked": 2}
+
+        with app.app_context():
+            assert db.session.get(Message, m1_id).is_read is True
+            assert db.session.get(Message, m2_id).is_read is True
+
+    def test_mark_all_read_inbox_scoped(self, client, app):
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory(email_confirmed=True)
+            inbox_conv = ConversationFactory()
+            archived_conv = ConversationFactory()
+            ConversationParticipantFactory(conversation=inbox_conv, user=recipient)
+            ConversationParticipantFactory(
+                conversation=archived_conv, user=recipient, is_archived=True
+            )
+            inbox_msg = MessageFactory(
+                sender=sender, recipient=recipient, conversation=inbox_conv, is_read=False
+            )
+            archived_msg = MessageFactory(
+                sender=sender, recipient=recipient, conversation=archived_conv, is_read=False
+            )
+            db.session.commit()
+            access_token = login_api_user(client, recipient.email)
+            inbox_msg_id = inbox_msg.id
+            archived_msg_id = archived_msg.id
+
+        response = client.post(
+            "/api/v1/conversations/mark-all-read?status=inbox",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+
+        with app.app_context():
+            # Inbox message should be marked read
+            assert db.session.get(Message, inbox_msg_id).is_read is True
+            # Archived message should NOT be affected
+            assert db.session.get(Message, archived_msg_id).is_read is False
+
+    def test_messages_list_respects_status_filter(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            other = UserFactory()
+            inbox_conv = ConversationFactory()
+            archived_conv = ConversationFactory()
+            ConversationParticipantFactory(conversation=inbox_conv, user=user)
+            ConversationParticipantFactory(conversation=archived_conv, user=user, is_archived=True)
+            MessageFactory(sender=other, recipient=user, conversation=inbox_conv)
+            MessageFactory(sender=other, recipient=user, conversation=archived_conv)
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+
+        # Default inbox view
+        resp = client.get("/api/v1/messages", headers=auth_headers(access_token))
+        assert resp.status_code == 200
+        assert resp.get_json()["pagination"]["total"] == 1
+
+        # Archived view
+        resp = client.get("/api/v1/messages?status=archived", headers=auth_headers(access_token))
+        assert resp.status_code == 200
+        assert resp.get_json()["pagination"]["total"] == 1

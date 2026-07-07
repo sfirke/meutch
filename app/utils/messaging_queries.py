@@ -69,19 +69,42 @@ def get_or_create_conversation(context_type, context_id, user1_id, user2_id):
 
 
 def build_inbox_summaries(viewer_id, *, include_archived=False):
-    """Return inbox summaries for the viewer, keyed by conversation."""
-    participant_conversations = (
-        db.session.query(ConversationParticipant.conversation_id)
-        .filter(ConversationParticipant.user_id == viewer_id)
-        .subquery()
-    )
+    """Return inbox summaries for the viewer, keyed by conversation.
 
+    Uses batch queries to avoid N+1 problems — a fixed number of queries
+    regardless of inbox size.
+    """
+    # ── 1. All participant rows for the viewer ─────────────────────────
+    participants = ConversationParticipant.query.filter(
+        ConversationParticipant.user_id == viewer_id
+    ).all()
+    conv_ids = [p.conversation_id for p in participants]
+    participant_by_conv = {p.conversation_id: p for p in participants}
+
+    if not conv_ids:
+        return []
+
+    # ── 2. Other participants (batch-loaded users) ─────────────────────
+    other_participants = ConversationParticipant.query.filter(
+        ConversationParticipant.conversation_id.in_(conv_ids),
+        ConversationParticipant.user_id != viewer_id,
+    ).all()
+    other_user_ids = {op.user_id for op in other_participants}
+    other_participant_by_conv = {op.conversation_id: op for op in other_participants}
+
+    users_by_id = {}
+    if other_user_ids:
+        users_by_id = {
+            u.id: u for u in db.session.query(User).filter(User.id.in_(other_user_ids)).all()
+        }
+
+    # ── 3. Latest message per conversation ─────────────────────────────
     latest_msg_subq = (
         db.session.query(
             Message.conversation_id,
             func.max(Message.timestamp).label("latest_timestamp"),
         )
-        .filter(Message.conversation_id.in_(select(participant_conversations)))
+        .filter(Message.conversation_id.in_(conv_ids))
         .group_by(Message.conversation_id)
         .subquery()
     )
@@ -98,30 +121,71 @@ def build_inbox_summaries(viewer_id, *, include_archived=False):
         .order_by(Message.timestamp.desc())
         .all()
     )
+    messages_by_conv = {m.conversation_id: m for m in latest_messages}
 
+    # ── 4. Context entities (batch-loaded by type) ─────────────────────
+    conversation_map = {
+        c.id: c for c in db.session.query(Conversation).filter(Conversation.id.in_(conv_ids)).all()
+    }
+
+    context_ids_by_type = {}
+    for conv in conversation_map.values():
+        context_ids_by_type.setdefault(conv.context_type, set()).add(conv.context_id)
+
+    # Lazy-load context objects so the identity map handles dedup
+    for ctype, cids in context_ids_by_type.items():
+        if ctype == "item":
+            from app.models import Item
+
+            db.session.query(Item).filter(Item.id.in_(cids)).all()
+        elif ctype == "request":
+            from app.models import ItemRequest
+
+            db.session.query(ItemRequest).filter(ItemRequest.id.in_(cids)).all()
+        elif ctype == "circle":
+            from app.models import Circle
+
+            db.session.query(Circle).filter(Circle.id.in_(cids)).all()
+
+    # ── 5. Unread counts (single GROUP BY query) ───────────────────────
+    unread_counts = dict(
+        db.session.query(
+            Message.conversation_id,
+            func.count(Message.id),
+        )
+        .filter(
+            Message.conversation_id.in_(conv_ids),
+            Message.recipient_id == viewer_id,
+            Message.is_read.is_(False),
+        )
+        .group_by(Message.conversation_id)
+        .all()
+    )
+
+    # ── 6. Assemble summaries ──────────────────────────────────────────
     summaries = []
-    for msg in latest_messages:
-        conversation = msg.conversation
-        participant = ConversationParticipant.query.filter_by(
-            conversation_id=conversation.id, user_id=viewer_id
-        ).first()
-        other_participant = conversation.other_participant(viewer_id)
+    for conv_id in conv_ids:
+        conversation = conversation_map.get(conv_id)
+        if conversation is None:
+            continue
+        msg = messages_by_conv.get(conv_id)
+        if msg is None:
+            continue
+        participant = participant_by_conv.get(conv_id)
+        op = other_participant_by_conv.get(conv_id)
+        other_user = users_by_id.get(op.user_id) if op else None
 
         summaries.append(
             {
                 "conversation_id": str(conversation.id),
-                "other_user": other_participant.user if other_participant else None,
+                "other_user": other_user,
                 "item": conversation.item if conversation.context_type == "item" else None,
                 "item_request": (
                     conversation.request if conversation.context_type == "request" else None
                 ),
-                "circle": conversation.circle if conversation.context_type == "circle" else None,
+                "circle": (conversation.circle if conversation.context_type == "circle" else None),
                 "latest_message": msg,
-                "unread_count": Message.query.filter_by(
-                    conversation_id=conversation.id,
-                    recipient_id=viewer_id,
-                    is_read=False,
-                ).count(),
+                "unread_count": unread_counts.get(conv_id, 0),
                 "is_archived": participant.is_archived if participant else False,
             }
         )
@@ -220,3 +284,39 @@ def build_request_conversation_summaries(request_id, viewer_id):
         )
 
     return conversations
+
+
+# ── Sort & filter helpers ──────────────────────────────────────────────
+
+
+def sort_conversation_summaries(summaries, sort_by="newest"):
+    """Sort conversation summaries in Python.
+
+    ``sort_by`` is one of ``"newest"``, ``"oldest"``, ``"unread"``,
+    or ``"name_asc"``.
+    """
+    if sort_by == "oldest":
+        return sorted(summaries, key=lambda s: s["latest_message"].timestamp)
+    if sort_by == "unread":
+        return sorted(summaries, key=lambda s: s["unread_count"], reverse=True)
+    if sort_by == "name_asc":
+        return sorted(
+            summaries,
+            key=lambda s: (
+                s["other_user"].first_name if s["other_user"] else "",
+                s["other_user"].last_name if s["other_user"] else "",
+            ),
+        )
+    # newest (default) — already sorted by timestamp DESC from query
+    return summaries
+
+
+def filter_by_archive_status(summaries, status):
+    """Filter summaries by archive status.
+
+    ``status`` is ``"inbox"`` (default, non-archived) or ``"archived"``.
+    """
+    if status == "archived":
+        return [s for s in summaries if s.get("is_archived")]
+    # inbox (default)
+    return [s for s in summaries if not s.get("is_archived")]
