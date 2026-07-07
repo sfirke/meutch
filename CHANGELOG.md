@@ -11,6 +11,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 **Minor**:
 - On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
 
+### Developer Experience
+- Remove legacy `item`/`request`/`circle` kwargs from `MessageFactory`; all test call sites now use `conversation=` directly via `ConversationFactory` ([#437](https://github.com/sfirke/meutch/pull/437)).
+
 ### Bug fixes
 - Streamlined email digest fulfilled/claimed rendering: unified phrasing across both resolution variants, replaced green status pills with a subtle gray "New" label for items the user hasn't seen before, kept descriptions only for first-time items, and grouped new-resolved entries before previously-seen resolutions ([#427](https://github.com/sfirke/meutch/pull/427)).
 - Improve formatting of buttons, especially on mobile, for the circle admin interface as well as site admin and item detail card ([#434](https://github.com/sfirke/meutch/pull/434)).

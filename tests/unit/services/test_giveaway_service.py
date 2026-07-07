@@ -5,7 +5,13 @@ import pytest
 from app.models import Message
 from app.services import giveaway_service
 from app.services.exceptions import AuthorizationError, ConflictError, InvalidActionError
-from tests.factories import GiveawayInterestFactory, ItemFactory, MessageFactory, UserFactory
+from tests.factories import (
+    ConversationFactory,
+    GiveawayInterestFactory,
+    ItemFactory,
+    MessageFactory,
+    UserFactory,
+)
 
 
 class TestGiveawayService:
@@ -300,14 +306,15 @@ class TestGiveawayService:
             )
             GiveawayInterestFactory(item=item, user=user_a, status="active")
             GiveawayInterestFactory(item=item, user=user_b, status="active")
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             msg_from_a = MessageFactory(
-                item=item,
+                conversation=conversation,
                 sender=user_a,
                 recipient=owner,
                 is_read=True,
             )
             msg_from_b = MessageFactory(
-                item=item,
+                conversation=conversation,
                 sender=user_b,
                 recipient=owner,
                 is_read=False,

@@ -6,6 +6,7 @@ from app import db
 from app.models import Message
 from tests.factories import (
     CircleFactory,
+    ConversationFactory,
     ItemFactory,
     ItemRequestFactory,
     MessageFactory,
@@ -23,19 +24,18 @@ class TestApiMessaging:
             requester = UserFactory(email_confirmed=True)
             helper = UserFactory()
             item_request = ItemRequestFactory(user=requester, title="Need a melon baller")
+            conversation = ConversationFactory(context_type="request", context_id=item_request.id)
 
             older_message = MessageFactory(
                 sender=requester,
                 recipient=helper,
-                item=None,
-                request=item_request,
+                conversation=conversation,
                 is_read=True,
             )
             newer_message = MessageFactory(
                 sender=helper,
                 recipient=requester,
-                item=None,
-                request=item_request,
+                conversation=conversation,
                 body="I have one you can borrow.",
                 is_read=False,
             )
@@ -63,17 +63,18 @@ class TestApiMessaging:
             shared_circle = CircleFactory()
             shared_circle.members.extend([sender, recipient])
             item = ItemFactory(owner=sender, name="Thread item")
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             first_message = MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 body="Checking whether you still need this.",
                 is_read=False,
             )
             second_message = MessageFactory(
                 sender=recipient,
                 recipient=sender,
-                item=item,
+                conversation=conversation,
                 body="Yes, I do.",
                 is_read=True,
             )
@@ -251,16 +252,17 @@ class TestApiMessaging:
                 giveaway_visibility="default",
                 claim_status="unclaimed",
             )
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             first_message = MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 is_read=False,
             )
             MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 is_read=False,
             )
             db.session.commit()

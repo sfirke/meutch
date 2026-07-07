@@ -7,7 +7,13 @@ from app.models import Message
 from app.services import message_service
 from app.services.exceptions import AuthorizationError, InvalidActionError
 from app.utils.messaging_queries import get_or_create_conversation
-from tests.factories import ItemFactory, ItemRequestFactory, MessageFactory, UserFactory
+from tests.factories import (
+    ConversationFactory,
+    ItemFactory,
+    ItemRequestFactory,
+    MessageFactory,
+    UserFactory,
+)
 
 
 class TestMessageService:
@@ -41,10 +47,11 @@ class TestMessageService:
             requester = UserFactory()
             helper = UserFactory()
             item_request = ItemRequestFactory(user=requester)
+            conversation = ConversationFactory(context_type="request", context_id=item_request.id)
             message = MessageFactory(
                 sender=helper,
                 recipient=requester,
-                request=item_request,
+                conversation=conversation,
                 body="I can help.",
             )
 
@@ -161,7 +168,8 @@ class TestMessageService:
             recipient = UserFactory()
             other_user = UserFactory()
             item = ItemFactory(owner=recipient)
-            message = MessageFactory(sender=sender, recipient=recipient, item=item)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(sender=sender, recipient=recipient, conversation=conversation)
 
             with pytest.raises(AuthorizationError):
                 message_service.get_conversation_thread_state(message, other_user.id)
@@ -171,7 +179,12 @@ class TestMessageService:
             sender = UserFactory()
             recipient = UserFactory()
             item = ItemFactory(owner=sender)
-            message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+                is_read=False,
+            )
             db.session.commit()
 
             thread_state = message_service.get_conversation_thread_state(message, recipient.id)
@@ -185,7 +198,12 @@ class TestMessageService:
             sender = UserFactory()
             recipient = UserFactory()
             item = ItemFactory(owner=sender)
-            message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+                is_read=False,
+            )
             db.session.commit()
 
             thread_state = message_service.get_conversation_thread_state(
@@ -203,16 +221,17 @@ class TestMessageService:
             sender = UserFactory()
             recipient = UserFactory()
             item = ItemFactory(owner=sender, is_giveaway=True, claim_status="unclaimed")
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             first_message = MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 is_read=False,
             )
             second_message = MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 is_read=False,
             )
             db.session.commit()
