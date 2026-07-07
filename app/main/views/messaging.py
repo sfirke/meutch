@@ -194,6 +194,8 @@ def view_conversation(conversation_id):
         has_unread_messages=has_unread_messages,
         fulfillable_request=fulfillable_request,
         request_fulfill_form=request_fulfill_form,
+        viewer_participant=viewer_participant,
+        conversation=conversation,
     )
 
 
