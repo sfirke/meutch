@@ -188,6 +188,15 @@
     {# ── Bulk Action Bar (sticky, hidden by default) ─────────────────── #}
     <div class="bulk-action-bar" id="bulk-action-bar">
         <span><strong id="selected-count">0</strong> selected</span>
+        {% if is_archived_view %}
+        <form method="POST" action="{{ url_for('main.bulk_unarchive', status=current_status) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="conversation_ids" id="conversation-ids" value="">
+            <button type="submit" class="btn btn-sm btn-light">
+                <i class="fas fa-inbox me-1"></i>Move to Inbox
+            </button>
+        </form>
+        {% else %}
         <form method="POST" action="{{ url_for('main.bulk_archive', status=current_status) }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids" value="">
@@ -195,11 +204,19 @@
                 <i class="fas fa-archive me-1"></i>Archive Selected
             </button>
         </form>
-        <form method="POST" action="{{ url_for('main.bulk_mark_read', status=current_status) }}" class="d-inline">
+        {% endif %}
+        <form method="POST" action="{{ url_for('main.bulk_mark_read', status=current_status) }}" class="d-inline" id="bulk-mark-read-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids-mark-read" value="">
-            <button type="submit" class="btn btn-sm btn-light" id="bulk-mark-read-btn">
+            <button type="submit" class="btn btn-sm btn-light">
                 <i class="fas fa-check me-1"></i>Mark Read
+            </button>
+        </form>
+        <form method="POST" action="{{ url_for('main.bulk_mark_unread', status=current_status) }}" class="d-inline d-none" id="bulk-mark-unread-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="conversation_ids" id="conversation-ids-mark-unread" value="">
+            <button type="submit" class="btn btn-sm btn-light">
+                <i class="fas fa-envelope me-1"></i>Mark Unread
             </button>
         </form>
     </div>
@@ -208,23 +225,4 @@
 
 {% block scripts %}
     <script src="{{ static_url_for('js/messaging.js') }}"></script>
-    <script>
-        {# Sync the hidden input in the mark-read form with the archive form #}
-        (function () {
-            var archiveInput = document.getElementById('conversation-ids');
-            var markReadInput = document.getElementById('conversation-ids-mark-read');
-            if (archiveInput && markReadInput) {
-                var observer = new MutationObserver(function () {
-                    markReadInput.value = archiveInput.value;
-                });
-                observer.observe(archiveInput, { attributes: true, attributeFilter: ['value'] });
-                // Also sync on checkbox changes by polling the archive input
-                setInterval(function () {
-                    if (markReadInput.value !== archiveInput.value) {
-                        markReadInput.value = archiveInput.value;
-                    }
-                }, 100);
-            }
-        })();
-    </script>
 {% endblock %}

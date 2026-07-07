@@ -193,6 +193,17 @@ def bulk_archive(user_id, conversation_ids):
     db.session.commit()
 
 
+def bulk_unarchive(user_id, conversation_ids):
+    """Unarchive multiple conversations in a single UPDATE."""
+    if not conversation_ids:
+        return
+    ConversationParticipant.query.filter(
+        ConversationParticipant.conversation_id.in_(conversation_ids),
+        ConversationParticipant.user_id == user_id,
+    ).update({"is_archived": False, "archived_at": None}, synchronize_session=False)
+    db.session.commit()
+
+
 def bulk_mark_read(user_id, conversation_ids):
     """Mark all unread messages as read in the given conversations."""
     if not conversation_ids:
@@ -202,6 +213,44 @@ def bulk_mark_read(user_id, conversation_ids):
         Message.recipient_id == user_id,
         Message.is_read.is_(False),
     ).update({"is_read": True}, synchronize_session=False)
+    db.session.commit()
+
+
+def bulk_mark_unread(user_id, conversation_ids):
+    """Mark the latest message in each conversation as unread for the user.
+
+    Only the single most-recent message (by timestamp) per conversation is
+    flipped back to unread.  That is enough to surface the conversation in
+    the inbox while avoiding an explosion of unread counts.
+    """
+    if not conversation_ids:
+        return
+
+    # Window-function subquery: row_number = 1 picks the latest message
+    # per conversation where the user is the recipient.
+
+    ranked = (
+        db.session.query(
+            Message.id,
+            db.func.row_number()
+            .over(
+                partition_by=Message.conversation_id,
+                order_by=Message.timestamp.desc(),
+            )
+            .label("rn"),
+        )
+        .filter(
+            Message.conversation_id.in_(conversation_ids),
+            Message.recipient_id == user_id,
+        )
+        .subquery()
+    )
+
+    latest_ids = db.session.query(ranked.c.id).filter(ranked.c.rn == 1).scalar_subquery()
+
+    Message.query.filter(Message.id.in_(latest_ids)).update(
+        {"is_read": False}, synchronize_session=False
+    )
     db.session.commit()
 
 

@@ -47,6 +47,16 @@ def bulk_archive():
     return redirect(url_for("main.messages", status=request.args.get("status", "inbox")))
 
 
+@main_bp.route("/messages/bulk-unarchive", methods=["POST"])
+@login_required
+def bulk_unarchive():
+    conversation_ids = _parse_bulk_ids()
+    if conversation_ids:
+        message_service.bulk_unarchive(current_user.id, conversation_ids)
+        flash(f"{len(conversation_ids)} conversation(s) moved to inbox.", "success")
+    return redirect(url_for("main.messages", status=request.args.get("status", "inbox")))
+
+
 @main_bp.route("/messages/bulk-mark-read", methods=["POST"])
 @login_required
 def bulk_mark_read():
@@ -54,6 +64,16 @@ def bulk_mark_read():
     if conversation_ids:
         message_service.bulk_mark_read(current_user.id, conversation_ids)
         flash(f"{len(conversation_ids)} conversation(s) marked as read.", "success")
+    return redirect(url_for("main.messages", status=request.args.get("status", "inbox")))
+
+
+@main_bp.route("/messages/bulk-mark-unread", methods=["POST"])
+@login_required
+def bulk_mark_unread():
+    conversation_ids = _parse_bulk_ids()
+    if conversation_ids:
+        message_service.bulk_mark_unread(current_user.id, conversation_ids)
+        flash(f"{len(conversation_ids)} conversation(s) marked as unread.", "success")
     return redirect(url_for("main.messages", status=request.args.get("status", "inbox")))
 
 
