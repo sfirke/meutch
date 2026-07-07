@@ -402,12 +402,18 @@ class TestApiConversationArchive:
             conv2 = ConversationFactory()
             ConversationParticipantFactory(conversation=conv1, user=recipient)
             ConversationParticipantFactory(conversation=conv2, user=recipient)
-            MessageFactory(sender=sender, recipient=recipient, conversation=conv1, is_read=False)
-            MessageFactory(sender=sender, recipient=recipient, conversation=conv2, is_read=False)
+            msg1 = MessageFactory(
+                sender=sender, recipient=recipient, conversation=conv1, is_read=False
+            )
+            msg2 = MessageFactory(
+                sender=sender, recipient=recipient, conversation=conv2, is_read=False
+            )
             db.session.commit()
             access_token = login_api_user(client, recipient.email)
             c1_id = str(conv1.id)
             c2_id = str(conv2.id)
+            m1_id = msg1.id
+            m2_id = msg2.id
 
         response = client.post(
             "/api/v1/conversations/bulk-mark-read",
@@ -417,6 +423,10 @@ class TestApiConversationArchive:
 
         assert response.status_code == 200
         assert response.get_json() == {"status": "ok", "marked": 2}
+
+        with app.app_context():
+            assert db.session.get(Message, m1_id).is_read is True
+            assert db.session.get(Message, m2_id).is_read is True
 
     def test_mark_all_read_inbox_scoped(self, client, app):
         with app.app_context():
@@ -428,14 +438,16 @@ class TestApiConversationArchive:
             ConversationParticipantFactory(
                 conversation=archived_conv, user=recipient, is_archived=True
             )
-            MessageFactory(
+            inbox_msg = MessageFactory(
                 sender=sender, recipient=recipient, conversation=inbox_conv, is_read=False
             )
-            MessageFactory(
+            archived_msg = MessageFactory(
                 sender=sender, recipient=recipient, conversation=archived_conv, is_read=False
             )
             db.session.commit()
             access_token = login_api_user(client, recipient.email)
+            inbox_msg_id = inbox_msg.id
+            archived_msg_id = archived_msg.id
 
         response = client.post(
             "/api/v1/conversations/mark-all-read?status=inbox",
@@ -443,6 +455,12 @@ class TestApiConversationArchive:
         )
 
         assert response.status_code == 200
+
+        with app.app_context():
+            # Inbox message should be marked read
+            assert db.session.get(Message, inbox_msg_id).is_read is True
+            # Archived message should NOT be affected
+            assert db.session.get(Message, archived_msg_id).is_read is False
 
     def test_messages_list_respects_status_filter(self, client, app):
         with app.app_context():

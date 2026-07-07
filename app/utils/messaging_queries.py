@@ -71,8 +71,8 @@ def get_or_create_conversation(context_type, context_id, user1_id, user2_id):
 def build_inbox_summaries(viewer_id, *, include_archived=False):
     """Return inbox summaries for the viewer, keyed by conversation.
 
-    Uses batch queries to avoid N+1 problems — at most 5 queries regardless
-    of inbox size.
+    Uses batch queries to avoid N+1 problems — a fixed number of queries
+    regardless of inbox size.
     """
     # ── 1. All participant rows for the viewer ─────────────────────────
     participants = ConversationParticipant.query.filter(

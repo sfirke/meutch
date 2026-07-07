@@ -1,4 +1,4 @@
-from flask import flash, redirect, render_template, request, url_for
+from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db
@@ -223,6 +223,4 @@ def _require_participant(conversation, user_id):
         conversation_id=conversation.id, user_id=user_id
     ).first()
     if not participant:
-        from flask import abort
-
         abort(404)
