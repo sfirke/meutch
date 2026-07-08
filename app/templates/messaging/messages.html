@@ -31,45 +31,43 @@
 
     {# ── Conversation List ──────────────────────────────────────────── #}
     {% if conversations %}
-        <div class="conversation-list">
 
-            {# ── Action Bar ──────────────────────────────────────────── #}
-            <div class="inbox-action-bar">
-                <div class="inbox-action-bar__left">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="select-all">
-                        <label class="form-check-label" for="select-all">Select All</label>
-                    </div>
-                    <form method="POST" action="{{ url_for('main.mark_all_read', status=current_status) }}" class="d-inline">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-link text-muted text-decoration-none">
-                            <i class="fas fa-check-double me-1"></i>Mark all read
-                        </button>
-                    </form>
-                </div>
-                <div class="inbox-action-bar__right">
-                    <div class="dropdown sort-dropdown">
-                        <button class="btn btn-sm btn-link text-muted text-decoration-none dropdown-toggle" type="button"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-sort me-1"></i>
-                            {% if current_sort == 'oldest' %}Oldest
-                            {% elif current_sort == 'unread' %}Unread first
-                            {% elif current_sort == 'name_asc' %}Name A–Z
-                            {% else %}Newest{% endif %}
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item {% if current_sort == 'newest' %}active{% endif %}"
-                                   href="{{ url_for('main.messages', status=current_status, sort='newest') }}">Newest</a></li>
-                            <li><a class="dropdown-item {% if current_sort == 'oldest' %}active{% endif %}"
-                                   href="{{ url_for('main.messages', status=current_status, sort='oldest') }}">Oldest</a></li>
-                            <li><a class="dropdown-item {% if current_sort == 'unread' %}active{% endif %}"
-                                   href="{{ url_for('main.messages', status=current_status, sort='unread') }}">Unread first</a></li>
-                            <li><a class="dropdown-item {% if current_sort == 'name_asc' %}active{% endif %}"
-                                   href="{{ url_for('main.messages', status=current_status, sort='name_asc') }}">Name A–Z</a></li>
-                        </ul>
-                    </div>
-                </div>
+        {# ── Consolidated Control Bar ────────────────────────────────── #}
+        <div class="inbox-toolbar">
+            <div class="form-check inbox-toolbar__select">
+                <input class="form-check-input" type="checkbox" id="select-all">
+                <label class="form-check-label" for="select-all">Select All</label>
             </div>
+            <form method="POST" action="{{ url_for('main.mark_all_read', status=current_status) }}" class="inbox-toolbar__mark-read">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-link text-muted text-decoration-none">
+                    <i class="fas fa-check-double me-1"></i>Mark all read
+                </button>
+            </form>
+            <div class="inbox-toolbar__spacer"></div>
+            <div class="dropdown sort-dropdown">
+                <button class="btn btn-sm btn-link text-muted text-decoration-none dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-sort me-1"></i>
+                    {% if current_sort == 'oldest' %}Oldest
+                    {% elif current_sort == 'unread' %}Unread first
+                    {% elif current_sort == 'name_asc' %}Name A–Z
+                    {% else %}Newest{% endif %}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item {% if current_sort == 'newest' %}active{% endif %}"
+                           href="{{ url_for('main.messages', status=current_status, sort='newest') }}">Newest</a></li>
+                    <li><a class="dropdown-item {% if current_sort == 'oldest' %}active{% endif %}"
+                           href="{{ url_for('main.messages', status=current_status, sort='oldest') }}">Oldest</a></li>
+                    <li><a class="dropdown-item {% if current_sort == 'unread' %}active{% endif %}"
+                           href="{{ url_for('main.messages', status=current_status, sort='unread') }}">Unread first</a></li>
+                    <li><a class="dropdown-item {% if current_sort == 'name_asc' %}active{% endif %}"
+                           href="{{ url_for('main.messages', status=current_status, sort='name_asc') }}">Name A–Z</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="conversation-list">
 
             {% for convo in conversations %}
                 <a href="{{ url_for('main.view_conversation', conversation_id=convo.latest_message.conversation_id) }}"
@@ -88,34 +86,26 @@
                         {% endif %}
                     </div>
 
-                    {# Body: name line with context + message preview #}
+                    {# Body: vertically stacked name → context tag → preview #}
                     <div class="conv-body">
-                        <div class="conv-name-line">
-                            <span class="conv-name">
-                                {% if convo.other_user %}
-                                    {{ convo.other_user.first_name }} {{ convo.other_user.last_name }}
-                                {% else %}
-                                    Unknown User
-                                {% endif %}
-                            </span>
-                            {% if convo.item %}
-                                <span class="conv-context-sep">·</span>
-                                <span class="context-badge context-badge--item d-none d-md-inline">{{ convo.item.name|truncate(60) }}</span>
-                                <span class="context-badge context-badge--item d-md-none">{{ convo.item.name|truncate(30) }}</span>
-                            {% elif convo.item_request %}
-                                <span class="conv-context-sep">·</span>
-                                <span class="context-badge context-badge--request d-none d-md-inline">{{ convo.item_request.title|truncate(60) }}</span>
-                                <span class="context-badge context-badge--request d-md-none">{{ convo.item_request.title|truncate(30) }}</span>
-                            {% elif convo.circle %}
-                                <span class="conv-context-sep">·</span>
-                                <span class="context-badge context-badge--circle d-none d-md-inline">{{ convo.circle.name|truncate(60) }}</span>
-                                <span class="context-badge context-badge--circle d-md-none">{{ convo.circle.name|truncate(30) }}</span>
+                        <span class="conv-name">
+                            {% if convo.other_user %}
+                                {{ convo.other_user.first_name }} {{ convo.other_user.last_name }}
+                            {% else %}
+                                Unknown User
                             {% endif %}
-                        </div>
+                        </span>
+                        {% if convo.item %}
+                            <span class="context-badge context-badge--item">{{ convo.item.name|truncate(60) }}</span>
+                        {% elif convo.item_request %}
+                            <span class="context-badge context-badge--request">{{ convo.item_request.title|truncate(60) }}</span>
+                        {% elif convo.circle %}
+                            <span class="context-badge context-badge--circle">{{ convo.circle.name|truncate(60) }}</span>
+                        {% endif %}
                         <span class="conv-preview">{{ convo.latest_message.body }}</span>
                     </div>
 
-                    {# Meta: timestamp + unread dot #}
+                    {# Meta: timestamp gutter + unread dot #}
                     <div class="conv-meta">
                         <span class="conv-time">{{ convo.latest_message.timestamp|utc_timestamp('timeago') }}</span>
                         {% if convo.unread_count > 0 %}

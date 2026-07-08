@@ -951,7 +951,7 @@ footer h6 {
     }
 }
 
-/* ── Messaging: Inbox List Layout (Gmail-style rows) ── */
+/* ── Messaging: Inbox List Layout ── */
 .conversation-list {
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
@@ -960,12 +960,12 @@ footer h6 {
     margin-bottom: 2rem;
 }
 
-/* ── Conversation Row ── */
+/* ── Conversation Row (vertical stacking, taller rows) ── */
 .conversation-row {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 1rem 1.125rem;
     border-bottom: 1px solid var(--border-color);
     cursor: pointer;
     transition: background-color 0.15s ease;
@@ -995,6 +995,7 @@ footer h6 {
 .conversation-row .conv-checkbox {
     flex-shrink: 0;
     z-index: 2;
+    margin-top: 0.15rem;
 }
 
 .conversation-row .conv-avatar {
@@ -1011,40 +1012,28 @@ footer h6 {
     flex-shrink: 0;
 }
 
+/* ── Body: vertically stacked name → context tag → preview ── */
 .conversation-row .conv-body {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: 0.3rem;
 }
 
 .conversation-row .conv-name {
-    font-weight: 500;
+    font-weight: 600;
     font-size: 0.95rem;
     color: var(--dark-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.25;
 }
 
 .conversation-row.conversation-unread .conv-name {
     font-weight: 700;
     color: #1a202c;
-}
-
-/* ── Name line: name + context subtitle ── */
-.conversation-row .conv-name-line {
-    display: flex;
-    align-items: baseline;
-    gap: 0.35rem;
-    min-width: 0;
-}
-
-.conversation-row .conv-context-sep {
-    color: var(--muted-text);
-    font-size: 0.85rem;
-    flex-shrink: 0;
 }
 
 .conversation-row .conv-preview {
@@ -1053,17 +1042,21 @@ footer h6 {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.3;
 }
 
 .conversation-row.conversation-unread .conv-preview {
     color: #4a5568;
 }
 
+/* ── Meta: fixed-width right-aligned date gutter ── */
 .conversation-row .conv-meta {
     flex-shrink: 0;
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+    min-width: 68px;
     margin-left: auto;
 }
 
@@ -1071,6 +1064,7 @@ footer h6 {
     font-size: 0.8rem;
     color: var(--muted-text);
     white-space: nowrap;
+    text-align: right;
 }
 
 /* ── Unread dot (Gmail-style blue dot) ── */
@@ -1082,48 +1076,47 @@ footer h6 {
     flex-shrink: 0;
 }
 
-/* ── Context Badge (subtitle next to sender name) ── */
+/* ── Context Badge (standalone pill tag on its own line) ── */
 .context-badge {
-    display: inline;
-    font-size: 0.8rem;
+    display: inline-block;
+    font-size: 0.78rem;
     font-weight: 500;
-    padding: 0.1rem 0.4rem;
-    border-radius: 0.25rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 0.3rem;
     white-space: nowrap;
     flex-shrink: 0;
+    max-width: fit-content;
+    line-height: 1.3;
 }
 
 .context-badge--item { background: #e3f2fd; color: #1565c0; }
 .context-badge--request { background: #fce4ec; color: #c62828; }
 .context-badge--circle { background: #e8f5e9; color: #2e7d32; }
 
-/* ── Inbox Action Bar (inside conversation list) ── */
-.inbox-action-bar {
+/* ── Inbox Toolbar (consolidated control bar above conversation list) ── */
+.inbox-toolbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 1rem;
-    border-bottom: 1px solid var(--border-color);
-    background: #fafbfc;
-    gap: 1rem;
+    gap: 0.75rem;
+    padding: 0.5rem 0.25rem;
+    margin-bottom: 0.25rem;
+    flex-wrap: wrap;
 }
 
-.inbox-action-bar__left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.inbox-action-bar__right {
-    display: flex;
-    align-items: center;
-}
-
-.inbox-action-bar .form-check {
+.inbox-toolbar__select {
     margin-bottom: 0;
+    white-space: nowrap;
 }
 
-.inbox-action-bar .btn-link {
+.inbox-toolbar__mark-read {
+    white-space: nowrap;
+}
+
+.inbox-toolbar__spacer {
+    flex: 1;
+}
+
+.inbox-toolbar .btn-link {
     font-size: 0.875rem;
     padding: 0;
 }
@@ -1165,8 +1158,8 @@ footer h6 {
 /* ── Responsive ── */
 @media (max-width: 768px) {
     .conversation-row {
-        padding: 0.625rem 0.75rem;
-        gap: 0.5rem;
+        padding: 0.75rem 0.75rem;
+        gap: 0.6rem;
     }
 
     .conversation-row .conv-avatar {
@@ -1182,6 +1175,18 @@ footer h6 {
     .conversation-row .conv-preview {
         font-size: 0.8rem;
     }
+
+    .conversation-row .conv-meta {
+        min-width: 52px;
+    }
+
+    .conversation-row .conv-time {
+        font-size: 0.75rem;
+    }
+
+    .inbox-toolbar {
+        gap: 0.5rem;
+        padding: 0.4rem 0;\n    }
 }
 
 /* ── Messaging Toolbar ── */
