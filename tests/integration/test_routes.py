@@ -1746,3 +1746,124 @@ class TestMessagingRoutes:
                         "<img" not in content
                     ), "No <img> expected in avatar div when user has no profile image"
                     break
+
+    def test_bulk_archive_preserves_page_and_sort(self, client, app):
+        """POST /messages/bulk-archive preserves page & sort in redirect."""
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=sender)
+            ConversationParticipantFactory(conversation=conversation, user=recipient)
+            MessageFactory(
+                sender=sender, recipient=recipient, conversation=conversation, is_read=False
+            )
+            db.session.commit()
+
+            login_user(client, recipient.email)
+            response = client.post(
+                "/messages/bulk-archive?page=2&sort=oldest&status=inbox",
+                data={"conversation_ids": str(conversation.id)},
+            )
+
+            assert response.status_code == 302
+            assert "page=2" in response.location
+            assert "sort=oldest" in response.location
+            assert "status=inbox" in response.location
+
+    def test_bulk_mark_read_preserves_page_and_sort(self, client, app):
+        """POST /messages/bulk-mark-read preserves page & sort in redirect."""
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=sender)
+            ConversationParticipantFactory(conversation=conversation, user=recipient)
+            MessageFactory(
+                sender=sender, recipient=recipient, conversation=conversation, is_read=True
+            )
+            db.session.commit()
+
+            login_user(client, recipient.email)
+            response = client.post(
+                "/messages/bulk-mark-read?page=3&sort=unread&status=inbox",
+                data={"conversation_ids": str(conversation.id)},
+            )
+
+            assert response.status_code == 302
+            assert "page=3" in response.location
+            assert "sort=unread" in response.location
+            assert "status=inbox" in response.location
+
+    def test_bulk_mark_unread_preserves_page_and_sort(self, client, app):
+        """POST /messages/bulk-mark-unread preserves page & sort in redirect."""
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=sender)
+            ConversationParticipantFactory(conversation=conversation, user=recipient)
+            MessageFactory(
+                sender=sender, recipient=recipient, conversation=conversation, is_read=True
+            )
+            db.session.commit()
+
+            login_user(client, recipient.email)
+            response = client.post(
+                "/messages/bulk-mark-unread?page=2&sort=newest&status=inbox",
+                data={"conversation_ids": str(conversation.id)},
+            )
+
+            assert response.status_code == 302
+            assert "page=2" in response.location
+            assert "sort=newest" in response.location
+            assert "status=inbox" in response.location
+
+    def test_mark_all_read_preserves_page_and_sort(self, client, app):
+        """POST /messages/mark-all-read preserves page & sort in redirect."""
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=sender)
+            ConversationParticipantFactory(conversation=conversation, user=recipient)
+            MessageFactory(
+                sender=sender, recipient=recipient, conversation=conversation, is_read=False
+            )
+            db.session.commit()
+
+            login_user(client, recipient.email)
+            response = client.post(
+                "/messages/mark-all-read?page=5&sort=oldest&status=archived",
+            )
+
+            assert response.status_code == 302
+            assert "page=5" in response.location
+            assert "sort=oldest" in response.location
+            assert "status=archived" in response.location
+
+    def test_bulk_unarchive_preserves_page_and_sort(self, client, app):
+        """POST /messages/bulk-unarchive preserves page & sort in redirect."""
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(
+                conversation=conversation, user=recipient, is_archived=True
+            )
+            ConversationParticipantFactory(conversation=conversation, user=sender)
+            MessageFactory(
+                sender=sender, recipient=recipient, conversation=conversation, is_read=True
+            )
+            db.session.commit()
+
+            login_user(client, recipient.email)
+            response = client.post(
+                "/messages/bulk-unarchive?page=2&sort=name_asc&status=archived",
+                data={"conversation_ids": str(conversation.id)},
+            )
+
+            assert response.status_code == 302
+            assert "page=2" in response.location
+            assert "sort=name_asc" in response.location
+            assert "status=archived" in response.location

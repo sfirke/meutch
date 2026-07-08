@@ -38,7 +38,7 @@
                 <input class="form-check-input" type="checkbox" id="select-all">
                 <label class="form-check-label" for="select-all">Select All</label>
             </div>
-            <form method="POST" action="{{ url_for('main.mark_all_read', status=current_status) }}" class="inbox-toolbar__mark-read">
+            <form method="POST" action="{{ url_for('main.mark_all_read', status=current_status, page=pagination.page, sort=current_sort) }}" class="inbox-toolbar__mark-read">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-link text-muted text-decoration-none">
                     <i class="fas fa-check-double me-1"></i>Mark all read
@@ -186,7 +186,7 @@
     <div class="bulk-action-bar" id="bulk-action-bar">
         <span><strong id="selected-count">0</strong> selected</span>
         {% if is_archived_view %}
-        <form method="POST" action="{{ url_for('main.bulk_unarchive', status=current_status) }}" class="d-inline">
+        <form method="POST" action="{{ url_for('main.bulk_unarchive', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids" value="">
             <button type="submit" class="btn btn-sm btn-light">
@@ -194,7 +194,7 @@
             </button>
         </form>
         {% else %}
-        <form method="POST" action="{{ url_for('main.bulk_archive', status=current_status) }}" class="d-inline">
+        <form method="POST" action="{{ url_for('main.bulk_archive', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids" value="">
             <button type="submit" class="btn btn-sm btn-light">
@@ -202,14 +202,14 @@
             </button>
         </form>
         {% endif %}
-        <form method="POST" action="{{ url_for('main.bulk_mark_read', status=current_status) }}" class="d-inline" id="bulk-mark-read-form">
+        <form method="POST" action="{{ url_for('main.bulk_mark_read', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline" id="bulk-mark-read-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids-mark-read" value="">
             <button type="submit" class="btn btn-sm btn-light">
                 <i class="fas fa-check me-1"></i>Mark Read
             </button>
         </form>
-        <form method="POST" action="{{ url_for('main.bulk_mark_unread', status=current_status) }}" class="d-inline d-none" id="bulk-mark-unread-form">
+        <form method="POST" action="{{ url_for('main.bulk_mark_unread', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline d-none" id="bulk-mark-unread-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids-mark-unread" value="">
             <button type="submit" class="btn btn-sm btn-light">
