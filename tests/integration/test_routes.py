@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from unittest.mock import patch
 
 from app import db
-from app.models import Circle, Item, User
+from app.models import Circle, Item, Message, User
 from app.utils.digest_tokens import generate_digest_manage_token
 from conftest import login_user
 from tests.factories import (
@@ -15,6 +15,7 @@ from tests.factories import (
     CircleFactory,
     CircleJoinRequestFactory,
     ConversationFactory,
+    ConversationParticipantFactory,
     ItemFactory,
     ItemImageFactory,
     ItemRequestFactory,
@@ -1595,3 +1596,173 @@ class TestDigestManageRoutes:
 
             updated_user = db.session.get(User, user.id)
             assert updated_user.digest_frequency == User.DIGEST_FREQUENCY_WEEKLY
+
+
+class TestMessagingRoutes:
+    """Test messaging inbox routes."""
+
+    def test_mark_all_read_marks_unread_messages(self, client, app):
+        """POST /messages/mark-all-read marks unread messages as read."""
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=sender)
+            ConversationParticipantFactory(conversation=conversation, user=recipient)
+            msg = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                is_read=False,
+            )
+            db.session.commit()
+            msg_id = msg.id
+
+            login_user(client, recipient.email)
+            # The CSRF token is disabled in tests so we can POST without it
+            response = client.post(
+                "/messages/mark-all-read?status=inbox",
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert b"All visible messages marked as read." in response.data
+
+            db.session.expire_all()
+            assert db.session.get(Message, msg_id).is_read is True
+
+    def test_messages_inbox_csrf_token_is_not_nested(self, client, app):
+        """The inbox template must render csrf_token() directly, not nested inside
+        another input's value attribute.  A nested token renders escaped HTML
+        as the value, which fails CSRF validation in production.
+
+        We verify this by checking that no <input> tag contains another <input>
+        inside its value attribute, which is the hallmark of the nesting bug.
+        """
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=sender)
+            ConversationParticipantFactory(conversation=conversation, user=recipient)
+            MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                is_read=False,
+            )
+            db.session.commit()
+
+            login_user(client, recipient.email)
+            response = client.get("/messages?status=inbox")
+            assert response.status_code == 200
+
+            html = response.data.decode("utf-8")
+
+            # The broken pattern would produce something like:
+            #   <input type="hidden" name="csrf_token" value="<input ...>">
+            # or (with Jinja2 autoescaping of non-Markup strings):
+            #   <input type="hidden" name="csrf_token" value="&lt;input ...&gt;">
+            # After the fix, csrf_token() is rendered standalone, so there
+            # should be no nested <input> inside a value attribute.
+            import re
+
+            # Find <input> tags whose value attribute contains another <input
+            # (either literal or HTML-escaped).
+            broken_pattern = re.compile(
+                r'<input[^>]*value="[^"]*<input[^>]*"[^>]*>',
+                re.IGNORECASE,
+            )
+            broken_escaped = re.compile(
+                r'<input[^>]*value="[^"]*&lt;input[^>]*"[^>]*>',
+                re.IGNORECASE,
+            )
+
+            broken_matches = broken_pattern.findall(html)
+            broken_escaped_matches = broken_escaped.findall(html)
+
+            assert len(broken_matches) == 0, (
+                f"Found {len(broken_matches)} nested csrf_token input(s) "
+                "(literal <input> inside value= attribute)"
+            )
+            assert len(broken_escaped_matches) == 0, (
+                f"Found {len(broken_escaped_matches)} nested csrf_token input(s) "
+                "(escaped &lt;input&gt; inside value= attribute)"
+            )
+
+    def test_messages_inbox_shows_avatar_image_when_profile_image_url_set(self, client, app):
+        """When the other user has a profile_image_url, the inbox must render
+        an <img> tag instead of showing initials."""
+        with app.app_context():
+            sender = UserFactory(
+                profile_image_url="https://example.com/avatars/alice.jpg",
+                first_name="Alice",
+                last_name="Smith",
+            )
+            recipient = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=sender)
+            ConversationParticipantFactory(conversation=conversation, user=recipient)
+            MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                is_read=False,
+            )
+            db.session.commit()
+
+            login_user(client, recipient.email)
+            response = client.get("/messages?status=inbox")
+            assert response.status_code == 200
+
+            html = response.data.decode("utf-8")
+
+            # The avatar for Alice should be an <img> with the correct src
+            assert (
+                'src="https://example.com/avatars/alice.jpg"' in html
+            ), "Expected avatar <img> for user with profile_image_url"
+            # Initials should NOT appear for this user
+            assert "AS" not in html, "Initials should not appear when profile image is set"
+
+    def test_messages_inbox_shows_initials_when_no_profile_image(self, client, app):
+        """When the other user has no profile_image_url, the inbox must render
+        initials as a fallback."""
+        with app.app_context():
+            sender = UserFactory(
+                profile_image_url=None,
+                first_name="Bob",
+                last_name="Jones",
+            )
+            recipient = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=sender)
+            ConversationParticipantFactory(conversation=conversation, user=recipient)
+            MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                is_read=False,
+            )
+            db.session.commit()
+
+            login_user(client, recipient.email)
+            response = client.get("/messages?status=inbox")
+            assert response.status_code == 200
+
+            html = response.data.decode("utf-8")
+
+            # Initials should appear for this user
+            assert "BJ" in html, "Expected initials 'BJ' for user without profile image"
+            # No <img> tag in the avatar div for this user
+            # (the div should contain the initials text, not an img)
+            import re
+
+            # Find the conv-avatar div that contains "BJ"
+            avatar_pattern = re.compile(r'<div class="conv-avatar">(.*?)</div>', re.DOTALL)
+            for match in avatar_pattern.finditer(html):
+                content = match.group(1)
+                if "BJ" in content:
+                    assert (
+                        "<img" not in content
+                    ), "No <img> expected in avatar div when user has no profile image"
+                    break

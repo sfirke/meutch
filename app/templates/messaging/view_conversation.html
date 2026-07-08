@@ -409,14 +409,14 @@
         </a>
         {% if viewer_participant and viewer_participant.is_archived %}
             <form method="POST" action="{{ url_for('main.unarchive_conversation', conversation_id=conversation.id) }}" class="d-inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {{ csrf_token() }}
                 <button type="submit" class="btn btn-outline-secondary">
                     <i class="fas fa-inbox me-1"></i>Unarchive
                 </button>
             </form>
         {% else %}
             <form method="POST" action="{{ url_for('main.archive_conversation', conversation_id=conversation.id) }}" class="d-inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {{ csrf_token() }}
                 <button type="submit" class="btn btn-outline-secondary">
                     <i class="fas fa-archive me-1"></i>Archive
                 </button>

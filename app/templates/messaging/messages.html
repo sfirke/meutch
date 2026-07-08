@@ -39,7 +39,7 @@
                 <label class="form-check-label" for="select-all">Select All</label>
             </div>
             <form method="POST" action="{{ url_for('main.mark_all_read', status=current_status) }}" class="inbox-toolbar__mark-read">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {{ csrf_token() }}
                 <button type="submit" class="btn btn-sm btn-link text-muted text-decoration-none">
                     <i class="fas fa-check-double me-1"></i>Mark all read
                 </button>
@@ -80,7 +80,11 @@
                     {# Avatar #}
                     <div class="conv-avatar">
                         {% if convo.other_user %}
-                            {{ convo.other_user.first_name[0]|upper }}{{ convo.other_user.last_name[0]|upper }}
+                            {% if convo.other_user.profile_image_url %}
+                                <img src="{{ convo.other_user.profile_image_url }}" alt="{{ convo.other_user.first_name }} {{ convo.other_user.last_name }}" class="conv-avatar-img">
+                            {% else %}
+                                {{ convo.other_user.first_name[0]|upper }}{{ convo.other_user.last_name[0]|upper }}
+                            {% endif %}
                         {% else %}
                             <i class="fas fa-user"></i>
                         {% endif %}
@@ -183,7 +187,7 @@
         <span><strong id="selected-count">0</strong> selected</span>
         {% if is_archived_view %}
         <form method="POST" action="{{ url_for('main.bulk_unarchive', status=current_status) }}" class="d-inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ csrf_token() }}
             <input type="hidden" name="conversation_ids" id="conversation-ids" value="">
             <button type="submit" class="btn btn-sm btn-light">
                 <i class="fas fa-inbox me-1"></i>Move to Inbox
@@ -191,7 +195,7 @@
         </form>
         {% else %}
         <form method="POST" action="{{ url_for('main.bulk_archive', status=current_status) }}" class="d-inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ csrf_token() }}
             <input type="hidden" name="conversation_ids" id="conversation-ids" value="">
             <button type="submit" class="btn btn-sm btn-light">
                 <i class="fas fa-archive me-1"></i>Archive Selected
@@ -199,14 +203,14 @@
         </form>
         {% endif %}
         <form method="POST" action="{{ url_for('main.bulk_mark_read', status=current_status) }}" class="d-inline" id="bulk-mark-read-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ csrf_token() }}
             <input type="hidden" name="conversation_ids" id="conversation-ids-mark-read" value="">
             <button type="submit" class="btn btn-sm btn-light">
                 <i class="fas fa-check me-1"></i>Mark Read
             </button>
         </form>
         <form method="POST" action="{{ url_for('main.bulk_mark_unread', status=current_status) }}" class="d-inline d-none" id="bulk-mark-unread-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ csrf_token() }}
             <input type="hidden" name="conversation_ids" id="conversation-ids-mark-unread" value="">
             <button type="submit" class="btn btn-sm btn-light">
                 <i class="fas fa-envelope me-1"></i>Mark Unread
