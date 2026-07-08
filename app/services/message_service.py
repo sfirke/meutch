@@ -264,7 +264,11 @@ def mark_all_read_in_view(user_id, status="inbox"):
         db.session.query(ConversationParticipant.conversation_id)
         .filter(
             ConversationParticipant.user_id == user_id,
-            ConversationParticipant.is_archived == is_archived_flag,
+            (
+                ConversationParticipant.is_archived.isnot(True)
+                if not is_archived_flag
+                else ConversationParticipant.is_archived.is_(True)
+            ),
         )
         .scalar_subquery()
     )
