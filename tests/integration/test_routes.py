@@ -1626,7 +1626,7 @@ class TestMessagingRoutes:
             )
 
             assert response.status_code == 200
-            assert b"All visible messages marked as read." in response.data
+            assert b"Entire inbox marked as read." in response.data
 
             db.session.expire_all()
             assert db.session.get(Message, msg_id).is_read is True

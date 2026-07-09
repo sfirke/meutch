@@ -100,7 +100,8 @@ def mark_all_read():
     sort = request.args.get("sort", "newest")
     status = request.args.get("status", "inbox")
     message_service.mark_all_read_in_view(current_user.id, status=status)
-    flash("All visible messages marked as read.", "success")
+    view_label = "inbox" if status == "inbox" else "archived"
+    flash(f"Entire {view_label} marked as read.", "success")
     return redirect(url_for("main.messages", page=page, sort=sort, status=status))
 
 

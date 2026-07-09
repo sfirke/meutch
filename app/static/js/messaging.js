@@ -129,10 +129,16 @@
             });
         }
 
-        // Individual checkboxes — stopPropagation prevents row navigation
+        // Individual checkboxes — stopPropagation prevents row navigation.
+        // We also stop propagation on the 48×48 hitbox label so that clicks
+        // on the big visible area don't bleed through to the <a> row.
         checkboxes.forEach(function (cb) {
             cb.addEventListener('change', updateBulkBar);
             cb.addEventListener('click', function (e) { e.stopPropagation(); });
+            var hitbox = cb.closest('.conv-checkbox-hitbox');
+            if (hitbox) {
+                hitbox.addEventListener('click', function (e) { e.stopPropagation(); });
+            }
         });
     }
 

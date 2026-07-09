@@ -992,10 +992,31 @@ footer h6 {
 }
 
 /* ── Row cells ── */
-.conversation-row .conv-checkbox {
+
+/* 48×48 checkbox hitbox — wraps the tiny <input> so tapping is easy */
+.conversation-row .conv-checkbox-hitbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    cursor: pointer;
     z-index: 2;
-    margin-top: 0.15rem;
+    /* Push the hitbox away from the avatar so they don't overlap */
+    margin-right: 0;
+    transition: background-color 0.15s ease;
+}
+
+.conversation-row .conv-checkbox-hitbox:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
+/* The actual checkbox sits in the center of the hitbox */
+.conversation-row .conv-checkbox {
+    margin: 0;
+    z-index: 3;
 }
 
 .conversation-row .conv-avatar {
@@ -1011,6 +1032,7 @@ footer h6 {
     font-size: 0.9rem;
     flex-shrink: 0;
     overflow: hidden;
+    margin-top: 0.2rem;
 }
 
 .conversation-row .conv-avatar-img {
@@ -1030,17 +1052,18 @@ footer h6 {
 }
 
 .conversation-row .conv-name {
-    font-weight: 600;
+    font-weight: 400;
     font-size: 0.95rem;
     color: var(--dark-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.25;
+    min-width: 0;
 }
 
 .conversation-row.conversation-unread .conv-name {
-    font-weight: 700;
+    font-weight: 600;
     color: #1a202c;
 }
 
@@ -1055,6 +1078,7 @@ footer h6 {
 
 .conversation-row.conversation-unread .conv-preview {
     color: #4a5568;
+    font-weight: 600;
 }
 
 /* ── Meta: fixed-width right-aligned date gutter ── */
@@ -1075,12 +1099,20 @@ footer h6 {
     text-align: right;
 }
 
-/* ── Unread dot (Gmail-style blue dot) ── */
+/* ── Conv-body header: dot + name row ── */
+.conversation-row .conv-body__header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+/* ── Unread dot (teal dot, inline before sender name) ── */
 .conversation-row .unread-dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background-color: var(--primary-color);
+    background-color: #0d9488;
     flex-shrink: 0;
 }
 

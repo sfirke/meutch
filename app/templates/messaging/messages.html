@@ -73,9 +73,11 @@
                 <a href="{{ url_for('main.view_conversation', conversation_id=convo.latest_message.conversation_id) }}"
                    class="conversation-row {% if convo.unread_count > 0 %}conversation-unread{% endif %}">
 
-                    {# Checkbox #}
-                    <input class="form-check-input conversation-checkbox conv-checkbox" type="checkbox"
-                           value="{{ convo.latest_message.conversation_id }}">
+                    {# Checkbox (wrapped in a 48×48 hitbox label) #}
+                    <label class="conv-checkbox-hitbox">
+                        <input class="form-check-input conversation-checkbox conv-checkbox" type="checkbox"
+                               value="{{ convo.latest_message.conversation_id }}">
+                    </label>
 
                     {# Avatar #}
                     <div class="conv-avatar">
@@ -92,13 +94,18 @@
 
                     {# Body: vertically stacked name → context tag → preview #}
                     <div class="conv-body">
-                        <span class="conv-name">
-                            {% if convo.other_user %}
-                                {{ convo.other_user.first_name }} {{ convo.other_user.last_name }}
-                            {% else %}
-                                Unknown User
+                        <div class="conv-body__header">
+                            {% if convo.unread_count > 0 %}
+                                <span class="unread-dot" title="{{ convo.unread_count }} unread"></span>
                             {% endif %}
-                        </span>
+                            <span class="conv-name">
+                                {% if convo.other_user %}
+                                    {{ convo.other_user.first_name }} {{ convo.other_user.last_name }}
+                                {% else %}
+                                    Unknown User
+                                {% endif %}
+                            </span>
+                        </div>
                         {% if convo.item %}
                             <span class="context-badge context-badge--item">{{ convo.item.name|truncate(60) }}</span>
                         {% elif convo.item_request %}
@@ -109,12 +116,9 @@
                         <span class="conv-preview">{{ convo.latest_message.body }}</span>
                     </div>
 
-                    {# Meta: timestamp gutter + unread dot #}
+                    {# Meta: timestamp gutter #}
                     <div class="conv-meta">
                         <span class="conv-time">{{ convo.latest_message.timestamp|utc_timestamp('timeago') }}</span>
-                        {% if convo.unread_count > 0 %}
-                            <span class="unread-dot" title="{{ convo.unread_count }} unread"></span>
-                        {% endif %}
                     </div>
                 </a>
             {% endfor %}
