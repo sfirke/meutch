@@ -1701,8 +1701,22 @@ class TestMessagingRoutes:
             assert (
                 'src="https://example.com/avatars/alice.jpg"' in html
             ), "Expected avatar <img> for user with profile_image_url"
-            # Initials should NOT appear for this user
-            assert "AS" not in html, "Initials should not appear when profile image is set"
+            # Initials should NOT appear inside Alice's avatar div
+            import re
+
+            avatar_pattern = re.compile(r'<div class="conv-avatar">(.*?)</div>', re.DOTALL)
+            alice_avatar_found = False
+            for match in avatar_pattern.finditer(html):
+                content = match.group(1)
+                if "https://example.com/avatars/alice.jpg" in content:
+                    alice_avatar_found = True
+                    assert (
+                        "AS" not in content
+                    ), "Initials should not appear in avatar div when profile image is set"
+                    assert (
+                        "<img" in content
+                    ), "Expected <img> tag in avatar div when profile_image_url is set"
+            assert alice_avatar_found, "Could not find Alice's avatar div in the page"
 
     def test_messages_inbox_shows_initials_when_no_profile_image(self, client, app):
         """When the other user has no profile_image_url, the inbox must render
