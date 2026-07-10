@@ -131,43 +131,67 @@ def send_message_notification_email(message):
         return False
 
     # Generate the conversation URL
-    conversation_url = url_for("main.view_conversation", message_id=message.id, _external=True)
+    conversation_url = url_for(
+        "main.view_conversation", conversation_id=message.conversation_id, _external=True
+    )
 
+    conversation = message.conversation
     context_label = None
     context_type_label = None  # User-facing label for email
-    if message.item is not None:
-        context_label = message.item.name
-        context_type_label = f"Item: {message.item.name}"
-    elif message.is_request_message:
-        context_label = f"request: {message.request.title}"
-        context_type_label = f"Request: {message.request.title}"
-    elif message.is_circle_message:
-        context_label = f"circle: {message.circle.name}"
-        context_type_label = f"Circle: {message.circle.name}"
+    if conversation.context_type == "item":
+        item = conversation.item
+        if item is None:
+            current_app.logger.error(
+                f"Message {message.id} conversation {conversation.id}: item not found"
+            )
+            return False
+        context_label = item.name
+        context_type_label = f"Item: {item.name}"
+    elif conversation.context_type == "request":
+        req = conversation.request
+        if req is None:
+            current_app.logger.error(
+                f"Message {message.id} conversation {conversation.id}: request not found"
+            )
+            return False
+        context_label = f"request: {req.title}"
+        context_type_label = f"Request: {req.title}"
+    elif conversation.context_type == "circle":
+        circle = conversation.circle
+        if circle is None:
+            current_app.logger.error(
+                f"Message {message.id} conversation {conversation.id}: circle not found"
+            )
+            return False
+        context_label = f"circle: {circle.name}"
+        context_type_label = f"Circle: {circle.name}"
     else:
-        current_app.logger.error(f"Message {message.id} has no item, request, or circle context")
+        current_app.logger.error(
+            f"Message {message.id} has unknown context_type '{conversation.context_type}'"
+        )
         return False
 
     # Determine the subject and email content based on message type
     if message.is_loan_request_message:
+        item_name = conversation.item.name if conversation.item else "Unknown Item"
         # Check if this is a loan extension message (owner extending the due date)
         if message.loan_request.status == "approved" and "has been extended" in message.body:
-            subject = f"Meutch - Loan Extended for {message.item.name}"
+            subject = f"Meutch - Loan Extended for {item_name}"
             email_type = "loan extension"
         elif message.loan_request.status == "pending":
-            subject = f"Meutch - New Loan Request for {message.item.name}"
+            subject = f"Meutch - New Loan Request for {item_name}"
             email_type = "loan request"
         elif message.loan_request.status == "approved":
-            subject = f"Meutch - Loan Request Approved for {message.item.name}"
+            subject = f"Meutch - Loan Request Approved for {item_name}"
             email_type = "loan approval"
         elif message.loan_request.status == "denied":
-            subject = f"Meutch - Loan Request Denied for {message.item.name}"
+            subject = f"Meutch - Loan Request Denied for {item_name}"
             email_type = "loan denial"
         elif message.loan_request.status == "completed":
-            subject = f"Meutch - Loan Completed for {message.item.name}"
+            subject = f"Meutch - Loan Completed for {item_name}"
             email_type = "loan completion"
         elif message.loan_request.status == "canceled":
-            subject = f"Meutch - Loan Request Canceled for {message.item.name}"
+            subject = f"Meutch - Loan Request Canceled for {item_name}"
             email_type = "loan cancellation"
         else:
             # Strict validation: raise exception for unknown statuses
@@ -506,16 +530,6 @@ def _digest_event_title(event):
     return event["title"]
 
 
-def _digest_resolution_label(event):
-    if event.get("digest_variant") != "new-resolved-in-window":
-        return None
-    if event["event_type"] == "request" and event.get("resolution_status") == "fulfilled":
-        return "Fulfilled"
-    if event["event_type"] == "giveaway" and event.get("resolution_status") == "claimed":
-        return "Claimed"
-    return None
-
-
 def _digest_resolution_only_text(event):
     title = _digest_event_title(event)
     if event["event_type"] == "request":
@@ -568,6 +582,23 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     circle_joins = digest_payload.get("circle_joins", [])
     loans = digest_payload.get("loans", [])
 
+    # Split giveaways into posted (still available) and claimed
+    posted_giveaways = [g for g in giveaways if g.get("resolution_status") != "claimed"]
+    claimed_giveaways = [g for g in giveaways if g.get("resolution_status") == "claimed"]
+    # Split requests into posted (still open) and fulfilled
+    posted_requests = [r for r in requests if r.get("resolution_status") != "fulfilled"]
+    fulfilled_requests = [r for r in requests if r.get("resolution_status") == "fulfilled"]
+
+    # Sort fulfilled/claimed so new-resolved-in-window items appear first.
+    # Python sort is stable, so within each subgroup the existing order
+    # (created_at descending from build_digest_payload) is preserved.
+    claimed_giveaways.sort(
+        key=lambda e: (0 if e.get("digest_variant") == "new-resolved-in-window" else 1)
+    )
+    fulfilled_requests.sort(
+        key=lambda e: (0 if e.get("digest_variant") == "new-resolved-in-window" else 1)
+    )
+
     events = digest_payload.get("events")
     if events is None:
         events = giveaways + requests + circle_joins + loans
@@ -600,38 +631,44 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         text_lines.extend(summary_lines)
         text_lines.append("")
 
-    def append_text_section(section_title, events, include_description=False):
+    def append_text_section(section_title, events, include_description=False, include_image=True):
         if not events:
             return
         text_lines.append(f"{section_title}:")
         for event in events:
             actor = event["actor_name"]
-            is_resolution_only = event.get("digest_variant") == "resolved-in-window"
+            is_resolution_only = event.get("digest_variant") in (
+                "resolved-in-window",
+                "new-resolved-in-window",
+            )
+            is_new_in_window = event.get("digest_variant") == "new-resolved-in-window"
             if is_resolution_only:
                 # For giveaways, the message already includes the actor name
                 if event["event_type"] == "giveaway":
-                    text_lines.append(f"- {_digest_resolution_only_text(event)}")
+                    line = f"- {_digest_resolution_only_text(event)}"
                 else:
-                    text_lines.append(f"- {actor}: {_digest_resolution_only_text(event)}")
+                    line = f"- {actor}: {_digest_resolution_only_text(event)}"
             else:
                 title = _digest_event_title(event)
                 action = event["action"]
-                resolution_label = _digest_resolution_label(event)
                 line = f"- {actor} {action}: {title}"
-                if resolution_label:
-                    line = f"{line} [{resolution_label}]"
-                text_lines.append(line)
-            if include_description and not is_resolution_only and event.get("description"):
+            if is_new_in_window:
+                line = f"{line} [New]"
+            text_lines.append(line)
+            show_desc = (not is_resolution_only and include_description) or is_new_in_window
+            if show_desc and event.get("description"):
                 text_lines.append(f"  {event['description']}")
-            if not is_resolution_only and event.get("image_url"):
-                text_lines.append(f"  Image: {event['image_url']}")
-            if is_resolution_only and event.get("image_url"):
+            if include_image and event.get("image_url"):
                 text_lines.append(f"  Image: {event['image_url']}")
             text_lines.append(f"  {_digest_event_url(event)}")
         text_lines.append("")
 
-    append_text_section("Giveaways", giveaways, include_description=True)
-    append_text_section("Requests", requests, include_description=True)
+    append_text_section("Giveaways \u2014 Posted", posted_giveaways, include_description=True)
+    append_text_section(
+        "Giveaways \u2014 Claimed", claimed_giveaways, include_description=True, include_image=False
+    )
+    append_text_section("Requests \u2014 Posted", posted_requests, include_description=True)
+    append_text_section("Requests \u2014 Fulfilled", fulfilled_requests, include_description=False)
 
     if circle_joins:
         grouped_joins = _group_circle_joins_for_digest(circle_joins)
@@ -657,7 +694,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         ]
     )
 
-    def build_html_section(title, events, include_description=False):
+    def build_html_section(title, events, include_description=False, include_image=True):
         if not events:
             return ""
 
@@ -665,15 +702,20 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         for event in events:
             actor = event["actor_name"]
             link = _digest_event_url(event)
-            is_resolution_only = event.get("digest_variant") == "resolved-in-window"
+            is_resolution_only = event.get("digest_variant") in (
+                "resolved-in-window",
+                "new-resolved-in-window",
+            )
+            is_new_in_window = event.get("digest_variant") == "new-resolved-in-window"
+            show_desc = (not is_resolution_only and include_description) or is_new_in_window
             description_html = ""
-            if include_description and not is_resolution_only and event.get("description"):
+            if show_desc and event.get("description"):
                 description_html = (
                     f"<p style=\"margin: 6px 0 0 0; color: #555;\">{event['description']}</p>"
                 )
 
             image_html = ""
-            if event.get("image_url"):
+            if include_image and event.get("image_url"):
                 image_html = (
                     f"<div style=\"margin: 8px 0;\">"
                     f"<img src=\"{event['image_url']}\" alt=\"Activity image\" "
@@ -684,23 +726,18 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             if is_resolution_only:
                 # For giveaways, the message already includes the actor name
                 if event["event_type"] == "giveaway":
-                    activity_html = f"{_digest_resolution_only_text(event)}<br>"
+                    activity_html = f"{_digest_resolution_only_text(event)}"
                 else:
                     activity_html = (
-                        f"<strong>{actor}</strong>: {_digest_resolution_only_text(event)}<br>"
+                        f"<strong>{actor}</strong>: {_digest_resolution_only_text(event)}"
                     )
+                if is_new_in_window:
+                    activity_html += ' <span style="color: #6c757d; font-size: 12px;">New</span>'
+                activity_html += "<br>"
             else:
                 item_title = _digest_event_title(event)
                 action = event["action"]
-                resolution_label = _digest_resolution_label(event)
-                label_html = ""
-                if resolution_label:
-                    label_html = (
-                        f' <span style="display: inline-block; margin-left: 6px; padding: 1px 8px; '
-                        f'background-color: #198754; color: #fff; border-radius: 999px; font-size: 12px;">'
-                        f"{resolution_label}</span>"
-                    )
-                activity_html = f"<strong>{actor}</strong> {action}: {item_title}{label_html}<br>"
+                activity_html = f"<strong>{actor}</strong> {action}: {item_title}<br>"
 
             items_html.append(
                 f"""
@@ -775,8 +812,10 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
 
         {summary_html}
 
-        {build_html_section('Giveaways', giveaways, include_description=True)}
-        {build_html_section('Requests', requests, include_description=True)}
+        {build_html_section('Giveaways \u2014 Posted', posted_giveaways, include_description=True)}
+        {build_html_section('Giveaways \u2014 Claimed', claimed_giveaways, include_description=True, include_image=False)}
+        {build_html_section('Requests \u2014 Posted', posted_requests, include_description=True)}
+        {build_html_section('Requests \u2014 Fulfilled', fulfilled_requests, include_description=False)}
         {_build_circle_joins_html_section(circle_joins)}
         {build_html_section('Loans', loans)}
 

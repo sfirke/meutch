@@ -7,6 +7,7 @@ from app import db
 from app.models import GiveawayInterest
 from tests.factories import (
     CircleFactory,
+    ConversationFactory,
     GiveawayInterestFactory,
     ItemFactory,
     MessageFactory,
@@ -46,17 +47,18 @@ class TestApiGiveawayInterestReads:
                 message="Happy to coordinate pickup.",
                 status="selected",
             )
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             first_message = MessageFactory(
                 sender=active_user,
                 recipient=owner,
-                item=item,
+                conversation=conversation,
                 body="Still available?",
                 is_read=False,
             )
             latest_message = MessageFactory(
                 sender=owner,
                 recipient=active_user,
-                item=item,
+                conversation=conversation,
                 body="Yes, it is.",
                 is_read=True,
             )
@@ -285,8 +287,8 @@ class TestApiGiveawayInterestMutations:
             json={"message": "Another try."},
         )
 
-        assert response.status_code == 400
-        assert response.get_json()["error"]["code"] == "BAD_REQUEST"
+        assert response.status_code == 409
+        assert response.get_json()["error"]["code"] == "CONFLICT"
 
         with app.app_context():
             assert (

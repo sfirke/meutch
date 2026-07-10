@@ -2,7 +2,8 @@ import logging
 from datetime import UTC, datetime
 
 from app import db
-from app.models import Circle, CircleJoinRequest, Message, circle_members
+from app.models import Circle, CircleJoinRequest, circle_members
+from app.services import message_service
 from app.services.exceptions import (
     AuthorizationError,
     ConflictError,
@@ -14,9 +15,15 @@ from app.utils.email import (
     send_circle_join_request_notification_email,
 )
 from app.utils.geocoding import GeocodingError, build_address_string, geocode_address
+from app.utils.messaging_queries import get_or_create_conversation
 from app.utils.storage import delete_file, is_valid_file_upload, upload_circle_image
 
 logger = logging.getLogger(__name__)
+
+
+REGIONAL_CIRCLE_LOCK_MESSAGE = (
+    "Remove the regional circle status from this circle before making this change."
+)
 
 
 def _count_circle_admins(circle_id):
@@ -100,6 +107,20 @@ def _upload_circle_image_or_raise(image_file):
     return image_url
 
 
+def _validate_regional_circle_settings(circle, *, is_regional, regional_radius_miles):
+    if not is_regional:
+        return
+
+    if circle.circle_type != "open":
+        raise InvalidActionError("Only public circles can be marked as regional.")
+    if not circle.is_geocoded:
+        raise InvalidActionError("Set a circle location before marking it as a regional circle.")
+    if regional_radius_miles is None:
+        raise InvalidActionError("Circle radius is required for regional circles.")
+    if not 1 <= regional_radius_miles <= 100:
+        raise InvalidActionError("Circle radius must be between 1 and 100 miles.")
+
+
 def _promote_earliest_member(circle_id, excluded_user_id):
     next_admin_assoc = (
         db.session.query(circle_members)
@@ -177,6 +198,10 @@ def handle_join_request(circle, join_request, acting_user, action):
     if join_request.status != "pending":
         raise InformationalError("This join request has already been handled.")
 
+    conversation = get_or_create_conversation(
+        "circle", circle.id, acting_user.id, join_request.user_id
+    )
+
     if action == "approve":
         stmt = circle_members.insert().values(
             user_id=join_request.user_id,
@@ -186,26 +211,24 @@ def handle_join_request(circle, join_request, acting_user, action):
         )
         db.session.execute(stmt)
         join_request.status = "approved"
-        decision_message = Message(
-            sender_id=acting_user.id,
-            recipient_id=join_request.user_id,
-            circle_id=circle.id,
-            body=f"Your request to join '{circle.name}' has been approved.",
+        message_service.create_message(
+            acting_user.id,
+            join_request.user_id,
+            f"Your request to join '{circle.name}' has been approved.",
+            conversation_id=conversation.id,
+            notify=False,
         )
-        db.session.add(decision_message)
     elif action == "reject":
         join_request.status = "rejected"
-        decision_message = Message(
-            sender_id=acting_user.id,
-            recipient_id=join_request.user_id,
-            circle_id=circle.id,
-            body=f"Your request to join '{circle.name}' has been denied.",
+        message_service.create_message(
+            acting_user.id,
+            join_request.user_id,
+            f"Your request to join '{circle.name}' has been denied.",
+            conversation_id=conversation.id,
+            notify=False,
         )
-        db.session.add(decision_message)
     else:
         raise InvalidActionError("Invalid action.")
-
-    db.session.commit()
 
     try:
         send_circle_join_request_decision_email(join_request)
@@ -292,6 +315,28 @@ def create_circle(
     }
 
 
+def update_regional_circle_settings(
+    circle,
+    acting_user,
+    *,
+    is_regional,
+    regional_radius_miles,
+):
+    if not acting_user.is_admin:
+        raise AuthorizationError("Only site admins can update regional circle settings.")
+
+    _validate_regional_circle_settings(
+        circle,
+        is_regional=is_regional,
+        regional_radius_miles=regional_radius_miles,
+    )
+
+    circle.is_regional = is_regional
+    circle.regional_radius_miles = regional_radius_miles if is_regional else None
+    db.session.commit()
+    return circle
+
+
 def update_circle(
     circle,
     acting_user,
@@ -316,6 +361,8 @@ def update_circle(
     cleaned_name = name.strip()
     if _find_circle_by_name(cleaned_name, exclude_circle_id=circle.id):
         raise ConflictError("A circle with this name already exists.")
+    if circle.is_regional and circle_type != "open":
+        raise InvalidActionError(REGIONAL_CIRCLE_LOCK_MESSAGE)
 
     circle.name = cleaned_name
     circle.description = _clean_circle_description(description)
@@ -363,6 +410,8 @@ def update_circle(
 def leave_circle(circle, acting_user):
     if acting_user not in circle.members:
         raise InformationalError("You are not a member of this circle.")
+    if len(circle.members) == 1 and circle.is_regional:
+        raise InvalidActionError(REGIONAL_CIRCLE_LOCK_MESSAGE)
 
     if circle.is_admin(acting_user) and len(circle.members) > 1:
         admin_count = _count_circle_admins(circle.id)

@@ -1,9 +1,12 @@
+"""Query helpers for circles: listing, recommendations, counts, and membership."""
+
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_, or_, select
 
 from app import db
 from app.models import Circle, CircleJoinRequest, Item, ItemRequest, User, circle_members
+from app.utils.pagination import ListPagination
 
 
 def filter_circles_by_distance(circles, user, radius=None):
@@ -48,6 +51,25 @@ def _recommendation_sort_key(circle, user):
         circle.circle_type != "open",
         (circle.name or "").casefold(),
     )
+
+
+def _regional_recommendation_sort_key(circle, user):
+    distance = circle.distance_to_user(user)
+    return (
+        distance if distance is not None else float("inf"),
+        -len(circle.members),
+        (circle.name or "").casefold(),
+    )
+
+
+def _user_within_regional_circle(circle, user):
+    if not circle.is_regional or circle.regional_radius_miles is None:
+        return False
+    if not (circle.is_geocoded and user.is_geocoded):
+        return False
+
+    distance = circle.distance_to_user(user)
+    return distance is not None and distance <= circle.regional_radius_miles
 
 
 def _format_unlock_count_text(value, label):
@@ -157,6 +179,38 @@ def get_circle_member_activity_counts(circle):
     }
 
 
+def _build_circle_recommendation(circle):
+    member_activity_counts = get_circle_member_activity_counts(circle)
+    visible_display_counts = _build_visible_display_counts(member_activity_counts)
+    return {
+        "circle": circle,
+        "is_open": circle.circle_type == "open",
+        "is_regional": circle.is_regional,
+        "regional_radius_miles": circle.regional_radius_miles,
+        "join_label": "Join Circle" if circle.circle_type == "open" else "Request to Join",
+        "member_activity_counts": member_activity_counts,
+        "visible_display_counts": visible_display_counts,
+        "visible_display_text": _join_human_readable(
+            [count["text"] for count in visible_display_counts]
+        ),
+    }
+
+
+def _get_pinned_regional_circles(user, user_circle_ids, limit, radius=None):
+    if limit <= 0 or not user.is_geocoded:
+        return []
+
+    regional_candidates = [
+        circle
+        for circle in get_listed_circles(user, radius=radius)
+        if circle.id not in user_circle_ids and _user_within_regional_circle(circle, user)
+    ]
+    return sorted(
+        regional_candidates,
+        key=lambda circle: _regional_recommendation_sort_key(circle, user),
+    )[: min(limit, 2)]
+
+
 def build_circle_recommendations(user, *, circles=None, limit=3, radius=None):
     user_circle_ids = {circle.id for circle in user.circles}
     candidate_circles = circles if circles is not None else get_listed_circles(user, radius=radius)
@@ -165,22 +219,24 @@ def build_circle_recommendations(user, *, circles=None, limit=3, radius=None):
         candidate_circles, key=lambda circle: _recommendation_sort_key(circle, user)
     )
 
+    selected_circles = []
+    selected_circle_ids = set()
+
+    for circle in _get_pinned_regional_circles(user, user_circle_ids, limit, radius=radius):
+        selected_circles.append(circle)
+        selected_circle_ids.add(circle.id)
+
+    for circle in ranked_circles:
+        if circle.id in selected_circle_ids:
+            continue
+        selected_circles.append(circle)
+        selected_circle_ids.add(circle.id)
+        if len(selected_circles) >= limit:
+            break
+
     recommendations = []
-    for circle in ranked_circles[:limit]:
-        member_activity_counts = get_circle_member_activity_counts(circle)
-        visible_display_counts = _build_visible_display_counts(member_activity_counts)
-        recommendations.append(
-            {
-                "circle": circle,
-                "is_open": circle.circle_type == "open",
-                "join_label": "Join Circle" if circle.circle_type == "open" else "Request to Join",
-                "member_activity_counts": member_activity_counts,
-                "visible_display_counts": visible_display_counts,
-                "visible_display_text": _join_human_readable(
-                    [count["text"] for count in visible_display_counts]
-                ),
-            }
-        )
+    for circle in selected_circles[:limit]:
+        recommendations.append(_build_circle_recommendation(circle))
 
     return recommendations
 
@@ -203,7 +259,7 @@ def get_admin_circle_pending_counts(user_id):
         .group_by(Circle.id)
         .all()
     )
-    return {circle_id: count for circle_id, count in admin_circle_counts}
+    return dict(admin_circle_counts)
 
 
 def get_listed_circles(user, search_query="", radius=None):
@@ -248,3 +304,13 @@ def get_ordered_circle_members(circle_id):
         .all()
     )
     return sorted(members_info, key=lambda member: (not member.is_admin, member.joined_at))
+
+
+def get_paginated_circle_members(circle_id, page=1, per_page=20):
+    """Return ListPagination of ordered members for a circle.
+
+    This wraps get_ordered_circle_members() with pagination so that
+    both the web UI and the API use the same member-listing logic.
+    """
+    ordered = get_ordered_circle_members(circle_id)
+    return ListPagination(items=ordered, page=page, per_page=per_page)

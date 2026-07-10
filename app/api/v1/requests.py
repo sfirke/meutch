@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required
 from app import db
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
+from app.api.v1.operational import mutation_limit
 from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.messaging import MessageResponseSchema
@@ -86,6 +87,7 @@ def get_request(request_id):
 
 @bp.post("/requests")
 @jwt_required()
+@mutation_limit()
 def create_request():
     """Create a new request owned by the authenticated user."""
     data = load_request_data(REQUEST_WRITE_PAYLOAD_SCHEMA)
@@ -102,6 +104,7 @@ def create_request():
 
 @bp.patch("/requests/<uuid:request_id>")
 @jwt_required()
+@mutation_limit()
 def update_request(request_id):
     """Update an existing request owned by the authenticated user."""
     item_request = db.get_or_404(ItemRequest, request_id)
@@ -120,6 +123,7 @@ def update_request(request_id):
 
 @bp.delete("/requests/<uuid:request_id>")
 @jwt_required()
+@mutation_limit()
 def delete_request(request_id):
     """Soft-delete a request owned by the authenticated user."""
     item_request = db.get_or_404(ItemRequest, request_id)
@@ -136,6 +140,7 @@ def delete_request(request_id):
 
 @bp.post("/requests/<uuid:request_id>/fulfill")
 @jwt_required()
+@mutation_limit()
 def fulfill_request(request_id):
     """Mark a request owned by the authenticated user as fulfilled."""
     item_request = db.get_or_404(ItemRequest, request_id)

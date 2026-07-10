@@ -302,10 +302,15 @@ class TestEmailUtils:
                 unsubscribe_url="https://example.com/digest/unsubscribe/token123",
             )
 
-            assert "Alex posted a giveaway: Free Chair [Claimed]" in content["text"]
-            assert "Taylor requested: Need a ladder [Fulfilled]" in content["text"]
-            assert ">Claimed</span>" in content["html"]
-            assert ">Fulfilled</span>" in content["html"]
+            assert "Free Chair offered by Alex was claimed [New]" in content["text"]
+            assert "Taylor: Need a ladder was marked fulfilled [New]" in content["text"]
+            # Descriptions should be included for new-resolved-in-window items
+            assert "Great chair in good condition" in content["text"]
+            assert "Need for one weekend project" in content["text"]
+            assert ">New</span>" in content["html"]
+            # Green status pill should NOT appear for new-resolved-in-window items
+            assert ">Claimed</span>" not in content["html"]
+            assert ">Fulfilled</span>" not in content["html"]
 
     def test_build_digest_email_content_renders_resolution_only_copy(self, app):
         with app.app_context():
@@ -382,9 +387,129 @@ class TestEmailUtils:
             assert "Free Chair offered by Alex was claimed" in content["text"]
             assert "Need a ladder was marked fulfilled" in content["text"]
             assert "This should not be repeated" not in content["text"]
-            assert "Image: https://example.com/chair.jpg" in content["text"]
+            # Claimed giveaways should not show images
+            assert "Image: https://example.com/chair.jpg" not in content["text"]
             assert "Free Chair offered by Alex was claimed" in content["html"]
             assert "Need a ladder was marked fulfilled" in content["html"]
+
+    def test_build_digest_email_content_orders_new_in_window_items_first(self, app):
+        with app.app_context():
+            user = UserFactory(first_name="Digest", digest_frequency="weekly")
+            fulfilled_new_id = uuid.uuid4()
+            fulfilled_old_id = uuid.uuid4()
+            claimed_new_id = uuid.uuid4()
+            claimed_old_id = uuid.uuid4()
+            payload = {
+                "summary_stats": {
+                    "total_new_items": 2,
+                    "giveaways_count": 1,
+                    "borrow_requests_count": 1,
+                },
+                "events": [
+                    {
+                        "event_type": "request",
+                        "request_id": fulfilled_old_id,
+                        "actor_name": "After",
+                        "title": "Old Request",
+                        "action": "requested",
+                        "digest_variant": "resolved-in-window",
+                        "resolution_status": "fulfilled",
+                    },
+                    {
+                        "event_type": "request",
+                        "request_id": fulfilled_new_id,
+                        "actor_name": "First",
+                        "title": "New Request",
+                        "action": "requested",
+                        "digest_variant": "new-resolved-in-window",
+                        "resolution_status": "fulfilled",
+                    },
+                    {
+                        "event_type": "giveaway",
+                        "item_id": claimed_new_id,
+                        "actor_name": "Early",
+                        "title": "New Giveaway",
+                        "action": "posted a giveaway",
+                        "digest_variant": "new-resolved-in-window",
+                        "resolution_status": "claimed",
+                    },
+                    {
+                        "event_type": "giveaway",
+                        "item_id": claimed_old_id,
+                        "actor_name": "Late",
+                        "title": "Old Giveaway",
+                        "action": "posted a giveaway",
+                        "digest_variant": "resolved-in-window",
+                        "resolution_status": "claimed",
+                    },
+                ],
+                "requests": [
+                    {
+                        "event_type": "request",
+                        "request_id": fulfilled_old_id,
+                        "actor_name": "After",
+                        "title": "Old Request",
+                        "action": "requested",
+                        "digest_variant": "resolved-in-window",
+                        "resolution_status": "fulfilled",
+                    },
+                    {
+                        "event_type": "request",
+                        "request_id": fulfilled_new_id,
+                        "actor_name": "First",
+                        "title": "New Request",
+                        "action": "requested",
+                        "digest_variant": "new-resolved-in-window",
+                        "resolution_status": "fulfilled",
+                    },
+                ],
+                "giveaways": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": claimed_old_id,
+                        "actor_name": "Late",
+                        "title": "Old Giveaway",
+                        "action": "posted a giveaway",
+                        "digest_variant": "resolved-in-window",
+                        "resolution_status": "claimed",
+                    },
+                    {
+                        "event_type": "giveaway",
+                        "item_id": claimed_new_id,
+                        "actor_name": "Early",
+                        "title": "New Giveaway",
+                        "action": "posted a giveaway",
+                        "digest_variant": "new-resolved-in-window",
+                        "resolution_status": "claimed",
+                    },
+                ],
+                "circle_joins": [],
+                "loans": [],
+            }
+
+            content = build_digest_email_content(
+                user,
+                payload,
+                manage_url="https://example.com/digest/manage/token123",
+                unsubscribe_url="https://example.com/digest/unsubscribe/token123",
+            )
+
+            # "New Request" (new-resolved-in-window) should appear before
+            # "Old Request" (resolved-in-window) in the fulfilled section.
+            new_req_pos = content["text"].find("New Request")
+            old_req_pos = content["text"].find("Old Request")
+            assert new_req_pos != -1 and old_req_pos != -1
+            assert (
+                new_req_pos < old_req_pos
+            ), "new-resolved-in-window request should appear before resolved-in-window"
+
+            # Same ordering check for giveaways in claimed section.
+            new_gw_pos = content["text"].find("New Giveaway")
+            old_gw_pos = content["text"].find("Old Giveaway")
+            assert new_gw_pos != -1 and old_gw_pos != -1
+            assert (
+                new_gw_pos < old_gw_pos
+            ), "new-resolved-in-window giveaway should appear before resolved-in-window"
 
     def test_send_digest_email_sends_when_payload_has_only_resolution_events(self, app):
         with app.app_context():

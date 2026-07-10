@@ -3,13 +3,14 @@ from dataclasses import dataclass
 
 from app import db
 from app.models import LoanRequest, Message
+from app.services import message_service
 from app.services.exceptions import (
     AuthorizationError,
     ConflictError,
     InformationalError,
     InvalidActionError,
 )
-from app.utils.email import send_message_notification_email
+from app.utils.messaging_queries import get_or_create_conversation
 
 logger = logging.getLogger(__name__)
 
@@ -27,22 +28,9 @@ def _ensure_item_is_lendable(item):
         raise ConflictError("This item is being offered as a giveaway, not a loan.")
 
 
-def _send_notification_email(message, error_prefix):
-    try:
-        send_message_notification_email(message)
-    except Exception as exc:  # pragma: no cover - route/service behavior is the same either way
-        logger.error("%s: %s", error_prefix, exc)
-
-
-def _commit_and_notify(message, error_prefix):
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
-
-    _send_notification_email(message, error_prefix)
-    return message
+def _ensure_item_conversation(item, user1_id, user2_id):
+    """Get or create the item conversation between two users."""
+    return get_or_create_conversation("item", item.id, user1_id, user2_id)
 
 
 def create_loan_request(item, borrower_id, start_date, end_date, message_body):
@@ -62,6 +50,7 @@ def create_loan_request(item, borrower_id, start_date, end_date, message_body):
     if existing_request:
         raise InformationalError("You already have a pending request for this item.")
 
+    conversation = _ensure_item_conversation(item, borrower_id, item.owner_id)
     loan_request = LoanRequest(
         item_id=item.id,
         borrower_id=borrower_id,
@@ -69,18 +58,15 @@ def create_loan_request(item, borrower_id, start_date, end_date, message_body):
         end_date=end_date,
         status="pending",
     )
-    message = Message(
-        sender_id=borrower_id,
-        recipient_id=item.owner_id,
-        item_id=item.id,
-        body=message_body,
-        loan_request=loan_request,
-    )
     db.session.add(loan_request)
-    db.session.add(message)
-    return _commit_and_notify(
-        message,
-        f"Failed to send email notification for loan request message {message.id}",
+    db.session.flush()  # get loan_request.id for the FK on Message
+
+    return message_service.create_message(
+        borrower_id,
+        item.owner_id,
+        message_body,
+        conversation_id=conversation.id,
+        loan_request_id=loan_request.id,
     )
 
 
@@ -97,6 +83,8 @@ def process_loan_decision(loan, owner_id, action):
     if loan.status != "pending":
         raise ConflictError("This loan request has already been processed.")
 
+    conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
+
     if normalized_action == "approve":
         loan.status = "approved"
         loan.item.available = False
@@ -105,17 +93,12 @@ def process_loan_decision(loan, owner_id, action):
         loan.status = "denied"
         message_body = f"The loan request for '{loan.item.name}' has been denied."
 
-    message = Message(
-        sender_id=owner_id,
-        recipient_id=loan.borrower_id,
-        item_id=loan.item_id,
-        body=message_body,
+    return message_service.create_message(
+        owner_id,
+        loan.borrower_id,
+        message_body,
+        conversation_id=conversation.id,
         loan_request_id=loan.id,
-    )
-    db.session.add(message)
-    return _commit_and_notify(
-        message,
-        f"Failed to send email notification for loan decision message {message.id}",
     )
 
 
@@ -128,18 +111,15 @@ def cancel_loan_request(loan, borrower_id):
     if loan.status != "pending":
         raise ConflictError("This loan request cannot be canceled.")
 
+    conversation = _ensure_item_conversation(loan.item, borrower_id, loan.item.owner_id)
     loan.status = "canceled"
-    message = Message(
-        sender_id=borrower_id,
-        recipient_id=loan.item.owner_id,
-        item_id=loan.item_id,
-        body="Loan request has been canceled by the borrower.",
+
+    return message_service.create_message(
+        borrower_id,
+        loan.item.owner_id,
+        "Loan request has been canceled by the borrower.",
+        conversation_id=conversation.id,
         loan_request_id=loan.id,
-    )
-    db.session.add(message)
-    return _commit_and_notify(
-        message,
-        f"Failed to send email notification for loan cancellation message {message.id}",
     )
 
 
@@ -152,20 +132,16 @@ def complete_loan(loan, owner_id):
     if loan.status != "approved":
         raise ConflictError("This loan is not currently active.")
 
+    conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
     loan.status = "completed"
     loan.item.available = True
 
-    message = Message(
-        sender_id=owner_id,
-        recipient_id=loan.borrower_id,
-        item_id=loan.item_id,
-        body="The item has been marked as returned. Thank you for borrowing!",
+    return message_service.create_message(
+        owner_id,
+        loan.borrower_id,
+        "The item has been marked as returned. Thank you for borrowing!",
+        conversation_id=conversation.id,
         loan_request_id=loan.id,
-    )
-    db.session.add(message)
-    return _commit_and_notify(
-        message,
-        f"Failed to send email notification for loan completion message {message.id}",
     )
 
 
@@ -178,20 +154,16 @@ def owner_cancel_approved_loan(loan, owner_id):
     if loan.status != "approved":
         raise ConflictError("Only approved loans can be canceled.")
 
+    conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
     loan.status = "canceled"
     loan.item.available = True
 
-    message = Message(
-        sender_id=owner_id,
-        recipient_id=loan.borrower_id,
-        item_id=loan.item_id,
-        body="The loan has been canceled by the owner. The item is now available.",
+    return message_service.create_message(
+        owner_id,
+        loan.borrower_id,
+        "The loan has been canceled by the owner. The item is now available.",
+        conversation_id=conversation.id,
         loan_request_id=loan.id,
-    )
-    db.session.add(message)
-    return _commit_and_notify(
-        message,
-        f"Failed to send email notification for owner loan cancellation message {message.id}",
     )
 
 
@@ -237,16 +209,13 @@ def extend_loan(loan, owner_id, new_end_date, owner_message):
             f"{new_end_date.strftime('%B %d, %Y')} (previously {old_end_date.strftime('%B %d, %Y')})."
         )
 
-    message = Message(
-        sender_id=owner_id,
-        recipient_id=loan.borrower_id,
-        item_id=loan.item_id,
-        body=message_body,
+    conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
+
+    message = message_service.create_message(
+        owner_id,
+        loan.borrower_id,
+        message_body,
+        conversation_id=conversation.id,
         loan_request_id=loan.id,
-    )
-    db.session.add(message)
-    message = _commit_and_notify(
-        message,
-        f"Failed to send email notification for loan extension message {message.id}",
     )
     return LoanExtendResult(message=message, is_extension=is_extension)

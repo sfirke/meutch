@@ -1,21 +1,22 @@
 # Test configuration
 import os
-import tempfile
-import pytest
+import socket
 import subprocess
 import time
-import socket
 import urllib.parse
-from app import create_app, db
-from app.models import User, Item, Category, Circle, Tag
-from config import Config
 from unittest.mock import patch
 
-# Test constants
-TEST_PASSWORD = 'testpassword123'  # Must match UserFactory password
+import pytest
+from sqlalchemy.exc import OperationalError
 
-# Import pre-computed password hash from factories to avoid slow bcrypt calls
+from app import create_app, db
+from app.models import Category, User
+from config import Config
 from tests.factories import TEST_PASSWORD_HASH
+
+# Test constants
+TEST_PASSWORD = "testpassword123"  # Must match UserFactory password
+
 
 def is_port_open(host, port):
     """Check if a port is open."""
@@ -25,44 +26,62 @@ def is_port_open(host, port):
     except (socket.error, OSError):
         return False
 
+
 def _get_test_db_host_port():
     """Extract host and port from TEST_DATABASE_URL, defaulting to localhost:5433."""
-    url = os.environ.get('TEST_DATABASE_URL', '')
+    url = os.environ.get("TEST_DATABASE_URL", "")
     if url:
         try:
             parsed = urllib.parse.urlparse(url)
-            return (parsed.hostname or 'localhost', parsed.port or 5433)
+            return (parsed.hostname or "localhost", parsed.port or 5433)
         except Exception:
             pass
-    return ('localhost', 5433)
+    return ("localhost", 5433)
 
 
 def _local_test_container_running():
     """Return True only when the named local dev container is confirmed running."""
     result = subprocess.run(
-        ['docker', 'inspect', '--format', '{{.State.Running}}', 'meutch-test-db'],
-        capture_output=True, text=True, check=False
+        ["docker", "inspect", "--format", "{{.State.Running}}", "meutch-test-db"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    return result.stdout.strip() == 'true'
+    return result.stdout.strip() == "true"
 
 
 def ensure_test_database():
     """Ensure the test database is running."""
+
     def ensure_database_exists(database_name):
         """Ensure a specific PostgreSQL database exists inside the container."""
         check_cmd = [
-            'docker', 'exec', 'meutch-test-db', 'psql',
-            '-U', 'test_user', '-d', 'postgres', '-tAc',
-            f"SELECT 1 FROM pg_database WHERE datname='{database_name}'"
+            "docker",
+            "exec",
+            "meutch-test-db",
+            "psql",
+            "-U",
+            "test_user",
+            "-d",
+            "postgres",
+            "-tAc",
+            f"SELECT 1 FROM pg_database WHERE datname='{database_name}'",
         ]
         create_cmd = [
-            'docker', 'exec', 'meutch-test-db', 'psql',
-            '-U', 'test_user', '-d', 'postgres', '-c',
-            f"CREATE DATABASE {database_name}"
+            "docker",
+            "exec",
+            "meutch-test-db",
+            "psql",
+            "-U",
+            "test_user",
+            "-d",
+            "postgres",
+            "-c",
+            f"CREATE DATABASE {database_name}",
         ]
 
         result = subprocess.run(check_cmd, capture_output=True, text=True, check=False)
-        if result.stdout.strip() == '1':
+        if result.stdout.strip() == "1":
             return
 
         subprocess.run(create_cmd, check=True, capture_output=True, text=True)
@@ -77,32 +96,32 @@ def ensure_test_database():
         # unnecessary and — when the runner is memory-constrained — can be
         # OOM-killed (exit 137).
         if _local_test_container_running():
-            ensure_database_exists('meutch_test')
+            ensure_database_exists("meutch_test")
         return
-    
+
     print("🚀 Starting test database...")
     try:
         # Start the Docker container using docker-compose
         subprocess.run(
-            ['docker', 'compose', '-f', 'docker-compose.test.yml', 'up', '-d'],
+            ["docker", "compose", "-f", "docker-compose.test.yml", "up", "-d"],
             check=True,
             capture_output=True,
-            text=True
+            text=True,
         )
-        
+
         # Wait for database to be ready
         max_attempts = 30
         for attempt in range(max_attempts):
-            if is_port_open('localhost', 5433):
+            if is_port_open("localhost", 5433):
                 # Give it an extra second to fully initialize
                 time.sleep(1)
-                ensure_database_exists('meutch_test')
+                ensure_database_exists("meutch_test")
                 print("✅ Test database is ready!")
                 return
             time.sleep(1)
-        
+
         raise Exception("Timeout waiting for test database to start")
-        
+
     except subprocess.CalledProcessError as e:
         print(f"❌ Failed to start test database: {e}")
         print(f"stdout: {e.stdout}")
@@ -112,76 +131,129 @@ def ensure_test_database():
         print(f"❌ Error starting test database: {e}")
         raise
 
+
 # Ensure test database is running before any tests
 ensure_test_database()
 
+
 class TestConfig(Config):
     """Test configuration class."""
+
     TESTING = True
     WTF_CSRF_ENABLED = False
     # Use separate test database to avoid wiping development data
-    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or 'postgresql://test_user:test_password@localhost:5433/meutch_test'
-    SECRET_KEY = 'test-secret-key'
-    
+    SQLALCHEMY_DATABASE_URI = (
+        os.environ.get("TEST_DATABASE_URL")
+        or "postgresql://test_user:test_password@localhost:5433/meutch_test"
+    )
+    SECRET_KEY = "test-secret-key"
+
+    # pool_pre_ping detects and replaces stale connections that may
+    # have been left in a broken state by an aborted test.
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+    }
+
     # File storage - always use local for tests
-    STORAGE_BACKEND = 'local'
-    
+    STORAGE_BACKEND = "local"
+
     # Disable file uploads for testing
     DO_SPACES_ENDPOINT = None
     DO_SPACES_BUCKET = None
     DO_SPACES_KEY = None
     DO_SPACES_SECRET = None
-    
+
     # Email testing
     MAIL_SUPPRESS_SEND = True
-    
+
     # Logging
-    LOG_LEVEL = 'ERROR'
+    LOG_LEVEL = "ERROR"
+
+    # Keep production-like limiter wiring active in tests, but use very high
+    # defaults so ordinary integration traffic does not exhaust shared buckets.
+    API_V1_RATE_LIMITS_ENABLED = True
+    API_V1_AUTH_LOGIN_RATE_LIMIT = "1000 per minute"
+    API_V1_AUTH_REGISTER_RATE_LIMIT = "1000 per minute"
+    API_V1_AUTH_RECOVERY_RATE_LIMIT = "1000 per minute"
+    API_V1_AUTH_SESSION_RATE_LIMIT = "1000 per minute"
+    API_V1_WRITE_RATE_LIMIT = "1000 per minute"
+    API_V1_IMAGE_WRITE_RATE_LIMIT = "1000 per minute"
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def app():
     """Create application for testing (session-scoped).
-    
+
     Database schema is created once per test session for speed.
     The clean_db fixture handles cleanup between tests.
     """
     app = create_app(TestConfig)
-    
+
     with app.app_context():
         # Drop and recreate tables once per test session
         db.drop_all()
         db.create_all()
-        
+
         # Create test categories
-        categories = ['Tools', 'Electronics', 'Books', 'Sports Equipment']
+        categories = ["Tools", "Electronics", "Books", "Sports Equipment"]
         for cat_name in categories:
             category = Category(name=cat_name)
             db.session.add(category)
-        
+
         db.session.commit()
-    
+
     yield app
-    
+
     # Clean up after all tests
     with app.app_context():
         db.session.remove()
         db.drop_all()
+
 
 @pytest.fixture
 def client(app):
     """Create test client."""
     return app.test_client()
 
+
 @pytest.fixture
 def runner(app):
     """Create test CLI runner."""
     return app.test_cli_runner()
 
+
+def _truncate_table(table):
+    """Truncate *table* with CASCADE, retrying transient deadlocks.
+
+    Deadlocks are inherently transient — PostgreSQL resolves them by
+    cancelling one of the competing transactions immediately.  A brief
+    retry almost always succeeds.
+
+    Non-deadlock errors (missing table, broken connection, etc.) are
+    raised immediately so the root cause is visible rather than silently
+    producing corrupt test state downstream.
+    """
+    MAX_ATTEMPTS = 3
+    for attempt in range(MAX_ATTEMPTS):
+        try:
+            db.session.execute(db.text(f"TRUNCATE TABLE {table} CASCADE"))
+            db.session.commit()
+            return
+        except OperationalError as e:
+            db.session.rollback()
+            if "deadlock" in str(e).lower() and attempt < MAX_ATTEMPTS - 1:
+                time.sleep(0.05 * (2**attempt))
+                continue
+            raise
+        except Exception:
+            db.session.rollback()
+            raise
+
+
 @pytest.fixture(autouse=True)
 def clean_db(app):
     """Clean database before each test using TRUNCATE for speed.
-    
+
     Uses TRUNCATE CASCADE which is faster than DELETE for clearing tables.
     Preserves categories since they're seeded at session start.
     Runs BEFORE each test to ensure clean state.
@@ -189,31 +261,43 @@ def clean_db(app):
     # Cleanup BEFORE test to ensure clean state
     with app.app_context():
         db.session.rollback()  # Roll back any uncommitted transactions
-        
+
         # Use TRUNCATE CASCADE for fast cleanup - order doesn't matter with CASCADE
         # Exclude 'category' table since it's seeded at session start
         # Use actual PostgreSQL table names (not model names)
         tables_to_truncate = [
-            'giveaway_interest', 'messages', 'loan_request', 'circle_join_requests',
-            'user_web_links', 'admin_action', 'item_tags', 'item', 'tag', 'feedback',
-            'item_request', 'circle_members', 'circle', 'users'
+            "giveaway_interest",
+            "messages",
+            "loan_request",
+            "circle_join_requests",
+            "user_web_links",
+            "admin_action",
+            "item_tags",
+            "item",
+            "tag",
+            "feedback",
+            "item_request",
+            "circle_members",
+            "circle",
+            "users",
         ]
-        
+
+        # Truncate each table in its own transaction.  This prevents a
+        # deadlock on one table from aborting the entire cleanup and
+        # lets PostgreSQL resolve contention immediately by rolling back
+        # only the conflicting statement.
         for table in tables_to_truncate:
-            try:
-                db.session.execute(db.text(f'TRUNCATE TABLE {table} CASCADE'))
-            except Exception:
-                pass  # Table might not exist or be empty
-        
-        db.session.commit()
+            _truncate_table(table)
+
         db.session.remove()
-    
+
     yield
-    
+
     # Also cleanup after test
     with app.app_context():
         db.session.rollback()
         db.session.remove()
+
 
 @pytest.fixture
 def db_session(app):
@@ -221,53 +305,57 @@ def db_session(app):
     with app.app_context():
         yield db.session
 
+
 @pytest.fixture
 def auth_user(app):
     """Create a test user and return user ID for session-safe access."""
     import uuid
+
     unique_id = str(uuid.uuid4())[:8]
-    
+
     with app.app_context():
         user = User(
-            email=f'test{unique_id}@example.com',
-            first_name='Test',
-            last_name='User',
+            email=f"test{unique_id}@example.com",
+            first_name="Test",
+            last_name="User",
             latitude=40.7128,
             longitude=-74.0060,
             email_confirmed=True,
-            password_hash=TEST_PASSWORD_HASH  # Use pre-computed hash instead of set_password()
+            password_hash=TEST_PASSWORD_HASH,  # Use pre-computed hash instead of set_password()
         )
         db.session.add(user)
         db.session.commit()
         user_id = user.id
-        
+
     # Return a function that retrieves the user with fresh session
     def get_user():
         return db.session.get(User, user_id)
-    
+
     return get_user
 
-def login_user(client, email='test@example.com', password=None, remember=False):
+
+def login_user(client, email="test@example.com", password=None, remember=False):
     """Helper function to log in a user."""
     if password is None:
         password = TEST_PASSWORD  # Use constant instead of hardcoded string
 
-    login_data = {
-        'email': email,
-        'password': password
-    }
+    login_data = {"email": email, "password": password}
     if remember:
-        login_data['remember_device'] = 'y'
+        login_data["remember_device"] = "y"
 
-    return client.post('/login', data=login_data, follow_redirects=True)
+    return client.post("/login", data=login_data, follow_redirects=True)
+
 
 def logout_user(client):
     """Helper function to log out a user."""
-    return client.get('/logout', follow_redirects=True)
+    return client.get("/logout", follow_redirects=True)
+
 
 @pytest.fixture(autouse=True)
 def mock_email_sending():
-    with patch('app.utils.email.send_email', return_value=True), \
-         patch('app.utils.email.send_confirmation_email', return_value=True), \
-         patch('app.utils.email.send_password_reset_email', return_value=True):
+    with (
+        patch("app.utils.email.send_email", return_value=True),
+        patch("app.utils.email.send_confirmation_email", return_value=True),
+        patch("app.utils.email.send_password_reset_email", return_value=True),
+    ):
         yield

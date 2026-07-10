@@ -404,6 +404,18 @@ class Item(db.Model):
             return self.claimed_by.full_name
         return "Deleted User"
 
+    @property
+    def messages(self):
+        """Return all messages about this item, looked up through conversations."""
+        return (
+            Message.query.join(Conversation)
+            .filter(
+                Conversation.context_type == "item",
+                Conversation.context_id == self.id,
+            )
+            .all()
+        )
+
     def __repr__(self):
         return f"<Item {self.name}>"
 
@@ -461,6 +473,22 @@ class GiveawayInterest(db.Model):
 
 
 class Circle(db.Model):
+    __table_args__ = (
+        db.CheckConstraint(
+            "(NOT is_regional AND regional_radius_miles IS NULL) OR "
+            "(is_regional AND regional_radius_miles BETWEEN 1 AND 100)",
+            name="ck_circle_regional_radius",
+        ),
+        db.CheckConstraint(
+            "NOT is_regional OR circle_type = 'open'",
+            name="ck_circle_regional_requires_open",
+        ),
+        db.CheckConstraint(
+            "NOT is_regional OR (latitude IS NOT NULL AND longitude IS NOT NULL)",
+            name="ck_circle_regional_requires_coordinates",
+        ),
+    )
+
     id = db.Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False
     )
@@ -471,6 +499,8 @@ class Circle(db.Model):
     image_url = db.Column(db.String(500), nullable=True)
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
+    is_regional = db.Column(db.Boolean, default=False, nullable=False)
+    regional_radius_miles = db.Column(db.Integer, nullable=True)
 
     members = db.relationship("User", secondary=circle_members, back_populates="circles")
 
@@ -616,23 +646,77 @@ class Feedback(db.Model):
     created_at = db.Column(db.DateTime, default=func.now())
 
 
+class Conversation(db.Model):
+    __tablename__ = "conversations"
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    context_type = db.Column(db.String(20), nullable=False)  # 'item', 'request', 'circle'
+    context_id = db.Column(UUID(as_uuid=True), nullable=False)
+    created_at = db.Column(db.DateTime, default=func.now())
+    participants = db.relationship(
+        "ConversationParticipant", backref="conversation", lazy="dynamic"
+    )
+    messages = db.relationship("Message", backref="conversation", lazy="dynamic")
+
+    @property
+    def item(self):
+        if self.context_type == "item":
+            return db.session.get(Item, self.context_id)
+        return None
+
+    @property
+    def request(self):
+        if self.context_type == "request":
+            return db.session.get(ItemRequest, self.context_id)
+        return None
+
+    @property
+    def circle(self):
+        if self.context_type == "circle":
+            return db.session.get(Circle, self.context_id)
+        return None
+
+    def other_participant(self, viewer_id):
+        """Return the ConversationParticipant row for the user who is NOT viewer_id."""
+        return ConversationParticipant.query.filter(
+            ConversationParticipant.conversation_id == self.id,
+            ConversationParticipant.user_id != viewer_id,
+        ).first()
+
+    def __repr__(self):
+        return f"<Conversation {self.id} {self.context_type}:{self.context_id}>"
+
+
+class ConversationParticipant(db.Model):
+    __tablename__ = "conversation_participants"
+    __table_args__ = (
+        db.UniqueConstraint("conversation_id", "user_id", name="uq_conversation_participant"),
+    )
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("conversations.id"), nullable=False
+    )
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False)
+    is_archived = db.Column(db.Boolean, default=False)
+    archived_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=func.now())
+    user = db.relationship("User", backref="conversation_participants")
+
+    def __repr__(self):
+        return (
+            f"<ConversationParticipant conv={self.conversation_id} "
+            f"user={self.user_id} archived={self.is_archived}>"
+        )
+
+
 class Message(db.Model):
     __tablename__ = "messages"
-    __table_args__ = (
-        db.CheckConstraint(
-            "((CASE WHEN item_id IS NOT NULL THEN 1 ELSE 0 END) + "
-            "(CASE WHEN request_id IS NOT NULL THEN 1 ELSE 0 END) + "
-            "(CASE WHEN circle_id IS NOT NULL THEN 1 ELSE 0 END)) = 1",
-            name="ck_messages_exactly_one_target",
-        ),
-    )
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sender_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False)
     recipient_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False)
-    item_id = db.Column(UUID(as_uuid=True), db.ForeignKey("item.id"), nullable=True)
-    request_id = db.Column(UUID(as_uuid=True), db.ForeignKey("item_request.id"), nullable=True)
-    circle_id = db.Column(UUID(as_uuid=True), db.ForeignKey("circle.id"), nullable=True)
+    conversation_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("conversations.id"), nullable=False
+    )
     body = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=func.now())
     is_read = db.Column(db.Boolean, default=False)
@@ -643,15 +727,7 @@ class Message(db.Model):
 
     sender = db.relationship("User", foreign_keys=[sender_id], backref="sent_messages")
     recipient = db.relationship("User", foreign_keys=[recipient_id], backref="received_messages")
-    item = db.relationship("Item", backref="messages")
-    request = db.relationship("ItemRequest", backref="messages")
-    circle = db.relationship("Circle", backref="messages")
     parent = db.relationship("Message", remote_side=[id], backref="replies")
-
-    @staticmethod
-    def create_message(sender_id, recipient_id, item_id, body, loan_request_id=None):
-        if sender_id == recipient_id:
-            raise ValueError("Sender and recipient cannot be the same user.")
 
     @property
     def is_loan_request_message(self):
@@ -660,20 +736,20 @@ class Message(db.Model):
 
     @property
     def is_request_message(self):
-        """Returns True if this message is related to an item request conversation."""
-        return self.request_id is not None
+        """Returns True if this message belongs to a request conversation."""
+        return self.conversation.context_type == "request"
 
     @property
     def is_circle_message(self):
-        """Returns True if this message is related to a circle conversation."""
-        return self.circle_id is not None
+        """Returns True if this message belongs to a circle conversation."""
+        return self.conversation.context_type == "circle"
 
     @property
     def has_pending_action(self):
         """Returns True if message needs action (pending request or unread)"""
         if self.loan_request and self.loan_request.status == "pending":
             # For owner: show pending if they haven't responded
-            if self.recipient_id == self.item.owner_id:
+            if self.recipient_id == self.conversation.item.owner_id:
                 return not self.is_read
             # For borrower: show pending until request is processed
             return True

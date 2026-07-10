@@ -282,7 +282,7 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-outline-primary">
+                                                <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}" class="btn btn-sm btn-outline-primary">
                                                     <i class="fas fa-exchange-alt me-1"></i>View Loan
                                                 </a>
                                             </td>
@@ -335,7 +335,7 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <a href="{{ url_for('main.view_conversation', message_id=item.messages[0].id) }}" class="btn btn-sm btn-outline-primary">
+                                                <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}" class="btn btn-sm btn-outline-primary">
                                                     <i class="fas fa-exchange-alt me-1"></i>View Loan
                                                 </a>
                                             </td>
@@ -378,11 +378,27 @@
                                                 <td>{{ 'My Circles' if req.visibility == 'circles' else 'Public' }}</td>
                                                 <td>{{ req.expires_at.strftime('%Y-%m-%d') }}</td>
                                                 <td>
-                                                    <a href="{{ url_for('requests.edit', request_id=req.id) }}" class="btn btn-sm btn-info">Edit</a>
-                                                    <form method="POST" action="{{ url_for('requests.delete', request_id=req.id) }}" class="d-inline">
-                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                                                    </form>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        <a href="{{ url_for('requests.edit', request_id=req.id) }}" class="btn btn-sm btn-outline-primary">
+                                                            <i class="fas fa-edit me-1"></i>Edit
+                                                        </a>
+                                                        {% if req.status == 'open' and not req.is_expired %}
+                                                            <form method="POST" action="{{ url_for('requests.fulfill', request_id=req.id) }}" class="d-inline">
+                                                                {{ fulfill_form.hidden_tag() }}
+                                                                <button type="submit" class="btn btn-sm btn-success">
+                                                                    <i class="fas fa-check-circle me-1"></i>Fulfilled
+                                                                </button>
+                                                            </form>
+                                                        {% endif %}
+                                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#deleteRequestModal"
+                                                                data-request-title="{{ req.title }}"
+                                                                data-fulfill-url="{{ url_for('requests.fulfill', request_id=req.id) }}"
+                                                                data-delete-url="{{ url_for('requests.delete', request_id=req.id) }}">
+                                                            <i class="fas fa-trash me-1"></i>Delete
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         {% endfor %}
@@ -735,11 +751,70 @@
 
     </div>
 </div>
+
+{# Dynamic delete confirmation modal for requests (profile page) #}
+<div class="modal fade" id="deleteRequestModal" tabindex="-1" aria-labelledby="deleteRequestModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="deleteRequestModalLabel">
+                    <i class="fas fa-question-circle me-2"></i>Delete request?
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">
+                    If <strong class="modal-request-title"></strong> has been satisfied, mark it as fulfilled instead.
+                </p>
+                <p class="text-muted small mb-0">
+                    If you still want to delete it, this request will be removed from public view.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="" class="d-inline modal-delete-form">
+                    {{ delete_form.hidden_tag() }}
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="fas fa-trash me-1"></i>Delete Request
+                    </button>
+                </form>
+                <form method="POST" action="" class="d-inline modal-fulfill-form">
+                    {{ fulfill_form.hidden_tag() }}
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check-circle me-1"></i>Mark Fulfilled
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Dynamic delete request modal - update form actions from data attributes
+    var deleteModal = document.getElementById('deleteRequestModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            var button = event.relatedTarget;
+            if (!button) return;
+
+            var requestTitle = button.getAttribute('data-request-title');
+            var fulfillUrl = button.getAttribute('data-fulfill-url');
+            var deleteUrl = button.getAttribute('data-delete-url');
+
+            var titleEl = deleteModal.querySelector('.modal-request-title');
+            if (titleEl) titleEl.textContent = requestTitle;
+
+            var fulfillForm = deleteModal.querySelector('.modal-fulfill-form');
+            if (fulfillForm && fulfillUrl) fulfillForm.setAttribute('action', fulfillUrl);
+
+            var deleteForm = deleteModal.querySelector('.modal-delete-form');
+            if (deleteForm && deleteUrl) deleteForm.setAttribute('action', deleteUrl);
+        });
+    }
+
     // Toggle between read-only profile view and edit form
     const profileView = document.getElementById('profile-view');
     const profileEdit = document.getElementById('profile-edit');

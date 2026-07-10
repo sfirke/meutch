@@ -71,6 +71,7 @@
 
                 <div class="col-12">
                     <input type="hidden" name="types_present" value="1">
+                    <input type="hidden" name="own_activity_present" value="1">
                     <span class="form-label d-block fw-semibold mb-2">Show activity types</span>
                     <div class="d-flex flex-wrap gap-2">
                         <input class="btn-check" type="checkbox" id="feed-type-requests" name="types" value="requests" autocomplete="off" {% if 'requests' in selected_feed_types %}checked{% endif %}>
@@ -84,6 +85,10 @@
 
                         <input class="btn-check" type="checkbox" id="feed-type-loans" name="types" value="loans" autocomplete="off" {% if 'loans' in selected_feed_types %}checked{% endif %}>
                         <label class="btn btn-sm feed-type-pill feed-type-pill--loans rounded-pill" for="feed-type-loans"><i class="fas fa-handshake me-1"></i>Loans</label>
+                    </div>
+                    <div class="form-check form-switch mt-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="feed-show-own-activity" name="show_own_activity" value="1" {% if selected_show_own_activity %}checked{% endif %}>
+                        <label class="form-check-label" for="feed-show-own-activity">Show my own activity</label>
                     </div>
                 </div>
             </form>

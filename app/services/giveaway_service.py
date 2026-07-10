@@ -2,34 +2,17 @@ import logging
 import random
 from datetime import UTC, datetime
 
-from sqlalchemy.exc import IntegrityError
-
 from app import db
-from app.models import GiveawayInterest, Message, User
+from app.models import Conversation, GiveawayInterest, Message, User
+from app.services import message_service
 from app.services.exceptions import (
     AuthorizationError,
     ConflictError,
-    InformationalError,
     InvalidActionError,
 )
-from app.utils.email import send_message_notification_email
+from app.utils.messaging_queries import get_or_create_conversation
 
 logger = logging.getLogger(__name__)
-
-
-def _send_notification_email(message, error_prefix):
-    try:
-        send_message_notification_email(message)
-    except Exception as exc:  # pragma: no cover - behavior is unchanged if email sending fails
-        logger.error("%s: %s", error_prefix, exc)
-
-
-def _commit():
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
 
 
 def get_giveaway_interest_messaging_info(item_id, owner_id):
@@ -61,9 +44,12 @@ def get_giveaway_interest_messaging_info(item_id, owner_id):
     if not interest_user_ids:
         return interests, {}
 
+    # Find conversations for this item between owner and interested users
     all_messages = (
-        Message.query.filter(
-            Message.item_id == item_id,
+        Message.query.join(Conversation)
+        .filter(
+            Conversation.context_type == "item",
+            Conversation.context_id == item_id,
             or_(
                 and_(
                     Message.sender_id == owner_id,
@@ -140,20 +126,6 @@ def get_giveaway_interest_state(item, user_id):
     }
 
 
-def _build_selection_message(item, sender_id, recipient_id):
-    notification_message = Message(
-        sender_id=sender_id,
-        recipient_id=recipient_id,
-        item_id=item.id,
-        body=(
-            f"Good news! You've been selected for the giveaway '{item.name}'! "
-            "Please coordinate pickup with the owner."
-        ),
-    )
-    db.session.add(notification_message)
-    return notification_message
-
-
 def _finalize_recipient_selection(item, selected_interest, sender_id):
     item.claim_status = "pending_pickup"
     item.claimed_by_id = selected_interest.user_id
@@ -161,11 +133,15 @@ def _finalize_recipient_selection(item, selected_interest, sender_id):
     item.available = False
     selected_interest.status = "selected"
 
-    notification_message = _build_selection_message(item, sender_id, selected_interest.user_id)
-    _commit()
-    _send_notification_email(
-        notification_message,
-        f"Failed to send email notification for giveaway selection message {notification_message.id}",
+    conversation = get_or_create_conversation("item", item.id, sender_id, selected_interest.user_id)
+    message_service.create_message(
+        sender_id,
+        selected_interest.user_id,
+        (
+            f"Good news! You've been selected for the giveaway '{item.name}'! "
+            "Please coordinate pickup with the owner."
+        ),
+        conversation_id=conversation.id,
     )
     return selected_interest
 
@@ -183,30 +159,24 @@ def express_interest(item, user_id, message_text):
     cleaned_message = message_text.strip() if message_text else None
     notification_body = cleaned_message or f"Hi! I'm interested in your giveaway '{item.name}'."
 
+    existing = GiveawayInterest.query.filter_by(item_id=item.id, user_id=user_id).first()
+    if existing:
+        raise ConflictError("You have already expressed interest in this giveaway.")
+
     interest = GiveawayInterest(
         item_id=item.id,
         user_id=user_id,
         message=cleaned_message,
         status="active",
     )
-    message = Message(
-        sender_id=user_id,
-        recipient_id=item.owner_id,
-        item_id=item.id,
-        body=notification_body,
-    )
     db.session.add(interest)
-    db.session.add(message)
 
-    try:
-        _commit()
-    except IntegrityError as exc:
-        db.session.rollback()
-        raise InformationalError("You have already expressed interest in this giveaway.") from exc
-
-    _send_notification_email(
-        message,
-        f"Failed to send email notification for giveaway interest message {message.id}",
+    conversation = get_or_create_conversation("item", item.id, user_id, item.owner_id)
+    message_service.create_message(
+        user_id,
+        item.owner_id,
+        notification_body,
+        conversation_id=conversation.id,
     )
     return interest
 
@@ -220,7 +190,7 @@ def withdraw_interest(item, user_id):
         raise ConflictError("You have not expressed interest in this giveaway.")
 
     db.session.delete(interest)
-    _commit()
+    db.session.commit()
 
 
 def select_recipient(item, owner_id, selection_method, selected_user_id=None):
@@ -302,43 +272,33 @@ def change_recipient(item, owner_id, selection_method, selected_user_id=None):
     if not selected_interest:
         raise InvalidActionError("Invalid selection. Please try again.")
 
-    previous_interest = GiveawayInterest.query.filter_by(
-        item_id=item.id,
-        user_id=previous_claimed_by_id,
-    ).first()
-    if previous_interest:
-        previous_interest.status = "active"
+    # Finalize the new selection first (commits via create_message internally)
+    _finalize_recipient_selection(item, selected_interest, owner_id)
 
-    previous_notification = None
-    previous_recipient = (
-        db.session.get(User, previous_claimed_by_id) if previous_claimed_by_id else None
-    )
-    if previous_recipient:
-        previous_notification = Message(
-            sender_id=owner_id,
-            recipient_id=previous_recipient.id,
+    # Then revert the previous recipient's state and notify them
+    if previous_claimed_by_id:
+        previous_interest = GiveawayInterest.query.filter_by(
             item_id=item.id,
-            body=(
-                f"The owner has selected a different recipient for the giveaway '{item.name}'. "
-                "Your interest remains active and you may still be selected in the future."
-            ),
-        )
-        db.session.add(previous_notification)
+            user_id=previous_claimed_by_id,
+        ).first()
+        if previous_interest:
+            previous_interest.status = "active"
 
-    item.claimed_by_id = selected_interest.user_id
-    selected_interest.status = "selected"
-    notification_message = _build_selection_message(item, owner_id, selected_interest.user_id)
+        previous_recipient = db.session.get(User, previous_claimed_by_id)
+        if previous_recipient:
+            prev_conversation = get_or_create_conversation(
+                "item", item.id, owner_id, previous_recipient.id
+            )
+            message_service.create_message(
+                owner_id,
+                previous_recipient.id,
+                (
+                    f"The owner has selected a different recipient for the giveaway '{item.name}'. "
+                    "Your interest remains active and you may still be selected in the future."
+                ),
+                conversation_id=prev_conversation.id,
+            )
 
-    _commit()
-    _send_notification_email(
-        notification_message,
-        f"Failed to send email notification for giveaway reassignment message {notification_message.id}",
-    )
-    if previous_notification:
-        _send_notification_email(
-            previous_notification,
-            f"Failed to send email notification to previous recipient for giveaway {item.id}",
-        )
     return selected_interest
 
 
@@ -352,7 +312,6 @@ def release_to_all(item, owner_id):
     if item.claim_status != "pending_pickup":
         raise ConflictError("This giveaway is not pending pickup.")
 
-    release_notification = None
     previous_recipient_id = item.claimed_by_id
     if previous_recipient_id:
         previous_interest = GiveawayInterest.query.filter_by(
@@ -362,27 +321,22 @@ def release_to_all(item, owner_id):
         if previous_interest:
             previous_interest.status = "active"
 
-        release_notification = Message(
-            sender_id=owner_id,
-            recipient_id=previous_recipient_id,
-            item_id=item.id,
-            body=(
+        conversation = get_or_create_conversation("item", item.id, owner_id, previous_recipient_id)
+        message_service.create_message(
+            owner_id,
+            previous_recipient_id,
+            (
                 f"The owner has released the giveaway '{item.name}' back to everyone. "
                 "Your interest remains active and you may still be selected."
             ),
+            conversation_id=conversation.id,
         )
-        db.session.add(release_notification)
 
     item.claim_status = "unclaimed"
     item.claimed_by_id = None
     item.available = True
 
-    _commit()
-    if release_notification:
-        _send_notification_email(
-            release_notification,
-            f"Failed to send email notification for giveaway release message {release_notification.id}",
-        )
+    db.session.commit()
 
 
 def confirm_handoff(item, owner_id):
@@ -398,4 +352,4 @@ def confirm_handoff(item, owner_id):
     item.claim_status = "claimed"
     item.claimed_at = datetime.now(UTC)
     item.available = False
-    _commit()
+    db.session.commit()

@@ -20,7 +20,12 @@ def _get_first_loan_conversation_message(loan):
 def _redirect_to_loan_conversation(loan):
     original_message = _get_first_loan_conversation_message(loan)
     if original_message:
-        return redirect(url_for("main.view_conversation", message_id=original_message.id))
+        return redirect(
+            url_for(
+                "main.view_conversation",
+                conversation_id=original_message.conversation_id,
+            )
+        )
     return redirect(url_for("main.item_detail", item_id=loan.item_id))
 
 
@@ -72,7 +77,12 @@ def request_item(item_id):
             flash("An error occurred. Please try again.", "danger")
         else:
             flash("Your loan request has been submitted.", "success")
-            return redirect(url_for("main.view_conversation", message_id=message.id))
+            return redirect(
+                url_for(
+                    "main.view_conversation",
+                    conversation_id=message.conversation_id,
+                )
+            )
 
     return render_template("main/request_loan.html", form=form, item=item, share_token=share_token)
 
@@ -166,7 +176,12 @@ def owner_cancel_loan(loan_id):
 
     if loan.status != "approved":
         flash("Only approved loans can be canceled.", "warning")
-        return redirect(url_for("main.view_conversation", message_id=loan.messages[0].id))
+        return redirect(
+            url_for(
+                "main.view_conversation",
+                conversation_id=loan.messages[0].conversation_id,
+            )
+        )
 
     try:
         loan_service.owner_cancel_approved_loan(loan, current_user.id)

@@ -166,6 +166,7 @@ class TestAuthenticationRoutes:
                         "country": "United States of America",
                         "password": "newpassword123",
                         "confirm_password": "newpassword123",
+                        "age_confirm": True,
                     },
                     follow_redirects=True,
                 )
@@ -194,6 +195,7 @@ class TestAuthenticationRoutes:
                     "longitude": "-118.2437",
                     "password": "coordpassword123",
                     "confirm_password": "coordpassword123",
+                    "age_confirm": True,
                 },
                 follow_redirects=True,
             )
@@ -219,6 +221,7 @@ class TestAuthenticationRoutes:
                     "last_name": "User",
                     "location_method": "skip",
                     "password": "skippassword123",
+                    "age_confirm": True,
                     "confirm_password": "skippassword123",
                 },
                 follow_redirects=True,
@@ -247,6 +250,7 @@ class TestAuthenticationRoutes:
                     "location_method": "skip",
                     "digest_frequency": "none",
                     "password": "digestpassword123",
+                    "age_confirm": True,
                     "confirm_password": "digestpassword123",
                 },
                 follow_redirects=True,
@@ -268,8 +272,8 @@ class TestAuthenticationRoutes:
                 "location_method": "skip",
                 "password": "redirectpassword123",
                 "confirm_password": "redirectpassword123",
+                "age_confirm": True,
             },
-            follow_redirects=False,
         )
 
         assert response.status_code == 302
@@ -284,6 +288,7 @@ class TestAuthenticationRoutes:
                 "first_name": "Guidance",
                 "last_name": "User",
                 "location_method": "skip",
+                "age_confirm": True,
                 "password": "guidancepassword123",
                 "confirm_password": "guidancepassword123",
             },
@@ -309,6 +314,7 @@ class TestAuthenticationRoutes:
                     "first_name": "Next",
                     "last_name": "User",
                     "location_method": "skip",
+                    "age_confirm": True,
                     "password": "nextpassword123",
                     "confirm_password": "nextpassword123",
                 },
@@ -370,6 +376,7 @@ class TestAuthenticationRoutes:
                     "location_method": "skip",
                     "password": "duplicatepassword123",
                     "confirm_password": "duplicatepassword123",
+                    "age_confirm": True,
                 },
             )
 
@@ -389,6 +396,7 @@ class TestAuthenticationRoutes:
                 "location_method": "skip",
                 "password": "password123",
                 "confirm_password": "differentpassword123",
+                "age_confirm": True,
             },
         )
 
@@ -408,6 +416,7 @@ class TestAuthenticationRoutes:
                         "password": TEST_PASSWORD,
                         "confirm_password": TEST_PASSWORD,
                         "location_method": "skip",
+                        "age_confirm": True,
                     },
                     follow_redirects=True,
                 )
@@ -458,6 +467,7 @@ class TestAuthenticationRoutes:
                     "password": "password123",
                     "confirm_password": "password123",
                     "location_method": "skip",
+                    "age_confirm": True,
                 },
                 follow_redirects=True,
             )
@@ -479,6 +489,7 @@ class TestAuthenticationRoutes:
                         "password": "password123",
                         "confirm_password": "password123",
                         "location_method": "skip",
+                        "age_confirm": True,
                     },
                 )
 
@@ -524,6 +535,7 @@ class TestAuthenticationRoutes:
                     "password": "password123",
                     "confirm_password": "password123",
                     "location_method": "skip",
+                    "age_confirm": True,
                 },
                 follow_redirects=True,
             )
@@ -868,3 +880,35 @@ class TestCSRFErrorHandler:
             )
             assert response.status_code == 200
             assert b"session has expired" in response.data or b"log in again" in response.data
+
+
+class TestAccountDeletion:
+    """Test account deletion functionality."""
+
+    def test_delete_account_page_requires_login(self, client):
+        """Test that delete account page requires login."""
+        response = client.get("/delete_account")
+        assert response.status_code == 302  # Redirect to login
+
+    def test_delete_account_soft_delete_preserves_user_data(self, client, app, auth_user):
+        """Test that account deletion uses soft delete to preserve user data for history."""
+        with app.app_context():
+            user = auth_user()
+            user_id = user.id
+            user_email = user.email
+
+            login_user(client, user.email)
+
+            response = client.post(
+                "/delete_account", data={"confirmation": "DELETE MY ACCOUNT"}, follow_redirects=True
+            )
+
+            assert response.status_code == 200
+
+            # Verify user was soft deleted (not hard deleted)
+            soft_deleted_user = db.session.get(User, user_id)
+            assert soft_deleted_user is not None
+            assert soft_deleted_user.is_deleted is True
+            assert soft_deleted_user.deleted_at is not None
+            assert "deleted_" in soft_deleted_user.email  # Email should be anonymized
+            assert soft_deleted_user.email != user_email  # Email changed

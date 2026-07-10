@@ -200,6 +200,20 @@
             </p>
         </div>
 
+        <!-- Age Confirmation -->
+        <div class="mb-4">
+            <div class="form-check">
+                {{ form.age_confirm(class="form-check-input") }}
+                {{ form.age_confirm.label(class="form-check-label") }}
+            </div>
+            {% for error in form.age_confirm.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
+            <small class="text-muted">
+                Read our <a href="{{ url_for('main.terms') }}" target="_blank">Terms &amp; Conditions</a>.
+            </small>
+        </div>
+
         <!-- Submit Button -->
         <p>{{ form.submit() }}</p>
     </form>

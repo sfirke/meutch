@@ -65,7 +65,7 @@
                     </form>
                 {% elif is_on_loan %}
                     {% if active_loan.messages %}
-                        <a href="{{ url_for('main.view_conversation', message_id=active_loan.messages[0].id) }}" class="btn btn-info">
+                        <a href="{{ url_for('main.view_conversation', conversation_id=active_loan.messages[0].conversation_id) }}" class="btn btn-info">
                             <i class="fas fa-exchange-alt me-1"></i>View Active Loan
                         </a>
                     {% endif %}

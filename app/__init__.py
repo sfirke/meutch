@@ -4,6 +4,8 @@ from uuid import UUID
 
 from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_jwt_extended import JWTManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -24,6 +26,7 @@ migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
 jwt = JWTManager()
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
 
 def create_app(config_class=None):
@@ -47,6 +50,7 @@ def create_app(config_class=None):
     login_manager.init_app(app)
     csrf.init_app(app)
     jwt.init_app(app)
+    limiter.init_app(app)
 
     from app.api.v1.jwt_auth import register_jwt_callbacks
 

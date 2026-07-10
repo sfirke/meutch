@@ -1,11 +1,12 @@
 """Circle read and write endpoints for API v1."""
 
-from flask import abort
+from flask import abort, request
 from flask_jwt_extended import jwt_required
 
 from app import db
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
+from app.api.v1.operational import mutation_limit
 from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.circles import (
@@ -27,7 +28,7 @@ from app.services import circle_service
 from app.utils.circle_queries import (
     get_admin_circle_pending_counts,
     get_listed_circles,
-    get_ordered_circle_members,
+    get_paginated_circle_members,
     get_sorted_user_circles,
     should_show_circle_members,
 )
@@ -68,22 +69,30 @@ def _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle):
     return circle
 
 
-def _annotate_circle_detail(circle):
+def _annotate_circle_detail(circle, members_page=1, members_per_page=20):
     admin_pending_counts = get_admin_circle_pending_counts(current_user.id)
     pending_requests_by_circle = _fetch_pending_requests_by_circle(current_user.id, [circle.id])
     circle = _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle)
     circle.api_can_view_members = should_show_circle_members(circle, current_user)
-    circle.api_is_last_member = circle.api_is_member and len(circle.members) == 1
     circle.api_members = []
+    circle.api_members_total = 0
+    circle.api_members_page = members_page
+    circle.api_members_pages = 0
     if circle.api_can_view_members:
+        pagination = get_paginated_circle_members(
+            circle.id, page=members_page, per_page=members_per_page
+        )
         circle.api_members = [
             {
                 "user": member.User,
                 "joined_at": member.joined_at,
                 "is_admin": member.is_admin,
             }
-            for member in get_ordered_circle_members(circle.id)
+            for member in pagination.items
         ]
+        circle.api_members_total = pagination.total
+        circle.api_members_pages = pagination.pages
+    circle.api_is_last_member = circle.api_is_member and circle.api_members_total == 1
     return circle
 
 
@@ -130,11 +139,20 @@ def get_circle(circle_id):
     circle = db.get_or_404(Circle, circle_id)
     if circle.circle_type == "secret" and current_user not in circle.members:
         abort(404)
-    return CIRCLE_DETAIL_RESPONSE_SCHEMA.dump({"circle": _annotate_circle_detail(circle)})
+    members_page = request.args.get("members_page", 1, type=int)
+    members_per_page = request.args.get("members_per_page", 20, type=int)
+    return CIRCLE_DETAIL_RESPONSE_SCHEMA.dump(
+        {
+            "circle": _annotate_circle_detail(
+                circle, members_page=members_page, members_per_page=members_per_page
+            )
+        }
+    )
 
 
 @bp.post("/circles")
 @jwt_required()
+@mutation_limit()
 def create_circle():
     """Create a new circle owned by the authenticated user."""
     data = load_request_data(CIRCLE_WRITE_PAYLOAD_SCHEMA)
@@ -159,6 +177,7 @@ def create_circle():
 
 @bp.patch("/circles/<uuid:circle_id>")
 @jwt_required()
+@mutation_limit()
 def update_circle(circle_id):
     """Update an existing circle managed by the authenticated user."""
     circle = db.get_or_404(Circle, circle_id)
@@ -186,6 +205,7 @@ def update_circle(circle_id):
 
 @bp.post("/circles/<uuid:circle_id>/join")
 @jwt_required()
+@mutation_limit()
 def join_circle(circle_id):
     """Join an open circle or submit a join request for a gated circle."""
     circle = db.get_or_404(Circle, circle_id)
@@ -218,6 +238,7 @@ def _handle_join_request_action(circle_id, request_id, action):
 
 @bp.post("/circles/<uuid:circle_id>/cancel-request")
 @jwt_required()
+@mutation_limit()
 def cancel_join_request(circle_id):
     """Cancel the authenticated user's pending join request for a circle."""
     db.get_or_404(Circle, circle_id)
@@ -227,6 +248,7 @@ def cancel_join_request(circle_id):
 
 @bp.post("/circles/<uuid:circle_id>/join-requests/<uuid:request_id>/approve")
 @jwt_required()
+@mutation_limit()
 def approve_join_request(circle_id, request_id):
     """Approve a pending circle join request."""
     return _handle_join_request_action(circle_id, request_id, "approve")
@@ -234,6 +256,7 @@ def approve_join_request(circle_id, request_id):
 
 @bp.post("/circles/<uuid:circle_id>/join-requests/<uuid:request_id>/reject")
 @jwt_required()
+@mutation_limit()
 def reject_join_request(circle_id, request_id):
     """Reject a pending circle join request."""
     return _handle_join_request_action(circle_id, request_id, "reject")
@@ -241,6 +264,7 @@ def reject_join_request(circle_id, request_id):
 
 @bp.post("/circles/<uuid:circle_id>/leave")
 @jwt_required()
+@mutation_limit()
 def leave_circle(circle_id):
     """Leave a circle, deleting it when the last member exits."""
     circle = db.get_or_404(Circle, circle_id)
@@ -250,6 +274,7 @@ def leave_circle(circle_id):
 
 @bp.delete("/circles/<uuid:circle_id>/members/<uuid:user_id>")
 @jwt_required()
+@mutation_limit()
 def remove_member(circle_id, user_id):
     """Remove another member from a circle as an admin."""
     circle = db.get_or_404(Circle, circle_id)
@@ -271,6 +296,7 @@ def _toggle_circle_admin(circle_id, user_id, action):
 
 @bp.post("/circles/<uuid:circle_id>/admins/<uuid:user_id>")
 @jwt_required()
+@mutation_limit()
 def add_circle_admin(circle_id, user_id):
     """Promote a circle member to admin."""
     return _toggle_circle_admin(circle_id, user_id, "add")
@@ -278,6 +304,7 @@ def add_circle_admin(circle_id, user_id):
 
 @bp.delete("/circles/<uuid:circle_id>/admins/<uuid:user_id>")
 @jwt_required()
+@mutation_limit()
 def remove_circle_admin(circle_id, user_id):
     """Demote a circle admin back to a regular member."""
     return _toggle_circle_admin(circle_id, user_id, "remove")

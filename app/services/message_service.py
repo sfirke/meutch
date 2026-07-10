@@ -1,17 +1,19 @@
 """Messaging workflow service helpers."""
 
 import logging
+from datetime import UTC, datetime
 
 from flask import url_for
 
 from app import db
-from app.models import Message
+from app.models import ConversationParticipant, Message
 from app.services.exceptions import AuthorizationError, InvalidActionError
 from app.utils.email import send_message_notification_email
 from app.utils.item_share import generate_item_share_token
 from app.utils.item_visibility import build_item_access_state
 from app.utils.messaging_queries import (
     build_conversation_thread_state,
+    get_or_create_conversation,
     mark_conversation_messages_read,
 )
 from app.utils.request_queries import can_view_request
@@ -42,12 +44,14 @@ def get_request_conversation_recipient_id(item_request, sender):
 
 def start_item_conversation(item, sender, body, *, share_token=None):
     recipient_id = get_item_conversation_recipient_id(item, sender, share_token=share_token)
-    return create_message(sender.id, recipient_id, body, item_id=item.id)
+    conversation = get_or_create_conversation("item", item.id, sender.id, recipient_id)
+    return create_message(sender.id, recipient_id, body, conversation_id=conversation.id)
 
 
 def start_request_conversation(item_request, sender, body):
     recipient_id = get_request_conversation_recipient_id(item_request, sender)
-    return create_message(sender.id, recipient_id, body, request_id=item_request.id)
+    conversation = get_or_create_conversation("request", item_request.id, sender.id, recipient_id)
+    return create_message(sender.id, recipient_id, body, conversation_id=conversation.id)
 
 
 def _build_item_url_for_requester(item, item_owner, requester):
@@ -109,7 +113,7 @@ def respond_to_request_with_item(item_request, sender, item, body=None):
             item_url=item_url,
         )
 
-    return create_message(sender.id, recipient_id, body, request_id=item_request.id)
+    return create_message(sender.id, recipient_id, body, loan_request_id=item_request.id)
 
 
 def _commit_and_notify(message, error_prefix):
@@ -127,15 +131,29 @@ def _commit_and_notify(message, error_prefix):
     return message
 
 
+def _commit_only(message):
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+    return message
+
+
 def create_message(
     sender_id,
     recipient_id,
     body,
     *,
-    item_id=None,
-    request_id=None,
-    circle_id=None,
+    # `notify=False` lets callers suppress the message-notification email.
+    # Use this when a dedicated, context-specific email is already being sent
+    # for the same event (e.g. circle join-request decisions already send a
+    # separate approval/rejection email via send_circle_join_request_decision_email).
+    notify=True,
+    conversation_id=None,
     parent_id=None,
+    loan_request_id=None,
 ):
     if sender_id == recipient_id:
         raise InvalidActionError("You cannot message yourself.")
@@ -143,18 +161,26 @@ def create_message(
     message = Message(
         sender_id=sender_id,
         recipient_id=recipient_id,
-        item_id=item_id,
-        request_id=request_id,
-        circle_id=circle_id,
+        conversation_id=conversation_id,
         body=body,
         is_read=False,
         parent_id=parent_id,
+        loan_request_id=loan_request_id,
     )
     db.session.add(message)
-    return _commit_and_notify(
-        message,
-        f"Failed to send email notification for message {message.id}",
-    )
+
+    # Auto-unarchive for the recipient when a new message arrives
+    ConversationParticipant.query.filter_by(
+        conversation_id=conversation_id, user_id=recipient_id, is_archived=True
+    ).update({"is_archived": False, "archived_at": None}, synchronize_session=False)
+
+    if notify:
+        return _commit_and_notify(
+            message,
+            f"Failed to send email notification for message {message.id}",
+        )
+
+    return _commit_only(message)
 
 
 def reply_to_message(message, sender_id, body):
@@ -166,9 +192,7 @@ def reply_to_message(message, sender_id, body):
         sender_id,
         recipient_id,
         body,
-        item_id=message.item_id,
-        request_id=message.request_id,
-        circle_id=message.circle_id,
+        conversation_id=message.conversation_id,
         parent_id=message.id,
     )
 
@@ -202,3 +226,124 @@ def mark_message_thread_read(message, viewer_id):
     return {
         "has_unread_messages": False,
     }
+
+
+# ── Archive & bulk-action helpers ──────────────────────────────────────────
+
+
+def archive_conversation(user_id, conversation_id):
+    """Archive a conversation for a user. Each user's archive state is independent."""
+    ConversationParticipant.query.filter_by(
+        conversation_id=conversation_id, user_id=user_id
+    ).update({"is_archived": True, "archived_at": datetime.now(UTC)}, synchronize_session=False)
+    db.session.commit()
+
+
+def unarchive_conversation(user_id, conversation_id):
+    """Unarchive a conversation for a user."""
+    ConversationParticipant.query.filter_by(
+        conversation_id=conversation_id, user_id=user_id
+    ).update({"is_archived": False, "archived_at": None}, synchronize_session=False)
+    db.session.commit()
+
+
+def bulk_archive(user_id, conversation_ids):
+    """Archive multiple conversations in a single UPDATE."""
+    if not conversation_ids:
+        return
+    ConversationParticipant.query.filter(
+        ConversationParticipant.conversation_id.in_(conversation_ids),
+        ConversationParticipant.user_id == user_id,
+    ).update({"is_archived": True, "archived_at": datetime.now(UTC)}, synchronize_session=False)
+    db.session.commit()
+
+
+def bulk_unarchive(user_id, conversation_ids):
+    """Unarchive multiple conversations in a single UPDATE."""
+    if not conversation_ids:
+        return
+    ConversationParticipant.query.filter(
+        ConversationParticipant.conversation_id.in_(conversation_ids),
+        ConversationParticipant.user_id == user_id,
+    ).update({"is_archived": False, "archived_at": None}, synchronize_session=False)
+    db.session.commit()
+
+
+def bulk_mark_read(user_id, conversation_ids):
+    """Mark all unread messages as read in the given conversations."""
+    if not conversation_ids:
+        return
+    Message.query.filter(
+        Message.conversation_id.in_(conversation_ids),
+        Message.recipient_id == user_id,
+        Message.is_read.is_(False),
+    ).update({"is_read": True}, synchronize_session=False)
+    db.session.commit()
+
+
+def bulk_mark_unread(user_id, conversation_ids):
+    """Mark the latest message in each conversation as unread for the user.
+
+    Only the single most-recent message (by timestamp) per conversation is
+    flipped back to unread.  That is enough to surface the conversation in
+    the inbox while avoiding an explosion of unread counts.
+    """
+    if not conversation_ids:
+        return
+
+    # Window-function subquery: row_number = 1 picks the latest message
+    # per conversation where the user is the recipient.
+
+    ranked = (
+        db.session.query(
+            Message.id,
+            db.func.row_number()
+            .over(
+                partition_by=Message.conversation_id,
+                order_by=Message.timestamp.desc(),
+            )
+            .label("rn"),
+        )
+        .filter(
+            Message.conversation_id.in_(conversation_ids),
+            Message.recipient_id == user_id,
+        )
+        .subquery()
+    )
+
+    latest_ids = db.session.query(ranked.c.id).filter(ranked.c.rn == 1).scalar_subquery()
+
+    Message.query.filter(Message.id.in_(latest_ids)).update(
+        {"is_read": False}, synchronize_session=False
+    )
+    db.session.commit()
+
+
+def mark_all_read_in_view(user_id, status="inbox"):
+    """Mark all unread messages as read for conversations in the active view.
+
+    ``status`` is ``"inbox"`` (non-archived conversations) or ``"archived"``.
+    """
+    is_archived_flag = status == "archived"
+    if is_archived_flag:
+        archive_filter = ConversationParticipant.is_archived.is_(True)
+    else:
+        # Use isnot(True) rather than is_(False) so that NULL rows
+        # (where is_archived was never set) are also treated as "not archived".
+        archive_filter = ConversationParticipant.is_archived.isnot(True)
+
+    view_conversation_ids = (
+        db.session.query(ConversationParticipant.conversation_id)
+        .filter(
+            ConversationParticipant.user_id == user_id,
+            archive_filter,
+        )
+        .scalar_subquery()
+    )
+
+    Message.query.filter(
+        Message.conversation_id.in_(view_conversation_ids),
+        Message.recipient_id == user_id,
+        Message.is_read.is_(False),
+    ).update({"is_read": True}, synchronize_session=False)
+    db.session.commit()

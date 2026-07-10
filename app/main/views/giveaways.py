@@ -2,7 +2,6 @@ from uuid import UUID
 
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import and_, or_
 
 from app import db
 from app.forms import (
@@ -19,8 +18,11 @@ from app.main import bp as main_bp
 from app.models import GiveawayInterest, Item, Message, User
 from app.services import giveaway_service, message_service
 from app.services.exceptions import ConflictError, ServiceError
-
-from .helpers import _conversation_other_user_id
+from app.utils.messaging_queries import (
+    find_context_conversation,
+    get_conversation_other_user_id,
+    get_or_create_conversation,
+)
 
 
 @main_bp.route("/item/<uuid:item_id>/express-interest", methods=["POST"])
@@ -186,29 +188,53 @@ def give_to_user(item_id, user_id):
     if not form.validate_on_submit():
         flash("Invalid request.", "danger")
         if conversation_message:
-            return redirect(url_for("main.view_conversation", message_id=conversation_message.id))
+            return redirect(
+                url_for(
+                    "main.view_conversation",
+                    conversation_id=conversation_message.conversation_id,
+                )
+            )
         return redirect(url_for("main.item_detail", item_id=item.id))
 
     if item.owner_id != current_user.id:
         flash("You do not have permission to manage this giveaway.", "danger")
         if conversation_message:
-            return redirect(url_for("main.view_conversation", message_id=conversation_message.id))
+            return redirect(
+                url_for(
+                    "main.view_conversation",
+                    conversation_id=conversation_message.conversation_id,
+                )
+            )
         return redirect(url_for("main.item_detail", item_id=item.id))
 
     if item.claim_status not in [None, "unclaimed"]:
         flash("This giveaway is no longer awaiting recipient selection.", "warning")
         if conversation_message:
-            return redirect(url_for("main.view_conversation", message_id=conversation_message.id))
+            return redirect(
+                url_for(
+                    "main.view_conversation",
+                    conversation_id=conversation_message.conversation_id,
+                )
+            )
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    if conversation_message is None or conversation_message.item_id != item.id:
+    if (
+        conversation_message is None
+        or conversation_message.conversation.context_type != "item"
+        or conversation_message.conversation.context_id != item.id
+    ):
         flash("Invalid conversation context.", "danger")
         return redirect(url_for("main.item_detail", item_id=item.id))
 
-    other_user_id = _conversation_other_user_id(conversation_message, current_user.id)
+    other_user_id = get_conversation_other_user_id(conversation_message, current_user.id)
     if other_user_id != user_id:
         flash("This conversation does not match that interested user.", "danger")
-        return redirect(url_for("main.view_conversation", message_id=conversation_message.id))
+        return redirect(
+            url_for(
+                "main.view_conversation",
+                conversation_id=conversation_message.conversation_id,
+            )
+        )
 
     selected_interest = GiveawayInterest.query.filter_by(
         item_id=item.id,
@@ -217,7 +243,12 @@ def give_to_user(item_id, user_id):
     ).first()
     if not selected_interest:
         flash("This user is not currently in the interested-user pool.", "warning")
-        return redirect(url_for("main.view_conversation", message_id=conversation_message.id))
+        return redirect(
+            url_for(
+                "main.view_conversation",
+                conversation_id=conversation_message.conversation_id,
+            )
+        )
 
     try:
         selected_interest = giveaway_service.select_recipient(
@@ -236,7 +267,12 @@ def give_to_user(item_id, user_id):
             "success",
         )
 
-    return redirect(url_for("main.view_conversation", message_id=conversation_message.id))
+    return redirect(
+        url_for(
+            "main.view_conversation",
+            conversation_id=conversation_message.conversation_id,
+        )
+    )
 
 
 @main_bp.route("/item/<uuid:item_id>/message-requester/<uuid:user_id>", methods=["GET", "POST"])
@@ -260,28 +296,25 @@ def message_giveaway_requester(item_id, user_id):
         flash("This user has not expressed interest in this giveaway.", "warning")
         return redirect(url_for("main.select_recipient", item_id=item.id))
 
-    existing_message = Message.query.filter(
-        Message.item_id == item.id,
-        or_(
-            and_(Message.sender_id == current_user.id, Message.recipient_id == user_id),
-            and_(Message.sender_id == user_id, Message.recipient_id == current_user.id),
-        ),
-    ).first()
+    existing_conv = find_context_conversation("item", item.id, current_user.id, user_id)
 
-    if existing_message:
-        return redirect(url_for("main.view_conversation", message_id=existing_message.id))
+    if existing_conv:
+        return redirect(url_for("main.view_conversation", conversation_id=existing_conv.id))
 
     form = MessageForm()
     if form.validate_on_submit():
         try:
+            conversation = get_or_create_conversation("item", item.id, current_user.id, user_id)
             message = message_service.create_message(
                 current_user.id,
                 user_id,
                 form.body.data,
-                item_id=item.id,
+                conversation_id=conversation.id,
             )
             flash("Your message has been sent.", "success")
-            return redirect(url_for("main.view_conversation", message_id=message.id))
+            return redirect(
+                url_for("main.view_conversation", conversation_id=message.conversation_id)
+            )
         except Exception as exc:
             current_app.logger.error(f"Error sending message for giveaway {item_id}: {str(exc)}")
             flash("An error occurred. Please try again.", "danger")

@@ -1,9 +1,19 @@
 from dataclasses import dataclass
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app import db
-from app.models import GiveawayInterest, Item, ItemImage, LoanRequest, Message, Tag
+from app.models import (
+    Conversation,
+    ConversationParticipant,
+    GiveawayInterest,
+    Item,
+    ItemImage,
+    LoanRequest,
+    Message,
+    Tag,
+)
 from app.services.exceptions import AuthorizationError, ConflictError, InformationalError
 from app.utils.storage import MAX_ITEM_IMAGE_COUNT, delete_item_images, upload_item_images
 
@@ -420,7 +430,27 @@ def list_user_items(user, search_query=None, page=1, per_page=12):
 
 def delete_item_with_cleanup(item):
     image_urls = [image.url for image in item.images]
-    Message.query.filter(Message.item_id == item.id).delete()
+    # Delete messages via conversation lookup
+    conversation_ids = (
+        db.session.query(Conversation.id)
+        .filter(
+            Conversation.context_type == "item",
+            Conversation.context_id == item.id,
+        )
+        .subquery()
+    )
+    Message.query.filter(Message.conversation_id.in_(select(conversation_ids))).delete(
+        synchronize_session=False
+    )
+    # Delete conversation participants and conversations for this item
+    ConversationParticipant.query.filter(
+        ConversationParticipant.conversation_id.in_(select(conversation_ids))
+    ).delete(synchronize_session=False)
+    Conversation.query.filter(
+        Conversation.context_type == "item",
+        Conversation.context_id == item.id,
+    ).delete(synchronize_session=False)
+
     LoanRequest.query.filter_by(item_id=item.id).delete()
     GiveawayInterest.query.filter_by(item_id=item.id).delete()
     item.tags.clear()

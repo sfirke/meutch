@@ -10,6 +10,7 @@ from app.services.exceptions import ConflictError, InformationalError
 from app.utils.storage import MAX_ITEM_IMAGE_COUNT
 from tests.factories import (
     CategoryFactory,
+    ConversationFactory,
     GiveawayInterestFactory,
     ItemFactory,
     ItemImageFactory,
@@ -175,7 +176,10 @@ class TestItemService:
             borrower = UserFactory()
             LoanRequestFactory(item=item, borrower=borrower, status="pending")
             GiveawayInterestFactory(item=item, status="active")
-            MessageFactory(sender=borrower, recipient=item.owner, item=item, body="Interested")
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            MessageFactory(
+                sender=borrower, recipient=item.owner, conversation=conversation, body="Interested"
+            )
 
             with patch("app.services.item_service.delete_item_images") as mock_delete_images:
                 item_service.delete_item_with_cleanup(item)

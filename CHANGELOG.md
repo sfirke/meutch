@@ -2,20 +2,45 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
+## July 2026
+
+### Features
+**Major**:
+- Refactor messages infrastructure to create conversations, enabling archiving of messages and an overhaul of the inbox with pagination, sorting, and bulk actions to mark-read and archive:
+  - Revised database schema in ([#436](https://github.com/sfirke/meutch/pull/436))
+  - New inbox backend functionality in ([#438](https://github.com/sfirke/meutch/pull/438)).
+  - Frontend changes to finish the work in ([#439](https://github.com/sfirke/meutch/pull/439)).
+
+**Minor**:
+- When answering a request, there's now an option to click "I have this item" and then choose or list it ([#412](https://github.com/sfirke/meutch/pull/412)).
+- On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
+
+### Developer Experience
+- Remove legacy `item`/`request`/`circle` kwargs from `MessageFactory`; all test call sites now use `conversation=` directly via `ConversationFactory` ([#437](https://github.com/sfirke/meutch/pull/437)).
+
+### Bug fixes
+- Streamlined email digest fulfilled/claimed rendering: unified phrasing across both resolution variants, replaced green status pills with a subtle gray "New" label for items the user hasn't seen before, kept descriptions only for first-time items, and grouped new-resolved entries before previously-seen resolutions ([#427](https://github.com/sfirke/meutch/pull/427)).
+- Improve formatting of buttons, especially on mobile, for the circle admin interface as well as site admin and item detail card ([#434](https://github.com/sfirke/meutch/pull/434)).
+
 ## June 2026
 
 ### Features
 **Minor**:
+- Added a Privacy Policy and Terms & Conditions, linked from the site footer ([#421](https://github.com/sfirke/meutch/pull/421)).
+- Make it the default to view one's own activity in feed, add a toggle to disable if desired ([#414](https://github.com/sfirke/meutch/pull/414)).
 - New members who have not joined any circles yet are now redirected into circle discovery after login, with a stronger onboarding prompt and personalized recommendations that preview what each suggested circle would unlock ([#395](https://github.com/sfirke/meutch/pull/395)).
-- When answering a request, there's now an option to click "I have this item" and then choose or list it.
+- Introduced "regional" circles that are stand-ins for e.g., a Craigslist region. Admins promote these circles to official regional status, at which point they get pinned at the top of zero-circle onboarding recommendations ([#400](https://github.com/sfirke/meutch/pull/400)).
+- Improve workflow for marking a request fulfilled, showing the button in every location where the user might want to take that action ([#431](https://github.com/sfirke/meutch/pull/431)).
 
 ### Bug fixes
 - Claimed giveaways no longer show a "Borrowed" status badge in the conversation "Item Status" card — they now correctly display "Rehomed" ([#398](https://github.com/sfirke/meutch/pull/398)).
 - Can no longer edit a fulfilled giveaway ([#406](https://github.com/sfirke/meutch/pull/406)).
+- Clicking "View Loan" on My Activity page now takes you to the current loan, not the first time the item was loaned (affected both borrowers and lenders) ([#410](https://github.com/sfirke/meutch/pull/410)).
 
 ### API development (continued)
 - Add API loan activity reads and loan actions, including active borrowing/lending views plus loan request, approve/deny, cancel, complete, and extend endpoints ([#393](https://github.com/sfirke/meutch/pull/393)).
 - Add API giveaway-interest reads and giveaway actions, including owner-side interest management, express/withdraw interest, recipient select/change, release-to-all, and confirm-handoff endpoints([#405](https://github.com/sfirke/meutch/pull/405)).
+- Harden the API for production with request-level throttles on auth and write endpoints, rollout controls for full-disable and read-only modes, request-id correlation headers, JSON `429`/`500` handling, and deployment guidance for shared limiter storage. ([#407](https://github.com/sfirke/meutch/pull/407)).
 
 ## May 2026
 

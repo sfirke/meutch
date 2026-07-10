@@ -61,6 +61,40 @@ Operational notes:
 - `POST /api/v1/auth/logout` revokes the whole current token family (session). Reusing an already-rotated refresh token also revokes that family and forces the user to log in again.
 - If `JWT_SECRET_KEY` is unset, the app falls back to `SECRET_KEY`, but production deployments should set a dedicated JWT secret explicitly.
 
+### Optional: API Rollout Controls And Rate Limiting
+
+These variables harden the `/api/v1` surface for mobile clients and give deploys an operational rollback path without removing routes from the codebase.
+
+```bash
+# Emergency kill switch for the whole versioned API surface.
+# When false, /api/v1/health still answers 200 with status=disabled.
+API_V1_ENABLED=true
+
+# Emergency read-only mode for non-auth mutations.
+# When false, GETs plus /api/v1/auth/* remain available and other writes return 503.
+API_V1_WRITE_ENABLED=true
+
+# API-specific limiter toggle.
+API_V1_RATE_LIMITS_ENABLED=true
+
+# Strongly recommended for production and staging when using multiple workers or instances.
+RATELIMIT_STORAGE_URI=redis://redis:6379/0
+
+# Default endpoint-family limits.
+API_V1_AUTH_LOGIN_RATE_LIMIT=10 per minute
+API_V1_AUTH_REGISTER_RATE_LIMIT=5 per hour
+API_V1_AUTH_RECOVERY_RATE_LIMIT=5 per hour
+API_V1_AUTH_SESSION_RATE_LIMIT=60 per minute
+API_V1_WRITE_RATE_LIMIT=30 per minute
+API_V1_IMAGE_WRITE_RATE_LIMIT=10 per minute
+```
+
+Operational notes:
+- API responses now include `X-Request-ID`. If a client sends its own `X-Request-ID`, the API echoes it back so application logs and client-side error reports can be correlated.
+- `/api/v1/health` reports `ok`, `read_only`, or `disabled` so deploy checks can distinguish normal traffic, emergency read-only mode, and a full API shutdown.
+- `memory://` limiter storage is process-local. It is acceptable for local development and isolated test runs, but it will not enforce a shared bucket across multiple Gunicorn workers or multiple app instances.
+- Use Redis-backed limiter storage whenever staging or production can run more than one worker or instance.
+
 ### Optional: Digest Scheduler Timezone
 
 Digest cadence boundaries are evaluated in one app timezone. The scheduler now prefers `TZ` (same timezone setting used by the server/runtime), then falls back to `DIGEST_TIMEZONE`, then UTC.
@@ -169,6 +203,8 @@ flask db upgrade
 
 4. **Environment Variables**: Store sensitive values in your platform's secret management system, not in plain text files.
 5. **JWT Secrets**: Rotate `JWT_SECRET_KEY` with the same care as `SECRET_KEY`. Changing it invalidates all outstanding API tokens immediately.
+6. **API Rollout Flags**: Treat `API_V1_ENABLED`, `API_V1_WRITE_ENABLED`, and `API_V1_RATE_LIMITS_ENABLED` as operational controls; document any temporary override used during an incident and restore the defaults after the event.
+7. **Limiter Storage**: Use a shared backend such as Redis for production or staging deployments with multiple workers or instances. In-memory limiter storage is not sufficient for that topology.
 
 ## Additional Resources
 

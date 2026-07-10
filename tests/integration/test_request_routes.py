@@ -4,10 +4,11 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from app import db
-from app.models import GiveawayInterest, ItemRequest, Message
+from app.models import Conversation, GiveawayInterest, ItemRequest, Message
 from conftest import login_user
 from tests.factories import (
     CircleFactory,
+    ConversationFactory,
     ItemFactory,
     ItemRequestFactory,
     LoanRequestFactory,
@@ -239,8 +240,8 @@ class TestRequestsFeedFiltering:
             assert response.status_code == 200
             assert b"Old fulfilled request" not in response.data
 
-    def test_feed_excludes_own_fulfilled_requests(self, client, app, auth_user):
-        """Test that the homepage feed never shows a user's own fulfilled requests."""
+    def test_feed_excludes_old_fulfilled_requests_even_when_own(self, client, app, auth_user):
+        """Own fulfilled requests past the 7-day window are still hidden by time filtering."""
         with app.app_context():
             user = auth_user()
             db.session.commit()
@@ -259,8 +260,30 @@ class TestRequestsFeedFiltering:
             assert response.status_code == 200
             assert b"My request from 30 days ago" not in response.data
 
-    def test_feed_excludes_own_expired_requests(self, client, app, auth_user):
-        """Test that the homepage feed never shows a user's own expired requests."""
+    def test_feed_shows_own_recently_fulfilled_request(self, client, app, auth_user):
+        """Own fulfilled requests within the 7-day window are shown by default."""
+        with app.app_context():
+            user = auth_user()
+            circle = CircleFactory()
+            circle.members.append(user)
+            db.session.commit()
+
+            ItemRequestFactory(
+                user=user,
+                title="My recently fulfilled request",
+                visibility="circles",
+                status="fulfilled",
+                fulfilled_at=datetime.now(UTC) - timedelta(days=3),
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get("/")
+            assert response.status_code == 200
+            assert b"My recently fulfilled request" in response.data
+
+    def test_feed_excludes_expired_requests_even_when_own(self, client, app, auth_user):
+        """Own expired requests (expires_at in the past) are still hidden by time filtering."""
         with app.app_context():
             user = auth_user()
             db.session.commit()
@@ -322,8 +345,8 @@ class TestRequestsFeedFiltering:
             assert response.status_code == 200
             assert b"Vacation request" not in response.data
 
-    def test_feed_never_shows_own_requests(self, client, app, auth_user):
-        """Test that the homepage feed never shows a user's own open requests."""
+    def test_feed_shows_own_open_requests(self, client, app, auth_user):
+        """Test that the homepage feed shows a user's own open requests."""
         with app.app_context():
             user = auth_user()
             circle = CircleFactory()
@@ -331,13 +354,58 @@ class TestRequestsFeedFiltering:
             db.session.commit()
 
             ItemRequestFactory(user=user, title="My own request")
+            ItemFactory(
+                owner=user,
+                name="My own giveaway",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
             db.session.commit()
 
             login_user(client, user.email)
             response = client.get("/")
             assert response.status_code == 200
-            assert b"My own request" not in response.data
-            assert b"My Requests" not in response.data
+            assert b"My own request" in response.data
+            assert b"My own giveaway" in response.data
+            assert b"Show my own activity" in response.data
+
+    def test_feed_can_hide_own_open_requests(self, client, app, auth_user):
+        """Test that the homepage feed can hide a user's own activity."""
+        with app.app_context():
+            user = auth_user()
+            other_user = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([user, other_user])
+            db.session.commit()
+
+            ItemRequestFactory(user=user, title="My hidden request")
+            ItemRequestFactory(user=other_user, title="Other visible request", visibility="circles")
+            ItemFactory(
+                owner=user,
+                name="My hidden giveaway",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            ItemFactory(
+                owner=other_user,
+                name="Other visible giveaway",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get(
+                "/?own_activity_present=1&types_present=1&types=requests&types=giveaways&distance=none"
+            )
+            assert response.status_code == 200
+            assert b"My hidden request" not in response.data
+            assert b"My hidden giveaway" not in response.data
+            assert b"Other visible request" in response.data
+            assert b"Other visible giveaway" in response.data
 
     def test_feed_public_distance_filter(self, client, app, auth_user):
         """Test homepage distance controls can narrow and expand visible public requests."""
@@ -754,9 +822,16 @@ class TestRequestConversations:
             assert response.status_code == 200
             assert b"I have one you can borrow!" in response.data
 
-            message = Message.query.filter_by(request_id=item_request.id).first()
+            message = (
+                Message.query.join(Conversation)
+                .filter(
+                    Conversation.context_type == "request",
+                    Conversation.context_id == item_request.id,
+                )
+                .first()
+            )
             assert message is not None
-            assert message.item_id is None
+            assert message.conversation.context_type == "request"
             assert message.sender_id == helper.id
             assert message.recipient_id == requester.id
 
@@ -766,11 +841,11 @@ class TestRequestConversations:
             requester = UserFactory()
             helper = UserFactory()
             item_request = ItemRequestFactory(user=requester, visibility="public")
+            conversation = ConversationFactory(context_type="request", context_id=item_request.id)
             existing_message = MessageFactory(
                 sender=helper,
                 recipient=requester,
-                item=None,
-                request=item_request,
+                conversation=conversation,
                 body="Existing request thread",
             )
             db.session.commit()
@@ -779,21 +854,23 @@ class TestRequestConversations:
             response = client.get(f"/requests/{item_request.id}/conversation")
 
             assert response.status_code == 302
-            assert f"/message/{existing_message.id}" in response.headers["Location"]
+            assert (
+                f"/conversation/{existing_message.conversation_id}" in response.headers["Location"]
+            )
 
     def test_messages_inbox_shows_request_title(self, client, app):
-        """Request-linked conversations should show Re: title in inbox."""
+        """Request-linked conversations should show the request title in inbox."""
         with app.app_context():
             requester = UserFactory()
             helper = UserFactory()
             item_request = ItemRequestFactory(
                 user=requester, title="Need a melon baller", visibility="public"
             )
+            conversation = ConversationFactory(context_type="request", context_id=item_request.id)
             MessageFactory(
                 sender=helper,
                 recipient=requester,
-                item=None,
-                request=item_request,
+                conversation=conversation,
                 body="I can help with this.",
             )
             db.session.commit()
@@ -802,26 +879,26 @@ class TestRequestConversations:
             response = client.get("/messages")
 
             assert response.status_code == 200
-            assert b"Re: Need a melon baller" in response.data
+            assert b"Need a melon baller" in response.data
 
     def test_view_conversation_reply_preserves_request_context(self, client, app):
-        """Replies in request threads should keep request_id and null item_id."""
+        """Replies in request threads should keep the request conversation context."""
         with app.app_context():
             requester = UserFactory()
             helper = UserFactory()
             item_request = ItemRequestFactory(user=requester, visibility="public")
+            conversation = ConversationFactory(context_type="request", context_id=item_request.id)
             first_message = MessageFactory(
                 sender=helper,
                 recipient=requester,
-                item=None,
-                request=item_request,
+                conversation=conversation,
                 body="Initial request message",
             )
             db.session.commit()
 
             login_user(client, requester.email)
             response = client.post(
-                f"/message/{first_message.id}",
+                f"/conversation/{first_message.conversation_id}",
                 data={"body": "Thanks, messaging you now!"},
                 follow_redirects=True,
             )
@@ -831,8 +908,8 @@ class TestRequestConversations:
                 Message.parent_id == first_message.id, Message.body == "Thanks, messaging you now!"
             ).first()
             assert reply is not None
-            assert reply.request_id == item_request.id
-            assert reply.item_id is None
+            assert reply.conversation.context_type == "request"
+            assert reply.conversation.context_id == item_request.id
 
     def test_view_conversation_pending_pickup_giveaway_shows_pending_pickup(self, client, app):
         """Pending-pickup giveaways should show Pending Pickup, not Borrowed, in conversation header."""
@@ -849,13 +926,13 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=owner,
                 recipient=claimant,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Ready for pickup when you are.",
             )
             db.session.commit()
 
             login_user(client, claimant.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Pending Pickup" in response.data
@@ -878,13 +955,13 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=owner,
                 recipient=claimant,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Thanks for taking it off my hands!",
             )
             db.session.commit()
 
             login_user(client, claimant.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Rehomed" in response.data
@@ -913,14 +990,14 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 loan_request=loan,
                 body="Could I borrow this next week?",
             )
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
             content = response.get_data(as_text=True)
 
             assert response.status_code == 200
@@ -951,13 +1028,13 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=owner,
                 recipient=claimant,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Let me know when you are on your way.",
             )
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Giveaway Pickup" in response.data
@@ -986,14 +1063,14 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="I would love to pick this up.",
             )
             db.session.add(interest)
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Choose Recipient" in response.data
@@ -1026,14 +1103,14 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="I can pick this up after work.",
             )
             db.session.add(interest)
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Circles in common:" in response.data
@@ -1066,13 +1143,13 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=requester,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Happy to collect it this week.",
             )
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"2 people are interested in this giveaway." in response.data
@@ -1099,14 +1176,14 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=owner,
                 recipient=requester,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Thanks for reaching out.",
             )
             db.session.add(interest)
             db.session.commit()
 
             login_user(client, requester.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Choose Recipient" not in response.data
@@ -1128,13 +1205,13 @@ class TestRequestConversations:
             first_message = MessageFactory(
                 sender=chatter,
                 recipient=owner,
-                item=giveaway,
+                conversation=ConversationFactory(context_type="item", context_id=giveaway.id),
                 body="Is this still available?",
             )
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(f"/message/{first_message.id}")
+            response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
             assert b"Choose Recipient" not in response.data
@@ -1216,11 +1293,11 @@ class TestRequestEmailNotifications:
                 title="Need a hammer drill",
                 visibility="public",
             )
+            conversation = ConversationFactory(context_type="request", context_id=item_request.id)
             initial_message = MessageFactory(
                 sender=helper,
                 recipient=requester,
-                item=None,
-                request=item_request,
+                conversation=conversation,
                 body="I have one you can borrow!",
             )
             db.session.commit()
@@ -1232,7 +1309,7 @@ class TestRequestEmailNotifications:
                 mock_send_email.return_value = True
 
                 response = client.post(
-                    f"/message/{initial_message.id}",
+                    f"/conversation/{initial_message.conversation_id}",
                     data={"body": "Great! When can I pick it up?"},
                     follow_redirects=True,
                 )

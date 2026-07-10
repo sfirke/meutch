@@ -6,6 +6,7 @@ from flask_jwt_extended import get_jwt, jwt_required
 
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
+from app.api.v1.operational import mutation_limit
 from app.api.v1.parsing import load_request_data
 from app.api.v1.schemas.profile import (
     CurrentUserProfileResponseSchema,
@@ -54,6 +55,7 @@ def get_current_user_profile():
 
 @bp.patch("/me/profile")
 @jwt_required()
+@mutation_limit()
 def update_current_user_profile():
     """Update the authenticated user's profile details."""
     data = load_request_data(PROFILE_UPDATE_REQUEST_SCHEMA)
@@ -81,6 +83,7 @@ def get_current_user_settings():
 
 @bp.patch("/me/settings")
 @jwt_required()
+@mutation_limit()
 def update_current_user_settings():
     """Update the authenticated user's digest and vacation settings."""
     data = load_request_data(SETTINGS_UPDATE_REQUEST_SCHEMA)
@@ -101,6 +104,7 @@ def update_current_user_settings():
 
 @bp.patch("/me/location")
 @jwt_required()
+@mutation_limit()
 def update_current_user_location():
     """Update or remove the authenticated user's location."""
     data = load_request_data(LOCATION_UPDATE_REQUEST_SCHEMA)
@@ -118,6 +122,7 @@ def update_current_user_location():
 
 @bp.delete("/me")
 @jwt_required()
+@mutation_limit()
 def delete_current_user_account():
     """Delete the authenticated user's account and revoke the active session."""
     load_request_data(DELETE_ACCOUNT_REQUEST_SCHEMA)

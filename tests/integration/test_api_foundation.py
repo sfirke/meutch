@@ -43,6 +43,12 @@ def api_test_validation_error():
     raise ValidationError({"name": ["Missing data for required field."]})
 
 
+@api_v1_bp.get("/__tests__/unexpected-error")
+def api_test_unexpected_error():
+    """Raise an unexpected error to verify 500 translation."""
+    raise RuntimeError("boom")
+
+
 @api_v1_bp.get("/__tests__/paginated")
 def api_test_paginated_response():
     """Return a paginated payload using the shared API response helper."""
@@ -240,3 +246,17 @@ class TestApiFoundation:
         assert response.status_code == 405
         assert response.is_json
         assert response.get_json()["error"]["code"] == "METHOD_NOT_ALLOWED"
+
+    def test_unexpected_api_error_returns_json_500(self, client):
+        """Unexpected API exceptions should return a structured JSON 500."""
+        response = client.get("/api/v1/__tests__/unexpected-error")
+
+        assert response.status_code == 500
+        assert response.is_json
+        assert response.get_json() == {
+            "error": {
+                "code": "INTERNAL_SERVER_ERROR",
+                "message": "An unexpected error occurred.",
+                "details": {},
+            }
+        }

@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from app import db
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
+from app.api.v1.operational import mutation_limit
 from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.loans import (
@@ -118,6 +119,7 @@ def get_loan(loan_id):
 
 @bp.post("/items/<uuid:item_id>/loan-requests")
 @jwt_required()
+@mutation_limit()
 def create_loan_request(item_id):
     """Create a pending loan request for an item the user can access."""
     item = db.get_or_404(Item, item_id)
@@ -135,6 +137,7 @@ def create_loan_request(item_id):
 
 @bp.post("/loans/<uuid:loan_id>/approve")
 @jwt_required()
+@mutation_limit()
 def approve_loan(loan_id):
     """Approve a pending loan request as the item owner."""
     loan = db.get_or_404(LoanRequest, loan_id)
@@ -144,6 +147,7 @@ def approve_loan(loan_id):
 
 @bp.post("/loans/<uuid:loan_id>/deny")
 @jwt_required()
+@mutation_limit()
 def deny_loan(loan_id):
     """Deny a pending loan request as the item owner."""
     loan = db.get_or_404(LoanRequest, loan_id)
@@ -153,6 +157,7 @@ def deny_loan(loan_id):
 
 @bp.post("/loans/<uuid:loan_id>/cancel")
 @jwt_required()
+@mutation_limit()
 def cancel_loan(loan_id):
     """Cancel a pending loan request as the borrower."""
     loan = db.get_or_404(LoanRequest, loan_id)
@@ -162,6 +167,7 @@ def cancel_loan(loan_id):
 
 @bp.post("/loans/<uuid:loan_id>/owner-cancel")
 @jwt_required()
+@mutation_limit()
 def owner_cancel_loan(loan_id):
     """Cancel an approved loan as the item owner."""
     loan = db.get_or_404(LoanRequest, loan_id)
@@ -171,6 +177,7 @@ def owner_cancel_loan(loan_id):
 
 @bp.post("/loans/<uuid:loan_id>/complete")
 @jwt_required()
+@mutation_limit()
 def complete_loan(loan_id):
     """Mark an approved loan complete as the item owner."""
     loan = db.get_or_404(LoanRequest, loan_id)
@@ -180,6 +187,7 @@ def complete_loan(loan_id):
 
 @bp.post("/loans/<uuid:loan_id>/extend")
 @jwt_required()
+@mutation_limit()
 def extend_loan(loan_id):
     """Update the due date for a pending or approved loan as the item owner."""
     loan = db.get_or_404(LoanRequest, loan_id)

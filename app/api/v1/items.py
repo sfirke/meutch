@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required
 from app import db
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
+from app.api.v1.operational import mutation_limit
 from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.items import (
@@ -193,6 +194,7 @@ def get_item(item_id):
 
 @bp.post("/items")
 @jwt_required()
+@mutation_limit()
 def create_item():
     """Create a new item owned by the authenticated user."""
     data = load_request_data(ITEM_CREATE_PAYLOAD_SCHEMA)
@@ -215,6 +217,7 @@ def create_item():
 
 @bp.patch("/items/<uuid:item_id>")
 @jwt_required()
+@mutation_limit()
 def update_item(item_id):
     """Update an existing item owned by the authenticated user."""
     item = db.get_or_404(Item, item_id)
@@ -237,6 +240,7 @@ def update_item(item_id):
 
 @bp.delete("/items/<uuid:item_id>")
 @jwt_required()
+@mutation_limit()
 def delete_item(item_id):
     """Delete an item owned by the authenticated user."""
     item = db.get_or_404(Item, item_id)
@@ -246,6 +250,7 @@ def delete_item(item_id):
 
 @bp.post("/items/<uuid:item_id>/images")
 @jwt_required()
+@mutation_limit("API_V1_IMAGE_WRITE_RATE_LIMIT")
 def add_item_images(item_id):
     """Append images to an existing item owned by the authenticated user."""
     item = db.get_or_404(Item, item_id)
@@ -259,6 +264,7 @@ def add_item_images(item_id):
 
 @bp.patch("/items/<uuid:item_id>/images/order")
 @jwt_required()
+@mutation_limit("API_V1_IMAGE_WRITE_RATE_LIMIT")
 def reorder_item_images(item_id):
     """Persist a new deterministic image order for an existing item."""
     item = db.get_or_404(Item, item_id)
@@ -269,6 +275,7 @@ def reorder_item_images(item_id):
 
 @bp.delete("/items/<uuid:item_id>/images/<uuid:image_id>")
 @jwt_required()
+@mutation_limit("API_V1_IMAGE_WRITE_RATE_LIMIT")
 def delete_item_image(item_id, image_id):
     """Delete one image from an existing item owned by the authenticated user."""
     item = db.get_or_404(Item, item_id)
@@ -292,6 +299,7 @@ def list_giveaway_interests(item_id):
 
 @bp.post("/items/<uuid:item_id>/interest")
 @jwt_required()
+@mutation_limit()
 def express_interest(item_id):
     """Express interest in a giveaway item visible to the authenticated user."""
     item = db.get_or_404(Item, item_id)
@@ -305,6 +313,7 @@ def express_interest(item_id):
 
 @bp.delete("/items/<uuid:item_id>/interest")
 @jwt_required()
+@mutation_limit()
 def withdraw_interest(item_id):
     """Withdraw the authenticated user's existing giveaway interest."""
     item = db.get_or_404(Item, item_id)
@@ -317,6 +326,7 @@ def withdraw_interest(item_id):
 
 @bp.post("/items/<uuid:item_id>/recipient/select")
 @jwt_required()
+@mutation_limit()
 def select_giveaway_recipient(item_id):
     """Select a giveaway recipient as the item owner."""
     item = db.get_or_404(Item, item_id)
@@ -337,6 +347,7 @@ def select_giveaway_recipient(item_id):
 
 @bp.post("/items/<uuid:item_id>/recipient/change")
 @jwt_required()
+@mutation_limit()
 def change_giveaway_recipient(item_id):
     """Change the currently selected giveaway recipient as the item owner."""
     item = db.get_or_404(Item, item_id)
@@ -357,6 +368,7 @@ def change_giveaway_recipient(item_id):
 
 @bp.post("/items/<uuid:item_id>/release-to-all")
 @jwt_required()
+@mutation_limit()
 def release_giveaway_to_all(item_id):
     """Return a pending-pickup giveaway to the active interest pool."""
     item = db.get_or_404(Item, item_id)
@@ -366,6 +378,7 @@ def release_giveaway_to_all(item_id):
 
 @bp.post("/items/<uuid:item_id>/confirm-handoff")
 @jwt_required()
+@mutation_limit()
 def confirm_giveaway_handoff(item_id):
     """Mark a pending-pickup giveaway handed off as the item owner."""
     item = db.get_or_404(Item, item_id)

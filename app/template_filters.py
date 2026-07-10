@@ -5,16 +5,16 @@ from jinja2.utils import htmlsafe_json_dumps
 from markupsafe import Markup
 
 
-def utc_timestamp(value, format='datetime'):
+def utc_timestamp(value, format="datetime"):
     """
-    Convert a datetime object to a span element with data attributes for 
+    Convert a datetime object to a span element with data attributes for
     client-side timezone conversion.
-    
+
     Usage in templates:
         {{ some_datetime|utc_timestamp }}
         {{ some_datetime|utc_timestamp('short-datetime') }}
         {{ some_datetime|utc_timestamp('date') }}
-    
+
     Available formats:
         - datetime: "January 24, 2026 at 09:05 PM EST" (default)
         - short-datetime: "Jan 24, 09:05 PM EST"
@@ -23,36 +23,37 @@ def utc_timestamp(value, format='datetime'):
         - time: "09:05 PM EST"
         - compact: "2026-01-24 21:05 EST"
         - message: "Jan 24, 21:05"
-    
+
     Args:
         value: A datetime object (should be in UTC)
         format: The display format to use
-    
+
     Returns:
         A Markup object containing a span with data attributes
     """
     if value is None:
-        return ''
-    
+        return ""
+
     # Convert to ISO format for JavaScript parsing
     # If the datetime is naive (no timezone), we assume it's UTC
     iso_timestamp = value.isoformat()
-    
+
     # Fallback text in case JavaScript doesn't run
     # Use a simple format that works server-side
     try:
-        if format in ('date', 'short-date'):
-            fallback = value.strftime('%B %d, %Y')
-        elif format == 'time':
-            fallback = value.strftime('%I:%M %p UTC')
-        elif format == 'message':
-            fallback = value.strftime('%b %d, %H:%M')
-        elif format == 'compact':
-            fallback = value.strftime('%Y-%m-%d %H:%M UTC')
-        elif format == 'short-datetime':
-            fallback = value.strftime('%b %d, %I:%M %p UTC')
-        elif format == 'timeago':
-            from datetime import datetime, UTC
+        if format in ("date", "short-date"):
+            fallback = value.strftime("%B %d, %Y")
+        elif format == "time":
+            fallback = value.strftime("%I:%M %p UTC")
+        elif format == "message":
+            fallback = value.strftime("%b %d, %H:%M")
+        elif format == "compact":
+            fallback = value.strftime("%Y-%m-%d %H:%M UTC")
+        elif format == "short-datetime":
+            fallback = value.strftime("%b %d, %I:%M %p UTC")
+        elif format == "timeago":
+            from datetime import UTC, datetime
+
             now = datetime.now(UTC)
             # If value is naive, assume UTC but make it aware for comparison
             if value.tzinfo is None:
@@ -70,12 +71,12 @@ def utc_timestamp(value, format='datetime'):
                 days = int(delta.total_seconds() / 86400)
                 fallback = f"{days} day{'s' if days > 1 else ''} ago"
             else:
-                fallback = value.strftime('%b %d, %Y')
+                fallback = value.strftime("%b %d, %Y")
         else:
-            fallback = value.strftime('%B %d, %Y at %I:%M %p UTC')
+            fallback = value.strftime("%B %d, %Y at %I:%M %p UTC")
     except Exception:
         fallback = str(value)
-    
+
     return Markup(
         f'<span data-utc-timestamp="{iso_timestamp}" data-format="{format}">{fallback}</span>'
     )
@@ -83,10 +84,32 @@ def utc_timestamp(value, format='datetime'):
 
 def tojson_images(images):
     """Serialize a list of ItemImage objects to JSON for the multi-image upload component."""
-    return Markup(htmlsafe_json_dumps([{'id': str(img.id), 'url': img.url} for img in images]))
+    return Markup(htmlsafe_json_dumps([{"id": str(img.id), "url": img.url} for img in images]))
+
+
+def truncate(value, length=30):
+    """Truncate a string to the given length, appending '…' if truncated.
+
+    Usage in templates:
+        {{ some_text|truncate }}
+        {{ some_text|truncate(60) }}
+
+    Args:
+        value: The string to truncate.
+        length: Maximum number of characters before truncation (default 30).
+
+    Returns:
+        The truncated string with '…' appended if it exceeded the limit.
+    """
+    if value is None:
+        return ""
+    if len(value) <= length:
+        return value
+    return value[:length] + "…"
 
 
 def register_filters(app):
     """Register all custom template filters with the Flask app."""
-    app.jinja_env.filters['utc_timestamp'] = utc_timestamp
-    app.jinja_env.filters['tojson_images'] = tojson_images
+    app.jinja_env.filters["utc_timestamp"] = utc_timestamp
+    app.jinja_env.filters["tojson_images"] = tojson_images
+    app.jinja_env.filters["truncate"] = truncate
