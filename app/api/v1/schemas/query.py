@@ -70,6 +70,12 @@ class ItemListQuerySchema(PaginationQuerySchema):
     )
 
 
+class MyItemsQuerySchema(PaginationQuerySchema):
+    """Query parameters for listing the authenticated user's own items."""
+
+    q = fields.String(load_default="")
+
+
 class CircleListQuerySchema(PaginationQuerySchema):
     """Query parameters for circle list reads."""
 

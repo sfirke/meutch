@@ -397,6 +397,37 @@ def delete_item(item, acting_user):
     return item
 
 
+def list_user_items(user, search_query=None, page=1, per_page=12):
+    """Return a paginated list of items owned by *user*.
+
+    Args:
+        user: The owner whose items should be listed.
+        search_query: Optional text filter matched against name and description.
+        page: 1-based page number (default 1).
+        per_page: Items per page (default 12).
+
+    Returns:
+        A Flask-SQLAlchemy Pagination object.
+    """
+    from sqlalchemy import or_
+
+    query = Item.query.filter_by(owner_id=user.id)
+
+    if search_query:
+        query = query.filter(
+            or_(
+                Item.name.ilike(f"%{search_query}%"),
+                Item.description.ilike(f"%{search_query}%"),
+            )
+        )
+
+    return query.order_by(Item.created_at.desc()).paginate(
+        page=page,
+        per_page=per_page,
+        error_out=False,
+    )
+
+
 def delete_item_with_cleanup(item):
     image_urls = [image.url for image in item.images]
     # Delete messages via conversation lookup

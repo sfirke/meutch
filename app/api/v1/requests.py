@@ -9,16 +9,18 @@ from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit
 from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
+from app.api.v1.schemas.messaging import MessageResponseSchema
 from app.api.v1.schemas.query import RequestListQuerySchema
 from app.api.v1.schemas.requests import (
     ItemRequestDetailResponseSchema,
     ItemRequestResponseSchema,
     ItemRequestStatusResponseSchema,
     ItemRequestSummarySchema,
+    RequestRespondSchema,
     RequestWritePayloadSchema,
 )
-from app.models import ItemRequest
-from app.services import request_service
+from app.models import Item, ItemRequest
+from app.services import message_service, request_service
 from app.services.exceptions import AuthorizationError
 from app.utils.messaging_queries import build_request_conversation_summaries
 from app.utils.request_queries import build_visible_requests_pagination, can_view_request
@@ -29,6 +31,8 @@ ITEM_REQUEST_DETAIL_RESPONSE_SCHEMA = ItemRequestDetailResponseSchema()
 ITEM_REQUEST_RESPONSE_SCHEMA = ItemRequestResponseSchema()
 ITEM_REQUEST_STATUS_RESPONSE_SCHEMA = ItemRequestStatusResponseSchema()
 REQUEST_WRITE_PAYLOAD_SCHEMA = RequestWritePayloadSchema()
+REQUEST_RESPOND_SCHEMA = RequestRespondSchema()
+MESSAGE_RESPONSE_SCHEMA = MessageResponseSchema()
 DEFAULT_GEOLOCATED_REQUEST_DISTANCE = 20
 
 
@@ -149,3 +153,19 @@ def fulfill_request(request_id):
             }
         }
     )
+
+
+@bp.post("/requests/<uuid:request_id>/respond")
+@jwt_required()
+def respond_to_request(request_id):
+    """Respond to a request by sharing one of the authenticated user's items."""
+    item_request = db.get_or_404(ItemRequest, request_id)
+    data = load_request_data(REQUEST_RESPOND_SCHEMA)
+    item = db.get_or_404(Item, data["item_id"])
+    message = message_service.respond_to_request_with_item(
+        item_request,
+        current_user,
+        item,
+        body=data.get("body"),
+    )
+    return MESSAGE_RESPONSE_SCHEMA.dump({"message": message}), 201

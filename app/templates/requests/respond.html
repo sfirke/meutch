@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Respond to Request{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Back link -->
+    <a href="{{ url_for('requests.detail', request_id=item_request.id) }}" class="btn btn-outline-secondary btn-sm mb-3">
+        <i class="fas fa-arrow-left me-1"></i>Back to Request
+    </a>
+
+    <!-- Request context card -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex align-items-start">
+                <img src="{{ item_request.user.profile_image }}" alt="{{ item_request.user.full_name }}" class="rounded-circle me-3" width="48" height="48">
+                <div>
+                    <h5 class="mb-1">{{ item_request.title }}</h5>
+                    <p class="text-muted mb-1">
+                        <strong>{{ item_request.user.full_name }}</strong> is looking for
+                        {% if item_request.seeking == 'loan' %}a loan{% elif item_request.seeking == 'giveaway' %}a giveaway{% else %}a loan or giveaway{% endif %}
+                    </p>
+                    {% if item_request.description %}
+                        <p class="mb-0 text-body">{{ item_request.description|truncate(150) }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Create bar -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0">Select from your existing items</h4>
+            <p class="text-muted mb-0 small">Choose an item you've already listed to offer in response to this request.</p>
+        </div>
+        <a href="#create-new-section" class="btn btn-outline-success btn-sm">
+            <i class="fas fa-plus me-1"></i>Add new item instead ↓
+        </a>
+    </div>
+
+    <form method="get" action="{{ url_for('requests.respond', request_id=item_request.id) }}" class="mb-3">
+        <div class="input-group">
+            <input type="text" name="q" class="form-control" placeholder="Search your items..." value="{{ search_query }}" aria-label="Search your items">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search me-1"></i>Search
+            </button>
+            {% if search_query %}
+                <a href="{{ url_for('requests.respond', request_id=item_request.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Clear
+                </a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Items grid -->
+    {% if pagination.items %}
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 mb-4">
+            {% for item in pagination.items %}
+                <div class="col">
+                    <div class="card h-100">
+                        {% if item.image %}
+                            <img src="{{ item.image }}" class="card-img-top" alt="{{ item.name }}" style="height: 160px; object-fit: cover;">
+                        {% else %}
+                            <div class="card-img-top d-flex align-items-center justify-content-center bg-light" style="height: 160px;">
+                                <i class="fas fa-image text-muted" style="font-size: 2.5rem;"></i>
+                            </div>
+                        {% endif %}
+                        <div class="card-body d-flex flex-column">
+                            <h6 class="card-title">{{ item.name }}</h6>
+                            {% if item.description %}
+                                <p class="card-text text-muted small flex-grow-1">{{ item.description|truncate(80) }}</p>
+                            {% endif %}
+                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                {% if item.is_giveaway %}
+                                    <span class="badge bg-success"><i class="fas fa-gift me-1"></i>Giveaway</span>
+                                {% else %}
+                                    <span class="badge bg-info"><i class="fas fa-handshake me-1"></i>Loan</span>
+                                {% endif %}
+                                {% if not item.available %}
+                                    <span class="badge bg-warning">Unavailable</span>
+                                {% endif %}
+                            </div>
+                            <a href="{{ url_for('requests.respond_with_item', request_id=item_request.id, item_id=item.id) }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-hand-holding-heart me-1"></i>Select
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if pagination.pages > 1 %}
+            <nav aria-label="Items pagination">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('requests.respond', request_id=item_request.id, q=search_query, page=pagination.prev_num) }}">
+                                <i class="fas fa-chevron-left"></i> Previous
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left"></i> Previous</span></li>
+                    {% endif %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+                    </li>
+                    {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('requests.respond', request_id=item_request.id, q=search_query, page=pagination.next_num) }}">
+                                Next <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">Next <i class="fas fa-chevron-right"></i></span></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+
+        <!-- Option 2: Create new item -->
+        <hr class="my-4">
+        <div id="create-new-section" class="text-center">
+            <h5>Don't see your item?</h5>
+            <p class="text-muted">Is the item not yet listed on Meutch? Add it now so you can offer it in response.</p>
+            <a href="{{ url_for('main.list_item', return_to='respond', request_id=item_request.id) }}" class="btn btn-success">
+                <i class="fas fa-plus me-1"></i>Create New Item
+            </a>
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-box-open text-muted mb-3" style="font-size: 3rem;"></i>
+            {% if search_query %}
+                <h5>No items match "{{ search_query }}"</h5>
+                <p class="text-muted">Try a different search term.</p>
+                <a href="{{ url_for('requests.respond', request_id=item_request.id) }}" class="btn btn-outline-secondary">Clear Search</a>
+            {% else %}
+                <h5>You haven't listed any items yet</h5>
+                <p class="text-muted">Add your first item to respond to this request!</p>
+                <a href="{{ url_for('main.list_item', return_to='respond', request_id=item_request.id) }}" class="btn btn-success">
+                    <i class="fas fa-plus me-1"></i>Create New Item
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

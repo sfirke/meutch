@@ -67,16 +67,30 @@ def list_item():
     form = ListItemForm()
     creation_token = _ensure_item_creation_token(form)
 
+    # Capture return-to params for the "respond to request" flow
+    return_to = request.args.get("return_to") or request.form.get("return_to")
+    return_request_id = request.args.get("request_id") or request.form.get("request_id")
+
     if form.validate_on_submit():
         uploaded_files, upload_errors = _collect_item_image_uploads(form.image.data)
         if upload_errors:
             for error in upload_errors:
                 flash(error, "error")
-            return render_template("main/list_item.html", form=form)
+            return render_template(
+                "main/list_item.html",
+                form=form,
+                return_to=return_to,
+                return_request_id=return_request_id,
+            )
 
         if len(uploaded_files) > MAX_ITEM_IMAGE_COUNT:
             flash(f"You can upload a maximum of {MAX_ITEM_IMAGE_COUNT} images per item.", "error")
-            return render_template("main/list_item.html", form=form)
+            return render_template(
+                "main/list_item.html",
+                form=form,
+                return_to=return_to,
+                return_request_id=return_request_id,
+            )
 
         try:
             creation_result = item_service.create_item(
@@ -92,19 +106,34 @@ def list_item():
             )
         except InformationalError as exc:
             form.giveaway_visibility.errors.append(str(exc))
-            return render_template("main/list_item.html", form=form)
+            return render_template(
+                "main/list_item.html",
+                form=form,
+                return_to=return_to,
+                return_request_id=return_request_id,
+            )
         except ValueError:
             flash(
                 "Image upload failed. Please ensure you upload valid image files (JPG, PNG, GIF, etc.).",
                 "error",
             )
-            return render_template("main/list_item.html", form=form)
+            return render_template(
+                "main/list_item.html",
+                form=form,
+                return_to=return_to,
+                return_request_id=return_request_id,
+            )
         except Exception as exc:
             current_app.logger.error(
                 f"Failed to create item for user {current_user.id}: {str(exc)}"
             )
             flash("We could not save your item. Please try again.", "error")
-            return render_template("main/list_item.html", form=form)
+            return render_template(
+                "main/list_item.html",
+                form=form,
+                return_to=return_to,
+                return_request_id=return_request_id,
+            )
 
         if not creation_result.was_created:
             return _duplicate_item_creation_response(
@@ -119,6 +148,11 @@ def list_item():
             'Item "<a href="{}" class="alert-link">{}</a>" has been listed successfully!'
         ).format(item_link, escape(creation_result.item.name))
 
+        # Redirect back to the respond flow when coming from "I have this item"
+        if return_to == "respond" and return_request_id:
+            flash(message, "success")
+            return redirect(url_for("requests.respond", request_id=return_request_id))
+
         if form.submit_and_create_another.data:
             flash(message, "success")
             return redirect(url_for("main.list_item"))
@@ -126,7 +160,9 @@ def list_item():
         flash(message, "success")
         return redirect(url_for("main.index"))
 
-    return render_template("main/list_item.html", form=form)
+    return render_template(
+        "main/list_item.html", form=form, return_to=return_to, return_request_id=return_request_id
+    )
 
 
 @main_bp.route("/item/<uuid:item_id>", methods=["GET", "POST"])

@@ -6,8 +6,10 @@ from app import db
 from app.models import ConversationParticipant, Message
 from app.services import message_service
 from app.services.exceptions import AuthorizationError, InvalidActionError
+from app.utils.item_share import verify_item_share_token
 from app.utils.messaging_queries import get_or_create_conversation
 from tests.factories import (
+    CircleFactory,
     ConversationFactory,
     ConversationParticipantFactory,
     ItemFactory,
@@ -394,3 +396,118 @@ class TestArchiveService:
             ).first()
             assert participant.is_archived is False
             assert participant.archived_at is None
+
+
+class TestRespondToRequest:
+    """Tests for respond_to_request_with_item and _build_item_url_for_requester."""
+
+    def _build_url(self, item, owner, requester):
+        from app.services.message_service import _build_item_url_for_requester
+
+        return _build_item_url_for_requester(item, owner, requester)
+
+    def test_public_giveaway_gets_giveaway_preview_url(self, app):
+        """Public giveaways should use the public giveaway preview URL."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=True, giveaway_visibility="public")
+
+            url = self._build_url(item, owner, requester)
+
+            assert "/share/giveaway/" in url
+            assert str(item.id) in url
+
+    def test_shared_circle_gets_direct_item_url(self, app):
+        """When owner and requester share a circle, use a direct item URL."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([owner, requester])
+            db.session.commit()
+
+            item = ItemFactory(owner=owner, is_giveaway=False)
+
+            url = self._build_url(item, owner, requester)
+
+            assert "/item/" in url
+            assert str(item.id) in url
+
+    def test_no_shared_circle_gets_share_token_url(self, app):
+        """When requester cannot see the item, a tokenized share-preview URL is used."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=False)
+
+            url = self._build_url(item, owner, requester)
+
+            assert "/share/item/" in url
+            token = url.split("/share/item/")[1]
+            assert token
+            verified_item, error = verify_item_share_token(token)
+            assert error is None
+            assert verified_item.id == item.id
+
+    def test_default_visibility_giveaway_gets_direct_url(self, app):
+        """Default-visibility giveaways are visible to everyone, so use a direct URL."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+
+            url = self._build_url(item, owner, requester)
+
+            assert "/item/" in url
+            assert str(item.id) in url
+
+    def test_respond_to_request_uses_share_token_when_no_shared_circle(self, app):
+        """When requester can't see the item, the generated message includes a share token URL."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=False)
+            item_request = ItemRequestFactory(user=requester, visibility="public")
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                message = message_service.respond_to_request_with_item(
+                    item_request,
+                    owner,
+                    item,
+                )
+
+            assert "/share/item/" in message.body
+            token_part = message.body.split("/share/item/")[1].rstrip()
+            token = token_part.split()[0] if " " in token_part else token_part
+            verified_item, error = verify_item_share_token(token)
+            assert error is None
+            assert verified_item.id == item.id
+
+    def test_respond_to_request_uses_direct_url_when_shared_circle(self, app):
+        """When requester shares a circle with owner, the message includes a direct item URL."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([owner, requester])
+            db.session.commit()
+
+            item = ItemFactory(owner=owner, is_giveaway=False)
+            item_request = ItemRequestFactory(user=requester, visibility="public")
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                message = message_service.respond_to_request_with_item(
+                    item_request,
+                    owner,
+                    item,
+                )
+
+            assert "/item/" in message.body
+            assert str(item.id) in message.body
+            assert "/share/item/" not in message.body

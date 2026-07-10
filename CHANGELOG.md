@@ -12,6 +12,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
   - Frontend changes to finish the work in ([#439](https://github.com/sfirke/meutch/pull/439)).
 
 **Minor**:
+- When answering a request, there's now an option to click "I have this item" and then choose or list it ([#412](https://github.com/sfirke/meutch/pull/412)).
 - On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
 
 ### Developer Experience
