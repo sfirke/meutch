@@ -103,6 +103,8 @@ def respond_to_request_with_item(item_request, sender, item, body=None):
 
     recipient_id = get_request_conversation_recipient_id(item_request, sender)
 
+    conversation = get_or_create_conversation("request", item_request.id, sender.id, recipient_id)
+
     item_url = _build_item_url_for_requester(item, sender, item_request.user)
 
     if body is None:
@@ -113,7 +115,13 @@ def respond_to_request_with_item(item_request, sender, item, body=None):
             item_url=item_url,
         )
 
-    return create_message(sender.id, recipient_id, body, loan_request_id=item_request.id)
+    return create_message(
+        sender.id,
+        recipient_id,
+        body,
+        conversation_id=conversation.id,
+        loan_request_id=item_request.id,
+    )
 
 
 def _commit_and_notify(message, error_prefix):

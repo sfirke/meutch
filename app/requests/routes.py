@@ -308,7 +308,7 @@ def respond_with_item(request_id, item_id):
             return redirect(url_for("requests.respond", request_id=item_request.id))
 
         flash("Your message has been sent.", "success")
-        return redirect(url_for("main.view_conversation", message_id=message.id))
+        return redirect(url_for("main.view_conversation", conversation_id=message.conversation_id))
 
     # Pre-fill the message body on GET
     if request.method == "GET":
