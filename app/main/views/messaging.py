@@ -41,29 +41,68 @@ def messages():
 @login_required
 def bulk_archive():
     conversation_ids = _parse_bulk_ids()
+    page = request.args.get("page", 1, type=int)
+    sort = request.args.get("sort", "newest")
     if conversation_ids:
         message_service.bulk_archive(current_user.id, conversation_ids)
         flash(f"{len(conversation_ids)} conversation(s) archived.", "success")
-    return redirect(url_for("main.messages", status=request.args.get("status", "inbox")))
+    return redirect(
+        url_for("main.messages", page=page, sort=sort, status=request.args.get("status", "inbox"))
+    )
+
+
+@main_bp.route("/messages/bulk-unarchive", methods=["POST"])
+@login_required
+def bulk_unarchive():
+    conversation_ids = _parse_bulk_ids()
+    page = request.args.get("page", 1, type=int)
+    sort = request.args.get("sort", "newest")
+    if conversation_ids:
+        message_service.bulk_unarchive(current_user.id, conversation_ids)
+        flash(f"{len(conversation_ids)} conversation(s) moved to inbox.", "success")
+    return redirect(
+        url_for("main.messages", page=page, sort=sort, status=request.args.get("status", "inbox"))
+    )
 
 
 @main_bp.route("/messages/bulk-mark-read", methods=["POST"])
 @login_required
 def bulk_mark_read():
     conversation_ids = _parse_bulk_ids()
+    page = request.args.get("page", 1, type=int)
+    sort = request.args.get("sort", "newest")
     if conversation_ids:
         message_service.bulk_mark_read(current_user.id, conversation_ids)
         flash(f"{len(conversation_ids)} conversation(s) marked as read.", "success")
-    return redirect(url_for("main.messages", status=request.args.get("status", "inbox")))
+    return redirect(
+        url_for("main.messages", page=page, sort=sort, status=request.args.get("status", "inbox"))
+    )
+
+
+@main_bp.route("/messages/bulk-mark-unread", methods=["POST"])
+@login_required
+def bulk_mark_unread():
+    conversation_ids = _parse_bulk_ids()
+    page = request.args.get("page", 1, type=int)
+    sort = request.args.get("sort", "newest")
+    if conversation_ids:
+        message_service.bulk_mark_unread(current_user.id, conversation_ids)
+        flash(f"{len(conversation_ids)} conversation(s) marked as unread.", "success")
+    return redirect(
+        url_for("main.messages", page=page, sort=sort, status=request.args.get("status", "inbox"))
+    )
 
 
 @main_bp.route("/messages/mark-all-read", methods=["POST"])
 @login_required
 def mark_all_read():
+    page = request.args.get("page", 1, type=int)
+    sort = request.args.get("sort", "newest")
     status = request.args.get("status", "inbox")
     message_service.mark_all_read_in_view(current_user.id, status=status)
-    flash("All visible messages marked as read.", "success")
-    return redirect(url_for("main.messages", status=status))
+    view_label = "inbox" if status == "inbox" else "archived"
+    flash(f"Entire {view_label} marked as read.", "success")
+    return redirect(url_for("main.messages", page=page, sort=sort, status=status))
 
 
 def _parse_bulk_ids():
@@ -194,6 +233,8 @@ def view_conversation(conversation_id):
         has_unread_messages=has_unread_messages,
         fulfillable_request=fulfillable_request,
         request_fulfill_form=request_fulfill_form,
+        viewer_participant=viewer_participant,
+        conversation=conversation,
     )
 
 

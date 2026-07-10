@@ -298,7 +298,14 @@ def sort_conversation_summaries(summaries, sort_by="newest"):
     if sort_by == "oldest":
         return sorted(summaries, key=lambda s: s["latest_message"].timestamp)
     if sort_by == "unread":
-        return sorted(summaries, key=lambda s: s["unread_count"], reverse=True)
+        # Unread first, then read; within each group newest first.
+        return sorted(
+            summaries,
+            key=lambda s: (
+                0 if s["unread_count"] > 0 else 1,
+                -s["latest_message"].timestamp.timestamp(),
+            ),
+        )
     if sort_by == "name_asc":
         return sorted(
             summaries,
@@ -307,8 +314,8 @@ def sort_conversation_summaries(summaries, sort_by="newest"):
                 s["other_user"].last_name if s["other_user"] else "",
             ),
         )
-    # newest (default) — already sorted by timestamp DESC from query
-    return summaries
+    # newest (default) — sort by timestamp DESC
+    return sorted(summaries, key=lambda s: s["latest_message"].timestamp, reverse=True)
 
 
 def filter_by_archive_status(summaries, status):

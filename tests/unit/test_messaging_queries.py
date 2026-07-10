@@ -201,11 +201,13 @@ class TestSortConversationSummaries:
             now = datetime.now(UTC)
             summaries = [
                 _make_summary("c1", None, now, unread_count=2),
-                _make_summary("c2", None, now, unread_count=5),
+                _make_summary("c2", None, now - timedelta(minutes=1), unread_count=5),
                 _make_summary("c3", None, now, unread_count=0),
             ]
             sorted_summaries = sort_conversation_summaries(summaries, "unread")
-            assert [s["conversation_id"] for s in sorted_summaries] == ["c2", "c1", "c3"]
+            # Unread first (c1, c2), then read (c3).
+            # Within unread group: newest first (c1 > c2).
+            assert [s["conversation_id"] for s in sorted_summaries] == ["c1", "c2", "c3"]
 
     def test_name_asc_order(self, app):
         with app.app_context():
