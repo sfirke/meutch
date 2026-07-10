@@ -30,9 +30,12 @@
 
     <!-- Search and Create bar -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0">Your Items</h4>
-        <a href="{{ url_for('main.list_item', return_to='respond', request_id=item_request.id) }}" class="btn btn-success">
-            <i class="fas fa-plus me-1"></i>Create New Item
+        <div>
+            <h4 class="mb-0">Select from your existing items</h4>
+            <p class="text-muted mb-0 small">Choose an item you've already listed to offer in response to this request.</p>
+        </div>
+        <a href="#create-new-section" class="btn btn-outline-success btn-sm">
+            <i class="fas fa-plus me-1"></i>Add new item instead ↓
         </a>
     </div>
 
@@ -115,6 +118,16 @@
                 </ul>
             </nav>
         {% endif %}
+
+        <!-- Option 2: Create new item -->
+        <hr class="my-4">
+        <div id="create-new-section" class="text-center">
+            <h5>Don't see your item?</h5>
+            <p class="text-muted">Is the item not yet listed on Meutch? Add it now so you can offer it in response.</p>
+            <a href="{{ url_for('main.list_item', return_to='respond', request_id=item_request.id) }}" class="btn btn-success">
+                <i class="fas fa-plus me-1"></i>Create New Item
+            </a>
+        </div>
     {% else %}
         <div class="text-center py-5">
             <i class="fas fa-box-open text-muted mb-3" style="font-size: 3rem;"></i>
@@ -124,7 +137,7 @@
                 <a href="{{ url_for('requests.respond', request_id=item_request.id) }}" class="btn btn-outline-secondary">Clear Search</a>
             {% else %}
                 <h5>You haven't listed any items yet</h5>
-                <p class="text-muted">Create one to respond to this request!</p>
+                <p class="text-muted">Add your first item to respond to this request!</p>
                 <a href="{{ url_for('main.list_item', return_to='respond', request_id=item_request.id) }}" class="btn btn-success">
                     <i class="fas fa-plus me-1"></i>Create New Item
                 </a>
