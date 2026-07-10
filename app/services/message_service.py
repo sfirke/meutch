@@ -120,7 +120,6 @@ def respond_to_request_with_item(item_request, sender, item, body=None):
         recipient_id,
         body,
         conversation_id=conversation.id,
-        loan_request_id=item_request.id,
     )
 
 
