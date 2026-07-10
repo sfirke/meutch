@@ -1794,7 +1794,7 @@ class TestMessagingRoutes:
             ConversationParticipantFactory(conversation=conversation, user=sender)
             ConversationParticipantFactory(conversation=conversation, user=recipient)
             MessageFactory(
-                sender=sender, recipient=recipient, conversation=conversation, is_read=True
+                sender=sender, recipient=recipient, conversation=conversation, is_read=False
             )
             db.session.commit()
 
