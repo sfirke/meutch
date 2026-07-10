@@ -2,6 +2,8 @@
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from app import db
 from app.models import ConversationParticipant, Message
 from tests.factories import (
@@ -303,6 +305,53 @@ class TestApiMessaging:
         assert response.status_code == 403
         assert response.get_json()["error"]["code"] == "FORBIDDEN"
 
+    def test_reply_success_returns_new_message(self, client, app):
+        with app.app_context():
+            sender = UserFactory(email_confirmed=True)
+            recipient = UserFactory(email_confirmed=True)
+            item = ItemFactory(owner=sender)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            ConversationParticipantFactory(conversation=conversation, user=sender)
+            ConversationParticipantFactory(conversation=conversation, user=recipient)
+            first_message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                body="Interested in borrowing this.",
+                is_read=True,
+            )
+            db.session.commit()
+            access_token = login_api_user(client, recipient.email)
+            message_id = first_message.id
+            recipient_id = str(recipient.id)
+            sender_id = str(sender.id)
+            conv_id = conversation.id
+            recipient_pk = recipient.id
+            sender_pk = sender.id
+
+        response = client.post(
+            f"/api/v1/messages/{message_id}/reply",
+            json={"body": "Sure, you can borrow it."},
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 201
+        payload = response.get_json()
+
+        assert payload["message"]["body"] == "Sure, you can borrow it."
+        assert payload["message"]["sender"]["id"] == recipient_id
+        assert payload["message"]["recipient"]["id"] == sender_id
+
+        with app.app_context():
+            db.session.expire_all()
+            created_message = Message.query.filter(
+                Message.conversation_id == conv_id,
+                Message.body == "Sure, you can borrow it.",
+            ).first()
+            assert created_message is not None
+            assert created_message.sender_id == recipient_pk
+            assert created_message.recipient_id == sender_pk
+
     def test_messages_list_requires_authentication(self, client, app):
         response = client.get("/api/v1/messages")
 
@@ -427,6 +476,31 @@ class TestApiConversationArchive:
         with app.app_context():
             assert db.session.get(Message, m1_id).is_read is True
             assert db.session.get(Message, m2_id).is_read is True
+
+    @pytest.mark.parametrize(
+        "endpoint",
+        [
+            "/api/v1/conversations/bulk-archive",
+            "/api/v1/conversations/bulk-mark-read",
+        ],
+    )
+    def test_bulk_endpoint_requires_conversation_ids(self, client, app, endpoint):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+
+        # Missing conversation_ids
+        response = client.post(endpoint, json={}, headers=auth_headers(access_token))
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "conversation_ids is required"
+
+        # Empty list
+        response = client.post(
+            endpoint, json={"conversation_ids": []}, headers=auth_headers(access_token)
+        )
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "conversation_ids is required"
 
     def test_mark_all_read_inbox_scoped(self, client, app):
         with app.app_context():
