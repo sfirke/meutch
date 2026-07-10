@@ -6,8 +6,10 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Major**:
-- Refactor messages infrastructure to create conversations, enabling archiving of messages and an overhaul of the inbox with pagination, sorting, and bulk actions to mark-read and archive ([#436](https://github.com/sfirke/meutch/pull/436)), ([#438](https://github.com/sfirke/meutch/pull/438)).
-- Redo inbox, adding archiving and mark read/unread functionality ([#439](https://github.com/sfirke/meutch/pull/439)).
+- Refactor messages infrastructure to create conversations, enabling archiving of messages and an overhaul of the inbox with pagination, sorting, and bulk actions to mark-read and archive:
+  - Revised database schema in ([#436](https://github.com/sfirke/meutch/pull/436))
+  - New inbox backend functionality in ([#438](https://github.com/sfirke/meutch/pull/438)).
+  - Frontend changes to finish the work in ([#439](https://github.com/sfirke/meutch/pull/439)).
 
 **Minor**:
 - On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
