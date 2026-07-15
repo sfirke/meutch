@@ -234,20 +234,15 @@ def conversation(request_id):
 def respond(request_id):
     """Browse the current user's items to respond to a request."""
     item_request = db.session.get(ItemRequest, request_id)
-    if not item_request or item_request.status == "deleted":
+    if not item_request:
         abort(404)
 
-    if item_request.user_id == current_user.id:
-        flash("You cannot respond to your own request.", "warning")
-        return redirect(url_for("requests.detail", request_id=item_request.id))
-
-    if item_request.status != "open" or item_request.is_expired:
-        flash("This request is no longer open.", "warning")
-        return redirect(url_for("requests.detail", request_id=item_request.id))
-
     try:
-        message_service.get_request_conversation_recipient_id(item_request, current_user)
-    except (InvalidActionError, AuthorizationError):
+        message_service.validate_respond_access(item_request, current_user)
+    except InvalidActionError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("requests.detail", request_id=item_request.id))
+    except AuthorizationError:
         abort(403)
 
     search_query = request.args.get("q", "").strip() or None
@@ -274,25 +269,20 @@ def respond(request_id):
 def respond_with_item(request_id, item_id):
     """Compose a message responding to a request with a specific item."""
     item_request = db.session.get(ItemRequest, request_id)
-    if not item_request or item_request.status == "deleted":
+    if not item_request:
         abort(404)
 
-    if item_request.user_id == current_user.id:
-        flash("You cannot respond to your own request.", "warning")
+    try:
+        message_service.validate_respond_access(item_request, current_user)
+    except InvalidActionError as exc:
+        flash(str(exc), "warning")
         return redirect(url_for("requests.detail", request_id=item_request.id))
-
-    if item_request.status != "open" or item_request.is_expired:
-        flash("This request is no longer open.", "warning")
-        return redirect(url_for("requests.detail", request_id=item_request.id))
+    except AuthorizationError:
+        abort(403)
 
     item = db.session.get(Item, item_id)
     if not item or item.owner_id != current_user.id:
         abort(404)
-
-    try:
-        message_service.get_request_conversation_recipient_id(item_request, current_user)
-    except (InvalidActionError, AuthorizationError):
-        abort(403)
 
     form = MessageForm()
     if form.validate_on_submit():
@@ -312,17 +302,10 @@ def respond_with_item(request_id, item_id):
 
     # Pre-fill the message body on GET
     if request.method == "GET":
-        from app.services.message_service import (
-            _RESPOND_BODY_TEMPLATE,
-            _build_item_url_for_requester,
-        )
-
-        item_url = _build_item_url_for_requester(item, current_user, item_request.user)
-        form.body.data = _RESPOND_BODY_TEMPLATE.format(
-            requester_name=item_request.user.full_name,
-            item_name=item.name,
-            request_title=item_request.title,
-            item_url=item_url,
+        form.body.data = message_service.build_respond_message_body(
+            item_request,
+            current_user,
+            item,
         )
 
     return render_template(

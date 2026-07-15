@@ -54,6 +54,26 @@ def start_request_conversation(item_request, sender, body):
     return create_message(sender.id, recipient_id, body, conversation_id=conversation.id)
 
 
+def validate_respond_access(item_request, sender):
+    """Validate that *sender* can respond to *item_request*.
+
+    Returns the requester's user ID (the message recipient) on success.
+
+    Raises:
+        InvalidActionError: if the request is deleted, closed, expired,
+            or if *sender* is the requester.
+        AuthorizationError: if *sender* doesn't have permission to
+            message the requester.
+    """
+    if item_request.status == "deleted":
+        raise InvalidActionError("This request has been deleted.")
+
+    if item_request.status != "open" or item_request.is_expired:
+        raise InvalidActionError("This request is no longer open.")
+
+    return get_request_conversation_recipient_id(item_request, sender)
+
+
 def _build_item_url_for_requester(item, item_owner, requester):
     """Return the best URL so *requester* can view *item*.
 
@@ -78,6 +98,22 @@ _RESPOND_BODY_TEMPLATE = (
 )
 
 
+def build_respond_message_body(item_request, sender, item):
+    """Build the default message body for responding to *item_request* with *item*.
+
+    Returns the formatted message body string that includes an
+    appropriate item URL based on whether *sender* and the requester
+    share a circle.
+    """
+    item_url = _build_item_url_for_requester(item, sender, item_request.user)
+    return _RESPOND_BODY_TEMPLATE.format(
+        requester_name=item_request.user.full_name,
+        item_name=item.name,
+        request_title=item_request.title,
+        item_url=item_url,
+    )
+
+
 def respond_to_request_with_item(item_request, sender, item, body=None):
     """Respond to *item_request* by sharing *item* with the requester.
 
@@ -95,25 +131,15 @@ def respond_to_request_with_item(item_request, sender, item, body=None):
     Returns:
         The newly created :class:`Message`.
     """
-    if item_request.status != "open" or item_request.is_expired:
-        raise InvalidActionError("This request is no longer open.")
-
     if item.owner_id != sender.id:
         raise AuthorizationError("You can only respond with your own items.")
 
-    recipient_id = get_request_conversation_recipient_id(item_request, sender)
+    recipient_id = validate_respond_access(item_request, sender)
 
     conversation = get_or_create_conversation("request", item_request.id, sender.id, recipient_id)
 
-    item_url = _build_item_url_for_requester(item, sender, item_request.user)
-
     if body is None:
-        body = _RESPOND_BODY_TEMPLATE.format(
-            requester_name=item_request.user.full_name,
-            item_name=item.name,
-            request_title=item_request.title,
-            item_url=item_url,
-        )
+        body = build_respond_message_body(item_request, sender, item)
 
     return create_message(
         sender.id,
