@@ -1189,10 +1189,10 @@ class TestRequestConversations:
             assert b"Choose Recipient" not in response.data
             assert b"Give Item to This User" not in response.data
 
-    def test_view_conversation_unclaimed_giveaway_hides_quick_select_when_user_not_interested(
+    def test_view_conversation_unclaimed_giveaway_shows_quick_select_even_without_prior_interest(
         self, client, app
     ):
-        """Owner should not get the quick-select CTA if the conversation partner is not in the pool."""
+        """Owner should see the quick-select card even if the partner hasn't formally expressed interest."""
         with app.app_context():
             owner = UserFactory()
             chatter = UserFactory()
@@ -1214,8 +1214,9 @@ class TestRequestConversations:
             response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
-            assert b"Choose Recipient" not in response.data
-            assert b"Give Item to This User" not in response.data
+            # Card should now show for any unclaimed giveaway conversation (owner view)
+            assert b"Choose Recipient" in response.data
+            assert b"Give Item to This User" in response.data
 
 
 class TestRequestNavigation:

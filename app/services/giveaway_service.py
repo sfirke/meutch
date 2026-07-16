@@ -146,7 +146,24 @@ def _finalize_recipient_selection(item, selected_interest, sender_id):
     return selected_interest
 
 
-def express_interest(item, user_id, message_text):
+def express_interest(item, user_id, message_text, send_notification=True):
+    """Record a user's interest in claiming a giveaway item.
+
+    Args:
+        item: The giveaway Item.
+        user_id: UUID of the interested user.
+        message_text: Optional message from the user.
+        send_notification: If True (default), auto-sends a notification message
+            to the owner. Set to False when the caller has already sent a message
+            (e.g. from the item detail message form) to avoid duplicates.
+
+    Returns:
+        The GiveawayInterest record (new or existing).
+
+    Raises:
+        InvalidActionError: If the item is not a giveaway.
+        ConflictError: If the item is no longer available or the user is the owner.
+    """
     if not item.is_giveaway:
         raise InvalidActionError("This item is not a giveaway.")
 
@@ -157,11 +174,15 @@ def express_interest(item, user_id, message_text):
         raise ConflictError("You cannot express interest in your own giveaway.")
 
     cleaned_message = message_text.strip() if message_text else None
-    notification_body = cleaned_message or f"Hi! I'm interested in your giveaway '{item.name}'."
 
     existing = GiveawayInterest.query.filter_by(item_id=item.id, user_id=user_id).first()
     if existing:
-        raise ConflictError("You have already expressed interest in this giveaway.")
+        # Already expressed interest — update message if provided.
+        # Never downgrade a "selected" status; that would undo the owner's choice.
+        if cleaned_message:
+            existing.message = cleaned_message
+        db.session.commit()
+        return existing
 
     interest = GiveawayInterest(
         item_id=item.id,
@@ -171,13 +192,17 @@ def express_interest(item, user_id, message_text):
     )
     db.session.add(interest)
 
-    conversation = get_or_create_conversation("item", item.id, user_id, item.owner_id)
-    message_service.create_message(
-        user_id,
-        item.owner_id,
-        notification_body,
-        conversation_id=conversation.id,
-    )
+    if send_notification:
+        notification_body = cleaned_message or f"Hi! I'm interested in your giveaway '{item.name}'."
+        conversation = get_or_create_conversation("item", item.id, user_id, item.owner_id)
+        message_service.create_message(
+            user_id,
+            item.owner_id,
+            notification_body,
+            conversation_id=conversation.id,
+        )
+
+    db.session.commit()
     return interest
 
 
@@ -208,19 +233,36 @@ def select_recipient(item, owner_id, selection_method, selected_user_id=None):
         .order_by(GiveawayInterest.created_at)
         .all()
     )
-    if not active_interests:
-        raise ConflictError("No interested users found.")
 
+    # These empty-interest checks are vestigial in practice —
+    # express_interest() is now called automatically when someone messages
+    # about a giveaway (see message_service.py). Every new conversation has
+    # an active GiveawayInterest record by the time the owner selects.
+    # TODO: Remove these guards once there are no legacy items (same
+    #       timeline as messaging.py's giveaway_selection_direct removal;
+    #       see TODO in app/main/views/messaging.py).
     if selection_method == "first":
+        if not active_interests:
+            raise ConflictError("No interested users found.")
         selected_interest = active_interests[0]
     elif selection_method == "random":
+        if not active_interests:
+            raise ConflictError("No interested users found.")
         selected_interest = random.choice(active_interests)
     elif selection_method == "manual":
+        if selected_user_id is None:
+            raise InvalidActionError("A user must be specified for manual selection.")
         selected_interest = GiveawayInterest.query.filter_by(
             item_id=item.id,
             user_id=selected_user_id,
             status="active",
         ).first()
+        if not selected_interest:
+            # Create interest on-the-fly for direct selections from conversations.
+            # The owner explicitly chose this person — no prior formal interest needed.
+            selected_interest = express_interest(
+                item, selected_user_id, None, send_notification=False
+            )
     else:
         raise InvalidActionError("Invalid selection. Please try again.")
 
@@ -351,5 +393,22 @@ def confirm_handoff(item, owner_id):
 
     item.claim_status = "claimed"
     item.claimed_at = datetime.now(UTC)
+    item.available = False
+    db.session.commit()
+
+
+def mark_given_away(item, owner_id):
+    if item.owner_id != owner_id:
+        raise AuthorizationError("You do not have permission to manage this giveaway.")
+
+    if not item.is_giveaway:
+        raise InvalidActionError("This item is not a giveaway.")
+
+    if item.claim_status not in [None, "unclaimed"]:
+        raise ConflictError("This giveaway is no longer available.")
+
+    item.claim_status = "claimed"
+    item.claimed_at = datetime.now(UTC)
+    item.claimed_by_id = None
     item.available = False
     db.session.commit()

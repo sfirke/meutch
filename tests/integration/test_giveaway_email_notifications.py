@@ -13,7 +13,7 @@ from unittest.mock import patch
 from app import db
 from app.models import Conversation, GiveawayInterest, Message
 from conftest import login_user
-from tests.factories import CategoryFactory, CircleFactory, ItemFactory, UserFactory
+from tests.factories import CategoryFactory, ItemFactory, UserFactory
 
 
 class TestGiveawaySelectionEmail:
@@ -313,63 +313,6 @@ class TestGiveawayReassignmentEmail:
                 # Verify reassignment still happened
                 db.session.refresh(giveaway)
                 assert giveaway.claimed_by_id == new_recipient.id
-
-
-class TestGiveawayInterestEmail:
-    """Test that owner gets both in-app message and email on interest expression."""
-
-    def test_owner_notified_on_public_giveaway_express_interest(self, client, app, auth_user):
-        """Test that public giveaway owner receives in-app message and email when interest is expressed."""
-        with app.app_context():
-            owner = UserFactory()
-            requester = auth_user()
-            circle = CircleFactory()
-            circle.members.append(owner)
-            circle.members.append(requester)
-            category = CategoryFactory()
-
-            giveaway = ItemFactory(
-                owner=owner,
-                category=category,
-                is_giveaway=True,
-                giveaway_visibility="public",
-                claim_status="unclaimed",
-            )
-            db.session.commit()
-
-            login_user(client, requester.email)
-
-            with patch(
-                "app.services.message_service.send_message_notification_email"
-            ) as mock_email:
-                mock_email.return_value = True
-
-                response = client.post(
-                    f"/item/{giveaway.id}/express-interest",
-                    data={"message": "I would love this item!"},
-                    follow_redirects=True,
-                )
-
-                assert response.status_code == 200
-                assert b"Your interest has been recorded" in response.data
-
-                # Verify owner received in-app message
-                notification = (
-                    Message.query.join(Conversation)
-                    .filter(
-                        Conversation.context_type == "item",
-                        Conversation.context_id == giveaway.id,
-                        Message.sender_id == requester.id,
-                        Message.recipient_id == owner.id,
-                    )
-                    .first()
-                )
-                assert notification is not None
-                assert notification.body == "I would love this item!"
-
-                # Verify email was sent with created message
-                mock_email.assert_called_once()
-                assert mock_email.call_args[0][0].id == notification.id
 
 
 class TestGiveawayReleaseEmail:

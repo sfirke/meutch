@@ -11,8 +11,6 @@ from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.items import (
     GiveawayInterestCollectionResponseSchema,
-    GiveawayInterestCreateSchema,
-    GiveawayInterestMutationResponseSchema,
     GiveawayInterestWithdrawResponseSchema,
     GiveawayItemResponseSchema,
     GiveawayRecipientChangeSchema,
@@ -45,10 +43,8 @@ ITEM_IMAGES_UPLOAD_SCHEMA = ItemImagesUploadSchema()
 ITEM_IMAGE_ORDER_SCHEMA = ItemImageOrderSchema()
 ITEM_DELETE_RESPONSE_SCHEMA = ItemDeleteResponseSchema()
 GIVEAWAY_INTEREST_COLLECTION_RESPONSE_SCHEMA = GiveawayInterestCollectionResponseSchema()
-GIVEAWAY_INTEREST_CREATE_SCHEMA = GiveawayInterestCreateSchema()
 GIVEAWAY_RECIPIENT_SELECTION_SCHEMA = GiveawayRecipientSelectionSchema()
 GIVEAWAY_RECIPIENT_CHANGE_SCHEMA = GiveawayRecipientChangeSchema()
-GIVEAWAY_INTEREST_MUTATION_RESPONSE_SCHEMA = GiveawayInterestMutationResponseSchema()
 GIVEAWAY_INTEREST_WITHDRAW_RESPONSE_SCHEMA = GiveawayInterestWithdrawResponseSchema()
 GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA = GiveawayRecipientMutationResponseSchema()
 GIVEAWAY_ITEM_RESPONSE_SCHEMA = GiveawayItemResponseSchema()
@@ -278,20 +274,6 @@ def list_giveaway_interests(item_id):
     return _serialize_giveaway_interest_collection(item)
 
 
-@bp.post("/items/<uuid:item_id>/interest")
-@jwt_required()
-@mutation_limit()
-def express_interest(item_id):
-    """Express interest in a giveaway item visible to the authenticated user."""
-    item = db.get_or_404(Item, item_id)
-    _build_item_access_state_or_raise(item)
-    data = load_request_data(GIVEAWAY_INTEREST_CREATE_SCHEMA)
-    interest = giveaway_service.express_interest(item, current_user.id, data["message"])
-    return GIVEAWAY_INTEREST_MUTATION_RESPONSE_SCHEMA.dump(
-        {"interest": interest, "item": _prepare_item_resource(item)}
-    ), 201
-
-
 @bp.delete("/items/<uuid:item_id>/interest")
 @jwt_required()
 @mutation_limit()
@@ -364,4 +346,20 @@ def confirm_giveaway_handoff(item_id):
     """Mark a pending-pickup giveaway handed off as the item owner."""
     item = db.get_or_404(Item, item_id)
     giveaway_service.confirm_handoff(item, current_user.id)
+    return GIVEAWAY_ITEM_RESPONSE_SCHEMA.dump({"item": _prepare_item_resource(item)})
+
+
+@bp.post("/items/<uuid:item_id>/mark-given-away")
+@jwt_required()
+@mutation_limit()
+def mark_giveaway_given_away(item_id):
+    """Mark a giveaway as rehomed without recording a specific recipient.
+
+    Use this for items given away outside the app (no in-app interest or
+    messages).  Requires the item to be in an unclaimed state.
+    """
+    item = db.get_or_404(Item, item_id)
+
+    giveaway_service.mark_given_away(item, current_user.id)
+
     return GIVEAWAY_ITEM_RESPONSE_SCHEMA.dump({"item": _prepare_item_resource(item)})
