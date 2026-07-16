@@ -389,3 +389,20 @@ def confirm_handoff(item, owner_id):
     item.claimed_at = datetime.now(UTC)
     item.available = False
     db.session.commit()
+
+
+def mark_given_away(item, owner_id):
+    if item.owner_id != owner_id:
+        raise AuthorizationError("You do not have permission to manage this giveaway.")
+
+    if not item.is_giveaway:
+        raise InvalidActionError("This item is not a giveaway.")
+
+    if item.claim_status not in [None, "unclaimed"]:
+        raise ConflictError("This giveaway is no longer available.")
+
+    item.claim_status = "claimed"
+    item.claimed_at = datetime.now(UTC)
+    item.claimed_by_id = None
+    item.available = False
+    db.session.commit()

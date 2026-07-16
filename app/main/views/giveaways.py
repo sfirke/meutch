@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from uuid import UUID
 
 from flask import current_app, flash, redirect, render_template, request, url_for
@@ -367,7 +366,6 @@ def release_to_all(item_id):
             "The giveaway has been released and will reappear in the feed. All interested users remain in the pool.",
             "success",
         )
-        return redirect(url_for("main.item_detail", item_id=item.id))
 
     return redirect(url_for("main.item_detail", item_id=item.id))
 
@@ -405,7 +403,6 @@ def confirm_handoff(item_id):
             f"Handoff complete! The giveaway has been successfully given to {recipient_name}.",
             "success",
         )
-        return redirect(url_for("main.item_detail", item_id=item.id))
 
     return redirect(url_for("main.item_detail", item_id=item.id))
 
@@ -437,11 +434,9 @@ def mark_given_away(item_id):
         return redirect(url_for("main.item_detail", item_id=item.id))
 
     try:
-        item.claim_status = "claimed"
-        item.claimed_at = datetime.now(UTC)
-        item.claimed_by_id = None
-        item.available = False
-        db.session.commit()
+        giveaway_service.mark_given_away(item, current_user.id)
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
     except Exception as exc:
         current_app.logger.error(f"Error marking giveaway {item_id} as given away: {str(exc)}")
         flash("An error occurred. Please try again.", "danger")
@@ -450,6 +445,5 @@ def mark_given_away(item_id):
             "Your item has been marked as rehomed. Thanks for sharing with your community!",
             "success",
         )
-        return redirect(url_for("main.item_detail", item_id=item.id))
 
     return redirect(url_for("main.item_detail", item_id=item.id))
