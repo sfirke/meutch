@@ -265,7 +265,7 @@ class TestApiGiveawayInterestMutations:
 
         assert response.status_code == 404
 
-    def test_duplicate_interest_is_rejected_without_duplicate_rows(self, client, app):
+    def test_duplicate_interest_is_idempotent_without_duplicate_rows(self, client, app):
         with app.app_context():
             owner = UserFactory()
             requester = UserFactory(email_confirmed=True)
@@ -287,13 +287,18 @@ class TestApiGiveawayInterestMutations:
             json={"message": "Another try."},
         )
 
-        assert response.status_code == 409
-        assert response.get_json()["error"]["code"] == "CONFLICT"
+        # Duplicate interest is now idempotent — returns success instead of conflict
+        assert response.status_code == 201
 
         with app.app_context():
             assert (
                 GiveawayInterest.query.filter_by(item_id=item_id, user_id=requester_id).count() == 1
             )
+            interest = GiveawayInterest.query.filter_by(
+                item_id=item_id, user_id=requester_id
+            ).first()
+            # Message should be updated to the new one
+            assert interest.message == "Another try."
 
     def test_withdraw_interest_removes_existing_interest(self, client, app):
         with app.app_context():

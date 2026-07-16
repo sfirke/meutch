@@ -935,8 +935,8 @@ class TestGiveawayInterestExpression:
             ).first()
             assert interest is None
 
-    def test_cannot_express_interest_twice(self, client, app, auth_user):
-        """Test user cannot express interest twice in the same giveaway."""
+    def test_express_interest_is_idempotent(self, client, app, auth_user):
+        """Test that expressing interest twice is idempotent — second call succeeds."""
         with app.app_context():
             owner = UserFactory()
             user = auth_user()
@@ -959,12 +959,11 @@ class TestGiveawayInterestExpression:
             )
             assert response1.status_code == 200
 
-            # Second attempt should fail
+            # Second attempt should also succeed (not fail)
             response2 = client.post(
                 f"/item/{giveaway.id}/express-interest", data={}, follow_redirects=True
             )
             assert response2.status_code == 200
-            assert b"already expressed interest" in response2.data
 
             # Verify only one interest record exists
             count = GiveawayInterest.query.filter_by(item_id=giveaway.id, user_id=user.id).count()
@@ -1408,8 +1407,8 @@ class TestConversationGiveawaySelection:
             assert giveaway.claim_status == "unclaimed"
             assert giveaway.claimed_by_id is None
 
-    def test_cannot_select_non_interested_user_from_conversation(self, client, app, auth_user):
-        """Conversation quick-select should reject users who are not active in the pool."""
+    def test_can_select_conversation_partner_without_prior_interest(self, client, app, auth_user):
+        """Conversation quick-select should create interest on-the-fly for messaging-only users."""
         with app.app_context():
             owner = auth_user()
             requester = UserFactory()
@@ -1438,10 +1437,10 @@ class TestConversationGiveawaySelection:
             )
 
             assert response.status_code == 200
-            assert b"not currently in the interested-user pool" in response.data
             db.session.refresh(giveaway)
-            assert giveaway.claim_status == "unclaimed"
-            assert giveaway.claimed_by_id is None
+            # Interest should be created on-the-fly and recipient selected
+            assert giveaway.claim_status == "pending_pickup"
+            assert giveaway.claimed_by_id == requester.id
 
     def test_cannot_select_from_conversation_once_pickup_is_pending(self, client, app, auth_user):
         """Quick-select route should refuse giveaways that already moved past selection."""

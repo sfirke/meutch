@@ -252,7 +252,11 @@
             </h5>
         </div>
         <div class="card-body">
-            {% if giveaway_selection_interested_count == 1 %}
+            {% if giveaway_selection_direct %}
+                <p class="mb-3">
+                    <strong>{{ thread_messages[0].other_user.full_name }}</strong> messaged you about this giveaway. If you've arranged to give it to them, you can select them as the recipient here.
+                </p>
+            {% elif giveaway_selection_interested_count == 1 %}
                 <p class="mb-3">
                     <strong>{{ thread_messages[0].other_user.full_name }}</strong> is currently the only interested user for this giveaway. You can give it to them here without leaving the conversation.
                 </p>
@@ -269,9 +273,11 @@
                         <i class="fas fa-gift me-1"></i>Give Item to This User
                     </button>
                 </form>
+                {% if giveaway_selection_interested_count > 0 %}
                 <a href="{{ url_for('main.select_recipient', item_id=giveaway_selection_item.id) }}" class="btn btn-outline-secondary">
                     <i class="fas fa-users me-1"></i>View Interested Users
                 </a>
+                {% endif %}
             </div>
         </div>
     </div>

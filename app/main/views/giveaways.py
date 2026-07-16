@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from flask import current_app, flash, redirect, render_template, request, url_for
@@ -236,20 +237,6 @@ def give_to_user(item_id, user_id):
             )
         )
 
-    selected_interest = GiveawayInterest.query.filter_by(
-        item_id=item.id,
-        user_id=user_id,
-        status="active",
-    ).first()
-    if not selected_interest:
-        flash("This user is not currently in the interested-user pool.", "warning")
-        return redirect(
-            url_for(
-                "main.view_conversation",
-                conversation_id=conversation_message.conversation_id,
-            )
-        )
-
     try:
         selected_interest = giveaway_service.select_recipient(
             item, current_user.id, "manual", user_id
@@ -441,6 +428,51 @@ def confirm_handoff(item_id):
         recipient_name = item.claimed_by_name
         flash(
             f"Handoff complete! The giveaway has been successfully given to {recipient_name}.",
+            "success",
+        )
+        return redirect(url_for("main.item_detail", item_id=item.id))
+
+    return redirect(url_for("main.item_detail", item_id=item.id))
+
+
+@main_bp.route("/item/<uuid:item_id>/mark-given-away", methods=["POST"])
+@login_required
+def mark_given_away(item_id):
+    """Owner marks a giveaway as handed off without recording a specific recipient.
+
+    Use this for items given away outside the app (no in-app interest or messages).
+    """
+    item = db.get_or_404(Item, item_id)
+
+    if item.owner_id != current_user.id:
+        flash("You do not have permission to manage this giveaway.", "danger")
+        return redirect(url_for("main.item_detail", item_id=item.id))
+
+    if not item.is_giveaway:
+        flash("This item is not a giveaway.", "danger")
+        return redirect(url_for("main.item_detail", item_id=item.id))
+
+    if item.claim_status not in [None, "unclaimed"]:
+        flash("This giveaway is no longer available.", "warning")
+        return redirect(url_for("main.item_detail", item_id=item.id))
+
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Invalid request.", "danger")
+        return redirect(url_for("main.item_detail", item_id=item.id))
+
+    try:
+        item.claim_status = "claimed"
+        item.claimed_at = datetime.now(UTC)
+        item.claimed_by_id = None
+        item.available = False
+        db.session.commit()
+    except Exception as exc:
+        current_app.logger.error(f"Error marking giveaway {item_id} as given away: {str(exc)}")
+        flash("An error occurred. Please try again.", "danger")
+    else:
+        flash(
+            "Your item has been marked as rehomed. Thanks for sharing with your community!",
             "success",
         )
         return redirect(url_for("main.item_detail", item_id=item.id))

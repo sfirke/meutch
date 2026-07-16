@@ -239,6 +239,24 @@
                                             <i class="fas fa-user-check me-2"></i>View Interested Users
                                             <span class="badge bg-light text-dark ms-2">{{ interested_count }}</span>
                                         </a>
+                                        <div class="mt-2">
+                                            <small>
+                                                <a href="#" class="text-muted text-decoration-none"
+                                                   data-bs-toggle="modal"
+                                                   data-bs-target="#markGivenAwayModal">
+                                                    <i class="fas fa-external-link-alt me-1"></i>Given away outside Meutch? Mark as rehomed
+                                                </a>
+                                            </small>
+                                        </div>
+                                    {% elif item.claim_status in [None, 'unclaimed'] %}
+                                        <p class="text-muted mb-2">No one has expressed interest yet.</p>
+                                        <small>
+                                            <a href="#" class="text-muted text-decoration-none"
+                                               data-bs-toggle="modal"
+                                               data-bs-target="#markGivenAwayModal">
+                                                <i class="fas fa-external-link-alt me-1"></i>Given away outside Meutch? Mark as rehomed
+                                            </a>
+                                        </small>
                                     {% elif item.claim_status == 'pending_pickup' %}
                                         <!-- Pending Pickup Status Card -->
                                         <div class="card border-warning mb-3">
@@ -283,7 +301,12 @@
                                         </div>
                                     {% elif item.claim_status == 'claimed' %}
                                         <div class="alert alert-success mb-3" role="alert">
-                                            <i class="fas fa-check-circle me-2"></i>Given to <strong>{{ item.claimed_by_name }}</strong>{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}
+                                            <i class="fas fa-check-circle me-2"></i>
+                                            {% if item.claimed_by_id %}
+                                                Given to <strong>{{ item.claimed_by_name }}</strong>{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}
+                                            {% else %}
+                                                Rehomed{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}
+                                            {% endif %}
                                         </div>
                                     {% endif %}
                                 {% else %}
@@ -350,6 +373,38 @@
                     {% set item_delete_form = delete_form %}
                     {% set item_confirm_handoff_form = confirm_handoff_form %}
                     {% include 'main/_delete_item_modal.html' %}
+
+                    {% if item.is_giveaway and item.claim_status in [None, 'unclaimed'] %}
+                    <!-- Mark as Given Away Modal -->
+                    <div class="modal fade" id="markGivenAwayModal" tabindex="-1" aria-labelledby="markGivenAwayModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="markGivenAwayModalLabel">
+                                        <i class="fas fa-box-open me-2"></i>Mark as Rehomed
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>This will mark your item as rehomed <strong>without recording a recipient</strong>. Use this only if you gave the item away outside of Meutch.</p>
+                                    <p class="text-muted small mb-0">
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        Tip: If the person messaged you in the app, go to your conversation with them and use "Give Item to This User" instead — that keeps a record and helps the community.
+                                    </p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <form action="{{ url_for('main.mark_given_away', item_id=item.id) }}" method="post" class="d-inline">
+                                        {{ mark_given_away_form.hidden_tag() }}
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-check me-1"></i>Mark as Rehomed
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 {% endif %}
 
                 <!-- Message Owner Card -->
@@ -357,12 +412,15 @@
                     <div class="card">
                         <div class="card-header">
                             <h5 class="card-title mb-0">
-                                <i class="fas fa-envelope me-2"></i>{% if item.is_giveaway %}Ask a Question{% else %}Message the Owner{% endif %}
+                                <i class="fas fa-envelope me-2"></i>Message the Owner
                             </h5>
                         </div>
                         <div class="card-body">
                             {% if item.is_giveaway %}
-                                <p class="text-muted">Have questions about this giveaway? Send a message to the owner.</p>
+                                <p class="text-muted small">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Your message will also let the owner know you're interested in this giveaway.
+                                </p>
                             {% endif %}
                             <form method="POST" action="{{ url_for('main.item_detail', item_id=item.id, share_token=share_token) if share_token else url_for('main.item_detail', item_id=item.id) }}">
                                 {% if share_token %}
@@ -372,7 +430,7 @@
 
                                 <div class="mb-3">
                                     {{ form.body.label(class="form-label") }}
-                                    {{ form.body(class="form-control", rows="4", placeholder="What do you want to know about the item or lending it?" if not item.is_giveaway else "What do you want to know about this giveaway?") }}
+                                    {{ form.body(class="form-control", rows="4", placeholder="Hi! I'm interested in this item. When could I pick it up?" if item.is_giveaway else "What do you want to know about the item or lending it?") }}
                                     {% if form.body.errors %}
                                         <div class="text-danger mt-2">
                                             {% for error in form.body.errors %}

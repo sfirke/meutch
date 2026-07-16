@@ -1,5 +1,7 @@
 """Item read and write endpoints for API v1."""
 
+from datetime import UTC, datetime
+
 from flask import abort
 from flask_jwt_extended import jwt_required
 
@@ -364,4 +366,33 @@ def confirm_giveaway_handoff(item_id):
     """Mark a pending-pickup giveaway handed off as the item owner."""
     item = db.get_or_404(Item, item_id)
     giveaway_service.confirm_handoff(item, current_user.id)
+    return GIVEAWAY_ITEM_RESPONSE_SCHEMA.dump({"item": _prepare_item_resource(item)})
+
+
+@bp.post("/items/<uuid:item_id>/mark-given-away")
+@jwt_required()
+@mutation_limit()
+def mark_giveaway_given_away(item_id):
+    """Mark a giveaway as rehomed without recording a specific recipient.
+
+    Use this for items given away outside the app (no in-app interest or
+    messages).  Requires the item to be in an unclaimed state.
+    """
+    item = db.get_or_404(Item, item_id)
+
+    if not item.is_giveaway:
+        abort(404)
+
+    if item.owner_id != current_user.id:
+        raise AuthorizationError("You do not have permission to manage this giveaway.")
+
+    if item.claim_status not in [None, "unclaimed"]:
+        raise AuthorizationError("This giveaway is no longer available.")
+
+    item.claim_status = "claimed"
+    item.claimed_at = datetime.now(UTC)
+    item.claimed_by_id = None
+    item.available = False
+    db.session.commit()
+
     return GIVEAWAY_ITEM_RESPONSE_SCHEMA.dump({"item": _prepare_item_resource(item)})
