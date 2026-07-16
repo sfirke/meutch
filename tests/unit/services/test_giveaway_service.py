@@ -66,8 +66,9 @@ class TestGiveawayService:
             assert Message.query.count() == 0
             mock_email.assert_not_called()
 
-    def test_express_interest_reactivates_stale_interest(self, app):
-        """Calling express_interest on an existing non-active interest re-activates it."""
+    def test_express_interest_preserves_selected_status(self, app):
+        """Calling express_interest on an already-selected interest does NOT undo the
+        owner's selection — it only updates the message text."""
         with app.app_context():
             owner = UserFactory()
             requester = UserFactory()
@@ -85,7 +86,7 @@ class TestGiveawayService:
             )
 
             assert interest.id == existing.id
-            assert interest.status == "active"
+            assert interest.status == "selected"
             assert interest.message == "Trying again!"
             assert (
                 GiveawayInterest.query.filter_by(item_id=item.id, user_id=requester.id).count() == 1

@@ -177,9 +177,8 @@ def express_interest(item, user_id, message_text, send_notification=True):
 
     existing = GiveawayInterest.query.filter_by(item_id=item.id, user_id=user_id).first()
     if existing:
-        # Already expressed interest — make sure it's active and update message
-        if existing.status != "active":
-            existing.status = "active"
+        # Already expressed interest — update message if provided.
+        # Never downgrade a "selected" status; that would undo the owner's choice.
         if cleaned_message:
             existing.message = cleaned_message
         db.session.commit()
