@@ -191,6 +191,8 @@ def view_conversation(conversation_id):
         #       it once there are no pre-existing conversations where a user
         #       messaged about a giveaway before this auto-interest logic was
         #       deployed (i.e. no legacy items in this state).
+        #       Also see the same-status guards in
+        #       app/services/giveaway_service.py select_recipient().
         active_interest = GiveawayInterest.query.filter_by(
             item_id=item.id,
             user_id=other_user.id,

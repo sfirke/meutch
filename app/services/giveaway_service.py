@@ -234,6 +234,13 @@ def select_recipient(item, owner_id, selection_method, selected_user_id=None):
         .all()
     )
 
+    # These empty-interest checks are vestigial in practice —
+    # express_interest() is now called automatically when someone messages
+    # about a giveaway (see message_service.py). Every new conversation has
+    # an active GiveawayInterest record by the time the owner selects.
+    # TODO: Remove these guards once there are no legacy items (same
+    #       timeline as messaging.py's giveaway_selection_direct removal;
+    #       see TODO in app/main/views/messaging.py).
     if selection_method == "first":
         if not active_interests:
             raise ConflictError("No interested users found.")
