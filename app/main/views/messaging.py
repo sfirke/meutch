@@ -180,7 +180,17 @@ def view_conversation(conversation_id):
             item_id=item.id,
             status="active",
         ).count()
-        # Was there a formal interest, or are we offering a direct-select path?
+        # Check whether the other user has a formal interest record.
+        # Since the "I Want This!" button was removed, express_interest()
+        # is now called automatically when someone messages about a giveaway
+        # (see message_service.py). That means every new conversation will
+        # have an active GiveawayInterest record, making this distinction
+        # vestigial in practice.
+        #
+        # TODO: Remove giveaway_selection_direct and the template branch for
+        #       it once there are no pre-existing conversations where a user
+        #       messaged about a giveaway before this auto-interest logic was
+        #       deployed (i.e. no legacy items in this state).
         active_interest = GiveawayInterest.query.filter_by(
             item_id=item.id,
             user_id=other_user.id,
