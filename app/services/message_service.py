@@ -49,9 +49,7 @@ def start_item_conversation(item, sender, body, *, share_token=None):
     # interest so the owner can select them as a recipient later.
     if item.is_giveaway and sender.id != item.owner_id:
         try:
-            giveaway_service.express_interest(
-                item, sender.id, body, send_notification=False
-            )
+            giveaway_service.express_interest(item, sender.id, body, send_notification=False)
         except ServiceError:
             pass  # Already interested or item unavailable — silently fine
 
