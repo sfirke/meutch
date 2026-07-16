@@ -12,7 +12,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
   - Frontend changes to finish the work in ([#439](https://github.com/sfirke/meutch/pull/439)).
 
 **Minor**:
-- Improved the giveaway handoff experience so item owners can close the loop even when a requester messages instead of clicking "I Want This!" - also allows for giveaways given outside of Meutch ([#445](https://github.com/sfirke/meutch/pull/445)).
+- Improved the giveaway request and handoff experience - no more needing to click "I want this!", instead owners can choose from anyone who messages. Also allows for marking giveaways handed off outside of Meutch ([#445](https://github.com/sfirke/meutch/pull/445)).
 - On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
 
 ### Developer Experience
