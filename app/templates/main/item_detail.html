@@ -162,44 +162,9 @@
                                 {% if item.is_giveaway %}
                                     <!-- Giveaway actions for non-owners -->
                                     {% if item.claim_status in [None, 'unclaimed'] %}
-                                        {% if not user_interest %}
-                                            <div class="w-100 d-flex flex-column gap-3 giveaway-interest-panel">
-                                                <!-- Show "I Want This!" button if not already interested -->
-                                                <button type="button" class="btn btn-success btn-lg align-self-start"
-                                                        data-bs-toggle="collapse"
-                                                        data-bs-target="#expressInterestForm"
-                                                        aria-expanded="false"
-                                                        aria-controls="expressInterestForm">
-                                                    <i class="fas fa-gift me-2"></i>I Want This!
-                                                </button>
-
-                                                <!-- Collapsible Interest Expression Form (for giveaways) -->
-                                                <div class="collapse" id="expressInterestForm">
-                                                    <div class="card card-body">
-                                                        <h5 class="mb-3">Why do you want this item?</h5>
-                                                        <form action="{{ url_for('main.express_interest', item_id=item.id) }}" method="post">
-                                                            {{ express_interest_form.hidden_tag() }}
-                                                            <div class="mb-3">
-                                                                {{ express_interest_form.message.label(class="form-label", text="Optional message to the owner (helps them decide):") }}
-                                                                {{ express_interest_form.message(class="form-control", rows="3", placeholder="e.g., I've been looking for this tool for a home project...") }}
-                                                            </div>
-                                                            <div class="d-flex flex-column flex-sm-row gap-2">
-                                                                <button type="submit" class="btn btn-success">
-                                                                    <i class="fas fa-paper-plane me-2"></i>Submit Interest
-                                                                </button>
-                                                                <button type="button" class="btn btn-secondary"
-                                                                        data-bs-toggle="collapse"
-                                                                        data-bs-target="#expressInterestForm">
-                                                                    Cancel
-                                                                </button>
-                                                            </div>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        {% else %}
+                                        {% if user_interest %}
                                             <!-- Show confirmation that interest has been expressed -->
-                                            <div class="alert alert-success mb-0" role="alert">
+                                            <div class="alert alert-success mb-2" role="alert">
                                                 <i class="fas fa-check-circle me-2"></i>You've expressed interest! The owner will contact you if selected.
                                             </div>
                                             <form action="{{ url_for('main.withdraw_interest', item_id=item.id) }}"
@@ -419,7 +384,7 @@
                             {% if item.is_giveaway %}
                                 <p class="text-muted small">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    Your message will also let the owner know you're interested in this giveaway.
+                                    Ask a question or express your interest - the item owner can select anyone who sends them a message.
                                 </p>
                             {% endif %}
                             <form method="POST" action="{{ url_for('main.item_detail', item_id=item.id, share_token=share_token) if share_token else url_for('main.item_detail', item_id=item.id) }}">
