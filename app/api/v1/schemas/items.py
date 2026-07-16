@@ -145,15 +145,6 @@ class ItemDeleteResponseSchema(ApiSchema):
     item_id = fields.UUID(required=True)
 
 
-class GiveawayInterestCreateSchema(ApiSchema):
-    """Write payload for expressing giveaway interest."""
-
-    message = fields.String(
-        load_default=None,
-        allow_none=True,
-        validate=validate.Length(max=500),
-    )
-
 
 def _validate_manual_selection_user_id(data):
     if data["selection_method"] == "manual" and data.get("user_id") is None:
@@ -252,13 +243,6 @@ class GiveawayInterestResponseSchema(ApiSchema):
     created_at = ApiDateTime(required=True)
     message = fields.String(allow_none=True)
     user = fields.Nested(UserSummarySchema(), required=True)
-
-
-class GiveawayInterestMutationResponseSchema(ApiSchema):
-    """Response for expressing interest in a giveaway."""
-
-    interest = fields.Nested(GiveawayInterestResponseSchema(), required=True)
-    item = fields.Nested(ItemDetailSchema(), required=True)
 
 
 class GiveawayInterestWithdrawResponseSchema(ApiSchema):
