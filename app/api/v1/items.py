@@ -13,8 +13,6 @@ from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.items import (
     GiveawayInterestCollectionResponseSchema,
-    GiveawayInterestCreateSchema,
-    GiveawayInterestMutationResponseSchema,
     GiveawayInterestWithdrawResponseSchema,
     GiveawayItemResponseSchema,
     GiveawayRecipientChangeSchema,
@@ -47,10 +45,8 @@ ITEM_IMAGES_UPLOAD_SCHEMA = ItemImagesUploadSchema()
 ITEM_IMAGE_ORDER_SCHEMA = ItemImageOrderSchema()
 ITEM_DELETE_RESPONSE_SCHEMA = ItemDeleteResponseSchema()
 GIVEAWAY_INTEREST_COLLECTION_RESPONSE_SCHEMA = GiveawayInterestCollectionResponseSchema()
-GIVEAWAY_INTEREST_CREATE_SCHEMA = GiveawayInterestCreateSchema()
 GIVEAWAY_RECIPIENT_SELECTION_SCHEMA = GiveawayRecipientSelectionSchema()
 GIVEAWAY_RECIPIENT_CHANGE_SCHEMA = GiveawayRecipientChangeSchema()
-GIVEAWAY_INTEREST_MUTATION_RESPONSE_SCHEMA = GiveawayInterestMutationResponseSchema()
 GIVEAWAY_INTEREST_WITHDRAW_RESPONSE_SCHEMA = GiveawayInterestWithdrawResponseSchema()
 GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA = GiveawayRecipientMutationResponseSchema()
 GIVEAWAY_ITEM_RESPONSE_SCHEMA = GiveawayItemResponseSchema()
@@ -278,20 +274,6 @@ def list_giveaway_interests(item_id):
         raise AuthorizationError("You do not have permission to manage this giveaway.")
 
     return _serialize_giveaway_interest_collection(item)
-
-
-@bp.post("/items/<uuid:item_id>/interest")
-@jwt_required()
-@mutation_limit()
-def express_interest(item_id):
-    """Express interest in a giveaway item visible to the authenticated user."""
-    item = db.get_or_404(Item, item_id)
-    _build_item_access_state_or_raise(item)
-    data = load_request_data(GIVEAWAY_INTEREST_CREATE_SCHEMA)
-    interest = giveaway_service.express_interest(item, current_user.id, data["message"])
-    return GIVEAWAY_INTEREST_MUTATION_RESPONSE_SCHEMA.dump(
-        {"interest": interest, "item": _prepare_item_resource(item)}
-    ), 201
 
 
 @bp.delete("/items/<uuid:item_id>/interest")

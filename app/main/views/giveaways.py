@@ -9,7 +9,6 @@ from app.forms import (
     ChangeRecipientForm,
     ConfirmHandoffForm,
     EmptyForm,
-    ExpressInterestForm,
     MessageForm,
     ReleaseToAllForm,
     SelectRecipientForm,
@@ -24,30 +23,6 @@ from app.utils.messaging_queries import (
     get_conversation_other_user_id,
     get_or_create_conversation,
 )
-
-
-@main_bp.route("/item/<uuid:item_id>/express-interest", methods=["POST"])
-@login_required
-def express_interest(item_id):
-    """Allow a user to express interest in claiming a giveaway"""
-    item = db.get_or_404(Item, item_id)
-    form = ExpressInterestForm()
-
-    if form.validate_on_submit():
-        try:
-            giveaway_service.express_interest(item, current_user.id, form.message.data)
-        except ServiceError as exc:
-            flash(str(exc), exc.flash_category)
-        except Exception as exc:
-            current_app.logger.error(f"Error expressing interest in giveaway {item_id}: {str(exc)}")
-            flash("An error occurred. Please try again.", "danger")
-        else:
-            flash(
-                "Your interest has been recorded! The owner will contact you if you are selected.",
-                "success",
-            )
-
-    return redirect(url_for("main.item_detail", item_id=item.id))
 
 
 @main_bp.route("/item/<uuid:item_id>/withdraw-interest", methods=["POST"])
