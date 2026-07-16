@@ -1,7 +1,5 @@
 """Item read and write endpoints for API v1."""
 
-from datetime import UTC, datetime
-
 from flask import abort
 from flask_jwt_extended import jwt_required
 
@@ -362,19 +360,6 @@ def mark_giveaway_given_away(item_id):
     """
     item = db.get_or_404(Item, item_id)
 
-    if not item.is_giveaway:
-        abort(404)
-
-    if item.owner_id != current_user.id:
-        raise AuthorizationError("You do not have permission to manage this giveaway.")
-
-    if item.claim_status not in [None, "unclaimed"]:
-        raise AuthorizationError("This giveaway is no longer available.")
-
-    item.claim_status = "claimed"
-    item.claimed_at = datetime.now(UTC)
-    item.claimed_by_id = None
-    item.available = False
-    db.session.commit()
+    giveaway_service.mark_given_away(item, current_user.id)
 
     return GIVEAWAY_ITEM_RESPONSE_SCHEMA.dump({"item": _prepare_item_resource(item)})
