@@ -22,7 +22,6 @@ from app.services.exceptions import (
     ConflictError,
     InformationalError,
     InvalidActionError,
-    ServiceError,
 )
 from app.utils.giveaway_visibility import get_unavailable_giveaway_suggestions
 from app.utils.item_share import ITEM_SHARE_TOKEN_MAX_AGE_DAYS
@@ -164,16 +163,6 @@ def item_detail(item_id):
             return redirect(_build_item_detail_url(item.id, share_token))
         except AuthorizationError:
             abort(403)
-
-        # When a non-owner messages about a giveaway item, also record their
-        # interest so the owner can select them as a recipient later.
-        if item.is_giveaway and current_user.id != item.owner_id:
-            try:
-                giveaway_service.express_interest(
-                    item, current_user.id, form.body.data, send_notification=False
-                )
-            except ServiceError:
-                pass  # Already interested or item unavailable — silently fine
 
         flash("Your message has been sent.", "success")
         return redirect(url_for("main.view_conversation", conversation_id=message.conversation_id))

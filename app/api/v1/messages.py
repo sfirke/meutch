@@ -19,8 +19,7 @@ from app.api.v1.schemas.messaging import (
 )
 from app.api.v1.schemas.query import ConversationListQuerySchema
 from app.models import Conversation, ConversationParticipant, Item, ItemRequest, Message, User
-from app.services import giveaway_service, message_service
-from app.services.exceptions import ServiceError
+from app.services import message_service
 from app.utils.messaging_queries import (
     build_inbox_summaries,
     filter_by_archive_status,
@@ -111,17 +110,6 @@ def start_message_thread():
     if data.get("item_id") is not None:
         item = db.get_or_404(Item, data["item_id"])
         message = message_service.start_item_conversation(item, current_user, data["body"])
-
-        # When messaging about a giveaway item, also record interest so the
-        # owner can select this user as a recipient.  Suppress the automatic
-        # "I'm interested" notification since the user's message serves as one.
-        if item.is_giveaway and item.owner_id != current_user.id:
-            try:
-                giveaway_service.express_interest(
-                    item, current_user.id, data["body"], send_notification=False
-                )
-            except ServiceError:
-                pass  # Already interested or item unavailable — silently fine
     else:
         item_request = db.get_or_404(ItemRequest, data["request_id"])
         if item_request.status == "deleted":
