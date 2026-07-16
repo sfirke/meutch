@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from app import db
-from app.models import ConversationParticipant, Message
+from app.models import ConversationParticipant, GiveawayInterest, Message
 from app.services import message_service
 from app.services.exceptions import AuthorizationError, InvalidActionError
 from app.utils.messaging_queries import get_or_create_conversation
@@ -92,6 +92,34 @@ class TestMessageService:
             assert message.recipient_id == owner.id
             assert message.conversation.context_type == "item"
             assert message.conversation.context_id == item.id
+
+    def test_start_item_conversation_creates_giveaway_interest(self, app):
+        """Sending a message about a giveaway item creates an interest record."""
+        with app.app_context():
+            owner = UserFactory()
+            sender = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                message = message_service.start_item_conversation(
+                    item,
+                    sender,
+                    "I'd love this!",
+                )
+
+            interest = GiveawayInterest.query.filter_by(item_id=item.id, user_id=sender.id).first()
+            assert interest is not None
+            assert interest.status == "active"
+            assert interest.message == "I'd love this!"
+
+            # Only one message exists (the user's own), no auto-notification
+            assert Message.query.count() == 1
+            assert Message.query.one().id == message.id
 
     def test_start_request_conversation_uses_request_owner_as_recipient(self, app):
         with app.app_context():

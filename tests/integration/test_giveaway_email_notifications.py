@@ -13,7 +13,7 @@ from unittest.mock import patch
 from app import db
 from app.models import Conversation, GiveawayInterest, Message
 from conftest import login_user
-from tests.factories import CategoryFactory, CircleFactory, ItemFactory, UserFactory
+from tests.factories import CategoryFactory, ItemFactory, UserFactory
 
 
 class TestGiveawaySelectionEmail:

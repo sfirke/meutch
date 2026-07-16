@@ -6,7 +6,6 @@ from unittest.mock import patch
 from app import db
 from app.models import GiveawayInterest
 from tests.factories import (
-    CircleFactory,
     ConversationFactory,
     GiveawayInterestFactory,
     ItemFactory,

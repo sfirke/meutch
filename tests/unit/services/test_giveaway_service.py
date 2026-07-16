@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.models import Message
+from app.models import GiveawayInterest, Message
 from app.services import giveaway_service
 from app.services.exceptions import AuthorizationError, ConflictError, InvalidActionError
 from tests.factories import (
@@ -39,6 +39,57 @@ class TestGiveawayService:
             assert interest.status == "active"
             assert notification.recipient_id == owner.id
             mock_email.assert_called_once_with(notification)
+
+    def test_express_interest_without_notification_creates_interest_only(self, app):
+        """send_notification=False persists interest without sending a message or email."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="unclaimed",
+                available=True,
+                giveaway_visibility="default",
+            )
+
+            with patch(
+                "app.services.message_service.send_message_notification_email"
+            ) as mock_email:
+                interest = giveaway_service.express_interest(
+                    item, requester.id, "Just messaging", send_notification=False
+                )
+
+            assert interest.user_id == requester.id
+            assert interest.status == "active"
+            assert interest.message == "Just messaging"
+            assert Message.query.count() == 0
+            mock_email.assert_not_called()
+
+    def test_express_interest_reactivates_stale_interest(self, app):
+        """Calling express_interest on an existing non-active interest re-activates it."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="unclaimed",
+                available=True,
+                giveaway_visibility="default",
+            )
+            existing = GiveawayInterestFactory(item=item, user=requester, status="selected")
+
+            interest = giveaway_service.express_interest(
+                item, requester.id, "Trying again!", send_notification=False
+            )
+
+            assert interest.id == existing.id
+            assert interest.status == "active"
+            assert interest.message == "Trying again!"
+            assert (
+                GiveawayInterest.query.filter_by(item_id=item.id, user_id=requester.id).count() == 1
+            )
 
     def test_select_recipient_random_updates_item_and_selected_interest(self, app):
         with app.app_context():

@@ -145,7 +145,6 @@ class ItemDeleteResponseSchema(ApiSchema):
     item_id = fields.UUID(required=True)
 
 
-
 def _validate_manual_selection_user_id(data):
     if data["selection_method"] == "manual" and data.get("user_id") is None:
         raise ValidationError(
