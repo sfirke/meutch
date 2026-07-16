@@ -11,11 +11,6 @@
                     {% if item.images|length > 1 %}
                         <!-- Multi-photo carousel -->
                         <div id="itemImageCarousel" class="carousel slide" data-bs-ride="false">
-                            <div class="carousel-indicators">
-                                {% for img in item.images %}
-                                <button type="button" data-bs-target="#itemImageCarousel" data-bs-slide-to="{{ loop.index0 }}" {% if loop.first %}class="active" aria-current="true"{% endif %} aria-label="Photo {{ loop.index }}"></button>
-                                {% endfor %}
-                            </div>
                             <div class="carousel-inner">
                                 {% for img in item.images %}
                                 <div class="carousel-item {% if loop.first %}active{% endif %}">
@@ -130,7 +125,6 @@
                         <!-- Category and Tags -->
                         <div class="mb-4">
                             <div class="d-flex align-items-center mb-3">
-                                <i class="fas fa-folder me-2 text-muted"></i>
                                 <span class="fw-bold me-2">Category:</span>
                                 <a href="{{ url_for('main.category_items', category_id=item.category.id) }}"
                                    class="category text-decoration-none">
@@ -204,24 +198,10 @@
                                             <i class="fas fa-user-check me-2"></i>View Interested Users
                                             <span class="badge bg-light text-dark ms-2">{{ interested_count }}</span>
                                         </a>
-                                        <div class="mt-2">
-                                            <small>
-                                                <a href="#" class="text-muted text-decoration-none"
-                                                   data-bs-toggle="modal"
-                                                   data-bs-target="#markGivenAwayModal">
-                                                    <i class="fas fa-external-link-alt me-1"></i>Given away outside Meutch? Mark as rehomed
-                                                </a>
-                                            </small>
-                                        </div>
+
                                     {% elif item.claim_status in [None, 'unclaimed'] %}
                                         <p class="text-muted mb-2">No one has expressed interest yet.</p>
-                                        <small>
-                                            <a href="#" class="text-muted text-decoration-none"
-                                               data-bs-toggle="modal"
-                                               data-bs-target="#markGivenAwayModal">
-                                                <i class="fas fa-external-link-alt me-1"></i>Given away outside Meutch? Mark as rehomed
-                                            </a>
-                                        </small>
+
                                     {% elif item.claim_status == 'pending_pickup' %}
                                         <!-- Pending Pickup Status Card -->
                                         <div class="card border-warning mb-3">
@@ -311,33 +291,41 @@
                                     </div>
                                 {% endif %}
 
+                                <!-- Owner management tools -->
+                                {% if not (item.is_giveaway and item.claim_status == 'claimed') %}
+                                <div class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
+                                    <a href="{{ url_for('main.edit_item', item_id=item.id) }}"
+                                       class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-pencil-alt me-1"></i>Edit Item
+                                    </a>
+                                    {% if item.is_giveaway and item.claim_status in [None, 'unclaimed'] %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                            data-bs-toggle="modal" data-bs-target="#markGivenAwayModal">
+                                        <i class="fas fa-box-open me-1"></i>Mark as Rehomed
+                                    </button>
+                                    {% endif %}
+                                    {% if item.current_loan %}
+                                    <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}"
+                                       class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-exchange-alt me-1"></i>View Active Loan
+                                    </a>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            data-bs-toggle="modal" data-bs-target="#deleteItemModal-{{ item.id }}">
+                                        <i class="fas fa-trash me-1"></i>Delete Item
+                                    </button>
+                                </div>
+                                {% endif %}
+
                             {% endif %}
                         </div>
                     </div>
                     {% set is_claimed_giveaway = item.is_giveaway and item.claim_status == 'claimed' %}
                     {% if current_user.is_authenticated and current_user.id == item.owner.id and not is_claimed_giveaway %}
-                        <div class="card-footer d-flex flex-wrap gap-2 align-items-center justify-content-between">
-                            <a href="{{ url_for('main.edit_item', item_id=item.id) }}"
-                               class="btn btn-sm btn-outline-secondary">
-                                <i class="fas fa-pencil-alt me-1"></i>Edit Item
-                            </a>
-                            {% if item.current_loan %}
-                                <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}"
-                                   class="btn btn-sm btn-info">
-                                    <i class="fas fa-exchange-alt me-1"></i>View Active Loan
-                                </a>
-                            {% endif %}
-                            {% set delete_modal_id = 'deleteItemModal-' ~ item.id %}
-                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#{{ delete_modal_id }}">
-                                <i class="fas fa-trash me-1"></i>Delete Item
-                            </button>
-                        </div>
-                    {% endif %}
-                </div>
-                {% if current_user.is_authenticated and current_user.id == item.owner.id and not is_claimed_giveaway %}
-                    {% set item_delete_form = delete_form %}
-                    {% set item_confirm_handoff_form = confirm_handoff_form %}
-                    {% include 'main/_delete_item_modal.html' %}
+                        {% set delete_modal_id = 'deleteItemModal-' ~ item.id %}
+                        {% set item_delete_form = delete_form %}
+                        {% set item_confirm_handoff_form = confirm_handoff_form %}
+                        {% include 'main/_delete_item_modal.html' %}
 
                     {% if item.is_giveaway and item.claim_status in [None, 'unclaimed'] %}
                     <!-- Mark as Given Away Modal -->

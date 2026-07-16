@@ -935,6 +935,19 @@ footer h6 {
     margin-bottom: 0;
 }
 
+/* Owner management tools — consistent button heights */
+.item-detail-content .btn-sm {
+    min-height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Primary CTA badge vertical centering */
+.item-detail-content .btn-lg .badge {
+    vertical-align: middle;
+    line-height: 1.2;
+}
+
 /* Responsive adjustments */
 @media (max-width: 992px) {
     .item-detail-image-container {
