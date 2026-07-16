@@ -203,6 +203,7 @@ def express_interest(item, user_id, message_text, send_notification=True):
             conversation_id=conversation.id,
         )
 
+    db.session.commit()
     return interest
 
 
