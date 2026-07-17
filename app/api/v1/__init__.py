@@ -38,15 +38,30 @@ def apply_api_operational_guards():
             status_code=503,
         )
 
+    max_bytes = current_app.config.get("MAX_CONTENT_LENGTH")
+    if max_bytes is not None:
+        content_length = request.content_length
+        if content_length is not None and content_length > max_bytes:
+            return build_error_response(
+                "PAYLOAD_TOO_LARGE",
+                "The request body exceeds the maximum allowed size.",
+                status_code=413,
+            )
+
     return None
 
 
 @bp.after_request
 def log_api_response(response):
-    """Emit request-scoped API logs and return a stable request id header."""
+    """Emit request-scoped API logs and return stable response headers."""
     request_id = getattr(g, "api_request_id", None)
     if request_id is not None:
         response.headers["X-Request-ID"] = request_id
+
+    response.headers["X-API-Version"] = "v1"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
 
     started_at = getattr(g, "api_request_started_at", None)
     duration_ms = None

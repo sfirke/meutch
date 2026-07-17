@@ -74,6 +74,8 @@ class User(UserMixin, db.Model):
     digest_giveaways_include_public = db.Column(db.Boolean, default=True, nullable=False)
     digest_requests_include_public = db.Column(db.Boolean, default=True, nullable=False)
     digest_last_sent_at = db.Column(db.DateTime, nullable=True)
+    failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
+    locked_until = db.Column(db.DateTime, nullable=True)
 
     @property
     def profile_image(self):

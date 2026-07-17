@@ -96,10 +96,11 @@ def create_app(config_class=None):
 
     # Register CLI commands
     try:
-        from app.cli import check_loan_reminders, seed, user
+        from app.cli import api, check_loan_reminders, seed, user
 
         app.cli.add_command(seed)
         app.cli.add_command(user)
+        app.cli.add_command(api)
         app.cli.add_command(check_loan_reminders)
     except ImportError as e:
         print(f"Warning: Could not import CLI commands: {e}")

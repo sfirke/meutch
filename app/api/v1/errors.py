@@ -21,6 +21,7 @@ from werkzeug.exceptions import (
     HTTPException,
     MethodNotAllowed,
     NotFound,
+    RequestEntityTooLarge,
     TooManyRequests,
     Unauthorized,
 )
@@ -106,6 +107,12 @@ HTTP_ERROR_MAPPINGS = {
         default_message="Too many requests. Please try again later.",
         default_description=TooManyRequests.description,
     ),
+    413: ErrorMapping(
+        code="PAYLOAD_TOO_LARGE",
+        status_code=413,
+        default_message="The request body exceeds the maximum allowed size.",
+        default_description=RequestEntityTooLarge.description,
+    ),
 }
 
 
@@ -127,15 +134,15 @@ def build_error_response(code, message, *, status_code, details=None):
 
 def build_error_response_with_headers(code, message, *, status_code, details=None, headers=None):
     """Return a standardized JSON error response payload with optional headers."""
-    body, status = build_error_response(
+    error_response = build_error_response(
         code,
         message,
         status_code=status_code,
         details=details,
     )
     if headers:
-        return body, status, headers
-    return body, status
+        return error_response[0], error_response[1], headers
+    return error_response
 
 
 def _resolve_service_error_mapping(error):
@@ -232,6 +239,10 @@ def register_blueprint_error_handlers(blueprint):
 
     @blueprint.errorhandler(TooManyRequests)
     def handle_too_many_requests(error):
+        return build_http_error_response(error)
+
+    @blueprint.errorhandler(RequestEntityTooLarge)
+    def handle_request_entity_too_large(error):
         return build_http_error_response(error)
 
     @blueprint.errorhandler(Exception)

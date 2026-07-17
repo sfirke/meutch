@@ -10,17 +10,33 @@ Development environment creates rich test data with users, items, circles, etc.
 Production environment only creates basic categories and tags.
 """
 
-import click
 import os
 import random
-from datetime import date, datetime, UTC, timedelta
+from datetime import UTC, date, datetime, timedelta
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
+
+import click
 from flask import current_app
 from flask.cli import with_appcontext
-from app.models import User, Item, Category, Circle, Tag, LoanRequest, Message, Feedback, CircleJoinRequest, ItemRequest, UserWebLink, GiveawayInterest
+
 from app import db
-from urllib.parse import urlparse
-    
+from app.models import (
+    Category,
+    Circle,
+    CircleJoinRequest,
+    Feedback,
+    GiveawayInterest,
+    Item,
+    ItemRequest,
+    LoanRequest,
+    Message,
+    Tag,
+    User,
+    UserWebLink,
+)
+
+
 @click.group()
 def seed():
     """Database seeding commands."""
@@ -28,27 +44,27 @@ def seed():
 
 
 @seed.command()
-@click.option('--env', default='development', help='Environment: development, production')
+@click.option("--env", default="development", help="Environment: development, production")
 @with_appcontext
 def data(env):
     """Seed database with data for specified environment."""
-    
+
     click.echo(f"🌱 Seeding {env} database...")
-    
-    if env == 'production':
-        if not click.confirm('⚠️  Are you sure you want to seed PRODUCTION?'):
-            click.echo('Aborted.')
+
+    if env == "production":
+        if not click.confirm("⚠️  Are you sure you want to seed PRODUCTION?"):
+            click.echo("Aborted.")
             return
         # Only create basic categories for production
         _seed_basic_data()
-    elif env == 'development':
+    elif env == "development":
         _seed_development_data()
     else:
         click.echo(f"❌ Unknown environment: {env}")
         click.echo("Available environments: development, production")
         click.echo("💡 For staging: use production data sync with sync_staging_db.py")
         return
-    
+
     db.session.commit()
     click.echo(f"✅ {env.title()} seeding completed!")
 
@@ -58,47 +74,47 @@ def data(env):
 def clear():
     """Clear all data from database (keep tables)."""
 
-    if os.environ.get('FLASK_ENV') == 'production':
-        click.echo('❌ Cannot clear production database!')
+    if os.environ.get("FLASK_ENV") == "production":
+        click.echo("❌ Cannot clear production database!")
         return
-    
+
     # Get database information for warning
     db_info = _get_database_info()
-    
-    if not click.confirm(f'⚠️  This will DELETE ALL DATA from database: {db_info}. Continue?'):
-        click.echo('Aborted.')
+
+    if not click.confirm(f"⚠️  This will DELETE ALL DATA from database: {db_info}. Continue?"):
+        click.echo("Aborted.")
         return
-    
-    click.echo('🗑️  Clearing all data...')
-    
+
+    click.echo("🗑️  Clearing all data...")
+
     # Clear many-to-many association tables first
-    click.echo('  Clearing association tables...')
-    db.session.execute(db.text('DELETE FROM item_tags;'))
-    db.session.execute(db.text('DELETE FROM circle_members;'))
-    
+    click.echo("  Clearing association tables...")
+    db.session.execute(db.text("DELETE FROM item_tags;"))
+    db.session.execute(db.text("DELETE FROM circle_members;"))
+
     # Delete records in correct order to handle all foreign key constraints
     # Order: dependent records first, then their dependencies
     models_to_clear = [
-        ('Feedback', Feedback),                    # depends on: loan_request, user
-        ('Circle Join Requests', CircleJoinRequest), # depends on: circle, user
-        ('Item Requests', ItemRequest),             # depends on: user
-        ('Messages', Message),                     # depends on: user, item, loan_request
-        ('Loan Requests', LoanRequest),           # depends on: item, user
-        ('Items', Item),                          # depends on: user, category
-        ('Circles', Circle),                      # depends on: users (via circle_members)
-        ('Tags', Tag),                           # depends on: items (via item_tags)
-        ('Categories', Category),                # depends on: items
-        ('Users', User),                         # base table
+        ("Feedback", Feedback),  # depends on: loan_request, user
+        ("Circle Join Requests", CircleJoinRequest),  # depends on: circle, user
+        ("Item Requests", ItemRequest),  # depends on: user
+        ("Messages", Message),  # depends on: user, item, loan_request
+        ("Loan Requests", LoanRequest),  # depends on: item, user
+        ("Items", Item),  # depends on: user, category
+        ("Circles", Circle),  # depends on: users (via circle_members)
+        ("Tags", Tag),  # depends on: items (via item_tags)
+        ("Categories", Category),  # depends on: items
+        ("Users", User),  # base table
     ]
-    
+
     for name, model in models_to_clear:
         count = db.session.query(model).count()
         if count > 0:
             db.session.query(model).delete()
-            click.echo(f'  Cleared {count} {name}')
-    
+            click.echo(f"  Cleared {count} {name}")
+
     db.session.commit()
-    click.echo('✅ Database cleared!')
+    click.echo("✅ Database cleared!")
 
 
 @seed.command()
@@ -107,46 +123,52 @@ def status():
     """Show database record counts."""
 
     models = [
-        ('Users', User),
-        ('Items', Item), 
-        ('Categories', Category),
-        ('Circles', Circle),
-        ('Tags', Tag),
-        ('Loan Requests', LoanRequest),
-        ('Item Requests', ItemRequest),
-        ('Messages', Message),
-        ('Feedback', Feedback),
-        ('Circle Join Requests', CircleJoinRequest),
+        ("Users", User),
+        ("Items", Item),
+        ("Categories", Category),
+        ("Circles", Circle),
+        ("Tags", Tag),
+        ("Loan Requests", LoanRequest),
+        ("Item Requests", ItemRequest),
+        ("Messages", Message),
+        ("Feedback", Feedback),
+        ("Circle Join Requests", CircleJoinRequest),
     ]
-    
+
     # Get database information
     db_info = _get_database_info()
-    
-    click.echo('📊 Database Status:')
-    click.echo(f'🔍 Database: {db_info}')
-    click.echo('─' * 40)
-    
+
+    click.echo("📊 Database Status:")
+    click.echo(f"🔍 Database: {db_info}")
+    click.echo("─" * 40)
+
     total = 0
     for name, model in models:
         try:
             count = db.session.query(model).count()
-            click.echo(f'{name:20}: {count:5} records')
+            click.echo(f"{name:20}: {count:5} records")
             total += count
         except Exception as e:
-            click.echo(f'{name:20}: Error - {str(e)}')
-    
-    click.echo('─' * 40)
+            click.echo(f"{name:20}: Error - {str(e)}")
+
+    click.echo("─" * 40)
     click.echo(f'{"Total":15}: {total:5} records')
-
-
-
 
 
 def _seed_basic_data():
     """Seed basic categories only for production (idempotent)."""
 
-    categories = ['Electronics', 'Books', 'Tools', 'Kitchen', 'Sports', 'Clothing', 'Home & Garden', 'Toys']
-    
+    categories = [
+        "Electronics",
+        "Books",
+        "Tools",
+        "Kitchen",
+        "Sports",
+        "Clothing",
+        "Home & Garden",
+        "Toys",
+    ]
+
     for name in categories:
         existing = Category.query.filter_by(name=name).first()
         if not existing:
@@ -159,12 +181,21 @@ def _seed_basic_data():
 
 def _seed_development_data():
     """Seed rich development data (idempotent)."""
-    
-    click.echo('Creating development data...')
-    
+
+    click.echo("Creating development data...")
+
     # Categories (idempotent)
     categories = []
-    category_names = ['Electronics', 'Books', 'Tools', 'Kitchen', 'Sports', 'Clothing', 'Home & Garden', 'Toys']
+    category_names = [
+        "Electronics",
+        "Books",
+        "Tools",
+        "Kitchen",
+        "Sports",
+        "Clothing",
+        "Home & Garden",
+        "Toys",
+    ]
     for name in category_names:
         existing = Category.query.filter_by(name=name).first()
         if not existing:
@@ -176,10 +207,19 @@ def _seed_development_data():
         else:
             categories.append(existing)
             click.echo(f"  ≈ Category exists: {name}")
-    
+
     # Tags (idempotent)
     tags = []
-    tag_names = ['vintage', 'electronics', 'outdoor', 'indoor', 'eco-friendly', 'handmade', 'collectible', 'seasonal']
+    tag_names = [
+        "vintage",
+        "electronics",
+        "outdoor",
+        "indoor",
+        "eco-friendly",
+        "handmade",
+        "collectible",
+        "seasonal",
+    ]
     for name in tag_names:
         existing = Tag.query.filter_by(name=name).first()
         if not existing:
@@ -191,14 +231,15 @@ def _seed_development_data():
         else:
             tags.append(existing)
             click.echo(f"  ≈ Tag exists: {name}")
-    
+
     # Users (idempotent)
     users = []
-    existing_users = User.query.filter(User.email.like('user%@example.com')).all()
+    existing_users = User.query.filter(User.email.like("user%@example.com")).all()
     existing_emails = {user.email for user in existing_users}
     # Pre-compute the development password hash once to avoid repeated expensive
     # hashing calls (matches the approach used in test factories).
     from werkzeug.security import generate_password_hash
+
     DEV_PASSWORD = "password123"
     dev_password_hash = generate_password_hash(DEV_PASSWORD)
 
@@ -213,7 +254,7 @@ def _seed_development_data():
                 longitude=-74.0060 + (i * 0.01),
                 email_confirmed=True,
                 is_admin=(i < 2),  # Make user1 and user2 admins
-                is_public_showcase=(i < 2)  # Make user1 and user2 public showcase users
+                is_public_showcase=(i < 2),  # Make user1 and user2 public showcase users
             )
             # Assign the pre-computed password hash directly instead of calling
             # `set_password` for each user to avoid repeated hashing calls.
@@ -227,158 +268,414 @@ def _seed_development_data():
             existing_user = User.query.filter_by(email=email).first()
             users.append(existing_user)
             click.echo(f"  ≈ User exists: {email}")
-    
+
     # Circles (idempotent)
     circles = []
     circle_data = [
         # Public circles for browsing
-        {'name': 'Neighborhood Share', 'desc': 'Share with your neighbors', 'lat': 40.7128, 'lon': -74.0060, 'circle_type': 'open'},  # Manhattan
-        {'name': 'Tech Enthusiasts', 'desc': 'For tech lovers and gadget sharers', 'lat': 40.7589, 'lon': -73.9851, 'circle_type': 'open'},  # Upper West Side
-        {'name': 'Book Club', 'desc': 'Share and discuss books', 'lat': 40.7282, 'lon': -73.7949, 'circle_type': 'open'},  # Queens
-        {'name': 'Outdoor Adventures', 'desc': 'Outdoor gear sharing community', 'lat': 40.6782, 'lon': -73.9442, 'circle_type': 'open'},  # Brooklyn
-        {'name': 'Cooking Circle', 'desc': 'Kitchen tools and recipe sharing', 'lat': 40.7489, 'lon': -73.9680, 'circle_type': 'open'},  # Midtown East
-        {'name': 'Gardening Friends', 'desc': 'Share gardening tools and tips', 'lat': 40.7280, 'lon': -74.0020, 'circle_type': 'open'},  # Lower Manhattan
-        {'name': 'DIY Workshop', 'desc': 'Tools and knowledge for DIY projects', 'lat': 40.7050, 'lon': -73.9970, 'circle_type': 'open'},  # Lower East Side
-        {'name': 'Sports Equipment Share', 'desc': 'Share sports gear and equipment', 'lat': 40.7580, 'lon': -73.9680, 'circle_type': 'open'},  # Upper East Side
+        {
+            "name": "Neighborhood Share",
+            "desc": "Share with your neighbors",
+            "lat": 40.7128,
+            "lon": -74.0060,
+            "circle_type": "open",
+        },  # Manhattan
+        {
+            "name": "Tech Enthusiasts",
+            "desc": "For tech lovers and gadget sharers",
+            "lat": 40.7589,
+            "lon": -73.9851,
+            "circle_type": "open",
+        },  # Upper West Side
+        {
+            "name": "Book Club",
+            "desc": "Share and discuss books",
+            "lat": 40.7282,
+            "lon": -73.7949,
+            "circle_type": "open",
+        },  # Queens
+        {
+            "name": "Outdoor Adventures",
+            "desc": "Outdoor gear sharing community",
+            "lat": 40.6782,
+            "lon": -73.9442,
+            "circle_type": "open",
+        },  # Brooklyn
+        {
+            "name": "Cooking Circle",
+            "desc": "Kitchen tools and recipe sharing",
+            "lat": 40.7489,
+            "lon": -73.9680,
+            "circle_type": "open",
+        },  # Midtown East
+        {
+            "name": "Gardening Friends",
+            "desc": "Share gardening tools and tips",
+            "lat": 40.7280,
+            "lon": -74.0020,
+            "circle_type": "open",
+        },  # Lower Manhattan
+        {
+            "name": "DIY Workshop",
+            "desc": "Tools and knowledge for DIY projects",
+            "lat": 40.7050,
+            "lon": -73.9970,
+            "circle_type": "open",
+        },  # Lower East Side
+        {
+            "name": "Sports Equipment Share",
+            "desc": "Share sports gear and equipment",
+            "lat": 40.7580,
+            "lon": -73.9680,
+            "circle_type": "open",
+        },  # Upper East Side
         # Public circle with no location set
-        {'name': 'Unlocated Public Circle', 'desc': 'A public circle with no location set yet', 'lat': None, 'lon': None, 'circle_type': 'open'},
+        {
+            "name": "Unlocated Public Circle",
+            "desc": "A public circle with no location set yet",
+            "lat": None,
+            "lon": None,
+            "circle_type": "open",
+        },
         # Closed/secret circles
-        {'name': 'Family Circle', 'desc': 'Private family lending circle', 'lat': 40.7420, 'lon': -73.9890, 'circle_type': 'closed'},  # Midtown
-        {'name': 'Office Supplies', 'desc': 'Unlisted circle for office equipment', 'lat': 40.7510, 'lon': -73.9930, 'circle_type': 'secret'},  # Midtown West
+        {
+            "name": "Family Circle",
+            "desc": "Private family lending circle",
+            "lat": 40.7420,
+            "lon": -73.9890,
+            "circle_type": "closed",
+        },  # Midtown
+        {
+            "name": "Office Supplies",
+            "desc": "Unlisted circle for office equipment",
+            "lat": 40.7510,
+            "lon": -73.9930,
+            "circle_type": "secret",
+        },  # Midtown West
     ]
-    
+
     for circle_info in circle_data:
-        existing = Circle.query.filter_by(name=circle_info['name']).first()
+        existing = Circle.query.filter_by(name=circle_info["name"]).first()
         if not existing:
-            circle_type = circle_info['circle_type']
+            circle_type = circle_info["circle_type"]
 
             circle = Circle(
-                name=circle_info['name'],
-                description=circle_info['desc'],
+                name=circle_info["name"],
+                description=circle_info["desc"],
                 circle_type=circle_type,
-                latitude=circle_info['lat'],
-                longitude=circle_info['lon']
+                latitude=circle_info["lat"],
+                longitude=circle_info["lon"],
             )
             db.session.add(circle)
             db.session.flush()  # Get the ID
-            
+
             # Add random users to circles
             circle_users = random.sample(users, random.randint(3, 7))
             for user in circle_users:
                 circle.members.append(user)
-            
+
             circles.append(circle)
             location_status = "location set" if circle.is_geocoded else "no location"
-            click.echo(f"  ✓ Circle: {circle.name} ({len(circle_users)} members) [circle_type={circle_type}, {location_status}]")
+            click.echo(
+                f"  ✓ Circle: {circle.name} ({len(circle_users)} members) [circle_type={circle_type}, {location_status}]"
+            )
         else:
             # Circle already exists, skip it
             click.echo(f"  ≈ Circle exists: {existing.name} ({len(existing.members)} members)")
             circles.append(existing)
-    
+
     # Items (idempotent)
     items = []
     item_examples = [
         # Original items
-        {'name': 'Power Drill', 'description': 'Cordless power drill with bits included', 'category': 'Tools'},
-        {'name': 'Bread Maker', 'description': 'Automatic bread making machine, barely used', 'category': 'Kitchen'},
-        {'name': 'Python Programming Book', 'description': 'Learn Python the Hard Way - excellent condition', 'category': 'Books'},
-        {'name': 'Tennis Racket', 'description': 'Wilson tennis racket, good condition', 'category': 'Sports'},
-        {'name': 'Laptop Stand', 'description': 'Adjustable aluminum laptop stand', 'category': 'Electronics'},
-        {'name': 'Garden Hose', 'description': '50ft expandable garden hose with nozzle', 'category': 'Home & Garden'},
-        {'name': 'Board Game Collection', 'description': 'Various board games for family fun', 'category': 'Toys'},
-        {'name': 'Winter Jacket', 'description': 'Large size winter jacket, barely used', 'category': 'Clothing'},
-        
+        {
+            "name": "Power Drill",
+            "description": "Cordless power drill with bits included",
+            "category": "Tools",
+        },
+        {
+            "name": "Bread Maker",
+            "description": "Automatic bread making machine, barely used",
+            "category": "Kitchen",
+        },
+        {
+            "name": "Python Programming Book",
+            "description": "Learn Python the Hard Way - excellent condition",
+            "category": "Books",
+        },
+        {
+            "name": "Tennis Racket",
+            "description": "Wilson tennis racket, good condition",
+            "category": "Sports",
+        },
+        {
+            "name": "Laptop Stand",
+            "description": "Adjustable aluminum laptop stand",
+            "category": "Electronics",
+        },
+        {
+            "name": "Garden Hose",
+            "description": "50ft expandable garden hose with nozzle",
+            "category": "Home & Garden",
+        },
+        {
+            "name": "Board Game Collection",
+            "description": "Various board games for family fun",
+            "category": "Toys",
+        },
+        {
+            "name": "Winter Jacket",
+            "description": "Large size winter jacket, barely used",
+            "category": "Clothing",
+        },
         # Additional Electronics
-        {'name': 'Bluetooth Speaker', 'description': 'Portable wireless speaker with great sound', 'category': 'Electronics'},
-        {'name': 'iPad Mini', 'description': '2021 iPad Mini, excellent condition with case', 'category': 'Electronics'},
-        {'name': 'Digital Camera', 'description': 'Canon DSLR camera with lens kit', 'category': 'Electronics'},
-        {'name': 'Gaming Headset', 'description': 'Wireless gaming headset with noise cancellation', 'category': 'Electronics'},
-        {'name': 'Tablet Stand', 'description': 'Adjustable tablet stand for desk use', 'category': 'Electronics'},
-        {'name': 'Phone Charger', 'description': 'Fast charging cable and wall adapter', 'category': 'Electronics'},
-        
+        {
+            "name": "Bluetooth Speaker",
+            "description": "Portable wireless speaker with great sound",
+            "category": "Electronics",
+        },
+        {
+            "name": "iPad Mini",
+            "description": "2021 iPad Mini, excellent condition with case",
+            "category": "Electronics",
+        },
+        {
+            "name": "Digital Camera",
+            "description": "Canon DSLR camera with lens kit",
+            "category": "Electronics",
+        },
+        {
+            "name": "Gaming Headset",
+            "description": "Wireless gaming headset with noise cancellation",
+            "category": "Electronics",
+        },
+        {
+            "name": "Tablet Stand",
+            "description": "Adjustable tablet stand for desk use",
+            "category": "Electronics",
+        },
+        {
+            "name": "Phone Charger",
+            "description": "Fast charging cable and wall adapter",
+            "category": "Electronics",
+        },
         # Additional Books
-        {'name': 'JavaScript Guide', 'description': 'Complete guide to modern JavaScript', 'category': 'Books'},
-        {'name': 'Cooking for Beginners', 'description': 'Learn basic cooking techniques', 'category': 'Books'},
-        {'name': 'The Great Gatsby', 'description': 'Classic American literature', 'category': 'Books'},
-        {'name': 'Yoga for Everyone', 'description': 'Beginner-friendly yoga instruction book', 'category': 'Books'},
-        {'name': 'Home Repair Manual', 'description': 'DIY guide for common home repairs', 'category': 'Books'},
-        
+        {
+            "name": "JavaScript Guide",
+            "description": "Complete guide to modern JavaScript",
+            "category": "Books",
+        },
+        {
+            "name": "Cooking for Beginners",
+            "description": "Learn basic cooking techniques",
+            "category": "Books",
+        },
+        {
+            "name": "The Great Gatsby",
+            "description": "Classic American literature",
+            "category": "Books",
+        },
+        {
+            "name": "Yoga for Everyone",
+            "description": "Beginner-friendly yoga instruction book",
+            "category": "Books",
+        },
+        {
+            "name": "Home Repair Manual",
+            "description": "DIY guide for common home repairs",
+            "category": "Books",
+        },
         # Additional Tools
-        {'name': 'Hammer Set', 'description': 'Set of 3 hammers for different tasks', 'category': 'Tools'},
-        {'name': 'Screwdriver Kit', 'description': 'Complete set of screwdrivers', 'category': 'Tools'},
-        {'name': 'Measuring Tape', 'description': '25ft measuring tape with magnetic tip', 'category': 'Tools'},
-        {'name': 'Level', 'description': '24-inch bubble level for precise measurements', 'category': 'Tools'},
-        {'name': 'Socket Wrench Set', 'description': 'Comprehensive socket wrench set', 'category': 'Tools'},
-        
+        {
+            "name": "Hammer Set",
+            "description": "Set of 3 hammers for different tasks",
+            "category": "Tools",
+        },
+        {
+            "name": "Screwdriver Kit",
+            "description": "Complete set of screwdrivers",
+            "category": "Tools",
+        },
+        {
+            "name": "Measuring Tape",
+            "description": "25ft measuring tape with magnetic tip",
+            "category": "Tools",
+        },
+        {
+            "name": "Level",
+            "description": "24-inch bubble level for precise measurements",
+            "category": "Tools",
+        },
+        {
+            "name": "Socket Wrench Set",
+            "description": "Comprehensive socket wrench set",
+            "category": "Tools",
+        },
         # Additional Kitchen
-        {'name': 'Stand Mixer', 'description': 'KitchenAid stand mixer, red color', 'category': 'Kitchen'},
-        {'name': 'Food Processor', 'description': 'Large capacity food processor', 'category': 'Kitchen'},
-        {'name': 'Cast Iron Skillet', 'description': '12-inch seasoned cast iron skillet', 'category': 'Kitchen'},
-        {'name': 'Pressure Cooker', 'description': 'Electric pressure cooker, 6-quart', 'category': 'Kitchen'},
-        {'name': 'Knife Set', 'description': 'Professional chef knife set with block', 'category': 'Kitchen'},
-        
+        {
+            "name": "Stand Mixer",
+            "description": "KitchenAid stand mixer, red color",
+            "category": "Kitchen",
+        },
+        {
+            "name": "Food Processor",
+            "description": "Large capacity food processor",
+            "category": "Kitchen",
+        },
+        {
+            "name": "Cast Iron Skillet",
+            "description": "12-inch seasoned cast iron skillet",
+            "category": "Kitchen",
+        },
+        {
+            "name": "Pressure Cooker",
+            "description": "Electric pressure cooker, 6-quart",
+            "category": "Kitchen",
+        },
+        {
+            "name": "Knife Set",
+            "description": "Professional chef knife set with block",
+            "category": "Kitchen",
+        },
         # Additional Sports
-        {'name': 'Basketball', 'description': 'Official size basketball, good condition', 'category': 'Sports'},
-        {'name': 'Yoga Mat', 'description': 'Non-slip yoga mat with carrying strap', 'category': 'Sports'},
-        {'name': 'Bicycle Helmet', 'description': 'Safety helmet for cycling, medium size', 'category': 'Sports'},
-        {'name': 'Swimming Goggles', 'description': 'Anti-fog swimming goggles', 'category': 'Sports'},
-        {'name': 'Dumbbells', 'description': 'Set of adjustable dumbbells, 5-50 lbs', 'category': 'Sports'},
-        
+        {
+            "name": "Basketball",
+            "description": "Official size basketball, good condition",
+            "category": "Sports",
+        },
+        {
+            "name": "Yoga Mat",
+            "description": "Non-slip yoga mat with carrying strap",
+            "category": "Sports",
+        },
+        {
+            "name": "Bicycle Helmet",
+            "description": "Safety helmet for cycling, medium size",
+            "category": "Sports",
+        },
+        {
+            "name": "Swimming Goggles",
+            "description": "Anti-fog swimming goggles",
+            "category": "Sports",
+        },
+        {
+            "name": "Dumbbells",
+            "description": "Set of adjustable dumbbells, 5-50 lbs",
+            "category": "Sports",
+        },
         # Additional Home & Garden
-        {'name': 'Lawn Mower', 'description': 'Electric lawn mower, works perfectly', 'category': 'Home & Garden'},
-        {'name': 'Plant Pots', 'description': 'Set of ceramic plant pots, various sizes', 'category': 'Home & Garden'},
-        {'name': 'Watering Can', 'description': '2-gallon watering can with sprinkler head', 'category': 'Home & Garden'},
-        {'name': 'Garden Tools', 'description': 'Set of basic gardening tools', 'category': 'Home & Garden'},
-        {'name': 'Outdoor Table', 'description': 'Weather-resistant patio table', 'category': 'Home & Garden'},
-        
+        {
+            "name": "Lawn Mower",
+            "description": "Electric lawn mower, works perfectly",
+            "category": "Home & Garden",
+        },
+        {
+            "name": "Plant Pots",
+            "description": "Set of ceramic plant pots, various sizes",
+            "category": "Home & Garden",
+        },
+        {
+            "name": "Watering Can",
+            "description": "2-gallon watering can with sprinkler head",
+            "category": "Home & Garden",
+        },
+        {
+            "name": "Garden Tools",
+            "description": "Set of basic gardening tools",
+            "category": "Home & Garden",
+        },
+        {
+            "name": "Outdoor Table",
+            "description": "Weather-resistant patio table",
+            "category": "Home & Garden",
+        },
         # Additional Toys
-        {'name': 'LEGO Set', 'description': 'Large LEGO building set, complete', 'category': 'Toys'},
-        {'name': 'Puzzle Collection', 'description': '1000-piece jigsaw puzzles, various themes', 'category': 'Toys'},
-        {'name': 'Action Figures', 'description': 'Collection of superhero action figures', 'category': 'Toys'},
-        {'name': 'Art Supplies', 'description': 'Complete art kit with paints and brushes', 'category': 'Toys'},
-        {'name': 'Remote Control Car', 'description': 'Fast RC car with rechargeable battery', 'category': 'Toys'},
-        
+        {
+            "name": "LEGO Set",
+            "description": "Large LEGO building set, complete",
+            "category": "Toys",
+        },
+        {
+            "name": "Puzzle Collection",
+            "description": "1000-piece jigsaw puzzles, various themes",
+            "category": "Toys",
+        },
+        {
+            "name": "Action Figures",
+            "description": "Collection of superhero action figures",
+            "category": "Toys",
+        },
+        {
+            "name": "Art Supplies",
+            "description": "Complete art kit with paints and brushes",
+            "category": "Toys",
+        },
+        {
+            "name": "Remote Control Car",
+            "description": "Fast RC car with rechargeable battery",
+            "category": "Toys",
+        },
         # Additional Clothing
-        {'name': 'Running Shoes', 'description': 'Nike running shoes, size 10, barely used', 'category': 'Clothing'},
-        {'name': 'Formal Dress', 'description': 'Black evening dress, size medium', 'category': 'Clothing'},
-        {'name': 'Leather Jacket', 'description': 'Genuine leather jacket, classic style', 'category': 'Clothing'},
-        {'name': 'Hiking Boots', 'description': 'Waterproof hiking boots, size 9', 'category': 'Clothing'},
-        {'name': 'Summer Hat', 'description': 'Sun protection hat for outdoor activities', 'category': 'Clothing'},
+        {
+            "name": "Running Shoes",
+            "description": "Nike running shoes, size 10, barely used",
+            "category": "Clothing",
+        },
+        {
+            "name": "Formal Dress",
+            "description": "Black evening dress, size medium",
+            "category": "Clothing",
+        },
+        {
+            "name": "Leather Jacket",
+            "description": "Genuine leather jacket, classic style",
+            "category": "Clothing",
+        },
+        {
+            "name": "Hiking Boots",
+            "description": "Waterproof hiking boots, size 9",
+            "category": "Clothing",
+        },
+        {
+            "name": "Summer Hat",
+            "description": "Sun protection hat for outdoor activities",
+            "category": "Clothing",
+        },
     ]
-    
+
     category_map = {cat.name: cat for cat in categories}
-    
+
     for item_data in item_examples:
-        existing = Item.query.filter_by(name=item_data['name']).first()
+        existing = Item.query.filter_by(name=item_data["name"]).first()
         if not existing:
-            category = category_map.get(item_data['category'], categories[0])
+            category = category_map.get(item_data["category"], categories[0])
             owner = random.choice(users)
-            
+
             item = Item(
-                name=item_data['name'],
-                description=item_data['description'],
+                name=item_data["name"],
+                description=item_data["description"],
                 category=category,
                 owner=owner,
-                available=random.choice([True, True, True, False])  # 75% available
+                available=random.choice([True, True, True, False]),  # 75% available
             )
             db.session.add(item)
             db.session.flush()  # Get the ID
-            
+
             # Add random tags
             item_tags = random.sample(tags, random.randint(1, 3))
             for tag in item_tags:
                 item.tags.append(tag)
-            
+
             items.append(item)
             click.echo(f"  ✓ Item: {item.name} (owner: {owner.email})")
         else:
             items.append(existing)
             click.echo(f"  ≈ Item exists: {existing.name} (owner: {existing.owner.email})")
-    
+
     # Get all existing items for loan requests and messages
     all_items = Item.query.all()
     all_users = User.query.all()
-    
+
     # Loan requests (create a few if none exist)
     existing_loan_requests = LoanRequest.query.count()
     if existing_loan_requests < 5:
@@ -390,24 +687,23 @@ def _seed_development_data():
                 potential_borrowers = [u for u in all_users if u != item.owner]
                 if potential_borrowers:
                     borrower = random.choice(potential_borrowers)
-                    
+
                     # Check if this combination already exists
                     existing_request = LoanRequest.query.filter_by(
                         item=item, borrower=borrower
                     ).first()
-                    
+
                     if not existing_request:
-                        
                         # Generate realistic loan dates
                         start_date = date.today() + timedelta(days=random.randint(1, 14))
                         end_date = start_date + timedelta(days=random.randint(1, 30))
-                        
+
                         loan_request = LoanRequest(
                             item=item,
                             borrower=borrower,
                             start_date=start_date,
                             end_date=end_date,
-                            status=random.choice(['pending', 'approved', 'rejected'])
+                            status=random.choice(["pending", "approved", "rejected"]),
                         )
                         db.session.add(loan_request)
                         db.session.flush()  # Ensure the loan request is persisted
@@ -418,13 +714,13 @@ def _seed_development_data():
                             recipient=item.owner,
                             item=item,
                             body=f"Hi, I'd like to borrow your {item.name}. Would {start_date} to {end_date} work for you?",
-                            loan_request=loan_request
+                            loan_request=loan_request,
                         )
                         db.session.add(request_message)
                         click.echo(f"  ✓ Loan request: {borrower.email} wants {item.name}")
     else:
         click.echo(f"  ≈ Loan requests exist: {existing_loan_requests} records")
-    
+
     # Messages (create a few if none exist)
     existing_messages = Message.query.count()
     if existing_messages < 5:
@@ -433,13 +729,13 @@ def _seed_development_data():
             sender = random.choice(all_users)
             recipient = random.choice([u for u in all_users if u != sender])
             item = random.choice(all_items)  # Messages must be associated with an item
-            
+
             message = Message(
                 sender=sender,
                 recipient=recipient,
                 item=item,  # Required field
                 body=f"Hi {recipient.first_name}, I'm interested in your {item.name}. Is it still available?",
-                is_read=random.choice([True, False])
+                is_read=random.choice([True, False]),
             )
             db.session.add(message)
             db.session.flush()  # Ensure the message is persisted
@@ -450,235 +746,285 @@ def _seed_development_data():
     # Giveaway items (create sample giveaway items if none exist)
     existing_giveaways = Item.query.filter_by(is_giveaway=True).count()
     if existing_giveaways < 5:
-        click.echo('  Creating giveaway items...')
-        
+        click.echo("  Creating giveaway items...")
+
         giveaway_examples = [
             {
-                'name': 'Free Moving Boxes',
-                'description': 'Large collection of moving boxes, various sizes. Just moved in and don\'t need them anymore!',
-                'category': 'Home & Garden',
-                'visibility': 'public',
-                'status': 'unclaimed',
-                'has_interests': True,
-                'interest_count': 3
+                "name": "Free Moving Boxes",
+                "description": "Large collection of moving boxes, various sizes. Just moved in and don't need them anymore!",
+                "category": "Home & Garden",
+                "visibility": "public",
+                "status": "unclaimed",
+                "has_interests": True,
+                "interest_count": 3,
             },
             {
-                'name': 'Old Textbooks - Biology',
-                'description': 'College biology textbooks from last semester. Free to anyone who needs them.',
-                'category': 'Books',
-                'visibility': 'default',
-                'status': 'unclaimed',
-                'has_interests': True,
-                'interest_count': 2
+                "name": "Old Textbooks - Biology",
+                "description": "College biology textbooks from last semester. Free to anyone who needs them.",
+                "category": "Books",
+                "visibility": "default",
+                "status": "unclaimed",
+                "has_interests": True,
+                "interest_count": 2,
             },
             {
-                'name': 'Kids\' Bicycle',
-                'description': 'Small bicycle for ages 5-7. My kids have outgrown it, hope it can help another family.',
-                'category': 'Sports',
-                'visibility': 'public',
-                'status': 'pending_pickup',
-                'has_interests': True,
-                'interest_count': 4,
-                'claimed_by_index': 0  # Will claim for first interested user
+                "name": "Kids' Bicycle",
+                "description": "Small bicycle for ages 5-7. My kids have outgrown it, hope it can help another family.",
+                "category": "Sports",
+                "visibility": "public",
+                "status": "pending_pickup",
+                "has_interests": True,
+                "interest_count": 4,
+                "claimed_by_index": 0,  # Will claim for first interested user
             },
             {
-                'name': 'Coffee Maker',
-                'description': 'Basic drip coffee maker, works great. Upgraded to espresso machine.',
-                'category': 'Kitchen',
-                'visibility': 'default',
-                'status': 'unclaimed',
-                'has_interests': False
+                "name": "Coffee Maker",
+                "description": "Basic drip coffee maker, works great. Upgraded to espresso machine.",
+                "category": "Kitchen",
+                "visibility": "default",
+                "status": "unclaimed",
+                "has_interests": False,
             },
             {
-                'name': 'Old Monitor (VGA)',
-                'description': 'Working 19" monitor with VGA connection. A bit old but still functional.',
-                'category': 'Electronics',
-                'visibility': 'public',
-                'status': 'unclaimed',
-                'has_interests': True,
-                'interest_count': 1
+                "name": "Old Monitor (VGA)",
+                "description": 'Working 19" monitor with VGA connection. A bit old but still functional.',
+                "category": "Electronics",
+                "visibility": "public",
+                "status": "unclaimed",
+                "has_interests": True,
+                "interest_count": 1,
             },
             {
-                'name': 'Vintage Blender',
-                'description': 'Retro 1970s blender in working condition. Perfect for smoothies!',
-                'category': 'Kitchen',
-                'visibility': 'default',
-                'status': 'claimed',
-                'owner_email': 'user1@example.com',
-                'claimed_by_email': 'user2@example.com',
-                'has_interests': False,
-                'days_ago': 10  # Claimed 10 days ago
-            }
+                "name": "Vintage Blender",
+                "description": "Retro 1970s blender in working condition. Perfect for smoothies!",
+                "category": "Kitchen",
+                "visibility": "default",
+                "status": "claimed",
+                "owner_email": "user1@example.com",
+                "claimed_by_email": "user2@example.com",
+                "has_interests": False,
+                "days_ago": 10,  # Claimed 10 days ago
+            },
         ]
-        
+
         for giveaway_data in giveaway_examples:
             # Check if this giveaway already exists
-            existing = Item.query.filter_by(name=giveaway_data['name']).first()
+            existing = Item.query.filter_by(name=giveaway_data["name"]).first()
             if existing:
                 click.echo(f"  ≈ Giveaway exists: {existing.name}")
                 continue
-            
-            category = category_map.get(giveaway_data['category'], categories[0])
-            
+
+            category = category_map.get(giveaway_data["category"], categories[0])
+
             # Handle owner assignment (can be random or specified)
-            if 'owner_email' in giveaway_data:
-                owner = User.query.filter_by(email=giveaway_data['owner_email']).first()
+            if "owner_email" in giveaway_data:
+                owner = User.query.filter_by(email=giveaway_data["owner_email"]).first()
                 if not owner:
                     owner = random.choice(users)
             else:
                 owner = random.choice(users)
-            
+
             # Create giveaway item
             giveaway = Item(
-                name=giveaway_data['name'],
-                description=giveaway_data['description'],
+                name=giveaway_data["name"],
+                description=giveaway_data["description"],
                 category=category,
                 owner=owner,
                 is_giveaway=True,
-                giveaway_visibility=giveaway_data['visibility'],
-                claim_status=giveaway_data['status'],
-                available=(giveaway_data['status'] == 'unclaimed')
+                giveaway_visibility=giveaway_data["visibility"],
+                claim_status=giveaway_data["status"],
+                available=(giveaway_data["status"] == "unclaimed"),
             )
             db.session.add(giveaway)
             db.session.flush()  # Get the ID
-            
+
             # Add random tags
             giveaway_tags = random.sample(tags, random.randint(1, 2))
             for tag in giveaway_tags:
                 giveaway.tags.append(tag)
-            
+
             # Add interests if specified
             interested_users = []
-            if giveaway_data.get('has_interests'):
-                interest_count = giveaway_data.get('interest_count', 1)
+            if giveaway_data.get("has_interests"):
+                interest_count = giveaway_data.get("interest_count", 1)
                 potential_interested = [u for u in users if u.id != owner.id]
-                interested_users = random.sample(potential_interested, min(interest_count, len(potential_interested)))
-                
+                interested_users = random.sample(
+                    potential_interested, min(interest_count, len(potential_interested))
+                )
+
                 for idx, interested_user in enumerate(interested_users):
                     interest = GiveawayInterest(
                         item_id=giveaway.id,
                         user_id=interested_user.id,
-                        message=random.choice([
-                            'I really need this!',
-                            'This would be perfect for my project.',
-                            'Been looking for exactly this!',
-                            None,  # Some users don't leave a message
-                            'Would love to have this, thank you!',
-                        ]),
-                        status='active'
+                        message=random.choice(
+                            [
+                                "I really need this!",
+                                "This would be perfect for my project.",
+                                "Been looking for exactly this!",
+                                None,  # Some users don't leave a message
+                                "Would love to have this, thank you!",
+                            ]
+                        ),
+                        status="active",
                     )
                     db.session.add(interest)
                     db.session.flush()
-            
+
             # If status is pending_pickup, select a recipient
-            if giveaway_data['status'] == 'pending_pickup' and interested_users:
-                claimed_by_idx = giveaway_data.get('claimed_by_index', 0)
+            if giveaway_data["status"] == "pending_pickup" and interested_users:
+                claimed_by_idx = giveaway_data.get("claimed_by_index", 0)
                 if claimed_by_idx < len(interested_users):
                     recipient = interested_users[claimed_by_idx]
                     giveaway.claimed_by_id = recipient.id
                     giveaway.available = False
-                    
+
                     # Update the selected interest status
                     selected_interest = GiveawayInterest.query.filter_by(
-                        item_id=giveaway.id,
-                        user_id=recipient.id
+                        item_id=giveaway.id, user_id=recipient.id
                     ).first()
                     if selected_interest:
-                        selected_interest.status = 'selected'
-                    
+                        selected_interest.status = "selected"
+
                     # Create notification message
                     notification = Message(
                         sender_id=owner.id,
                         recipient_id=recipient.id,
                         item_id=giveaway.id,
                         body=f"Good news! You've been selected for the giveaway '{giveaway.name}'! Please coordinate pickup with the owner.",
-                        is_read=False
+                        is_read=False,
                     )
                     db.session.add(notification)
-            
+
             # If status is claimed, mark as claimed with timestamp
-            elif giveaway_data['status'] == 'claimed':
-                
+            elif giveaway_data["status"] == "claimed":
                 # Find the claimed_by user (can be specified or random)
-                if 'claimed_by_email' in giveaway_data:
-                    claimed_by_user = User.query.filter_by(email=giveaway_data['claimed_by_email']).first()
+                if "claimed_by_email" in giveaway_data:
+                    claimed_by_user = User.query.filter_by(
+                        email=giveaway_data["claimed_by_email"]
+                    ).first()
                     if not claimed_by_user:
                         claimed_by_user = random.choice([u for u in users if u.id != owner.id])
                 else:
                     claimed_by_user = random.choice([u for u in users if u.id != owner.id])
-                
+
                 giveaway.claimed_by_id = claimed_by_user.id
                 giveaway.available = False
-                
+
                 # Set claimed_at timestamp (N days ago)
-                days_ago = giveaway_data.get('days_ago', 5)
+                days_ago = giveaway_data.get("days_ago", 5)
                 giveaway.claimed_at = datetime.now(UTC) - timedelta(days=days_ago)
-            
-            status_marker = f" [{giveaway_data['status']}]" if giveaway_data['status'] != 'unclaimed' else ""
+
+            status_marker = (
+                f" [{giveaway_data['status']}]" if giveaway_data["status"] != "unclaimed" else ""
+            )
             interest_marker = f" ({len(interested_users)} interested)" if interested_users else ""
-            click.echo(f"  ✓ Giveaway: {giveaway.name} (owner: {owner.email}, visibility: {giveaway_data['visibility']}){status_marker}{interest_marker}")
+            click.echo(
+                f"  ✓ Giveaway: {giveaway.name} (owner: {owner.email}, visibility: {giveaway_data['visibility']}){status_marker}{interest_marker}"
+            )
     else:
         click.echo(f"  ≈ Giveaways exist: {existing_giveaways} items")
-    
+
     # Web Links (add some sample social links for development users)
     existing_web_links = UserWebLink.query.count()
     if existing_web_links < 10:
         # Sample web links for some users
         web_link_examples = [
-            {'email': 'user1@example.com', 'platform': 'instagram', 'url': 'https://instagram.com/user1_meutch'},
-            {'email': 'user1@example.com', 'platform': 'linkedin', 'url': 'https://linkedin.com/in/user1-meutch'},
-            {'email': 'user2@example.com', 'platform': 'facebook', 'url': 'https://facebook.com/user2.meutch'},
-            {'email': 'user2@example.com', 'platform': 'blog', 'url': 'https://user2blog.wordpress.com'},
-            {'email': 'user3@example.com', 'platform': 'x', 'url': 'https://x.com/user3_meutch'},
-            {'email': 'user3@example.com', 'platform': 'website', 'url': 'https://user3.dev'},
-            {'email': 'user4@example.com', 'platform': 'mastodon', 'url': 'https://mastodon.social/@user4'},
-            {'email': 'user4@example.com', 'platform': 'threads', 'url': 'https://threads.net/@user4_meutch'},
-            {'email': 'user5@example.com', 'platform': 'tiktok', 'url': 'https://tiktok.com/@user5_meutch'},
-            {'email': 'user5@example.com', 'platform': 'bluesky', 'url': 'https://bsky.app/profile/user5.bsky.social'},
-            {'email': 'user6@example.com', 'platform': 'website', 'url': 'https://user6portfolio.dev'},
-            {'email': 'user6@example.com', 'platform': 'other', 'url': 'https://dribbble.com/user6', 'custom_name': 'Dribbble'},
+            {
+                "email": "user1@example.com",
+                "platform": "instagram",
+                "url": "https://instagram.com/user1_meutch",
+            },
+            {
+                "email": "user1@example.com",
+                "platform": "linkedin",
+                "url": "https://linkedin.com/in/user1-meutch",
+            },
+            {
+                "email": "user2@example.com",
+                "platform": "facebook",
+                "url": "https://facebook.com/user2.meutch",
+            },
+            {
+                "email": "user2@example.com",
+                "platform": "blog",
+                "url": "https://user2blog.wordpress.com",
+            },
+            {"email": "user3@example.com", "platform": "x", "url": "https://x.com/user3_meutch"},
+            {"email": "user3@example.com", "platform": "website", "url": "https://user3.dev"},
+            {
+                "email": "user4@example.com",
+                "platform": "mastodon",
+                "url": "https://mastodon.social/@user4",
+            },
+            {
+                "email": "user4@example.com",
+                "platform": "threads",
+                "url": "https://threads.net/@user4_meutch",
+            },
+            {
+                "email": "user5@example.com",
+                "platform": "tiktok",
+                "url": "https://tiktok.com/@user5_meutch",
+            },
+            {
+                "email": "user5@example.com",
+                "platform": "bluesky",
+                "url": "https://bsky.app/profile/user5.bsky.social",
+            },
+            {
+                "email": "user6@example.com",
+                "platform": "website",
+                "url": "https://user6portfolio.dev",
+            },
+            {
+                "email": "user6@example.com",
+                "platform": "other",
+                "url": "https://dribbble.com/user6",
+                "custom_name": "Dribbble",
+            },
         ]
-        
+
         user_emails_map = {user.email: user for user in all_users}
         display_order_counters = {}
-        
+
         for link_data in web_link_examples:
-            user = user_emails_map.get(link_data['email'])
+            user = user_emails_map.get(link_data["email"])
             if user:
                 # Track display order per user
                 if user.id not in display_order_counters:
                     display_order_counters[user.id] = 1
                 else:
                     display_order_counters[user.id] += 1
-                
+
                 # Check if this link already exists
                 existing_link = UserWebLink.query.filter_by(
-                    user_id=user.id,
-                    display_order=display_order_counters[user.id]
+                    user_id=user.id, display_order=display_order_counters[user.id]
                 ).first()
-                
+
                 if not existing_link and display_order_counters[user.id] <= 5:
                     web_link = UserWebLink(
                         user_id=user.id,
-                        platform_type=link_data['platform'],
-                        platform_name=link_data.get('custom_name'),
-                        url=link_data['url'],
-                        display_order=display_order_counters[user.id]
+                        platform_type=link_data["platform"],
+                        platform_name=link_data.get("custom_name"),
+                        url=link_data["url"],
+                        display_order=display_order_counters[user.id],
                     )
                     db.session.add(web_link)
                     db.session.flush()
-                    click.echo(f"  ✓ Web link: {user.email} -> {link_data['platform']} ({link_data['url']})")
+                    click.echo(
+                        f"  ✓ Web link: {user.email} -> {link_data['platform']} ({link_data['url']})"
+                    )
     else:
         click.echo(f"  ≈ Web links exist: {existing_web_links} records")
-    
+
     # Seed item requests
-    click.echo('Creating item requests...')
+    click.echo("Creating item requests...")
     _seed_requests(users)
 
 
 def _seed_requests(users):
     """Seed sample ItemRequests and request conversations for development.
-    
+
     Args:
         users: List of User objects to create requests for
     """
@@ -686,38 +1032,155 @@ def _seed_requests(users):
     # Check existing count (idempotent: skip if >=10 requests already)
     existing_count = ItemRequest.query.count()
     if existing_count >= 10:
-        click.echo(f'  ≈ Requests already seeded ({existing_count} found), skipping.')
+        click.echo(f"  ≈ Requests already seeded ({existing_count} found), skipping.")
         return
 
     if len(users) < 4:
-        click.echo('❌ Insufficient users for requests.')
+        click.echo("❌ Insufficient users for requests.")
         return
 
     now = datetime.now(UTC)
 
     request_data = [
         # (owner_idx, title, description, seeking, visibility, expires_delta_days, status, fulfilled_days_ago)
-        (0, 'Looking for a melon baller', 'Need it for a summer party, just for the weekend.', 'loan', 'circles', 14, 'open', None),
-        (1, 'Small piece of drywall', 'About 2x2 feet. Patching a hole, don\'t want to buy a whole sheet.', 'giveaway', 'public', 30, 'open', None),
-        (2, 'Folding table for one week', 'Need a 6-foot folding table for a garage sale next weekend.', 'loan', 'circles', 21, 'open', None),
-        (3, 'Stand mixer (KitchenAid or similar)', 'I want to try making bread. Would love to borrow one for a few days.', 'loan', 'public', 45, 'open', None),
-        (4, 'Kids bike 20" wheel', 'My nephew is visiting for two weeks, needs a bike to get around.', 'either', 'circles', 60, 'open', None),
-        (5, 'Carpet cleaner / steam cleaner', None, 'loan', 'public', 30, 'open', None),
-        (6, 'Camping tent 4-person', 'Going camping next month, only need it once.', 'loan', 'circles', 40, 'open', None),
-        (7, 'Electric drill with bits', 'Working on a small home project, just need it for a day.', 'loan', 'public', 20, 'open', None),
-        (8, 'Canning jars (any size)', 'Making jam and ran out — dozen or so would be great.', 'giveaway', 'circles', 30, 'open', None),
-        (9, 'Bread machine', 'Curious to try it before buying.', 'loan', 'public', 25, 'open', None),
-        (10, 'Extension ladder 20ft+', 'Need to clean gutters. Would borrow for a weekend.', 'loan', 'circles', 35, 'open', None),
-        (0, 'Box of packing materials', 'Bubble wrap, boxes, peanuts — whatever you have!', 'giveaway', 'public', 10, 'open', None),
-        (1, 'Baby swing or bouncer', 'Friend is visiting with an infant. Just for a week.', 'loan', 'circles', 50, 'open', None),
+        (
+            0,
+            "Looking for a melon baller",
+            "Need it for a summer party, just for the weekend.",
+            "loan",
+            "circles",
+            14,
+            "open",
+            None,
+        ),
+        (
+            1,
+            "Small piece of drywall",
+            "About 2x2 feet. Patching a hole, don't want to buy a whole sheet.",
+            "giveaway",
+            "public",
+            30,
+            "open",
+            None,
+        ),
+        (
+            2,
+            "Folding table for one week",
+            "Need a 6-foot folding table for a garage sale next weekend.",
+            "loan",
+            "circles",
+            21,
+            "open",
+            None,
+        ),
+        (
+            3,
+            "Stand mixer (KitchenAid or similar)",
+            "I want to try making bread. Would love to borrow one for a few days.",
+            "loan",
+            "public",
+            45,
+            "open",
+            None,
+        ),
+        (
+            4,
+            'Kids bike 20" wheel',
+            "My nephew is visiting for two weeks, needs a bike to get around.",
+            "either",
+            "circles",
+            60,
+            "open",
+            None,
+        ),
+        (5, "Carpet cleaner / steam cleaner", None, "loan", "public", 30, "open", None),
+        (
+            6,
+            "Camping tent 4-person",
+            "Going camping next month, only need it once.",
+            "loan",
+            "circles",
+            40,
+            "open",
+            None,
+        ),
+        (
+            7,
+            "Electric drill with bits",
+            "Working on a small home project, just need it for a day.",
+            "loan",
+            "public",
+            20,
+            "open",
+            None,
+        ),
+        (
+            8,
+            "Canning jars (any size)",
+            "Making jam and ran out — dozen or so would be great.",
+            "giveaway",
+            "circles",
+            30,
+            "open",
+            None,
+        ),
+        (
+            9,
+            "Bread machine",
+            "Curious to try it before buying.",
+            "loan",
+            "public",
+            25,
+            "open",
+            None,
+        ),
+        (
+            10,
+            "Extension ladder 20ft+",
+            "Need to clean gutters. Would borrow for a weekend.",
+            "loan",
+            "circles",
+            35,
+            "open",
+            None,
+        ),
+        (
+            0,
+            "Box of packing materials",
+            "Bubble wrap, boxes, peanuts — whatever you have!",
+            "giveaway",
+            "public",
+            10,
+            "open",
+            None,
+        ),
+        (
+            1,
+            "Baby swing or bouncer",
+            "Friend is visiting with an infant. Just for a week.",
+            "loan",
+            "circles",
+            50,
+            "open",
+            None,
+        ),
         # One fulfilled recently
-        (2, 'Hedge trimmer', 'Needed to tame the bushes!', 'loan', 'circles', 60, 'fulfilled', 3),
+        (2, "Hedge trimmer", "Needed to tame the bushes!", "loan", "circles", 60, "fulfilled", 3),
         # One nearly expired
-        (3, 'Portable projector', 'For outdoor movie night.', 'loan', 'public', 2, 'open', None),
+        (3, "Portable projector", "For outdoor movie night.", "loan", "public", 2, "open", None),
     ]
 
     created = 0
-    for (owner_idx, title, desc, seeking, visibility, delta_days, status, fulfilled_days_ago) in request_data:
+    for (
+        owner_idx,
+        title,
+        desc,
+        seeking,
+        visibility,
+        delta_days,
+        status,
+        fulfilled_days_ago,
+    ) in request_data:
         owner = users[owner_idx % len(users)]
         expires_at = now + timedelta(days=delta_days)
         fulfilled_at = (now - timedelta(days=fulfilled_days_ago)) if fulfilled_days_ago else None
@@ -739,7 +1202,7 @@ def _seed_requests(users):
 
     # Add a few request-linked conversation messages
     # Pick a few open requests and have another user reach out
-    open_requests = [r for r in ItemRequest.query.all() if r.status == 'open']
+    open_requests = [r for r in ItemRequest.query.all() if r.status == "open"]
     convo_count = 0
     for i, req in enumerate(open_requests[:4]):
         # Use a different user as the "helper"
@@ -750,79 +1213,83 @@ def _seed_requests(users):
                 recipient_id=req.user_id,
                 item_id=None,
                 request_id=req.id,
-                body=random.choice([
-                    f"Hi! I have a {req.title.lower()} you can borrow. Let me know when works.",
-                    f"I think I can help with this! I have one you can use.",
-                    f"Happy to help — I've got one sitting in my garage.",
-                    f"Reach out if you still need this, I can lend mine.",
-                ]),
+                body=random.choice(
+                    [
+                        f"Hi! I have a {req.title.lower()} you can borrow. Let me know when works.",
+                        "I think I can help with this! I have one you can use.",
+                        "Happy to help — I've got one sitting in my garage.",
+                        "Reach out if you still need this, I can lend mine.",
+                    ]
+                ),
                 is_read=False,
             )
             db.session.add(msg)
             convo_count += 1
 
-    click.echo(f'  ✅ Created {created} requests and {convo_count} conversations.')
+    click.echo(f"  ✅ Created {created} requests and {convo_count} conversations.")
 
 
 def _get_database_info():
     """Get readable database information for user display."""
-    
-    db_url = os.environ.get('DATABASE_URL', '')
-    
+
+    db_url = os.environ.get("DATABASE_URL", "")
+
     if not db_url:
         return "Unknown database"
-    
+
     try:
         parsed = urlparse(db_url)
-        
+
         # Handle different database types
-        if parsed.scheme == 'sqlite':
-            if db_url == 'sqlite:///:memory:':
+        if parsed.scheme == "sqlite":
+            if db_url == "sqlite:///:memory:":
                 return "SQLite (in-memory)"
             else:
                 # Extract filename from path
                 path = parsed.path
-                if path.startswith('/'):
+                if path.startswith("/"):
                     path = path[1:]  # Remove leading slash
                 return f"SQLite ({path or 'local file'})"
-        
-        elif parsed.scheme in ['postgresql', 'postgres']:
-            host = parsed.hostname or 'localhost'
+
+        elif parsed.scheme in ["postgresql", "postgres"]:
+            host = parsed.hostname or "localhost"
             port = parsed.port or 5432
-            database = parsed.path.lstrip('/') if parsed.path else 'unknown'
-            
+            database = parsed.path.lstrip("/") if parsed.path else "unknown"
+
             # Identify common setups
-            if host == 'localhost' and port == 5433:
+            if host == "localhost" and port == 5433:
                 return f"PostgreSQL (Local Docker - {database})"
-            elif host == 'localhost':
+            elif host == "localhost":
                 return f"PostgreSQL (Local - {database})"
-            elif 'digitalocean' in host or 'db.ondigitalocean.com' in host:
+            elif "digitalocean" in host or "db.ondigitalocean.com" in host:
                 return f"PostgreSQL (DigitalOcean Production - {database})"
             else:
                 return f"PostgreSQL ({host}:{port} - {database})"
-        
+
         else:
             # Generic fallback
-            host = parsed.hostname or 'localhost'
-            database = parsed.path.lstrip('/') if parsed.path else 'unknown'
+            host = parsed.hostname or "localhost"
+            database = parsed.path.lstrip("/") if parsed.path else "unknown"
             return f"{parsed.scheme.upper()} ({host} - {database})"
-    
+
     except Exception:
         # If parsing fails, show a safe fallback
-        if 'localhost' in db_url:
+        if "localhost" in db_url:
             return "Local database"
-        elif 'digitalocean' in db_url:
+        elif "digitalocean" in db_url:
             return "DigitalOcean Production database"
         else:
             return "Remote database"
 
 
-def check_loan_reminders_logic(today=None, force_loan_reminders=False, force_digest=False, digest_now_utc=None):
+def check_loan_reminders_logic(
+    today=None, force_loan_reminders=False, force_digest=False, digest_now_utc=None
+):
     """
     Core logic for checking and sending loan reminder emails.
     Extracted as a separate function so it can be called from both
     CLI and HTTP endpoint (the latter doesn't currently exist).
-    
+
     Returns a dict with statistics about emails sent.
     """
 
@@ -831,93 +1298,101 @@ def check_loan_reminders_logic(today=None, force_loan_reminders=False, force_dig
         send_loan_due_today_borrower_email,
         send_loan_due_today_owner_email,
         send_loan_overdue_borrower_email,
-        send_loan_overdue_owner_email
+        send_loan_overdue_owner_email,
     )
-    
+
     today = today or date.today()
-    
+
     # Get all approved loans
-    approved_loans = LoanRequest.query.filter_by(status='approved').all()
-    
+    approved_loans = LoanRequest.query.filter_by(status="approved").all()
+
     stats = {
-        'total_loans': len(approved_loans),
-        'due_soon': 0,
-        'due_today': 0,
-        'overdue': 0,
-        'skipped': 0,
-        'errors': []
+        "total_loans": len(approved_loans),
+        "due_soon": 0,
+        "due_today": 0,
+        "overdue": 0,
+        "skipped": 0,
+        "errors": [],
     }
-    
+
     for loan in approved_loans:
         days_until = (loan.end_date - today).days
-        
+
         # 1. Check for 3-day reminders
         if days_until == 3 and (force_loan_reminders or not loan.due_soon_reminder_sent):
             try:
                 if send_loan_due_soon_email(loan):
                     loan.due_soon_reminder_sent = datetime.now(UTC)
                     db.session.commit()
-                    stats['due_soon'] += 1
+                    stats["due_soon"] += 1
                 else:
-                    stats['errors'].append(f'Failed to send 3-day reminder for loan {loan.id}')
+                    stats["errors"].append(f"Failed to send 3-day reminder for loan {loan.id}")
             except Exception as e:
-                stats['errors'].append(f'Error sending 3-day reminder for loan {loan.id}: {str(e)}')
+                stats["errors"].append(f"Error sending 3-day reminder for loan {loan.id}: {str(e)}")
                 db.session.rollback()
-        
+
         # 2. Check for due date reminders
         elif days_until == 0 and (force_loan_reminders or not loan.due_date_reminder_sent):
             try:
                 borrower_sent = send_loan_due_today_borrower_email(loan)
                 owner_sent = send_loan_due_today_owner_email(loan)
-                
+
                 if borrower_sent or owner_sent:
                     loan.due_date_reminder_sent = datetime.now(UTC)
                     db.session.commit()
-                    stats['due_today'] += 1
+                    stats["due_today"] += 1
                 else:
-                    stats['errors'].append(f'Failed to send due date reminders for loan {loan.id}')
+                    stats["errors"].append(f"Failed to send due date reminders for loan {loan.id}")
             except Exception as e:
-                stats['errors'].append(f'Error sending due date reminders for loan {loan.id}: {str(e)}')
+                stats["errors"].append(
+                    f"Error sending due date reminders for loan {loan.id}: {str(e)}"
+                )
                 db.session.rollback()
-        
+
         # 3. Check for overdue reminders
         elif days_until < 0:
             days_overdue = abs(days_until)
-            
+
             # Only send on specific days: 1, 3, 7, 14
             if not force_loan_reminders and days_overdue not in [1, 3, 7, 14]:
                 continue
-            
+
             # Check if we've already sent a reminder today
             if not force_loan_reminders and loan.last_overdue_reminder_sent:
                 # Ensure last_overdue_reminder_sent is timezone-aware for comparison
-                last_sent_utc = loan.last_overdue_reminder_sent.replace(tzinfo=UTC) if loan.last_overdue_reminder_sent.tzinfo is None else loan.last_overdue_reminder_sent
+                last_sent_utc = (
+                    loan.last_overdue_reminder_sent.replace(tzinfo=UTC)
+                    if loan.last_overdue_reminder_sent.tzinfo is None
+                    else loan.last_overdue_reminder_sent
+                )
                 if last_sent_utc.date() == today:
-                    stats['skipped'] += 1
+                    stats["skipped"] += 1
                     continue
-            
+
             # Don't send more than 4 overdue reminders
             if not force_loan_reminders and loan.overdue_reminder_count >= 4:
-                stats['skipped'] += 1
+                stats["skipped"] += 1
                 continue
-            
+
             try:
                 borrower_sent = send_loan_overdue_borrower_email(loan, days_overdue)
                 owner_sent = send_loan_overdue_owner_email(loan, days_overdue)
-                
+
                 if borrower_sent or owner_sent:
                     loan.last_overdue_reminder_sent = datetime.now(UTC)
                     loan.overdue_reminder_count += 1
                     db.session.commit()
-                    stats['overdue'] += 1
+                    stats["overdue"] += 1
                 else:
-                    stats['errors'].append(f'Failed to send overdue reminders for loan {loan.id}')
+                    stats["errors"].append(f"Failed to send overdue reminders for loan {loan.id}")
             except Exception as e:
-                stats['errors'].append(f'Error sending overdue reminders for loan {loan.id}: {str(e)}')
+                stats["errors"].append(
+                    f"Error sending overdue reminders for loan {loan.id}: {str(e)}"
+                )
                 db.session.rollback()
 
-    stats['digest'] = check_digest_sends_logic(now_utc=digest_now_utc, force_send=force_digest)
-    
+    stats["digest"] = check_digest_sends_logic(now_utc=digest_now_utc, force_send=force_digest)
+
     return stats
 
 
@@ -931,9 +1406,9 @@ def _to_utc(dt_value):
 
 def _digest_timezone():
     timezone_sources = [
-        ('TZ', os.environ.get('TZ') or current_app.config.get('TZ')),
-        ('DIGEST_TIMEZONE', current_app.config.get('DIGEST_TIMEZONE')),
-        ('default', 'UTC'),
+        ("TZ", os.environ.get("TZ") or current_app.config.get("TZ")),
+        ("DIGEST_TIMEZONE", current_app.config.get("DIGEST_TIMEZONE")),
+        ("default", "UTC"),
     ]
 
     for source_name, timezone_name in timezone_sources:
@@ -942,10 +1417,12 @@ def _digest_timezone():
         try:
             return ZoneInfo(timezone_name)
         except Exception:
-            if source_name != 'default':
-                current_app.logger.warning('Invalid %s %s; trying fallback timezone', source_name, timezone_name)
+            if source_name != "default":
+                current_app.logger.warning(
+                    "Invalid %s %s; trying fallback timezone", source_name, timezone_name
+                )
 
-    return ZoneInfo('UTC')
+    return ZoneInfo("UTC")
 
 
 def _digest_cadence_boundary_utc(cadence, now_utc):
@@ -967,34 +1444,34 @@ def _digest_cadence_boundary_utc(cadence, now_utc):
 def _should_send_digest_for_user(user, now_utc):
     cadence = user.digest_frequency
     if cadence not in User.DIGEST_FREQUENCY_CHOICES:
-        return False, 'invalid-cadence'
+        return False, "invalid-cadence"
 
     if cadence == User.DIGEST_FREQUENCY_NONE:
-        return False, 'cadence-none'
+        return False, "cadence-none"
 
     cadence_boundary_utc = _digest_cadence_boundary_utc(cadence, now_utc)
     if cadence_boundary_utc is None:
-        return False, 'not-cadence-day'
+        return False, "not-cadence-day"
 
     last_sent_utc = _to_utc(user.digest_last_sent_at)
     if last_sent_utc and last_sent_utc >= cadence_boundary_utc:
-        return False, 'already-sent-this-period'
+        return False, "already-sent-this-period"
 
-    return True, 'eligible'
+    return True, "eligible"
 
 
 def _empty_digest_counters():
     return {
-        'sent': 0,
-        'skipped': 0,
-        'errors': 0,
+        "sent": 0,
+        "skipped": 0,
+        "errors": 0,
     }
 
 
 def _record_digest_count(stats, cadence, counter):
-    if cadence not in stats['by_cadence']:
-        stats['by_cadence'][cadence] = _empty_digest_counters()
-    stats['by_cadence'][cadence][counter] += 1
+    if cadence not in stats["by_cadence"]:
+        stats["by_cadence"][cadence] = _empty_digest_counters()
+    stats["by_cadence"][cadence][counter] += 1
 
 
 def check_digest_sends_logic(now_utc=None, force_send=False):
@@ -1005,18 +1482,18 @@ def check_digest_sends_logic(now_utc=None, force_send=False):
     users = User.query.filter_by(is_deleted=False).all()
 
     stats = {
-        'total_users': len(users),
-        'sent': 0,
-        'skipped': 0,
-        'errors': [],
-        'by_cadence': {
+        "total_users": len(users),
+        "sent": 0,
+        "skipped": 0,
+        "errors": [],
+        "by_cadence": {
             User.DIGEST_FREQUENCY_DAILY: _empty_digest_counters(),
             User.DIGEST_FREQUENCY_WEEKLY: _empty_digest_counters(),
             User.DIGEST_FREQUENCY_NONE: _empty_digest_counters(),
         },
     }
 
-    current_app.logger.info('Digest scheduler evaluating %s user(s)', len(users))
+    current_app.logger.info("Digest scheduler evaluating %s user(s)", len(users))
 
     for user in users:
         cadence = user.digest_frequency
@@ -1025,45 +1502,45 @@ def check_digest_sends_logic(now_utc=None, force_send=False):
                 User.DIGEST_FREQUENCY_DAILY,
                 User.DIGEST_FREQUENCY_WEEKLY,
             }
-            reason = 'force-send' if should_send else 'cadence-none'
+            reason = "force-send" if should_send else "cadence-none"
         else:
             should_send, reason = _should_send_digest_for_user(user, now_utc)
 
         if not should_send:
-            stats['skipped'] += 1
-            _record_digest_count(stats, cadence, 'skipped')
+            stats["skipped"] += 1
+            _record_digest_count(stats, cadence, "skipped")
             continue
 
         try:
             digest_payload = build_digest_payload(user, until=now_utc)
-            payload_events = digest_payload.get('events') or []
+            payload_events = digest_payload.get("events") or []
             if not payload_events:
-                stats['skipped'] += 1
-                _record_digest_count(stats, cadence, 'skipped')
+                stats["skipped"] += 1
+                _record_digest_count(stats, cadence, "skipped")
                 continue
 
             email_sent = send_digest_email(user, digest_payload)
             if email_sent:
                 user.digest_last_sent_at = now_utc
                 db.session.commit()
-                stats['sent'] += 1
-                _record_digest_count(stats, cadence, 'sent')
+                stats["sent"] += 1
+                _record_digest_count(stats, cadence, "sent")
             else:
                 db.session.rollback()
-                stats['errors'].append(f'Failed to send digest for user {user.id}')
-                _record_digest_count(stats, cadence, 'errors')
+                stats["errors"].append(f"Failed to send digest for user {user.id}")
+                _record_digest_count(stats, cadence, "errors")
         except Exception as e:
             db.session.rollback()
-            stats['errors'].append(f'Error sending digest for user {user.id}: {str(e)}')
-            _record_digest_count(stats, cadence, 'errors')
-            current_app.logger.warning('Digest send failed for user %s: %s', user.id, str(e))
+            stats["errors"].append(f"Error sending digest for user {user.id}: {str(e)}")
+            _record_digest_count(stats, cadence, "errors")
+            current_app.logger.warning("Digest send failed for user %s: %s", user.id, str(e))
 
     current_app.logger.info(
-        'Digest scheduler summary: sent=%s skipped=%s errors=%s cadence=%s',
-        stats['sent'],
-        stats['skipped'],
-        len(stats['errors']),
-        stats['by_cadence'],
+        "Digest scheduler summary: sent=%s skipped=%s errors=%s cadence=%s",
+        stats["sent"],
+        stats["skipped"],
+        len(stats["errors"]),
+        stats["by_cadence"],
     )
 
     return stats
@@ -1075,192 +1552,234 @@ def user():
     pass
 
 
-@user.command('promote-admin')
-@click.argument('email')
+@user.command("promote-admin")
+@click.argument("email")
 @with_appcontext
 def promote_admin(email):
     """Promote a user to admin status."""
-    
+
     # Find user by email (case-insensitive)
     user = User.query.filter(User.email.ilike(email)).first()
-    
+
     if not user:
-        click.echo(f'❌ User not found: {email}')
+        click.echo(f"❌ User not found: {email}")
         return
-    
+
     if user.is_deleted:
-        click.echo(f'❌ Cannot promote deleted user: {email}')
+        click.echo(f"❌ Cannot promote deleted user: {email}")
         return
-    
+
     if user.is_admin:
-        click.echo(f'ℹ️  User {email} is already an admin')
+        click.echo(f"ℹ️  User {email} is already an admin")
         return
-    
+
     # Confirm promotion
-    if not click.confirm(f'Promote {user.full_name} ({email}) to admin?'):
-        click.echo('Aborted.')
+    if not click.confirm(f"Promote {user.full_name} ({email}) to admin?"):
+        click.echo("Aborted.")
         return
-    
+
     user.is_admin = True
     db.session.commit()
-    
-    click.echo(f'✅ {user.full_name} ({email}) promoted to admin')
+
+    click.echo(f"✅ {user.full_name} ({email}) promoted to admin")
 
 
-@user.command('demote-admin')
-@click.argument('email')
+@user.command("demote-admin")
+@click.argument("email")
 @with_appcontext
 def demote_admin(email):
     """Remove admin status from a user."""
     # Find user by email (case-insensitive)
     user = User.query.filter(User.email.ilike(email)).first()
-    
+
     if not user:
-        click.echo(f'❌ User not found: {email}')
+        click.echo(f"❌ User not found: {email}")
         return
-    
+
     if not user.is_admin:
-        click.echo(f'ℹ️  User {email} is not an admin')
+        click.echo(f"ℹ️  User {email} is not an admin")
         return
-    
+
     # Confirm demotion
-    if not click.confirm(f'Remove admin status from {user.full_name} ({email})?'):
-        click.echo('Aborted.')
+    if not click.confirm(f"Remove admin status from {user.full_name} ({email})?"):
+        click.echo("Aborted.")
         return
-    
+
     user.is_admin = False
     db.session.commit()
-    
-    click.echo(f'✅ Admin status removed from {user.full_name} ({email})')
+
+    click.echo(f"✅ Admin status removed from {user.full_name} ({email})")
 
 
-@user.command('enable-showcase')
-@click.argument('email')
+@user.command("enable-showcase")
+@click.argument("email")
 @with_appcontext
 def enable_showcase(email):
     """Enable public showcase for a user's items (visible to unauthenticated visitors)."""
-    
+
     # Find user by email (case-insensitive)
     user = User.query.filter(User.email.ilike(email)).first()
-    
+
     if not user:
-        click.echo(f'❌ User not found: {email}')
+        click.echo(f"❌ User not found: {email}")
         return
-    
+
     if user.is_deleted:
-        click.echo(f'❌ Cannot enable showcase for deleted user: {email}')
+        click.echo(f"❌ Cannot enable showcase for deleted user: {email}")
         return
-    
+
     if user.is_public_showcase:
-        click.echo(f'ℹ️  User {email} already has public showcase enabled')
+        click.echo(f"ℹ️  User {email} already has public showcase enabled")
         return
-    
+
     # Confirm action
-    if not click.confirm(f'Enable public showcase for {user.full_name} ({email})? Their items will be visible to unauthenticated visitors.'):
-        click.echo('Aborted.')
+    if not click.confirm(
+        f"Enable public showcase for {user.full_name} ({email})? Their items will be visible to unauthenticated visitors."
+    ):
+        click.echo("Aborted.")
         return
-    
+
     user.is_public_showcase = True
     db.session.commit()
-    
-    click.echo(f'✅ Public showcase enabled for {user.full_name} ({email})')
+
+    click.echo(f"✅ Public showcase enabled for {user.full_name} ({email})")
 
 
-@user.command('disable-showcase')
-@click.argument('email')
+@user.command("disable-showcase")
+@click.argument("email")
 @with_appcontext
 def disable_showcase(email):
     """Disable public showcase for a user's items."""
     # Find user by email (case-insensitive)
     user = User.query.filter(User.email.ilike(email)).first()
-    
+
     if not user:
-        click.echo(f'❌ User not found: {email}')
+        click.echo(f"❌ User not found: {email}")
         return
-    
+
     if not user.is_public_showcase:
-        click.echo(f'ℹ️  User {email} does not have public showcase enabled')
+        click.echo(f"ℹ️  User {email} does not have public showcase enabled")
         return
-    
+
     # Confirm action
-    if not click.confirm(f'Disable public showcase for {user.full_name} ({email})?'):
-        click.echo('Aborted.')
+    if not click.confirm(f"Disable public showcase for {user.full_name} ({email})?"):
+        click.echo("Aborted.")
         return
-    
+
     user.is_public_showcase = False
     db.session.commit()
-    
-    click.echo(f'✅ Public showcase disabled for {user.full_name} ({email})')
+
+    click.echo(f"✅ Public showcase disabled for {user.full_name} ({email})")
+
+
+@click.group()
+def api():
+    """API maintenance commands."""
+    pass
+
+
+@api.command("cleanup-expired-tokens")
+@click.option(
+    "--older-than-days",
+    default=7,
+    show_default=True,
+    help="Remove blocklist entries whose tokens expired at least this many days ago.",
+)
+@with_appcontext
+def cleanup_expired_tokens(older_than_days):
+    """Purge expired token blocklist entries to keep the table lean."""
+    from datetime import timedelta
+
+    from app.models import ApiTokenBlocklist
+
+    cutoff = datetime.now(UTC) - timedelta(days=older_than_days)
+    deleted = ApiTokenBlocklist.query.filter(ApiTokenBlocklist.expires_at < cutoff).delete(
+        synchronize_session=False
+    )
+    db.session.commit()
+
+    if deleted:
+        click.echo(
+            f"🗑  Removed {deleted} expired token blocklist "
+            f"{'entry' if deleted == 1 else 'entries'} older than "
+            f"{older_than_days} day{'s' if older_than_days != 1 else ''}."
+        )
+    else:
+        click.echo("✓ No expired token blocklist entries to remove.")
 
 
 @click.command()
 @click.option(
-    '--force-digest',
+    "--force-digest",
     is_flag=True,
-    help='Send digest emails for daily/weekly users regardless of cadence windows (testing only).'
+    help="Send digest emails for daily/weekly users regardless of cadence windows (testing only).",
 )
 @click.option(
-    '--force-loan-reminders',
+    "--force-loan-reminders",
     is_flag=True,
-    help='Bypass loan reminder sent/day/count guards so reminders can be re-tested (testing only).'
+    help="Bypass loan reminder sent/day/count guards so reminders can be re-tested (testing only).",
 )
 @click.option(
-    '--today',
-    'today_override',
-    type=click.DateTime(formats=['%Y-%m-%d']),
-    help='Evaluate loan reminder logic using this date (YYYY-MM-DD) instead of today.'
+    "--today",
+    "today_override",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    help="Evaluate loan reminder logic using this date (YYYY-MM-DD) instead of today.",
 )
 @click.option(
-    '--digest-now',
-    'digest_now_override',
-    type=click.DateTime(formats=['%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S']),
-    help='Evaluate digest cadence using this UTC datetime (or YYYY-MM-DD at 00:00:00 UTC).'
+    "--digest-now",
+    "digest_now_override",
+    type=click.DateTime(formats=["%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"]),
+    help="Evaluate digest cadence using this UTC datetime (or YYYY-MM-DD at 00:00:00 UTC).",
 )
 @with_appcontext
 def check_loan_reminders(force_digest, force_loan_reminders, today_override, digest_now_override):
     """Check and send loan reminder emails (3-day, due date, overdue)."""
-    click.echo('🔔 Checking loan reminders...')
+    click.echo("🔔 Checking loan reminders...")
 
     today = today_override.date() if today_override else None
     digest_now_utc = None
     if digest_now_override:
-        digest_now_utc = digest_now_override.replace(tzinfo=UTC) if digest_now_override.tzinfo is None else digest_now_override.astimezone(UTC)
+        digest_now_utc = (
+            digest_now_override.replace(tzinfo=UTC)
+            if digest_now_override.tzinfo is None
+            else digest_now_override.astimezone(UTC)
+        )
 
     if today:
-        click.echo(f'  • Testing override: today={today.isoformat()}')
+        click.echo(f"  • Testing override: today={today.isoformat()}")
     if digest_now_utc:
-        click.echo(f'  • Testing override: digest_now_utc={digest_now_utc.isoformat()}')
+        click.echo(f"  • Testing override: digest_now_utc={digest_now_utc.isoformat()}")
     if force_loan_reminders:
-        click.echo('  • Testing override: forcing loan reminders (ignoring sent/day/count guards)')
+        click.echo("  • Testing override: forcing loan reminders (ignoring sent/day/count guards)")
     if force_digest:
-        click.echo('  • Testing override: forcing digest sends (ignoring cadence windows)')
-    
+        click.echo("  • Testing override: forcing digest sends (ignoring cadence windows)")
+
     stats = check_loan_reminders_logic(
         today=today,
         force_loan_reminders=force_loan_reminders,
         force_digest=force_digest,
         digest_now_utc=digest_now_utc,
     )
-    
-    if stats['total_loans'] == 0:
-        click.echo('  No approved loans found.')
+
+    if stats["total_loans"] == 0:
+        click.echo("  No approved loans found.")
     else:
         click.echo(f'  Found {stats["total_loans"]} approved loan(s)')
-        
+
         # Print any errors
-        for error in stats['errors']:
-            click.echo(f'    ⚠ {error}')
-    
-    click.echo('\n📊 Summary:')
+        for error in stats["errors"]:
+            click.echo(f"    ⚠ {error}")
+
+    click.echo("\n📊 Summary:")
     click.echo(f'  • 3-day reminders sent: {stats["due_soon"]}')
     click.echo(f'  • Due date reminders sent: {stats["due_today"]}')
     click.echo(f'  • Overdue reminders sent: {stats["overdue"]}')
     click.echo(f'  • Skipped (already sent): {stats["skipped"]}')
-    if stats['errors']:
+    if stats["errors"]:
         click.echo(f'  • Errors: {len(stats["errors"])}')
 
-    digest_stats = stats['digest']
-    click.echo('\n📰 Digest Summary:')
+    digest_stats = stats["digest"]
+    click.echo("\n📰 Digest Summary:")
     click.echo(f'  • Users evaluated: {digest_stats["total_users"]}')
     click.echo(f'  • Sent: {digest_stats["sent"]}')
     click.echo(f'  • Skipped: {digest_stats["skipped"]}')
@@ -1283,8 +1802,8 @@ def check_loan_reminders(force_digest, force_loan_reminders, today_override, dig
         f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_NONE]["skipped"]}/'
         f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_NONE]["errors"]}'
     )
-    click.echo('✅ Done!')
+    click.echo("✅ Done!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     seed()
