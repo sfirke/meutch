@@ -99,7 +99,47 @@ def test_build_visible_giveaway_events_defaults_to_20_miles(app):
         assert far_item.id in explicit_item_ids
 
 
-def test_build_visible_giveaway_events_include_recently_claimed_items(app):
+def test_build_visible_giveaway_events_hides_claimed_items_by_default(app):
+    with app.app_context():
+        viewer = UserFactory()
+        owner = UserFactory()
+        claimer = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner, claimer])
+
+        now = datetime.now(UTC)
+        claimed_item = ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="claimed",
+            claimed_by=claimer,
+            claimed_at=now - timedelta(days=2),
+            name="Recently Claimed Giveaway",
+        )
+        unclaimed_item = ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="unclaimed",
+            name="Unclaimed Giveaway",
+        )
+        db.session.commit()
+
+        events = build_visible_giveaway_events(
+            viewer,
+            scoped_circle_ids={circle.id},
+        )
+
+        item_ids = {event["item_id"] for event in events}
+        assert claimed_item.id not in item_ids
+        assert unclaimed_item.id in item_ids
+
+
+def test_build_visible_giveaway_events_can_include_recently_claimed_items(app):
     with app.app_context():
         viewer = UserFactory()
         owner = UserFactory()
@@ -134,6 +174,7 @@ def test_build_visible_giveaway_events_include_recently_claimed_items(app):
         events = build_visible_giveaway_events(
             viewer,
             scoped_circle_ids={circle.id},
+            include_claimed_giveaways=True,
         )
 
         item_ids = {event["item_id"] for event in events}
