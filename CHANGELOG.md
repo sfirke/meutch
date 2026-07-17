@@ -14,6 +14,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 **Minor**:
 - Improved the giveaway request and handoff experience - no more needing to click "I want this!", instead owners can choose from anyone who messages. Also allows for marking giveaways handed off outside of Meutch ([#445](https://github.com/sfirke/meutch/pull/445)).
 - On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
+- Community Activity now hides claimed giveaways by default and includes a filter to show them when desired ([#424](https://github.com/sfirke/meutch/issues/424)).
 
 ### Developer Experience
 - Remove legacy `item`/`request`/`circle` kwargs from `MessageFactory`; all test call sites now use `conversation=` directly via `ConversationFactory` ([#437](https://github.com/sfirke/meutch/pull/437)).
@@ -27,7 +28,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Features
 **Minor**:
 - Added a Privacy Policy and Terms & Conditions, linked from the site footer ([#421](https://github.com/sfirke/meutch/pull/421)).
-- Community Activity now hides claimed giveaways by default and includes a filter to show them when desired ([#372](https://github.com/sfirke/meutch/issues/372)).
 - Make it the default to view one's own activity in feed, add a toggle to disable if desired ([#414](https://github.com/sfirke/meutch/pull/414)).
 - New members who have not joined any circles yet are now redirected into circle discovery after login, with a stronger onboarding prompt and personalized recommendations that preview what each suggested circle would unlock ([#395](https://github.com/sfirke/meutch/pull/395)).
 - Introduced "regional" circles that are stand-ins for e.g., a Craigslist region. Admins promote these circles to official regional status, at which point they get pinned at the top of zero-circle onboarding recommendations ([#400](https://github.com/sfirke/meutch/pull/400)).

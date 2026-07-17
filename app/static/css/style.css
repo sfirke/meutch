@@ -1890,10 +1890,6 @@ footer h6 {
     border: 1px solid var(--border-color);
 }
 
-.activity-feed-actions {
-    flex-wrap: wrap;
-}
-
 .activity-feed-cta {
     border-radius: 9999px !important;
     padding: 0.6rem 1.1rem;
