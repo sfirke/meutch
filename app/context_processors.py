@@ -5,6 +5,8 @@ import os
 
 from flask import current_app, url_for
 from flask_login import current_user
+
+from app.constants import SYSTEM_USER_ID
 from app.utils.geocoding import format_distance
 from app.utils.storage import (
     ITEM_IMAGE_MAX_HEIGHT,
@@ -17,10 +19,12 @@ from app.utils.storage import (
     MAX_UPLOAD_FILE_SIZE_BYTES,
     MAX_UPLOAD_FILE_SIZE_LABEL,
 )
+
 # Remove model imports from top level
 
 # Module-level cache for file content hashes (populated once per process in production)
 _static_hash_cache = {}
+
 
 def inject_unread_messages_count():
     # Import models at function level to avoid circular imports
@@ -31,100 +35,101 @@ def inject_unread_messages_count():
         # This includes both regular messages and loan request messages (approvals, denials, etc.)
         unread_messages = Message.query.filter(
             Message.recipient_id == current_user.id,
-            Message.is_read == False,
-            Message.sender_id != current_user.id  # Exclude self-sent messages
+            ~Message.is_read,
+            Message.sender_id != current_user.id,  # Exclude self-sent messages
         ).count()
 
         return dict(unread_messages_count=unread_messages)
     return dict(unread_messages_count=0)
 
+
 def inject_total_pending():
     # Import models at function level
-    from app.models import Circle, CircleJoinRequest, db, circle_members
+    from app.models import Circle, CircleJoinRequest, circle_members, db
 
     if not current_user.is_authenticated:
-        return {'total_pending': 0}
-        
+        return {"total_pending": 0}
+
     # Get user's admin circles with pending request counts
-    user_admin_circles = db.session.query(
-        Circle,
-        db.func.count(CircleJoinRequest.id).label('pending_count')
-    ).join(
-        circle_members,
-        Circle.id == circle_members.c.circle_id
-    ).outerjoin(
-        CircleJoinRequest,
-        db.and_(
-            Circle.id == CircleJoinRequest.circle_id,
-            CircleJoinRequest.status == 'pending'
+    user_admin_circles = (
+        db.session.query(Circle, db.func.count(CircleJoinRequest.id).label("pending_count"))
+        .join(circle_members, Circle.id == circle_members.c.circle_id)
+        .outerjoin(
+            CircleJoinRequest,
+            db.and_(
+                Circle.id == CircleJoinRequest.circle_id, CircleJoinRequest.status == "pending"
+            ),
         )
-    ).filter(
-        circle_members.c.user_id == current_user.id,
-        circle_members.c.is_admin == True
-    ).group_by(Circle.id).all()
+        .filter(circle_members.c.user_id == current_user.id, circle_members.c.is_admin)
+        .group_by(Circle.id)
+        .all()
+    )
 
     total_pending = sum(circle[1] for circle in user_admin_circles) if user_admin_circles else 0
-    
-    return {'total_pending': total_pending}
+
+    return {"total_pending": total_pending}
+
 
 def inject_distance_utils():
     """Make distance calculation utilities available in templates"""
+
     def get_distance_to_item(item):
         """Calculate distance from current user to item owner"""
         try:
             # Check if current_user is available and properly initialized
-            if not hasattr(current_user, 'is_authenticated') or not current_user.is_authenticated:
+            if not hasattr(current_user, "is_authenticated") or not current_user.is_authenticated:
                 return None
-            if not hasattr(current_user, 'is_geocoded') or not current_user.is_geocoded:
+            if not hasattr(current_user, "is_geocoded") or not current_user.is_geocoded:
                 return None
-            if not hasattr(item, 'owner') or not item.owner:
+            if not hasattr(item, "owner") or not item.owner:
                 return None
-            if not hasattr(item.owner, 'is_geocoded') or not item.owner.is_geocoded:
+            if not hasattr(item.owner, "is_geocoded") or not item.owner.is_geocoded:
                 return None
-            
+
             distance = current_user.distance_to(item.owner)
             return format_distance(distance) if distance is not None else None
         except Exception:
             # In case of any error (e.g., in test environment), return None
             return None
-    
+
     def get_distance_to_circle(circle):
         """Calculate distance from current user to circle center"""
         try:
             # Check if current_user is available and properly initialized
-            if not hasattr(current_user, 'is_authenticated') or not current_user.is_authenticated:
+            if not hasattr(current_user, "is_authenticated") or not current_user.is_authenticated:
                 return None
-            if not hasattr(current_user, 'is_geocoded') or not current_user.is_geocoded:
+            if not hasattr(current_user, "is_geocoded") or not current_user.is_geocoded:
                 return None
-            if not hasattr(circle, 'is_geocoded') or not circle.is_geocoded:
+            if not hasattr(circle, "is_geocoded") or not circle.is_geocoded:
                 return None
-            
+
             distance = circle.distance_to_user(current_user)
             return format_distance(distance) if distance is not None else None
         except Exception:
             # In case of any error (e.g., in test environment), return None
             return None
-    
+
     def get_distance_to_user(user):
         """Calculate distance from current user to another user"""
         try:
-            if not hasattr(current_user, 'is_authenticated') or not current_user.is_authenticated:
+            if not hasattr(current_user, "is_authenticated") or not current_user.is_authenticated:
                 return None
-            if not hasattr(current_user, 'is_geocoded') or not current_user.is_geocoded:
+            if not hasattr(current_user, "is_geocoded") or not current_user.is_geocoded:
                 return None
-            if not hasattr(user, 'is_geocoded') or not user.is_geocoded:
+            if not hasattr(user, "is_geocoded") or not user.is_geocoded:
                 return None
-            
+
             distance = current_user.distance_to(user)
             return format_distance(distance) if distance is not None else None
         except Exception:
             return None
-    
+
     return {
-        'get_distance_to_item': get_distance_to_item,
-        'get_distance_to_circle': get_distance_to_circle,
-        'get_distance_to_user': get_distance_to_user
+        "get_distance_to_item": get_distance_to_item,
+        "get_distance_to_circle": get_distance_to_circle,
+        "get_distance_to_user": get_distance_to_user,
     }
+
 
 def inject_static_url_for():
     """Provide a static_url_for function that appends a content hash for cache-busting."""
@@ -140,27 +145,33 @@ def inject_static_url_for():
         # In debug mode, always recompute; in production, use cached hash
         if current_app.debug or filepath not in _static_hash_cache:
             try:
-                with open(filepath, 'rb') as f:
+                with open(filepath, "rb") as f:
                     file_hash = hashlib.md5(f.read()).hexdigest()[:12]
                 _static_hash_cache[filepath] = file_hash
             except FileNotFoundError:
-                return url_for('static', filename=filename, **kwargs)
+                return url_for("static", filename=filename, **kwargs)
 
-        return url_for('static', filename=filename, **kwargs) + '?v=' + _static_hash_cache[filepath]
+        return url_for("static", filename=filename, **kwargs) + "?v=" + _static_hash_cache[filepath]
 
     return dict(static_url_for=static_url_for)
 
+
 def inject_item_upload_limits():
     return {
-        'item_upload_limits': {
-            'max_images': MAX_ITEM_IMAGE_COUNT,
-            'max_file_size_bytes': MAX_UPLOAD_FILE_SIZE_BYTES,
-            'max_file_size_label': MAX_UPLOAD_FILE_SIZE_LABEL,
-            'max_source_image_pixels': MAX_SOURCE_IMAGE_PIXELS,
-            'max_source_image_label': MAX_SOURCE_IMAGE_LABEL,
-            'max_source_image_example_dimensions': MAX_SOURCE_IMAGE_EXAMPLE_DIMENSIONS,
-            'compressed_max_width': ITEM_IMAGE_MAX_WIDTH,
-            'compressed_max_height': ITEM_IMAGE_MAX_HEIGHT,
-            'compression_quality': ITEM_IMAGE_QUALITY / 100,
+        "item_upload_limits": {
+            "max_images": MAX_ITEM_IMAGE_COUNT,
+            "max_file_size_bytes": MAX_UPLOAD_FILE_SIZE_BYTES,
+            "max_file_size_label": MAX_UPLOAD_FILE_SIZE_LABEL,
+            "max_source_image_pixels": MAX_SOURCE_IMAGE_PIXELS,
+            "max_source_image_label": MAX_SOURCE_IMAGE_LABEL,
+            "max_source_image_example_dimensions": MAX_SOURCE_IMAGE_EXAMPLE_DIMENSIONS,
+            "compressed_max_width": ITEM_IMAGE_MAX_WIDTH,
+            "compressed_max_height": ITEM_IMAGE_MAX_HEIGHT,
+            "compression_quality": ITEM_IMAGE_QUALITY / 100,
         }
     }
+
+
+def inject_system_user_id():
+    """Make the reserved system-user UUID available in templates."""
+    return {"SYSTEM_USER_ID": SYSTEM_USER_ID}

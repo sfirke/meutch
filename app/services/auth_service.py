@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from app import db
+from app.constants import SYSTEM_USER_ID
 from app.models import User
 from app.services import location_service
 from app.utils.email import send_confirmation_email, send_password_reset_email
@@ -136,6 +137,10 @@ def register_user(
 def authenticate_user(email, password):
     user = _get_user_by_email(email)
     if not user or not user.check_password(password):
+        return AuthenticationResult(status=LOGIN_STATUS_INVALID_CREDENTIALS)
+
+    # The system user cannot log in.
+    if user.id == SYSTEM_USER_ID:
         return AuthenticationResult(status=LOGIN_STATUS_INVALID_CREDENTIALS)
 
     if not user.is_confirmed():

@@ -4,6 +4,7 @@ import logging
 from datetime import UTC, datetime
 
 from app import db
+from app.constants import SYSTEM_USER_ID
 from app.models import ConversationParticipant, Message
 from app.services import giveaway_service
 from app.services.exceptions import AuthorizationError, InvalidActionError, ServiceError
@@ -100,9 +101,16 @@ def create_message(
     conversation_id=None,
     parent_id=None,
     loan_request_id=None,
+    _allow_system_sender=False,
 ):
     if sender_id == recipient_id:
         raise InvalidActionError("You cannot message yourself.")
+
+    # Only internal service code (e.g. circle join-request decisions) may
+    # send messages *as* the reserved system user.  Callers must explicitly
+    # opt in via the internal-only `_allow_system_sender` flag.
+    if sender_id == SYSTEM_USER_ID and not _allow_system_sender:
+        raise InvalidActionError("System messages can only be created by internal services.")
 
     message = Message(
         sender_id=sender_id,
@@ -133,10 +141,15 @@ def reply_to_message(message, sender_id, body):
     if sender_id not in {message.sender_id, message.recipient_id}:
         raise AuthorizationError("You do not have permission to reply to this message.")
 
-    recipient_id = message.recipient_id if message.sender_id == sender_id else message.sender_id
+    # Prevent replying to system conversations — the other participant
+    # is the reserved "Meutch" user and replies would go nowhere useful.
+    other_id = message.recipient_id if message.sender_id == sender_id else message.sender_id
+    if other_id == SYSTEM_USER_ID:
+        raise InvalidActionError("You cannot reply to system messages.")
+
     return create_message(
         sender_id,
-        recipient_id,
+        other_id,
         body,
         conversation_id=message.conversation_id,
         parent_id=message.id,

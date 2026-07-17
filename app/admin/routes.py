@@ -10,6 +10,7 @@ from sqlalchemy import and_, false, func, select, true, union_all
 from app import db
 from app.admin import bp
 from app.auth.decorators import admin_required
+from app.constants import SYSTEM_USER_ID
 from app.forms import EmptyForm
 from app.models import (
     AdminAction,
@@ -181,13 +182,15 @@ def dashboard():
     if order not in ["asc", "desc"]:
         order = "desc"
 
-    # Calculate metrics
-    total_users = User.query.filter_by(is_deleted=False).count()
+    # Calculate metrics (exclude the reserved system user)
+    total_users = User.query.filter_by(is_deleted=False).filter(User.id != SYSTEM_USER_ID).count()
 
     # Recently active users (users who have logged in within last 30 days)
     thirty_days_ago = datetime.now(UTC) - timedelta(days=30)
     recent_users = User.query.filter(
-        User.is_deleted.is_(false()), User.last_login >= thirty_days_ago
+        User.is_deleted.is_(false()),
+        User.last_login >= thirty_days_ago,
+        User.id != SYSTEM_USER_ID,
     ).count()
 
     total_items = Item.query.count()
@@ -226,7 +229,7 @@ def dashboard():
     query = (
         db.session.query(User, func.count(Item.id).label("item_count"))
         .outerjoin(Item, Item.owner_id == User.id)
-        .filter(User.is_deleted.is_(false()))
+        .filter(User.is_deleted.is_(false()), User.id != SYSTEM_USER_ID)
         .group_by(User.id)
     )
 

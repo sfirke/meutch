@@ -16,6 +16,7 @@ from app.context_processors import (
     inject_distance_utils,
     inject_item_upload_limits,
     inject_static_url_for,
+    inject_system_user_id,
     inject_total_pending,
     inject_unread_messages_count,
 )
@@ -96,11 +97,12 @@ def create_app(config_class=None):
 
     # Register CLI commands
     try:
-        from app.cli import check_loan_reminders, seed, user
+        from app.cli import check_loan_reminders, init_system_user, seed, user
 
         app.cli.add_command(seed)
         app.cli.add_command(user)
         app.cli.add_command(check_loan_reminders)
+        app.cli.add_command(init_system_user)
     except ImportError as e:
         print(f"Warning: Could not import CLI commands: {e}")
 
@@ -121,6 +123,7 @@ def create_app(config_class=None):
     app.context_processor(inject_distance_utils)
     app.context_processor(inject_static_url_for)
     app.context_processor(inject_item_upload_limits)
+    app.context_processor(inject_system_user_id)
 
     # Register custom Jinja filters
     from app.template_filters import register_filters

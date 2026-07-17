@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from unittest.mock import patch
 
+from app.constants import SYSTEM_USER_ID
 from app.models import CircleJoinRequest, Conversation, Message, circle_members, db
 from conftest import login_user
 from tests.factories import CircleFactory, UserFactory
@@ -218,13 +219,13 @@ class TestCircleJoinRequestEmailIntegration:
                 assert to_email == requesting_user.email
                 assert "approved" in text_content.lower()
 
-                # Verify in-app decision message was created
+                # Verify in-app decision message was created (from system user)
                 decision_message = (
                     Message.query.join(Conversation)
                     .filter(
                         Conversation.context_type == "circle",
                         Conversation.context_id == circle.id,
-                        Message.sender_id == admin.id,
+                        Message.sender_id == SYSTEM_USER_ID,
                         Message.recipient_id == requesting_user.id,
                     )
                     .order_by(Message.timestamp.desc())
@@ -282,13 +283,13 @@ class TestCircleJoinRequestEmailIntegration:
                 assert to_email == requesting_user.email
                 assert "denied" in text_content.lower()
 
-                # Verify in-app decision message was created
+                # Verify in-app decision message was created (from system user)
                 decision_message = (
                     Message.query.join(Conversation)
                     .filter(
                         Conversation.context_type == "circle",
                         Conversation.context_id == circle.id,
-                        Message.sender_id == admin.id,
+                        Message.sender_id == SYSTEM_USER_ID,
                         Message.recipient_id == requesting_user.id,
                     )
                     .order_by(Message.timestamp.desc())

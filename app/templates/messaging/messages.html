@@ -81,7 +81,9 @@
 
                     {# Avatar #}
                     <div class="conv-avatar">
-                        {% if convo.other_user %}
+                        {% if convo.other_user and convo.other_user.id == SYSTEM_USER_ID %}
+                            <i class="fas fa-robot"></i>
+                        {% elif convo.other_user %}
                             {% if convo.other_user.profile_image_url %}
                                 <img src="{{ convo.other_user.profile_image_url }}" alt="{{ convo.other_user.first_name }} {{ convo.other_user.last_name }}" class="conv-avatar-img">
                             {% else %}
@@ -99,7 +101,9 @@
                                 <span class="unread-dot" title="{{ convo.unread_count }} unread"></span>
                             {% endif %}
                             <span class="conv-name">
-                                {% if convo.other_user %}
+                                {% if convo.other_user and convo.other_user.id == SYSTEM_USER_ID %}
+                                    Meutch
+                                {% elif convo.other_user %}
                                     {{ convo.other_user.first_name }} {{ convo.other_user.last_name }}
                                 {% else %}
                                     Unknown User

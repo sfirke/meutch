@@ -767,9 +767,13 @@ class CircleJoinRequest(db.Model):
     message = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), default="pending")  # pending, approved, rejected
     created_at = db.Column(db.DateTime, default=func.now())
+    # Tracks which admin acted on the request (approve/reject).
+    # Stored for audit/logging; not currently exposed in the UI.
+    acted_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True)
 
     circle = db.relationship("Circle", backref="join_requests")
-    user = db.relationship("User", backref="circle_join_requests")
+    user = db.relationship("User", foreign_keys=[user_id], backref="circle_join_requests")
+    acted_by = db.relationship("User", foreign_keys=[acted_by_id])
 
 
 class UserWebLink(db.Model):

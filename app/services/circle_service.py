@@ -2,6 +2,7 @@ import logging
 from datetime import UTC, datetime
 
 from app import db
+from app.constants import SYSTEM_USER_ID
 from app.models import Circle, CircleJoinRequest, circle_members
 from app.services import message_service
 from app.services.exceptions import (
@@ -198,8 +199,11 @@ def handle_join_request(circle, join_request, acting_user, action):
     if join_request.status != "pending":
         raise InformationalError("This join request has already been handled.")
 
+    # Create a conversation between the system user and the requester so
+    # the admin who made the decision remains anonymous.  The requester
+    # sees "Meutch" as the sender and cannot reply to discover the admin.
     conversation = get_or_create_conversation(
-        "circle", circle.id, acting_user.id, join_request.user_id
+        "circle", circle.id, SYSTEM_USER_ID, join_request.user_id
     )
 
     if action == "approve":
@@ -212,23 +216,28 @@ def handle_join_request(circle, join_request, acting_user, action):
         db.session.execute(stmt)
         join_request.status = "approved"
         message_service.create_message(
-            acting_user.id,
+            SYSTEM_USER_ID,
             join_request.user_id,
             f"Your request to join '{circle.name}' has been approved.",
             conversation_id=conversation.id,
             notify=False,
+            _allow_system_sender=True,
         )
     elif action == "reject":
         join_request.status = "rejected"
         message_service.create_message(
-            acting_user.id,
+            SYSTEM_USER_ID,
             join_request.user_id,
             f"Your request to join '{circle.name}' has been denied.",
             conversation_id=conversation.id,
             notify=False,
+            _allow_system_sender=True,
         )
     else:
         raise InvalidActionError("Invalid action.")
+
+    # Record which admin acted, for audit/logging purposes.
+    join_request.acted_by_id = acting_user.id
 
     try:
         send_circle_join_request_decision_email(join_request)

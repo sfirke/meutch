@@ -1,10 +1,11 @@
 from datetime import UTC, datetime, timedelta
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, logout_user
 from sqlalchemy import or_
 
 from app import db
+from app.constants import SYSTEM_USER_ID
 from app.forms import (
     ConfirmHandoffForm,
     DeleteAccountForm,
@@ -397,6 +398,10 @@ def update_location():
 @main_bp.route("/user/<uuid:user_id>")
 @login_required
 def user_profile(user_id):
+    # The system user has no public profile.
+    if user_id == SYSTEM_USER_ID:
+        abort(404)
+
     if current_user.is_admin or current_user.id == user_id:
         user = db.get_or_404(User, user_id)
     else:

@@ -2,6 +2,7 @@ from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db
+from app.constants import SYSTEM_USER_ID
 from app.forms import ConfirmHandoffForm, EmptyForm, MessageForm, ReleaseToAllForm
 from app.main import bp as main_bp
 from app.models import Conversation, ConversationParticipant, GiveawayInterest, Message
@@ -138,8 +139,9 @@ def view_conversation(conversation_id):
         flash("This conversation is missing a participant.", "danger")
         return redirect(url_for("main.messages"))
 
+    is_system_conversation = other_participant.user_id == SYSTEM_USER_ID
     other_user = other_participant.user
-    shared_circles = current_user.shared_circles_with(other_user)
+    shared_circles = [] if is_system_conversation else current_user.shared_circles_with(other_user)
 
     # Get the latest message in this conversation for thread state loading
     latest_message = (
@@ -156,7 +158,7 @@ def view_conversation(conversation_id):
     has_unread_messages = thread_state["has_unread_messages"]
 
     active_loan = None
-    if conversation.context_type == "item":
+    if not is_system_conversation and conversation.context_type == "item":
         for msg in thread_messages:
             if msg.loan_request and msg.loan_request.status in ["pending", "approved"]:
                 active_loan = msg.loan_request
@@ -168,7 +170,8 @@ def view_conversation(conversation_id):
     giveaway_selection_interested_count = 0
     giveaway_selection_direct = False
     if (
-        item
+        not is_system_conversation
+        and item
         and item.is_giveaway
         and item.claim_status in [None, "unclaimed"]
         and current_user.id == item.owner_id
@@ -204,7 +207,8 @@ def view_conversation(conversation_id):
     giveaway_handoff_form = None
     giveaway_release_form = None
     if (
-        item
+        not is_system_conversation
+        and item
         and item.is_giveaway
         and item.claim_status == "pending_pickup"
         and item.claimed_by_id
@@ -217,14 +221,14 @@ def view_conversation(conversation_id):
 
     fulfillable_request = None
     request_fulfill_form = None
-    if conversation.context_type == "request":
+    if not is_system_conversation and conversation.context_type == "request":
         req = conversation.request
         if req and req.user_id == current_user.id and req.status == "open" and not req.is_expired:
             fulfillable_request = req
             request_fulfill_form = EmptyForm()
 
     form = MessageForm()
-    if form.validate_on_submit():
+    if not is_system_conversation and form.validate_on_submit():
         message_service.reply_to_message(latest_message, current_user.id, form.body.data)
         flash("Your reply has been sent.", "success")
         return redirect(url_for("main.view_conversation", conversation_id=conversation_id))
@@ -251,6 +255,7 @@ def view_conversation(conversation_id):
         request_fulfill_form=request_fulfill_form,
         viewer_participant=viewer_participant,
         conversation=conversation,
+        is_system_conversation=is_system_conversation,
     )
 
 

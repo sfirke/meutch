@@ -10,6 +10,7 @@ import pytest
 from sqlalchemy.exc import OperationalError
 
 from app import create_app, db
+from app.constants import SYSTEM_USER_ID
 from app.models import Category, User
 from config import Config
 from tests.factories import TEST_PASSWORD_HASH
@@ -200,6 +201,17 @@ def app():
             category = Category(name=cat_name)
             db.session.add(category)
 
+        # Create the reserved system user for automated notifications.
+        system_user = User(
+            id=SYSTEM_USER_ID,
+            email="system@meutch.org",
+            first_name="Meutch",
+            last_name="",
+            email_confirmed=True,
+        )
+        system_user.password_hash = "!"
+        db.session.add(system_user)
+
         db.session.commit()
 
     yield app
@@ -288,6 +300,20 @@ def clean_db(app):
         # only the conflicting statement.
         for table in tables_to_truncate:
             _truncate_table(table)
+
+        # Re-seed the reserved system user (truncated with the users table).
+        existing = db.session.get(User, SYSTEM_USER_ID)
+        if existing is None:
+            system_user = User(
+                id=SYSTEM_USER_ID,
+                email="system@meutch.org",
+                first_name="Meutch",
+                last_name="",
+                email_confirmed=True,
+            )
+            system_user.password_hash = "!"
+            db.session.add(system_user)
+            db.session.commit()
 
         db.session.remove()
 
