@@ -36,6 +36,7 @@ class FeedQuerySchema(PaginationQuerySchema):
         validate=validate.OneOf(FEED_DISTANCE_CHOICES),
     )
     show_own_activity = fields.Boolean(load_default=True)
+    show_claimed_giveaways = fields.Boolean(load_default=False)
     per_page = fields.Integer(
         load_default=DEFAULT_FEED_PER_PAGE,
         validate=validate.Range(min=1, max=MAX_COLLECTION_PER_PAGE),
@@ -115,6 +116,14 @@ class ConversationListQuerySchema(PaginationQuerySchema):
     per_page = fields.Integer(
         load_default=DEFAULT_FEED_PER_PAGE,
         validate=validate.Range(min=1, max=MAX_COLLECTION_PER_PAGE),
+    )
+    status = fields.String(
+        load_default="inbox",
+        validate=validate.OneOf(["inbox", "archived"]),
+    )
+    sort = fields.String(
+        load_default="newest",
+        validate=validate.OneOf(["newest", "oldest", "unread", "name_asc"]),
     )
 
 

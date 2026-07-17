@@ -3,10 +3,18 @@ from unittest.mock import patch
 import pytest
 
 from app import db
-from app.models import Message
+from app.models import ConversationParticipant, GiveawayInterest, Message
 from app.services import message_service
 from app.services.exceptions import AuthorizationError, InvalidActionError
-from tests.factories import ItemFactory, ItemRequestFactory, MessageFactory, UserFactory
+from app.utils.messaging_queries import get_or_create_conversation
+from tests.factories import (
+    ConversationFactory,
+    ConversationParticipantFactory,
+    ItemFactory,
+    ItemRequestFactory,
+    MessageFactory,
+    UserFactory,
+)
 
 
 class TestMessageService:
@@ -15,6 +23,7 @@ class TestMessageService:
             sender = UserFactory()
             recipient = UserFactory()
             item = ItemFactory(owner=recipient)
+            conversation = get_or_create_conversation("item", item.id, sender.id, recipient.id)
 
             with patch(
                 "app.services.message_service.send_message_notification_email"
@@ -23,15 +32,15 @@ class TestMessageService:
                     sender.id,
                     recipient.id,
                     "Interested in borrowing this.",
-                    item_id=item.id,
+                    conversation_id=conversation.id,
                 )
 
             db_message = db.session.get(Message, message.id)
             assert db_message is not None
             assert db_message.sender_id == sender.id
             assert db_message.recipient_id == recipient.id
-            assert db_message.item_id == item.id
-            assert db_message.request_id is None
+            assert db_message.conversation.context_type == "item"
+            assert db_message.conversation.context_id == item.id
             mock_email.assert_called_once_with(message)
 
     def test_reply_to_message_preserves_request_context(self, app):
@@ -39,11 +48,11 @@ class TestMessageService:
             requester = UserFactory()
             helper = UserFactory()
             item_request = ItemRequestFactory(user=requester)
+            conversation = ConversationFactory(context_type="request", context_id=item_request.id)
             message = MessageFactory(
                 sender=helper,
                 recipient=requester,
-                item=None,
-                request=item_request,
+                conversation=conversation,
                 body="I can help.",
             )
 
@@ -55,9 +64,9 @@ class TestMessageService:
                 )
 
             assert reply.parent_id == message.id
-            assert reply.request_id == item_request.id
-            assert reply.item_id is None
-            assert reply.circle_id is None
+            assert reply.conversation_id == message.conversation_id
+            assert reply.conversation.context_type == "request"
+            assert reply.conversation.context_id == item_request.id
             assert reply.sender_id == requester.id
             assert reply.recipient_id == helper.id
 
@@ -81,7 +90,36 @@ class TestMessageService:
 
             assert message.sender_id == sender.id
             assert message.recipient_id == owner.id
-            assert message.item_id == item.id
+            assert message.conversation.context_type == "item"
+            assert message.conversation.context_id == item.id
+
+    def test_start_item_conversation_creates_giveaway_interest(self, app):
+        """Sending a message about a giveaway item creates an interest record."""
+        with app.app_context():
+            owner = UserFactory()
+            sender = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                message = message_service.start_item_conversation(
+                    item,
+                    sender,
+                    "I'd love this!",
+                )
+
+            interest = GiveawayInterest.query.filter_by(item_id=item.id, user_id=sender.id).first()
+            assert interest is not None
+            assert interest.status == "active"
+            assert interest.message == "I'd love this!"
+
+            # Only one message exists (the user's own), no auto-notification
+            assert Message.query.count() == 1
+            assert Message.query.one().id == message.id
 
     def test_start_request_conversation_uses_request_owner_as_recipient(self, app):
         with app.app_context():
@@ -98,8 +136,8 @@ class TestMessageService:
 
             assert message.sender_id == helper.id
             assert message.recipient_id == requester.id
-            assert message.request_id == item_request.id
-            assert message.item_id is None
+            assert message.conversation.context_type == "request"
+            assert message.conversation.context_id == item_request.id
 
     def test_start_item_conversation_rejects_self_messaging(self, app):
         with app.app_context():
@@ -159,7 +197,8 @@ class TestMessageService:
             recipient = UserFactory()
             other_user = UserFactory()
             item = ItemFactory(owner=recipient)
-            message = MessageFactory(sender=sender, recipient=recipient, item=item)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(sender=sender, recipient=recipient, conversation=conversation)
 
             with pytest.raises(AuthorizationError):
                 message_service.get_conversation_thread_state(message, other_user.id)
@@ -169,7 +208,12 @@ class TestMessageService:
             sender = UserFactory()
             recipient = UserFactory()
             item = ItemFactory(owner=sender)
-            message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+                is_read=False,
+            )
             db.session.commit()
 
             thread_state = message_service.get_conversation_thread_state(message, recipient.id)
@@ -183,7 +227,12 @@ class TestMessageService:
             sender = UserFactory()
             recipient = UserFactory()
             item = ItemFactory(owner=sender)
-            message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+                is_read=False,
+            )
             db.session.commit()
 
             thread_state = message_service.get_conversation_thread_state(
@@ -201,16 +250,17 @@ class TestMessageService:
             sender = UserFactory()
             recipient = UserFactory()
             item = ItemFactory(owner=sender, is_giveaway=True, claim_status="unclaimed")
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             first_message = MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 is_read=False,
             )
             second_message = MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 is_read=False,
             )
             db.session.commit()
@@ -223,3 +273,152 @@ class TestMessageService:
             db.session.expire_all()
             assert db.session.get(Message, first_message.id).is_read is True
             assert db.session.get(Message, second_message.id).is_read is True
+
+
+class TestArchiveService:
+    def test_archive_conversation_sets_archive_flag(self, app):
+        with app.app_context():
+            user = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=user)
+            db.session.commit()
+
+            message_service.archive_conversation(user.id, conversation.id)
+
+            participant = ConversationParticipant.query.filter_by(
+                conversation_id=conversation.id, user_id=user.id
+            ).first()
+            assert participant.is_archived is True
+            assert participant.archived_at is not None
+
+    def test_unarchive_conversation_clears_archive_flag(self, app):
+        with app.app_context():
+            user = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=user, is_archived=True)
+            db.session.commit()
+
+            message_service.unarchive_conversation(user.id, conversation.id)
+
+            participant = ConversationParticipant.query.filter_by(
+                conversation_id=conversation.id, user_id=user.id
+            ).first()
+            assert participant.is_archived is False
+            assert participant.archived_at is None
+
+    def test_bulk_archive_archives_multiple_conversations(self, app):
+        with app.app_context():
+            user = UserFactory()
+            conv1 = ConversationFactory()
+            conv2 = ConversationFactory()
+            ConversationParticipantFactory(conversation=conv1, user=user)
+            ConversationParticipantFactory(conversation=conv2, user=user)
+            db.session.commit()
+
+            message_service.bulk_archive(user.id, [conv1.id, conv2.id])
+
+            p1 = ConversationParticipant.query.filter_by(
+                conversation_id=conv1.id, user_id=user.id
+            ).first()
+            p2 = ConversationParticipant.query.filter_by(
+                conversation_id=conv2.id, user_id=user.id
+            ).first()
+            assert p1.is_archived is True
+            assert p2.is_archived is True
+
+    def test_bulk_mark_read_marks_unread_messages(self, app):
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            conv1 = ConversationFactory()
+            conv2 = ConversationFactory()
+            ConversationParticipantFactory(conversation=conv1, user=recipient)
+            ConversationParticipantFactory(conversation=conv2, user=recipient)
+            msg1 = MessageFactory(
+                sender=sender, recipient=recipient, conversation=conv1, is_read=False
+            )
+            msg2 = MessageFactory(
+                sender=sender, recipient=recipient, conversation=conv2, is_read=False
+            )
+            db.session.commit()
+
+            message_service.bulk_mark_read(recipient.id, [conv1.id, conv2.id])
+
+            db.session.expire_all()
+            assert db.session.get(Message, msg1.id).is_read is True
+            assert db.session.get(Message, msg2.id).is_read is True
+
+    def test_mark_all_read_in_view_scoped_to_inbox(self, app):
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            inbox_conv = ConversationFactory()
+            archived_conv = ConversationFactory()
+            ConversationParticipantFactory(conversation=inbox_conv, user=recipient)
+            ConversationParticipantFactory(
+                conversation=archived_conv, user=recipient, is_archived=True
+            )
+            inbox_msg = MessageFactory(
+                sender=sender, recipient=recipient, conversation=inbox_conv, is_read=False
+            )
+            archived_msg = MessageFactory(
+                sender=sender, recipient=recipient, conversation=archived_conv, is_read=False
+            )
+            db.session.commit()
+
+            message_service.mark_all_read_in_view(recipient.id, status="inbox")
+
+            db.session.expire_all()
+            assert db.session.get(Message, inbox_msg.id).is_read is True
+            # Archived messages should NOT be affected
+            assert db.session.get(Message, archived_msg.id).is_read is False
+
+    def test_mark_all_read_in_view_scoped_to_archived(self, app):
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            inbox_conv = ConversationFactory()
+            archived_conv = ConversationFactory()
+            ConversationParticipantFactory(conversation=inbox_conv, user=recipient)
+            ConversationParticipantFactory(
+                conversation=archived_conv, user=recipient, is_archived=True
+            )
+            inbox_msg = MessageFactory(
+                sender=sender, recipient=recipient, conversation=inbox_conv, is_read=False
+            )
+            archived_msg = MessageFactory(
+                sender=sender, recipient=recipient, conversation=archived_conv, is_read=False
+            )
+            db.session.commit()
+
+            message_service.mark_all_read_in_view(recipient.id, status="archived")
+
+            db.session.expire_all()
+            # Inbox messages should NOT be affected
+            assert db.session.get(Message, inbox_msg.id).is_read is False
+            assert db.session.get(Message, archived_msg.id).is_read is True
+
+    def test_auto_unarchive_on_new_message(self, app):
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=sender)
+            ConversationParticipantFactory(
+                conversation=conversation, user=recipient, is_archived=True
+            )
+            db.session.commit()
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                message_service.create_message(
+                    sender.id,
+                    recipient.id,
+                    "Hey, replying to archived thread",
+                    conversation_id=conversation.id,
+                )
+
+            participant = ConversationParticipant.query.filter_by(
+                conversation_id=conversation.id, user_id=recipient.id
+            ).first()
+            assert participant.is_archived is False
+            assert participant.archived_at is None

@@ -38,6 +38,7 @@ class ItemRequestConversationContextSchema(ApiSchema):
     title = fields.String(required=True)
     status = fields.String(required=True)
     visibility = fields.String(required=True)
+    expires_at = ApiDateTime(allow_none=True)
 
 
 class CircleConversationContextSchema(ApiSchema):
@@ -56,6 +57,7 @@ class ConversationSummarySchema(ApiSchema):
     other_user = fields.Nested(UserSummarySchema(), required=True)
     latest_message = fields.Nested(MessageSummarySchema(), required=True)
     unread_count = fields.Integer(required=True)
+    is_archived = fields.Boolean(required=True)
     item = fields.Nested(ItemConversationContextSchema(), allow_none=True)
     item_request = fields.Nested(ItemRequestConversationContextSchema(), allow_none=True)
     circle = fields.Nested(CircleConversationContextSchema(), allow_none=True)
@@ -64,6 +66,7 @@ class ConversationSummarySchema(ApiSchema):
 class MessageThreadResponseSchema(ApiSchema):
     """Conversation thread payload for a specific message anchor."""
 
+    conversation_id = fields.String(required=True)
     other_user = fields.Nested(UserSummarySchema(), required=True)
     shared_circles = fields.Nested(CircleConversationContextSchema(), many=True, required=True)
     item = fields.Nested(ItemConversationContextSchema(), allow_none=True)

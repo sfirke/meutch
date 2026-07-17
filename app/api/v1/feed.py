@@ -37,6 +37,7 @@ def list_feed_events():
         giveaway_distance_explicit=distance_explicit,
         included_event_types=query_data["types"],
         include_own_activity=query_data["show_own_activity"],
+        include_claimed_giveaways=query_data["show_claimed_giveaways"],
         max_events=None,
     )
     pagination = ListPagination(

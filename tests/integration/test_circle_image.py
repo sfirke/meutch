@@ -160,3 +160,115 @@ def test_site_admin_can_update_regional_settings_from_circle_details(client, app
         assert circle.is_regional is True
         assert circle.regional_radius_miles == 25
         assert b"Regional circle status enabled." in response.data
+
+
+class TestPaginatedCircleMembers:
+    """Tests for paginated member list on circle details page."""
+
+    def test_pagination_controls_appear_with_many_members(self, client, app):
+        """When a circle has >20 members, pagination controls should appear."""
+        with app.app_context():
+            circle = CircleFactory()
+            members = [UserFactory() for _ in range(25)]
+            circle.members.extend(members)
+            db.session.commit()
+
+            login_user(client, members[0].email)
+
+            response = client.get(url_for("circles.view_circle", circle_id=circle.id))
+            assert response.status_code == 200
+
+            html = response.data.decode()
+            assert "Members (25)" in html
+            assert 'aria-label="Members pages"' in html
+            assert '<li class="page-item active"><span class="page-link">1</span></li>' in html
+            assert f'href="/circles/{circle.id}?page=2"' in html
+
+    def test_page_two_shows_remaining_members(self, client, app):
+        """Page 2 should show the 5 members that don't fit on page 1 (25 total, 20 per page)."""
+        with app.app_context():
+            circle = CircleFactory()
+            members = [UserFactory() for _ in range(25)]
+            circle.members.extend(members)
+            db.session.commit()
+
+            all_ids = {str(m.id) for m in members}
+            login_user(client, members[0].email)
+
+            # Collect member IDs visible on page 1
+            resp1 = client.get(url_for("circles.view_circle", circle_id=circle.id, page=1))
+            assert resp1.status_code == 200
+            html1 = resp1.data.decode()
+            page1_ids = {str(m.id) for m in members if str(m.id) in html1}
+
+            # Collect member IDs visible on page 2
+            resp2 = client.get(url_for("circles.view_circle", circle_id=circle.id, page=2))
+            assert resp2.status_code == 200
+            html2 = resp2.data.decode()
+            page2_ids = {str(m.id) for m in members if str(m.id) in html2}
+
+            # Page 2 should show exactly 5 members, all distinct from page 1
+            assert len(page2_ids) == 5
+            assert page1_ids.isdisjoint(page2_ids)
+            assert page1_ids | page2_ids == all_ids
+            assert '<li class="page-item active"><span class="page-link">2</span></li>' in html2
+
+    def test_join_leave_button_above_members(self, client, app):
+        """The Join/Leave button should appear before the members heading in HTML."""
+        with app.app_context():
+            circle = CircleFactory(circle_type="open")
+            members = [UserFactory() for _ in range(6)]
+            circle.members.extend(members)
+            db.session.commit()
+
+            login_user(client, members[0].email)
+
+            response = client.get(url_for("circles.view_circle", circle_id=circle.id))
+            html = response.data.decode()
+
+            leave_pos = html.find("Leave Circle")
+            members_heading_pos = html.find("Members (6)")
+            assert leave_pos != -1, "Leave Circle button not found"
+            assert members_heading_pos != -1, "Members heading not found"
+            assert leave_pos < members_heading_pos, (
+                f"Leave Circle button (at {leave_pos}) should appear before "
+                f"Members heading (at {members_heading_pos})"
+            )
+
+    def test_non_member_sees_join_button_above_closed_message(self, client, app):
+        """A non-member of a closed circle sees Join button above the closed message."""
+        with app.app_context():
+            circle = CircleFactory(circle_type="closed")
+            member = UserFactory()
+            circle.members.append(member)
+            db.session.commit()
+
+            non_member = UserFactory()
+            db.session.commit()
+            login_user(client, non_member.email)
+
+            response = client.get(url_for("circles.view_circle", circle_id=circle.id))
+            html = response.data.decode()
+
+            join_pos = html.find("Send Join Request")
+            closed_msg_pos = html.find("This is a closed circle")
+            assert join_pos != -1, "Send Join Request button not found"
+            assert closed_msg_pos != -1, "Closed circle message not found"
+            assert join_pos < closed_msg_pos, (
+                f"Send Join Request button (at {join_pos}) should appear before "
+                f"closed circle message (at {closed_msg_pos})"
+            )
+
+    def test_member_count_displays_total(self, client, app):
+        """The member count should show the correct total from pagination."""
+        with app.app_context():
+            circle = CircleFactory()
+            members = [UserFactory() for _ in range(8)]
+            circle.members.extend(members)
+            db.session.commit()
+
+            login_user(client, members[0].email)
+            response = client.get(url_for("circles.view_circle", circle_id=circle.id))
+            html = response.data.decode()
+
+            assert "Members (8)" in html

@@ -7,6 +7,7 @@ import urllib.parse
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy.exc import OperationalError
 
 from app import create_app, db
 from app.models import Category, User
@@ -221,6 +222,34 @@ def runner(app):
     return app.test_cli_runner()
 
 
+def _truncate_table(table):
+    """Truncate *table* with CASCADE, retrying transient deadlocks.
+
+    Deadlocks are inherently transient — PostgreSQL resolves them by
+    cancelling one of the competing transactions immediately.  A brief
+    retry almost always succeeds.
+
+    Non-deadlock errors (missing table, broken connection, etc.) are
+    raised immediately so the root cause is visible rather than silently
+    producing corrupt test state downstream.
+    """
+    MAX_ATTEMPTS = 3
+    for attempt in range(MAX_ATTEMPTS):
+        try:
+            db.session.execute(db.text(f"TRUNCATE TABLE {table} CASCADE"))
+            db.session.commit()
+            return
+        except OperationalError as e:
+            db.session.rollback()
+            if "deadlock" in str(e).lower() and attempt < MAX_ATTEMPTS - 1:
+                time.sleep(0.05 * (2**attempt))
+                continue
+            raise
+        except Exception:
+            db.session.rollback()
+            raise
+
+
 @pytest.fixture(autouse=True)
 def clean_db(app):
     """Clean database before each test using TRUNCATE for speed.
@@ -258,14 +287,7 @@ def clean_db(app):
         # lets PostgreSQL resolve contention immediately by rolling back
         # only the conflicting statement.
         for table in tables_to_truncate:
-            try:
-                db.session.execute(db.text(f"TRUNCATE TABLE {table} CASCADE"))
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-                # Continue to the next table rather than aborting the
-                # entire cleanup; a single table left un-truncated is
-                # far less harmful than a cascading transaction failure.
+            _truncate_table(table)
 
         db.session.remove()
 

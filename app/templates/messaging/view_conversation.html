@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
-    {% set conversation_item = thread_messages[0].item if thread_messages else None %}
-    {% set conversation_request = thread_messages[0].request if thread_messages else None %}
-    {% set conversation_circle = thread_messages[0].circle if thread_messages else None %}
+    {% set conversation_item = thread_messages[0].conversation.item if thread_messages else None %}
+    {% set conversation_request = thread_messages[0].conversation.request if thread_messages else None %}
+    {% set conversation_circle = thread_messages[0].conversation.circle if thread_messages else None %}
     {% set conversation_partner = thread_messages[0].other_user if thread_messages else None %}
     {% set is_item_owner = conversation_item and conversation_item.owner_id == current_user.id %}
 
@@ -252,9 +252,13 @@
             </h5>
         </div>
         <div class="card-body">
-            {% if giveaway_selection_interested_count == 1 %}
+            {% if giveaway_selection_direct %}
                 <p class="mb-3">
-                    <strong>{{ thread_messages[0].other_user.full_name }}</strong> is currently the only interested user for this giveaway. You can give it to them here without leaving the conversation.
+                    <strong>{{ thread_messages[0].other_user.full_name }}</strong> messaged you about this giveaway. If you've arranged to give it to them, you can select them as the recipient here.
+                </p>
+            {% elif giveaway_selection_interested_count == 1 %}
+                <p class="mb-3">
+                    <strong>{{ thread_messages[0].other_user.full_name }}</strong> is currently the only interested user for this giveaway.
                 </p>
             {% else %}
                 <p class="mb-3">
@@ -269,9 +273,11 @@
                         <i class="fas fa-gift me-1"></i>Give Item to This User
                     </button>
                 </form>
+                {% if giveaway_selection_interested_count > 0 %}
                 <a href="{{ url_for('main.select_recipient', item_id=giveaway_selection_item.id) }}" class="btn btn-outline-secondary">
                     <i class="fas fa-users me-1"></i>View Interested Users
                 </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -313,6 +319,25 @@
                     You are the selected recipient for this giveaway. Use this conversation to coordinate pickup, and the owner will mark the handoff complete once you have the item.
                 </div>
             {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if fulfillable_request %}
+    <div class="card mb-4 border-success shadow-sm">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-check-circle me-2"></i>Request Fulfillment
+            </h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-3">If this request has been satisfied, mark it as fulfilled.</p>
+            <form method="POST" action="{{ url_for('requests.fulfill', request_id=fulfillable_request.id) }}" class="d-inline">
+                {{ request_fulfill_form.hidden_tag() }}
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-check-circle me-1"></i>Mark Request Fulfilled
+                </button>
+            </form>
         </div>
     </div>
     {% endif %}
@@ -384,7 +409,26 @@
         </div>
     </div>
 
-    <a href="{{ url_for('main.messages') }}" class="btn btn-secondary mt-3">Back to Messages</a>
+    <div class="d-flex flex-wrap justify-content-between align-items-center mt-4 gap-2">
+        <a href="{{ url_for('main.messages') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Inbox
+        </a>
+        {% if viewer_participant and viewer_participant.is_archived %}
+            <form method="POST" action="{{ url_for('main.unarchive_conversation', conversation_id=conversation.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-secondary">
+                    <i class="fas fa-inbox me-1"></i>Unarchive
+                </button>
+            </form>
+        {% else %}
+            <form method="POST" action="{{ url_for('main.archive_conversation', conversation_id=conversation.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-secondary">
+                    <i class="fas fa-archive me-1"></i>Archive
+                </button>
+            </form>
+        {% endif %}
+    </div>
 </div>
 
 <!-- Scroll to the end of the thread only if there are unread messages -->

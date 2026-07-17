@@ -3,7 +3,7 @@
 from datetime import date, timedelta
 
 from app import db
-from tests.factories import ItemRequestFactory, MessageFactory, UserFactory
+from tests.factories import ConversationFactory, ItemRequestFactory, MessageFactory, UserFactory
 
 from .api_test_helpers import auth_headers, login_api_user
 
@@ -39,11 +39,11 @@ class TestApiRequests:
             owner = UserFactory(email_confirmed=True)
             helper = UserFactory()
             item_request = ItemRequestFactory(user=owner, title="Need a drill", visibility="public")
+            conversation = ConversationFactory(context_type="request", context_id=item_request.id)
             MessageFactory(
                 sender=helper,
                 recipient=owner,
-                item=None,
-                request=item_request,
+                conversation=conversation,
                 body="I can lend one.",
             )
             db.session.commit()

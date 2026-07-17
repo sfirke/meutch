@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 from app import db
 from tests.factories import (
     CircleFactory,
+    ConversationFactory,
     ItemFactory,
     LoanRequestFactory,
     MessageFactory,
@@ -56,14 +57,14 @@ class TestApiLoans:
             first_message = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 loan_request=loan,
                 body="Could I borrow this for the weekend?",
             )
             latest_message = MessageFactory(
                 sender=owner,
                 recipient=borrower,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 loan_request=loan,
                 body="Yes, that works.",
             )
@@ -122,7 +123,7 @@ class TestApiLoans:
             message = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 loan_request=loan,
                 body="Thanks again.",
             )
@@ -160,7 +161,7 @@ class TestApiLoans:
             anchor_message = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
                 loan_request=loan,
             )
             db.session.commit()
@@ -308,11 +309,16 @@ class TestApiLoans:
                 borrower=deny_borrower,
                 status="pending",
             )
-            MessageFactory(sender=borrower, recipient=owner, item=item, loan_request=approve_loan)
+            MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+                loan_request=approve_loan,
+            )
             MessageFactory(
                 sender=deny_borrower,
                 recipient=owner,
-                item=other_item,
+                conversation=ConversationFactory(context_type="item", context_id=other_item.id),
                 loan_request=deny_loan,
             )
             db.session.commit()
@@ -348,11 +354,16 @@ class TestApiLoans:
                 borrower=borrower,
                 status="approved",
             )
-            MessageFactory(sender=borrower, recipient=owner, item=item, loan_request=pending_loan)
             MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=other_item,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+                loan_request=pending_loan,
+            )
+            MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=other_item.id),
                 loan_request=approved_loan,
             )
             db.session.commit()
@@ -381,9 +392,17 @@ class TestApiLoans:
             other_item = ItemFactory(owner=owner, available=True)
             approved_loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
             pending_loan = LoanRequestFactory(item=other_item, borrower=borrower, status="pending")
-            MessageFactory(sender=borrower, recipient=owner, item=item, loan_request=approved_loan)
             MessageFactory(
-                sender=borrower, recipient=owner, item=other_item, loan_request=pending_loan
+                sender=borrower,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+                loan_request=approved_loan,
+            )
+            MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=other_item.id),
+                loan_request=pending_loan,
             )
             db.session.commit()
             access_token = login_api_user(client, owner.email)
@@ -412,9 +431,17 @@ class TestApiLoans:
             other_item = ItemFactory(owner=owner, available=True)
             approved_loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
             pending_loan = LoanRequestFactory(item=other_item, borrower=borrower, status="pending")
-            MessageFactory(sender=borrower, recipient=owner, item=item, loan_request=approved_loan)
             MessageFactory(
-                sender=borrower, recipient=owner, item=other_item, loan_request=pending_loan
+                sender=borrower,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+                loan_request=approved_loan,
+            )
+            MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=other_item.id),
+                loan_request=pending_loan,
             )
             db.session.commit()
             access_token = login_api_user(client, owner.email)
@@ -451,7 +478,12 @@ class TestApiLoans:
             loan.due_date_reminder_sent = datetime.now(UTC) - timedelta(days=1)
             loan.last_overdue_reminder_sent = datetime.now(UTC) - timedelta(days=1)
             loan.overdue_reminder_count = 4
-            MessageFactory(sender=borrower, recipient=owner, item=item, loan_request=loan)
+            MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+                loan_request=loan,
+            )
             db.session.commit()
             access_token = login_api_user(client, owner.email)
             loan_id = loan.id
@@ -494,7 +526,12 @@ class TestApiLoans:
                 start_date=date.today() + timedelta(days=3),
                 end_date=date.today() + timedelta(days=10),
             )
-            MessageFactory(sender=borrower, recipient=owner, item=item, loan_request=pending_loan)
+            MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+                loan_request=pending_loan,
+            )
             db.session.commit()
             access_token = login_api_user(client, borrower.email)
             pending_loan_id = str(pending_loan.id)
@@ -535,10 +572,16 @@ class TestApiLoans:
                 end_date=date.today() + timedelta(days=14),
             )
             MessageFactory(
-                sender=borrower, recipient=owner, item=active_item, loan_request=approved_loan
+                sender=borrower,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=active_item.id),
+                loan_request=approved_loan,
             )
             MessageFactory(
-                sender=borrower, recipient=owner, item=pending_item, loan_request=pending_loan
+                sender=borrower,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=pending_item.id),
+                loan_request=pending_loan,
             )
             db.session.commit()
             access_token = login_api_user(client, borrower.email)
@@ -576,10 +619,16 @@ class TestApiLoans:
                 end_date=date.today() + timedelta(days=14),
             )
             MessageFactory(
-                sender=borrower, recipient=owner, item=active_item, loan_request=approved_loan
+                sender=borrower,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=active_item.id),
+                loan_request=approved_loan,
             )
             MessageFactory(
-                sender=borrower, recipient=owner, item=pending_item, loan_request=pending_loan
+                sender=borrower,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=pending_item.id),
+                loan_request=pending_loan,
             )
             db.session.commit()
             access_token = login_api_user(client, borrower.email)
@@ -603,8 +652,18 @@ class TestApiLoans:
             other_item = ItemFactory(owner=owner, available=True)
             loan_a = LoanRequestFactory(item=item, borrower=borrower_a, status="pending")
             loan_b = LoanRequestFactory(item=other_item, borrower=borrower_b, status="pending")
-            MessageFactory(sender=borrower_a, recipient=owner, item=item, loan_request=loan_a)
-            MessageFactory(sender=borrower_b, recipient=owner, item=other_item, loan_request=loan_b)
+            MessageFactory(
+                sender=borrower_a,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+                loan_request=loan_a,
+            )
+            MessageFactory(
+                sender=borrower_b,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=other_item.id),
+                loan_request=loan_b,
+            )
             db.session.commit()
             access_token = login_api_user(client, owner.email)
 

@@ -14,6 +14,8 @@ from app.models import (
     Category,
     Circle,
     CircleJoinRequest,
+    Conversation,
+    ConversationParticipant,
     GiveawayInterest,
     Item,
     ItemImage,
@@ -130,8 +132,46 @@ class LoanRequestFactory(SQLAlchemyModelFactory):
     status = "pending"
 
 
+class ConversationFactory(SQLAlchemyModelFactory):
+    """Factory for Conversation model.
+
+    Pass ``context_type`` and ``context_id`` explicitly to target a specific
+    entity.  When called with no arguments a default item-backed conversation
+    is created automatically.
+    """
+
+    class Meta:
+        model = Conversation
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+
+    context_type = "item"
+
+    @factory.lazy_attribute
+    def context_id(self):
+        return ItemFactory().id
+
+
+class ConversationParticipantFactory(SQLAlchemyModelFactory):
+    """Factory for ConversationParticipant model."""
+
+    class Meta:
+        model = ConversationParticipant
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+
+    conversation = factory.SubFactory(ConversationFactory)
+    user = factory.SubFactory(UserFactory)
+    is_archived = False
+
+
 class MessageFactory(SQLAlchemyModelFactory):
-    """Factory for Message model."""
+    """Factory for Message model.
+
+    Pass ``conversation=`` to target a specific conversation.  When called
+    with only ``sender`` and ``recipient`` a default item-backed
+    conversation is created automatically.
+    """
 
     class Meta:
         model = Message
@@ -140,9 +180,33 @@ class MessageFactory(SQLAlchemyModelFactory):
 
     sender = factory.SubFactory(UserFactory)
     recipient = factory.SubFactory(UserFactory)
-    item = factory.SubFactory(ItemFactory)
     body = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=500))
     is_read = False
+
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        if "conversation" not in kwargs:
+            kwargs["conversation"] = ConversationFactory()
+        return super()._create(model_class, *args, **kwargs)
+
+    @factory.post_generation
+    def ensure_participants(self, create, extracted, **kwargs):
+        """Ensure both sender and recipient are participants in the conversation."""
+        if not create:
+            return
+        seen = set()
+        for user in [self.sender, self.recipient]:
+            if user.id in seen:
+                continue
+            seen.add(user.id)
+            existing = ConversationParticipant.query.filter_by(
+                conversation_id=self.conversation_id, user_id=user.id
+            ).first()
+            if not existing:
+                participant = ConversationParticipant(
+                    conversation_id=self.conversation_id, user_id=user.id
+                )
+                db.session.add(participant)
 
 
 class CircleJoinRequestFactory(SQLAlchemyModelFactory):

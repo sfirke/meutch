@@ -10,6 +10,7 @@ from conftest import login_user
 from tests.factories import (
     CategoryFactory,
     CircleFactory,
+    ConversationFactory,
     GiveawayInterestFactory,
     ItemFactory,
     ItemRequestFactory,
@@ -185,10 +186,11 @@ class TestAdminDashboardMetrics:
             borrower=borrower,
             created_at=datetime(2026, 5, 2, tzinfo=UTC),
         )
+        loan_conv = ConversationFactory(context_type="item", context_id=lendable_item.id)
         MessageFactory(
             sender=lender,
             recipient=borrower,
-            item=lendable_item,
+            conversation=loan_conv,
             loan_request=may_loan,
             timestamp=datetime(2026, 5, 3, tzinfo=UTC),
             body="The loan request has been approved.",
@@ -199,11 +201,11 @@ class TestAdminDashboardMetrics:
             created_at=datetime(2025, 12, 22, tzinfo=UTC),
             expires_at=datetime(2026, 1, 22, tzinfo=UTC),
         )
+        req_conv = ConversationFactory(context_type="request", context_id=old_request.id)
         MessageFactory(
             sender=self_message_user,
             recipient=admin,
-            request=old_request,
-            item=None,
+            conversation=req_conv,
             timestamp=datetime(2026, 4, 5, tzinfo=UTC),
             body="Following up on my own request",
         )

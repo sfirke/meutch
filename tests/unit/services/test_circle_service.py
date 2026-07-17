@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 
 from app import db
-from app.models import CircleJoinRequest, Message, circle_members
+from app.models import CircleJoinRequest, Conversation, Message, circle_members
 from app.services import circle_service
 from app.services.exceptions import (
     AuthorizationError,
@@ -114,10 +114,15 @@ class TestCircleService:
                 .filter_by(circle_id=circle.id, user_id=requester.id)
                 .first()
             )
-            decision_message = Message.query.filter_by(
-                recipient_id=requester.id,
-                circle_id=circle.id,
-            ).one()
+            decision_message = (
+                Message.query.join(Conversation)
+                .filter(
+                    Conversation.context_type == "circle",
+                    Conversation.context_id == circle.id,
+                    Message.recipient_id == requester.id,
+                )
+                .one()
+            )
             assert handled_action == "approve"
             assert membership is not None
             assert join_request.status == "approved"

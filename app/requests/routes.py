@@ -18,7 +18,7 @@ from app.services.exceptions import (
 )
 from app.utils.messaging_queries import (
     build_request_conversation_summaries,
-    find_request_conversation_message,
+    find_context_conversation,
 )
 from app.utils.request_queries import can_view_request
 
@@ -99,12 +99,16 @@ def edit(request_id):
             abort(404)
         except InformationalError as exc:
             form.visibility.errors.append(str(exc))
-            return render_template("requests/edit.html", form=form, item_request=item_request)
+            return render_template(
+                "requests/edit.html", form=form, item_request=item_request, fulfill_form=EmptyForm()
+            )
 
         flash("Your request has been updated.", "success")
         return redirect(url_for("requests.feed"))
 
-    return render_template("requests/edit.html", form=form, item_request=item_request)
+    return render_template(
+        "requests/edit.html", form=form, item_request=item_request, fulfill_form=EmptyForm()
+    )
 
 
 @requests_bp.route("/<uuid:request_id>/detail")
@@ -196,14 +200,20 @@ def conversation(request_id):
     except AuthorizationError:
         abort(403)
 
-    existing_message = find_request_conversation_message(
+    existing_conv = find_context_conversation(
+        "request",
         item_request.id,
         current_user.id,
         recipient_id,
     )
 
-    if existing_message:
-        return redirect(url_for("main.view_conversation", message_id=existing_message.id))
+    if existing_conv:
+        return redirect(
+            url_for(
+                "main.view_conversation",
+                conversation_id=existing_conv.id,
+            )
+        )
 
     form = MessageForm()
     if form.validate_on_submit():
@@ -214,6 +224,6 @@ def conversation(request_id):
         )
 
         flash("Your message has been sent.", "success")
-        return redirect(url_for("main.view_conversation", message_id=message.id))
+        return redirect(url_for("main.view_conversation", conversation_id=message.conversation_id))
 
     return render_template("requests/conversation_start.html", form=form, item_request=item_request)

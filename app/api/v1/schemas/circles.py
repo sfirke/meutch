@@ -82,6 +82,9 @@ class CircleDetailSchema(CircleSummarySchema):
     is_last_member = fields.Method("get_is_last_member")
     pending_join_request = fields.Method("get_pending_join_request", allow_none=True)
     members = fields.Method("get_members")
+    members_total = fields.Method("get_members_total")
+    members_page = fields.Method("get_members_page")
+    members_pages = fields.Method("get_members_pages")
 
     def get_can_view_members(self, circle):
         return getattr(circle, "api_can_view_members", False)
@@ -97,6 +100,15 @@ class CircleDetailSchema(CircleSummarySchema):
 
     def get_members(self, circle):
         return _CIRCLE_MEMBER_SUMMARY_SCHEMA.dump(getattr(circle, "api_members", []))
+
+    def get_members_total(self, circle):
+        return getattr(circle, "api_members_total", 0)
+
+    def get_members_page(self, circle):
+        return getattr(circle, "api_members_page", 1)
+
+    def get_members_pages(self, circle):
+        return getattr(circle, "api_members_pages", 0)
 
 
 class CircleDetailResponseSchema(ApiSchema):

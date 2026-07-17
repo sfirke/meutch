@@ -2,7 +2,8 @@ import logging
 from datetime import UTC, datetime
 
 from app import db
-from app.models import Circle, CircleJoinRequest, Message, circle_members
+from app.models import Circle, CircleJoinRequest, circle_members
+from app.services import message_service
 from app.services.exceptions import (
     AuthorizationError,
     ConflictError,
@@ -14,6 +15,7 @@ from app.utils.email import (
     send_circle_join_request_notification_email,
 )
 from app.utils.geocoding import GeocodingError, build_address_string, geocode_address
+from app.utils.messaging_queries import get_or_create_conversation
 from app.utils.storage import delete_file, is_valid_file_upload, upload_circle_image
 
 logger = logging.getLogger(__name__)
@@ -196,6 +198,10 @@ def handle_join_request(circle, join_request, acting_user, action):
     if join_request.status != "pending":
         raise InformationalError("This join request has already been handled.")
 
+    conversation = get_or_create_conversation(
+        "circle", circle.id, acting_user.id, join_request.user_id
+    )
+
     if action == "approve":
         stmt = circle_members.insert().values(
             user_id=join_request.user_id,
@@ -205,26 +211,24 @@ def handle_join_request(circle, join_request, acting_user, action):
         )
         db.session.execute(stmt)
         join_request.status = "approved"
-        decision_message = Message(
-            sender_id=acting_user.id,
-            recipient_id=join_request.user_id,
-            circle_id=circle.id,
-            body=f"Your request to join '{circle.name}' has been approved.",
+        message_service.create_message(
+            acting_user.id,
+            join_request.user_id,
+            f"Your request to join '{circle.name}' has been approved.",
+            conversation_id=conversation.id,
+            notify=False,
         )
-        db.session.add(decision_message)
     elif action == "reject":
         join_request.status = "rejected"
-        decision_message = Message(
-            sender_id=acting_user.id,
-            recipient_id=join_request.user_id,
-            circle_id=circle.id,
-            body=f"Your request to join '{circle.name}' has been denied.",
+        message_service.create_message(
+            acting_user.id,
+            join_request.user_id,
+            f"Your request to join '{circle.name}' has been denied.",
+            conversation_id=conversation.id,
+            notify=False,
         )
-        db.session.add(decision_message)
     else:
         raise InvalidActionError("Invalid action.")
-
-    db.session.commit()
 
     try:
         send_circle_join_request_decision_email(join_request)

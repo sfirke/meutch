@@ -8,14 +8,13 @@ from app.forms import (
     ConfirmHandoffForm,
     DeleteItemForm,
     EmptyForm,
-    ExpressInterestForm,
     ListItemForm,
     MessageForm,
     ReleaseToAllForm,
     WithdrawInterestForm,
 )
 from app.main import bp as main_bp
-from app.models import GiveawayInterest, Item, Message
+from app.models import Conversation, GiveawayInterest, Item, Message
 from app.services import giveaway_service, item_service, message_service
 from app.services.exceptions import (
     AuthorizationError,
@@ -147,12 +146,11 @@ def item_detail(item_id):
         abort(403)
 
     form = MessageForm()
-    express_interest_form = ExpressInterestForm()
     withdraw_interest_form = WithdrawInterestForm()
 
     if form.validate_on_submit():
         try:
-            message_service.start_item_conversation(
+            message = message_service.start_item_conversation(
                 item,
                 current_user,
                 form.body.data,
@@ -165,10 +163,15 @@ def item_detail(item_id):
             abort(403)
 
         flash("Your message has been sent.", "success")
-        return redirect(_build_item_detail_url(item.id, share_token))
+        return redirect(url_for("main.view_conversation", conversation_id=message.conversation_id))
 
     messages = (
-        Message.query.filter_by(item_id=item.id, recipient_id=current_user.id)
+        Message.query.join(Conversation)
+        .filter(
+            Conversation.context_type == "item",
+            Conversation.context_id == item.id,
+            Message.recipient_id == current_user.id,
+        )
         .order_by(Message.timestamp.desc())
         .all()
     )
@@ -186,6 +189,7 @@ def item_detail(item_id):
     generate_share_link_form = EmptyForm()
     release_to_all_form = ReleaseToAllForm()
     confirm_handoff_form = ConfirmHandoffForm()
+    mark_given_away_form = EmptyForm()
     return render_template(
         "main/item_detail.html",
         item=item,
@@ -194,7 +198,6 @@ def item_detail(item_id):
         delete_form=delete_form,
         user_interest=user_interest,
         interested_count=interested_count,
-        express_interest_form=express_interest_form,
         withdraw_interest_form=withdraw_interest_form,
         share_token=share_token,
         has_token_access=has_token_access,
@@ -204,6 +207,7 @@ def item_detail(item_id):
         generate_share_link_form=generate_share_link_form,
         release_to_all_form=release_to_all_form,
         confirm_handoff_form=confirm_handoff_form,
+        mark_given_away_form=mark_given_away_form,
     )
 
 
@@ -296,7 +300,10 @@ def delete_item(item_id):
         )
         if blocking_loan.messages:
             return redirect(
-                url_for("main.view_conversation", message_id=blocking_loan.messages[0].id)
+                url_for(
+                    "main.view_conversation",
+                    conversation_id=blocking_loan.messages[0].conversation_id,
+                )
             )
         return redirect(url_for("main.item_detail", item_id=item.id))
 

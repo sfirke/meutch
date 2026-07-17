@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user
-from sqlalchemy import false, func, select, true, union_all
+from sqlalchemy import and_, false, func, select, true, union_all
 
 from app import db
 from app.admin import bp
@@ -13,6 +13,7 @@ from app.auth.decorators import admin_required
 from app.forms import EmptyForm
 from app.models import (
     AdminAction,
+    Conversation,
     GiveawayInterest,
     Item,
     ItemRequest,
@@ -86,13 +87,27 @@ def _monthly_active_users_series():
             Message.sender_id.label("user_id"),
             Message.timestamp.label("event_at"),
         )
-        .join(ItemRequest, Message.request_id == ItemRequest.id)
+        .join(Conversation, Message.conversation_id == Conversation.id)
+        .join(
+            ItemRequest,
+            and_(
+                Conversation.context_type == "request",
+                Conversation.context_id == ItemRequest.id,
+            ),
+        )
         .where(Message.sender_id != ItemRequest.user_id),
         select(
             Message.sender_id.label("user_id"),
             Message.timestamp.label("event_at"),
         )
-        .join(Item, Message.item_id == Item.id)
+        .join(Conversation, Message.conversation_id == Conversation.id)
+        .join(
+            Item,
+            and_(
+                Conversation.context_type == "item",
+                Conversation.context_id == Item.id,
+            ),
+        )
         .where(
             Item.is_giveaway.is_(true()),
             Message.sender_id != Item.owner_id,
