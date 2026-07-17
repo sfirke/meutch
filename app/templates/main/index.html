@@ -5,11 +5,16 @@
 {% block content %}
     <div class="activity-feed-page position-relative">
     <section class="activity-feed-header mb-3">
-        <div class="d-flex flex-row justify-content-between align-items-center mb-1">
+        <!-- Desktop layout: single-row toolbar with Filters left of action buttons -->
+        <div class="d-none d-md-flex justify-content-between align-items-center">
             <div>
                 <h1 class="h3 mb-0">Community Activity</h1>
+                <p class="text-muted mb-0 small">Recent requests, giveaways, and lending activity.</p>
             </div>
-            <div class="d-none d-md-flex gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
+                    <i class="fas fa-filter"></i> Filters
+                </button>
                 <a href="{{ url_for('requests.new') }}" class="btn btn-sm btn-meutch-orange">
                     <i class="fas fa-hand-holding-heart me-1"></i>Create Request
                 </a>
@@ -19,11 +24,15 @@
             </div>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center">
+        <!-- Mobile layout: stacked rows with Filters in its own right-aligned row -->
+        <div class="d-md-none d-flex flex-column gap-2">
+            <h1 class="h3 mb-0">Community Activity</h1>
             <p class="text-muted mb-0 small">Recent requests, giveaways, and lending activity.</p>
-            <button class="btn btn-link btn-sm text-decoration-none p-0 d-flex align-items-center gap-1" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
-                <i class="fas fa-filter"></i> Filters
-            </button>
+            <div class="d-flex justify-content-end w-100">
+                <button class="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
+                    <i class="fas fa-filter"></i> Filters
+                </button>
+            </div>
         </div>
     </section>
 
