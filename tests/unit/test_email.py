@@ -554,3 +554,201 @@ class TestEmailUtils:
 
                 assert result is True
                 mock_send_email.assert_called_once()
+
+
+class TestSendContactFormEmail:
+    """Test send_contact_form_email function."""
+
+    def test_sends_to_all_admins(self, app):
+        """Test that send_email is called for each admin user."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory()
+            UserFactory(is_admin=True)
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            with patch("app.utils.email.send_email", return_value=True) as mock_send:
+                result = send_contact_form_email(
+                    sender, "bug_report", "Test message body long enough"
+                )
+
+                assert result is True
+                assert mock_send.call_count == 2
+
+    def test_uses_correct_subject_per_category(self, app):
+        """Test subject line includes the correct category label."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory(first_name="John", last_name="Doe")
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            with patch("app.utils.email.send_email", return_value=True) as mock_send:
+                send_contact_form_email(sender, "bug_report", "Test message body long enough")
+                subject = mock_send.call_args[0][1]
+                assert "Bug Report" in subject
+                assert "John Doe" in subject
+
+    def test_feature_suggestion_subject(self, app):
+        """Test subject for feature suggestion category."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory(first_name="Jane", last_name="Smith")
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            with patch("app.utils.email.send_email", return_value=True) as mock_send:
+                send_contact_form_email(
+                    sender, "feature_suggestion", "Test message body long enough"
+                )
+                subject = mock_send.call_args[0][1]
+                assert "Feature Suggestion" in subject
+                assert "Jane Smith" in subject
+
+    def test_question_subject(self, app):
+        """Test subject for question category."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory(first_name="Bob", last_name="Johnson")
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            with patch("app.utils.email.send_email", return_value=True) as mock_send:
+                send_contact_form_email(sender, "question", "Test message body long enough")
+                subject = mock_send.call_args[0][1]
+                assert "Question" in subject
+                assert "Bob Johnson" in subject
+
+    def test_includes_sender_info_in_body(self, app):
+        """Test email body contains sender's name and email."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory(first_name="Alice", last_name="Wonder", email="alice@test.com")
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            with patch("app.utils.email.send_email", return_value=True) as mock_send:
+                send_contact_form_email(sender, "bug_report", "Test message body long enough")
+
+                text_content = mock_send.call_args[0][2]
+                assert "Alice Wonder" in text_content
+                assert "alice@test.com" in text_content
+
+    def test_includes_message_in_body(self, app):
+        """Test email body contains the submitted message."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory()
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            test_message = "This is my detailed bug report with lots of information."
+            with patch("app.utils.email.send_email", return_value=True) as mock_send:
+                send_contact_form_email(sender, "bug_report", test_message)
+
+                text_content = mock_send.call_args[0][2]
+                assert test_message in text_content
+
+    def test_returns_false_when_no_admins(self, app):
+        """Test function returns False when no admin users exist."""
+        with app.app_context():
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory()
+            # No admin users created
+
+            with patch("app.utils.email.send_email") as mock_send:
+                result = send_contact_form_email(
+                    sender, "bug_report", "Test message body long enough"
+                )
+
+                assert result is False
+                mock_send.assert_not_called()
+
+    def test_handles_send_email_failure(self, app):
+        """Test function returns True if at least one admin receives the email."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory()
+            UserFactory(is_admin=True)
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            # First admin fails, second succeeds
+            with patch("app.utils.email.send_email", side_effect=[False, True]) as mock_send:
+                result = send_contact_form_email(
+                    sender, "bug_report", "Test message body long enough"
+                )
+
+                assert result is True
+                assert mock_send.call_count == 2
+
+    def test_raises_on_unknown_category(self, app):
+        """Test that unknown category raises ValueError."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory()
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            with patch("app.utils.email.send_email") as mock_send:
+                with pytest.raises(ValueError, match="Unknown contact form category"):
+                    send_contact_form_email(
+                        sender, "unknown_category", "Test message body long enough"
+                    )
+                mock_send.assert_not_called()
+
+    def test_excludes_deleted_users(self, app):
+        """Test that deleted admin users are not emailed."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory()
+            UserFactory(is_admin=True)
+            UserFactory(is_admin=True, is_deleted=True)
+            db.session.commit()
+
+            with patch("app.utils.email.send_email", return_value=True) as mock_send:
+                result = send_contact_form_email(
+                    sender, "bug_report", "Test message body long enough"
+                )
+
+                assert result is True
+                assert mock_send.call_count == 1
+
+    def test_excludes_non_admins(self, app):
+        """Test that non-admin users are not emailed."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory()
+            UserFactory(is_admin=True)
+            UserFactory(is_admin=False)
+            db.session.commit()
+
+            with patch("app.utils.email.send_email", return_value=True) as mock_send:
+                result = send_contact_form_email(
+                    sender, "bug_report", "Test message body long enough"
+                )
+
+                assert result is True
+                assert mock_send.call_count == 1
