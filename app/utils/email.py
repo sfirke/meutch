@@ -515,6 +515,57 @@ The Meutch Team
     return send_email(user_email, subject, text_content)
 
 
+CATEGORY_LABELS = {
+    "issue": "Issue Report",
+    "feature": "Feature Suggestion",
+    "feedback": "General Feedback",
+    "other": "Other Feedback",
+}
+
+
+def send_contact_form_email(user, category, message):
+    """Send contact form message to all admin users."""
+    from app.models import User  # Import here to avoid circular imports
+
+    admins = User.query.filter_by(is_admin=True, is_deleted=False).all()
+
+    if not admins:
+        current_app.logger.warning("No admin users found for contact form submission")
+        return False
+
+    category_label = CATEGORY_LABELS.get(category, "Other")
+    subject = f"[{category_label}] Message from {user.first_name} {user.last_name}"
+
+    text_content = f"""
+Contact Form Submission
+{'=' * 60}
+
+From: {user.first_name} {user.last_name}
+Email: {user.email}
+Category: {category_label}
+
+Message:
+{'-' * 40}
+{message}
+{'-' * 40}
+
+---
+This message was submitted via the Meutch contact form.
+""".strip()
+
+    success_count = 0
+    for admin in admins:
+        try:
+            if send_email(admin.email, subject, text_content):
+                success_count += 1
+            else:
+                current_app.logger.error(f"Failed to send contact form email to admin {admin.id}")
+        except Exception as e:
+            current_app.logger.error(f"Error sending contact form email to admin {admin.id}: {e}")
+
+    return success_count > 0
+
+
 def _digest_event_url(event):
     event_type = event.get("event_type")
     if event_type in {"giveaway", "lent"} and event.get("item_id"):

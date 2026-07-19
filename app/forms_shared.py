@@ -1,7 +1,8 @@
 import pycountry
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed
-from wtforms.validators import URL, ValidationError
+from wtforms import SelectField, SubmitField, TextAreaField
+from wtforms.validators import URL, DataRequired, Length, ValidationError
 
 from app.models import User
 
@@ -106,3 +107,23 @@ def OptionalFileAllowed(upload_set, message=None):
 
 class EmptyForm(FlaskForm):
     pass
+
+
+class ContactForm(FlaskForm):
+    category = SelectField(
+        "Category",
+        choices=[
+            ("issue", "Report an Issue"),
+            ("feature", "Suggest a Feature"),
+            ("feedback", "General Feedback"),
+            ("other", "Other"),
+        ],
+    )
+    message = TextAreaField(
+        "Message",
+        validators=[
+            DataRequired(message="Please enter a message."),
+            Length(max=5000, message="Message must be under 5,000 characters."),
+        ],
+    )
+    submit = SubmitField("Send Message")

@@ -2,10 +2,13 @@ import re
 from urllib.parse import urlparse
 
 import requests as http_client
-from flask import abort, make_response, render_template, request
-from flask_login import login_required
+from flask import abort, flash, make_response, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
 
+from app import limiter
+from app.forms import ContactForm
 from app.main import bp as main_bp
+from app.utils.email import send_contact_form_email
 
 _CDN_HOST_RE = re.compile(r"^[a-z0-9-]+\.[a-z0-9-]+\.cdn\.digitaloceanspaces\.com$", re.IGNORECASE)
 
@@ -60,3 +63,23 @@ def privacy_policy():
 @main_bp.route("/terms")
 def terms():
     return render_template("main/terms.html")
+
+
+@main_bp.route("/contact", methods=["GET", "POST"])
+@login_required
+@limiter.limit("5 per hour")
+def contact():
+    """Contact form page for authenticated users to send messages to admins."""
+    form = ContactForm()
+
+    if form.validate_on_submit():
+        success = send_contact_form_email(current_user, form.category.data, form.message.data)
+        if success:
+            flash("Your message has been sent to the Meutch team. Thank you!", "success")
+        else:
+            flash(
+                "Sorry, we couldn't send your message right now. Please try again later.", "error"
+            )
+        return redirect(url_for("main.index"))
+
+    return render_template("main/contact.html", form=form)

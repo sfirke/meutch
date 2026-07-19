@@ -39,6 +39,7 @@ from app.forms_profile import (
 from app.forms_requests import ItemRequestForm
 from app.forms_shared import (
     DIGEST_FREQUENCY_CHOICES,
+    ContactForm,
     EmptyForm,
     OptionalFileAllowed,
     OptionalURL,
@@ -52,6 +53,7 @@ __all__ = [
     "CircleSearchForm",
     "CircleUuidSearchForm",
     "ConfirmHandoffForm",
+    "ContactForm",
     "DIGEST_FREQUENCY_CHOICES",
     "DeleteAccountForm",
     "DeleteItemForm",
