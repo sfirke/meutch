@@ -77,6 +77,13 @@
                             <i class="fas fa-question-circle me-1"></i>How it Works
                         </a>
                     </li>
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('main.contact') }}">
+                                <i class="fas fa-envelope me-1"></i>Contact
+                            </a>
+                        </li>
+                    {% endif %}
                     {% if current_user.is_authenticated and current_user.is_admin %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
@@ -237,9 +244,15 @@
                     <p class="text-muted small mb-2">
                         Questions? Suggestions? Found a bug?
                     </p>
-                    <a href="https://github.com/sfirke/meutch/issues" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
-                        <i class="fab fa-github me-1"></i>Report an Issue
+                    {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('main.contact') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-envelope me-1"></i>Contact Us
                     </a>
+                    {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-envelope me-1"></i>Contact Us
+                    </a>
+                    {% endif %}
                 </div>
             </div>
             <hr class="my-3">
