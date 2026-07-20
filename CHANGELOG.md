@@ -12,7 +12,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
   - Frontend changes to finish the work in ([#439](https://github.com/sfirke/meutch/pull/439)).
 
 **Minor**:
-- Added a Contact Us form so authenticated users can message the Meutch team directly from the app, replacing the external GitHub Issues link in the footer.
+- Added a Contact Us form so authenticated users can message the Meutch team directly from the app, replacing the external GitHub Issues link in the footer ([#448](https://github.com/sfirke/meutch/pull/448)).
 - Improved the giveaway request and handoff experience - no more needing to click "I want this!", instead owners can choose from anyone who messages. Also allows for marking giveaways handed off outside of Meutch ([#445](https://github.com/sfirke/meutch/pull/445)).
 - On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
 - Community Activity now hides claimed giveaways by default and includes a filter to show them when desired ([#424](https://github.com/sfirke/meutch/issues/424)).
