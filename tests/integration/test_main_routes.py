@@ -520,8 +520,8 @@ class TestContactRoutes:
             assert response.status_code == 200
             assert b"between 10 and 2000 characters" in response.data
 
-    def test_navbar_shows_contact_link_for_authenticated(self, client, app, auth_user):
-        """Test authenticated page contains contact nav link."""
+    def test_contact_link_present_for_authenticated(self, client, app, auth_user):
+        """Test authenticated page contains contact link (in footer)."""
         with app.app_context():
             user = auth_user()
             login_user(client, user.email)
@@ -530,13 +530,12 @@ class TestContactRoutes:
             assert b"Contact" in response.data
             assert b"/contact" in response.data
 
-    def test_navbar_hides_contact_link_for_unauthenticated(self, client):
-        """Test anonymous page does not contain contact nav link."""
+    def test_contact_link_hidden_for_unauthenticated(self, client):
+        """Test anonymous page does not link directly to /contact."""
         response = client.get("/")
         assert response.status_code == 200
-        # The "Contact" text appears in the footer for unauthenticated (linking to login),
-        # but the nav link should not be present.
-        # Check that the nav item with href=/contact is NOT present
+        # The "Contact Us" text appears in the footer for unauthenticated (linking to login),
+        # so href=/contact should NOT be present.
         assert b'href="/contact"' not in response.data
 
     def test_footer_shows_contact_for_authenticated(self, client, app, auth_user):

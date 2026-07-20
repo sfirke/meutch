@@ -14,6 +14,7 @@ class ContactForm(FlaskForm):
             ("bug_report", "Bug Report"),
             ("feature_suggestion", "Feature Suggestion"),
             ("question", "Question"),
+            ("other", "Other"),
         ],
         validators=[DataRequired()],
         validate_choice=True,

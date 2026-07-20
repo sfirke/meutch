@@ -5,9 +5,13 @@
 {% block content %}
 <div class="container mt-5">
     <h2 class="mb-3">Contact Us</h2>
-    <p class="text-muted mb-4">
+    <p class="text-muted mb-2">
         Have a question, suggestion, or found a bug? Let us know using the form below.
         Your message will be sent directly to the Meutch team.
+    </p>
+    <p class="text-muted small mb-4">
+        On GitHub? You can also
+        <a href="https://github.com/sfirke/meutch/issues" target="_blank" rel="noopener noreferrer">report issues directly on GitHub</a>.
     </p>
 
     <form method="POST" action="{{ url_for('main.contact') }}">

@@ -77,13 +77,6 @@
                             <i class="fas fa-question-circle me-1"></i>How it Works
                         </a>
                     </li>
-                    {% if current_user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('main.contact') }}">
-                                <i class="fas fa-envelope me-1"></i>Contact
-                            </a>
-                        </li>
-                    {% endif %}
                     {% if current_user.is_authenticated and current_user.is_admin %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
