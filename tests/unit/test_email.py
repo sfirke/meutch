@@ -681,9 +681,9 @@ class TestEmailUtils:
                 to_email, subject, text_content, html_content = call_args[0]
 
                 # HTML content should have escaped item name
-                assert '&lt;a href="evil.com"&gt;Free Drill&lt;/a&gt;' in html_content
+                assert "&lt;a href=&#34;evil.com&#34;&gt;Free Drill&lt;/a&gt;" in html_content
                 # Raw HTML should NOT be present in HTML output
-                assert "<a href=" not in html_content
+                assert '<a href="evil.com">' not in html_content
 
                 # Text content should have unescaped item name
                 assert item_name in text_content

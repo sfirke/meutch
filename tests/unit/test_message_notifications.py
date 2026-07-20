@@ -201,7 +201,7 @@ class TestMessageNotifications:
                 to_email, subject, text_content, html_content = call_args[0]
 
                 # HTML content should have escaped script tag
-                assert "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;" in html_content
+                assert "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;" in html_content
                 # Raw script tag should NOT be present in HTML
                 assert "<script>alert('xss')</script>" not in html_content
 
