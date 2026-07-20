@@ -170,6 +170,110 @@ class TestMessageNotifications:
                 assert "canceled by the borrower" in text_content
                 assert "loan cancellation" in html_content.lower()
 
+    def test_message_body_html_is_escaped(self, app):
+        """Test that HTML in message body is escaped in HTML email output."""
+        with app.app_context():
+            # Create test users and item
+            sender = UserFactory(email="sender@test.com", first_name="John", last_name="Doe")
+            recipient = UserFactory(
+                email="recipient@test.com", first_name="Jane", last_name="Smith"
+            )
+            item = ItemFactory(name="Test Item", owner=recipient)
+
+            # Create a message with XSS payload
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                body="<script>alert('xss')</script>",
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_message_notification_email(message)
+
+                assert result is True
+                mock_send_email.assert_called_once()
+
+                call_args = mock_send_email.call_args
+                to_email, subject, text_content, html_content = call_args[0]
+
+                # HTML content should have escaped script tag
+                assert "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;" in html_content
+                # Raw script tag should NOT be present in HTML
+                assert "<script>alert('xss')</script>" not in html_content
+
+    def test_inline_event_handler_is_escaped(self, app):
+        """Test that inline event handlers in message body are neutralized."""
+        with app.app_context():
+            # Create test users and item
+            sender = UserFactory(email="sender@test.com", first_name="John", last_name="Doe")
+            recipient = UserFactory(
+                email="recipient@test.com", first_name="Jane", last_name="Smith"
+            )
+            item = ItemFactory(name="Test Item", owner=recipient)
+
+            # Create a message with an event handler payload
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                body="<img src=x onerror=alert(1)>",
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_message_notification_email(message)
+
+                assert result is True
+                mock_send_email.assert_called_once()
+
+                call_args = mock_send_email.call_args
+                to_email, subject, text_content, html_content = call_args[0]
+
+                # The < and > characters should be escaped, neutralizing the tag
+                assert "&lt;img src=x onerror=alert(1)&gt;" in html_content
+                assert "<img src=x" not in html_content
+
+    def test_item_name_html_is_escaped(self, app):
+        """Test that HTML in item name is escaped in HTML email output."""
+        with app.app_context():
+            # Create test users and item with HTML in name
+            sender = UserFactory(email="sender@test.com", first_name="John", last_name="Doe")
+            recipient = UserFactory(
+                email="recipient@test.com", first_name="Jane", last_name="Smith"
+            )
+            item = ItemFactory(name="Drill <b>Pro</b> 3000", owner=recipient)
+
+            # Create a regular message
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                body="normal message",
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_message_notification_email(message)
+
+                assert result is True
+                mock_send_email.assert_called_once()
+
+                call_args = mock_send_email.call_args
+                to_email, subject, text_content, html_content = call_args[0]
+
+                # HTML content should have escaped item name
+                assert "Drill &lt;b&gt;Pro&lt;/b&gt; 3000" in html_content
+                # Raw tags should NOT be present in HTML
+                assert "<b>Pro</b>" not in html_content
+
     def test_send_message_notification_email_invalid_status(self, app):
         """Test that invalid loan request status raises ValueError."""
         with app.app_context():
