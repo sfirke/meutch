@@ -2,10 +2,16 @@ from unittest.mock import patch
 
 import pytest
 
-from app.models import Message
+from app.models import GiveawayInterest, Message
 from app.services import giveaway_service
 from app.services.exceptions import AuthorizationError, ConflictError, InvalidActionError
-from tests.factories import GiveawayInterestFactory, ItemFactory, MessageFactory, UserFactory
+from tests.factories import (
+    ConversationFactory,
+    GiveawayInterestFactory,
+    ItemFactory,
+    MessageFactory,
+    UserFactory,
+)
 
 
 class TestGiveawayService:
@@ -22,7 +28,7 @@ class TestGiveawayService:
             )
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 interest = giveaway_service.express_interest(
                     item, requester.id, "I can pick this up"
@@ -33,6 +39,58 @@ class TestGiveawayService:
             assert interest.status == "active"
             assert notification.recipient_id == owner.id
             mock_email.assert_called_once_with(notification)
+
+    def test_express_interest_without_notification_creates_interest_only(self, app):
+        """send_notification=False persists interest without sending a message or email."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="unclaimed",
+                available=True,
+                giveaway_visibility="default",
+            )
+
+            with patch(
+                "app.services.message_service.send_message_notification_email"
+            ) as mock_email:
+                interest = giveaway_service.express_interest(
+                    item, requester.id, "Just messaging", send_notification=False
+                )
+
+            assert interest.user_id == requester.id
+            assert interest.status == "active"
+            assert interest.message == "Just messaging"
+            assert Message.query.count() == 0
+            mock_email.assert_not_called()
+
+    def test_express_interest_preserves_selected_status(self, app):
+        """Calling express_interest on an already-selected interest does NOT undo the
+        owner's selection — it only updates the message text."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                claim_status="unclaimed",
+                available=True,
+                giveaway_visibility="default",
+            )
+            existing = GiveawayInterestFactory(item=item, user=requester, status="selected")
+
+            interest = giveaway_service.express_interest(
+                item, requester.id, "Trying again!", send_notification=False
+            )
+
+            assert interest.id == existing.id
+            assert interest.status == "selected"
+            assert interest.message == "Trying again!"
+            assert (
+                GiveawayInterest.query.filter_by(item_id=item.id, user_id=requester.id).count() == 1
+            )
 
     def test_select_recipient_random_updates_item_and_selected_interest(self, app):
         with app.app_context():
@@ -51,7 +109,7 @@ class TestGiveawayService:
 
             with patch("app.services.giveaway_service.random.choice", return_value=second_interest):
                 with patch(
-                    "app.services.giveaway_service.send_message_notification_email"
+                    "app.services.message_service.send_message_notification_email"
                 ) as mock_email:
                     selected_interest = giveaway_service.select_recipient(item, owner.id, "random")
 
@@ -85,7 +143,7 @@ class TestGiveawayService:
             next_interest = GiveawayInterestFactory(item=item, user=next_user, status="active")
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 selected_interest = giveaway_service.change_recipient(item, owner.id, "next")
 
@@ -248,7 +306,7 @@ class TestGiveawayService:
             )
 
             with patch(
-                "app.services.giveaway_service.send_message_notification_email"
+                "app.services.message_service.send_message_notification_email"
             ) as mock_email:
                 giveaway_service.release_to_all(item, owner.id)
 
@@ -300,14 +358,15 @@ class TestGiveawayService:
             )
             GiveawayInterestFactory(item=item, user=user_a, status="active")
             GiveawayInterestFactory(item=item, user=user_b, status="active")
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             msg_from_a = MessageFactory(
-                item=item,
+                conversation=conversation,
                 sender=user_a,
                 recipient=owner,
                 is_read=True,
             )
             msg_from_b = MessageFactory(
-                item=item,
+                conversation=conversation,
                 sender=user_b,
                 recipient=owner,
                 is_read=False,

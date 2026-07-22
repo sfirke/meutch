@@ -8,7 +8,6 @@ from app.models import Category
 from app.utils.home_feed import HOMEPAGE_FEED_EVENT_TYPES
 from app.utils.item_queries import build_find_results
 from app.utils.item_share import token_grants_item_access
-from app.utils.messaging_queries import get_conversation_other_user_id
 from app.utils.storage import (
     MAX_UPLOAD_FILE_SIZE_BYTES,
     MAX_UPLOAD_FILE_SIZE_LABEL,
@@ -88,10 +87,6 @@ def _generated_item_share_link(item_id):
     return entry["url"]
 
 
-def _conversation_other_user_id(message, viewer_id):
-    return get_conversation_other_user_id(message, viewer_id)
-
-
 def _shares_circle_or_has_item_token_access(item, share_token=None):
     if item.owner_id == current_user.id:
         return True
@@ -136,6 +131,7 @@ def _parse_homepage_feed_filters(user):
     show_own_activity = True
     if "own_activity_present" in request.args:
         show_own_activity = request.args.get("show_own_activity") == "1"
+    show_claimed_giveaways = request.args.get("show_claimed_giveaways") == "1"
 
     return {
         "scope": scope,
@@ -144,6 +140,7 @@ def _parse_homepage_feed_filters(user):
         "distance_explicit": distance_explicit,
         "distance_param_value": distance_param_value,
         "show_own_activity": show_own_activity,
+        "show_claimed_giveaways": show_claimed_giveaways,
     }
 
 

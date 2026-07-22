@@ -23,7 +23,7 @@
         {% endif %}
     </div>
     <p>{{ circle.description }}</p>
-    <p><strong>Members:</strong> {{ circle.members|length }}</p>
+    <p><strong>Members:</strong> {{ total_members }}</p>
 
     {% set distance = get_distance_to_circle(circle) %}
     {% if distance %}
@@ -43,6 +43,59 @@
             Secret (requires approval)
         {% endif %}
     </p>
+
+    <!-- Join/Leave Controls -->
+    {% if is_member %}
+        <form method="post" action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" id="leave-circle-form" class="mb-3">
+            {{ form.hidden_tag() }}
+            <button type="submit" class="btn btn-danger" id="leave-circle-btn">Leave Circle</button>
+        </form>
+
+        {% if is_last_member %}
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('leave-circle-form');
+            const btn = document.getElementById('leave-circle-btn');
+
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                if (confirm('⚠️ Warning: You are the last member of this circle. If you leave, the circle will be permanently deleted. Do you want to continue?')) {
+                    // User confirmed, submit the form
+                    form.submit();
+                }
+            });
+        });
+        </script>
+        {% endif %}
+    {% else %}
+        {% if pending_request %}
+            <div class="alert alert-info mb-3">
+                <i class="fas fa-clock me-2"></i>
+                Your request to join this circle is pending approval.
+            </div>
+            <form method="post" action="{{ url_for('circles.cancel_join_request', circle_id=circle.id) }}" class="mb-3">
+                {{ form.hidden_tag() }}  <!-- Using the base form for CSRF -->
+                <button type="submit" class="btn btn-warning">Cancel Join Request</button>
+            </form>
+        {% else %}
+            <form method="post" action="{{ url_for('circles.join_circle', circle_id=circle.id) }}" class="mb-3">
+                {{ join_form.hidden_tag() if join_form else form.hidden_tag() }}
+                {% if circle.requires_join_approval %}
+                    <div class="form-group">
+                        {{ join_form.message.label }} {{ join_form.message(class="form-control") }}
+                    </div>
+                {% endif %}
+                <button type="submit" class="btn btn-primary">
+                    {% if circle.requires_join_approval %}
+                        Send Join Request
+                    {% else %}
+                        Join Circle
+                    {% endif %}
+                </button>
+            </form>
+        {% endif %}
+    {% endif %}
 
     {% if circle.is_regional %}
         <div class="alert alert-success py-2">
@@ -160,58 +213,6 @@
         </script>
     {% endif %}
 
-    {% if not circle.requires_join_approval or is_member %}
-        <!-- Members section with Admin Controls -->
-        <h3>Members ({{ circle.members|length }})</h3>
-        <ul class="list-group mb-4">
-            {% for member, joined_at, is_admin in ordered_members %}
-
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center">
-                    {% if is_admin %}
-                        <span class="badge bg-primary me-2" title="Circle Admin">
-                            <i class="fas fa-shield-alt"></i>
-                        </span>
-                    {% endif %}
-                    <img src="{{ member.profile_image }}" alt="{{ member.first_name }} {{ member.last_name }}"
-                         class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;">
-                    <div>
-                        <a href="{{ url_for('main.user_profile', user_id=member.id) }}" class="text-decoration-none">
-                            {{ member.first_name }} {{ member.last_name }}
-                        </a>
-                    </div>
-                </div>
-                {% if circle.is_admin(current_user) and member != current_user %}
-                    <div class="button-group">
-                        {% if is_admin %}
-                            <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='remove') }}" method="POST">
-                                {{ form.csrf_token }}
-                                <button type="submit" class="btn btn-warning btn-sm">Remove Admin</button>
-                            </form>
-                        {% else %}
-                            <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='add') }}" method="POST">
-                                {{ form.csrf_token }}
-                                <button type="submit" class="btn btn-primary btn-sm">Make Admin</button>
-                            </form>
-                        {% endif %}
-                        <form action="{{ url_for('circles.remove_member', circle_id=circle.id, user_id=member.id) }}" method="POST">
-                            {{ form.csrf_token }}
-                            <button type="submit" class="btn btn-danger btn-sm"
-                                    onclick="return confirm('Are you sure you want to remove this member from the circle?');">
-                                Remove
-                            </button>
-                        </form>
-                    </div>
-                {% endif %}
-            </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-        <div class="alert alert-info">
-            <i class="fas fa-lock me-2"></i>
-            This is a closed circle. Join to see its members.
-        </div>
-    {% endif %}
     {% if circle.is_admin(current_user) %}
         <!-- Pending Join Requests -->
         {% if circle.join_requests %}
@@ -223,28 +224,28 @@
                     <ul class="list-group">
                         {% for request in circle.join_requests %}
                             {% if request.status == 'pending' %}
-                                <li class="list-group-item">
+                                <li class="list-group-item join-request-item">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <div class="d-flex align-items-center">
+                                        <div class="d-flex align-items-center" style="min-width: 0;">
                                             <img src="{{ request.user.profile_image }}" alt="{{ request.user.first_name }} {{ request.user.last_name }}"
-                                                 class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;">
-                                            <div>
+                                                 class="rounded-circle me-3 flex-shrink-0" style="width: 40px; height: 40px; object-fit: cover;">
+                                            <div style="min-width: 0;">
                                                 <a href="{{ url_for('main.user_profile', user_id=request.user.id) }}" class="text-decoration-none">
-                                                    <strong>{{ request.user.first_name }} {{ request.user.last_name }}</strong>
+                                                    <strong class="d-block member-list-name">{{ request.user.first_name }} {{ request.user.last_name }}</strong>
                                                 </a>
                                                 {% if request.message %}
-                                                    <p class="mb-0 text-muted small">{{ request.message }}</p>
+                                                    <p class="mb-0 text-muted small member-list-name">{{ request.message }}</p>
                                                 {% endif %}
                                             </div>
                                         </div>
                                         <div class="button-group">
                                             <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='approve') }}" method="POST">
                                                 {{ form.csrf_token }}
-                                                <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                                                <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check me-1"></i>Approve</button>
                                             </form>
                                             <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='reject') }}" method="POST">
                                                 {{ form.csrf_token }}
-                                                <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                                                <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-times me-1"></i>Reject</button>
                                             </form>
                                         </div>
                                     </div>
@@ -257,57 +258,103 @@
         {% endif %}
     {% endif %}
 
-    <!-- Join/Leave Controls -->
-    {% if is_member %}
-        <form method="post" action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" id="leave-circle-form">
-            {{ form.hidden_tag() }}
-            <button type="submit" class="btn btn-danger" id="leave-circle-btn">Leave Circle</button>
-        </form>
+    {% if not circle.requires_join_approval or is_member %}
+        <!-- Members section with Admin Controls -->
+        <h3>Members ({{ members_pagination.total }})</h3>
+        {% if members_pagination.items %}
+            <ul class="list-group mb-4">
+                {% for member, joined_at, is_admin in members_pagination.items %}
 
-        {% if is_last_member %}
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('leave-circle-form');
-            const btn = document.getElementById('leave-circle-btn');
+                <li class="list-group-item circle-member-item d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center" style="min-width: 0;">
+                        {% if is_admin %}
+                            <span class="badge bg-primary me-2 flex-shrink-0" title="Circle Admin">
+                                <i class="fas fa-shield-alt"></i>
+                            </span>
+                        {% endif %}
+                        <img src="{{ member.profile_image }}" alt="{{ member.first_name }} {{ member.last_name }}"
+                             class="rounded-circle me-3 flex-shrink-0" style="width: 40px; height: 40px; object-fit: cover;">
+                        <div style="min-width: 0;">
+                            <a href="{{ url_for('main.user_profile', user_id=member.id) }}" class="text-decoration-none">
+                                <span class="d-block member-list-name">{{ member.first_name }} {{ member.last_name }}</span>
+                            </a>
+                        </div>
+                    </div>
+                    {% if circle.is_admin(current_user) and member != current_user %}
+                        <div class="button-group">
+                            {% if is_admin %}
+                                <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='remove') }}" method="POST">
+                                    {{ form.csrf_token }}
+                                    <button type="submit" class="btn btn-warning btn-sm"><i class="fas fa-user-minus me-1"></i>Remove Admin</button>
+                                </form>
+                            {% else %}
+                                <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='add') }}" method="POST">
+                                    {{ form.csrf_token }}
+                                    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-user-shield me-1"></i>Make Admin</button>
+                                </form>
+                            {% endif %}
+                            <form action="{{ url_for('circles.remove_member', circle_id=circle.id, user_id=member.id) }}" method="POST">
+                                {{ form.csrf_token }}
+                                <button type="submit" class="btn btn-danger btn-sm"
+                                        onclick="return confirm('Are you sure you want to remove this member from the circle?');">
+                                    <i class="fas fa-user-xmark me-1"></i>Remove
+                                </button>
+                            </form>
+                        </div>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
 
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
+            {% if members_pagination.pages > 1 %}
+                <nav aria-label="Members pages" class="mb-4">
+                    <ul class="pagination justify-content-center">
+                        {% if members_pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('circles.view_circle', circle_id=circle.id, page=members_pagination.prev_num) }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&laquo;</span>
+                            </li>
+                        {% endif %}
 
-                if (confirm('⚠️ Warning: You are the last member of this circle. If you leave, the circle will be permanently deleted. Do you want to continue?')) {
-                    // User confirmed, submit the form
-                    form.submit();
-                }
-            });
-        });
-        </script>
+                        {% for p in members_pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+                            {% if p %}
+                                {% if p == members_pagination.page %}
+                                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="{{ url_for('circles.view_circle', circle_id=circle.id, page=p) }}">{{ p }}</a></li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if members_pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('circles.view_circle', circle_id=circle.id, page=members_pagination.next_num) }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&raquo;</span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <p class="text-muted mb-4">No members yet.</p>
         {% endif %}
     {% else %}
-    {% if pending_request %}
         <div class="alert alert-info">
-            <i class="fas fa-clock me-2"></i>
-            Your request to join this circle is pending approval.
+            <i class="fas fa-lock me-2"></i>
+            This is a closed circle. Join to see its members.
         </div>
-        <form method="post" action="{{ url_for('circles.cancel_join_request', circle_id=circle.id) }}">
-            {{ form.hidden_tag() }}  <!-- Using the base form for CSRF -->
-            <button type="submit" class="btn btn-warning">Cancel Join Request</button>
-        </form>
-        {% else %}
-            <form method="post" action="{{ url_for('circles.join_circle', circle_id=circle.id) }}">
-                {{ join_form.hidden_tag() if join_form else form.hidden_tag() }}
-                {% if circle.requires_join_approval %}
-                    <div class="form-group">
-                        {{ join_form.message.label }} {{ join_form.message(class="form-control") }}
-                    </div>
-                {% endif %}
-                <button type="submit" class="btn btn-primary">
-                    {% if circle.requires_join_approval %}
-                        Send Join Request
-                    {% else %}
-                        Join Circle
-                    {% endif %}
-                </button>
-            </form>
-        {% endif %}
     {% endif %}
 </div>
 {% endblock %}

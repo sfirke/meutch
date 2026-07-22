@@ -141,7 +141,7 @@
                                                 {% endif %}
                                             </td>
                                             <td class="text-end">
-                                                <div class="btn-group" role="group">
+                                                <div class="d-flex flex-wrap gap-1 justify-content-end" role="group">
                                                     {% if user.id != current_user.id %}
                                                         {% if not user.is_admin %}
                                                             <button type="button" class="btn btn-sm btn-outline-success"

@@ -9,66 +9,221 @@
         <p class="text-muted">View and manage your conversations about shared items.</p>
     </div>
 
+    {% set is_archived_view = (current_status == 'archived') %}
+
+    {# ── Tabs ────────────────────────────────────────────────────────── #}
+    <div class="messaging-toolbar">
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link {% if not is_archived_view %}active{% endif %}"
+                   href="{{ url_for('main.messages', status='inbox', sort=current_sort) }}">
+                    Inbox
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if is_archived_view %}active{% endif %}"
+                   href="{{ url_for('main.messages', status='archived', sort=current_sort) }}">
+                    Archived
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    {# ── Conversation List ──────────────────────────────────────────── #}
     {% if conversations %}
-        <div class="conversations-list">
+
+        {# ── Consolidated Control Bar ────────────────────────────────── #}
+        <div class="inbox-toolbar">
+            <div class="form-check inbox-toolbar__select">
+                <input class="form-check-input" type="checkbox" id="select-all">
+                <label class="form-check-label" for="select-all">Select All</label>
+            </div>
+            <form method="POST" action="{{ url_for('main.mark_all_read', status=current_status, page=pagination.page, sort=current_sort) }}" class="inbox-toolbar__mark-read">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-link text-muted text-decoration-none">
+                    <i class="fas fa-check-double me-1"></i>Mark all read
+                </button>
+            </form>
+            <div class="inbox-toolbar__spacer"></div>
+            <div class="dropdown sort-dropdown">
+                <button class="btn btn-sm btn-link text-muted text-decoration-none dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-sort me-1"></i>
+                    {% if current_sort == 'oldest' %}Oldest
+                    {% elif current_sort == 'unread' %}Unread first
+                    {% elif current_sort == 'name_asc' %}Name A–Z
+                    {% else %}Newest{% endif %}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item {% if current_sort == 'newest' %}active{% endif %}"
+                           href="{{ url_for('main.messages', status=current_status, sort='newest') }}">Newest</a></li>
+                    <li><a class="dropdown-item {% if current_sort == 'oldest' %}active{% endif %}"
+                           href="{{ url_for('main.messages', status=current_status, sort='oldest') }}">Oldest</a></li>
+                    <li><a class="dropdown-item {% if current_sort == 'unread' %}active{% endif %}"
+                           href="{{ url_for('main.messages', status=current_status, sort='unread') }}">Unread first</a></li>
+                    <li><a class="dropdown-item {% if current_sort == 'name_asc' %}active{% endif %}"
+                           href="{{ url_for('main.messages', status=current_status, sort='name_asc') }}">Name A–Z</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="conversation-list">
+
             {% for convo in conversations %}
-                <a href="{{ url_for('main.view_conversation', message_id=convo.latest_message.id) }}" class="conversation-link-wrapper text-decoration-none">
-                    <div class="card conversation-card {% if convo.unread_count > 0 %}conversation-unread{% endif %}">
-                        <div class="card-body">
-                            <div class="row g-0">
-                                <div class="col">
-                                    <!-- User and Item Info -->
-                                    <div class="mb-3">
-                                        <h5 class="card-title mb-1">
-                                            <span class="text-primary">{{ convo.other_user.first_name }} {{ convo.other_user.last_name }}</span>
-                                        </h5>
-                                        <p class="text-muted mb-0">
-                                            {% if convo.item %}
-                                                <i class="fas fa-box me-2"></i>
-                                                <span class="text-secondary">{{ convo.item.name }}</span>
-                                            {% elif convo.item_request %}
-                                                <i class="fas fa-hand-holding-heart me-2"></i>
-                                                <span class="text-secondary">Re: {{ convo.item_request.title }}</span>
-                                            {% elif convo.circle %}
-                                                <i class="fas fa-users me-2"></i>
-                                                <span class="text-secondary">Circle: {{ convo.circle.name }}</span>
-                                            {% endif %}
-                                        </p>
-                                    </div>
+                <a href="{{ url_for('main.view_conversation', conversation_id=convo.latest_message.conversation_id) }}"
+                   class="conversation-row {% if convo.unread_count > 0 %}conversation-unread{% endif %}">
 
-                                    <!-- Last Message Preview -->
-                                    <div class="message-preview">
-                                        <p class="mb-0 text-truncate-2">{{ convo.latest_message.body }}</p>
-                                    </div>
-                                </div>
+                    {# Checkbox (wrapped in a 48×48 hitbox label) #}
+                    <label class="conv-checkbox-hitbox">
+                        <input class="form-check-input conversation-checkbox conv-checkbox" type="checkbox"
+                               value="{{ convo.latest_message.conversation_id }}">
+                    </label>
 
-                                <!-- Timestamp and Badge -->
-                                <div class="col-auto text-end ms-3 d-flex flex-column justify-content-between">
-                                    <span class="text-muted small">{{ convo.latest_message.timestamp|utc_timestamp('message') }}</span>
-                                    {% if convo.unread_count > 0 %}
-                                        <span class="badge bg-warning text-dark mt-2">{{ convo.unread_count }} New</span>
-                                    {% endif %}
-                                </div>
-                            </div>
+                    {# Avatar #}
+                    <div class="conv-avatar">
+                        {% if convo.other_user %}
+                            {% if convo.other_user.profile_image_url %}
+                                <img src="{{ convo.other_user.profile_image_url }}" alt="{{ convo.other_user.first_name }} {{ convo.other_user.last_name }}" class="conv-avatar-img">
+                            {% else %}
+                                {{ convo.other_user.first_name[0]|upper }}{{ convo.other_user.last_name[0]|upper }}
+                            {% endif %}
+                        {% else %}
+                            <i class="fas fa-user"></i>
+                        {% endif %}
+                    </div>
+
+                    {# Body: vertically stacked name → context tag → preview #}
+                    <div class="conv-body">
+                        <div class="conv-body__header">
+                            {% if convo.unread_count > 0 %}
+                                <span class="unread-dot" title="{{ convo.unread_count }} unread"></span>
+                            {% endif %}
+                            <span class="conv-name">
+                                {% if convo.other_user %}
+                                    {{ convo.other_user.first_name }} {{ convo.other_user.last_name }}
+                                {% else %}
+                                    Unknown User
+                                {% endif %}
+                            </span>
                         </div>
+                        {% if convo.item %}
+                            <span class="context-badge context-badge--item">{{ convo.item.name|truncate(60) }}</span>
+                        {% elif convo.item_request %}
+                            <span class="context-badge context-badge--request">{{ convo.item_request.title|truncate(60) }}</span>
+                        {% elif convo.circle %}
+                            <span class="context-badge context-badge--circle">{{ convo.circle.name|truncate(60) }}</span>
+                        {% endif %}
+                        <span class="conv-preview">{{ convo.latest_message.body }}</span>
+                    </div>
 
-                        <!-- Hover Indicator -->
-                        <div class="conversation-hover-indicator"></div>
+                    {# Meta: timestamp gutter #}
+                    <div class="conv-meta">
+                        <span class="conv-time">{{ convo.latest_message.timestamp|utc_timestamp('timeago') }}</span>
                     </div>
                 </a>
             {% endfor %}
         </div>
+
+        {# ── Pagination ──────────────────────────────────────────────── #}
+        {% if pagination.pages > 1 %}
+        <nav aria-label="Conversation pages">
+            <ul class="pagination justify-content-center">
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link"
+                       href="{{ url_for('main.messages', page=pagination.prev_num, sort=current_sort, status=current_status) if pagination.has_prev else '#' }}"
+                       {% if not pagination.has_prev %}tabindex="-1" aria-disabled="true"{% endif %}>
+                        &laquo; Previous
+                    </a>
+                </li>
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                            <a class="page-link"
+                               href="{{ url_for('main.messages', page=page_num, sort=current_sort, status=current_status) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link"
+                       href="{{ url_for('main.messages', page=pagination.next_num, sort=current_sort, status=current_status) if pagination.has_next else '#' }}"
+                       {% if not pagination.has_next %}tabindex="-1" aria-disabled="true"{% endif %}>
+                        Next &raquo;
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        <p class="text-center text-muted small">
+            Showing {{ pagination.items|length if pagination.items else 0 }} of {{ pagination.total }} conversation{{ 's' if pagination.total != 1 else '' }}
+        </p>
+        {% endif %}
+
     {% else %}
-        <div class="empty-state py-5">
-            <i class="fas fa-inbox text-muted" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-            <h4 class="text-muted mb-2">No Messages Yet</h4>
-            <p class="text-muted mb-4">
-                Start a conversation by requesting to borrow an item or reaching out to another user.
-            </p>
-            <a href="{{ url_for('main.index') }}" class="btn btn-primary">
-                <i class="fas fa-search me-2"></i>Browse Items
-            </a>
+        {# ── Empty State ─────────────────────────────────────────────── #}
+        <div class="empty-state text-center py-5">
+            {% if is_archived_view %}
+                <i class="fas fa-archive text-muted" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                <h4 class="text-muted mb-2">No Archived Conversations</h4>
+                <p class="text-muted mb-4">
+                    When you archive a conversation, it will appear here. Archived conversations are automatically unarchived when you receive a new reply.
+                </p>
+                <a href="{{ url_for('main.messages', status='inbox') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-inbox me-2"></i>Back to Inbox
+                </a>
+            {% else %}
+                <i class="fas fa-inbox text-muted" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                <h4 class="text-muted mb-2">No Messages Yet</h4>
+                <p class="text-muted mb-4">
+                    Start a conversation by requesting to borrow an item or reaching out to another user.
+                </p>
+                <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+                    <i class="fas fa-search me-2"></i>Browse Items
+                </a>
+            {% endif %}
         </div>
     {% endif %}
+
+    {# ── Bulk Action Bar (sticky, hidden by default) ─────────────────── #}
+    <div class="bulk-action-bar" id="bulk-action-bar">
+        <span><strong id="selected-count">0</strong> selected</span>
+        {% if is_archived_view %}
+        <form method="POST" action="{{ url_for('main.bulk_unarchive', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="conversation_ids" id="conversation-ids" value="">
+            <button type="submit" class="btn btn-sm btn-light">
+                <i class="fas fa-inbox me-1"></i>Move to Inbox
+            </button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('main.bulk_archive', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="conversation_ids" id="conversation-ids" value="">
+            <button type="submit" class="btn btn-sm btn-light">
+                <i class="fas fa-archive me-1"></i>Archive Selected
+            </button>
+        </form>
+        {% endif %}
+        <form method="POST" action="{{ url_for('main.bulk_mark_read', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline" id="bulk-mark-read-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="conversation_ids" id="conversation-ids-mark-read" value="">
+            <button type="submit" class="btn btn-sm btn-light">
+                <i class="fas fa-check me-1"></i>Mark Read
+            </button>
+        </form>
+        <form method="POST" action="{{ url_for('main.bulk_mark_unread', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline d-none" id="bulk-mark-unread-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="conversation_ids" id="conversation-ids-mark-unread" value="">
+            <button type="submit" class="btn btn-sm btn-light">
+                <i class="fas fa-envelope me-1"></i>Mark Unread
+            </button>
+        </form>
+    </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ static_url_for('js/messaging.js') }}"></script>
 {% endblock %}

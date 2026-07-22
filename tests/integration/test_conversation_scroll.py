@@ -7,7 +7,7 @@ import pytest
 from app import db
 from app.models import Message
 from conftest import login_user
-from tests.factories import ItemFactory, MessageFactory, UserFactory
+from tests.factories import ConversationFactory, ItemFactory, MessageFactory, UserFactory
 
 
 @pytest.mark.usefixtures("clean_db")
@@ -20,10 +20,13 @@ class TestConversationScrollBehavior:
             sender = UserFactory()
             recipient = UserFactory()
             item = ItemFactory(owner=sender)
-            message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender, recipient=recipient, conversation=conversation, is_read=False
+            )
 
             login_user(client, recipient.email)
-            response = client.get(f"/message/{message.id}")
+            response = client.get(f"/conversation/{message.conversation_id}")
 
         assert b"scrollIntoView" in response.data
         assert response.data.count(b"scrollIntoView") == 1
@@ -34,10 +37,13 @@ class TestConversationScrollBehavior:
             sender = UserFactory()
             recipient = UserFactory()
             item = ItemFactory(owner=sender)
-            message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=True)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender, recipient=recipient, conversation=conversation, is_read=True
+            )
 
             login_user(client, recipient.email)
-            response = client.get(f"/message/{message.id}")
+            response = client.get(f"/conversation/{message.conversation_id}")
 
         assert response.status_code == 200
         assert b"scrollIntoView" not in response.data
@@ -48,20 +54,23 @@ class TestConversationScrollBehavior:
             sender = UserFactory()
             recipient = UserFactory()
             item = ItemFactory(owner=sender)
-            message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
-            message_id = message.id
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender, recipient=recipient, conversation=conversation, is_read=False
+            )
+            conv_id = message.conversation_id
 
-            assert db.session.get(Message, message_id).is_read is False
+            assert db.session.get(Message, message.id).is_read is False
 
             login_user(client, recipient.email)
-            response = client.get(f"/message/{message_id}")
+            response = client.get(f"/conversation/{conv_id}")
             assert response.status_code == 200
 
             db.session.expire_all()
-            assert db.session.get(Message, message_id).is_read is True
+            assert db.session.get(Message, message.id).is_read is True
 
             # View again — should load without scrolling
-            response = client.get(f"/message/{message_id}")
+            response = client.get(f"/conversation/{conv_id}")
             assert response.status_code == 200
             assert b"scrollIntoView" not in response.data
 
@@ -71,10 +80,13 @@ class TestConversationScrollBehavior:
             sender = UserFactory()
             recipient = UserFactory()
             item = ItemFactory(owner=sender)
-            message = MessageFactory(sender=sender, recipient=recipient, item=item, is_read=False)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender, recipient=recipient, conversation=conversation, is_read=False
+            )
 
             login_user(client, sender.email)
-            response = client.get(f"/message/{message.id}")
+            response = client.get(f"/conversation/{message.conversation_id}")
 
         assert response.status_code == 200
         assert b"scrollIntoView" not in response.data

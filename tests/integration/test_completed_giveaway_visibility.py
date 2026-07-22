@@ -10,8 +10,8 @@ from tests.factories import CircleFactory, ItemFactory, UserFactory
 class TestCompletedGiveawayVisibility:
     """Test that completed giveaways stay hidden in browse surfaces but can appear in the home feed."""
 
-    def test_claimed_giveaway_shows_as_claimed_on_home_page(self, client, app, auth_user):
-        """Test that recently claimed giveaways appear on home page with a resolved label."""
+    def test_claimed_giveaway_hidden_by_default_on_home_page(self, client, app, auth_user):
+        """Test that recently claimed giveaways are hidden by default on home page."""
         user_email = None
         with app.app_context():
             # Create a circle and users
@@ -69,13 +69,46 @@ class TestCompletedGiveawayVisibility:
         # Unclaimed should appear
         assert unclaimed_name in html
 
-        # Recently claimed should appear with a visible resolved state
-        assert claimed_name in html
-        assert "Claimed" in html
-        assert "gave away" in html
+        # Recently claimed is hidden unless the claimed-giveaway filter is enabled
+        assert claimed_name not in html
 
         # Pending pickup should NOT appear to other users
         assert pending_name not in html
+
+    def test_claimed_giveaway_can_show_on_home_page_when_filter_enabled(
+        self, client, app, auth_user
+    ):
+        """Test that recently claimed giveaways appear when the filter is enabled."""
+        user_email = None
+        with app.app_context():
+            circle = CircleFactory()
+            owner = UserFactory()
+            claimer = UserFactory()
+            current_user = auth_user()
+            user_email = current_user.email
+
+            circle.members.extend([owner, claimer, current_user])
+
+            claimed_giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="claimed",
+                claimed_by=claimer,
+                claimed_at=datetime.now(UTC) - timedelta(days=5),
+            )
+            claimed_name = claimed_giveaway.name
+
+            db.session.commit()
+
+        login_user(client, email=user_email)
+        response = client.get("/?distance=&show_claimed_giveaways=1")
+        assert response.status_code == 200
+        html = response.data.decode()
+
+        assert claimed_name in html
+        assert "Claimed" in html
+        assert "gave away" in html
 
     def test_claimed_giveaway_not_in_authenticated_home_feed_after_visibility_window(
         self, client, app, auth_user
@@ -118,7 +151,7 @@ class TestCompletedGiveawayVisibility:
             db.session.commit()
 
             login_user(client, email=current_user.email)
-            response = client.get("/?distance=")
+            response = client.get("/?distance=&show_claimed_giveaways=1")
             assert response.status_code == 200
             html = response.data.decode()
 
@@ -128,7 +161,7 @@ class TestCompletedGiveawayVisibility:
             # Pending pickup should NOT appear to other users
             assert pending.name not in html
 
-            # Claimed should age out of the feed after the recent-activity window
+            # Claimed should still age out after the recent-activity window
             assert claimed.name not in html
 
     def test_claimed_giveaway_not_in_search_results(self, client, app, auth_user):

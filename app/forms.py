@@ -22,14 +22,13 @@ from app.forms_items import (
     ChangeRecipientForm,
     ConfirmHandoffForm,
     DeleteItemForm,
-    ExpressInterestForm,
     ListItemForm,
     ReleaseToAllForm,
     SelectRecipientForm,
     WithdrawInterestForm,
 )
 from app.forms_loans import ExtendLoanForm, LoanRequestForm
-from app.forms_messaging import MessageForm
+from app.forms_messaging import BulkActionForm, MessageForm
 from app.forms_profile import (
     DeleteAccountForm,
     DigestSettingsForm,
@@ -46,6 +45,7 @@ from app.forms_shared import (
 )
 
 __all__ = [
+    "BulkActionForm",
     "ChangeRecipientForm",
     "CircleCreateForm",
     "CircleJoinRequestForm",
@@ -58,7 +58,6 @@ __all__ = [
     "DigestSettingsForm",
     "EditProfileForm",
     "EmptyForm",
-    "ExpressInterestForm",
     "ExtendLoanForm",
     "ForgotPasswordForm",
     "ItemRequestForm",

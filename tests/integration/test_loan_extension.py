@@ -5,10 +5,11 @@ from datetime import date, timedelta
 from flask import url_for
 
 from app import db
-from app.models import Message
+from app.models import Conversation, Message
 from conftest import login_user
 from tests.factories import (
     CircleFactory,
+    ConversationFactory,
     ItemFactory,
     LoanRequestFactory,
     MessageFactory,
@@ -56,8 +57,12 @@ class TestLoanExtension:
 
             # Check that the notification message to borrower says "extended"
             message = (
-                Message.query.filter_by(
-                    sender_id=owner.id, recipient_id=borrower.id, item_id=item.id
+                Message.query.join(Conversation)
+                .filter(
+                    Conversation.context_type == "item",
+                    Conversation.context_id == item.id,
+                    Message.sender_id == owner.id,
+                    Message.recipient_id == borrower.id,
                 )
                 .order_by(Message.timestamp.desc())
                 .first()
@@ -105,8 +110,12 @@ class TestLoanExtension:
 
             # Check that the notification message to borrower says "updated" not "extended"
             message = (
-                Message.query.filter_by(
-                    sender_id=owner.id, recipient_id=borrower.id, item_id=item.id
+                Message.query.join(Conversation)
+                .filter(
+                    Conversation.context_type == "item",
+                    Conversation.context_id == item.id,
+                    Message.sender_id == owner.id,
+                    Message.recipient_id == borrower.id,
                 )
                 .order_by(Message.timestamp.desc())
                 .first()
@@ -150,8 +159,12 @@ class TestLoanExtension:
 
             # Check message contains "extended" and custom message
             message = (
-                Message.query.filter_by(
-                    sender_id=owner.id, recipient_id=borrower.id, item_id=item.id
+                Message.query.join(Conversation)
+                .filter(
+                    Conversation.context_type == "item",
+                    Conversation.context_id == item.id,
+                    Message.sender_id == owner.id,
+                    Message.recipient_id == borrower.id,
                 )
                 .order_by(Message.timestamp.desc())
                 .first()
@@ -193,8 +206,12 @@ class TestLoanExtension:
 
             # Check message contains "updated" (not "extended") and custom message
             message = (
-                Message.query.filter_by(
-                    sender_id=owner.id, recipient_id=borrower.id, item_id=item.id
+                Message.query.join(Conversation)
+                .filter(
+                    Conversation.context_type == "item",
+                    Conversation.context_id == item.id,
+                    Message.sender_id == owner.id,
+                    Message.recipient_id == borrower.id,
                 )
                 .order_by(Message.timestamp.desc())
                 .first()
@@ -219,10 +236,11 @@ class TestLoanExtension:
                 end_date=date.today() + timedelta(days=7),
                 status="pending",
             )
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             msg = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=conversation,
                 body="Can I borrow this?",
                 is_read=False,
             )
@@ -230,7 +248,9 @@ class TestLoanExtension:
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(url_for("main.view_conversation", message_id=msg.id))
+            response = client.get(
+                url_for("main.view_conversation", conversation_id=msg.conversation_id)
+            )
 
             assert response.status_code == 200
             assert b"Approve Request" in response.data
@@ -256,10 +276,11 @@ class TestLoanExtension:
                 end_date=date.today() + timedelta(days=7),
                 status="pending",
             )
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             msg = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
+                conversation=conversation,
                 body="Could I borrow this next week?",
                 is_read=False,
             )
@@ -267,7 +288,9 @@ class TestLoanExtension:
             db.session.commit()
 
             login_user(client, owner.email)
-            response = client.get(url_for("main.view_conversation", message_id=msg.id))
+            response = client.get(
+                url_for("main.view_conversation", conversation_id=msg.conversation_id)
+            )
 
             assert response.status_code == 200
             assert b"Circles in common:" in response.data

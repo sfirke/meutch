@@ -3,8 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.utils.email import build_message_reply_address, send_message_notification_email
-from tests.factories import ItemFactory, MessageFactory, UserFactory
-
+from tests.factories import ConversationFactory, ItemFactory, MessageFactory, UserFactory
 
 class TestMessageNotifications:
     """Test message email notification functionality."""
@@ -20,10 +19,11 @@ class TestMessageNotifications:
             item = ItemFactory(name="Test Item", owner=recipient)
 
             # Create a regular message
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             message = MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 body="Hi, I am interested in this item!",
             )
 
@@ -109,10 +109,11 @@ class TestMessageNotifications:
             loan_request = LoanRequestFactory(item=item, borrower=sender, status="pending")
 
             # Create a loan request message
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             message = MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 body="Can I borrow this item please?",
                 loan_request=loan_request,
             )
@@ -166,8 +167,9 @@ class TestMessageNotifications:
             item = ItemFactory(name="Test Item", owner=recipient)
 
             # Create a regular message
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             message = MessageFactory(
-                sender=sender, recipient=recipient, item=item, body="Test message"
+                sender=sender, recipient=recipient, conversation=conversation, body="Test message"
             )
 
             with patch("app.utils.email.send_email") as mock_send_email:
@@ -192,10 +194,11 @@ class TestMessageNotifications:
             loan_request = LoanRequestFactory(item=item, borrower=sender, status="canceled")
 
             # Create a loan cancellation message
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             message = MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 body="Loan request has been canceled by the borrower.",
                 loan_request=loan_request,
             )
@@ -240,10 +243,11 @@ class TestMessageNotifications:
             )
 
             # Create a loan request message
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             message = MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 body="Test message with invalid status.",
                 loan_request=loan_request,
             )
