@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Contact Us{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-3">Contact Us</h2>
+    <p class="text-muted mb-2">
+        Have a question, suggestion, or found a bug? Let us know using the form below.
+        Your message will be sent directly to the Meutch team.
+    </p>
+    <p class="text-muted small mb-4">
+        On GitHub? You can also
+        <a href="https://github.com/sfirke/meutch/issues" target="_blank" rel="noopener noreferrer">report issues directly on GitHub</a>.
+    </p>
+
+    <form method="POST" action="{{ url_for('main.contact') }}">
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+            {{ form.category.label(class="form-label") }}
+            {{ form.category(class="form-select") }}
+            {% for error in form.category.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.message.label(class="form-label") }}
+            {{ form.message(class="form-control", placeholder="Describe your question, suggestion, or bug report...") }}
+            {% for error in form.message.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+            <div class="form-text">Your message must be between 10 and 2000 characters.</div>
+        </div>
+
+        {{ form.submit(class="btn btn-primary") }}
+    </form>
+</div>
+{% endblock %}
