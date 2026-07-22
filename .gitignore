@@ -196,4 +196,6 @@ AGENTS.md
 .github/hooks/*
 meutch.code-workspace
 
+# Pi coding agent local config and workflow staging
 .pi/
+.pi-wf-*

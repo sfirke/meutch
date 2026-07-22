@@ -445,3 +445,127 @@ class TestMainRoutes:
         """Test terms and conditions page loads correctly."""
         response = client.get("/terms")
         assert response.status_code == 200
+
+
+class TestContactRoutes:
+    """Test contact form routes."""
+
+    def test_get_contact_page_authenticated(self, client, app, auth_user):
+        """Test GET /contact as authenticated user returns 200 and renders form."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+            response = client.get("/contact")
+            assert response.status_code == 200
+            assert b"Contact Us" in response.data
+            assert b"Category" in response.data
+            assert b"Message" in response.data
+            assert b"Send" in response.data
+
+    def test_get_contact_page_unauthenticated(self, client):
+        """Test GET /contact as unauthenticated user returns 302 to login."""
+        response = client.get("/contact")
+        assert response.status_code == 302
+        assert "/login" in response.headers["Location"]
+
+    def test_post_valid_contact_form(self, client, app, auth_user):
+        """Test POST with valid data redirects, flashes success, sends email."""
+        with app.app_context():
+            from app import db
+
+            user = auth_user()
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.post(
+                "/contact",
+                data={
+                    "category": "bug_report",
+                    "message": "I found a bug in the search feature that needs fixing.",
+                },
+                follow_redirects=True,
+            )
+            assert response.status_code == 200
+            assert b"Your message has been sent" in response.data
+
+    def test_post_empty_message_shows_error(self, client, app, auth_user):
+        """Test POST with empty message re-renders with validation error."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+            response = client.post(
+                "/contact",
+                data={
+                    "category": "bug_report",
+                    "message": "",
+                },
+                follow_redirects=True,
+            )
+            assert response.status_code == 200
+            assert b"This field is required" in response.data
+
+    def test_post_short_message_shows_error(self, client, app, auth_user):
+        """Test POST with message < 10 chars shows error."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+            response = client.post(
+                "/contact",
+                data={
+                    "category": "bug_report",
+                    "message": "Hi",
+                },
+            )
+            assert response.status_code == 200
+            assert b"between 10 and 2000 characters" in response.data
+
+    def test_contact_link_present_for_authenticated(self, client, app, auth_user):
+        """Test authenticated page contains contact link (in footer)."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+            response = client.get("/")
+            assert response.status_code == 200
+            assert b"Contact" in response.data
+            assert b"/contact" in response.data
+
+    def test_contact_link_hidden_for_unauthenticated(self, client):
+        """Test anonymous page does not link directly to /contact."""
+        response = client.get("/")
+        assert response.status_code == 200
+        # The "Contact Us" text appears in the footer for unauthenticated (linking to login),
+        # so href=/contact should NOT be present.
+        assert b'href="/contact"' not in response.data
+
+    def test_footer_shows_contact_for_authenticated(self, client, app, auth_user):
+        """Test footer has contact link for authenticated users."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+            response = client.get("/")
+            assert response.status_code == 200
+            assert b'"Contact Us"' in response.data or b"Contact Us" in response.data
+
+    def test_footer_shows_contact_for_unauthenticated(self, client):
+        """Test footer shows contact link (to login) for unauthenticated users."""
+        response = client.get("/")
+        assert response.status_code == 200
+        assert b"Contact Us" in response.data
+
+    def test_no_admins_shows_info_message(self, client, app, auth_user):
+        """Test when no admins exist, flash an info message and redirect."""
+        with app.app_context():
+            user = auth_user()
+            # Don't create any admin users
+            login_user(client, user.email)
+            response = client.post(
+                "/contact",
+                data={
+                    "category": "bug_report",
+                    "message": "I found a bug in the search feature that needs fixing.",
+                },
+                follow_redirects=True,
+            )
+            assert response.status_code == 200
+            assert b"currently unavailable" in response.data

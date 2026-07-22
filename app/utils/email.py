@@ -1313,3 +1313,94 @@ The Meutch Team
     """
 
     return send_email(owner.email, subject, text_content, html_content)
+
+
+_CATEGORY_LABELS = {
+    "bug_report": "Bug Report",
+    "feature_suggestion": "Feature Suggestion",
+    "question": "Question",
+}
+
+
+def send_contact_form_email(sender_user, category, message):
+    """Send a contact form message to all active admin users.
+
+    Args:
+        sender_user: The authenticated user submitting the form.
+        category: One of 'bug_report', 'feature_suggestion', 'question'.
+        message: The message body from the contact form.
+
+    Returns:
+        True if at least one admin received the email, False otherwise.
+
+    Raises:
+        ValueError: If the category is not a known value.
+    """
+    from app.models import User  # Import here to avoid circular imports
+
+    admins = User.query.filter_by(is_admin=True, is_deleted=False).all()
+
+    if not admins:
+        current_app.logger.warning(
+            "No active admin users found to send contact form email from user %s",
+            sender_user.id,
+        )
+        return False
+
+    category_label = _CATEGORY_LABELS.get(category)
+    if category_label is None:
+        current_app.logger.error(
+            "Unknown contact form category '%s' from user %s", category, sender_user.id
+        )
+        raise ValueError(
+            f"Unknown contact form category '{category}'. "
+            f"Valid categories are: bug_report, feature_suggestion, question"
+        )
+
+    subject = f"Meutch - {category_label} from {sender_user.first_name} {sender_user.last_name}"
+
+    text_content = (
+        f"You have received a new contact form submission on Meutch.\n\n"
+        f"From: {sender_user.first_name} {sender_user.last_name}\n"
+        f"Email: {sender_user.email}\n"
+        f"Category: {category_label}\n\n"
+        f"Message:\n{message}\n"
+    )
+
+    html_content = (
+        f"<html>\n"
+        f'<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">\n'
+        f'    <h2 style="color: #333;">New Contact Form Submission</h2>\n\n'
+        f'    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">\n'
+        f"        <p><strong>From:</strong> {sender_user.first_name} {sender_user.last_name}</p>\n"
+        f"        <p><strong>Email:</strong> {sender_user.email}</p>\n"
+        f"        <p><strong>Category:</strong> {category_label}</p>\n"
+        f"    </div>\n\n"
+        f'    <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">\n'
+        f"        <h3>Message:</h3>\n"
+        f'        <p style="white-space: pre-line;">{message}</p>\n'
+        f"    </div>\n\n"
+        f'    <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">\n'
+        f'    <p style="color: #999; font-size: 12px;">\n'
+        f"        Best regards,<br>\n"
+        f"        The Meutch Team\n"
+        f"    </p>\n"
+        f"</body>\n"
+        f"</html>\n"
+    )
+
+    success_count = 0
+    for admin in admins:
+        if send_email(admin.email, subject, text_content, html_content):
+            success_count += 1
+            current_app.logger.info(
+                "Contact form email sent to admin %s from user %s", admin.id, sender_user.id
+            )
+        else:
+            current_app.logger.error(
+                "Failed to send contact form email to admin %s from user %s",
+                admin.id,
+                sender_user.id,
+            )
+
+    return success_count > 0
