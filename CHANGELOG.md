@@ -23,6 +23,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Get dev data seeding working again, it broke in #436 ([#450](https://github.com/sfirke/meutch/pull/450)).
 
 ### Bug fixes
+- Hide "View Item" link for claimed giveaway events in the home feed — clicking it previously led to a page stating the item was already claimed ([#TODO](https://github.com/sfirke/meutch/pull/TODO)).
 - Streamlined email digest fulfilled/claimed rendering: unified phrasing across both resolution variants, replaced green status pills with a subtle gray "New" label for items the user hasn't seen before, kept descriptions only for first-time items, and grouped new-resolved entries before previously-seen resolutions ([#427](https://github.com/sfirke/meutch/pull/427)).
 - Improve formatting of buttons, especially on mobile, for the circle admin interface as well as site admin and item detail card ([#434](https://github.com/sfirke/meutch/pull/434)).
 
