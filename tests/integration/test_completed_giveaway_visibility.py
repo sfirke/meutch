@@ -10,6 +10,52 @@ from tests.factories import CircleFactory, ItemFactory, UserFactory
 class TestCompletedGiveawayVisibility:
     """Test that completed giveaways stay hidden in browse surfaces but can appear in the home feed."""
 
+    def test_claimed_giveaway_hides_view_item_link(self, client, app, auth_user):
+        """Test that claimed giveaway events in the home feed hide the 'View Item' link."""
+        user_email = None
+        with app.app_context():
+            circle = CircleFactory()
+            owner = UserFactory()
+            claimer = UserFactory()
+            current_user = auth_user()
+            user_email = current_user.email
+
+            circle.members.extend([owner, claimer, current_user])
+
+            # Create an unclaimed giveaway (should show "View Item")
+            unclaimed = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            unclaimed_name = unclaimed.name
+
+            # Create a recently-claimed giveaway (should NOT show "View Item")
+            claimed = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="claimed",
+                claimed_by=claimer,
+                claimed_at=datetime.now(UTC) - timedelta(days=5),
+            )
+            claimed_name = claimed.name
+
+            db.session.commit()
+
+        login_user(client, email=user_email)
+        response = client.get("/?distance=&show_claimed_giveaways=1")
+        assert response.status_code == 200
+        html = response.data.decode()
+
+        # Both giveaways should appear in the feed
+        assert unclaimed_name in html
+        assert claimed_name in html
+
+        # "View Item" should appear exactly once (only for the unclaimed giveaway)
+        assert html.count("View Item") == 1
+
     def test_claimed_giveaway_hidden_by_default_on_home_page(self, client, app, auth_user):
         """Test that recently claimed giveaways are hidden by default on home page."""
         user_email = None
