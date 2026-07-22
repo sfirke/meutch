@@ -5,6 +5,7 @@ import pytest
 from app.utils.email import build_message_reply_address, send_message_notification_email
 from tests.factories import ConversationFactory, ItemFactory, MessageFactory, UserFactory
 
+
 class TestMessageNotifications:
     """Test message email notification functionality."""
 
