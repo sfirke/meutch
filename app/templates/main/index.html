@@ -177,7 +177,7 @@
                                 <div class="mt-2">
                                     {% if event.event_type == 'request' and event.request_id %}
                                         <a href="{{ url_for('requests.detail', request_id=event.request_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Request <i class="fas fa-chevron-right small ms-1"></i></a>
-                                    {% elif event.event_type == 'giveaway' and event.item_id %}
+                                    {% elif event.event_type == 'giveaway' and event.item_id and event.claim_status != 'claimed' %}
                                         <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
                                     {% elif event.event_type == 'lent' and event.item_id %}
                                         <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
