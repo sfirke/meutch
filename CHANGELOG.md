@@ -12,6 +12,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
   - Frontend changes to finish the work in ([#439](https://github.com/sfirke/meutch/pull/439)).
 
 **Minor**:
+- Message notification emails can now be replied to by email; Mailgun inbound replies create normal conversation replies in Meutch ([#449](https://github.com/sfirke/meutch/issues/449)).
 - Added a Contact Us form so authenticated users can message the Meutch team directly from the app, replacing the external GitHub Issues link in the footer ([#448](https://github.com/sfirke/meutch/pull/448)).
 - Improved the giveaway request and handoff experience - no more needing to click "I want this!", instead owners can choose from anyone who messages. Also allows for marking giveaways handed off outside of Meutch ([#445](https://github.com/sfirke/meutch/pull/445)).
 - On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
@@ -29,7 +30,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Minor**:
-- Message notification emails can now be replied to by email; Mailgun inbound replies create normal conversation replies in Meutch ([#423](https://github.com/sfirke/meutch/issues/423)).
 - Added a Privacy Policy and Terms & Conditions, linked from the site footer ([#421](https://github.com/sfirke/meutch/pull/421)).
 - Make it the default to view one's own activity in feed, add a toggle to disable if desired ([#414](https://github.com/sfirke/meutch/pull/414)).
 - New members who have not joined any circles yet are now redirected into circle discovery after login, with a stronger onboarding prompt and personalized recommendations that preview what each suggested circle would unlock ([#395](https://github.com/sfirke/meutch/pull/395)).
@@ -40,8 +40,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Claimed giveaways no longer show a "Borrowed" status badge in the conversation "Item Status" card — they now correctly display "Rehomed" ([#398](https://github.com/sfirke/meutch/pull/398)).
 - Can no longer edit a fulfilled giveaway ([#406](https://github.com/sfirke/meutch/pull/406)).
 - Clicking "View Loan" on My Activity page now takes you to the current loan, not the first time the item was loaned (affected both borrowers and lenders) ([#410](https://github.com/sfirke/meutch/pull/410)).
-- Don't show details in email digest for requests marked fulfilled or giveaways marked completed ([#427](https://github.com/sfirke/meutch/pull/427)).
-- Streamlined email digest fulfilled/claimed rendering: unified phrasing across both resolution variants, replaced green status pills with a subtle gray "New" label for items the user hasn't seen before, kept descriptions only for first-time items, and grouped new-resolved entries before previously-seen resolutions within each section for faster scanning.
 
 ### API development (continued)
 - Add API loan activity reads and loan actions, including active borrowing/lending views plus loan request, approve/deny, cancel, complete, and extend endpoints ([#393](https://github.com/sfirke/meutch/pull/393)).
