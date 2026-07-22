@@ -3,7 +3,7 @@ import hmac
 
 from app import db
 from app.models import Message
-from tests.factories import ItemFactory, MessageFactory, UserFactory
+from tests.factories import ConversationFactory, ItemFactory, MessageFactory, UserFactory
 
 SIGNING_KEY = "test-signing-key"
 
@@ -36,10 +36,11 @@ class TestMailgunInboundReplies:
             sender = UserFactory(email="sender@example.com")
             recipient = UserFactory(email="recipient@example.com")
             item = ItemFactory(owner=recipient)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             original = MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 body="Can I borrow this?",
             )
             db.session.commit()
@@ -59,7 +60,7 @@ class TestMailgunInboundReplies:
             reply = Message.query.filter_by(parent_id=original_id).one()
             assert reply.sender_id == recipient_id
             assert reply.recipient_id == sender_id
-            assert reply.item_id == item_id
+            assert reply.conversation.context_id == item_id
             assert reply.body == "Yes."
 
     def test_mailgun_reply_rejects_bad_signature(self, client, app):
@@ -128,10 +129,11 @@ class TestMailgunInboundReplies:
             sender = UserFactory(email="sender@example.com")
             recipient = UserFactory(email="recipient@example.com")
             item = ItemFactory(owner=recipient)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             original = MessageFactory(
                 sender=sender,
                 recipient=recipient,
-                item=item,
+                conversation=conversation,
                 body="Can I borrow this?",
             )
             db.session.commit()
@@ -152,7 +154,7 @@ class TestMailgunInboundReplies:
             reply = Message.query.filter_by(parent_id=original_id).one()
             assert reply.sender_id == recipient_id
             assert reply.recipient_id == sender_id
-            assert reply.item_id == item_id
+            assert reply.conversation.context_id == item_id
             assert reply.body == "Yes."
 
     def test_mailgun_reply_rejects_malformed_recipient(self, client, app):

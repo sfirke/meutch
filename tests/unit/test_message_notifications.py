@@ -57,7 +57,8 @@ class TestMessageNotifications:
             sender = UserFactory(email="sender@test.com")
             recipient = UserFactory(email="recipient@test.com")
             item = ItemFactory(name="Test Item", owner=recipient)
-            message = MessageFactory(sender=sender, recipient=recipient, item=item)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(sender=sender, recipient=recipient, conversation=conversation)
 
             with patch("app.utils.email.send_email") as mock_send_email:
                 mock_send_email.return_value = True
