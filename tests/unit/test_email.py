@@ -9,12 +9,34 @@ from app.utils.email import (
     build_digest_email_content,
     send_account_deletion_email,
     send_digest_email,
+    send_email,
 )
 from tests.factories import UserFactory
 
 
 class TestEmailUtils:
     """Test email utility functions."""
+
+    def test_send_email_includes_reply_to_header(self, app):
+        with app.app_context():
+            app.config["MAILGUN_DOMAIN"] = "mg.example.com"
+            app.config["MAILGUN_API_KEY"] = "key-12345"
+            app.config["EMAIL_ALLOWLIST"] = None
+
+            with patch("app.utils.email.requests.post") as mock_post:
+                mock_post.return_value.status_code = 200
+
+                result = send_email(
+                    "recipient@example.com",
+                    "Test Subject",
+                    "Test body",
+                    reply_to="Meutch Replies <reply+123@reply.example.com>",
+                )
+
+                assert result is True
+                assert mock_post.call_args.kwargs["data"]["h:Reply-To"] == (
+                    "Meutch Replies <reply+123@reply.example.com>"
+                )
 
     def test_send_account_deletion_email_content(self):
         """Test that account deletion email contains correct content."""

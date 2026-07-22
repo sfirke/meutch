@@ -4,7 +4,7 @@ from flask import current_app, url_for
 from app.utils.digest_tokens import generate_digest_manage_token
 
 
-def send_email(to_email, subject, text_content, html_content=None):
+def send_email(to_email, subject, text_content, html_content=None, reply_to=None):
     """Send email using Mailgun API"""
     try:
         api_key = current_app.config.get("MAILGUN_API_KEY")
@@ -29,6 +29,9 @@ def send_email(to_email, subject, text_content, html_content=None):
 
         if html_content:
             data["html"] = html_content
+
+        if reply_to:
+            data["h:Reply-To"] = reply_to
 
         response = requests.post(
             f"https://api.mailgun.net/v3/{domain}/messages", auth=("api", api_key), data=data
@@ -113,6 +116,14 @@ The Meutch Team
     """.strip()
 
     return send_email(user.email, subject, text_content)
+
+
+def build_message_reply_address(message):
+    domain = current_app.config.get("MAILGUN_DOMAIN")
+    if not domain:
+        return None
+    prefix = current_app.config.get("MAILGUN_REPLY_PREFIX", "")
+    return f"Meutch Replies <reply+{prefix}{message.id}@{domain}>"
 
 
 def send_message_notification_email(message):
@@ -203,6 +214,26 @@ def send_message_notification_email(message):
         subject = f"Meutch - New Message about {context_label}"
         email_type = "message"
 
+    can_reply_by_email = not message.is_loan_request_message
+    if can_reply_by_email:
+        response_text = f"""Reply to this email directly, or view the conversation on Meutch:
+{conversation_url}"""
+        response_html = f"""
+        <p style="color: #666; font-size: 14px;">
+            You can reply to this email directly, or
+            <a href="{conversation_url}" style="color: #007bff;">view the conversation on Meutch</a>.
+        </p>
+        """
+    else:
+        response_text = f"""To view the full conversation on Meutch, click here:
+{conversation_url}"""
+        response_html = f"""
+        <p style="color: #666; font-size: 14px;">
+            To view the full conversation on Meutch,
+            <a href="{conversation_url}" style="color: #007bff;">click here</a>.
+        </p>
+        """
+
     text_content = f"""
 Hello {recipient.first_name},
 
@@ -214,8 +245,7 @@ From: {sender.first_name} {sender.last_name}
 Message:
 {message.body}
 
-To view the full conversation and respond, click here:
-{conversation_url}
+{response_text}
 
 You can also log into your Meutch account to view all your messages at any time.
 
@@ -242,13 +272,11 @@ The Meutch Team
         <div style="text-align: center; margin: 30px 0;">
             <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Conversation & Respond
+                View Conversation
             </a>
         </div>
 
-        <p style="color: #666; font-size: 14px;">
-            You can also log into your Meutch account to view all your messages at any time.
-        </p>
+        {response_html}
 
         <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
         <p style="color: #999; font-size: 12px;">
@@ -259,7 +287,13 @@ The Meutch Team
     </html>
     """
 
-    return send_email(recipient.email, subject, text_content, html_content)
+    return send_email(
+        recipient.email,
+        subject,
+        text_content,
+        html_content,
+        reply_to=build_message_reply_address(message) if can_reply_by_email else None,
+    )
 
 
 def send_circle_join_request_notification_email(join_request):
@@ -711,15 +745,15 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             description_html = ""
             if show_desc and event.get("description"):
                 description_html = (
-                    f"<p style=\"margin: 6px 0 0 0; color: #555;\">{event['description']}</p>"
+                    f'<p style="margin: 6px 0 0 0; color: #555;">{event["description"]}</p>'
                 )
 
             image_html = ""
             if include_image and event.get("image_url"):
                 image_html = (
-                    f"<div style=\"margin: 8px 0;\">"
-                    f"<img src=\"{event['image_url']}\" alt=\"Activity image\" "
-                    f"style=\"max-width: 100%; width: 220px; height: auto; border-radius: 8px;\">"
+                    f'<div style="margin: 8px 0;">'
+                    f'<img src="{event["image_url"]}" alt="Activity image" '
+                    f'style="max-width: 100%; width: 220px; height: auto; border-radius: 8px;">'
                     f"</div>"
                 )
 
@@ -753,7 +787,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         return f"""
         <h3 style=\"margin-top: 24px; color: #333;\">{title}</h3>
         <ul style=\"padding-left: 20px;\">
-            {''.join(items_html)}
+            {"".join(items_html)}
         </ul>
         """
 
@@ -770,15 +804,15 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             image_html = ""
             if group["image_url"]:
                 image_html = (
-                    f"<div style=\"margin: 8px 0;\">"
-                    f"<img src=\"{group['image_url']}\" alt=\"Circle image\" "
-                    f"style=\"max-width: 100%; width: 220px; height: auto; border-radius: 8px;\">"
+                    f'<div style="margin: 8px 0;">'
+                    f'<img src="{group["image_url"]}" alt="Circle image" '
+                    f'style="max-width: 100%; width: 220px; height: auto; border-radius: 8px;">'
                     f"</div>"
                 )
             items_html.append(
                 f"""
                 <li style=\"margin-bottom: 10px;\">
-                    <strong>{label}</strong> joined {group['circle_name']}: {names}<br>
+                    <strong>{label}</strong> joined {group["circle_name"]}: {names}<br>
                     {image_html}
                     <a href=\"{link}\" style=\"color: #007bff; text-decoration: none;\">View circle</a>
                 </li>
@@ -787,7 +821,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         return f"""
         <h3 style=\"margin-top: 24px; color: #333;\">Circle Joins</h3>
         <ul style=\"padding-left: 20px;\">
-            {''.join(items_html)}
+            {"".join(items_html)}
         </ul>
         """
 
@@ -812,12 +846,12 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
 
         {summary_html}
 
-        {build_html_section('Giveaways \u2014 Posted', posted_giveaways, include_description=True)}
-        {build_html_section('Giveaways \u2014 Claimed', claimed_giveaways, include_description=True, include_image=False)}
-        {build_html_section('Requests \u2014 Posted', posted_requests, include_description=True)}
-        {build_html_section('Requests \u2014 Fulfilled', fulfilled_requests, include_description=False)}
+        {build_html_section("Giveaways \u2014 Posted", posted_giveaways, include_description=True)}
+        {build_html_section("Giveaways \u2014 Claimed", claimed_giveaways, include_description=True, include_image=False)}
+        {build_html_section("Requests \u2014 Posted", posted_requests, include_description=True)}
+        {build_html_section("Requests \u2014 Fulfilled", fulfilled_requests, include_description=False)}
         {_build_circle_joins_html_section(circle_joins)}
-        {build_html_section('Loans', loans)}
+        {build_html_section("Loans", loans)}
 
         <hr style=\"margin: 28px 0; border: none; border-top: 1px solid #ddd;\">
         <p style=\"font-size: 14px; color: #666;\">
@@ -879,7 +913,7 @@ This is a friendly reminder that the item you borrowed is due back soon.
 
 Item: {loan.item.name}
 Owner: {owner.first_name} {owner.last_name}
-Due Date: {loan.end_date.strftime('%B %d, %Y')} (in 3 days)
+Due Date: {loan.end_date.strftime("%B %d, %Y")} (in 3 days)
 
 Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
 
@@ -905,7 +939,7 @@ The Meutch Team
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p><strong>Item:</strong> {loan.item.name}</p>
             <p><strong>Owner:</strong> {owner.first_name} {owner.last_name}</p>
-            <p><strong>Due Date:</strong> {loan.end_date.strftime('%B %d, %Y')}</p>
+            <p><strong>Due Date:</strong> {loan.end_date.strftime("%B %d, %Y")}</p>
         </div>
 
         <p style="color: #666; font-size: 14px;">
@@ -961,7 +995,7 @@ This is a reminder that the item you borrowed is due back today.
 
 Item: {loan.item.name}
 Owner: {owner.first_name} {owner.last_name}
-Due Date: Today, {loan.end_date.strftime('%B %d, %Y')}
+Due Date: Today, {loan.end_date.strftime("%B %d, %Y")}
 
 Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
 
@@ -987,7 +1021,7 @@ The Meutch Team
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p><strong>Item:</strong> {loan.item.name}</p>
             <p><strong>Owner:</strong> {owner.first_name} {owner.last_name}</p>
-            <p><strong>Due Date:</strong> Today, {loan.end_date.strftime('%B %d, %Y')}</p>
+            <p><strong>Due Date:</strong> Today, {loan.end_date.strftime("%B %d, %Y")}</p>
         </div>
 
         <p style="color: #666; font-size: 14px;">
@@ -1045,7 +1079,7 @@ This is a notification that your item is due to be returned today.
 
 Item: {loan.item.name}
 Borrower: {borrower.first_name} {borrower.last_name}
-Due Date: Today, {loan.end_date.strftime('%B %d, %Y')}
+Due Date: Today, {loan.end_date.strftime("%B %d, %Y")}
 
 If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time:
 {extend_url}
@@ -1072,7 +1106,7 @@ The Meutch Team
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p><strong>Item:</strong> {loan.item.name}</p>
             <p><strong>Borrower:</strong> {borrower.first_name} {borrower.last_name}</p>
-            <p><strong>Due Date:</strong> Today, {loan.end_date.strftime('%B %d, %Y')}</p>
+            <p><strong>Due Date:</strong> Today, {loan.end_date.strftime("%B %d, %Y")}</p>
         </div>
 
         <p style="color: #666; font-size: 14px;">
@@ -1132,7 +1166,7 @@ This is a reminder that the item you borrowed is now overdue.
 
 Item: {loan.item.name}
 Owner: {owner.first_name} {owner.last_name}
-Due Date: {loan.end_date.strftime('%B %d, %Y')}
+Due Date: {loan.end_date.strftime("%B %d, %Y")}
 Days Overdue: {days_overdue}
 
 Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
@@ -1153,13 +1187,13 @@ The Meutch Team
         <h2 style="color: #333;">Overdue Item Reminder</h2>
 
         <div style="background-color: #f8d7da; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545; margin: 20px 0;">
-            <p style="margin: 0;"><strong>⚠️ Your borrowed item is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue</strong></p>
+            <p style="margin: 0;"><strong>⚠️ Your borrowed item is {days_overdue} day{"s" if days_overdue != 1 else ""} overdue</strong></p>
         </div>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p><strong>Item:</strong> {loan.item.name}</p>
             <p><strong>Owner:</strong> {owner.first_name} {owner.last_name}</p>
-            <p><strong>Due Date:</strong> {loan.end_date.strftime('%B %d, %Y')}</p>
+            <p><strong>Due Date:</strong> {loan.end_date.strftime("%B %d, %Y")}</p>
             <p><strong>Days Overdue:</strong> <span style="color: #dc3545; font-weight: bold;">{days_overdue}</span></p>
         </div>
 
@@ -1218,7 +1252,7 @@ This is a notification that your loaned item is now overdue.
 
 Item: {loan.item.name}
 Borrower: {borrower.first_name} {borrower.last_name}
-Due Date: {loan.end_date.strftime('%B %d, %Y')}
+Due Date: {loan.end_date.strftime("%B %d, %Y")}
 Days Overdue: {days_overdue}
 
 If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time:
@@ -1240,13 +1274,13 @@ The Meutch Team
         <h2 style="color: #333;">Loaned Item Overdue</h2>
 
         <div style="background-color: #f8d7da; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545; margin: 20px 0;">
-            <p style="margin: 0;"><strong>⚠️ Your loaned item is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue</strong></p>
+            <p style="margin: 0;"><strong>⚠️ Your loaned item is {days_overdue} day{"s" if days_overdue != 1 else ""} overdue</strong></p>
         </div>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p><strong>Item:</strong> {loan.item.name}</p>
             <p><strong>Borrower:</strong> {borrower.first_name} {borrower.last_name}</p>
-            <p><strong>Due Date:</strong> {loan.end_date.strftime('%B %d, %Y')}</p>
+            <p><strong>Due Date:</strong> {loan.end_date.strftime("%B %d, %Y")}</p>
             <p><strong>Days Overdue:</strong> <span style="color: #dc3545; font-weight: bold;">{days_overdue}</span></p>
         </div>
 

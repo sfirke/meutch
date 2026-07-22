@@ -40,7 +40,32 @@ DO_SPACES_BUCKET=<your-bucket-name>
 ```bash
 MAILGUN_API_KEY=<your-mailgun-api-key>
 MAILGUN_DOMAIN=<your-mailgun-domain>
+MAILGUN_WEBHOOK_SIGNING_KEY=<your-mailgun-webhook-signing-key>
+
+# Only needed when sharing a single Mailgun domain across environments
+# (e.g. both staging and prod use replies@meutch.com).
+# Set to "staging-" on staging so Mailgun routes can distinguish.
+MAILGUN_REPLY_PREFIX=staging-
 ```
+
+For reply-by-email, configure a Mailgun inbound route that forwards parsed messages to:
+
+```text
+https://your-domain.com/webhooks/mailgun/messages
+```
+
+**Multi-environment setup with a single Mailgun domain:** Use `MAILGUN_REPLY_PREFIX`
+to encode the environment in the reply-to local part:
+
+- Production: `reply+{uuid}@meutch.com` (no prefix)
+- Staging:   `reply+staging-{uuid}@meutch.com`
+
+Create two Mailgun routes on the same domain (routes are free):
+
+1. `match_recipient("reply\+staging-.*@meutch.com")` → forward to `https://staging.meutch.com/webhooks/mailgun/messages`
+2. `match_recipient("reply\+.*@meutch.com")` → forward to `https://meutch.com/webhooks/mailgun/messages`
+
+Route order matters — put the more specific `staging-` rule first.
 
 ### Optional: Mobile API JWT Auth
 
