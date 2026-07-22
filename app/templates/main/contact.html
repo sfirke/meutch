@@ -7,10 +7,10 @@
     <h2 class="mb-3">Contact Us</h2>
     <p class="text-muted mb-2">
         Have a question, suggestion, or found a bug? Let us know using the form below.
-        Your message will be sent directly to the Meutch team.
+        Your message will be sent directly to the Meutch admin team.
     </p>
     <p class="text-muted small mb-4">
-        On GitHub? You can also
+        GitHub user? You can also
         <a href="https://github.com/sfirke/meutch/issues" target="_blank" rel="noopener noreferrer">report issues directly on GitHub</a>.
     </p>
 
@@ -27,7 +27,7 @@
 
         <div class="mb-3">
             {{ form.message.label(class="form-label") }}
-            {{ form.message(class="form-control", placeholder="Describe your question, suggestion, or bug report...") }}
+            {{ form.message(class="form-control", placeholder="What's on your mind?") }}
             {% for error in form.message.errors %}
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
