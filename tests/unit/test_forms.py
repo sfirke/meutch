@@ -8,6 +8,7 @@ from werkzeug.datastructures import FileStorage, MultiDict
 
 from app.forms import (
     CircleCreateForm,
+    ContactForm,
     EditProfileForm,
     ListItemForm,
     LoanRequestForm,
@@ -663,3 +664,99 @@ class TestOptionalFileAllowed:
                 # Should raise StopValidation for invalid extension
                 with pytest.raises(StopValidation):
                     validator(form, field)
+
+
+class TestContactForm:
+    """Test ContactForm."""
+
+    def test_valid_contact_form(self, app):
+        """Test valid form with category and message passes validation."""
+        with app.app_context():
+            with app.test_request_context():
+                form_data = {
+                    "category": "bug_report",
+                    "message": "I found a bug in the search feature.",
+                    "csrf_token": "test_token",
+                }
+                form = ContactForm(data=form_data)
+                assert form.validate() is True
+
+    def test_empty_message(self, app):
+        """Test empty message fails validation."""
+        with app.app_context():
+            with app.test_request_context():
+                form_data = {
+                    "category": "bug_report",
+                    "message": "",
+                    "csrf_token": "test_token",
+                }
+                form = ContactForm(data=form_data)
+                assert form.validate() is False
+                assert any("This field is required." in error for error in form.message.errors)
+
+    def test_message_too_short(self, app):
+        """Test message shorter than 10 characters fails validation."""
+        with app.app_context():
+            with app.test_request_context():
+                form_data = {
+                    "category": "bug_report",
+                    "message": "Hi",
+                    "csrf_token": "test_token",
+                }
+                form = ContactForm(data=form_data)
+                assert form.validate() is False
+                assert any(
+                    "between 10 and 2000 characters" in error for error in form.message.errors
+                )
+
+    def test_message_too_long(self, app):
+        """Test message longer than 2000 characters fails validation."""
+        with app.app_context():
+            with app.test_request_context():
+                form_data = {
+                    "category": "bug_report",
+                    "message": "x" * 2001,
+                    "csrf_token": "test_token",
+                }
+                form = ContactForm(data=form_data)
+                assert form.validate() is False
+                assert any(
+                    "between 10 and 2000 characters" in error for error in form.message.errors
+                )
+
+    def test_missing_category(self, app):
+        """Test missing category fails validation."""
+        with app.app_context():
+            with app.test_request_context():
+                form_data = {
+                    "category": "",
+                    "message": "This is a valid message that is long enough.",
+                    "csrf_token": "test_token",
+                }
+                form = ContactForm(data=form_data)
+                assert form.validate() is False
+                assert any("This field is required." in error for error in form.category.errors)
+
+    def test_whitespace_only_message(self, app):
+        """Test whitespace-only message fails validation."""
+        with app.app_context():
+            with app.test_request_context():
+                form_data = {
+                    "category": "bug_report",
+                    "message": "   \n  \t  ",
+                    "csrf_token": "test_token",
+                }
+                form = ContactForm(data=form_data)
+                assert form.validate() is False
+
+    def test_invalid_category_choice(self, app):
+        """Test invalid category value fails validation."""
+        with app.app_context():
+            with app.test_request_context():
+                form_data = {
+                    "category": "invalid_category",
+                    "message": "This is a valid message that is long enough.",
+                    "csrf_token": "test_token",
+                }
+                form = ContactForm(data=form_data)
+                assert form.validate() is False

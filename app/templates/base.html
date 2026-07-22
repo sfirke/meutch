@@ -237,9 +237,15 @@
                     <p class="text-muted small mb-2">
                         Questions? Suggestions? Found a bug?
                     </p>
-                    <a href="https://github.com/sfirke/meutch/issues" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
-                        <i class="fab fa-github me-1"></i>Report an Issue
+                    {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('main.contact') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-envelope me-1"></i>Contact Us
                     </a>
+                    {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-envelope me-1"></i>Contact Us
+                    </a>
+                    {% endif %}
                 </div>
             </div>
             <hr class="my-3">
