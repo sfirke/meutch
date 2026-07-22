@@ -19,6 +19,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Developer Experience
 - Remove legacy `item`/`request`/`circle` kwargs from `MessageFactory`; all test call sites now use `conversation=` directly via `ConversationFactory` ([#437](https://github.com/sfirke/meutch/pull/437)).
+- Get dev data seeding working again, it broke in #436 ([#450](https://github.com/sfirke/meutch/pull/450)).
 
 ### Bug fixes
 - Streamlined email digest fulfilled/claimed rendering: unified phrasing across both resolution variants, replaced green status pills with a subtle gray "New" label for items the user hasn't seen before, kept descriptions only for first-time items, and grouped new-resolved entries before previously-seen resolutions ([#427](https://github.com/sfirke/meutch/pull/427)).
