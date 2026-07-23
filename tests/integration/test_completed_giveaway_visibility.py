@@ -56,6 +56,29 @@ class TestCompletedGiveawayVisibility:
         # "View Item" should appear exactly once (only for the unclaimed giveaway)
         assert html.count("View Item") == 1
 
+        # Claimed giveaway card should have gray border and dimmer class
+        # Find the claimed giveaway article by looking for the name and checking classes
+        # We use the fact that the claimed card's HTML contains both the name and the CSS classes
+
+        # Check claimed giveaway card has border-secondary and giveaway-card-claimed
+        # Find the article block containing the claimed item name
+        claimed_start = html.find(claimed_name)
+        # Search backwards for the opening <article tag
+        claimed_article_start = html.rfind("<article", 0, claimed_start)
+        claimed_article_end = html.find("</article>", claimed_start) + len("</article>")
+        claimed_article_html = html[claimed_article_start:claimed_article_end]
+        assert "border-secondary" in claimed_article_html
+        assert "giveaway-card-claimed" in claimed_article_html
+        assert "border-success" not in claimed_article_html
+
+        # Check unclaimed giveaway card has border-success but NOT giveaway-card-claimed
+        unclaimed_start = html.find(unclaimed_name)
+        unclaimed_article_start = html.rfind("<article", 0, unclaimed_start)
+        unclaimed_article_end = html.find("</article>", unclaimed_start) + len("</article>")
+        unclaimed_article_html = html[unclaimed_article_start:unclaimed_article_end]
+        assert "border-success" in unclaimed_article_html
+        assert "giveaway-card-claimed" not in unclaimed_article_html
+
     def test_claimed_giveaway_hidden_by_default_on_home_page(self, client, app, auth_user):
         """Test that recently claimed giveaways are hidden by default on home page."""
         user_email = None

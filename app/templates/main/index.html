@@ -121,13 +121,17 @@
                 {% if event.event_type == 'request' %}
                     {% set border_class = 'border-start border-4 border-primary' %}
                 {% elif event.event_type == 'giveaway' %}
-                    {% set border_class = 'border-start border-4 border-success' %}
+                    {% if event.claim_status == 'claimed' %}
+                        {% set border_class = 'border-start border-4 border-secondary' %}
+                    {% else %}
+                        {% set border_class = 'border-start border-4 border-success' %}
+                    {% endif %}
                 {% elif event.event_type == 'lent' %}
                     {% set border_class = 'border-start border-4 border-secondary' %}
                 {% elif event.event_type == 'circle_join' %}
                     {% set border_class = 'border-start border-4 border-info' %}
                 {% endif %}
-                <article class="card shadow-sm border-0 activity-feed-card {{ border_class }}">
+                <article class="card shadow-sm border-0 activity-feed-card{% if event.event_type == 'giveaway' and event.claim_status == 'claimed' %} giveaway-card-claimed{% endif %} {{ border_class }}">
                     <div class="card-body py-3">
                         <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
                             {% if event.actor_avatar_url %}
