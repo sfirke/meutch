@@ -151,12 +151,14 @@ def register_user(
         if existing.is_confirmed:
             raise ConflictError(
                 "An account with this email is already registered. "
-                "If this is your account, use the forgot password link to regain access."
+                "If this is your account, use the forgot password link to regain access.",
+                details={"email_status": "confirmed"},
             ) from None
         else:
             raise ConflictError(
                 "An account with this email exists but hasn't been confirmed yet. "
-                "Please check your email for the confirmation link or request a new one."
+                "Please check your email for the confirmation link or request a new one.",
+                details={"email_status": "unconfirmed"},
             ) from None
     email_sent = send_confirmation_email(user, next_url=next_url)
     return RegistrationResult(
