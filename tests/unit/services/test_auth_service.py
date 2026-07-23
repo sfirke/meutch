@@ -1,8 +1,12 @@
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
+import pytest
+from sqlalchemy.exc import IntegrityError
+
 from app import db
 from app.services import auth_service
+from app.services.exceptions import ConflictError
 from conftest import TEST_PASSWORD
 from tests.factories import UserFactory
 
@@ -87,6 +91,87 @@ class TestAuthService:
             db.session.refresh(user)
             assert result.status == auth_service.CONFIRM_EMAIL_STATUS_EXPIRED
             assert user.email_confirmed is False
+
+    def test_check_existing_email_confirmed(self, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            db.session.commit()
+
+            result = auth_service.check_existing_email(user.email)
+
+            assert result.exists is True
+            assert result.is_confirmed is True
+
+    def test_check_existing_email_unconfirmed(self, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=False)
+            db.session.commit()
+
+            result = auth_service.check_existing_email(user.email)
+
+            assert result.exists is True
+            assert result.is_confirmed is False
+
+    def test_check_existing_email_nonexistent(self, app):
+        with app.app_context():
+            result = auth_service.check_existing_email("nobody@example.com")
+
+            assert result.exists is False
+            assert result.is_confirmed is False
+
+    def test_register_user_catches_integrity_error_confirmed(self, app):
+        with app.app_context():
+            _user = UserFactory(email="conflict@example.com", email_confirmed=True)
+            db.session.commit()
+
+            with (
+                patch("app.services.auth_service.send_confirmation_email", return_value=True),
+                patch.object(
+                    auth_service.db.session,
+                    "commit",
+                    side_effect=IntegrityError("mock", "orig", "stmt"),
+                ),
+            ):
+                with pytest.raises(ConflictError) as excinfo:
+                    auth_service.register_user(
+                        email="conflict@example.com",
+                        first_name="Conflict",
+                        last_name="User",
+                        password=TEST_PASSWORD,
+                        digest_frequency="weekly",
+                        location_method="skip",
+                    )
+
+            assert "already registered" in str(excinfo.value).lower()
+            assert "forgot password" in str(excinfo.value).lower()
+
+    def test_register_user_catches_integrity_error_unconfirmed(self, app):
+        with app.app_context():
+            _user = UserFactory(email="unconfirmed@example.com", email_confirmed=False)
+            db.session.commit()
+
+            with (
+                patch("app.services.auth_service.send_confirmation_email", return_value=True),
+                patch.object(
+                    auth_service.db.session,
+                    "commit",
+                    side_effect=IntegrityError("mock", "orig", "stmt"),
+                ),
+            ):
+                with pytest.raises(ConflictError) as excinfo:
+                    auth_service.register_user(
+                        email="unconfirmed@example.com",
+                        first_name="Unconfirmed",
+                        last_name="User",
+                        password=TEST_PASSWORD,
+                        digest_frequency="weekly",
+                        location_method="skip",
+                    )
+
+            assert (
+                "hasn't been confirmed" in str(excinfo.value).lower()
+                or "not confirmed" in str(excinfo.value).lower()
+            )
 
     def test_resend_confirmation_email_for_user_returns_already_confirmed(self, app):
         with app.app_context():
