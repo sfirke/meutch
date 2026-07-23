@@ -48,7 +48,7 @@ class ExistingEmailResult:
     is_confirmed: bool = False
 
 
-def check_existing_email(email):
+def check_existing_email(email) -> ExistingEmailResult:
     """Check if an email is already registered and whether the user is confirmed.
 
     Returns an ExistingEmailResult with:
