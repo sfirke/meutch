@@ -18,6 +18,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Improved the giveaway request and handoff experience - no more needing to click "I want this!", instead owners can choose from anyone who messages. Also allows for marking giveaways handed off outside of Meutch ([#445](https://github.com/sfirke/meutch/pull/445)).
 - On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
 - Community Activity now hides claimed giveaways by default and includes a filter to show them when desired ([#424](https://github.com/sfirke/meutch/issues/424)).
+- Claimed giveaway cards in the home feed are now visually distinct — dimmed with a gray border and reduced opacity — making it clear at a glance which giveaways are no longer available ([#455](https://github.com/sfirke/meutch/pull/455)).
 
 ### Developer Experience
 - Remove legacy `item`/`request`/`circle` kwargs from `MessageFactory`; all test call sites now use `conversation=` directly via `ConversationFactory` ([#437](https://github.com/sfirke/meutch/pull/437)).
