@@ -31,16 +31,18 @@
         <!-- Email -->
         <p>
             {{ form.email.label }}<br>
-            {{ form.email(size=32) }}<br>
-            {% for error in form.email.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-            {% if form.email_status == 'unconfirmed' %}
-                <br><a href="{{ url_for('auth.resend_confirmation') }}">Resend confirmation email</a>
-            {% endif %}
-            {% if form.email_status == 'confirmed' %}
-                <br><a href="{{ url_for('auth.forgot_password') }}">Forgot your password?</a>
-            {% endif %}
+            {{ form.email(size=32, aria_describedby="email-help") }}<br>
+            <span id="email-help" role="alert">
+                {% for error in form.email.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+                {% if form.email_status == 'unconfirmed' %}
+                    <br><a href="{{ url_for('auth.resend_confirmation') }}">Resend confirmation email</a>
+                {% endif %}
+                {% if form.email_status == 'confirmed' %}
+                    <br><a href="{{ url_for('auth.forgot_password') }}">Forgot your password?</a>
+                {% endif %}
+            </span>
         </p>
 
         <!-- Password -->
