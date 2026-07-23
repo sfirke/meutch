@@ -20,6 +20,10 @@ class ConflictError(ServiceError):
 
     flash_category = "warning"
 
+    def __init__(self, message=None, *, details=None):
+        super().__init__(message or "")
+        self.details = details or {}
+
 
 class InformationalError(ServiceError):
     """The workflow cannot proceed, but the state is otherwise normal."""

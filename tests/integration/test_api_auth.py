@@ -367,4 +367,31 @@ class TestApiAuth:
         )
 
         assert response.status_code == 409
-        assert response.get_json()["error"]["code"] == "CONFLICT"
+        payload = response.get_json()
+        assert payload["error"]["code"] == "CONFLICT"
+        assert payload["error"]["details"]["email_status"] == "confirmed"
+        assert "already registered" in payload["error"]["message"].lower()
+        assert "forgot-password" in payload["error"]["message"].lower()
+
+    def test_register_rejects_duplicate_unconfirmed_email(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=False)
+            db.session.commit()
+            user_email = user.email
+
+        response = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": user_email,
+                "first_name": "Dupe",
+                "last_name": "User",
+                "password": "somepassword123",
+                "location_method": "skip",
+            },
+        )
+
+        assert response.status_code == 409
+        payload = response.get_json()
+        assert payload["error"]["code"] == "CONFLICT"
+        assert payload["error"]["details"]["email_status"] == "unconfirmed"
+        assert "hasn't been confirmed" in payload["error"]["message"].lower()

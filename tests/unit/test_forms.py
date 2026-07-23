@@ -154,7 +154,7 @@ class TestRegistrationForm:
             form = RegistrationForm(data=form_data)
             assert form.validate() is False
             assert (
-                "This email is already registered. Please choose a different one."
+                "This email is already registered. Use the forgot-password link below to regain access."
                 in form.email.errors
             )
 

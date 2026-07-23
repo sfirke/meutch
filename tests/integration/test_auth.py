@@ -363,14 +363,14 @@ class TestAuthenticationRoutes:
         assert "/login" in response.location
         assert "next=" not in response.location
 
-    def test_register_duplicate_email(self, client, app, auth_user):
-        """Test registration with duplicate email."""
+    def test_register_duplicate_email_confirmed(self, client, app, auth_user):
+        """Test registration with duplicate confirmed email shows forgot-password link."""
         with app.app_context():
-            user = auth_user()  # Call the function to get fresh user
+            user = auth_user()
             response = client.post(
                 "/register",
                 data={
-                    "email": user.email,  # Use existing email
+                    "email": user.email,
                     "first_name": "Duplicate",
                     "last_name": "User",
                     "location_method": "skip",
@@ -381,8 +381,34 @@ class TestAuthenticationRoutes:
             )
 
             assert response.status_code == 200
+            assert b"already registered" in response.data
+            assert b"Forgot your password" in response.data or b"forgot-password" in response.data
+
+    def test_register_duplicate_email_unconfirmed(self, client, app):
+        """Test registration with duplicate unconfirmed email shows resend-confirmation link."""
+        with app.app_context():
+            user = UserFactory(email_confirmed=False)
+            db.session.commit()
+            response = client.post(
+                "/register",
+                data={
+                    "email": user.email,
+                    "first_name": "Duplicate",
+                    "last_name": "User",
+                    "location_method": "skip",
+                    "password": "duplicatepassword123",
+                    "confirm_password": "duplicatepassword123",
+                    "age_confirm": True,
+                },
+            )
+
+            assert response.status_code == 200
+            assert b"already registered" in response.data
+            response_text = response.get_data(as_text=True).lower()
+            assert "hasn&#39;t been confirmed" in response_text
             assert (
-                b"This email is already registered. Please choose a different one." in response.data
+                "resend confirmation email" in response_text
+                or "resend-confirmation" in response_text
             )
 
     def test_register_password_mismatch(self, client):
