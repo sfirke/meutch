@@ -12,6 +12,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
   - Frontend changes to finish the work in ([#439](https://github.com/sfirke/meutch/pull/439)).
 
 **Minor**:
+- Claimed giveaway cards in the home feed are now visually distinct — dimmed with a gray border and reduced opacity — making it clear at a glance which giveaways are no longer available ([#416](https://github.com/sfirke/meutch/pull/416)).
 - Message notification emails can now be replied to by email; Mailgun inbound replies create normal conversation replies in Meutch ([#449](https://github.com/sfirke/meutch/issues/449)).
 - Added a Contact Us form so authenticated users can message the Meutch team directly from the app, replacing the external GitHub Issues link in the footer ([#448](https://github.com/sfirke/meutch/pull/448)).
 - Improved the giveaway request and handoff experience - no more needing to click "I want this!", instead owners can choose from anyone who messages. Also allows for marking giveaways handed off outside of Meutch ([#445](https://github.com/sfirke/meutch/pull/445)).
