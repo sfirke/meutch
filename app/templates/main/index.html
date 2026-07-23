@@ -117,9 +117,12 @@
         <div class="d-grid gap-3 mb-4 activity-feed-list">
             {% for event in feed_events %}
                 {% set actor_initials = (event.actor_name|replace(' ', ''))[:2]|upper %}
+                {% set is_claimed_giveaway = event.event_type == 'giveaway' and event.claim_status == 'claimed' %}
                 {% set border_class = '' %}
                 {% if event.event_type == 'request' %}
                     {% set border_class = 'border-start border-4 border-primary' %}
+                {% elif is_claimed_giveaway %}
+                    {% set border_class = 'border-start border-4 border-secondary' %}
                 {% elif event.event_type == 'giveaway' %}
                     {% set border_class = 'border-start border-4 border-success' %}
                 {% elif event.event_type == 'lent' %}
@@ -127,7 +130,7 @@
                 {% elif event.event_type == 'circle_join' %}
                     {% set border_class = 'border-start border-4 border-info' %}
                 {% endif %}
-                <article class="card shadow-sm border-0 activity-feed-card {{ border_class }}">
+                <article class="card shadow-sm border-0 activity-feed-card{% if is_claimed_giveaway %} giveaway-card-claimed{% endif %} {{ border_class }}">
                     <div class="card-body py-3">
                         <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
                             {% if event.actor_avatar_url %}
