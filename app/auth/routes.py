@@ -14,6 +14,7 @@ from app.forms import (
     ResetPasswordForm,
 )
 from app.services import auth_service
+from app.services.exceptions import ConflictError
 
 logger = logging.getLogger(__name__)
 logger.debug("Loading app.auth.routes")
@@ -118,22 +119,26 @@ def register():
     if form.validate_on_submit():
         next_page = request.args.get("next")
         safe_next = next_page if (next_page and _is_safe_url(next_page)) else None
-        registration_result = auth_service.register_user(
-            email=form.email.data,
-            first_name=form.first_name.data,
-            last_name=form.last_name.data,
-            password=form.password.data,
-            digest_frequency=form.digest_frequency.data,
-            location_method=form.location_method.data,
-            next_url=safe_next,
-            street=form.street.data,
-            city=form.city.data,
-            state=form.state.data,
-            zip_code=form.zip_code.data,
-            country=form.country.data,
-            latitude=form.latitude.data,
-            longitude=form.longitude.data,
-        )
+        try:
+            registration_result = auth_service.register_user(
+                email=form.email.data,
+                first_name=form.first_name.data,
+                last_name=form.last_name.data,
+                password=form.password.data,
+                digest_frequency=form.digest_frequency.data,
+                location_method=form.location_method.data,
+                next_url=safe_next,
+                street=form.street.data,
+                city=form.city.data,
+                state=form.state.data,
+                zip_code=form.zip_code.data,
+                country=form.country.data,
+                latitude=form.latitude.data,
+                longitude=form.longitude.data,
+            )
+        except ConflictError as exc:
+            flash(str(exc), "warning")
+            return render_template("auth/register.html", title="Register", form=form)
 
         if registration_result.location_method == "skip":
             flash(
