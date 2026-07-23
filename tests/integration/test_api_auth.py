@@ -394,7 +394,4 @@ class TestApiAuth:
         payload = response.get_json()
         assert payload["error"]["code"] == "CONFLICT"
         assert payload["error"]["details"]["email_status"] == "unconfirmed"
-        assert (
-            "not been confirmed" in payload["error"]["message"].lower()
-            or "hasn't been confirmed" in payload["error"]["message"].lower()
-        )
+        assert "hasn't been confirmed" in payload["error"]["message"].lower()

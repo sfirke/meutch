@@ -404,13 +404,11 @@ class TestAuthenticationRoutes:
 
             assert response.status_code == 200
             assert b"already registered" in response.data
+            response_text = response.get_data(as_text=True).lower()
+            assert "hasn&#39;t been confirmed" in response_text
             assert (
-                b"hasn&#39;t been confirmed" in response.data
-                or b"hasn't been confirmed" in response.data
-            )
-            assert (
-                b"Resend confirmation email" in response.data
-                or b"resend-confirmation" in response.data
+                "resend confirmation email" in response_text
+                or "resend-confirmation" in response_text
             )
 
     def test_register_password_mismatch(self, client):

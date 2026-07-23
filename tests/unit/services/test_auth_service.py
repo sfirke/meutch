@@ -168,10 +168,7 @@ class TestAuthService:
                         location_method="skip",
                     )
 
-            assert (
-                "hasn't been confirmed" in str(excinfo.value).lower()
-                or "not confirmed" in str(excinfo.value).lower()
-            )
+            assert "hasn't been confirmed" in str(excinfo.value).lower()
 
     def test_resend_confirmation_email_for_user_returns_already_confirmed(self, app):
         with app.app_context():
