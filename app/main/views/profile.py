@@ -399,22 +399,20 @@ def update_location():
 def user_profile(user_id):
     if current_user.is_admin or current_user.id == user_id:
         user = db.get_or_404(User, user_id)
+        shares_circle = False
+        has_loan = False
     else:
         target_user = db.session.get(User, user_id)
-        if not target_user or (
-            not current_user.shares_circle_with(target_user)
-            and not current_user.has_active_loan_relationship_with(target_user)
-        ):
+        shares_circle = bool(target_user and current_user.shares_circle_with(target_user))
+        has_loan = bool(target_user and current_user.has_active_loan_relationship_with(target_user))
+        if not target_user or (not shares_circle and not has_loan):
             flash("You can only view profiles of users in your circles.", "warning")
             return redirect(url_for("main.index"))
         user = target_user
 
     can_view_items = current_user.is_admin or current_user.id == user.id
     access_via_loan = (
-        current_user.id != user.id
-        and not current_user.is_admin
-        and not current_user.shares_circle_with(user)
-        and current_user.has_active_loan_relationship_with(user)
+        current_user.id != user.id and not current_user.is_admin and not shares_circle and has_loan
     )
 
     items = []
