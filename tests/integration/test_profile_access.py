@@ -5,7 +5,13 @@ from flask import url_for
 
 from app.models import db
 from conftest import login_user
-from tests.factories import CircleFactory, UserFactory
+from tests.factories import (
+    CategoryFactory,
+    CircleFactory,
+    ItemFactory,
+    LoanRequestFactory,
+    UserFactory,
+)
 
 
 @pytest.mark.usefixtures("app")
@@ -169,3 +175,116 @@ class TestProfileAccessControl:
         response = client.get(url_for("main.user_profile", user_id=uuid.uuid4()))
         # Redirect to index with generic warning (same behavior as unauthorized access)
         assert response.status_code == 302
+
+    def test_profile_accessible_via_active_loan_no_shared_circle(self, client):
+        """Item owner can view borrower's profile with an active LoanRequest, even without shared circles."""
+        owner = UserFactory(first_name="Item", last_name="Owner")
+        borrower = UserFactory(first_name="Borrower", last_name="Person")
+        category = CategoryFactory()
+        db.session.commit()
+
+        item = ItemFactory(owner=owner, category=category, name="Shared Drill")
+        LoanRequestFactory(item=item, borrower=borrower, status="pending")
+        db.session.commit()
+
+        # No shared circles: each user is in their own circle
+        owner_circle = CircleFactory(name="Owner Only Circle")
+        borrower_circle = CircleFactory(name="Borrower Only Circle")
+        owner_circle.members.append(owner)
+        borrower_circle.members.append(borrower)
+        db.session.commit()
+
+        login_user(client, owner.email)
+        response = client.get(url_for("main.user_profile", user_id=borrower.id))
+
+        assert response.status_code == 200
+        assert b"Borrower Person" in response.data
+        assert b"active loan request" in response.data
+
+    def test_profile_blocked_when_loan_is_completed_and_no_circles(self, client):
+        """Access denied when the LoanRequest is completed and no shared circles exist."""
+        owner = UserFactory()
+        borrower = UserFactory()
+        category = CategoryFactory()
+        db.session.commit()
+
+        item = ItemFactory(owner=owner, category=category)
+        LoanRequestFactory(item=item, borrower=borrower, status="completed")
+        db.session.commit()
+
+        owner_circle = CircleFactory(name="Owner Completed Circle")
+        borrower_circle = CircleFactory(name="Borrower Completed Circle")
+        owner_circle.members.append(owner)
+        borrower_circle.members.append(borrower)
+        db.session.commit()
+
+        login_user(client, owner.email)
+        response = client.get(url_for("main.user_profile", user_id=borrower.id))
+
+        assert response.status_code == 302
+
+    def test_profile_blocked_when_loan_is_denied_and_no_circles(self, client):
+        """Access denied when the LoanRequest is denied and no shared circles exist."""
+        owner = UserFactory()
+        borrower = UserFactory()
+        category = CategoryFactory()
+        db.session.commit()
+
+        item = ItemFactory(owner=owner, category=category)
+        LoanRequestFactory(item=item, borrower=borrower, status="denied")
+        db.session.commit()
+
+        owner_circle = CircleFactory(name="Owner Denied Circle")
+        borrower_circle = CircleFactory(name="Borrower Denied Circle")
+        owner_circle.members.append(owner)
+        borrower_circle.members.append(borrower)
+        db.session.commit()
+
+        login_user(client, owner.email)
+        response = client.get(url_for("main.user_profile", user_id=borrower.id))
+
+        assert response.status_code == 302
+
+    def test_profile_blocked_unrelated_user_no_circles(self, client):
+        """Unrelated user (no circles, no loan) is still blocked."""
+        viewer = UserFactory(first_name="Curious", last_name="Viewer")
+        target = UserFactory(first_name="Unrelated", last_name="Target")
+        db.session.commit()
+
+        viewer_circle = CircleFactory(name="Viewer Unrelated Circle")
+        target_circle = CircleFactory(name="Target Unrelated Circle")
+        viewer_circle.members.append(viewer)
+        target_circle.members.append(target)
+        db.session.commit()
+
+        login_user(client, viewer.email)
+        response = client.get(url_for("main.user_profile", user_id=target.id))
+
+        assert response.status_code == 302
+
+    def test_profile_items_note_shown_to_non_owner(self, client):
+        """Non-owner viewers see a note that items are only visible to the profile owner."""
+        viewer = UserFactory(first_name="Viewer", last_name="User")
+        profile_owner = UserFactory(first_name="Profile", last_name="Owner")
+        db.session.commit()
+
+        circle = CircleFactory(name="Shared Note Circle")
+        circle.members.extend([viewer, profile_owner])
+        db.session.commit()
+
+        login_user(client, viewer.email)
+        response = client.get(url_for("main.user_profile", user_id=profile_owner.id))
+
+        assert response.status_code == 200
+        assert b"only visible to the profile owner" in response.data
+
+    def test_profile_items_note_hidden_for_owner(self, client):
+        """The items note is not shown when viewing your own profile."""
+        user = UserFactory(first_name="Self", last_name="Viewer")
+        db.session.commit()
+
+        login_user(client, user.email)
+        response = client.get(url_for("main.user_profile", user_id=user.id))
+
+        assert response.status_code == 200
+        assert b"only visible to the profile owner" not in response.data

@@ -120,6 +120,31 @@ class User(UserMixin, db.Model):
         """
         return bool(self.shared_circles_with(other_user))
 
+    def has_active_loan_relationship_with(self, other_user):
+        """
+        Return True if self owns an item that other_user has an active LoanRequest for.
+
+        "Active" means the LoanRequest status is "pending" or "approved"
+        (not "canceled", "denied", or "completed").
+
+        Args:
+            other_user: User object to check against
+
+        Returns:
+            True if the users have an active loan relationship, False otherwise
+        """
+        if not other_user:
+            return False
+        return db.session.query(
+            LoanRequest.query.join(Item, LoanRequest.item_id == Item.id)
+            .filter(
+                Item.owner_id == self.id,
+                LoanRequest.borrower_id == other_user.id,
+                LoanRequest.status.in_(["pending", "approved"]),
+            )
+            .exists()
+        ).scalar()
+
     def get_shared_circle_user_ids_query(self):
         """
         Get a SQL select statement for user IDs who share circles with this user.

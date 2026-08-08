@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 
+from app import db
 from conftest import TEST_PASSWORD
 from tests.factories import (
     CategoryFactory,
@@ -217,6 +218,65 @@ class TestUser:
 
             assert viewer.shared_circles_with(other_user) == []
             assert viewer.shares_circle_with(other_user) is False
+
+    def test_has_active_loan_relationship_with_true(self, app):
+        """Returns True when self owns an item with an active LoanRequest from other_user."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, name="Shared Drill")
+            LoanRequestFactory(item=item, borrower=borrower, status="pending")
+            db.session.commit()
+
+            assert owner.has_active_loan_relationship_with(borrower) is True
+
+    def test_has_active_loan_relationship_with_true_approved(self, app):
+        """Returns True when the LoanRequest is approved (still active)."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, name="Shared Saw")
+            LoanRequestFactory(item=item, borrower=borrower, status="approved")
+            db.session.commit()
+
+            assert owner.has_active_loan_relationship_with(borrower) is True
+
+    def test_has_active_loan_relationship_with_false_no_relationship(self, app):
+        """Returns False when no active LoanRequest exists between the users."""
+        with app.app_context():
+            owner = UserFactory()
+            stranger = UserFactory()
+            other_borrower = UserFactory()
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, name="Lent Elsewhere")
+            LoanRequestFactory(item=item, borrower=other_borrower, status="pending")
+            db.session.commit()
+
+            assert owner.has_active_loan_relationship_with(stranger) is False
+
+    def test_has_active_loan_relationship_with_false_completed(self, app):
+        """Returns False for completed/canceled/denied LoanRequests."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            category = CategoryFactory()
+
+            for status in ("completed", "canceled", "denied"):
+                item = ItemFactory(owner=owner, category=category)
+                LoanRequestFactory(item=item, borrower=borrower, status=status)
+            db.session.commit()
+
+            assert owner.has_active_loan_relationship_with(borrower) is False
+
+    def test_has_active_loan_relationship_with_none(self, app):
+        """Returns False when other_user is None."""
+        with app.app_context():
+            owner = UserFactory()
+            db.session.commit()
+
+            assert owner.has_active_loan_relationship_with(None) is False
 
     def test_user_shared_circles_with_returns_empty_for_missing_user(self, app):
         """Shared circles should be empty when no other user is provided."""

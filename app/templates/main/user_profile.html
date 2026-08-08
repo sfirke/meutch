@@ -11,6 +11,16 @@
             {% if user.about_me %}
                 <p class="mt-3">{{ user.about_me }}</p>
             {% endif %}
+            {% if access_via_loan %}
+                <p class="text-muted small mt-2">
+                    <i class="fas fa-handshake me-1"></i>You can view this profile because you have an active loan request with {{ user.first_name }}.
+                </p>
+            {% endif %}
+            {% if not can_view_items %}
+                <p class="text-muted small mt-2">
+                    <i class="fas fa-info-circle me-1"></i>Items listed by {{ user.first_name }} are only visible to the profile owner.
+                </p>
+            {% endif %}
         </div>
 
         <!-- Web Links Section - Upper Right -->

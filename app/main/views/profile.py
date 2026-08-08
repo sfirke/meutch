@@ -401,12 +401,21 @@ def user_profile(user_id):
         user = db.get_or_404(User, user_id)
     else:
         target_user = db.session.get(User, user_id)
-        if not target_user or not current_user.shares_circle_with(target_user):
+        if not target_user or (
+            not current_user.shares_circle_with(target_user)
+            and not current_user.has_active_loan_relationship_with(target_user)
+        ):
             flash("You can only view profiles of users in your circles.", "warning")
             return redirect(url_for("main.index"))
         user = target_user
 
     can_view_items = current_user.is_admin or current_user.id == user.id
+    access_via_loan = (
+        current_user.id != user.id
+        and not current_user.is_admin
+        and not current_user.shares_circle_with(user)
+        and current_user.has_active_loan_relationship_with(user)
+    )
 
     items = []
     items_pagination = None
@@ -447,6 +456,7 @@ def user_profile(user_id):
         delete_forms=delete_forms,
         confirm_handoff_forms=confirm_handoff_forms,
         can_view_items=can_view_items,
+        access_via_loan=access_via_loan,
         shared_circles=shared_circles,
     )
 
