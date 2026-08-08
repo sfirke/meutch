@@ -312,6 +312,73 @@ class TestMainRoutes:
             assert "View Circles" not in content
             assert "activity-feed-meta" not in content
 
+    def test_feed_actor_name_is_link_when_actor_id_present(self, client, app, auth_user):
+        """Home feed renders actor name as a clickable profile link when actor_id is present."""
+        with app.app_context():
+            viewer = auth_user()
+            requester = UserFactory(first_name="Linkable", last_name="Actor")
+            circle = CircleFactory()
+            circle.members.extend([viewer, requester])
+            ItemRequestFactory(user=requester, title="Linkable Actor Request", visibility="public")
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get("/")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "Linkable Actor" in content
+            assert f'href="/user/{requester.id}"' in content
+
+    def test_feed_actor_name_is_plain_text_when_no_actor_id(self, client, app, auth_user):
+        """Home feed renders plain text when actor_id is None (deleted actor)."""
+        import uuid
+        from datetime import UTC, datetime
+        from unittest.mock import patch
+
+        with app.app_context():
+            viewer = auth_user()
+            login_user(client, viewer.email)
+
+            event = {
+                "event_type": "request",
+                "created_at": datetime.now(UTC),
+                "request_id": uuid.uuid4(),
+                "title": "Deleted Actor Request",
+                "description": None,
+                "status": "open",
+                "actor_name": "Deleted User",
+                "actor_avatar_url": None,
+                "actor_id": None,
+                "image_url": None,
+                "action": "requested",
+                "visibility": "public",
+                "distance": None,
+            }
+            with patch("app.main.views.browse.build_homepage_feed_events", return_value=[event]):
+                response = client.get("/")
+                content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "Deleted User" in content
+            assert '<strong class="text-body">Deleted User</strong>' in content
+            assert 'href="/user/' not in content
+
+    def test_feed_actor_name_not_linked_for_current_user(self, client, app, auth_user):
+        """Current user's own feed activity is not linked to their own profile."""
+        with app.app_context():
+            viewer = auth_user()
+            ItemRequestFactory(user=viewer, title="My Own Feed Request", visibility="public")
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get("/")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "My Own Feed Request" in content
+            assert f'href="/user/{viewer.id}"' not in content
+
     def test_find_page_requires_login(self, client):
         """Test /find requires authentication."""
         response = client.get("/find")

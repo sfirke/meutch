@@ -15,6 +15,7 @@ class FeedEventSchema(ApiSchema):
     action = fields.String(required=True)
     actor_name = fields.String(required=True)
     actor_avatar_url = fields.String(allow_none=True)
+    actor_id = fields.UUID(allow_none=True)
     image_url = fields.String(allow_none=True)
     distance = fields.String(allow_none=True)
     item_id = fields.UUID(allow_none=True)
