@@ -144,7 +144,7 @@
                                 {% endif %}
                             {% else %}
                                 {% if actor_profile_url %}
-                                    <a href="{{ actor_profile_url }}" class="activity-feed-avatar-fallback flex-shrink-0 text-decoration-none" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true">{{ actor_initials or 'CM' }}</a>
+                                    <a href="{{ actor_profile_url }}" class="activity-feed-avatar-fallback flex-shrink-0 text-decoration-none" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true" tabindex="-1">{{ actor_initials or 'CM' }}</a>
                                 {% else %}
                                     <span class="activity-feed-avatar-fallback flex-shrink-0" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true">{{ actor_initials or 'CM' }}</span>
                                 {% endif %}
