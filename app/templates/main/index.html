@@ -136,8 +136,8 @@
                             {% set actor_profile_url = url_for('main.user_profile', user_id=event.actor_id) if event.actor_id and event.actor_id != current_user.id else None %}
                             {% if event.actor_avatar_url %}
                                 {% if actor_profile_url %}
-                                    <a href="{{ actor_profile_url }}" class="flex-shrink-0" aria-label="{{ event.actor_name }}">
-                                        <img src="{{ event.actor_avatar_url }}" alt="{{ event.actor_name }}" class="rounded-circle" style="width: 28px; height: 28px; object-fit: cover;">
+                                    <a href="{{ actor_profile_url }}" class="flex-shrink-0" aria-hidden="true" tabindex="-1">
+                                        <img src="{{ event.actor_avatar_url }}" alt="" class="rounded-circle" style="width: 28px; height: 28px; object-fit: cover;">
                                     </a>
                                 {% else %}
                                     <img src="{{ event.actor_avatar_url }}" alt="{{ event.actor_name }}" class="rounded-circle flex-shrink-0" style="width: 28px; height: 28px; object-fit: cover;">
