@@ -1,5 +1,9 @@
 """Integration tests for main routes."""
 
+import uuid
+from datetime import UTC, datetime
+from unittest.mock import patch
+
 from app import db
 from app.models import Circle
 from conftest import login_user
@@ -332,9 +336,6 @@ class TestMainRoutes:
 
     def test_feed_actor_name_is_plain_text_when_no_actor_id(self, client, app, auth_user):
         """Home feed renders plain text when actor_id is None (deleted actor)."""
-        import uuid
-        from datetime import UTC, datetime
-        from unittest.mock import patch
 
         with app.app_context():
             viewer = auth_user()
