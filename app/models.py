@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from flask import url_for
 from flask_login import UserMixin
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.dialects.postgresql import UUID
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -149,7 +149,8 @@ class User(UserMixin, db.Model):
         """Return True if self owns a giveaway that other_user wants to claim.
 
         An interest remains active while it is awaiting selection or while the
-        interested user is selected for pickup.
+        interested user is selected for pickup. It no longer grants access
+        after the giveaway handoff is complete.
         """
         if not other_user:
             return False
@@ -158,6 +159,10 @@ class User(UserMixin, db.Model):
             .filter(
                 Item.owner_id == self.id,
                 Item.is_giveaway.is_(True),
+                or_(
+                    Item.claim_status.is_(None),
+                    Item.claim_status.in_(["unclaimed", "pending_pickup"]),
+                ),
                 GiveawayInterest.user_id == other_user.id,
                 GiveawayInterest.status.in_(["active", "selected"]),
             )

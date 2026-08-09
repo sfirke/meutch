@@ -2,7 +2,7 @@
 <div class="{{ shared_circles_container_class|default('mt-3') }}">
     {% if shared_circles %}
         <div class="d-flex flex-wrap align-items-center gap-2">
-            <span class="fw-semibold text-body">Circles in common:</span>
+            <span class="{{ shared_circles_label_class|default('fw-semibold text-body') }}">Circles in common:</span>
             {% for circle in shared_circles %}
                 <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="badge rounded-pill text-bg-light border text-decoration-none">
                     {{ circle.name }}

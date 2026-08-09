@@ -311,6 +311,25 @@ class TestProfileAccessControl:
 
         assert response.status_code == 302
 
+    def test_profile_blocked_when_giveaway_handoff_is_complete_no_shared_circle(self, client):
+        """Completed giveaway handoffs no longer grant profile access."""
+        owner = UserFactory()
+        claimant = UserFactory()
+        giveaway = ItemFactory(
+            owner=owner,
+            category=CategoryFactory(),
+            is_giveaway=True,
+            claim_status="claimed",
+            claimed_by=claimant,
+        )
+        GiveawayInterestFactory(item=giveaway, user=claimant, status="selected")
+        db.session.commit()
+
+        login_user(client, owner.email)
+        response = client.get(url_for("main.user_profile", user_id=claimant.id))
+
+        assert response.status_code == 302
+
     def test_profile_blocked_unrelated_user_no_circles(self, client):
         """Unrelated user (no circles, no loan) is still blocked."""
         viewer = UserFactory(first_name="Curious", last_name="Viewer")

@@ -33,14 +33,9 @@
                                 </a>
                             </h1>
                             {% if shared_circles %}
-                                <div class="d-flex flex-wrap align-items-center gap-2">
-                                    <span class="conversation-summary-label">Circles in common:</span>
-                                    {% for circle in shared_circles %}
-                                        <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="badge rounded-pill text-bg-light border text-decoration-none">
-                                            {{ circle.name }}
-                                        </a>
-                                    {% endfor %}
-                                </div>
+                                {% set shared_circles_container_class = 'd-flex flex-wrap align-items-center gap-2' %}
+                                {% set shared_circles_label_class = 'conversation-summary-label' %}
+                                {% include '_shared_circles.html' %}
                             {% endif %}
                         </div>
                         <div class="d-flex flex-wrap align-items-center gap-2 mb-3 text-muted">
