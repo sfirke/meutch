@@ -675,9 +675,9 @@ footer h6 {
         padding: 1rem;
     }
 
-    /* Circle member list — stack vertically on mobile */
-    .circle-member-item,
-    .join-request-item {
+    /* note: .join-request-item is stacked via its inner > .d-flex (below);
+       this rule only applies to .circle-member-item, the flex <li> */
+    .circle-member-item {
         flex-direction: column !important;
         align-items: stretch !important;
         gap: 0.5rem !important;
