@@ -6,8 +6,11 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Minor**:
-- Item owners can now view the profile of anyone who requests or borrows their item, even when they share no circles — an active loan relationship grants profile access so owners can learn more about the person they may lend to ([#462](https://github.com/sfirke/meutch/pull/462)).
-- Actor names in the home feed now link to the actor's profile, making it easy to jump from a feed event to the user behind it ([#462](https://github.com/sfirke/meutch/pull/462)).
+- Item owners can now view the profile of anyone who requests or borrows their item, even when they share no circles — an active loan/giveaway relationship grants profile access so owners can learn more about the person they may lend or give to ([#466](https://github.com/sfirke/meutch/pull/466)).
+- Actor names in the home feed now link to the actor's profile, making it easy to jump from a feed event to the user behind it ([#466](https://github.com/sfirke/meutch/pull/466)).
+
+### Bug fixes
+- Circle join requests now show the requester's name on mobile portrait layouts — previously the name collapsed out of view, leaving only the avatar and action buttons ([#465](https://github.com/sfirke/meutch/pull/465)).
 
 ## July 2026
 

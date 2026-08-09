@@ -675,9 +675,9 @@ footer h6 {
         padding: 1rem;
     }
 
-    /* Circle member list — stack vertically on mobile */
-    .circle-member-item,
-    .join-request-item {
+    /* note: .join-request-item is stacked via its inner > .d-flex (below);
+       this rule only applies to .circle-member-item, the flex <li> */
+    .circle-member-item {
         flex-direction: column !important;
         align-items: stretch !important;
         gap: 0.5rem !important;
@@ -691,7 +691,20 @@ footer h6 {
 
     .circle-member-item .btn-sm,
     .join-request-item .btn-sm {
-        padding: 0.4rem 0.75rem;
+        padding: 0.5rem 1rem;
+    }
+
+    /* Join request items — stack the inner flex container so the name
+       doesn't collapse against the action buttons on narrow screens */
+    .join-request-item > .d-flex {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    /* the <a> wraps only the requester name; the message <p> shares the
+       member-list-name class and must not be affected */
+    .join-request-item a .member-list-name {
+        min-width: 80px;
     }
 }
 
