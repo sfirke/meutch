@@ -701,7 +701,9 @@ footer h6 {
         gap: 0.5rem;
     }
 
-    .join-request-item .member-list-name {
+    /* the <a> wraps only the requester name; the message <p> shares the
+       member-list-name class and must not be affected */
+    .join-request-item a .member-list-name {
         min-width: 80px;
     }
 }
