@@ -145,6 +145,25 @@ class User(UserMixin, db.Model):
             .exists()
         ).scalar()
 
+    def has_active_giveaway_interest_relationship_with(self, other_user):
+        """Return True if self owns a giveaway that other_user wants to claim.
+
+        An interest remains active while it is awaiting selection or while the
+        interested user is selected for pickup.
+        """
+        if not other_user:
+            return False
+        return db.session.query(
+            GiveawayInterest.query.join(Item, GiveawayInterest.item_id == Item.id)
+            .filter(
+                Item.owner_id == self.id,
+                Item.is_giveaway.is_(True),
+                GiveawayInterest.user_id == other_user.id,
+                GiveawayInterest.status.in_(["active", "selected"]),
+            )
+            .exists()
+        ).scalar()
+
     def get_shared_circle_user_ids_query(self):
         """
         Get a SQL select statement for user IDs who share circles with this user.

@@ -363,7 +363,12 @@ class TestMainRoutes:
             assert response.status_code == 200
             assert "Deleted User" in content
             assert '<strong class="text-body">Deleted User</strong>' in content
-            assert 'href="/user/' not in content
+            # Scope the negative assertion to the event card so a profile link elsewhere
+            # on the page (e.g. a future addition) doesn't false-positive this test
+            card_start = content.index('<article class="card shadow-sm border-0 activity-feed-card')
+            card_end = content.index("</article>", card_start)
+            card_html = content[card_start:card_end]
+            assert 'href="/user/' not in card_html
 
     def test_feed_actor_name_not_linked_for_current_user(self, client, app, auth_user):
         """Current user's own feed activity is not linked to their own profile."""
@@ -379,6 +384,28 @@ class TestMainRoutes:
             assert response.status_code == 200
             assert "My Own Feed Request" in content
             assert f'href="/user/{viewer.id}"' not in content
+
+    def test_feed_avatar_image_is_link_when_actor_id_present(self, client, app, auth_user):
+        """Home feed wraps the actor avatar <img> in a profile link when actor_id is present."""
+        avatar_url = "https://example.com/avatars/actor.png"
+        with app.app_context():
+            viewer = auth_user()
+            requester = UserFactory(
+                first_name="Avatar", last_name="Actor", profile_image_url=avatar_url
+            )
+            circle = CircleFactory()
+            circle.members.extend([viewer, requester])
+            ItemRequestFactory(user=requester, title="Avatar Actor Request", visibility="public")
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get("/")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert f'href="/user/{requester.id}"' in content
+            # Linked avatar branch blanks the img alt; the non-linked branch uses alt=actor_name
+            assert f'<img src="{avatar_url}" alt=""' in content
 
     def test_find_page_requires_login(self, client):
         """Test /find requires authentication."""

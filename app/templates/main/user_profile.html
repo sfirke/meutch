@@ -16,6 +16,11 @@
                     <i class="fas fa-handshake me-1"></i>You can view this profile because you have an active loan request with {{ user.first_name }}.
                 </p>
             {% endif %}
+            {% if access_via_giveaway_interest %}
+                <p class="text-muted small mt-2">
+                    <i class="fas fa-gift me-1"></i>You can view this profile because {{ user.first_name }} requested one of your giveaways.
+                </p>
+            {% endif %}
             {% if not can_view_items %}
                 <p class="text-muted small mt-2">
                     <i class="fas fa-info-circle me-1"></i>Items listed by {{ user.first_name }} are only visible to the profile owner.

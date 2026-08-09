@@ -401,11 +401,19 @@ def user_profile(user_id):
         user = db.get_or_404(User, user_id)
         shares_circle = False
         has_loan = False
+        has_giveaway_interest = False
     else:
         target_user = db.session.get(User, user_id)
         shares_circle = bool(target_user and current_user.shares_circle_with(target_user))
         has_loan = bool(target_user and current_user.has_active_loan_relationship_with(target_user))
-        if not target_user or (not shares_circle and not has_loan):
+        has_giveaway_interest = bool(
+            target_user and current_user.has_active_giveaway_interest_relationship_with(target_user)
+        )
+        if (
+            not target_user
+            or target_user.is_deleted
+            or (not shares_circle and not has_loan and not has_giveaway_interest)
+        ):
             flash("You can only view profiles of users in your circles.", "warning")
             return redirect(url_for("main.index"))
         user = target_user
@@ -413,6 +421,13 @@ def user_profile(user_id):
     can_view_items = current_user.is_admin or current_user.id == user.id
     access_via_loan = (
         current_user.id != user.id and not current_user.is_admin and not shares_circle and has_loan
+    )
+    access_via_giveaway_interest = (
+        current_user.id != user.id
+        and not current_user.is_admin
+        and not shares_circle
+        and not has_loan
+        and has_giveaway_interest
     )
 
     items = []
@@ -455,6 +470,7 @@ def user_profile(user_id):
         confirm_handoff_forms=confirm_handoff_forms,
         can_view_items=can_view_items,
         access_via_loan=access_via_loan,
+        access_via_giveaway_interest=access_via_giveaway_interest,
         shared_circles=shared_circles,
     )
 

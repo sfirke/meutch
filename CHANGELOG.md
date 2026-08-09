@@ -2,6 +2,13 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
+## Aug 2026
+
+### Features
+**Minor**:
+- Item owners can now view the profile of anyone who requests or borrows their item, even when they share no circles — an active loan relationship grants profile access so owners can learn more about the person they may lend to ([#462](https://github.com/sfirke/meutch/pull/462)).
+- Actor names in the home feed now link to the actor's profile, making it easy to jump from a feed event to the user behind it ([#462](https://github.com/sfirke/meutch/pull/462)).
+
 ## July 2026
 
 ### Features

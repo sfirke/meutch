@@ -8,6 +8,7 @@ from conftest import login_user
 from tests.factories import (
     CategoryFactory,
     CircleFactory,
+    GiveawayInterestFactory,
     ItemFactory,
     LoanRequestFactory,
     UserFactory,
@@ -201,6 +202,28 @@ class TestProfileAccessControl:
         assert b"Borrower Person" in response.data
         assert b"active loan request" in response.data
 
+    def test_profile_loan_note_hidden_when_shared_circle_and_loan(self, client):
+        """Loan note is not shown when access is via a shared circle, even if a loan exists."""
+        owner = UserFactory(first_name="Shared", last_name="Owner")
+        borrower = UserFactory(first_name="Borrower", last_name="Two")
+        category = CategoryFactory()
+        db.session.commit()
+
+        item = ItemFactory(owner=owner, category=category, name="Shared Drill Two")
+        LoanRequestFactory(item=item, borrower=borrower, status="pending")
+        db.session.commit()
+
+        circle = CircleFactory(name="Shared Circle")
+        circle.members.extend([owner, borrower])
+        db.session.commit()
+
+        login_user(client, owner.email)
+        response = client.get(url_for("main.user_profile", user_id=borrower.id))
+
+        assert response.status_code == 200
+        assert b"Borrower Two" in response.data
+        assert b"active loan request" not in response.data
+
     def test_profile_blocked_when_loan_is_completed_and_no_circles(self, client):
         """Access denied when the LoanRequest is completed and no shared circles exist."""
         owner = UserFactory()
@@ -242,6 +265,49 @@ class TestProfileAccessControl:
 
         login_user(client, owner.email)
         response = client.get(url_for("main.user_profile", user_id=borrower.id))
+
+        assert response.status_code == 302
+
+    @pytest.mark.parametrize("interest_status", ["active", "selected"])
+    def test_profile_accessible_via_giveaway_interest_no_shared_circle(
+        self, client, interest_status
+    ):
+        """Giveaway owners can view active or selected claimants without shared circles."""
+        owner = UserFactory(first_name="Giveaway", last_name="Owner")
+        claimant = UserFactory(first_name="Giveaway", last_name="Claimant")
+        giveaway = ItemFactory(
+            owner=owner,
+            category=CategoryFactory(),
+            is_giveaway=True,
+            claim_status="pending_pickup" if interest_status == "selected" else "unclaimed",
+            claimed_by=claimant if interest_status == "selected" else None,
+        )
+        GiveawayInterestFactory(item=giveaway, user=claimant, status=interest_status)
+        db.session.commit()
+
+        login_user(client, owner.email)
+        response = client.get(url_for("main.user_profile", user_id=claimant.id))
+
+        assert response.status_code == 200
+        assert b"Giveaway Claimant" in response.data
+        assert b"requested one of your giveaways" in response.data
+
+    def test_profile_blocked_when_giveaway_interest_withdrawn_no_shared_circle(self, client):
+        """Withdrawn giveaway interest no longer grants profile access."""
+        owner = UserFactory()
+        claimant = UserFactory()
+        giveaway = ItemFactory(
+            owner=owner,
+            category=CategoryFactory(),
+            is_giveaway=True,
+            claim_status="unclaimed",
+        )
+        interest = GiveawayInterestFactory(item=giveaway, user=claimant, status="active")
+        db.session.delete(interest)
+        db.session.commit()
+
+        login_user(client, owner.email)
+        response = client.get(url_for("main.user_profile", user_id=claimant.id))
 
         assert response.status_code == 302
 

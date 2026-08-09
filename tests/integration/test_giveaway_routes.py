@@ -1420,6 +1420,7 @@ class TestGiveawayOwnerMessaging:
 
             assert response.status_code == 200
             assert requester.full_name.encode() in response.data
+            assert f"/user/{requester.id}".encode() in response.data
             assert b"I really need this!" in response.data
             assert giveaway.name.encode() in response.data
 
@@ -1560,6 +1561,8 @@ class TestGiveawayOwnerMessaging:
             assert b"Bob Jones" in response.data
             # Check for Message button/link
             assert b"Message" in response.data
+            assert f"/user/{requester1.id}".encode() in response.data
+            assert f"/user/{requester2.id}".encode() in response.data
             assert (
                 f"/item/{giveaway.id}/message-requester/{requester1.id}".encode() in response.data
             )
