@@ -426,6 +426,7 @@ def user_profile(user_id):
             .filter(
                 or_(
                     Item.claim_status != "claimed",
+                    Item.claim_status.is_(None),
                     Item.claimed_at.is_(None),
                     Item.claimed_at >= claimed_cutoff,
                 )
