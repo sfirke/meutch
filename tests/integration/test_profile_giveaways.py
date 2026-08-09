@@ -236,6 +236,31 @@ class TestProfileGiveawaysSeparation:
             assert b"My Past Giveaways" in response.data
             assert b"Seven Day Item" in response.data
 
+    def test_profile_shows_claimed_giveaway_without_claimed_at(self, client, app, auth_user):
+        """Test that a claimed giveaway with no claimed_at is not silently dropped."""
+        with app.app_context():
+            user = auth_user()
+            recipient = UserFactory()
+            category = CategoryFactory()
+
+            # Data-integrity edge: claim_status is claimed but claimed_at is missing
+            ItemFactory(
+                owner=user,
+                category=category,
+                is_giveaway=True,
+                claim_status="claimed",
+                claimed_by=recipient,
+                name="Claimed No Date Item",
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get("/profile")
+
+            assert response.status_code == 200
+            assert b"My Past Giveaways" in response.data
+            assert b"Claimed No Date Item" in response.data
+
     def test_profile_shows_both_active_and_past_giveaways(self, client, app, auth_user):
         """Test that profile displays both sections when user has both types."""
         with app.app_context():
