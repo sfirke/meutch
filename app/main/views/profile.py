@@ -105,7 +105,10 @@ def profile():
     claimed_cutoff = datetime.now(UTC) - timedelta(days=PROFILE_CLAIMED_GIVEAWAY_WINDOW_DAYS)
     past_giveaways_query = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
         Item.claim_status == "claimed",
-        Item.claimed_at >= claimed_cutoff,
+        or_(
+            Item.claimed_at.is_(None),
+            Item.claimed_at >= claimed_cutoff,
+        ),
     )
     if my_items_search_filter is not None:
         past_giveaways_query = past_giveaways_query.filter(my_items_search_filter)
