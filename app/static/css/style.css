@@ -691,7 +691,7 @@ footer h6 {
 
     .circle-member-item .btn-sm,
     .join-request-item .btn-sm {
-        padding: 0.4rem 0.75rem;
+        padding: 0.5rem 1rem;
     }
 
     /* Join request items — stack the inner flex container so the name
