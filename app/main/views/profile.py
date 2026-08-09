@@ -19,6 +19,7 @@ from app.main import bp as main_bp
 from app.models import Item, ItemRequest, User, UserWebLink
 from app.services import account_service, location_service, profile_service
 from app.utils.digest_tokens import verify_digest_manage_token
+from app.utils.giveaway_visibility import PROFILE_CLAIMED_GIVEAWAY_WINDOW_DAYS
 
 
 @main_bp.route("/profile", methods=["GET", "POST"])
@@ -101,10 +102,10 @@ def profile():
         error_out=False,
     )
 
-    ninety_days_ago = datetime.now(UTC) - timedelta(days=90)
+    claimed_cutoff = datetime.now(UTC) - timedelta(days=PROFILE_CLAIMED_GIVEAWAY_WINDOW_DAYS)
     past_giveaways_query = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
         Item.claim_status == "claimed",
-        Item.claimed_at >= ninety_days_ago,
+        Item.claimed_at >= claimed_cutoff,
     )
     if my_items_search_filter is not None:
         past_giveaways_query = past_giveaways_query.filter(my_items_search_filter)
@@ -416,8 +417,16 @@ def user_profile(user_id):
     if can_view_items:
         page = request.args.get("page", 1, type=int)
         per_page = 12
+        claimed_cutoff = datetime.now(UTC) - timedelta(days=PROFILE_CLAIMED_GIVEAWAY_WINDOW_DAYS)
         items_pagination = (
             Item.query.filter_by(owner_id=user.id)
+            .filter(
+                or_(
+                    Item.claim_status != "claimed",
+                    Item.claimed_at.is_(None),
+                    Item.claimed_at >= claimed_cutoff,
+                )
+            )
             .order_by(Item.created_at.desc())
             .paginate(page=page, per_page=per_page, error_out=False)
         )
