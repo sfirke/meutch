@@ -409,7 +409,7 @@ class TestCompletedGiveawayVisibility:
             assert pending.name not in html
 
     def test_claimed_giveaway_visible_to_owner_in_profile(self, client, app, auth_user):
-        """Test that claimed giveaways appear in owner's profile for 90 days."""
+        """Test that claimed giveaways appear in owner's profile for 7 days."""
         with app.app_context():
             current_user = auth_user()
             circle = CircleFactory()
@@ -437,8 +437,8 @@ class TestCompletedGiveawayVisibility:
             assert claimed.name in html
             assert "Past Giveaways" in html
 
-    def test_claimed_giveaway_hidden_after_90_days_in_profile(self, client, app, auth_user):
-        """Test that claimed giveaways disappear from profile after 90 days."""
+    def test_claimed_giveaway_hidden_after_7_days_in_profile(self, client, app, auth_user):
+        """Test that claimed giveaways disappear from profile after 7 days."""
         with app.app_context():
             current_user = auth_user()
             circle = CircleFactory()
@@ -446,14 +446,14 @@ class TestCompletedGiveawayVisibility:
 
             claimer = UserFactory()
 
-            # Create a giveaway claimed 91 days ago
+            # Create a giveaway claimed 8 days ago
             old_claimed = ItemFactory(
                 owner=current_user,
                 is_giveaway=True,
                 giveaway_visibility="default",
                 claim_status="claimed",
                 claimed_by=claimer,
-                claimed_at=datetime.now(UTC) - timedelta(days=91),
+                claimed_at=datetime.now(UTC) - timedelta(days=8),
             )
 
             db.session.commit()
