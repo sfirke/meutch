@@ -693,6 +693,17 @@ footer h6 {
     .join-request-item .btn-sm {
         padding: 0.4rem 0.75rem;
     }
+
+    /* Join request items — stack the inner flex container so the name
+       doesn't collapse against the action buttons on narrow screens */
+    .join-request-item > .d-flex {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .join-request-item .member-list-name {
+        min-width: 80px;
+    }
 }
 
 @media (max-width: 576px) {
