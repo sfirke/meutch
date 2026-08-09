@@ -224,3 +224,26 @@ class TestUserProfileClaimedGiveawayFiltering:
             assert response.status_code == 200
             assert b"Old Excluded Giveaway" not in response.data
             assert b"Still Visible Giveaway" in response.data
+
+    def test_user_profile_shows_claimed_without_claimed_at(self, client, app, auth_user):
+        """Claimed giveaways with no claimed_at (data-integrity edge) remain visible."""
+        with app.app_context():
+            owner = auth_user()
+            claimer = UserFactory()
+
+            ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="claimed",
+                claimed_by=claimer,
+                name="Claimed No Date Giveaway",
+            )
+            owner_id = owner.id
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f"/user/{owner_id}")
+
+            assert response.status_code == 200
+            assert b"Claimed No Date Giveaway" in response.data
