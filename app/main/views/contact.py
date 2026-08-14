@@ -15,7 +15,14 @@ def contact():
     form = ContactForm()
 
     if form.validate_on_submit():
-        sent = send_contact_form_email(current_user, form.category.data, form.message.data)
+        try:
+            sent = send_contact_form_email(current_user, form.category.data, form.message.data)
+        except ValueError:
+            flash(
+                "Something went wrong sending your message. Please try again.",
+                "error",
+            )
+            return render_template("main/contact.html", form=form)
         if sent:
             flash(
                 "Your message has been sent to the Meutch team. Thank you!",
