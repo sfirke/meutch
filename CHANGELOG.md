@@ -5,6 +5,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ## August 2026
 
 ### Bug fixes
+- The Contact Us form no longer errors when submitting with the "Other" category ([#470](https://github.com/sfirke/meutch/pull/470)).
 - Circle join requests now show the requester's name on mobile portrait layouts — previously the name collapsed out of view, leaving only the avatar and action buttons ([#465](https://github.com/sfirke/meutch/pull/465)).
 
 ## July 2026
