@@ -1,6 +1,6 @@
 """Contact form route for authenticated users to message the Meutch team."""
 
-from flask import flash, redirect, render_template, url_for
+from flask import current_app, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
 from app.forms_contact import ContactForm
@@ -17,7 +17,8 @@ def contact():
     if form.validate_on_submit():
         try:
             sent = send_contact_form_email(current_user, form.category.data, form.message.data)
-        except ValueError:
+        except ValueError as exc:
+            current_app.logger.exception("Contact form email failed: %s", exc)
             flash(
                 "Something went wrong sending your message. Please try again.",
                 "error",
