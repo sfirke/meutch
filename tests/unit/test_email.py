@@ -702,7 +702,8 @@ class TestSendContactFormEmail:
                 text_content = mock_send.call_args[0][2]
                 assert test_message in text_content
 
-    def test_returns_false_when_no_admins(self, app):
+    @pytest.mark.parametrize("category", ["bug_report", "other"])
+    def test_returns_false_when_no_admins(self, app, category):
         """Test function returns False when no admin users exist, regardless of category."""
         with app.app_context():
             from app.utils.email import send_contact_form_email
@@ -711,7 +712,7 @@ class TestSendContactFormEmail:
             # No admin users created
 
             with patch("app.utils.email.send_email") as mock_send:
-                result = send_contact_form_email(sender, "other", "Test message body long enough")
+                result = send_contact_form_email(sender, category, "Test message body long enough")
 
                 assert result is False
                 mock_send.assert_not_called()
