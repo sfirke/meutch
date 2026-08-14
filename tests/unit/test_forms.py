@@ -681,6 +681,18 @@ class TestContactForm:
                 form = ContactForm(data=form_data)
                 assert form.validate() is True
 
+    def test_valid_contact_form_with_other(self, app):
+        """Test valid form with the 'other' category passes validation."""
+        with app.app_context():
+            with app.test_request_context():
+                form_data = {
+                    "category": "other",
+                    "message": "I have a general comment for the team.",
+                    "csrf_token": "test_token",
+                }
+                form = ContactForm(data=form_data)
+                assert form.validate() is True
+
     def test_empty_message(self, app):
         """Test empty message fails validation."""
         with app.app_context():

@@ -650,6 +650,24 @@ class TestSendContactFormEmail:
                 assert "Question" in subject
                 assert "Bob Johnson" in subject
 
+    def test_other_category_subject(self, app):
+        """Test subject for other category; should not raise ValueError."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory(first_name="Alice", last_name="Rivera")
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            with patch("app.utils.email.send_email", return_value=True) as mock_send:
+                result = send_contact_form_email(sender, "other", "Test message body long enough")
+
+                assert result is True
+                subject = mock_send.call_args[0][1]
+                assert "Other" in subject
+                assert "Alice Rivera" in subject
+
     def test_includes_sender_info_in_body(self, app):
         """Test email body contains sender's name and email."""
         with app.app_context():
@@ -685,7 +703,7 @@ class TestSendContactFormEmail:
                 assert test_message in text_content
 
     def test_returns_false_when_no_admins(self, app):
-        """Test function returns False when no admin users exist."""
+        """Test function returns False when no admin users exist, regardless of category."""
         with app.app_context():
             from app.utils.email import send_contact_form_email
 
@@ -693,9 +711,7 @@ class TestSendContactFormEmail:
             # No admin users created
 
             with patch("app.utils.email.send_email") as mock_send:
-                result = send_contact_form_email(
-                    sender, "bug_report", "Test message body long enough"
-                )
+                result = send_contact_form_email(sender, "other", "Test message body long enough")
 
                 assert result is False
                 mock_send.assert_not_called()
