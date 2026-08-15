@@ -1319,6 +1319,7 @@ _CATEGORY_LABELS = {
     "bug_report": "Bug Report",
     "feature_suggestion": "Feature Suggestion",
     "question": "Question",
+    "other": "Other",
 }
 
 
@@ -1327,7 +1328,7 @@ def send_contact_form_email(sender_user, category, message):
 
     Args:
         sender_user: The authenticated user submitting the form.
-        category: One of 'bug_report', 'feature_suggestion', 'question'.
+        category: One of 'bug_report', 'feature_suggestion', 'question', 'other'.
         message: The message body from the contact form.
 
     Returns:
@@ -1354,7 +1355,7 @@ def send_contact_form_email(sender_user, category, message):
         )
         raise ValueError(
             f"Unknown contact form category '{category}'. "
-            f"Valid categories are: bug_report, feature_suggestion, question"
+            f"Valid categories are: bug_report, feature_suggestion, question, other"
         )
 
     subject = f"Meutch - {category_label} from {sender_user.first_name} {sender_user.last_name}"
