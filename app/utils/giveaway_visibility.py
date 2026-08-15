@@ -4,9 +4,14 @@ from sqlalchemy import and_, or_, select
 
 from app.models import Item, User, circle_members
 
-# How many days claimed (rehomed) giveaways remain visible on profile views.
-# Mirrors the 7-day RESOLVED_FEED_WINDOW_DAYS used by the home feed.
+# How many days claimed (rehomed) giveaways remain visible when OTHER users
+# view a user's profile. Mirrors the 7-day RESOLVED_FEED_WINDOW_DAYS used by
+# the home feed.
 PROFILE_CLAIMED_GIVEAWAY_WINDOW_DAYS = 7
+
+# How many days claimed (rehomed) giveaways remain visible in the owner's own
+# "My Past Giveaways" section on /profile.
+OWN_PROFILE_CLAIMED_GIVEAWAY_WINDOW_DAYS = 90
 
 
 def _claimed_at_utc(claimed_at):

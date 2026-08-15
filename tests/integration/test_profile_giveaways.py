@@ -163,14 +163,14 @@ class TestProfileGiveawaysSeparation:
             recipient = UserFactory()
             category = CategoryFactory()
 
-            # Create claimed giveaway (3 days ago, within 7-day window)
+            # Create claimed giveaway (10 days ago, within 90-day window)
             ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
                 claim_status="claimed",
                 claimed_by=recipient,
-                claimed_at=datetime.now(UTC) - timedelta(days=3),
+                claimed_at=datetime.now(UTC) - timedelta(days=10),
                 name="Recently Claimed Item",
             )
             db.session.commit()
@@ -186,20 +186,20 @@ class TestProfileGiveawaysSeparation:
             assert b"Recently Claimed Item" in response.data
 
     def test_profile_hides_old_claimed_giveaways(self, client, app, auth_user):
-        """Test that profile does not display giveaways claimed > 7 days ago."""
+        """Test that profile does not display giveaways claimed > 90 days ago."""
         with app.app_context():
             user = auth_user()
             recipient = UserFactory()
             category = CategoryFactory()
 
-            # Create old claimed giveaway (8 days ago)
+            # Create old claimed giveaway (91 days ago)
             ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
                 claim_status="claimed",
                 claimed_by=recipient,
-                claimed_at=datetime.now(UTC) - timedelta(days=8),
+                claimed_at=datetime.now(UTC) - timedelta(days=91),
                 name="Old Claimed Item",
             )
             db.session.commit()
@@ -210,22 +210,22 @@ class TestProfileGiveawaysSeparation:
             assert response.status_code == 200
             assert b"Old Claimed Item" not in response.data
 
-    def test_profile_shows_giveaway_exactly_7_days_old(self, client, app, auth_user):
-        """Test that profile displays giveaways claimed exactly 7 days ago."""
+    def test_profile_shows_giveaway_exactly_90_days_old(self, client, app, auth_user):
+        """Test that profile displays giveaways claimed exactly 90 days ago."""
         with app.app_context():
             user = auth_user()
             recipient = UserFactory()
             category = CategoryFactory()
 
-            # Create giveaway claimed exactly 7 days ago (minus 1 hour to avoid timing issues)
+            # Create giveaway claimed exactly 90 days ago (minus 1 hour to avoid timing issues)
             ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
                 claim_status="claimed",
                 claimed_by=recipient,
-                claimed_at=datetime.now(UTC) - timedelta(days=7, hours=-1),
-                name="Seven Day Item",
+                claimed_at=datetime.now(UTC) - timedelta(days=90, hours=-1),
+                name="Ninety Day Item",
             )
             db.session.commit()
 
@@ -234,7 +234,7 @@ class TestProfileGiveawaysSeparation:
 
             assert response.status_code == 200
             assert b"My Past Giveaways" in response.data
-            assert b"Seven Day Item" in response.data
+            assert b"Ninety Day Item" in response.data
 
     def test_profile_shows_claimed_giveaway_without_claimed_at(self, client, app, auth_user):
         """Test that a claimed giveaway with no claimed_at is not silently dropped."""
@@ -323,14 +323,14 @@ class TestProfileGiveawaysSeparation:
             recipient = UserFactory()
             category = CategoryFactory()
 
-            # Create giveaways with different claimed dates (both within 7-day window)
+            # Create giveaways with different claimed dates (both within 90-day window)
             ItemFactory(
                 owner=user,
                 category=category,
                 is_giveaway=True,
                 claim_status="claimed",
                 claimed_by=recipient,
-                claimed_at=datetime.now(UTC) - timedelta(days=6),
+                claimed_at=datetime.now(UTC) - timedelta(days=20),
                 name="Older Claimed Item",
             )
 
@@ -340,7 +340,7 @@ class TestProfileGiveawaysSeparation:
                 is_giveaway=True,
                 claim_status="claimed",
                 claimed_by=recipient,
-                claimed_at=datetime.now(UTC) - timedelta(days=2),
+                claimed_at=datetime.now(UTC) - timedelta(days=5),
                 name="Newer Claimed Item",
             )
             db.session.commit()

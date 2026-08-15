@@ -19,7 +19,10 @@ from app.main import bp as main_bp
 from app.models import Item, ItemRequest, User, UserWebLink
 from app.services import account_service, location_service, profile_service
 from app.utils.digest_tokens import verify_digest_manage_token
-from app.utils.giveaway_visibility import PROFILE_CLAIMED_GIVEAWAY_WINDOW_DAYS
+from app.utils.giveaway_visibility import (
+    OWN_PROFILE_CLAIMED_GIVEAWAY_WINDOW_DAYS,
+    PROFILE_CLAIMED_GIVEAWAY_WINDOW_DAYS,
+)
 
 
 @main_bp.route("/profile", methods=["GET", "POST"])
@@ -102,7 +105,7 @@ def profile():
         error_out=False,
     )
 
-    claimed_cutoff = datetime.now(UTC) - timedelta(days=PROFILE_CLAIMED_GIVEAWAY_WINDOW_DAYS)
+    claimed_cutoff = datetime.now(UTC) - timedelta(days=OWN_PROFILE_CLAIMED_GIVEAWAY_WINDOW_DAYS)
     past_giveaways_query = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
         Item.claim_status == "claimed",
         or_(
