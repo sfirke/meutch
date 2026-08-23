@@ -15,6 +15,7 @@ from app.models import (
     Tag,
 )
 from app.services.exceptions import AuthorizationError, ConflictError, InformationalError
+from app.utils.item_queries import build_own_item_search_filter
 from app.utils.storage import MAX_ITEM_IMAGE_COUNT, delete_item_images, upload_item_images
 
 PUBLIC_GIVEAWAY_LOCATION_MESSAGE = (
@@ -191,13 +192,9 @@ def list_user_items(user, search_query=None, page=1, per_page=12, exclude_claime
             or_(Item.is_giveaway.is_(False), Item.claim_status.is_distinct_from("claimed"))
         )
 
-    if search_query:
-        query = query.filter(
-            or_(
-                Item.name.ilike(f"%{search_query}%"),
-                Item.description.ilike(f"%{search_query}%"),
-            )
-        )
+    search_filter = build_own_item_search_filter(search_query)
+    if search_filter is not None:
+        query = query.filter(search_filter)
 
     return query.order_by(Item.created_at.desc()).paginate(
         page=page,

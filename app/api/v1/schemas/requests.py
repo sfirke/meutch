@@ -108,11 +108,21 @@ class RequestWritePayloadSchema(ApiSchema):
 
 
 class RequestRespondSchema(ApiSchema):
-    """Write payload for responding to a request with one of your items."""
+    """Write payload for responding to a request with one of your items.
 
-    item_id = fields.UUID(required=True)
+    The item is addressed by the URL, so all this carries is the message.
+    Omit ``body`` to send the suggested draft unedited.
+    """
+
     body = fields.String(
         load_default=None,
         allow_none=True,
         validate=validate.Length(max=1000),
     )
+
+
+class RequestRespondDraftResponseSchema(ApiSchema):
+    """The suggested message for offering an item, before the sender edits it."""
+
+    suggested_body = fields.String(required=True)
+    seeking_mismatch = fields.String(required=True, allow_none=True)

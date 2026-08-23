@@ -19,6 +19,7 @@ from app.main import bp as main_bp
 from app.models import Item, ItemRequest, User, UserWebLink
 from app.services import account_service, location_service, profile_service
 from app.utils.digest_tokens import verify_digest_manage_token
+from app.utils.item_queries import build_own_item_search_filter
 
 
 @main_bp.route("/profile", methods=["GET", "POST"])
@@ -77,12 +78,7 @@ def profile():
     search_query = request.args.get("search", "").strip()
     per_page = 12
 
-    my_items_search_filter = None
-    if search_query:
-        my_items_search_filter = or_(
-            Item.name.ilike(f"%{search_query}%"),
-            Item.description.ilike(f"%{search_query}%"),
-        )
+    my_items_search_filter = build_own_item_search_filter(search_query)
 
     active_giveaways_query = Item.query.filter_by(
         owner_id=current_user.id, is_giveaway=True

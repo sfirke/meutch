@@ -1367,7 +1367,7 @@ class TestRequestEmailNotifications:
 class TestRespondWithItemFlow:
     """Test the "I have this item" respond flow."""
 
-    def _respondable_pair(self):
+    def _respondable_pair(self, **request_kwargs):
         """Return (responder, requester, request) sharing a circle."""
         responder = UserFactory(email="responder@example.com")
         requester = UserFactory()
@@ -1377,6 +1377,7 @@ class TestRespondWithItemFlow:
             user=requester,
             title="Looking for a ladder",
             visibility="circles",
+            **request_kwargs,
         )
         db.session.commit()
         return responder, requester, item_request
@@ -1548,3 +1549,67 @@ class TestRespondWithItemFlow:
 
             assert response.status_code == 302
             assert response.headers["Location"] == "/"
+
+    def test_picker_flags_a_seeking_mismatch(self, client, app):
+        """A loan item offered to a giveaway request is flagged, not hidden."""
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair(seeking="giveaway")
+            ItemFactory(owner=responder, name="Extension Ladder", is_giveaway=False)
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond")
+
+            assert response.status_code == 200
+            assert b"Extension Ladder" in response.data
+            assert b"asking for a giveaway" in response.data
+
+    def test_picker_stays_quiet_when_the_kinds_match(self, client, app):
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair(seeking="giveaway")
+            ItemFactory(
+                owner=responder,
+                name="Spare Ladder",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond")
+
+            assert response.status_code == 200
+            assert b"Spare Ladder" in response.data
+            assert b"asking for a giveaway" not in response.data
+
+    def test_compose_page_flags_a_seeking_mismatch(self, client, app):
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair(seeking="loan")
+            item = ItemFactory(
+                owner=responder,
+                name="Spare Ladder",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond/{item.id}")
+
+            assert response.status_code == 200
+            assert b"asking to borrow" in response.data
+
+    def test_compose_page_stays_quiet_when_the_kinds_match(self, client, app):
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair(seeking="either")
+            item = ItemFactory(owner=responder, name="Extension Ladder")
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond/{item.id}")
+
+            assert response.status_code == 200
+            assert b"asking to borrow" not in response.data
+            assert b"asking for a giveaway" not in response.data

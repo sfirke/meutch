@@ -313,8 +313,8 @@ class TestApiRespondToRequest:
 
         with patch("app.services.message_service.send_message_notification_email"):
             response = client.post(
-                f"/api/v1/requests/{request_id}/respond",
-                json={"item_id": str(item_id)},
+                f"/api/v1/requests/{request_id}/respond/{item_id}",
+                json={},
                 headers=auth_headers(access_token),
             )
 
@@ -337,8 +337,8 @@ class TestApiRespondToRequest:
 
         with patch("app.services.message_service.send_message_notification_email"):
             response = client.post(
-                f"/api/v1/requests/{request_id}/respond",
-                json={"item_id": str(item_id), "body": "Happy to lend you mine!"},
+                f"/api/v1/requests/{request_id}/respond/{item_id}",
+                json={"body": "Happy to lend you mine!"},
                 headers=auth_headers(access_token),
             )
 
@@ -354,8 +354,8 @@ class TestApiRespondToRequest:
             access_token = login_api_user(client, responder.email)
 
         response = client.post(
-            f"/api/v1/requests/{request_id}/respond",
-            json={"item_id": str(other_item_id)},
+            f"/api/v1/requests/{request_id}/respond/{other_item_id}",
+            json={},
             headers=auth_headers(access_token),
         )
 
@@ -372,8 +372,8 @@ class TestApiRespondToRequest:
             access_token = login_api_user(client, stranger.email)
 
         response = client.post(
-            f"/api/v1/requests/{request_id}/respond",
-            json={"item_id": str(item_id)},
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            json={},
             headers=auth_headers(access_token),
         )
 
@@ -386,23 +386,84 @@ class TestApiRespondToRequest:
             access_token = login_api_user(client, responder.email)
 
         response = client.post(
-            f"/api/v1/requests/{request_id}/respond",
-            json={"item_id": str(item_id)},
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            json={},
             headers=auth_headers(access_token),
         )
 
         assert response.status_code == 400
 
-    def test_respond_requires_an_item_id(self, client, app):
+    def test_respond_rejects_an_over_long_body(self, client, app):
         with app.app_context():
-            responder, _requester, _item, item_request = self._setup()
-            request_id = item_request.id
+            responder, _requester, item, item_request = self._setup()
+            item_id, request_id = item.id, item_request.id
             access_token = login_api_user(client, responder.email)
 
         response = client.post(
-            f"/api/v1/requests/{request_id}/respond",
-            json={},
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            json={"body": "x" * 1001},
             headers=auth_headers(access_token),
         )
 
         assert response.status_code == 422
+
+    def test_draft_returns_the_suggested_body(self, client, app):
+        with app.app_context():
+            responder, _requester, item, item_request = self._setup()
+            item_id, request_id = item.id, item_request.id
+            access_token = login_api_user(client, responder.email)
+
+        response = client.get(
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert "Extension Ladder" in payload["suggested_body"]
+        assert f"/item/{item_id}" in payload["suggested_body"]
+        assert payload["seeking_mismatch"] is None
+
+    def test_draft_reports_a_seeking_mismatch(self, client, app):
+        """A loan item offered to a giveaway request is flagged, not blocked."""
+        with app.app_context():
+            responder, _requester, item, item_request = self._setup(seeking="giveaway")
+            item_id, request_id = item.id, item_request.id
+            access_token = login_api_user(client, responder.email)
+
+        response = client.get(
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert "asking for a giveaway" in response.get_json()["seeking_mismatch"]
+
+    def test_draft_rejects_an_item_you_do_not_own(self, client, app):
+        with app.app_context():
+            responder, _requester, _item, item_request = self._setup()
+            other_item = ItemFactory(owner=UserFactory(), name="Not Mine")
+            db.session.commit()
+            other_item_id, request_id = other_item.id, item_request.id
+            access_token = login_api_user(client, responder.email)
+
+        response = client.get(
+            f"/api/v1/requests/{request_id}/respond/{other_item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 403
+
+    def test_draft_does_not_send_anything(self, client, app):
+        with app.app_context():
+            responder, requester, item, item_request = self._setup()
+            item_id, request_id, requester_id = item.id, item_request.id, requester.id
+            access_token = login_api_user(client, responder.email)
+
+        client.get(
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        with app.app_context():
+            assert Message.query.filter_by(recipient_id=requester_id).count() == 0

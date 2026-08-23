@@ -16,6 +16,7 @@ from app.api.v1.schemas.requests import (
     ItemRequestResponseSchema,
     ItemRequestStatusResponseSchema,
     ItemRequestSummarySchema,
+    RequestRespondDraftResponseSchema,
     RequestRespondSchema,
     RequestWritePayloadSchema,
 )
@@ -23,7 +24,11 @@ from app.models import Item, ItemRequest
 from app.services import message_service, request_service
 from app.services.exceptions import AuthorizationError
 from app.utils.messaging_queries import build_request_conversation_summaries
-from app.utils.request_queries import build_visible_requests_pagination, can_view_request
+from app.utils.request_queries import (
+    build_visible_requests_pagination,
+    can_view_request,
+    describe_seeking_mismatch,
+)
 
 REQUEST_LIST_QUERY_SCHEMA = RequestListQuerySchema()
 ITEM_REQUEST_SUMMARY_SCHEMA = ItemRequestSummarySchema(many=True)
@@ -32,6 +37,7 @@ ITEM_REQUEST_RESPONSE_SCHEMA = ItemRequestResponseSchema()
 ITEM_REQUEST_STATUS_RESPONSE_SCHEMA = ItemRequestStatusResponseSchema()
 REQUEST_WRITE_PAYLOAD_SCHEMA = RequestWritePayloadSchema()
 REQUEST_RESPOND_SCHEMA = RequestRespondSchema()
+REQUEST_RESPOND_DRAFT_RESPONSE_SCHEMA = RequestRespondDraftResponseSchema()
 MESSAGE_RESPONSE_SCHEMA = MessageResponseSchema()
 DEFAULT_GEOLOCATED_REQUEST_DISTANCE = 20
 
@@ -155,18 +161,37 @@ def fulfill_request(request_id):
     )
 
 
-@bp.post("/requests/<uuid:request_id>/respond")
+@bp.get("/requests/<uuid:request_id>/respond/<uuid:item_id>")
+@jwt_required()
+def get_respond_draft(request_id, item_id):
+    """Return the suggested message for offering *item_id* against a request.
+
+    Mirrors the web compose screen, which pre-fills the same text.  Clients
+    should show this to the sender, let them edit it, and POST the result.
+    """
+    item_request = db.get_or_404(ItemRequest, request_id)
+    item = db.get_or_404(Item, item_id)
+    suggested_body = message_service.build_respond_draft(item_request, current_user, item)
+    return REQUEST_RESPOND_DRAFT_RESPONSE_SCHEMA.dump(
+        {
+            "suggested_body": suggested_body,
+            "seeking_mismatch": describe_seeking_mismatch(item_request, item),
+        }
+    )
+
+
+@bp.post("/requests/<uuid:request_id>/respond/<uuid:item_id>")
 @jwt_required()
 @mutation_limit()
-def respond_to_request(request_id):
+def respond_to_request(request_id, item_id):
     """Respond to a request by sharing one of the authenticated user's items."""
     item_request = db.get_or_404(ItemRequest, request_id)
+    item = db.get_or_404(Item, item_id)
     data = load_request_data(REQUEST_RESPOND_SCHEMA)
-    item = db.get_or_404(Item, data["item_id"])
     message = message_service.respond_to_request_with_item(
         item_request,
         current_user,
         item,
-        body=data.get("body"),
+        body=data["body"],
     )
     return MESSAGE_RESPONSE_SCHEMA.dump({"message": message}), 201

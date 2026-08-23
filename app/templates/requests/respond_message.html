@@ -49,6 +49,16 @@
                 </div>
             </div>
 
+            {% if seeking_mismatch %}
+                <div class="alert alert-warning d-flex align-items-start" role="alert">
+                    <i class="fas fa-triangle-exclamation me-2 mt-1"></i>
+                    <div>
+                        {{ seeking_mismatch }}
+                        You can still offer it &mdash; just say what you have in mind in your message.
+                    </div>
+                </div>
+            {% endif %}
+
             <!-- Message form -->
             <div class="card">
                 <div class="card-body">

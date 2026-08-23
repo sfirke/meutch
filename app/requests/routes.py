@@ -20,7 +20,7 @@ from app.utils.messaging_queries import (
     build_request_conversation_summaries,
     find_context_conversation,
 )
-from app.utils.request_queries import can_view_request
+from app.utils.request_queries import can_view_request, describe_seeking_mismatch
 
 
 @requests_bp.route("/")
@@ -276,6 +276,9 @@ def respond(request_id):
         item_request=item_request,
         pagination=pagination,
         search_query=search_query or "",
+        seeking_mismatches={
+            item.id: describe_seeking_mismatch(item_request, item) for item in pagination.items
+        },
     )
 
 
@@ -320,4 +323,5 @@ def respond_with_item(request_id, item_id):
         form=form,
         item_request=item_request,
         item=item,
+        seeking_mismatch=describe_seeking_mismatch(item_request, item),
     )

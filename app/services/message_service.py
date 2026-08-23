@@ -125,6 +125,26 @@ def build_respond_message_body(item_request, sender, item):
     )
 
 
+def _ensure_item_offerable(item, sender):
+    if item.owner_id != sender.id:
+        raise AuthorizationError("You can only respond with your own items.")
+
+
+def build_respond_draft(item_request, sender, item):
+    """Return the suggested message body for offering *item* to a requester.
+
+    This is the checked entry point behind the compose step: it runs the same
+    ownership and access validation as :func:`respond_to_request_with_item`, so
+    a caller can safely show the draft before anything is sent.
+
+    Raises the same errors as :func:`respond_to_request_with_item`.
+    """
+    _ensure_item_offerable(item, sender)
+    validate_respond_access(item_request, sender)
+
+    return build_respond_message_body(item_request, sender, item)
+
+
 def respond_to_request_with_item(item_request, sender, item, body=None):
     """Respond to *item_request* by sharing *item* with the requester.
 
@@ -136,14 +156,14 @@ def respond_to_request_with_item(item_request, sender, item, body=None):
         item_request: The :class:`ItemRequest` being responded to.
         sender: The :class:`User` responding (must own *item*).
         item: The :class:`Item` being offered in response.
-        body: Optional custom message body.  When ``None`` a
-            pre-formatted message is generated.
+        body: The message to send, normally the draft from
+            :func:`build_respond_draft` after the sender has edited it.  When
+            ``None`` the draft is generated and sent as-is.
 
     Returns:
         The newly created :class:`Message`.
     """
-    if item.owner_id != sender.id:
-        raise AuthorizationError("You can only respond with your own items.")
+    _ensure_item_offerable(item, sender)
 
     recipient_id = validate_respond_access(item_request, sender)
 
