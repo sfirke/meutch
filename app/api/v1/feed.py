@@ -11,6 +11,7 @@ from app.api.v1.schemas.feed import FeedEventSchema
 from app.api.v1.schemas.query import FeedQuerySchema
 from app.utils.home_feed import build_homepage_feed_events
 from app.utils.pagination import ListPagination
+from app.utils.profile_visibility import viewable_profile_user_ids
 
 FEED_QUERY_SCHEMA = FeedQuerySchema()
 FEED_EVENT_SCHEMA = FeedEventSchema(many=True)
@@ -43,6 +44,14 @@ def list_feed_events():
         page=query_data["page"],
         per_page=query_data["per_page"],
     )
+    # actor_id alone says nothing about whether the caller may open that
+    # profile — public requests and giveaways surface people outside the
+    # caller's circles — so say so explicitly for the page being returned.
+    viewable_actor_ids = viewable_profile_user_ids(
+        current_user, (event.get("actor_id") for event in pagination.items)
+    )
+    for event in pagination.items:
+        event["actor_profile_viewable"] = event.get("actor_id") in viewable_actor_ids
 
     return build_collection_response(
         "events",

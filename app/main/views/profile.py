@@ -397,38 +397,29 @@ def update_location():
 @main_bp.route("/user/<uuid:user_id>")
 @login_required
 def user_profile(user_id):
+    access_via_conversation = False
+
     if current_user.is_admin or current_user.id == user_id:
         user = db.get_or_404(User, user_id)
-        shares_circle = False
-        has_loan = False
-        has_giveaway_interest = False
     else:
         target_user = db.session.get(User, user_id)
-        shares_circle = bool(target_user and current_user.shares_circle_with(target_user))
-        has_loan = bool(target_user and current_user.has_active_loan_relationship_with(target_user))
-        has_giveaway_interest = bool(
-            target_user and current_user.has_active_giveaway_interest_relationship_with(target_user)
-        )
-        if (
-            not target_user
-            or target_user.is_deleted
-            or (not shares_circle and not has_loan and not has_giveaway_interest)
-        ):
+        if not target_user or target_user.is_deleted:
             flash("You can only view profiles of users in your circles.", "warning")
             return redirect(url_for("main.index"))
+
+        # Sharing a circle is the usual route in; sharing a conversation also
+        # grants access, in both directions, for as long as the conversation
+        # exists.  Borrowing, claiming a giveaway, and answering an item
+        # request all open one.
+        if not current_user.shares_circle_with(target_user):
+            access_via_conversation = current_user.has_conversation_with(target_user)
+            if not access_via_conversation:
+                flash("You can only view profiles of users in your circles.", "warning")
+                return redirect(url_for("main.index"))
+
         user = target_user
 
     can_view_items = current_user.is_admin or current_user.id == user.id
-    access_via_loan = (
-        current_user.id != user.id and not current_user.is_admin and not shares_circle and has_loan
-    )
-    access_via_giveaway_interest = (
-        current_user.id != user.id
-        and not current_user.is_admin
-        and not shares_circle
-        and not has_loan
-        and has_giveaway_interest
-    )
 
     items = []
     items_pagination = None
@@ -469,8 +460,7 @@ def user_profile(user_id):
         delete_forms=delete_forms,
         confirm_handoff_forms=confirm_handoff_forms,
         can_view_items=can_view_items,
-        access_via_loan=access_via_loan,
-        access_via_giveaway_interest=access_via_giveaway_interest,
+        access_via_conversation=access_via_conversation,
         shared_circles=shared_circles,
     )
 

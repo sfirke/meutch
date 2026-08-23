@@ -133,7 +133,7 @@
                 <article class="card shadow-sm border-0 activity-feed-card{% if is_claimed_giveaway %} giveaway-card-claimed{% endif %} {{ border_class }}">
                     <div class="card-body py-3">
                         <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
-                            {% set actor_profile_url = url_for('main.user_profile', user_id=event.actor_id) if event.actor_id and event.actor_id != current_user.id else None %}
+                            {% set actor_profile_url = url_for('main.user_profile', user_id=event.actor_id) if event.actor_id in linkable_actor_ids|default([]) else None %}
                             {% if event.actor_avatar_url %}
                                 {% if actor_profile_url %}
                                     <a href="{{ actor_profile_url }}" class="flex-shrink-0" aria-hidden="true" tabindex="-1">
@@ -151,7 +151,7 @@
                             {% endif %}
                             <div class="text-truncate">
                                 {% if actor_profile_url %}
-                                    <a href="{{ actor_profile_url }}" class="text-body"><strong>{{ event.actor_name }}</strong></a>
+                                    <a href="{{ actor_profile_url }}" class="text-body text-decoration-none activity-feed-actor-link"><strong>{{ event.actor_name }}</strong></a>
                                 {% else %}
                                     <strong class="text-body">{{ event.actor_name }}</strong>
                                 {% endif %}

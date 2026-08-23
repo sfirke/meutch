@@ -1,11 +1,12 @@
 """Integration tests for main routes."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
 
 from app import db
 from app.models import Circle
+from app.services import loan_service
 from conftest import login_user
 from tests.factories import (
     CategoryFactory,
@@ -333,6 +334,56 @@ class TestMainRoutes:
             assert response.status_code == 200
             assert "Linkable Actor" in content
             assert f'href="/user/{requester.id}"' in content
+
+    def test_feed_actor_name_is_plain_text_when_profile_not_viewable(self, client, app, auth_user):
+        """A public-request actor outside the viewer's circles is not linked (dead-end link)."""
+        with app.app_context():
+            viewer = auth_user()
+            stranger = UserFactory(first_name="Public", last_name="Stranger")
+            viewer_circle = CircleFactory(name="Viewer Only Circle")
+            stranger_circle = CircleFactory(name="Stranger Only Circle")
+            viewer_circle.members.append(viewer)
+            stranger_circle.members.append(stranger)
+            ItemRequestFactory(user=stranger, title="Stranger Request", visibility="public")
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get("/")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "Stranger Request" in content
+            assert f'href="/user/{stranger.id}"' not in content
+
+    def test_feed_actor_name_is_link_when_access_is_via_conversation(self, client, app, auth_user):
+        """An actor the viewer can reach only through a conversation is still linked."""
+        with app.app_context():
+            viewer = auth_user()
+            borrower = UserFactory(first_name="Loan", last_name="Actor")
+            viewer_circle = CircleFactory(name="Conversation Viewer Circle")
+            borrower_circle = CircleFactory(name="Conversation Borrower Circle")
+            viewer_circle.members.append(viewer)
+            borrower_circle.members.append(borrower)
+            item = ItemFactory(owner=viewer, category=CategoryFactory(), name="Loaned Drill")
+            db.session.commit()
+
+            loan_service.create_loan_request(
+                item,
+                borrower.id,
+                date.today(),
+                date.today() + timedelta(days=3),
+                "May I borrow this?",
+            )
+            ItemRequestFactory(user=borrower, title="Borrower Request", visibility="public")
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get("/")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "Borrower Request" in content
+            assert f'href="/user/{borrower.id}"' in content
 
     def test_feed_actor_name_is_plain_text_when_no_actor_id(self, client, app, auth_user):
         """Home feed renders plain text when actor_id is None (deleted actor)."""

@@ -7,6 +7,8 @@ from conftest import TEST_PASSWORD
 from tests.factories import (
     CategoryFactory,
     CircleFactory,
+    ConversationFactory,
+    ConversationParticipantFactory,
     ItemFactory,
     LoanRequestFactory,
     MessageFactory,
@@ -219,64 +221,54 @@ class TestUser:
             assert viewer.shared_circles_with(other_user) == []
             assert viewer.shares_circle_with(other_user) is False
 
-    def test_has_active_loan_relationship_with_true(self, app):
-        """Returns True when self owns an item with an active LoanRequest from other_user."""
+    def test_has_conversation_with_true(self, app):
+        """Returns True for both participants once a conversation exists."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=owner)
+            ConversationParticipantFactory(conversation=conversation, user=borrower)
+            db.session.commit()
+
+            assert owner.has_conversation_with(borrower) is True
+            assert borrower.has_conversation_with(owner) is True
+
+    def test_has_conversation_with_survives_a_completed_loan(self, app):
+        """A conversation keeps granting access after the loan it started is completed."""
         with app.app_context():
             owner = UserFactory()
             borrower = UserFactory()
             category = CategoryFactory()
-            item = ItemFactory(owner=owner, category=category, name="Shared Drill")
-            LoanRequestFactory(item=item, borrower=borrower, status="pending")
+            item = ItemFactory(owner=owner, category=category, name="Returned Drill")
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            ConversationParticipantFactory(conversation=conversation, user=owner)
+            ConversationParticipantFactory(conversation=conversation, user=borrower)
+            LoanRequestFactory(item=item, borrower=borrower, status="completed")
             db.session.commit()
 
-            assert owner.has_active_loan_relationship_with(borrower) is True
+            assert owner.has_conversation_with(borrower) is True
 
-    def test_has_active_loan_relationship_with_true_approved(self, app):
-        """Returns True when the LoanRequest is approved (still active)."""
-        with app.app_context():
-            owner = UserFactory()
-            borrower = UserFactory()
-            category = CategoryFactory()
-            item = ItemFactory(owner=owner, category=category, name="Shared Saw")
-            LoanRequestFactory(item=item, borrower=borrower, status="approved")
-            db.session.commit()
-
-            assert owner.has_active_loan_relationship_with(borrower) is True
-
-    def test_has_active_loan_relationship_with_false_no_relationship(self, app):
-        """Returns False when no active LoanRequest exists between the users."""
+    def test_has_conversation_with_false_for_unrelated_users(self, app):
+        """Returns False when the two users have never shared a conversation."""
         with app.app_context():
             owner = UserFactory()
             stranger = UserFactory()
-            other_borrower = UserFactory()
-            category = CategoryFactory()
-            item = ItemFactory(owner=owner, category=category, name="Lent Elsewhere")
-            LoanRequestFactory(item=item, borrower=other_borrower, status="pending")
+            other_user = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=owner)
+            ConversationParticipantFactory(conversation=conversation, user=other_user)
             db.session.commit()
 
-            assert owner.has_active_loan_relationship_with(stranger) is False
+            assert owner.has_conversation_with(stranger) is False
 
-    def test_has_active_loan_relationship_with_false_completed(self, app):
-        """Returns False for completed/canceled/denied LoanRequests."""
-        with app.app_context():
-            owner = UserFactory()
-            borrower = UserFactory()
-            category = CategoryFactory()
-
-            for status in ("completed", "canceled", "denied"):
-                item = ItemFactory(owner=owner, category=category)
-                LoanRequestFactory(item=item, borrower=borrower, status=status)
-            db.session.commit()
-
-            assert owner.has_active_loan_relationship_with(borrower) is False
-
-    def test_has_active_loan_relationship_with_none(self, app):
+    def test_has_conversation_with_none(self, app):
         """Returns False when other_user is None."""
         with app.app_context():
             owner = UserFactory()
             db.session.commit()
 
-            assert owner.has_active_loan_relationship_with(None) is False
+            assert owner.has_conversation_with(None) is False
 
     def test_user_shared_circles_with_returns_empty_for_missing_user(self, app):
         """Shared circles should be empty when no other user is provided."""

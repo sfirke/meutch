@@ -1991,6 +1991,11 @@ footer h6 {
     border-radius: 9999px !important;
 }
 
+.activity-feed-actor-link:hover,
+.activity-feed-actor-link:focus-visible {
+    text-decoration: underline !important;
+}
+
 @media (max-width: 767.98px) {
     .activity-feed-header {
         border-radius: calc(var(--border-radius) * 2);

@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from flask import url_for
 from flask_login import UserMixin
-from sqlalchemy import func, or_
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import UUID
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -120,53 +120,32 @@ class User(UserMixin, db.Model):
         """
         return bool(self.shared_circles_with(other_user))
 
-    def has_active_loan_relationship_with(self, other_user):
+    def has_conversation_with(self, other_user):
         """
-        Return True if self owns an item that other_user has an active LoanRequest for.
+        Check whether self and another user share a message conversation.
 
-        "Active" means the LoanRequest status is "pending" or "approved"
-        (not "canceled", "denied", or "completed").
+        Requesting a loan, expressing interest in a giveaway, and replying to
+        an item request all open a conversation, so this covers every way two
+        people transact on Meutch — and it keeps working after the item is
+        returned or handed off, when they may still need to reach each other.
 
         Args:
             other_user: User object to check against
 
         Returns:
-            True if the users have an active loan relationship, False otherwise
+            True if the two users are participants in the same conversation
         """
         if not other_user:
             return False
-        return db.session.query(
-            LoanRequest.query.join(Item, LoanRequest.item_id == Item.id)
-            .filter(
-                Item.owner_id == self.id,
-                LoanRequest.borrower_id == other_user.id,
-                LoanRequest.status.in_(["pending", "approved"]),
-            )
-            .exists()
-        ).scalar()
 
-    def has_active_giveaway_interest_relationship_with(self, other_user):
-        """Return True if self owns a giveaway that other_user wants to claim.
-
-        An interest remains active while it is awaiting selection or while the
-        interested user is selected for pickup. It no longer grants access
-        after the giveaway handoff is complete.
-        """
-        if not other_user:
-            return False
+        my_conversation_ids = select(ConversationParticipant.conversation_id).where(
+            ConversationParticipant.user_id == self.id
+        )
         return db.session.query(
-            GiveawayInterest.query.join(Item, GiveawayInterest.item_id == Item.id)
-            .filter(
-                Item.owner_id == self.id,
-                Item.is_giveaway.is_(True),
-                or_(
-                    Item.claim_status.is_(None),
-                    Item.claim_status.in_(["unclaimed", "pending_pickup"]),
-                ),
-                GiveawayInterest.user_id == other_user.id,
-                GiveawayInterest.status.in_(["active", "selected"]),
-            )
-            .exists()
+            ConversationParticipant.query.filter(
+                ConversationParticipant.user_id == other_user.id,
+                ConversationParticipant.conversation_id.in_(my_conversation_ids),
+            ).exists()
         ).scalar()
 
     def get_shared_circle_user_ids_query(self):
