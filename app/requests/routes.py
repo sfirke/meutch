@@ -229,21 +229,35 @@ def conversation(request_id):
     return render_template("requests/conversation_start.html", form=form, item_request=item_request)
 
 
-@requests_bp.route("/<uuid:request_id>/respond")
-@login_required
-def respond(request_id):
-    """Browse the current user's items to respond to a request."""
+def _load_respondable_request(request_id):
+    """Load a request the current user is allowed to respond to.
+
+    Returns ``(item_request, error_response)`` where exactly one is ``None``.
+    Missing, deleted and forbidden requests abort with 404/403 to match
+    :func:`detail` and :func:`conversation`.
+    """
     item_request = db.session.get(ItemRequest, request_id)
-    if not item_request:
+    if not item_request or item_request.status == "deleted":
         abort(404)
 
     try:
         message_service.validate_respond_access(item_request, current_user)
     except InvalidActionError as exc:
         flash(str(exc), "warning")
-        return redirect(url_for("requests.detail", request_id=item_request.id))
+        return None, redirect(url_for("requests.detail", request_id=item_request.id))
     except AuthorizationError:
         abort(403)
+
+    return item_request, None
+
+
+@requests_bp.route("/<uuid:request_id>/respond")
+@login_required
+def respond(request_id):
+    """Browse the current user's items to respond to a request."""
+    item_request, error_response = _load_respondable_request(request_id)
+    if error_response:
+        return error_response
 
     search_query = request.args.get("q", "").strip() or None
     page = request.args.get("page", 1, type=int)
@@ -254,6 +268,7 @@ def respond(request_id):
         search_query=search_query,
         page=page,
         per_page=per_page,
+        exclude_claimed_giveaways=True,
     )
 
     return render_template(
@@ -268,17 +283,9 @@ def respond(request_id):
 @login_required
 def respond_with_item(request_id, item_id):
     """Compose a message responding to a request with a specific item."""
-    item_request = db.session.get(ItemRequest, request_id)
-    if not item_request:
-        abort(404)
-
-    try:
-        message_service.validate_respond_access(item_request, current_user)
-    except InvalidActionError as exc:
-        flash(str(exc), "warning")
-        return redirect(url_for("requests.detail", request_id=item_request.id))
-    except AuthorizationError:
-        abort(403)
+    item_request, error_response = _load_respondable_request(request_id)
+    if error_response:
+        return error_response
 
     item = db.session.get(Item, item_id)
     if not item or item.owner_id != current_user.id:

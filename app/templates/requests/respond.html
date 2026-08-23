@@ -34,9 +34,11 @@
             <h4 class="mb-0">Select from your existing items</h4>
             <p class="text-muted mb-0 small">Choose an item you've already listed to offer in response to this request.</p>
         </div>
-        <a href="#create-new-section" class="btn btn-outline-success btn-sm">
-            <i class="fas fa-plus me-1"></i>Add new item instead ↓
-        </a>
+        {% if pagination.items %}
+            <a href="#create-new-section" class="btn btn-outline-success btn-sm">
+                <i class="fas fa-plus me-1"></i>Add new item instead ↓
+            </a>
+        {% endif %}
     </div>
 
     <form method="get" action="{{ url_for('requests.respond', request_id=item_request.id) }}" class="mb-3">
@@ -77,7 +79,9 @@
                                 {% else %}
                                     <span class="badge bg-info"><i class="fas fa-handshake me-1"></i>Loan</span>
                                 {% endif %}
-                                {% if not item.available %}
+                                {% if item.is_giveaway and item.claim_status == 'pending_pickup' %}
+                                    <span class="badge bg-warning">Awaiting pickup</span>
+                                {% elif not item.available %}
                                     <span class="badge bg-warning">Unavailable</span>
                                 {% endif %}
                             </div>

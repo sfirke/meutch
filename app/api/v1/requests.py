@@ -157,6 +157,7 @@ def fulfill_request(request_id):
 
 @bp.post("/requests/<uuid:request_id>/respond")
 @jwt_required()
+@mutation_limit()
 def respond_to_request(request_id):
     """Respond to a request by sharing one of the authenticated user's items."""
     item_request = db.get_or_404(ItemRequest, request_id)

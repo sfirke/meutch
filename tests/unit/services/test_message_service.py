@@ -431,8 +431,8 @@ class TestRespondToRequest:
 
             url = self._build_url(item, owner, requester)
 
-            assert "/item/" in url
-            assert str(item.id) in url
+            assert "/share/item/" not in url
+            assert url.endswith(f"/item/{item.id}")
 
     def test_no_shared_circle_gets_share_token_url(self, app):
         """When requester cannot see the item, a tokenized share-preview URL is used."""
@@ -464,8 +464,8 @@ class TestRespondToRequest:
 
             url = self._build_url(item, owner, requester)
 
-            assert "/item/" in url
-            assert str(item.id) in url
+            assert "/share/item/" not in url
+            assert url.endswith(f"/item/{item.id}")
 
     def test_respond_to_request_uses_share_token_when_no_shared_circle(self, app):
         """When requester can't see the item, the generated message includes a share token URL."""

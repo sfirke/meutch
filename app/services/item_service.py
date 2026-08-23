@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app import db
@@ -167,6 +167,43 @@ def _ensure_item_image_capacity(existing_count, new_count):
 def _ensure_public_giveaway_owner_is_geocoded(owner, is_giveaway, giveaway_visibility):
     if is_giveaway and giveaway_visibility == "public" and not owner.is_geocoded:
         raise InformationalError(PUBLIC_GIVEAWAY_LOCATION_MESSAGE)
+
+
+def list_user_items(user, search_query=None, page=1, per_page=12, exclude_claimed_giveaways=False):
+    """Return a paginated list of items owned by *user*, newest first.
+
+    Args:
+        user: The owner whose items should be listed.
+        search_query: Optional text filter matched against name and description.
+        page: 1-based page number (default 1).
+        per_page: Items per page (default 12).
+        exclude_claimed_giveaways: When True, omit giveaways that have already
+            been handed off.  Callers offering an item to someone else want
+            this, since a claimed giveaway is no longer viewable by others.
+
+    Returns:
+        A Flask-SQLAlchemy Pagination object.
+    """
+    query = Item.query.filter_by(owner_id=user.id)
+
+    if exclude_claimed_giveaways:
+        query = query.filter(
+            or_(Item.is_giveaway.is_(False), Item.claim_status.is_distinct_from("claimed"))
+        )
+
+    if search_query:
+        query = query.filter(
+            or_(
+                Item.name.ilike(f"%{search_query}%"),
+                Item.description.ilike(f"%{search_query}%"),
+            )
+        )
+
+    return query.order_by(Item.created_at.desc()).paginate(
+        page=page,
+        per_page=per_page,
+        error_out=False,
+    )
 
 
 def create_item(
@@ -395,37 +432,6 @@ def delete_item(item, acting_user):
 
     delete_item_with_cleanup(item)
     return item
-
-
-def list_user_items(user, search_query=None, page=1, per_page=12):
-    """Return a paginated list of items owned by *user*.
-
-    Args:
-        user: The owner whose items should be listed.
-        search_query: Optional text filter matched against name and description.
-        page: 1-based page number (default 1).
-        per_page: Items per page (default 12).
-
-    Returns:
-        A Flask-SQLAlchemy Pagination object.
-    """
-    from sqlalchemy import or_
-
-    query = Item.query.filter_by(owner_id=user.id)
-
-    if search_query:
-        query = query.filter(
-            or_(
-                Item.name.ilike(f"%{search_query}%"),
-                Item.description.ilike(f"%{search_query}%"),
-            )
-        )
-
-    return query.order_by(Item.created_at.desc()).paginate(
-        page=page,
-        per_page=per_page,
-        error_out=False,
-    )
 
 
 def delete_item_with_cleanup(item):
