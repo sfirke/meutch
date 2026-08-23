@@ -5,11 +5,16 @@
 {% block content %}
     <div class="activity-feed-page position-relative">
     <section class="activity-feed-header mb-3">
-        <div class="d-flex flex-row justify-content-between align-items-center mb-1">
+        <!-- Desktop layout: single-row toolbar with Filters left of action buttons -->
+        <div class="d-none d-md-flex justify-content-between align-items-center">
             <div>
                 <h1 class="h3 mb-0">Community Activity</h1>
+                <p class="text-muted mb-0 small">Recent requests, giveaways, and lending activity.</p>
             </div>
-            <div class="d-none d-md-flex gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
+                    <i class="fas fa-filter"></i> Filters
+                </button>
                 <a href="{{ url_for('requests.new') }}" class="btn btn-sm btn-meutch-orange">
                     <i class="fas fa-hand-holding-heart me-1"></i>Create Request
                 </a>
@@ -19,11 +24,15 @@
             </div>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center">
+        <!-- Mobile layout: Filters aligned with title, subtitle below -->
+        <div class="d-md-none d-flex flex-column gap-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">Community Activity</h1>
+                <button class="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
+                    <i class="fas fa-filter"></i> Filters
+                </button>
+            </div>
             <p class="text-muted mb-0 small">Recent requests, giveaways, and lending activity.</p>
-            <button class="btn btn-link btn-sm text-decoration-none p-0 d-flex align-items-center gap-1" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
-                <i class="fas fa-filter"></i> Filters
-            </button>
         </div>
     </section>
 
@@ -90,6 +99,10 @@
                         <input class="form-check-input" type="checkbox" role="switch" id="feed-show-own-activity" name="show_own_activity" value="1" {% if selected_show_own_activity %}checked{% endif %}>
                         <label class="form-check-label" for="feed-show-own-activity">Show my own activity</label>
                     </div>
+                    <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="feed-show-claimed-giveaways" name="show_claimed_giveaways" value="1" {% if selected_show_claimed_giveaways %}checked{% endif %}>
+                        <label class="form-check-label" for="feed-show-claimed-giveaways">Show claimed giveaways</label>
+                    </div>
                 </div>
             </form>
             </div>
@@ -104,9 +117,12 @@
         <div class="d-grid gap-3 mb-4 activity-feed-list">
             {% for event in feed_events %}
                 {% set actor_initials = (event.actor_name|replace(' ', ''))[:2]|upper %}
+                {% set is_claimed_giveaway = event.event_type == 'giveaway' and event.claim_status == 'claimed' %}
                 {% set border_class = '' %}
                 {% if event.event_type == 'request' %}
                     {% set border_class = 'border-start border-4 border-primary' %}
+                {% elif is_claimed_giveaway %}
+                    {% set border_class = 'border-start border-4 border-secondary' %}
                 {% elif event.event_type == 'giveaway' %}
                     {% set border_class = 'border-start border-4 border-success' %}
                 {% elif event.event_type == 'lent' %}
@@ -114,7 +130,7 @@
                 {% elif event.event_type == 'circle_join' %}
                     {% set border_class = 'border-start border-4 border-info' %}
                 {% endif %}
-                <article class="card shadow-sm border-0 activity-feed-card {{ border_class }}">
+                <article class="card shadow-sm border-0 activity-feed-card{% if is_claimed_giveaway %} giveaway-card-claimed{% endif %} {{ border_class }}">
                     <div class="card-body py-3">
                         <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
                             {% if event.actor_avatar_url %}
@@ -164,7 +180,7 @@
                                 <div class="mt-2">
                                     {% if event.event_type == 'request' and event.request_id %}
                                         <a href="{{ url_for('requests.detail', request_id=event.request_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Request <i class="fas fa-chevron-right small ms-1"></i></a>
-                                    {% elif event.event_type == 'giveaway' and event.item_id %}
+                                    {% elif event.event_type == 'giveaway' and event.item_id and event.claim_status != 'claimed' %}
                                         <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
                                     {% elif event.event_type == 'lent' and event.item_id %}
                                         <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>

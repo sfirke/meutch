@@ -166,24 +166,39 @@ def view_conversation(conversation_id):
     giveaway_selection_item = None
     giveaway_selection_form = None
     giveaway_selection_interested_count = 0
+    giveaway_selection_direct = False
     if (
         item
         and item.is_giveaway
         and item.claim_status in [None, "unclaimed"]
         and current_user.id == item.owner_id
     ):
+        giveaway_selection_item = item
+        giveaway_selection_form = EmptyForm()
+        # Count formal interests for display (may be zero if they only messaged)
+        giveaway_selection_interested_count = GiveawayInterest.query.filter_by(
+            item_id=item.id,
+            status="active",
+        ).count()
+        # Check whether the other user has a formal interest record.
+        # Since the "I Want This!" button was removed, express_interest()
+        # is now called automatically when someone messages about a giveaway
+        # (see message_service.py). That means every new conversation will
+        # have an active GiveawayInterest record, making this distinction
+        # vestigial in practice.
+        #
+        # TODO: Remove giveaway_selection_direct and the template branch for
+        #       it once there are no pre-existing conversations where a user
+        #       messaged about a giveaway before this auto-interest logic was
+        #       deployed (i.e. no legacy items in this state).
+        #       Also see the same-status guards in
+        #       app/services/giveaway_service.py select_recipient().
         active_interest = GiveawayInterest.query.filter_by(
             item_id=item.id,
             user_id=other_user.id,
             status="active",
         ).first()
-        if active_interest:
-            giveaway_selection_item = item
-            giveaway_selection_form = EmptyForm()
-            giveaway_selection_interested_count = GiveawayInterest.query.filter_by(
-                item_id=item.id,
-                status="active",
-            ).count()
+        giveaway_selection_direct = not active_interest
 
     giveaway_handoff_item = None
     giveaway_handoff_form = None
@@ -226,6 +241,7 @@ def view_conversation(conversation_id):
         giveaway_selection_item=giveaway_selection_item,
         giveaway_selection_form=giveaway_selection_form,
         giveaway_selection_interested_count=giveaway_selection_interested_count,
+        giveaway_selection_direct=giveaway_selection_direct,
         giveaway_handoff_item=giveaway_handoff_item,
         giveaway_handoff_form=giveaway_handoff_form,
         giveaway_release_form=giveaway_release_form,

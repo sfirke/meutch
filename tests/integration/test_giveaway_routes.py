@@ -837,165 +837,7 @@ class TestCategoryAndTagFiltering:
 
 
 class TestGiveawayInterestExpression:
-    """Test interest expression for giveaways."""
-
-    def test_express_interest_in_giveaway(self, client, app, auth_user):
-        """Test user can express interest in an unclaimed giveaway."""
-        with app.app_context():
-            owner = UserFactory()
-            user = auth_user()
-            category = CategoryFactory()
-
-            giveaway = ItemFactory(
-                owner=owner,
-                category=category,
-                is_giveaway=True,
-                giveaway_visibility="default",
-                claim_status="unclaimed",
-            )
-            db.session.commit()
-
-            login_user(client, user.email)
-
-            response = client.post(
-                f"/item/{giveaway.id}/express-interest",
-                data={"message": "I really need this!"},
-                follow_redirects=True,
-            )
-
-            assert response.status_code == 200
-            assert b"Your interest has been recorded" in response.data
-
-            # Verify interest record was created
-            interest = GiveawayInterest.query.filter_by(
-                item_id=giveaway.id, user_id=user.id
-            ).first()
-            assert interest is not None
-            assert interest.message == "I really need this!"
-            assert interest.status == "active"
-
-    def test_express_interest_without_message(self, client, app, auth_user):
-        """Test user can express interest without providing a message."""
-        with app.app_context():
-            owner = UserFactory()
-            user = auth_user()
-            category = CategoryFactory()
-
-            giveaway = ItemFactory(
-                owner=owner,
-                category=category,
-                is_giveaway=True,
-                giveaway_visibility="default",
-                claim_status="unclaimed",
-            )
-            db.session.commit()
-
-            login_user(client, user.email)
-
-            response = client.post(
-                f"/item/{giveaway.id}/express-interest", data={}, follow_redirects=True
-            )
-
-            assert response.status_code == 200
-
-            # Verify interest record was created without message
-            interest = GiveawayInterest.query.filter_by(
-                item_id=giveaway.id, user_id=user.id
-            ).first()
-            assert interest is not None
-            assert interest.message is None
-
-    def test_cannot_express_interest_in_own_giveaway(self, client, app, auth_user):
-        """Test owner cannot express interest in their own giveaway."""
-        with app.app_context():
-            user = auth_user()
-            category = CategoryFactory()
-
-            giveaway = ItemFactory(
-                owner=user,
-                category=category,
-                is_giveaway=True,
-                giveaway_visibility="default",
-                claim_status="unclaimed",
-            )
-            db.session.commit()
-
-            login_user(client, user.email)
-
-            response = client.post(
-                f"/item/{giveaway.id}/express-interest", data={}, follow_redirects=True
-            )
-
-            assert response.status_code == 200
-            assert b"cannot express interest in your own giveaway" in response.data
-
-            # Verify no interest record was created
-            interest = GiveawayInterest.query.filter_by(
-                item_id=giveaway.id, user_id=user.id
-            ).first()
-            assert interest is None
-
-    def test_cannot_express_interest_twice(self, client, app, auth_user):
-        """Test user cannot express interest twice in the same giveaway."""
-        with app.app_context():
-            owner = UserFactory()
-            user = auth_user()
-            category = CategoryFactory()
-
-            giveaway = ItemFactory(
-                owner=owner,
-                category=category,
-                is_giveaway=True,
-                giveaway_visibility="default",
-                claim_status="unclaimed",
-            )
-            db.session.commit()
-
-            login_user(client, user.email)
-
-            # First interest expression
-            response1 = client.post(
-                f"/item/{giveaway.id}/express-interest", data={}, follow_redirects=True
-            )
-            assert response1.status_code == 200
-
-            # Second attempt should fail
-            response2 = client.post(
-                f"/item/{giveaway.id}/express-interest", data={}, follow_redirects=True
-            )
-            assert response2.status_code == 200
-            assert b"already expressed interest" in response2.data
-
-            # Verify only one interest record exists
-            count = GiveawayInterest.query.filter_by(item_id=giveaway.id, user_id=user.id).count()
-            assert count == 1
-
-    def test_cannot_express_interest_in_claimed_giveaway(self, client, app, auth_user):
-        """Test user cannot express interest in a claimed giveaway."""
-        with app.app_context():
-            owner = UserFactory()
-            user = auth_user()
-            claimer = UserFactory()
-            category = CategoryFactory()
-
-            giveaway = ItemFactory(
-                owner=owner,
-                category=category,
-                is_giveaway=True,
-                giveaway_visibility="default",
-                claim_status="claimed",
-                claimed_by=claimer,
-            )
-            db.session.commit()
-
-            login_user(client, user.email)
-
-            response = client.post(
-                f"/item/{giveaway.id}/express-interest", data={}, follow_redirects=True
-            )
-
-            assert response.status_code == 200
-            assert b"no longer available" in response.data
+    """Test giveaway interest management."""
 
     def test_withdraw_interest(self, client, app, auth_user):
         """Test user can withdraw their interest in a giveaway."""
@@ -1408,8 +1250,8 @@ class TestConversationGiveawaySelection:
             assert giveaway.claim_status == "unclaimed"
             assert giveaway.claimed_by_id is None
 
-    def test_cannot_select_non_interested_user_from_conversation(self, client, app, auth_user):
-        """Conversation quick-select should reject users who are not active in the pool."""
+    def test_can_select_conversation_partner_without_prior_interest(self, client, app, auth_user):
+        """Conversation quick-select should create interest on-the-fly for messaging-only users."""
         with app.app_context():
             owner = auth_user()
             requester = UserFactory()
@@ -1438,10 +1280,10 @@ class TestConversationGiveawaySelection:
             )
 
             assert response.status_code == 200
-            assert b"not currently in the interested-user pool" in response.data
             db.session.refresh(giveaway)
-            assert giveaway.claim_status == "unclaimed"
-            assert giveaway.claimed_by_id is None
+            # Interest should be created on-the-fly and recipient selected
+            assert giveaway.claim_status == "pending_pickup"
+            assert giveaway.claimed_by_id == requester.id
 
     def test_cannot_select_from_conversation_once_pickup_is_pending(self, client, app, auth_user):
         """Quick-select route should refuse giveaways that already moved past selection."""

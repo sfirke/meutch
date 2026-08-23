@@ -8,7 +8,6 @@ from app.forms import (
     ChangeRecipientForm,
     ConfirmHandoffForm,
     EmptyForm,
-    ExpressInterestForm,
     MessageForm,
     ReleaseToAllForm,
     SelectRecipientForm,
@@ -23,30 +22,6 @@ from app.utils.messaging_queries import (
     get_conversation_other_user_id,
     get_or_create_conversation,
 )
-
-
-@main_bp.route("/item/<uuid:item_id>/express-interest", methods=["POST"])
-@login_required
-def express_interest(item_id):
-    """Allow a user to express interest in claiming a giveaway"""
-    item = db.get_or_404(Item, item_id)
-    form = ExpressInterestForm()
-
-    if form.validate_on_submit():
-        try:
-            giveaway_service.express_interest(item, current_user.id, form.message.data)
-        except ServiceError as exc:
-            flash(str(exc), exc.flash_category)
-        except Exception as exc:
-            current_app.logger.error(f"Error expressing interest in giveaway {item_id}: {str(exc)}")
-            flash("An error occurred. Please try again.", "danger")
-        else:
-            flash(
-                "Your interest has been recorded! The owner will contact you if you are selected.",
-                "success",
-            )
-
-    return redirect(url_for("main.item_detail", item_id=item.id))
 
 
 @main_bp.route("/item/<uuid:item_id>/withdraw-interest", methods=["POST"])
@@ -236,20 +211,6 @@ def give_to_user(item_id, user_id):
             )
         )
 
-    selected_interest = GiveawayInterest.query.filter_by(
-        item_id=item.id,
-        user_id=user_id,
-        status="active",
-    ).first()
-    if not selected_interest:
-        flash("This user is not currently in the interested-user pool.", "warning")
-        return redirect(
-            url_for(
-                "main.view_conversation",
-                conversation_id=conversation_message.conversation_id,
-            )
-        )
-
     try:
         selected_interest = giveaway_service.select_recipient(
             item, current_user.id, "manual", user_id
@@ -405,7 +366,6 @@ def release_to_all(item_id):
             "The giveaway has been released and will reappear in the feed. All interested users remain in the pool.",
             "success",
         )
-        return redirect(url_for("main.item_detail", item_id=item.id))
 
     return redirect(url_for("main.item_detail", item_id=item.id))
 
@@ -443,6 +403,47 @@ def confirm_handoff(item_id):
             f"Handoff complete! The giveaway has been successfully given to {recipient_name}.",
             "success",
         )
+
+    return redirect(url_for("main.item_detail", item_id=item.id))
+
+
+@main_bp.route("/item/<uuid:item_id>/mark-given-away", methods=["POST"])
+@login_required
+def mark_given_away(item_id):
+    """Owner marks a giveaway as handed off without recording a specific recipient.
+
+    Use this for items given away outside the app (no in-app interest or messages).
+    """
+    item = db.get_or_404(Item, item_id)
+
+    if item.owner_id != current_user.id:
+        flash("You do not have permission to manage this giveaway.", "danger")
         return redirect(url_for("main.item_detail", item_id=item.id))
+
+    if not item.is_giveaway:
+        flash("This item is not a giveaway.", "danger")
+        return redirect(url_for("main.item_detail", item_id=item.id))
+
+    if item.claim_status not in [None, "unclaimed"]:
+        flash("This giveaway is no longer available.", "warning")
+        return redirect(url_for("main.item_detail", item_id=item.id))
+
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Invalid request.", "danger")
+        return redirect(url_for("main.item_detail", item_id=item.id))
+
+    try:
+        giveaway_service.mark_given_away(item, current_user.id)
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
+    except Exception as exc:
+        current_app.logger.error(f"Error marking giveaway {item_id} as given away: {str(exc)}")
+        flash("An error occurred. Please try again.", "danger")
+    else:
+        flash(
+            "Your item has been marked as rehomed. Thanks for sharing with your community!",
+            "success",
+        )
 
     return redirect(url_for("main.item_detail", item_id=item.id))

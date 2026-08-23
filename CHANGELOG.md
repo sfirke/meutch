@@ -2,6 +2,16 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
+## August 2026
+
+### Features
+**Minor**:
+- When answering a request, there's now an option to click "I have this item" and then choose or list it ([#412](https://github.com/sfirke/meutch/pull/412)).
+
+### Bug fixes
+- The Contact Us form no longer errors when submitting with the "Other" category ([#470](https://github.com/sfirke/meutch/pull/470)).
+- Circle join requests now show the requester's name on mobile portrait layouts — previously the name collapsed out of view, leaving only the avatar and action buttons ([#465](https://github.com/sfirke/meutch/pull/465)).
+
 ## July 2026
 
 ### Features
@@ -12,13 +22,20 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
   - Frontend changes to finish the work in ([#439](https://github.com/sfirke/meutch/pull/439)).
 
 **Minor**:
-- When answering a request, there's now an option to click "I have this item" and then choose or list it ([#412](https://github.com/sfirke/meutch/pull/412)).
+- Registration now shows contextual guidance when a user signs up with an already-registered email — unconfirmed users are prompted to resend the confirmation link, and confirmed users are directed to the forgot-password flow ([#456](https://github.com/sfirke/meutch/pull/456)).
+- Message notification emails can now be replied to by email; Mailgun inbound replies create normal conversation replies in Meutch ([#449](https://github.com/sfirke/meutch/issues/449)).
+- Added a Contact Us form so authenticated users can message the Meutch team directly from the app, replacing the external GitHub Issues link in the footer ([#448](https://github.com/sfirke/meutch/pull/448)).
+- Improved the giveaway request and handoff experience - no more needing to click "I want this!", instead owners can choose from anyone who messages. Also allows for marking giveaways handed off outside of Meutch ([#445](https://github.com/sfirke/meutch/pull/445)).
 - On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
+- Community Activity now hides claimed giveaways by default and includes a filter to show them when desired ([#424](https://github.com/sfirke/meutch/issues/424)).
+- Claimed giveaway cards in the home feed are now visually distinct — dimmed with a gray border and reduced opacity — making it clear at a glance which giveaways are no longer available ([#455](https://github.com/sfirke/meutch/pull/455)).
 
 ### Developer Experience
 - Remove legacy `item`/`request`/`circle` kwargs from `MessageFactory`; all test call sites now use `conversation=` directly via `ConversationFactory` ([#437](https://github.com/sfirke/meutch/pull/437)).
+- Get dev data seeding working again, it broke in #436 ([#450](https://github.com/sfirke/meutch/pull/450)).
 
 ### Bug fixes
+- Hide "View Item" link for claimed giveaway events in the home feed - clicking it previously led to a page stating the item was already claimed ([#453](https://github.com/sfirke/meutch/pull/453)).
 - Streamlined email digest fulfilled/claimed rendering: unified phrasing across both resolution variants, replaced green status pills with a subtle gray "New" label for items the user hasn't seen before, kept descriptions only for first-time items, and grouped new-resolved entries before previously-seen resolutions ([#427](https://github.com/sfirke/meutch/pull/427)).
 - Improve formatting of buttons, especially on mobile, for the circle admin interface as well as site admin and item detail card ([#434](https://github.com/sfirke/meutch/pull/434)).
 

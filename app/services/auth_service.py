@@ -2,9 +2,12 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy.exc import IntegrityError
+
 from app import db
 from app.models import User
 from app.services import location_service
+from app.services.exceptions import ConflictError
 from app.utils.email import send_confirmation_email, send_password_reset_email
 
 logger = logging.getLogger(__name__)
@@ -37,6 +40,26 @@ PASSWORD_RESET_TOKEN_STATUS_EXPIRED = "expired"
 PASSWORD_RESET_STATUS_SUCCESS = "success"
 PASSWORD_RESET_STATUS_INVALID = "invalid"
 PASSWORD_RESET_STATUS_EXPIRED = "expired"
+
+
+@dataclass(frozen=True)
+class ExistingEmailResult:
+    exists: bool
+    is_confirmed: bool = False
+
+
+def check_existing_email(email) -> ExistingEmailResult:
+    """Check if an email is already registered and whether the user is confirmed.
+
+    Returns an ExistingEmailResult with:
+    - exists: whether the email is registered
+    - is_confirmed: whether the existing user has confirmed their email
+        (only meaningful if exists is True)
+    """
+    user = _get_user_by_email(email)
+    if user is None:
+        return ExistingEmailResult(exists=False)
+    return ExistingEmailResult(exists=True, is_confirmed=user.is_confirmed())
 
 
 @dataclass
@@ -120,7 +143,23 @@ def register_user(
     )
 
     db.session.add(user)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        existing = check_existing_email(email)
+        if existing.is_confirmed:
+            raise ConflictError(
+                "An account with this email is already registered. "
+                "If this is your account, use the forgot password link to regain access.",
+                details={"email_status": "confirmed"},
+            ) from None
+        else:
+            raise ConflictError(
+                "An account with this email exists but hasn't been confirmed yet. "
+                "Please check your email for the confirmation link or request a new one.",
+                details={"email_status": "unconfirmed"},
+            ) from None
     email_sent = send_confirmation_email(user, next_url=next_url)
     return RegistrationResult(
         user=user,

@@ -243,6 +243,7 @@ def build_visible_giveaway_events(
     max_distance=None,
     distance_explicit=False,
     include_own_activity=True,
+    include_claimed_giveaways=False,
     since=None,
     until=None,
 ):
@@ -259,20 +260,25 @@ def build_visible_giveaway_events(
             visibility_filter = own_activity_filter
         else:
             visibility_filter = or_(own_activity_filter, visibility_filter)
+    claim_status_filter = or_(
+        Item.claim_status == "unclaimed",
+        Item.claim_status.is_(None),
+    )
+    if include_claimed_giveaways:
+        claim_status_filter = or_(
+            claim_status_filter,
+            and_(
+                Item.claim_status == "claimed",
+                Item.claimed_at.isnot(None),
+                Item.claimed_at > claimed_cutoff,
+            ),
+        )
 
     base_query = Item.query.join(User, Item.owner_id == User.id).filter(
         Item.is_giveaway.is_(True),
         User.vacation_mode.is_(False),
         and_(
-            or_(
-                Item.claim_status == "unclaimed",
-                Item.claim_status.is_(None),
-                and_(
-                    Item.claim_status == "claimed",
-                    Item.claimed_at.isnot(None),
-                    Item.claimed_at > claimed_cutoff,
-                ),
-            ),
+            claim_status_filter,
             visibility_filter,
         ),
     )
@@ -773,6 +779,7 @@ def _assemble_feed_events(
     giveaway_distance_explicit=False,
     included_event_types=None,
     include_own_activity=True,
+    include_claimed_giveaways=False,
     since=None,
     until=None,
     max_events=100,
@@ -803,6 +810,7 @@ def _assemble_feed_events(
                 max_distance=giveaway_distance,
                 distance_explicit=giveaway_distance_explicit,
                 include_own_activity=include_own_activity,
+                include_claimed_giveaways=include_claimed_giveaways,
                 since=since,
                 until=until,
             )
@@ -844,6 +852,7 @@ def build_homepage_feed_events(
     giveaway_distance_explicit=False,
     included_event_types=None,
     include_own_activity=True,
+    include_claimed_giveaways=False,
     max_events=100,
 ):
     return _assemble_feed_events(
@@ -855,6 +864,7 @@ def build_homepage_feed_events(
         giveaway_distance_explicit=giveaway_distance_explicit,
         included_event_types=included_event_types,
         include_own_activity=include_own_activity,
+        include_claimed_giveaways=include_claimed_giveaways,
         max_events=max_events,
     )
 

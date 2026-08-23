@@ -88,6 +88,11 @@ def create_app(config_class=None):
 
     app.register_blueprint(share_bp, url_prefix="/share")
 
+    from app.webhooks import bp as webhooks_bp
+
+    app.register_blueprint(webhooks_bp, url_prefix="/webhooks")
+    csrf.exempt(webhooks_bp)
+
     from app.api import v1_bp as api_v1_bp
     from app.api.v1.errors import build_http_error_response, is_api_request_path
 

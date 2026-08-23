@@ -72,14 +72,6 @@ class DeleteItemForm(FlaskForm):
     submit = SubmitField("Delete")
 
 
-class ExpressInterestForm(FlaskForm):
-    message = TextAreaField(
-        "Optional message to the owner",
-        validators=[Optional(), Length(max=500, message="Message must be under 500 characters.")],
-    )
-    submit = SubmitField("Submit Interest")
-
-
 class WithdrawInterestForm(FlaskForm):
     submit = SubmitField("Withdraw Interest")
 

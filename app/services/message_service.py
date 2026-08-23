@@ -7,7 +7,8 @@ from flask import url_for
 
 from app import db
 from app.models import ConversationParticipant, Message
-from app.services.exceptions import AuthorizationError, InvalidActionError
+from app.services import giveaway_service
+from app.services.exceptions import AuthorizationError, InvalidActionError, ServiceError
 from app.utils.email import send_message_notification_email
 from app.utils.item_share import generate_item_share_token
 from app.utils.item_visibility import build_item_access_state
@@ -45,7 +46,17 @@ def get_request_conversation_recipient_id(item_request, sender):
 def start_item_conversation(item, sender, body, *, share_token=None):
     recipient_id = get_item_conversation_recipient_id(item, sender, share_token=share_token)
     conversation = get_or_create_conversation("item", item.id, sender.id, recipient_id)
-    return create_message(sender.id, recipient_id, body, conversation_id=conversation.id)
+    message = create_message(sender.id, recipient_id, body, conversation_id=conversation.id)
+
+    # When a non-owner messages about a giveaway item, also record their
+    # interest so the owner can select them as a recipient later.
+    if item.is_giveaway and sender.id != item.owner_id:
+        try:
+            giveaway_service.express_interest(item, sender.id, body, send_notification=False)
+        except ServiceError:
+            pass  # Already interested or item unavailable — silently fine
+
+    return message
 
 
 def start_request_conversation(item_request, sender, body):

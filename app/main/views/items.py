@@ -8,7 +8,6 @@ from app.forms import (
     ConfirmHandoffForm,
     DeleteItemForm,
     EmptyForm,
-    ExpressInterestForm,
     ListItemForm,
     MessageForm,
     ReleaseToAllForm,
@@ -184,7 +183,6 @@ def item_detail(item_id):
         abort(403)
 
     form = MessageForm()
-    express_interest_form = ExpressInterestForm()
     withdraw_interest_form = WithdrawInterestForm()
 
     if form.validate_on_submit():
@@ -228,6 +226,7 @@ def item_detail(item_id):
     generate_share_link_form = EmptyForm()
     release_to_all_form = ReleaseToAllForm()
     confirm_handoff_form = ConfirmHandoffForm()
+    mark_given_away_form = EmptyForm()
     return render_template(
         "main/item_detail.html",
         item=item,
@@ -236,7 +235,6 @@ def item_detail(item_id):
         delete_form=delete_form,
         user_interest=user_interest,
         interested_count=interested_count,
-        express_interest_form=express_interest_form,
         withdraw_interest_form=withdraw_interest_form,
         share_token=share_token,
         has_token_access=has_token_access,
@@ -246,6 +244,7 @@ def item_detail(item_id):
         generate_share_link_form=generate_share_link_form,
         release_to_all_form=release_to_all_form,
         confirm_handoff_form=confirm_handoff_form,
+        mark_given_away_form=mark_given_away_form,
     )
 
 
