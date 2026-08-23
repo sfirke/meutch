@@ -635,6 +635,45 @@ class TestContactRoutes:
             assert response.status_code == 200
             assert b"Your message has been sent" in response.data
 
+    def test_post_contact_other_category(self, client, app, auth_user):
+        """Test POST with the 'other' category succeeds instead of 500ing."""
+        with app.app_context():
+            user = auth_user()
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.post(
+                "/contact",
+                data={
+                    "category": "other",
+                    "message": "I have a general comment for the team.",
+                },
+                follow_redirects=True,
+            )
+            assert response.status_code == 200
+            assert b"Your message has been sent" in response.data
+
+    def test_post_contact_unknown_category_shows_error(self, client, app, auth_user):
+        """Test a ValueError from the email service flashes an error and re-renders, not a 500."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+
+            with patch(
+                "app.main.views.contact.send_contact_form_email",
+                side_effect=ValueError("boom"),
+            ):
+                response = client.post(
+                    "/contact",
+                    data={
+                        "category": "bug_report",
+                        "message": "I found a bug in the search feature that needs fixing.",
+                    },
+                )
+            assert response.status_code == 200
+            assert b"Something went wrong sending your message" in response.data
+
     def test_post_empty_message_shows_error(self, client, app, auth_user):
         """Test POST with empty message re-renders with validation error."""
         with app.app_context():

@@ -17,7 +17,6 @@ class ContactForm(FlaskForm):
             ("other", "Other"),
         ],
         validators=[DataRequired()],
-        validate_choice=True,
     )
     message = TextAreaField(
         "Message",
