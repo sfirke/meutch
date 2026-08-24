@@ -148,6 +148,36 @@ class User(UserMixin, db.Model):
             ).exists()
         ).scalar()
 
+    def administers_pending_join_request_from(self, other_user):
+        """
+        Check whether other_user is waiting to join a circle self administers.
+
+        A circle admin has to size up a stranger before approving them, and the
+        join-request email already points admins at the requester's profile, so
+        a pending request grants profile access for as long as it is pending.
+
+        Args:
+            other_user: User object to check against
+
+        Returns:
+            True if other_user has a pending join request to a circle self
+            administers
+        """
+        if not other_user:
+            return False
+
+        my_admin_circle_ids = select(circle_members.c.circle_id).where(
+            circle_members.c.user_id == self.id,
+            circle_members.c.is_admin.is_(True),
+        )
+        return db.session.query(
+            CircleJoinRequest.query.filter(
+                CircleJoinRequest.user_id == other_user.id,
+                CircleJoinRequest.status == "pending",
+                CircleJoinRequest.circle_id.in_(my_admin_circle_ids),
+            ).exists()
+        ).scalar()
+
     def get_shared_circle_user_ids_query(self):
         """
         Get a SQL select statement for user IDs who share circles with this user.

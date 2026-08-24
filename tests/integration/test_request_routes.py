@@ -800,6 +800,43 @@ class TestRequestDetail:
 
             assert response.status_code == 403
 
+    def test_public_detail_does_not_link_unviewable_author_profile(self, client, app, auth_user):
+        """A public request reaches strangers, whose profile the viewer cannot open."""
+        with app.app_context():
+            viewer = auth_user()
+            author = UserFactory(first_name="Public", last_name="Author")
+            viewer_circle = CircleFactory(name="Viewer Only Circle")
+            author_circle = CircleFactory(name="Author Only Circle")
+            viewer_circle.members.append(viewer)
+            author_circle.members.append(author)
+            req = ItemRequestFactory(user=author, visibility="public", title="Stranger Request")
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f"/requests/{req.id}/detail")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "Public Author" in content
+            assert f'href="/user/{author.id}"' not in content
+
+    def test_detail_links_author_profile_when_circle_is_shared(self, client, app, auth_user):
+        """The link is still offered when it will actually work."""
+        with app.app_context():
+            viewer = auth_user()
+            author = UserFactory(first_name="Circle", last_name="Author")
+            circle = CircleFactory(name="Shared Circle")
+            circle.members.extend([viewer, author])
+            req = ItemRequestFactory(user=author, visibility="public", title="Circle Request")
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f"/requests/{req.id}/detail")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert f'href="/user/{author.id}"' in content
+
 
 class TestRequestConversations:
     """Test request-linked conversation flows."""

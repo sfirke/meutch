@@ -1,16 +1,17 @@
 """Integration tests for profile access with circle-based restrictions."""
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from flask import url_for
 
-from app.models import db
+from app.models import circle_members, db
 from app.services import giveaway_service, loan_service, message_service
 from conftest import login_user
 from tests.factories import (
     CategoryFactory,
     CircleFactory,
+    CircleJoinRequestFactory,
     ConversationFactory,
     ConversationParticipantFactory,
     ItemFactory,
@@ -363,5 +364,69 @@ class TestProfileAccessControl:
 
         login_user(client, viewer.email)
         response = client.get(url_for("main.user_profile", user_id=target.id))
+
+        assert response.status_code == 302
+
+
+@pytest.mark.usefixtures("app")
+class TestProfileAccessViaCircleJoinRequest:
+    """A pending join request lets the circle's admins size up the requester."""
+
+    def _administered_circle(self, admin, **kwargs):
+        circle = CircleFactory(**kwargs)
+        db.session.execute(
+            circle_members.insert().values(
+                user_id=admin.id,
+                circle_id=circle.id,
+                joined_at=datetime.now(UTC),
+                is_admin=True,
+            )
+        )
+        db.session.commit()
+        return circle
+
+    def test_admin_can_view_pending_join_requester_profile(self, client):
+        """The join-request email links here, so the link has to work."""
+        admin = UserFactory()
+        requester = UserFactory(first_name="Hopeful", last_name="Joiner")
+        db.session.commit()
+
+        circle = self._administered_circle(admin, name="Admin Circle")
+        CircleJoinRequestFactory(circle=circle, user=requester, status="pending")
+        db.session.commit()
+
+        login_user(client, admin.email)
+        response = client.get(url_for("main.user_profile", user_id=requester.id))
+
+        assert response.status_code == 200
+        assert b"Hopeful Joiner" in response.data
+        assert b"asked to join a circle you administer" in response.data
+
+    def test_plain_member_cannot_view_join_requester_profile(self, client):
+        """Only admins review join requests, so only admins get the access."""
+        member = UserFactory()
+        requester = UserFactory(first_name="Hopeful", last_name="Stranger")
+        circle = CircleFactory(name="Member Circle")
+        circle.members.append(member)
+        CircleJoinRequestFactory(circle=circle, user=requester, status="pending")
+        db.session.commit()
+
+        login_user(client, member.email)
+        response = client.get(url_for("main.user_profile", user_id=requester.id))
+
+        assert response.status_code == 302
+
+    def test_settled_join_request_does_not_grant_access(self, client):
+        """A rejected requester goes back to being a stranger."""
+        admin = UserFactory()
+        rejected = UserFactory(first_name="Rejected", last_name="Applicant")
+        db.session.commit()
+
+        circle = self._administered_circle(admin, name="Settled Circle")
+        CircleJoinRequestFactory(circle=circle, user=rejected, status="rejected")
+        db.session.commit()
+
+        login_user(client, admin.email)
+        response = client.get(url_for("main.user_profile", user_id=rejected.id))
 
         assert response.status_code == 302

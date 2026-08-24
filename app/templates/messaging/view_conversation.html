@@ -28,9 +28,13 @@
                         <div class="conversation-summary-kicker mb-2">Conversation with</div>
                         <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
                             <h1 class="conversation-summary-title mb-0">
-                                <a href="{{ url_for('main.user_profile', user_id=conversation_partner.id) }}" class="text-primary text-decoration-none">
+                                {% if can_view_partner_profile %}
+                                    <a href="{{ url_for('main.user_profile', user_id=conversation_partner.id) }}" class="text-primary text-decoration-none">
+                                        {{ conversation_partner.full_name }}
+                                    </a>
+                                {% else %}
                                     {{ conversation_partner.full_name }}
-                                </a>
+                                {% endif %}
                             </h1>
                             {% if shared_circles %}
                                 {% set shared_circles_container_class = 'd-flex flex-wrap align-items-center gap-2' %}
@@ -198,9 +202,13 @@
         <div class="mb-4">
             <div class="d-flex align-items-center gap-3 mb-2">
                 <h1 class="mb-0">
-                    <a href="{{ url_for('main.user_profile', user_id=conversation_partner.id) }}" class="text-primary text-decoration-none">
+                    {% if can_view_partner_profile %}
+                        <a href="{{ url_for('main.user_profile', user_id=conversation_partner.id) }}" class="text-primary text-decoration-none">
+                            {{ conversation_partner.full_name }}
+                        </a>
+                    {% else %}
                         {{ conversation_partner.full_name }}
-                    </a>
+                    {% endif %}
                 </h1>
             </div>
             <div class="d-flex align-items-center gap-2 text-muted">
@@ -348,12 +356,14 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <strong>From:</strong>
-                            {% if msg.sender_id != current_user.id %}
+                            {% if msg.sender_id == current_user.id %}
+                                You
+                            {% elif can_view_partner_profile %}
                                 <a href="{{ url_for('main.user_profile', user_id=msg.sender.id) }}">
                                     {{ msg.sender.full_name }}
                                 </a>
                             {% else %}
-                                You
+                                {{ msg.sender.full_name }}
                             {% endif %}
                         </div>
                         <span class="message-timestamp">{{ msg.timestamp|utc_timestamp('compact') }}</span>
