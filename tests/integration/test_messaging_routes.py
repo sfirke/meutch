@@ -284,3 +284,49 @@ class TestMessagingRoutes:
             assert "page=2" in response.location
             assert "sort=name_asc" in response.location
             assert "status=archived" in response.location
+
+
+class TestConversationPartnerProfileLink:
+    """A conversation grants profile access — except once the partner deletes their account."""
+
+    def _conversation_with(self, viewer, partner):
+        conversation = ConversationFactory()
+        ConversationParticipantFactory(conversation=conversation, user=viewer)
+        ConversationParticipantFactory(conversation=conversation, user=partner)
+        MessageFactory(
+            sender=partner,
+            recipient=viewer,
+            conversation=conversation,
+            body="Is this still available?",
+        )
+        return conversation
+
+    def test_conversation_links_partner_profile(self, client, app):
+        with app.app_context():
+            viewer = UserFactory()
+            partner = UserFactory(first_name="Active", last_name="Partner")
+            conversation = self._conversation_with(viewer, partner)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f"/conversation/{conversation.id}")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert f'href="/user/{partner.id}"' in content
+
+    def test_conversation_does_not_link_deleted_partner_profile(self, client, app):
+        """Deleted accounts have no viewable profile, so the name is plain text."""
+        with app.app_context():
+            viewer = UserFactory()
+            partner = UserFactory(first_name="Gone", last_name="Partner", is_deleted=True)
+            conversation = self._conversation_with(viewer, partner)
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f"/conversation/{conversation.id}")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "Gone Partner" in content
+            assert f'href="/user/{partner.id}"' not in content

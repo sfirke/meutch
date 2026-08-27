@@ -2,10 +2,13 @@
 
 from datetime import UTC, datetime
 
+from app import db
 from conftest import TEST_PASSWORD
 from tests.factories import (
     CategoryFactory,
     CircleFactory,
+    ConversationFactory,
+    ConversationParticipantFactory,
     ItemFactory,
     LoanRequestFactory,
     MessageFactory,
@@ -217,6 +220,55 @@ class TestUser:
 
             assert viewer.shared_circles_with(other_user) == []
             assert viewer.shares_circle_with(other_user) is False
+
+    def test_has_conversation_with_true(self, app):
+        """Returns True for both participants once a conversation exists."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=owner)
+            ConversationParticipantFactory(conversation=conversation, user=borrower)
+            db.session.commit()
+
+            assert owner.has_conversation_with(borrower) is True
+            assert borrower.has_conversation_with(owner) is True
+
+    def test_has_conversation_with_survives_a_completed_loan(self, app):
+        """A conversation keeps granting access after the loan it started is completed."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, name="Returned Drill")
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            ConversationParticipantFactory(conversation=conversation, user=owner)
+            ConversationParticipantFactory(conversation=conversation, user=borrower)
+            LoanRequestFactory(item=item, borrower=borrower, status="completed")
+            db.session.commit()
+
+            assert owner.has_conversation_with(borrower) is True
+
+    def test_has_conversation_with_false_for_unrelated_users(self, app):
+        """Returns False when the two users have never shared a conversation."""
+        with app.app_context():
+            owner = UserFactory()
+            stranger = UserFactory()
+            other_user = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=owner)
+            ConversationParticipantFactory(conversation=conversation, user=other_user)
+            db.session.commit()
+
+            assert owner.has_conversation_with(stranger) is False
+
+    def test_has_conversation_with_none(self, app):
+        """Returns False when other_user is None."""
+        with app.app_context():
+            owner = UserFactory()
+            db.session.commit()
+
+            assert owner.has_conversation_with(None) is False
 
     def test_user_shared_circles_with_returns_empty_for_missing_user(self, app):
         """Shared circles should be empty when no other user is provided."""

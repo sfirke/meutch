@@ -20,6 +20,11 @@ from app.models import Item, ItemRequest, User, UserWebLink
 from app.services import account_service, location_service, profile_service
 from app.utils.digest_tokens import verify_digest_manage_token
 from app.utils.item_queries import build_own_item_search_filter
+from app.utils.profile_visibility import (
+    PROFILE_ACCESS_CONVERSATION,
+    PROFILE_ACCESS_JOIN_REQUEST,
+    profile_access_reason,
+)
 
 
 @main_bp.route("/profile", methods=["GET", "POST"])
@@ -393,13 +398,17 @@ def update_location():
 @main_bp.route("/user/<uuid:user_id>")
 @login_required
 def user_profile(user_id):
+    access_reason = None
+
     if current_user.is_admin or current_user.id == user_id:
         user = db.get_or_404(User, user_id)
     else:
         target_user = db.session.get(User, user_id)
-        if not target_user or not current_user.shares_circle_with(target_user):
+        access_reason = profile_access_reason(current_user, target_user)
+        if access_reason is None:
             flash("You can only view profiles of users in your circles.", "warning")
             return redirect(url_for("main.index"))
+
         user = target_user
 
     can_view_items = current_user.is_admin or current_user.id == user.id
@@ -443,6 +452,8 @@ def user_profile(user_id):
         delete_forms=delete_forms,
         confirm_handoff_forms=confirm_handoff_forms,
         can_view_items=can_view_items,
+        access_via_conversation=access_reason == PROFILE_ACCESS_CONVERSATION,
+        access_via_join_request=access_reason == PROFILE_ACCESS_JOIN_REQUEST,
         shared_circles=shared_circles,
     )
 

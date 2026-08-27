@@ -17,9 +17,17 @@
                     <div class="d-flex align-items-center mb-3">
                         <img src="{{ item_request.user.profile_image }}" alt="{{ item_request.user.full_name }}" class="rounded-circle me-3" width="56" height="56">
                         <div>
-                            <a href="{{ url_for('main.user_profile', user_id=item_request.user.id) if item_request.user_id != current_user.id else url_for('main.profile') }}" class="text-decoration-none">
+                            {% if item_request.user_id == current_user.id %}
+                                <a href="{{ url_for('main.profile') }}" class="text-decoration-none">
+                                    <strong class="text-dark fs-5">{{ item_request.user.full_name }}</strong>
+                                </a>
+                            {% elif can_view_author_profile %}
+                                <a href="{{ url_for('main.user_profile', user_id=item_request.user.id) }}" class="text-decoration-none">
+                                    <strong class="text-dark fs-5">{{ item_request.user.full_name }}</strong>
+                                </a>
+                            {% else %}
                                 <strong class="text-dark fs-5">{{ item_request.user.full_name }}</strong>
-                            </a>
+                            {% endif %}
                             <div class="text-muted small">
                                 Posted {{ item_request.created_at|utc_timestamp('date') if item_request.created_at else '' }}
                             </div>

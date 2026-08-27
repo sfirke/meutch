@@ -25,6 +25,7 @@ from app.services.exceptions import (
 from app.utils.giveaway_visibility import get_unavailable_giveaway_suggestions
 from app.utils.item_share import ITEM_SHARE_TOKEN_MAX_AGE_DAYS
 from app.utils.item_visibility import build_item_access_state
+from app.utils.profile_visibility import can_view_profile
 from app.utils.storage import MAX_ITEM_IMAGE_COUNT
 
 from .helpers import (
@@ -239,6 +240,7 @@ def item_detail(item_id):
         share_token=share_token,
         has_token_access=has_token_access,
         shares_circle_with_owner=shares_circle_with_owner,
+        can_view_owner_profile=can_view_profile(current_user, item.owner),
         item_share_valid_days=ITEM_SHARE_TOKEN_MAX_AGE_DAYS,
         generated_share_url=_generated_item_share_link(item.id),
         generate_share_link_form=generate_share_link_form,
