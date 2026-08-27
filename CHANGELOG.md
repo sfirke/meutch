@@ -6,12 +6,10 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Minor**:
-- You can now view the profile of anyone you have a message thread with, even if you share no circles — borrowing, claiming a giveaway, and answering an item request all open one — so both people can learn about each other before and after they meet up ([#462](https://github.com/sfirke/meutch/issues/462)).
-- Names in the home feed now link to that person's profile ([#466](https://github.com/sfirke/meutch/pull/466)).
-- Circle admins can now open the profile of anyone with a pending request to join a circle they administer, so they can size up an applicant before approving — the profile link in the join-request notification email now works ([#466](https://github.com/sfirke/meutch/pull/466)).
+- You can now view the profile of anyone you have a message thread with, even if you share no circles. Circle admins can view profiles of users with a pending request to join a circle they administer (profile link in the join-request notification email also now works) ([#466](https://github.com/sfirke/meutch/pull/466)).
 
 ### Bug fixes
-- Names are no longer hyperlinked to profiles you are not allowed to open. Previously, pages such as a public giveaway's item page, a public request's detail page, and the giveaway recipient-selection pages offered a link that only led to "You can only view profiles of users in your circles" ([#466](https://github.com/sfirke/meutch/pull/466)).
+- Hyperlinked names: names in the home feed are links to user profiles, but no longer are links when you are not able to view a user's profile. Previously, pages such as a public giveaway's item page, a public request's detail page, and the giveaway recipient-selection pages offered a link that only led to "You can only view profiles of users in your circles" ([#466](https://github.com/sfirke/meutch/pull/466)).
 - The Contact Us form no longer errors when submitting with the "Other" category ([#470](https://github.com/sfirke/meutch/pull/470)).
 - Circle join requests now show the requester's name on mobile portrait layouts — previously the name collapsed out of view, leaving only the avatar and action buttons ([#465](https://github.com/sfirke/meutch/pull/465)).
 
