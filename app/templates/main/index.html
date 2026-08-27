@@ -133,13 +133,28 @@
                 <article class="card shadow-sm border-0 activity-feed-card{% if is_claimed_giveaway %} giveaway-card-claimed{% endif %} {{ border_class }}">
                     <div class="card-body py-3">
                         <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
+                            {% set actor_profile_url = url_for('main.user_profile', user_id=event.actor_id) if event.actor_id in linkable_actor_ids|default([]) else None %}
                             {% if event.actor_avatar_url %}
-                                <img src="{{ event.actor_avatar_url }}" alt="{{ event.actor_name }}" class="rounded-circle flex-shrink-0" style="width: 28px; height: 28px; object-fit: cover;">
+                                {% if actor_profile_url %}
+                                    <a href="{{ actor_profile_url }}" class="flex-shrink-0" aria-hidden="true" tabindex="-1">
+                                        <img src="{{ event.actor_avatar_url }}" alt="" class="rounded-circle" style="width: 28px; height: 28px; object-fit: cover;">
+                                    </a>
+                                {% else %}
+                                    <img src="{{ event.actor_avatar_url }}" alt="{{ event.actor_name }}" class="rounded-circle flex-shrink-0" style="width: 28px; height: 28px; object-fit: cover;">
+                                {% endif %}
                             {% else %}
-                                <span class="activity-feed-avatar-fallback flex-shrink-0" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true">{{ actor_initials or 'CM' }}</span>
+                                {% if actor_profile_url %}
+                                    <a href="{{ actor_profile_url }}" class="activity-feed-avatar-fallback flex-shrink-0 text-decoration-none" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true" tabindex="-1">{{ actor_initials or '?' }}</a>
+                                {% else %}
+                                    <span class="activity-feed-avatar-fallback flex-shrink-0" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true">{{ actor_initials or '?' }}</span>
+                                {% endif %}
                             {% endif %}
                             <div class="text-truncate">
-                                <strong class="text-body">{{ event.actor_name }}</strong>
+                                {% if actor_profile_url %}
+                                    <a href="{{ actor_profile_url }}" class="text-body text-decoration-none activity-feed-actor-link"><strong>{{ event.actor_name }}</strong></a>
+                                {% else %}
+                                    <strong class="text-body">{{ event.actor_name }}</strong>
+                                {% endif %}
                                 {{ event.action }}
                             </div>
                             <div class="ms-auto text-nowrap" style="font-size: 0.8rem;">

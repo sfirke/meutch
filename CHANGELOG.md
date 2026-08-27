@@ -4,7 +4,12 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ## August 2026
 
+### Features
+**Minor**:
+- You can now view the profile of anyone you have a message thread with, even if you share no circles. Circle admins can view profiles of users with a pending request to join a circle they administer (profile link in the join-request notification email also now works) ([#466](https://github.com/sfirke/meutch/pull/466)).
+
 ### Bug fixes
+- Hyperlinked names: names in the home feed are links to user profiles, but no longer are links when you are not able to view a user's profile. Previously, pages such as a public giveaway's item page, a public request's detail page, and the giveaway recipient-selection pages offered a link that only led to "You can only view profiles of users in your circles" ([#466](https://github.com/sfirke/meutch/pull/466)).
 - The Contact Us form no longer errors when submitting with the "Other" category ([#470](https://github.com/sfirke/meutch/pull/470)).
 - Circle join requests now show the requester's name on mobile portrait layouts — previously the name collapsed out of view, leaving only the avatar and action buttons ([#465](https://github.com/sfirke/meutch/pull/465)).
 

@@ -7,6 +7,7 @@ from app.models import Category, Item, Tag
 from app.utils.circle_queries import build_circle_recommendations
 from app.utils.home_feed import build_homepage_feed_events
 from app.utils.item_queries import build_category_items_pagination, build_tag_items_pagination
+from app.utils.profile_visibility import viewable_profile_user_ids
 
 from .helpers import (
     HOMEPAGE_DISTANCE_OPTIONS,
@@ -23,6 +24,7 @@ def index():
     items = []
     giveaway_items = []
     feed_events = []
+    linkable_actor_ids = set()
     pagination = None
     total_items = 0
     remaining_items = 0
@@ -77,12 +79,18 @@ def index():
         include_own_activity=selected_show_own_activity,
         include_claimed_giveaways=selected_show_claimed_giveaways,
     )
+    # Only link actor names to profiles the viewer is actually allowed to open —
+    # public requests and giveaways surface people outside the viewer's circles.
+    linkable_actor_ids = viewable_profile_user_ids(
+        current_user, (event.get("actor_id") for event in feed_events)
+    )
 
     return render_template(
         "main/index.html",
         items=items,
         giveaway_items=giveaway_items,
         feed_events=feed_events,
+        linkable_actor_ids=linkable_actor_ids,
         pagination=pagination,
         total_items=total_items,
         remaining_items=remaining_items,

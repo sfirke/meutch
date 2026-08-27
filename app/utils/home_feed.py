@@ -227,6 +227,7 @@ def build_visible_requests_events(
                 "actor_avatar_url": item_request.user.profile_image_url
                 if item_request.user
                 else None,
+                "actor_id": item_request.user_id if item_request.user else None,
                 "image_url": None,
                 "action": action,
                 "visibility": item_request.visibility,
@@ -324,6 +325,7 @@ def build_visible_giveaway_events(
                 "claim_status": item.claim_status,
                 "actor_name": item.owner.full_name if item.owner else "Deleted User",
                 "actor_avatar_url": item.owner.profile_image_url if item.owner else None,
+                "actor_id": item.owner_id if item.owner else None,
                 "image_url": item.image,
                 "action": action,
                 "distance": distance,
@@ -483,6 +485,7 @@ def build_digest_request_events(
                 "actor_avatar_url": item_request.user.profile_image_url
                 if item_request.user
                 else None,
+                "actor_id": item_request.user_id if item_request.user else None,
                 "image_url": None,
                 "action": "requested",
                 "visibility": item_request.visibility,
@@ -590,6 +593,7 @@ def build_digest_giveaway_events(
                 "claim_status": item.claim_status,
                 "actor_name": item.owner.full_name if item.owner else "Deleted User",
                 "actor_avatar_url": item.owner.profile_image_url if item.owner else None,
+                "actor_id": item.owner_id if item.owner else None,
                 "image_url": item.image,
                 "action": "posted a giveaway",
                 "distance": distance,
@@ -650,6 +654,7 @@ def build_recent_lent_events(
                 "description": item.description,
                 "actor_name": owner_name,
                 "actor_avatar_url": item.owner.profile_image_url if item.owner else None,
+                "actor_id": item.owner_id if item.owner else None,
                 "image_url": item.image,
                 "action": "lent out",
             }
@@ -685,6 +690,7 @@ def consolidate_circle_join_activity(join_rows, circle_sizes):
                 "event_type": "circle_join",
                 "created_at": primary_circle["created_at"],
                 "user_id": primary_circle["user_id"],
+                "actor_id": primary_circle["user_id"],
                 "actor_name": primary_circle["user_name"],
                 "actor_avatar_url": primary_circle.get("user_avatar_url"),
                 "image_url": primary_circle.get("circle_image_url"),

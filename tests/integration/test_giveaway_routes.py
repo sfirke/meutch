@@ -1398,6 +1398,9 @@ class TestGiveawayOwnerMessaging:
             owner = auth_user()
             requester = UserFactory()
             category = CategoryFactory()
+            # Share a circle so the requester's profile is one the owner may open
+            circle = CircleFactory()
+            circle.members.extend([owner, requester])
 
             giveaway = ItemFactory(
                 owner=owner, category=category, is_giveaway=True, claim_status="unclaimed"
@@ -1420,6 +1423,7 @@ class TestGiveawayOwnerMessaging:
 
             assert response.status_code == 200
             assert requester.full_name.encode() in response.data
+            assert f"/user/{requester.id}".encode() in response.data
             assert b"I really need this!" in response.data
             assert giveaway.name.encode() in response.data
 
@@ -1534,6 +1538,9 @@ class TestGiveawayOwnerMessaging:
             requester1 = UserFactory(first_name="Alice", last_name="Smith")
             requester2 = UserFactory(first_name="Bob", last_name="Jones")
             category = CategoryFactory()
+            # Share a circle so both requesters' profiles are ones the owner may open
+            circle = CircleFactory()
+            circle.members.extend([owner, requester1, requester2])
 
             giveaway = ItemFactory(
                 owner=owner, category=category, is_giveaway=True, claim_status="unclaimed"
@@ -1560,6 +1567,8 @@ class TestGiveawayOwnerMessaging:
             assert b"Bob Jones" in response.data
             # Check for Message button/link
             assert b"Message" in response.data
+            assert f"/user/{requester1.id}".encode() in response.data
+            assert f"/user/{requester2.id}".encode() in response.data
             assert (
                 f"/item/{giveaway.id}/message-requester/{requester1.id}".encode() in response.data
             )
@@ -2558,3 +2567,171 @@ class TestSelectRecipientReassignmentUI:
             assert b"Select Recipient" in response.data
             assert b"First Requester" in response.data
             assert b"Random Selection" in response.data
+
+
+class TestGiveawayOwnerProfileLink:
+    """The item detail page only links the owner when that profile is reachable."""
+
+    def _isolated_pair(self, viewer, owner):
+        viewer_circle = CircleFactory(name="Viewer Only Circle")
+        owner_circle = CircleFactory(name="Owner Only Circle")
+        viewer_circle.members.append(viewer)
+        owner_circle.members.append(owner)
+
+    def test_public_giveaway_does_not_link_unreachable_owner(self, client, app, auth_user):
+        """The message form is the way in — the owner's profile is not open yet."""
+        with app.app_context():
+            viewer = auth_user()
+            owner = UserFactory(first_name="Public", last_name="Owner")
+            self._isolated_pair(viewer, owner)
+            item = ItemFactory(
+                owner=owner,
+                category=CategoryFactory(),
+                name="Public Giveaway Item",
+                is_giveaway=True,
+                giveaway_visibility="public",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f"/item/{item.id}")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "Public Owner" in content
+            assert f'href="/user/{owner.id}"' not in content
+
+    def test_giveaway_links_owner_when_circle_is_shared(self, client, app, auth_user):
+        """A circle mate's profile is reachable, so keep the link."""
+        with app.app_context():
+            viewer = auth_user()
+            owner = UserFactory(first_name="Circle", last_name="Owner")
+            circle = CircleFactory(name="Shared Giveaway Circle")
+            circle.members.extend([viewer, owner])
+            item = ItemFactory(
+                owner=owner,
+                category=CategoryFactory(),
+                name="Circle Giveaway Item",
+                is_giveaway=True,
+                giveaway_visibility="public",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f"/item/{item.id}")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert f'href="/user/{owner.id}"' in content
+
+    def test_giveaway_links_owner_once_a_conversation_exists(self, client, app, auth_user):
+        """Sending the initial message opens the profile, so the link comes back."""
+        with app.app_context():
+            viewer = auth_user()
+            owner = UserFactory(first_name="Messaged", last_name="Owner")
+            self._isolated_pair(viewer, owner)
+            item = ItemFactory(
+                owner=owner,
+                category=CategoryFactory(),
+                name="Messaged Giveaway Item",
+                is_giveaway=True,
+                giveaway_visibility="public",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            client.post(
+                f"/item/{item.id}",
+                data={"body": "Hi! Is this still available?"},
+                follow_redirects=True,
+            )
+
+            response = client.get(f"/item/{item.id}")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert f'href="/user/{owner.id}"' in content
+
+
+class TestGiveawayRequesterProfileLinks:
+    """Owner-facing pages only link requesters whose profiles the owner can open.
+
+    Expressing interest now always opens a conversation, but interest records
+    created before that (by the removed "I Want This!" button) have none, and a
+    public giveaway draws people from outside the owner's circles.
+    """
+
+    def _public_giveaway(self, owner):
+        return ItemFactory(
+            owner=owner,
+            category=CategoryFactory(),
+            name="Requester Link Giveaway",
+            is_giveaway=True,
+            giveaway_visibility="public",
+            claim_status="unclaimed",
+        )
+
+    def test_select_recipient_does_not_link_unreachable_requester(self, client, app, auth_user):
+        """A legacy interest from a stranger gets a plain name, not a dead link."""
+        with app.app_context():
+            owner = auth_user()
+            stranger = UserFactory(first_name="Legacy", last_name="Requester")
+            owner_circle = CircleFactory(name="Owner Only Circle")
+            stranger_circle = CircleFactory(name="Requester Only Circle")
+            owner_circle.members.append(owner)
+            stranger_circle.members.append(stranger)
+            item = self._public_giveaway(owner)
+            GiveawayInterestFactory(item=item, user=stranger, status="active")
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f"/item/{item.id}/select-recipient")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "Legacy Requester" in content
+            assert f'href="/user/{stranger.id}"' not in content
+
+    def test_select_recipient_links_requester_in_shared_circle(self, client, app, auth_user):
+        """A circle mate stays linked."""
+        with app.app_context():
+            owner = auth_user()
+            requester = UserFactory(first_name="Circle", last_name="Requester")
+            circle = CircleFactory(name="Shared Requester Circle")
+            circle.members.extend([owner, requester])
+            item = self._public_giveaway(owner)
+            GiveawayInterestFactory(item=item, user=requester, status="active")
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f"/item/{item.id}/select-recipient")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert f'href="/user/{requester.id}"' in content
+
+    def test_message_requester_page_does_not_link_unreachable_requester(
+        self, client, app, auth_user
+    ):
+        """This page exists precisely when no conversation has opened yet."""
+        with app.app_context():
+            owner = auth_user()
+            stranger = UserFactory(first_name="Unknown", last_name="Requester")
+            owner_circle = CircleFactory(name="Message Owner Circle")
+            stranger_circle = CircleFactory(name="Message Requester Circle")
+            owner_circle.members.append(owner)
+            stranger_circle.members.append(stranger)
+            item = self._public_giveaway(owner)
+            GiveawayInterestFactory(item=item, user=stranger, status="active")
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.get(f"/item/{item.id}/message-requester/{stranger.id}")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "Unknown Requester" in content
+            assert f'href="/user/{stranger.id}"' not in content

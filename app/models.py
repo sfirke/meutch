@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from flask import url_for
 from flask_login import UserMixin
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import UUID
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -119,6 +119,64 @@ class User(UserMixin, db.Model):
             True if users share at least one circle, False otherwise
         """
         return bool(self.shared_circles_with(other_user))
+
+    def has_conversation_with(self, other_user):
+        """
+        Check whether self and another user share a message conversation.
+
+        Requesting a loan, expressing interest in a giveaway, and replying to
+        an item request all open a conversation, so this covers every way two
+        people transact on Meutch — and it keeps working after the item is
+        returned or handed off, when they may still need to reach each other.
+
+        Args:
+            other_user: User object to check against
+
+        Returns:
+            True if the two users are participants in the same conversation
+        """
+        if not other_user:
+            return False
+
+        my_conversation_ids = select(ConversationParticipant.conversation_id).where(
+            ConversationParticipant.user_id == self.id
+        )
+        return db.session.query(
+            ConversationParticipant.query.filter(
+                ConversationParticipant.user_id == other_user.id,
+                ConversationParticipant.conversation_id.in_(my_conversation_ids),
+            ).exists()
+        ).scalar()
+
+    def administers_pending_join_request_from(self, other_user):
+        """
+        Check whether other_user is waiting to join a circle self administers.
+
+        A circle admin has to size up a stranger before approving them, and the
+        join-request email already points admins at the requester's profile, so
+        a pending request grants profile access for as long as it is pending.
+
+        Args:
+            other_user: User object to check against
+
+        Returns:
+            True if other_user has a pending join request to a circle self
+            administers
+        """
+        if not other_user:
+            return False
+
+        my_admin_circle_ids = select(circle_members.c.circle_id).where(
+            circle_members.c.user_id == self.id,
+            circle_members.c.is_admin.is_(True),
+        )
+        return db.session.query(
+            CircleJoinRequest.query.filter(
+                CircleJoinRequest.user_id == other_user.id,
+                CircleJoinRequest.status == "pending",
+                CircleJoinRequest.circle_id.in_(my_admin_circle_ids),
+            ).exists()
+        ).scalar()
 
     def get_shared_circle_user_ids_query(self):
         """

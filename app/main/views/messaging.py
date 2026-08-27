@@ -12,6 +12,7 @@ from app.utils.messaging_queries import (
     sort_conversation_summaries,
 )
 from app.utils.pagination import ListPagination
+from app.utils.profile_visibility import can_view_profile
 
 
 @main_bp.route("/messages")
@@ -251,6 +252,7 @@ def view_conversation(conversation_id):
         request_fulfill_form=request_fulfill_form,
         viewer_participant=viewer_participant,
         conversation=conversation,
+        can_view_partner_profile=can_view_profile(current_user, other_user),
     )
 
 
