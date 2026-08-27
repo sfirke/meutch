@@ -142,7 +142,7 @@ def test_viewable_ids_excludes_settled_join_requests(app):
         assert viewable_profile_user_ids(admin, [approved.id, rejected.id]) == set()
 
 
-def test_access_reason_reports_self_and_admin_first(app):
+def test_access_reason_for_self_and_admin(app):
     with app.app_context():
         viewer = UserFactory()
         site_admin = UserFactory(is_admin=True)
