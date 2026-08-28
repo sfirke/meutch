@@ -105,9 +105,11 @@ API_V1_RATE_LIMITS_ENABLED=true
 # Strongly recommended for production and staging when using multiple workers or instances.
 RATELIMIT_STORAGE_URI=redis://redis:6379/0
 
-# Maximum request body size in bytes (default 1 MB).
-# Set higher on the web/API gateway if uploads are proxied through it.
-MAX_CONTENT_LENGTH=1048576
+# Maximum size in bytes of an API request body that is not a file upload (default 1 MB).
+# Upload endpoints are exempt so photos still go through; they are bounded by the
+# per-file limit in app/utils/storage.py. Cap total body size at the reverse proxy
+# (for example nginx `client_max_body_size`).
+API_V1_MAX_CONTENT_LENGTH=1048576
 
 # Default endpoint-family limits.
 API_V1_AUTH_LOGIN_RATE_LIMIT=10 per minute
@@ -135,9 +137,11 @@ flask api cleanup-expired-tokens --older-than-days 7
 
 Schedule this command as a periodic cron job (e.g. daily) to prevent unbounded growth of the `api_token_blocklist` table.
 
-### Optional: Account Lockout
+### Account Lockout And Password Policy
 
-After 5 consecutive failed login attempts, the account is locked for 15 minutes. Successive lockouts double in duration up to a 60-minute cap. Successful authentication resets the counter. Lockouts are enforced at the service layer for both web and API login paths.
+After 5 consecutive failed login attempts, the account is locked for 15 minutes. Each successive lockout doubles in duration, up to a 60-minute cap. A successful login clears both the failed-attempt counter and the escalation counter. Lockouts are enforced in `app/services/auth_service.py`, so they apply to the web and API login paths alike: the web login page shows a "temporarily locked" message and the API returns an authentication error saying the same.
+
+Passwords must be at least 8 characters. The minimum is enforced at registration and password reset, on both the web forms and the API; login itself does not enforce it, so accounts created before the minimum was raised can still sign in.
 
 ### Optional: Digest Scheduler Timezone
 

@@ -20,6 +20,11 @@ LOGIN_STATUS_INVALID_CREDENTIALS = "invalid_credentials"
 LOGIN_STATUS_UNCONFIRMED = "unconfirmed"
 LOGIN_STATUS_LOCKED = "locked"
 
+# Password policy, shared by the web forms and the API schemas so a password that
+# can be set in one place is always accepted by the other.
+PASSWORD_MIN_LENGTH = 8
+PASSWORD_MAX_LENGTH = 100
+
 MAX_FAILED_LOGIN_ATTEMPTS = 5
 INITIAL_LOCKOUT_MINUTES = 15
 MAX_LOCKOUT_MINUTES = 60
@@ -177,29 +182,41 @@ def register_user(
     )
 
 
-def _lockout_minutes(previous_lockout_count):
+def _lockout_minutes(lockout_count):
     """Escalate lockout duration: double per successive lockout up to a hard cap."""
-    minutes = INITIAL_LOCKOUT_MINUTES * (2 ** (previous_lockout_count - 1))
+    minutes = INITIAL_LOCKOUT_MINUTES * (2 ** (lockout_count - 1))
     return min(minutes, MAX_LOCKOUT_MINUTES)
+
+
+def _clear_lockout_state(user):
+    """Reset every counter that tracks failed logins for this user."""
+    user.failed_login_attempts = 0
+    user.lockout_count = 0
+    user.locked_until = None
 
 
 def authenticate_user(email, password):
     user = _get_user_by_email(email)
 
     if user is not None and user.locked_until is not None:
-        if user.locked_until > datetime.now(UTC):
+        # `locked_until` comes back from the database without a timezone, so it has
+        # to be normalized before being compared against an aware "now".
+        if _normalize_utc(user.locked_until) > datetime.now(UTC):
             return AuthenticationResult(status=LOGIN_STATUS_LOCKED)
 
+        # The lockout has elapsed. Clear the deadline but keep `lockout_count` so the
+        # next lockout for this user escalates.
         user.locked_until = None
+        db.session.commit()
 
     if not user or not user.check_password(password):
         if user is not None:
             user.failed_login_attempts += 1
 
             if user.failed_login_attempts >= MAX_FAILED_LOGIN_ATTEMPTS:
-                lockout_count = user.failed_login_attempts // MAX_FAILED_LOGIN_ATTEMPTS
+                user.lockout_count += 1
                 user.locked_until = datetime.now(UTC) + timedelta(
-                    minutes=_lockout_minutes(lockout_count)
+                    minutes=_lockout_minutes(user.lockout_count)
                 )
                 user.failed_login_attempts = 0
 
@@ -211,8 +228,7 @@ def authenticate_user(email, password):
         return AuthenticationResult(status=LOGIN_STATUS_UNCONFIRMED, user=user)
 
     user.last_login = datetime.now(UTC)
-    user.failed_login_attempts = 0
-    user.locked_until = None
+    _clear_lockout_state(user)
     db.session.commit()
     return AuthenticationResult(status=LOGIN_STATUS_SUCCESS, user=user)
 

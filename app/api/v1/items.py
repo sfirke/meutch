@@ -164,6 +164,7 @@ def list_items():
 
 @bp.get("/items/<uuid:item_id>")
 @jwt_required()
+@read_limit()
 def get_item(item_id):
     """Return item details when the authenticated user can view them."""
     item = db.get_or_404(Item, item_id)
@@ -264,6 +265,7 @@ def delete_item_image(item_id, image_id):
 
 @bp.get("/items/<uuid:item_id>/giveaway-interests")
 @jwt_required()
+@read_limit()
 def list_giveaway_interests(item_id):
     """Return owner-only giveaway interest-management state for one item."""
     item = db.get_or_404(Item, item_id)

@@ -206,7 +206,13 @@ class Config:
     API_V1_WRITE_ENABLED = parse_bool_env(os.environ.get("API_V1_WRITE_ENABLED"), True)
     API_V1_RATE_LIMITS_ENABLED = parse_bool_env(os.environ.get("API_V1_RATE_LIMITS_ENABLED"), True)
 
-    MAX_CONTENT_LENGTH = parse_int_env(os.environ.get("MAX_CONTENT_LENGTH"), 1 * 1024 * 1024)
+    # Ceiling for API request bodies that are not file uploads (JSON, form-encoded).
+    # Upload endpoints are exempt: they are bounded by MAX_UPLOAD_FILE_SIZE_BYTES in
+    # app/utils/storage.py, which allows the high-resolution photos phones produce.
+    # A body-size ceiling for the whole app belongs on the reverse proxy.
+    API_V1_MAX_CONTENT_LENGTH = parse_int_env(
+        os.environ.get("API_V1_MAX_CONTENT_LENGTH"), 1 * 1024 * 1024
+    )
 
     RATELIMIT_ENABLED = parse_bool_env(os.environ.get("RATELIMIT_ENABLED"), True)
     RATELIMIT_HEADERS_ENABLED = True
@@ -258,6 +264,7 @@ class TestingConfig(Config):
     API_V1_AUTH_SESSION_RATE_LIMIT = "1000 per minute"
     API_V1_WRITE_RATE_LIMIT = "1000 per minute"
     API_V1_IMAGE_WRITE_RATE_LIMIT = "1000 per minute"
+    API_V1_READ_RATE_LIMIT = "1000 per minute"
 
 
 class StagingConfig(Config):

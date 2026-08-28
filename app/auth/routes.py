@@ -193,6 +193,14 @@ def login():
             )
             return redirect(url_for("auth.resend_confirmation"))
 
+        if authentication_result.status == auth_service.LOGIN_STATUS_LOCKED:
+            flash(
+                "Too many failed login attempts. This account is temporarily locked. "
+                "Please try again later, or reset your password.",
+                "danger",
+            )
+            return render_template("auth/login.html", form=form)
+
         flash("Invalid email or password", "danger")
     return render_template("auth/login.html", form=form)
 

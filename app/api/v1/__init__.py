@@ -38,10 +38,12 @@ def apply_api_operational_guards():
             status_code=503,
         )
 
-    max_bytes = current_app.config.get("MAX_CONTENT_LENGTH")
-    if max_bytes is not None:
+    # File uploads are exempt: they carry photos, and are bounded separately by the
+    # per-file limit enforced in app/utils/storage.py.
+    if request.mimetype != "multipart/form-data":
+        max_bytes = current_app.config.get("API_V1_MAX_CONTENT_LENGTH")
         content_length = request.content_length
-        if content_length is not None and content_length > max_bytes:
+        if max_bytes is not None and content_length is not None and content_length > max_bytes:
             return build_error_response(
                 "PAYLOAD_TOO_LARGE",
                 "The request body exceeds the maximum allowed size.",

@@ -5,13 +5,19 @@ from marshmallow import fields, validate, validates_schema
 from app.api.v1.schemas.base import ApiDateTime, ApiSchema, validate_location_method_fields
 from app.api.v1.schemas.users import UserIdentitySchema
 from app.models import User
+from app.services.auth_service import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
 
 
 class LoginRequestSchema(ApiSchema):
     """Credential payload for API login."""
 
     email = fields.Email(required=True, validate=validate.Length(max=120))
-    password = fields.String(required=True, validate=validate.Length(min=8, max=100))
+    # Login deliberately does not enforce the minimum: accounts created before the
+    # minimum was raised must still be able to authenticate. The maximum only bounds
+    # how much work an unauthenticated caller can force the password hasher to do.
+    password = fields.String(
+        required=True, validate=validate.Length(min=1, max=PASSWORD_MAX_LENGTH)
+    )
 
 
 class RegisterRequestSchema(ApiSchema):
@@ -20,7 +26,10 @@ class RegisterRequestSchema(ApiSchema):
     email = fields.Email(required=True, validate=validate.Length(max=120))
     first_name = fields.String(required=True, validate=validate.Length(max=50))
     last_name = fields.String(required=True, validate=validate.Length(max=50))
-    password = fields.String(required=True, validate=validate.Length(min=8, max=100))
+    password = fields.String(
+        required=True,
+        validate=validate.Length(min=PASSWORD_MIN_LENGTH, max=PASSWORD_MAX_LENGTH),
+    )
     digest_frequency = fields.String(
         load_default=User.DIGEST_FREQUENCY_WEEKLY,
         validate=validate.OneOf(User.DIGEST_FREQUENCY_CHOICES),
@@ -60,7 +69,10 @@ class ResetPasswordRequestSchema(ApiSchema):
     """Password reset payload for API clients."""
 
     token = fields.String(required=True, validate=validate.Length(min=1, max=128))
-    password = fields.String(required=True, validate=validate.Length(min=8, max=100))
+    password = fields.String(
+        required=True,
+        validate=validate.Length(min=PASSWORD_MIN_LENGTH, max=PASSWORD_MAX_LENGTH),
+    )
 
 
 class MessageResponseSchema(ApiSchema):
