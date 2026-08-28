@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime, timedelta
 from app import db
 from app.models import LoanRequest
 from app.utils.home_feed import (
+    build_circle_join_events,
     build_digest_payload,
     build_recent_lent_events,
     build_visible_giveaway_events,
@@ -12,10 +13,145 @@ from app.utils.home_feed import (
 from tests.factories import (
     CategoryFactory,
     CircleFactory,
+    CircleJoinRequestFactory,
     ItemFactory,
     ItemRequestFactory,
     UserFactory,
 )
+
+
+def test_request_events_include_actor_id(app):
+    with app.app_context():
+        viewer = UserFactory()
+        requester = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, requester])
+        item_request = ItemRequestFactory(
+            user=requester, title="Actor ID Request", visibility="public"
+        )
+        db.session.commit()
+
+        events = build_visible_requests_events(viewer, scoped_circle_ids={circle.id}, scope="all")
+
+        assert len(events) == 1
+        assert events[0]["actor_id"] == requester.id
+
+        digest_events = build_digest_payload(
+            viewer,
+            since=datetime.now(UTC) - timedelta(days=1),
+            until=datetime.now(UTC),
+        )
+        digest_requests = [e for e in digest_events["events"] if e["event_type"] == "request"]
+        assert digest_requests
+        assert all(e["actor_id"] == item_request.user_id for e in digest_requests)
+
+
+def test_giveaway_events_include_actor_id(app):
+    with app.app_context():
+        viewer = UserFactory()
+        owner = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner])
+        item = ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="unclaimed",
+            name="Actor ID Giveaway",
+        )
+        db.session.commit()
+
+        events = build_visible_giveaway_events(viewer, scoped_circle_ids={circle.id})
+
+        assert len(events) == 1
+        assert events[0]["actor_id"] == owner.id
+
+        digest_events = build_digest_payload(
+            viewer,
+            since=datetime.now(UTC) - timedelta(days=1),
+            until=datetime.now(UTC),
+        )
+        digest_giveaways = [e for e in digest_events["events"] if e["event_type"] == "giveaway"]
+        assert digest_giveaways
+        assert all(e["actor_id"] == item.owner_id for e in digest_giveaways)
+
+
+def test_lent_events_include_actor_id(app):
+    with app.app_context():
+        viewer = UserFactory()
+        owner = UserFactory()
+        borrower = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner, borrower])
+
+        item = ItemFactory(owner=owner, category=category, name="Actor ID Lent Item")
+        loan = LoanRequest(
+            item_id=item.id,
+            borrower_id=borrower.id,
+            start_date=date.today(),
+            end_date=date.today(),
+            status="approved",
+        )
+        db.session.add(loan)
+        db.session.commit()
+
+        events = build_recent_lent_events(viewer, scoped_circle_ids={circle.id})
+
+        assert len(events) == 1
+        assert events[0]["actor_id"] == owner.id
+
+
+def test_circle_join_events_include_actor_id(app):
+    with app.app_context():
+        viewer = UserFactory()
+        joiner = UserFactory(first_name="Circle", last_name="Joiner")
+        circle = CircleFactory(name="Joiner Circle")
+        circle.members.append(viewer)
+
+        join_event = CircleJoinRequestFactory(circle=circle, user=joiner, status="approved")
+        db.session.add(join_event)
+        db.session.commit()
+
+        events = build_circle_join_events(viewer, scoped_circle_ids={circle.id})
+
+        assert len(events) == 1
+        assert events[0]["actor_id"] == joiner.id
+
+        # Consolidated events expose actor_id as well
+        consolidated = consolidate_circle_join_activity(
+            [
+                {
+                    "user_id": joiner.id,
+                    "user_name": "Circle Joiner",
+                    "circle_id": circle.id,
+                    "circle_name": "Joiner Circle",
+                    "created_at": datetime.now(UTC),
+                }
+            ],
+            {circle.id: 5},
+        )
+        assert consolidated[0]["actor_id"] == joiner.id
+
+
+def test_actor_id_null_when_user_deleted():
+    """Event dicts have actor_id None when the actor user is unavailable (deleted)."""
+    join_rows = [
+        {
+            "user_id": None,
+            "user_name": "Deleted User",
+            "circle_id": "circle-1",
+            "circle_name": "Some Circle",
+            "created_at": None,
+        },
+    ]
+
+    events = consolidate_circle_join_activity(join_rows, {"circle-1": 5})
+
+    assert len(events) == 1
+    assert events[0]["actor_id"] is None
 
 
 def test_consolidate_circle_join_activity_merges_by_user():

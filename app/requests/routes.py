@@ -20,6 +20,7 @@ from app.utils.messaging_queries import (
     build_request_conversation_summaries,
     find_context_conversation,
 )
+from app.utils.profile_visibility import can_view_profile
 from app.utils.request_queries import can_view_request
 
 
@@ -130,6 +131,7 @@ def detail(request_id):
         "requests/detail.html",
         item_request=item_request,
         conversations=conversations,
+        can_view_author_profile=can_view_profile(current_user, item_request.user),
         fulfill_form=EmptyForm(),
         delete_form=EmptyForm(),
     )

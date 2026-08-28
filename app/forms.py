@@ -18,6 +18,7 @@ from app.forms_circles import (
     CircleSearchForm,
     CircleUuidSearchForm,
 )
+from app.forms_contact import ContactForm
 from app.forms_items import (
     ChangeRecipientForm,
     ConfirmHandoffForm,
@@ -52,6 +53,7 @@ __all__ = [
     "CircleSearchForm",
     "CircleUuidSearchForm",
     "ConfirmHandoffForm",
+    "ContactForm",
     "DIGEST_FREQUENCY_CHOICES",
     "DeleteAccountForm",
     "DeleteItemForm",

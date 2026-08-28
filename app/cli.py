@@ -35,6 +35,7 @@ from app.models import (
     User,
     UserWebLink,
 )
+from app.utils.messaging_queries import get_or_create_conversation
 
 
 @click.group()
@@ -709,10 +710,13 @@ def _seed_development_data():
                         db.session.flush()  # Ensure the loan request is persisted
 
                         # Always create an initial message to match real app behavior
+                        conv = get_or_create_conversation(
+                            "item", item.id, borrower.id, item.owner.id
+                        )
                         request_message = Message(
                             sender=borrower,
                             recipient=item.owner,
-                            item=item,
+                            conversation_id=conv.id,
                             body=f"Hi, I'd like to borrow your {item.name}. Would {start_date} to {end_date} work for you?",
                             loan_request=loan_request,
                         )
@@ -730,10 +734,11 @@ def _seed_development_data():
             recipient = random.choice([u for u in all_users if u != sender])
             item = random.choice(all_items)  # Messages must be associated with an item
 
+            conv = get_or_create_conversation("item", item.id, sender.id, recipient.id)
             message = Message(
                 sender=sender,
                 recipient=recipient,
-                item=item,  # Required field
+                conversation_id=conv.id,
                 body=f"Hi {recipient.first_name}, I'm interested in your {item.name}. Is it still available?",
                 is_read=random.choice([True, False]),
             )
@@ -886,10 +891,11 @@ def _seed_development_data():
                         selected_interest.status = "selected"
 
                     # Create notification message
+                    conv = get_or_create_conversation("item", giveaway.id, owner.id, recipient.id)
                     notification = Message(
                         sender_id=owner.id,
                         recipient_id=recipient.id,
-                        item_id=giveaway.id,
+                        conversation_id=conv.id,
                         body=f"Good news! You've been selected for the giveaway '{giveaway.name}'! Please coordinate pickup with the owner.",
                         is_read=False,
                     )
@@ -1208,11 +1214,11 @@ def _seed_requests(users):
         # Use a different user as the "helper"
         helper = next((u for u in users if u.id != req.user_id), None)
         if helper:
+            conv = get_or_create_conversation("request", req.id, helper.id, req.user_id)
             msg = Message(
                 sender_id=helper.id,
                 recipient_id=req.user_id,
-                item_id=None,
-                request_id=req.id,
+                conversation_id=conv.id,
                 body=random.choice(
                     [
                         f"Hi! I have a {req.title.lower()} you can borrow. Let me know when works.",

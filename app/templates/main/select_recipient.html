@@ -96,7 +96,11 @@
                                             <div class="d-flex justify-content-between align-items-start">
                                                 <div class="flex-grow-1">
                                                     <h6 class="mb-1">
-                                                        {{ interest.user.full_name }}
+                                                        {% if interest.user_id in linkable_user_ids %}
+                                                            <a href="{{ url_for('main.user_profile', user_id=interest.user_id) }}" class="text-decoration-none">{{ interest.user.full_name }}</a>
+                                                        {% else %}
+                                                            {{ interest.user.full_name }}
+                                                        {% endif %}
                                                         {% if is_reassignment and item.claimed_by_id == interest.user_id %}
                                                             <span class="badge bg-secondary">Currently Selected</span>
                                                         {% endif %}
@@ -107,7 +111,7 @@
                                                     </p>
                                                     {% if interest.message %}
                                                         <div class="mt-2 p-2 bg-light rounded">
-                                                            <p class="mb-0 small"><strong>Initial Message:</strong> {{ interest.message }}</p>
+                                                            <p class="mb-0 small"><strong>Initial Message:</strong> {{ interest.message|linkify }}</p>
                                                         </div>
                                                     {% else %}
                                                         <p class="mb-0 small text-muted fst-italic">No initial message provided</p>

@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.utils.email import send_message_notification_email
+from app.utils.email import build_message_reply_address, send_message_notification_email
 from tests.factories import ConversationFactory, ItemFactory, MessageFactory, UserFactory
 
 
@@ -47,6 +47,55 @@ class TestMessageNotifications:
                 assert (
                     call_args[0][3] is not None
                 )  # HTML content provided as 4th positional argument
+                assert "Reply to this email directly" in call_args[0][2]
+                assert "reply to this email directly" in call_args[0][3]
+
+    def test_send_message_notification_email_sets_reply_to(self, app):
+        """Test message notifications include a reply-to address for email replies."""
+        with app.app_context():
+            app.config["MAILGUN_DOMAIN"] = "meutch.com"
+            sender = UserFactory(email="sender@test.com")
+            recipient = UserFactory(email="recipient@test.com")
+            item = ItemFactory(name="Test Item", owner=recipient)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(sender=sender, recipient=recipient, conversation=conversation)
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_message_notification_email(message)
+
+                assert result is True
+                assert mock_send_email.call_args.kwargs["reply_to"] == (
+                    f"Meutch Replies <reply+{message.id}@meutch.com>"
+                )
+
+    def test_build_message_reply_address_returns_none_without_domain(self, app):
+        with app.app_context():
+            app.config["MAILGUN_DOMAIN"] = None
+            message = MessageFactory()
+
+            assert build_message_reply_address(message) is None
+
+    def test_build_message_reply_address_with_prefix(self, app):
+        """Reply address includes MAILGUN_REPLY_PREFIX when configured."""
+        with app.app_context():
+            app.config["MAILGUN_DOMAIN"] = "meutch.com"
+            app.config["MAILGUN_REPLY_PREFIX"] = "staging-"
+            message = MessageFactory()
+
+            address = build_message_reply_address(message)
+            assert address == f"Meutch Replies <reply+staging-{message.id}@meutch.com>"
+
+    def test_build_message_reply_address_without_prefix(self, app):
+        """Reply address omits prefix when MAILGUN_REPLY_PREFIX is empty."""
+        with app.app_context():
+            app.config["MAILGUN_DOMAIN"] = "meutch.com"
+            app.config["MAILGUN_REPLY_PREFIX"] = ""
+            message = MessageFactory()
+
+            address = build_message_reply_address(message)
+            assert address == f"Meutch Replies <reply+{message.id}@meutch.com>"
 
     def test_send_message_notification_email_loan_request(self, app):
         """Test sending email notification for a loan request message."""
@@ -86,6 +135,11 @@ class TestMessageNotifications:
                     "New Loan Request for Test Item" in call_args[0][1]
                 )  # subject for pending loan request
                 assert "loan request" in call_args[0][2]  # text content indicates loan request
+                assert "Reply to this email directly" not in call_args[0][2]
+                assert "reply to this email directly" not in call_args[0][3]
+                assert "and respond" not in call_args[0][2]
+                assert "& Respond" not in call_args[0][3]
+                assert mock_send_email.call_args.kwargs["reply_to"] is None
 
     def test_send_message_notification_email_missing_users(self, app):
         """Test handling of missing users."""
@@ -169,6 +223,41 @@ class TestMessageNotifications:
                 assert "loan cancellation" in text_content.lower()
                 assert "canceled by the borrower" in text_content
                 assert "loan cancellation" in html_content.lower()
+                assert "Reply to this email directly" not in text_content
+                assert "reply to this email directly" not in html_content
+                assert kwargs["reply_to"] is None
+
+    def test_sender_and_item_names_are_escaped(self, app):
+        """The sender's name and the item name sit in the same block of the HTML body."""
+        with app.app_context():
+            sender = UserFactory(email="sender@test.com", first_name="John", last_name="<b>Doe</b>")
+            recipient = UserFactory(
+                email="recipient@test.com", first_name="Jane", last_name="Smith"
+            )
+            item = ItemFactory(name="Drill <b>Pro</b> 3000", owner=recipient)
+
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                body="normal message",
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_message_notification_email(message)
+
+                assert result is True
+                mock_send_email.assert_called_once()
+
+                html_content = mock_send_email.call_args[0][3]
+
+                assert "John &lt;b&gt;Doe&lt;/b&gt;" in html_content
+                assert "Drill &lt;b&gt;Pro&lt;/b&gt; 3000" in html_content
+                assert "<b>Doe</b>" not in html_content
+                assert "<b>Pro</b>" not in html_content
 
     def test_send_message_notification_email_invalid_status(self, app):
         """Test that invalid loan request status raises ValueError."""
@@ -205,3 +294,57 @@ class TestMessageNotifications:
             assert "Valid statuses are: pending, approved, denied, completed, canceled" in str(
                 exc_info.value
             )
+
+
+class TestMessageNotificationBodyRendering:
+    """The HTML part of a notification escapes the body and links its URLs."""
+
+    def _notify(self, body):
+        sender = UserFactory(email="sender@test.com")
+        recipient = UserFactory(email="recipient@test.com")
+        item = ItemFactory(name="Test Item", owner=recipient)
+        conversation = ConversationFactory(context_type="item", context_id=item.id)
+        message = MessageFactory(
+            sender=sender, recipient=recipient, conversation=conversation, body=body
+        )
+
+        with patch("app.utils.email.send_email") as mock_send_email:
+            mock_send_email.return_value = True
+            send_message_notification_email(message)
+            return mock_send_email.call_args[0][3]  # html_content
+
+    def test_html_body_linkifies_urls(self, app):
+        with app.app_context():
+            html = self._notify("You can see it here: https://meutch.com/item/abc")
+
+            assert 'href="https://meutch.com/item/abc"' in html
+            assert 'rel="noopener noreferrer nofollow"' in html
+
+    def test_html_body_escapes_markup(self, app):
+        """A message body must not be able to inject markup into the email."""
+        with app.app_context():
+            html = self._notify('<a href="https://evil.example.com">click me</a>')
+
+            assert "evil.example.com" in html  # the text is still shown
+            assert '<a href="https://evil.example.com">' not in html
+            assert "&lt;a href=" in html
+
+    def test_text_body_keeps_the_raw_message(self, app):
+        """The plain-text part is not HTML, so it is left untouched."""
+        with app.app_context():
+            sender = UserFactory(email="sender@test.com")
+            recipient = UserFactory(email="recipient@test.com")
+            item = ItemFactory(name="Test Item", owner=recipient)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                body="5 > 3 & you know it",
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+                send_message_notification_email(message)
+
+                assert "5 > 3 & you know it" in mock_send_email.call_args[0][2]

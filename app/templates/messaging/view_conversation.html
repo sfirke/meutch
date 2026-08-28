@@ -28,19 +28,18 @@
                         <div class="conversation-summary-kicker mb-2">Conversation with</div>
                         <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
                             <h1 class="conversation-summary-title mb-0">
-                                <a href="{{ url_for('main.user_profile', user_id=conversation_partner.id) }}" class="text-primary text-decoration-none">
+                                {% if can_view_partner_profile %}
+                                    <a href="{{ url_for('main.user_profile', user_id=conversation_partner.id) }}" class="text-primary text-decoration-none">
+                                        {{ conversation_partner.full_name }}
+                                    </a>
+                                {% else %}
                                     {{ conversation_partner.full_name }}
-                                </a>
+                                {% endif %}
                             </h1>
                             {% if shared_circles %}
-                                <div class="d-flex flex-wrap align-items-center gap-2">
-                                    <span class="conversation-summary-label">Circles in common:</span>
-                                    {% for circle in shared_circles %}
-                                        <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="badge rounded-pill text-bg-light border text-decoration-none">
-                                            {{ circle.name }}
-                                        </a>
-                                    {% endfor %}
-                                </div>
+                                {% set shared_circles_container_class = 'd-flex flex-wrap align-items-center gap-2' %}
+                                {% set shared_circles_label_class = 'conversation-summary-label' %}
+                                {% include '_shared_circles.html' %}
                             {% endif %}
                         </div>
                         <div class="d-flex flex-wrap align-items-center gap-2 mb-3 text-muted">
@@ -56,7 +55,7 @@
                             </a>
                         </div>
                         {% if conversation_item.description %}
-                            <p class="conversation-summary-description mb-4">{{ conversation_item.description }}</p>
+                            <p class="conversation-summary-description mb-4">{{ conversation_item.description|linkify }}</p>
                         {% endif %}
 
                         <div class="row g-3">
@@ -203,9 +202,13 @@
         <div class="mb-4">
             <div class="d-flex align-items-center gap-3 mb-2">
                 <h1 class="mb-0">
-                    <a href="{{ url_for('main.user_profile', user_id=conversation_partner.id) }}" class="text-primary text-decoration-none">
+                    {% if can_view_partner_profile %}
+                        <a href="{{ url_for('main.user_profile', user_id=conversation_partner.id) }}" class="text-primary text-decoration-none">
+                            {{ conversation_partner.full_name }}
+                        </a>
+                    {% else %}
                         {{ conversation_partner.full_name }}
-                    </a>
+                    {% endif %}
                 </h1>
             </div>
             <div class="d-flex align-items-center gap-2 text-muted">
@@ -353,12 +356,14 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <strong>From:</strong>
-                            {% if msg.sender_id != current_user.id %}
+                            {% if msg.sender_id == current_user.id %}
+                                You
+                            {% elif can_view_partner_profile %}
                                 <a href="{{ url_for('main.user_profile', user_id=msg.sender.id) }}">
                                     {{ msg.sender.full_name }}
                                 </a>
                             {% else %}
-                                You
+                                {{ msg.sender.full_name }}
                             {% endif %}
                         </div>
                         <span class="message-timestamp">{{ msg.timestamp|utc_timestamp('compact') }}</span>
@@ -390,7 +395,7 @@
                         {% endif %}
                     </div>
                 {% endif %}
-                    <p>{{ msg.body | replace('\n', '<br>') | safe }}</p>
+                    <p>{{ msg.body|linkify }}</p>
                 </div>
             </div>
         {% endfor %}

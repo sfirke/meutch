@@ -154,6 +154,8 @@ class Config:
     # Mailgun configuration
     MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY")
     MAILGUN_DOMAIN = os.environ.get("MAILGUN_DOMAIN")
+    MAILGUN_REPLY_PREFIX = os.environ.get("MAILGUN_REPLY_PREFIX", "")
+    MAILGUN_WEBHOOK_SIGNING_KEY = os.environ.get("MAILGUN_WEBHOOK_SIGNING_KEY")
     MAILGUN_API_URL = (
         f"https://api.mailgun.net/v3/{os.environ.get('MAILGUN_DOMAIN')}/messages"
         if os.environ.get("MAILGUN_DOMAIN")

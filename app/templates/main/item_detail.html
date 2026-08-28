@@ -85,7 +85,7 @@
                         </div>
 
                         {% if item.description %}
-                            <p class="card-text lead text-muted mb-4">{{ item.description }}</p>
+                            <p class="card-text lead text-muted mb-4">{{ item.description|linkify }}</p>
                         {% endif %}
 
                         {% if has_token_access and not shares_circle_with_owner %}
@@ -100,10 +100,14 @@
                                 <div class="d-flex align-items-center mb-2">
                                     <i class="fas fa-user me-2 text-primary"></i>
                                     <span class="fw-bold">Owner:</span>
-                                    <a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}"
-                                       class="ms-2 text-decoration-none">
-                                        {{ item.owner.first_name }} {{ item.owner.last_name }}
-                                    </a>
+                                    {% if can_view_owner_profile %}
+                                        <a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}"
+                                           class="ms-2 text-decoration-none">
+                                            {{ item.owner.first_name }} {{ item.owner.last_name }}
+                                        </a>
+                                    {% else %}
+                                        <span class="ms-2">{{ item.owner.first_name }} {{ item.owner.last_name }}</span>
+                                    {% endif %}
                                 </div>
                             </div>
 

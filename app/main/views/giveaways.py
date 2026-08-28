@@ -22,6 +22,7 @@ from app.utils.messaging_queries import (
     get_conversation_other_user_id,
     get_or_create_conversation,
 )
+from app.utils.profile_visibility import can_view_profile, viewable_profile_user_ids
 
 
 @main_bp.route("/item/<uuid:item_id>/withdraw-interest", methods=["POST"])
@@ -135,6 +136,9 @@ def select_recipient(item_id):
         item=item,
         interested_users=interested_users,
         user_messaging_info=user_messaging_info,
+        linkable_user_ids=viewable_profile_user_ids(
+            current_user, (interest.user_id for interest in interested_users)
+        ),
         is_reassignment=is_reassignment,
         first_form=first_form,
         random_form=random_form,
@@ -289,6 +293,7 @@ def message_giveaway_requester(item_id, user_id):
         target_user=target_user,
         interest=interest,
         shared_circles=shared_circles,
+        can_view_target_profile=can_view_profile(current_user, target_user),
     )
 
 
