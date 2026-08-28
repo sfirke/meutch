@@ -227,6 +227,38 @@ class TestMessageNotifications:
                 assert "reply to this email directly" not in html_content
                 assert kwargs["reply_to"] is None
 
+    def test_sender_and_item_names_are_escaped(self, app):
+        """The sender's name and the item name sit in the same block of the HTML body."""
+        with app.app_context():
+            sender = UserFactory(email="sender@test.com", first_name="John", last_name="<b>Doe</b>")
+            recipient = UserFactory(
+                email="recipient@test.com", first_name="Jane", last_name="Smith"
+            )
+            item = ItemFactory(name="Drill <b>Pro</b> 3000", owner=recipient)
+
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                body="normal message",
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_message_notification_email(message)
+
+                assert result is True
+                mock_send_email.assert_called_once()
+
+                html_content = mock_send_email.call_args[0][3]
+
+                assert "John &lt;b&gt;Doe&lt;/b&gt;" in html_content
+                assert "Drill &lt;b&gt;Pro&lt;/b&gt; 3000" in html_content
+                assert "<b>Doe</b>" not in html_content
+                assert "<b>Pro</b>" not in html_content
+
     def test_send_message_notification_email_invalid_status(self, app):
         """Test that invalid loan request status raises ValueError."""
         with app.app_context():

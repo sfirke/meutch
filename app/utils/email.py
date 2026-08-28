@@ -1,5 +1,16 @@
+"""Outbound email: Mailgun delivery plus the text and HTML body for each notification.
+
+Every email here is assembled with f-strings rather than Jinja, so nothing escapes
+automatically. Any value that a user can influence — names, item and circle names,
+descriptions, message bodies — must be wrapped in `escape()` before it goes into the
+HTML body, or in `linkify()` where URLs in the text should also become clickable
+(linkify escapes first, then adds the anchors). The plain-text body is not markup and
+is left alone.
+"""
+
 import requests
 from flask import current_app, url_for
+from markupsafe import escape
 
 from app.template_filters import linkify
 from app.utils.digest_tokens import generate_digest_manage_token
@@ -261,8 +272,8 @@ The Meutch Team
         <h2 style="color: #333;">You have a new {email_type} on Meutch</h2>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>From:</strong> {sender.first_name} {sender.last_name}</p>
-            <p>{context_type_label}</p>
+            <p><strong>From:</strong> {escape(sender.first_name)} {escape(sender.last_name)}</p>
+            <p>{escape(context_type_label)}</p>
         </div>
 
         <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">
@@ -374,15 +385,15 @@ The Meutch Team
             <h2 style="color: #333;">New Join Request for Your Circle</h2>
 
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p><strong>Requesting User:</strong> <a href="{profile_url}" style="color: #007bff; text-decoration: none;">{requesting_user.first_name} {requesting_user.last_name}</a></p>
-                <p><strong>Circle:</strong> {circle.name}</p>
+                <p><strong>Requesting User:</strong> <a href="{profile_url}" style="color: #007bff; text-decoration: none;">{escape(requesting_user.first_name)} {escape(requesting_user.last_name)}</a></p>
+                <p><strong>Circle:</strong> {escape(circle.name)}</p>
             </div>
             """
             + (
                 f"""
             <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">
                 <h3>Request Message:</h3>
-                <p style="white-space: pre-line;">{join_request.message}</p>
+                <p style="white-space: pre-line;">{escape(join_request.message)}</p>
             </div>
             """
                 if join_request.message
@@ -488,7 +499,7 @@ The Meutch Team
         <h2 style="color: #333;">Circle Join Request {decision_text.title()}</h2>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Circle:</strong> {circle.name}</p>
+            <p><strong>Circle:</strong> {escape(circle.name)}</p>
             <p><strong>Status:</strong> <span style="color: {html_color}; font-weight: bold;">{decision_text.title()}</span></p>
         </div>
         """
@@ -746,14 +757,14 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             description_html = ""
             if show_desc and event.get("description"):
                 description_html = (
-                    f'<p style="margin: 6px 0 0 0; color: #555;">{event["description"]}</p>'
+                    f'<p style="margin: 6px 0 0 0; color: #555;">{escape(event["description"])}</p>'
                 )
 
             image_html = ""
             if include_image and event.get("image_url"):
                 image_html = (
                     f'<div style="margin: 8px 0;">'
-                    f'<img src="{event["image_url"]}" alt="Activity image" '
+                    f'<img src="{escape(event["image_url"])}" alt="Activity image" '
                     f'style="max-width: 100%; width: 220px; height: auto; border-radius: 8px;">'
                     f"</div>"
                 )
@@ -761,18 +772,18 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             if is_resolution_only:
                 # For giveaways, the message already includes the actor name
                 if event["event_type"] == "giveaway":
-                    activity_html = f"{_digest_resolution_only_text(event)}"
+                    activity_html = f"{escape(_digest_resolution_only_text(event))}"
                 else:
-                    activity_html = (
-                        f"<strong>{actor}</strong>: {_digest_resolution_only_text(event)}"
-                    )
+                    activity_html = f"<strong>{escape(actor)}</strong>: {escape(_digest_resolution_only_text(event))}"
                 if is_new_in_window:
                     activity_html += ' <span style="color: #6c757d; font-size: 12px;">New</span>'
                 activity_html += "<br>"
             else:
                 item_title = _digest_event_title(event)
                 action = event["action"]
-                activity_html = f"<strong>{actor}</strong> {action}: {item_title}<br>"
+                activity_html = (
+                    f"<strong>{escape(actor)}</strong> {escape(action)}: {escape(item_title)}<br>"
+                )
 
             items_html.append(
                 f"""
@@ -806,14 +817,14 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             if group["image_url"]:
                 image_html = (
                     f'<div style="margin: 8px 0;">'
-                    f'<img src="{group["image_url"]}" alt="Circle image" '
+                    f'<img src="{escape(group["image_url"])}" alt="Circle image" '
                     f'style="max-width: 100%; width: 220px; height: auto; border-radius: 8px;">'
                     f"</div>"
                 )
             items_html.append(
                 f"""
                 <li style=\"margin-bottom: 10px;\">
-                    <strong>{label}</strong> joined {group["circle_name"]}: {names}<br>
+                    <strong>{label}</strong> joined {escape(group["circle_name"])}: {escape(names)}<br>
                     {image_html}
                     <a href=\"{link}\" style=\"color: #007bff; text-decoration: none;\">View circle</a>
                 </li>
@@ -842,7 +853,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     <html>
     <body style=\"font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;\">
         <h2 style=\"color: #333;\">Your Meutch Digest</h2>
-        <p>Hello {user.first_name},</p>
+        <p>Hello {escape(user.first_name)},</p>
         <p style=\"margin: 0 0 16px 0;\">This is your {cadence_label} Meutch digest.</p>
 
         {summary_html}
@@ -938,8 +949,8 @@ The Meutch Team
         </div>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Item:</strong> {loan.item.name}</p>
-            <p><strong>Owner:</strong> {owner.first_name} {owner.last_name}</p>
+            <p><strong>Item:</strong> {escape(loan.item.name)}</p>
+            <p><strong>Owner:</strong> {escape(owner.first_name)} {escape(owner.last_name)}</p>
             <p><strong>Due Date:</strong> {loan.end_date.strftime("%B %d, %Y")}</p>
         </div>
 
@@ -1020,8 +1031,8 @@ The Meutch Team
         </div>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Item:</strong> {loan.item.name}</p>
-            <p><strong>Owner:</strong> {owner.first_name} {owner.last_name}</p>
+            <p><strong>Item:</strong> {escape(loan.item.name)}</p>
+            <p><strong>Owner:</strong> {escape(owner.first_name)} {escape(owner.last_name)}</p>
             <p><strong>Due Date:</strong> Today, {loan.end_date.strftime("%B %d, %Y")}</p>
         </div>
 
@@ -1105,8 +1116,8 @@ The Meutch Team
         </div>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Item:</strong> {loan.item.name}</p>
-            <p><strong>Borrower:</strong> {borrower.first_name} {borrower.last_name}</p>
+            <p><strong>Item:</strong> {escape(loan.item.name)}</p>
+            <p><strong>Borrower:</strong> {escape(borrower.first_name)} {escape(borrower.last_name)}</p>
             <p><strong>Due Date:</strong> Today, {loan.end_date.strftime("%B %d, %Y")}</p>
         </div>
 
@@ -1192,8 +1203,8 @@ The Meutch Team
         </div>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Item:</strong> {loan.item.name}</p>
-            <p><strong>Owner:</strong> {owner.first_name} {owner.last_name}</p>
+            <p><strong>Item:</strong> {escape(loan.item.name)}</p>
+            <p><strong>Owner:</strong> {escape(owner.first_name)} {escape(owner.last_name)}</p>
             <p><strong>Due Date:</strong> {loan.end_date.strftime("%B %d, %Y")}</p>
             <p><strong>Days Overdue:</strong> <span style="color: #dc3545; font-weight: bold;">{days_overdue}</span></p>
         </div>
@@ -1279,8 +1290,8 @@ The Meutch Team
         </div>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Item:</strong> {loan.item.name}</p>
-            <p><strong>Borrower:</strong> {borrower.first_name} {borrower.last_name}</p>
+            <p><strong>Item:</strong> {escape(loan.item.name)}</p>
+            <p><strong>Borrower:</strong> {escape(borrower.first_name)} {escape(borrower.last_name)}</p>
             <p><strong>Due Date:</strong> {loan.end_date.strftime("%B %d, %Y")}</p>
             <p><strong>Days Overdue:</strong> <span style="color: #dc3545; font-weight: bold;">{days_overdue}</span></p>
         </div>
@@ -1374,8 +1385,8 @@ def send_contact_form_email(sender_user, category, message):
         f'<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">\n'
         f'    <h2 style="color: #333;">New Contact Form Submission</h2>\n\n'
         f'    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">\n'
-        f"        <p><strong>From:</strong> {sender_user.first_name} {sender_user.last_name}</p>\n"
-        f"        <p><strong>Email:</strong> {sender_user.email}</p>\n"
+        f"        <p><strong>From:</strong> {escape(sender_user.first_name)} {escape(sender_user.last_name)}</p>\n"
+        f"        <p><strong>Email:</strong> {escape(sender_user.email)}</p>\n"
         f"        <p><strong>Category:</strong> {category_label}</p>\n"
         f"    </div>\n\n"
         f'    <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">\n'

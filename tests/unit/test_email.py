@@ -5,13 +5,14 @@ from unittest.mock import patch
 
 import pytest
 
+from app import db
 from app.utils.email import (
     build_digest_email_content,
     send_account_deletion_email,
     send_digest_email,
     send_email,
 )
-from tests.factories import UserFactory
+from tests.factories import ItemFactory, LoanRequestFactory, UserFactory
 
 
 class TestEmailUtils:
@@ -577,6 +578,174 @@ class TestEmailUtils:
                 assert result is True
                 mock_send_email.assert_called_once()
 
+    def test_digest_html_escapes_event_fields(self, app):
+        """Test that HTML in digest event fields is escaped in HTML output."""
+        with app.app_context():
+            user = UserFactory(first_name="Digest", digest_frequency="daily")
+            payload = {
+                "summary_stats": {
+                    "total_new_items": 0,
+                    "giveaways_count": 0,
+                    "borrow_requests_count": 0,
+                },
+                "giveaways": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": uuid.uuid4(),
+                        "actor_name": "<b>Alex</b>",
+                        "title": "<script>evil()</script>",
+                        "description": "<b>bold</b> description",
+                        "image_url": "https://example.com/item.jpg",
+                        "action": "posted a giveaway",
+                    }
+                ],
+                "requests": [],
+                "circle_joins": [],
+                "loans": [],
+            }
+
+            content = build_digest_email_content(
+                user,
+                payload,
+                manage_url="https://example.com/manage",
+                unsubscribe_url="https://example.com/unsubscribe",
+            )
+
+            html = content["html"]
+
+            # HTML content should have escaped event fields
+            assert "&lt;b&gt;Alex&lt;/b&gt;" in html
+            assert "&lt;script&gt;evil()&lt;/script&gt;" in html
+            assert "&lt;b&gt;bold&lt;/b&gt; description" in html
+
+            # Raw HTML should NOT be present
+            assert "<b>Alex</b>" not in html
+            assert "<script>evil()</script>" not in html
+            assert "<b>bold</b> description" not in html
+
+            # Text content should remain unescaped (plain text is safe)
+            text = content["text"]
+            assert "<b>Alex</b>" in text
+            assert "<script>evil()</script>" in text
+
+    def test_digest_html_escapes_actor_names(self, app):
+        """Test that HTML in actor names is escaped in digest HTML output."""
+        with app.app_context():
+            user = UserFactory(first_name="Digest", digest_frequency="weekly")
+            circle_x_id = uuid.uuid4()
+            payload = {
+                "summary_stats": {
+                    "total_new_items": 0,
+                    "giveaways_count": 0,
+                    "borrow_requests_count": 0,
+                },
+                "giveaways": [],
+                "requests": [],
+                "loans": [],
+                "circle_joins": [
+                    {
+                        "event_type": "circle_join",
+                        "circle_id": circle_x_id,
+                        "title": "Circle <b>X</b>",
+                        "actor_name": "Alice <script>bad()</script>",
+                        "action": "joined",
+                        "image_url": None,
+                    },
+                ],
+            }
+            content = build_digest_email_content(
+                user,
+                payload,
+                manage_url="https://example.com/manage",
+                unsubscribe_url="https://example.com/unsubscribe",
+            )
+
+            html = content["html"]
+
+            # HTML content should have escaped circle name and actor name
+            assert "Circle &lt;b&gt;X&lt;/b&gt;" in html
+            assert "Alice &lt;script&gt;bad()&lt;/script&gt;" in html
+
+            # Raw HTML should NOT be present in HTML output
+            assert "<b>X</b>" not in html
+
+    def test_digest_html_escapes_image_urls(self, app):
+        """Image URLs land inside an src attribute, so a quote must not close it."""
+        with app.app_context():
+            user = UserFactory(first_name="Digest", digest_frequency="daily")
+            payload = {
+                "summary_stats": {
+                    "total_new_items": 0,
+                    "giveaways_count": 0,
+                    "borrow_requests_count": 0,
+                },
+                "giveaways": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": uuid.uuid4(),
+                        "actor_name": "Alex",
+                        "title": "Drill",
+                        "description": None,
+                        "image_url": 'https://example.com/a.jpg" onerror="alert(1)',
+                        "action": "posted a giveaway",
+                    }
+                ],
+                "requests": [],
+                "circle_joins": [],
+                "loans": [],
+            }
+
+            html = build_digest_email_content(
+                user,
+                payload,
+                manage_url="https://example.com/manage",
+                unsubscribe_url="https://example.com/unsubscribe",
+            )["html"]
+
+            assert 'onerror="alert(1)"' not in html
+            assert "&#34; onerror=&#34;alert(1)" in html
+
+    def test_loan_reminder_html_escapes_item_name(self, app):
+        """Test that HTML in item name is escaped in loan reminder HTML output."""
+        with app.app_context():
+            owner = UserFactory(first_name="Owner", last_name="Person")
+            borrower = UserFactory(first_name="Borrower", last_name="Person")
+            item_name = '<a href="evil.com">Free Drill</a>'
+            item = ItemFactory(name=item_name, owner=owner)
+
+            # Create an active loan
+            from datetime import date, timedelta
+
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                start_date=date.today() - timedelta(days=10),
+                end_date=date.today() + timedelta(days=3),
+                status="approved",
+            )
+            db.session.commit()
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                from app.utils.email import send_loan_due_soon_email
+
+                result = send_loan_due_soon_email(loan)
+
+                assert result is True
+                mock_send_email.assert_called_once()
+
+                call_args = mock_send_email.call_args
+                to_email, subject, text_content, html_content = call_args[0]
+
+                # HTML content should have escaped item name
+                assert "&lt;a href=&#34;evil.com&#34;&gt;Free Drill&lt;/a&gt;" in html_content
+                # Raw HTML should NOT be present in HTML output
+                assert '<a href="evil.com">' not in html_content
+
+                # Text content should have unescaped item name
+                assert item_name in text_content
+
 
 class TestSendContactFormEmail:
     """Test send_contact_form_email function."""
@@ -813,3 +982,20 @@ class TestSendContactFormEmail:
                 assert "<script>alert(1)</script>" not in html
                 assert "&lt;script&gt;" in html
                 assert 'href="https://meutch.com/item/abc"' in html
+
+    def test_html_body_escapes_sender_name_and_email(self, app):
+        """The sender's own profile fields are user input too, not just the message."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory(first_name="Mal", last_name="<script>evil()</script>")
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            with patch("app.utils.email.send_email", return_value=True) as mock_send:
+                send_contact_form_email(sender, "question", "Test message body long enough")
+
+                html = mock_send.call_args[0][3]
+                assert "Mal &lt;script&gt;evil()&lt;/script&gt;" in html
+                assert "<script>evil()</script>" not in html
