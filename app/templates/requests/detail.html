@@ -51,7 +51,7 @@
 
                     <!-- Description -->
                     {% if item_request.description %}
-                        <p class="mb-3 fs-5 {% if item_request.is_fulfilled %}text-muted{% endif %}">{{ item_request.description }}</p>
+                        <p class="mb-3 fs-5 {% if item_request.is_fulfilled %}text-muted{% endif %}">{{ item_request.description|linkify }}</p>
                     {% endif %}
 
                     <!-- Badges -->
