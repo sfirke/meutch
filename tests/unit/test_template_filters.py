@@ -282,6 +282,54 @@ class TestLinkifyFilter:
         assert 'href="https://meutch.com/item/abc"' in result
         assert result.endswith("</a>…")
 
+    def test_shorten_drops_the_scheme_from_the_link_text(self):
+        result = str(linkify("https://example.com/shop", shorten=40))
+
+        assert 'href="https://example.com/shop"' in result
+        assert ">example.com/shop</a>" in result
+
+    def test_shorten_leaves_the_href_whole(self):
+        """Only the visible text is shortened; the link still goes to the real URL."""
+        url = "https://www.example.com/Some-Long-Product-Name/dp/B08XYZ123?ref=sr_1_3"
+        result = str(linkify(url, shorten=40))
+
+        assert f'href="{url}"' in result
+        assert "…</a>" in result
+
+    def test_shorten_keeps_the_host_whole(self):
+        """The host is how a reader judges a link, so it is the last thing elided."""
+        result = str(
+            linkify("https://www.example.com/a/very/long/path/that/keeps/going", shorten=40)
+        )
+
+        assert ">www.example.com/" in result
+
+    def test_shorten_falls_back_when_the_host_alone_is_too_long(self):
+        host = "a-really-long-hostname-that-alone-exceeds.example.com"
+        result = str(linkify(f"https://{host}/x", shorten=40))
+
+        text = result.split(">")[-2].replace("</a", "")
+        assert len(text) == 40
+        assert text.endswith("…")
+
+    def test_shorten_adds_a_title_with_the_full_url_when_text_is_cut(self):
+        url = "https://www.example.com/Some-Long-Product-Name/dp/B08XYZ123?ref=sr_1_3"
+        result = str(linkify(url, shorten=40))
+
+        assert f'title="{url}"' in result
+
+    def test_shorten_adds_no_title_when_only_the_scheme_was_dropped(self):
+        """A tooltip repeating a URL the reader can already read is just noise."""
+        result = str(linkify("https://example.com/shop", shorten=40))
+
+        assert "title=" not in result
+
+    def test_shorten_unset_leaves_the_full_url_as_link_text(self):
+        result = str(linkify("https://example.com/dp/B0123?a=1&b=2"))
+
+        assert ">https://example.com/dp/B0123?a=1&amp;b=2</a>" in result
+        assert "title=" not in result
+
     def test_returns_markup(self):
         assert isinstance(linkify("hello"), Markup)
 

@@ -478,10 +478,38 @@ class TestMainRoutes:
             content = response.data.decode("utf-8")
 
             assert response.status_code == 200
+            # Feed link text drops the scheme; the href keeps the whole URL.
             assert (
                 '<a href="https://example.com/dp/B012345" target="_blank" '
-                'rel="noopener noreferrer nofollow">https://example.com/dp/B012345</a>'
+                'rel="noopener noreferrer nofollow">example.com/dp/B012345</a>'
             ) in content
+
+    def test_feed_description_link_text_is_shortened(self, client, app, auth_user):
+        """A raw URL would crowd out the two-line teaser and out-shout the CTA."""
+        url = "https://www.example.com/Some-Long-Product-Name/dp/B08XYZ123?ref=sr_1_3"
+        with app.app_context():
+            viewer = auth_user()
+            requester = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, requester])
+            ItemRequestFactory(
+                user=requester,
+                title="Shortened Link Request",
+                description=f"Looking for something like this: {url}",
+                visibility="public",
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get("/")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            # The href and the tooltip carry the whole URL; the text does not.
+            assert f'href="{url}"' in content
+            assert f'title="{url}"' in content
+            assert f">{url}</a>" not in content
+            assert ">www.example.com/Some-Long-Product-Name" in content
 
     def test_feed_description_markup_is_escaped(self, client, app, auth_user):
         """Descriptions are user input, so markup in them is escaped rather than rendered."""
