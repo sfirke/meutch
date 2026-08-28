@@ -392,3 +392,32 @@ class TestConversationBodyRendering:
 
             assert response.status_code == 200
             assert "first<br>second" in content
+
+
+class TestConversationListPreviewRendering:
+    """The inbox preview is plain text: the whole row is already a link."""
+
+    def test_preview_does_not_linkify_urls(self, client, app):
+        """Linkifying here would nest an <a> inside the row's own <a>."""
+        with app.app_context():
+            viewer = UserFactory()
+            partner = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=viewer)
+            ConversationParticipantFactory(conversation=conversation, user=partner)
+            MessageFactory(
+                sender=partner,
+                recipient=viewer,
+                conversation=conversation,
+                body="See https://example.com/dp/B012345",
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get("/messages")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            preview = content.split('<span class="conv-preview">')[1].split("</span>")[0]
+            assert "https://example.com/dp/B012345" in preview
+            assert "<a" not in preview

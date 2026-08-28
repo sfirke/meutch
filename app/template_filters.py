@@ -110,13 +110,22 @@ def truncate(value, length=30):
     return value[:length] + "…"
 
 
-# Only http(s) URLs become links. Restricting the scheme here is what keeps
-# `javascript:` and `data:` URIs out of the href we generate.
-_URL_PATTERN = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
+# Only http(s) URLs become links, plus scheme-less "www." hostnames, which get
+# an https:// href. Restricting the scheme here is what keeps `javascript:` and
+# `data:` URIs out of the href we generate.
+_URL_PATTERN = re.compile(
+    r"""(?:
+        https?://[^\s<>"']+
+      | www\.(?:[a-z0-9][-a-z0-9]*\.)+[a-z]{2,}(?::\d+)?(?:[/?\#][^\s<>"']*)?
+    )""",
+    re.IGNORECASE | re.VERBOSE,
+)
 
 # Punctuation that usually belongs to the sentence rather than the URL, e.g.
 # "see it here: https://meutch.com/item/abc." — the period is not part of the link.
-_TRAILING_PUNCTUATION = ".,;:!?'\"]}"
+# The ellipsis is in here because `truncate` appends one, so a truncated string
+# fed through this filter does not end up with "…" inside the href.
+_TRAILING_PUNCTUATION = ".,;:!?'\"]}…"
 
 
 def _trim_trailing_punctuation(url):
@@ -131,7 +140,10 @@ def _trim_trailing_punctuation(url):
 
 
 def linkify(value, br=True):
-    """Render user-supplied plain text as HTML with clickable http(s) links.
+    """Render user-supplied plain text as HTML with clickable links.
+
+    http(s) URLs and scheme-less "www." hostnames become anchors; the latter are
+    given an https:// href while the visible text stays exactly as typed.
 
     The text is escaped first and the anchors are built afterwards, so a message
     body can never inject markup: everything the user typed is escaped, and the
@@ -160,9 +172,13 @@ def linkify(value, br=True):
         if not url:
             continue
         chunks.append(str(escape(text[cursor : match.start()])))
-        safe_url = str(escape(url))
+        # A "www." match has no scheme of its own; the link text stays as typed
+        # while the href gets https:// so the browser does not read it as a
+        # relative path.
+        href = url if "://" in url else f"https://{url}"
         chunks.append(
-            f'<a href="{safe_url}" target="_blank" rel="noopener noreferrer nofollow">{safe_url}</a>'
+            f'<a href="{escape(href)}" target="_blank" '
+            f'rel="noopener noreferrer nofollow">{escape(url)}</a>'
         )
         cursor = match.start() + len(url)
     chunks.append(str(escape(text[cursor:])))

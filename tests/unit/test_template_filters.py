@@ -246,6 +246,42 @@ class TestLinkifyFilter:
 
         assert result.count("<a href=") == 2
 
+    def test_linkifies_a_scheme_less_www_url(self):
+        """People type "www.example.com" far more often than they type the scheme."""
+        result = str(linkify("Found it at www.example.com/dp/B012345"))
+
+        assert (
+            '<a href="https://www.example.com/dp/B012345" target="_blank" '
+            'rel="noopener noreferrer nofollow">www.example.com/dp/B012345</a>'
+        ) in result
+
+    def test_www_url_with_a_multi_label_domain_is_matched_whole(self):
+        result = str(linkify("www.example.co.uk/dp/B012345"))
+
+        assert 'href="https://www.example.co.uk/dp/B012345"' in result
+        assert ">www.example.co.uk/dp/B012345</a>" in result
+
+    def test_www_without_a_tld_is_not_a_link(self):
+        assert "<a" not in str(linkify("www.example"))
+
+    def test_bare_hostname_without_www_is_not_a_link(self):
+        """Only an explicit scheme or a www. prefix signals intent to link."""
+        assert "<a" not in str(linkify("Ask me about example.com sometime"))
+
+    def test_www_url_keeps_its_href_scheme_out_of_the_link_text(self):
+        """The visible text stays as typed even though the href gains https://."""
+        result = str(linkify("www.example.com"))
+
+        assert ">www.example.com</a>" in result
+        assert ">https://www.example.com</a>" not in result
+
+    def test_trailing_ellipsis_is_not_part_of_the_link(self):
+        """`truncate` appends an ellipsis; it must not end up inside the href."""
+        result = str(linkify("See https://meutch.com/item/abc…"))
+
+        assert 'href="https://meutch.com/item/abc"' in result
+        assert result.endswith("</a>…")
+
     def test_returns_markup(self):
         assert isinstance(linkify("hello"), Markup)
 
