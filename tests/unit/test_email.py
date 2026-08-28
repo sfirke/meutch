@@ -669,6 +669,42 @@ class TestEmailUtils:
             # Raw HTML should NOT be present in HTML output
             assert "<b>X</b>" not in html
 
+    def test_digest_html_escapes_image_urls(self, app):
+        """Image URLs land inside an src attribute, so a quote must not close it."""
+        with app.app_context():
+            user = UserFactory(first_name="Digest", digest_frequency="daily")
+            payload = {
+                "summary_stats": {
+                    "total_new_items": 0,
+                    "giveaways_count": 0,
+                    "borrow_requests_count": 0,
+                },
+                "giveaways": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": uuid.uuid4(),
+                        "actor_name": "Alex",
+                        "title": "Drill",
+                        "description": None,
+                        "image_url": 'https://example.com/a.jpg" onerror="alert(1)',
+                        "action": "posted a giveaway",
+                    }
+                ],
+                "requests": [],
+                "circle_joins": [],
+                "loans": [],
+            }
+
+            html = build_digest_email_content(
+                user,
+                payload,
+                manage_url="https://example.com/manage",
+                unsubscribe_url="https://example.com/unsubscribe",
+            )["html"]
+
+            assert 'onerror="alert(1)"' not in html
+            assert "&#34; onerror=&#34;alert(1)" in html
+
     def test_loan_reminder_html_escapes_item_name(self, app):
         """Test that HTML in item name is escaped in loan reminder HTML output."""
         with app.app_context():
@@ -946,3 +982,20 @@ class TestSendContactFormEmail:
                 assert "<script>alert(1)</script>" not in html
                 assert "&lt;script&gt;" in html
                 assert 'href="https://meutch.com/item/abc"' in html
+
+    def test_html_body_escapes_sender_name_and_email(self, app):
+        """The sender's own profile fields are user input too, not just the message."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory(first_name="Mal", last_name="<script>evil()</script>")
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            with patch("app.utils.email.send_email", return_value=True) as mock_send:
+                send_contact_form_email(sender, "question", "Test message body long enough")
+
+                html = mock_send.call_args[0][3]
+                assert "Mal &lt;script&gt;evil()&lt;/script&gt;" in html
+                assert "<script>evil()</script>" not in html

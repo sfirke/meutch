@@ -1,3 +1,13 @@
+"""Outbound email: Mailgun delivery plus the text and HTML body for each notification.
+
+Every email here is assembled with f-strings rather than Jinja, so nothing escapes
+automatically. Any value that a user can influence — names, item and circle names,
+descriptions, message bodies — must be wrapped in `escape()` before it goes into the
+HTML body, or in `linkify()` where URLs in the text should also become clickable
+(linkify escapes first, then adds the anchors). The plain-text body is not markup and
+is left alone.
+"""
+
 import requests
 from flask import current_app, url_for
 from markupsafe import escape
@@ -754,7 +764,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             if include_image and event.get("image_url"):
                 image_html = (
                     f'<div style="margin: 8px 0;">'
-                    f'<img src="{event["image_url"]}" alt="Activity image" '
+                    f'<img src="{escape(event["image_url"])}" alt="Activity image" '
                     f'style="max-width: 100%; width: 220px; height: auto; border-radius: 8px;">'
                     f"</div>"
                 )
@@ -807,14 +817,14 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             if group["image_url"]:
                 image_html = (
                     f'<div style="margin: 8px 0;">'
-                    f'<img src="{group["image_url"]}" alt="Circle image" '
+                    f'<img src="{escape(group["image_url"])}" alt="Circle image" '
                     f'style="max-width: 100%; width: 220px; height: auto; border-radius: 8px;">'
                     f"</div>"
                 )
             items_html.append(
                 f"""
                 <li style=\"margin-bottom: 10px;\">
-                    <strong>{escape(label)}</strong> joined {escape(group["circle_name"])}: {escape(names)}<br>
+                    <strong>{label}</strong> joined {escape(group["circle_name"])}: {escape(names)}<br>
                     {image_html}
                     <a href=\"{link}\" style=\"color: #007bff; text-decoration: none;\">View circle</a>
                 </li>
@@ -1375,8 +1385,8 @@ def send_contact_form_email(sender_user, category, message):
         f'<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">\n'
         f'    <h2 style="color: #333;">New Contact Form Submission</h2>\n\n'
         f'    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">\n'
-        f"        <p><strong>From:</strong> {sender_user.first_name} {sender_user.last_name}</p>\n"
-        f"        <p><strong>Email:</strong> {sender_user.email}</p>\n"
+        f"        <p><strong>From:</strong> {escape(sender_user.first_name)} {escape(sender_user.last_name)}</p>\n"
+        f"        <p><strong>Email:</strong> {escape(sender_user.email)}</p>\n"
         f"        <p><strong>Category:</strong> {category_label}</p>\n"
         f"    </div>\n\n"
         f'    <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">\n'
