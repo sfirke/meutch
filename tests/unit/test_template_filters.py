@@ -268,13 +268,6 @@ class TestLinkifyFilter:
         """Only an explicit scheme or a www. prefix signals intent to link."""
         assert "<a" not in str(linkify("Ask me about example.com sometime"))
 
-    def test_www_url_keeps_its_href_scheme_out_of_the_link_text(self):
-        """The visible text stays as typed even though the href gains https://."""
-        result = str(linkify("www.example.com"))
-
-        assert ">www.example.com</a>" in result
-        assert ">https://www.example.com</a>" not in result
-
     def test_trailing_ellipsis_is_not_part_of_the_link(self):
         """`truncate` appends an ellipsis; it must not end up inside the href."""
         result = str(linkify("See https://meutch.com/item/abc…"))

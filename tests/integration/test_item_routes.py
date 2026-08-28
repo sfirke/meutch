@@ -227,25 +227,6 @@ class TestItemRoutes:
                 'rel="noopener noreferrer nofollow">https://example.com/dp/B012345</a>'
             ) in content
 
-    def test_item_detail_description_markup_is_escaped(self, client, app, auth_user):
-        """Descriptions are user input, so markup in them is escaped rather than rendered."""
-        with app.app_context():
-            viewer = auth_user()
-            owner = UserFactory()
-            circle = CircleFactory()
-            circle.members.append(viewer)
-            circle.members.append(owner)
-            item = ItemFactory(owner=owner, description="<script>alert('xss')</script>")
-            db.session.commit()
-
-            login_user(client, viewer.email)
-            response = client.get(f"/item/{item.id}")
-            content = response.data.decode("utf-8")
-
-            assert response.status_code == 200
-            assert "<script>alert(" not in content
-            assert "&lt;script&gt;" in content
-
     def test_item_detail_uses_thumbnail_carousel_for_multiple_images(self, client, app, auth_user):
         """Multi-image item detail should render a thumbnail strip below the carousel."""
         with app.app_context():

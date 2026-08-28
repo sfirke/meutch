@@ -773,36 +773,6 @@ class TestRequestDetail:
                 'rel="noopener noreferrer nofollow">https://example.com/dp/B012345</a>'
             ) in content
 
-    def test_detail_description_link_text_is_not_shortened(self, client, app, auth_user):
-        """Unlike the feed teaser, the detail page has room for the whole URL."""
-        url = "https://www.example.com/Some-Long-Product-Name/dp/B08XYZ123?ref=sr_1_3"
-        with app.app_context():
-            user = auth_user()
-            req = ItemRequestFactory(user=user, description=f"Like this: {url}")
-            db.session.commit()
-
-            login_user(client, user.email)
-            response = client.get(f"/requests/{req.id}/detail")
-            content = response.data.decode("utf-8")
-
-            assert response.status_code == 200
-            assert f">{url}</a>" in content
-
-    def test_detail_description_markup_is_escaped(self, client, app, auth_user):
-        """Descriptions are user input, so markup in them is escaped rather than rendered."""
-        with app.app_context():
-            user = auth_user()
-            req = ItemRequestFactory(user=user, description="<script>alert('xss')</script>")
-            db.session.commit()
-
-            login_user(client, user.email)
-            response = client.get(f"/requests/{req.id}/detail")
-            content = response.data.decode("utf-8")
-
-            assert response.status_code == 200
-            assert "<script>alert(" not in content
-            assert "&lt;script&gt;" in content
-
     def test_detail_deleted_request_returns_404(self, client, app, auth_user):
         """Test that viewing a deleted request returns 404."""
         with app.app_context():

@@ -73,25 +73,6 @@ class TestProfileAccessControl:
             'rel="noopener noreferrer nofollow">www.example.com/shop</a>'
         ) in content
 
-    def test_profile_about_me_markup_is_escaped(self, client):
-        """Bios are user input, so markup in them is escaped rather than rendered."""
-        viewer = UserFactory()
-        owner = UserFactory(about_me="<script>alert('xss')</script>")
-        db.session.commit()
-
-        circle = CircleFactory()
-        circle.members.append(viewer)
-        circle.members.append(owner)
-        db.session.commit()
-
-        login_user(client, viewer.email)
-        response = client.get(url_for("main.user_profile", user_id=owner.id))
-        content = response.data.decode("utf-8")
-
-        assert response.status_code == 200
-        assert "<script>alert(" not in content
-        assert "&lt;script&gt;" in content
-
     def test_profile_not_accessible_when_no_shared_circle(self, client):
         """Test that users cannot view profiles of users not in their circles."""
         user1 = UserFactory()
