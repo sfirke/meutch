@@ -791,3 +791,25 @@ class TestSendContactFormEmail:
 
                 assert result is True
                 assert mock_send.call_count == 1
+
+    def test_html_body_escapes_markup_and_links_urls(self, app):
+        """The submitted message is user input pasted into the admin email's HTML."""
+        with app.app_context():
+            from app import db
+            from app.utils.email import send_contact_form_email
+
+            sender = UserFactory()
+            UserFactory(is_admin=True)
+            db.session.commit()
+
+            with patch("app.utils.email.send_email", return_value=True) as mock_send:
+                send_contact_form_email(
+                    sender,
+                    "bug_report",
+                    "<script>alert(1)</script> broken at https://meutch.com/item/abc",
+                )
+
+                html = mock_send.call_args[0][3]
+                assert "<script>alert(1)</script>" not in html
+                assert "&lt;script&gt;" in html
+                assert 'href="https://meutch.com/item/abc"' in html

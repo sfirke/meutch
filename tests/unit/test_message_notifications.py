@@ -262,3 +262,57 @@ class TestMessageNotifications:
             assert "Valid statuses are: pending, approved, denied, completed, canceled" in str(
                 exc_info.value
             )
+
+
+class TestMessageNotificationBodyRendering:
+    """The HTML part of a notification escapes the body and links its URLs."""
+
+    def _notify(self, body):
+        sender = UserFactory(email="sender@test.com")
+        recipient = UserFactory(email="recipient@test.com")
+        item = ItemFactory(name="Test Item", owner=recipient)
+        conversation = ConversationFactory(context_type="item", context_id=item.id)
+        message = MessageFactory(
+            sender=sender, recipient=recipient, conversation=conversation, body=body
+        )
+
+        with patch("app.utils.email.send_email") as mock_send_email:
+            mock_send_email.return_value = True
+            send_message_notification_email(message)
+            return mock_send_email.call_args[0][3]  # html_content
+
+    def test_html_body_linkifies_urls(self, app):
+        with app.app_context():
+            html = self._notify("You can see it here: https://meutch.com/item/abc")
+
+            assert 'href="https://meutch.com/item/abc"' in html
+            assert 'rel="noopener noreferrer nofollow"' in html
+
+    def test_html_body_escapes_markup(self, app):
+        """A message body must not be able to inject markup into the email."""
+        with app.app_context():
+            html = self._notify('<a href="https://evil.example.com">click me</a>')
+
+            assert "evil.example.com" in html  # the text is still shown
+            assert '<a href="https://evil.example.com">' not in html
+            assert "&lt;a href=" in html
+
+    def test_text_body_keeps_the_raw_message(self, app):
+        """The plain-text part is not HTML, so it is left untouched."""
+        with app.app_context():
+            sender = UserFactory(email="sender@test.com")
+            recipient = UserFactory(email="recipient@test.com")
+            item = ItemFactory(name="Test Item", owner=recipient)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                body="5 > 3 & you know it",
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+                send_message_notification_email(message)
+
+                assert "5 > 3 & you know it" in mock_send_email.call_args[0][2]
