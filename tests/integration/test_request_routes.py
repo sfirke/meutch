@@ -753,6 +753,26 @@ class TestRequestDetail:
             assert response.status_code == 200
             assert b"My detailed request" in response.data
 
+    def test_detail_description_urls_are_clickable(self, client, app, auth_user):
+        """A URL in a request description is a link on the detail page."""
+        with app.app_context():
+            user = auth_user()
+            req = ItemRequestFactory(
+                user=user,
+                description="Looking for something like this: https://example.com/dp/B012345",
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get(f"/requests/{req.id}/detail")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert (
+                '<a href="https://example.com/dp/B012345" target="_blank" '
+                'rel="noopener noreferrer nofollow">https://example.com/dp/B012345</a>'
+            ) in content
+
     def test_detail_deleted_request_returns_404(self, client, app, auth_user):
         """Test that viewing a deleted request returns 404."""
         with app.app_context():

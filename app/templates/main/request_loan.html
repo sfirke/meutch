@@ -16,14 +16,14 @@
                     <!-- Item Details Card -->
                     <div class="item-card mb-4">
                         {% if item.image %}
-                            <img src="{{ item.image }}" 
-                                 class="item-thumbnail mb-3" 
-                                 alt="{{ item.name }}" 
-                                 width="200" 
+                            <img src="{{ item.image }}"
+                                 class="item-thumbnail mb-3"
+                                 alt="{{ item.name }}"
+                                 width="200"
                                  height="150">
                         {% endif %}
                         <h4>{{ item.name }}</h4>
-                        <p>{{ item.description }}</p>
+                        <p>{{ item.description|linkify }}</p>
                         <p><strong>Owner:</strong> {{ item.owner.first_name }} {{ item.owner.last_name }}</p>
                     </div>
 

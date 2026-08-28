@@ -110,13 +110,41 @@ def truncate(value, length=30):
     return value[:length] + "…"
 
 
-# Only http(s) URLs become links. Restricting the scheme here is what keeps
-# `javascript:` and `data:` URIs out of the href we generate.
-_URL_PATTERN = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
+# Only http(s) URLs become links, plus scheme-less "www." hostnames, which get
+# an https:// href. Restricting the scheme here is what keeps `javascript:` and
+# `data:` URIs out of the href we generate.
+_URL_PATTERN = re.compile(
+    r"""(?:
+        https?://[^\s<>"']+
+      | www\.(?:[a-z0-9][-a-z0-9]*\.)+[a-z]{2,}(?::\d+)?(?:[/?\#][^\s<>"']*)?
+    )""",
+    re.IGNORECASE | re.VERBOSE,
+)
 
 # Punctuation that usually belongs to the sentence rather than the URL, e.g.
 # "see it here: https://meutch.com/item/abc." — the period is not part of the link.
-_TRAILING_PUNCTUATION = ".,;:!?'\"]}"
+# The ellipsis is in here because `truncate` appends one, so a truncated string
+# fed through this filter does not end up with "…" inside the href.
+_TRAILING_PUNCTUATION = ".,;:!?'\"]}…"
+
+
+_SCHEME_PREFIX = re.compile(r"^https?://", re.IGNORECASE)
+
+
+def _shorten_url_text(url, limit):
+    """Return link text for *url* of at most *limit* characters.
+
+    The scheme is dropped and the path truncated, but the host is kept whole
+    wherever it fits: the host is what a reader uses to decide whether to click,
+    so it is the last part that should be elided.
+    """
+    text = _SCHEME_PREFIX.sub("", url)
+    if len(text) <= limit:
+        return text
+    host, sep, rest = text.partition("/")
+    if not sep or len(host) + 2 > limit:
+        return text[: max(limit - 1, 1)] + "…"
+    return f"{host}/{rest[: limit - len(host) - 2]}…"
 
 
 def _trim_trailing_punctuation(url):
@@ -130,8 +158,11 @@ def _trim_trailing_punctuation(url):
     return url
 
 
-def linkify(value, br=True):
-    """Render user-supplied plain text as HTML with clickable http(s) links.
+def linkify(value, br=True, shorten=None):
+    """Render user-supplied plain text as HTML with clickable links.
+
+    http(s) URLs and scheme-less "www." hostnames become anchors; the latter are
+    given an https:// href while the visible text stays exactly as typed.
 
     The text is escaped first and the anchors are built afterwards, so a message
     body can never inject markup: everything the user typed is escaped, and the
@@ -145,6 +176,11 @@ def linkify(value, br=True):
         br: When True, newlines become <br> tags. Pass False where the
             surrounding markup already preserves newlines (for example a
             `white-space: pre-line` block in an email).
+        shorten: When set to a character limit, the visible link text is
+            shortened to fit it and the full URL moves to a title attribute.
+            The href is always the whole URL. Use this in summary views such as
+            the home feed, where a raw URL crowds out the text around it; leave
+            it unset on detail pages, where the full URL is worth showing.
 
     Returns:
         A Markup object safe to render unescaped.
@@ -160,9 +196,21 @@ def linkify(value, br=True):
         if not url:
             continue
         chunks.append(str(escape(text[cursor : match.start()])))
-        safe_url = str(escape(url))
+        # A "www." match has no scheme of its own; the link text stays as typed
+        # while the href gets https:// so the browser does not read it as a
+        # relative path.
+        href = url if "://" in url else f"https://{url}"
+        if shorten:
+            text_shown = _shorten_url_text(url, shorten)
+            # A tooltip earns its place only when the text was actually cut,
+            # not when all that changed was dropping the scheme.
+            truncated = len(_SCHEME_PREFIX.sub("", url)) > shorten
+        else:
+            text_shown, truncated = url, False
+        title = f' title="{escape(url)}"' if truncated else ""
         chunks.append(
-            f'<a href="{safe_url}" target="_blank" rel="noopener noreferrer nofollow">{safe_url}</a>'
+            f'<a href="{escape(href)}"{title} target="_blank" '
+            f'rel="noopener noreferrer nofollow">{escape(text_shown)}</a>'
         )
         cursor = match.start() + len(url)
     chunks.append(str(escape(text[cursor:])))

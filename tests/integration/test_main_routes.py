@@ -458,6 +458,32 @@ class TestMainRoutes:
             # Linked avatar branch blanks the img alt; the non-linked branch uses alt=actor_name
             assert f'<img src="{avatar_url}" alt=""' in content
 
+    def test_feed_description_urls_are_clickable(self, client, app, auth_user):
+        """A URL in a request description is a link in the home feed card."""
+        with app.app_context():
+            viewer = auth_user()
+            requester = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, requester])
+            ItemRequestFactory(
+                user=requester,
+                title="Linkified Description Request",
+                description="Looking for something like this: https://example.com/dp/B012345",
+                visibility="public",
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get("/")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            # Feed link text drops the scheme; the href keeps the whole URL.
+            assert (
+                '<a href="https://example.com/dp/B012345" target="_blank" '
+                'rel="noopener noreferrer nofollow">example.com/dp/B012345</a>'
+            ) in content
+
     def test_find_page_requires_login(self, client):
         """Test /find requires authentication."""
         response = client.get("/find")

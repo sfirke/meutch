@@ -204,6 +204,29 @@ class TestItemRoutes:
             assert response.status_code == 200
             assert item.name.encode() in response.data
 
+    def test_item_detail_description_urls_are_clickable(self, client, app, auth_user):
+        """A URL in an item description is a link on the detail page."""
+        with app.app_context():
+            viewer = auth_user()
+            owner = UserFactory()
+            circle = CircleFactory()
+            circle.members.append(viewer)
+            circle.members.append(owner)
+            item = ItemFactory(
+                owner=owner, description="It is this one: https://example.com/dp/B012345"
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f"/item/{item.id}")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert (
+                '<a href="https://example.com/dp/B012345" target="_blank" '
+                'rel="noopener noreferrer nofollow">https://example.com/dp/B012345</a>'
+            ) in content
+
     def test_item_detail_uses_thumbnail_carousel_for_multiple_images(self, client, app, auth_user):
         """Multi-image item detail should render a thumbnail strip below the carousel."""
         with app.app_context():

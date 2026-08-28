@@ -85,7 +85,7 @@
                         </div>
 
                         {% if item.description %}
-                            <p class="card-text lead text-muted mb-4">{{ item.description }}</p>
+                            <p class="card-text lead text-muted mb-4">{{ item.description|linkify }}</p>
                         {% endif %}
 
                         {% if has_token_access and not shares_circle_with_owner %}
