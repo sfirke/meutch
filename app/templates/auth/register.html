@@ -15,7 +15,7 @@
             {{ form.first_name.label }}<br>
             {{ form.first_name(size=32) }}<br>
             {% for error in form.first_name.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
         </p>
 
@@ -24,17 +24,25 @@
             {{ form.last_name.label }}<br>
             {{ form.last_name(size=32) }}<br>
             {% for error in form.last_name.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
         </p>
 
         <!-- Email -->
         <p>
             {{ form.email.label }}<br>
-            {{ form.email(size=32) }}<br>
-            {% for error in form.email.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
+            {{ form.email(size=32, aria_describedby="email-help") }}<br>
+            <span id="email-help" role="alert">
+                {% for error in form.email.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+                {% if form.email_status == 'unconfirmed' %}
+                    <br><a href="{{ url_for('auth.resend_confirmation') }}" class="btn btn-link btn-sm p-0"><i class="fas fa-envelope me-1"></i>Resend confirmation email</a>
+                {% endif %}
+                {% if form.email_status == 'confirmed' %}
+                    <br><a href="{{ url_for('auth.forgot_password') }}" class="btn btn-link btn-sm p-0"><i class="fas fa-key me-1"></i>Forgot your password?</a>
+                {% endif %}
+            </span>
         </p>
 
         <!-- Password -->
@@ -42,7 +50,7 @@
             {{ form.password.label }}<br>
             {{ form.password(size=32) }}<br>
             {% for error in form.password.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
         </p>
 
@@ -51,7 +59,7 @@
             {{ form.confirm_password.label }}<br>
             {{ form.confirm_password(size=32) }}<br>
             {% for error in form.confirm_password.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
         </p>
 
@@ -61,7 +69,7 @@
             <p class="text-muted mb-2">Meutch sends digest emails with a recap of activity in your circles. How often would you like to receive it?</p>
             {{ form.digest_frequency(class="form-select") }}
             {% for error in form.digest_frequency.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
         </div>
 
@@ -93,7 +101,7 @@
                 </div>
             {% endfor %}
             {% for error in form.location_method.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
         </div>
 
@@ -109,7 +117,7 @@
                 {{ form.street.label }}<br>
                 {{ form.street(size=64) }}<br>
                 {% for error in form.street.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
 
@@ -118,7 +126,7 @@
                 {{ form.city.label }}<br>
                 {{ form.city(size=32) }}<br>
                 {% for error in form.city.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
 
@@ -127,7 +135,7 @@
                 {{ form.state.label }}<br>
                 {{ form.state(size=32) }}<br>
                 {% for error in form.state.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
 
@@ -136,7 +144,7 @@
                 {{ form.zip_code.label }}<br>
                 {{ form.zip_code(size=10) }}<br>
                 {% for error in form.zip_code.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
 
@@ -145,7 +153,7 @@
                 {{ form.country.label }}<br>
                 {{ form.country() }}<br>
                 {% for error in form.country.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
         </div>
@@ -170,7 +178,7 @@
                 {{ form.latitude(size=32, step="any", placeholder="e.g., 40.7128") }}<br>
                 <small class="text-muted">Between -90 and 90 degrees</small><br>
                 {% for error in form.latitude.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
 
@@ -180,7 +188,7 @@
                 {{ form.longitude(size=32, step="any", placeholder="e.g., -74.0060") }}<br>
                 <small class="text-muted">Between -180 and 180 degrees</small><br>
                 {% for error in form.longitude.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
         </div>
@@ -207,7 +215,7 @@
                 {{ form.age_confirm.label(class="form-check-label") }}
             </div>
             {% for error in form.age_confirm.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
             <small class="text-muted">
                 Read our <a href="{{ url_for('main.terms') }}" target="_blank">Terms &amp; Conditions</a>.

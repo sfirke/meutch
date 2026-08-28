@@ -83,6 +83,69 @@ class TestApiFeed:
 
         assert response.status_code == 401
 
+    def test_feed_events_include_actor_id(self, client, app):
+        """API feed response includes actor_id for each event."""
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            requester = UserFactory()
+            owner = UserFactory()
+            category = CategoryFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, requester, owner])
+
+            ItemRequestFactory(user=requester, title="Actor ID API Request", visibility="public")
+            ItemFactory(
+                owner=owner,
+                category=category,
+                name="Actor ID API Giveaway",
+                is_giveaway=True,
+                giveaway_visibility="public",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+            requester_id = str(requester.id)
+            owner_id = str(owner.id)
+            access_token = login_api_user(client, viewer.email)
+
+        response = client.get(
+            "/api/v1/feed?types=requests&types=giveaways",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        events = response.get_json()["events"]
+        by_title = {event["title"]: event for event in events}
+        assert by_title["Actor ID API Request"]["actor_id"] == requester_id
+        assert by_title["Actor ID API Giveaway"]["actor_id"] == owner_id
+        assert by_title["Actor ID API Request"]["actor_profile_viewable"] is True
+        assert by_title["Actor ID API Giveaway"]["actor_profile_viewable"] is True
+
+    def test_feed_marks_unviewable_actor_profiles(self, client, app):
+        """actor_profile_viewable is False for public activity from outside the caller's circles."""
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            stranger = UserFactory()
+            viewer_circle = CircleFactory()
+            stranger_circle = CircleFactory()
+            viewer_circle.members.append(viewer)
+            stranger_circle.members.append(stranger)
+
+            ItemRequestFactory(user=stranger, title="Stranger API Request", visibility="public")
+            db.session.commit()
+            stranger_id = str(stranger.id)
+            access_token = login_api_user(client, viewer.email)
+
+        response = client.get(
+            "/api/v1/feed?types=requests",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        events = response.get_json()["events"]
+        by_title = {event["title"]: event for event in events}
+        assert by_title["Stranger API Request"]["actor_id"] == stranger_id
+        assert by_title["Stranger API Request"]["actor_profile_viewable"] is False
+
     def test_feed_show_own_activity_toggle(self, client, app):
         """API feed respects show_own_activity — default includes own, false hides it."""
         with app.app_context():

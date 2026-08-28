@@ -24,7 +24,7 @@
                 {% if circle.image_url %}
                     <img src="{{ circle.image_url }}" alt="{{ circle.name }}" class="card-img-top share-preview-image">
                 {% endif %}
-                
+
                 <div class="card-body">
                     <!-- Circle Type Badge -->
                     <div class="mb-3">
@@ -47,7 +47,7 @@
 
                     <!-- Description -->
                     {% if circle.description %}
-                        <p class="fs-5 text-muted mb-4">{{ circle.description }}</p>
+                        <p class="fs-5 text-muted mb-4">{{ circle.description|linkify }}</p>
                     {% endif %}
 
                     <!-- Member Avatars (open circles only) -->
@@ -57,8 +57,8 @@
                             <div class="d-flex flex-wrap gap-2 align-items-center">
                                 {% for member in sample_members %}
                                     <div class="share-member-avatar" title="{{ member.first_name }}">
-                                        <img src="{{ member.profile_image }}" 
-                                             alt="{{ member.first_name }}" 
+                                        <img src="{{ member.profile_image }}"
+                                             alt="{{ member.first_name }}"
                                              class="rounded-circle"
                                              width="44" height="44">
                                     </div>
@@ -88,11 +88,11 @@
                             <i class="fas fa-handshake me-2 text-primary"></i>Join this circle to start sharing with the community!
                         </p>
                         <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
-                            <a href="{{ url_for('auth.register', next=auth_next_url) }}" 
+                            <a href="{{ url_for('auth.register', next=auth_next_url) }}"
                                class="btn btn-primary btn-lg">
                                 <i class="fas fa-user-plus me-2"></i>Sign Up
                             </a>
-                            <a href="{{ url_for('auth.login', next=auth_next_url) }}" 
+                            <a href="{{ url_for('auth.login', next=auth_next_url) }}"
                                class="btn btn-outline-secondary btn-lg">
                                 <i class="fas fa-sign-in-alt me-2"></i>Log In
                             </a>

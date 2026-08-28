@@ -15,6 +15,10 @@ class FeedEventSchema(ApiSchema):
     action = fields.String(required=True)
     actor_name = fields.String(required=True)
     actor_avatar_url = fields.String(allow_none=True)
+    actor_id = fields.UUID(allow_none=True)
+    # True only when the caller is allowed to open the actor's profile; the
+    # feed includes public activity from people outside the caller's circles.
+    actor_profile_viewable = fields.Boolean(required=True)
     image_url = fields.String(allow_none=True)
     distance = fields.String(allow_none=True)
     item_id = fields.UUID(allow_none=True)
