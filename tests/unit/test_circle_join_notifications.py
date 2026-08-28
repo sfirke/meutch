@@ -127,21 +127,18 @@ class TestCircleJoinRequestNotifications:
                 assert result is False
                 mock_send_email.assert_not_called()
 
-    def test_join_request_message_html_is_escaped(self, app):
-        """Test that HTML in join request message is escaped in HTML email output."""
+    def test_join_request_notification_escapes_user_text(self, app):
+        """The requester's name, the circle name, and their message are all user input."""
         with app.app_context():
-            # Create test users and circle
             admin = UserFactory(first_name="John", last_name="Admin")
-            requesting_user = UserFactory(first_name="Bob", last_name="User")
-            circle = CircleFactory(name="Test Circle")
+            requesting_user = UserFactory(first_name="Bob", last_name="<b>User</b>")
+            circle = CircleFactory(name="Test <i>Circle</i>")
 
-            # Add admin to circle
             stmt = circle_members.insert().values(
                 user_id=admin.id, circle_id=circle.id, joined_at=datetime.now(UTC), is_admin=True
             )
             db.session.execute(stmt)
 
-            # Create a join request with XSS payload
             join_request = CircleJoinRequestFactory(
                 circle=circle,
                 user=requesting_user,
@@ -158,44 +155,14 @@ class TestCircleJoinRequestNotifications:
                 assert result is True
                 mock_send_email.assert_called_once()
 
-                call_args = mock_send_email.call_args
-                to_email, subject, text_content, html_content = call_args[0]
-
-                # HTML content should have escaped script tag
-                assert "&lt;script&gt;stealCookies()&lt;/script&gt;" in html_content
-                # Raw script tag should NOT be present in HTML
-                assert "<script>stealCookies()</script>" not in html_content
-
-    def test_requesting_user_name_html_is_escaped(self, app):
-        """Test that HTML in the requester's name and circle name is escaped."""
-        with app.app_context():
-            admin = UserFactory(first_name="John", last_name="Admin")
-            requesting_user = UserFactory(first_name="Bob", last_name="<b>User</b>")
-            circle = CircleFactory(name="Test <i>Circle</i>")
-
-            stmt = circle_members.insert().values(
-                user_id=admin.id, circle_id=circle.id, joined_at=datetime.now(UTC), is_admin=True
-            )
-            db.session.execute(stmt)
-
-            join_request = CircleJoinRequestFactory(
-                circle=circle, user=requesting_user, message=None, status="pending"
-            )
-            db.session.commit()
-
-            with patch("app.utils.email.send_email") as mock_send_email:
-                mock_send_email.return_value = True
-
-                result = send_circle_join_request_notification_email(join_request)
-
-                assert result is True
-
                 html_content = mock_send_email.call_args[0][3]
 
                 assert "Bob &lt;b&gt;User&lt;/b&gt;" in html_content
                 assert "Test &lt;i&gt;Circle&lt;/i&gt;" in html_content
+                assert "&lt;script&gt;stealCookies()&lt;/script&gt;" in html_content
                 assert "<b>User</b>" not in html_content
                 assert "<i>Circle</i>" not in html_content
+                assert "<script>stealCookies()</script>" not in html_content
 
     def test_circle_name_html_is_escaped_in_decision_email(self, app):
         """Test that HTML in circle name is escaped in decision email HTML output."""
