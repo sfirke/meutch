@@ -126,6 +126,9 @@ class TestApiMessaging:
         with app.app_context():
             owner = UserFactory(email_confirmed=True)
             sender = UserFactory(email_confirmed=True)
+            # A circles-only giveaway is only visible to the owner's circles.
+            circle = CircleFactory()
+            circle.members.extend([owner, sender])
             item = ItemFactory(
                 owner=owner,
                 is_giveaway=True,

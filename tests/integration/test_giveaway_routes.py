@@ -845,6 +845,8 @@ class TestGiveawayInterestExpression:
             owner = UserFactory()
             user = auth_user()
             category = CategoryFactory()
+            circle = CircleFactory()
+            circle.members.extend([owner, user])
 
             giveaway = ItemFactory(
                 owner=owner,
@@ -1111,6 +1113,10 @@ class TestRecipientSelection:
             owner = UserFactory()
             user = auth_user()
             category = CategoryFactory()
+            # Circles-only giveaways are visible to the owner's circles, so the
+            # viewer here is denied for not owning the item, not for not seeing it.
+            circle = CircleFactory()
+            circle.members.extend([owner, user])
 
             giveaway = ItemFactory(
                 owner=owner,
@@ -1458,6 +1464,10 @@ class TestGiveawayOwnerMessaging:
             non_owner = auth_user()
             requester = UserFactory()
             category = CategoryFactory()
+            # Circles-only giveaways are visible to the owner's circles, so the
+            # viewer here is denied for not owning the item, not for not seeing it.
+            circle = CircleFactory()
+            circle.members.extend([owner, non_owner])
 
             giveaway = ItemFactory(
                 owner=owner, category=category, is_giveaway=True, claim_status="unclaimed"
@@ -1864,6 +1874,10 @@ class TestRecipientReassignment:
             requester1 = UserFactory()
             requester2 = UserFactory()
             category = CategoryFactory()
+            # Circles-only giveaways are visible to the owner's circles, so the
+            # viewer here is denied for not owning the item, not for not seeing it.
+            circle = CircleFactory()
+            circle.members.extend([owner, non_owner])
 
             giveaway = ItemFactory(
                 owner=owner,
