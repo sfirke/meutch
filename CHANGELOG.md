@@ -10,6 +10,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Bug fixes
 - Hyperlinked names: names in the home feed are links to user profiles, but no longer are links when you are not able to view a user's profile. Previously, pages such as a public giveaway's item page, a public request's detail page, and the giveaway recipient-selection pages offered a link that only led to "You can only view profiles of users in your circles" ([#466](https://github.com/sfirke/meutch/pull/466)).
+- Links are now clickable wherever people write text — message threads and message notification emails, request and item descriptions (home feed, detail pages, and public share pages), circle descriptions, profile bios, and the message attached to a giveaway request — so a URL someone sends you no longer has to be copied and pasted. URLs written without a scheme, like `www.example.com`, are linked too, and long links in the home feed are shortened so they do not crowd out the description. This text is also now properly escaped everywhere it is displayed ([#472](https://github.com/sfirke/meutch/pull/472)).
 - The Contact Us form no longer errors when submitting with the "Other" category ([#470](https://github.com/sfirke/meutch/pull/470)).
 - Circle join requests now show the requester's name on mobile portrait layouts — previously the name collapsed out of view, leaving only the avatar and action buttons ([#465](https://github.com/sfirke/meutch/pull/465)).
 

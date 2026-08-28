@@ -111,7 +111,7 @@
                                                     </p>
                                                     {% if interest.message %}
                                                         <div class="mt-2 p-2 bg-light rounded">
-                                                            <p class="mb-0 small"><strong>Initial Message:</strong> {{ interest.message }}</p>
+                                                            <p class="mb-0 small"><strong>Initial Message:</strong> {{ interest.message|linkify }}</p>
                                                         </div>
                                                     {% else %}
                                                         <p class="mb-0 small text-muted fst-italic">No initial message provided</p>

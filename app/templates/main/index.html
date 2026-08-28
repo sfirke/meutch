@@ -188,7 +188,7 @@
 
                                 {% if event.description %}
                                     <p class="text-muted small mb-2 text-break" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                        {{ event.description }}
+                                        {{ event.description|linkify(br=False, shorten=40) }}
                                     </p>
                                 {% endif %}
 

@@ -330,3 +330,51 @@ class TestConversationPartnerProfileLink:
             assert response.status_code == 200
             assert "Gone Partner" in content
             assert f'href="/user/{partner.id}"' not in content
+
+
+class TestConversationBodyRendering:
+    """Message bodies are plain text: links are made clickable, markup is not."""
+
+    def _conversation_with_body(self, viewer, partner, body):
+        conversation = ConversationFactory()
+        ConversationParticipantFactory(conversation=conversation, user=viewer)
+        ConversationParticipantFactory(conversation=conversation, user=partner)
+        MessageFactory(sender=partner, recipient=viewer, conversation=conversation, body=body)
+        return conversation
+
+    def test_urls_in_a_message_are_clickable(self, client, app):
+        with app.app_context():
+            viewer = UserFactory()
+            partner = UserFactory()
+            conversation = self._conversation_with_body(
+                viewer, partner, "You can see it here: https://meutch.com/item/abc"
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f"/conversation/{conversation.id}")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert (
+                '<a href="https://meutch.com/item/abc" target="_blank" '
+                'rel="noopener noreferrer nofollow">https://meutch.com/item/abc</a>'
+            ) in content
+
+    def test_markup_in_a_message_is_escaped(self, client, app):
+        """Bodies are user input and were previously rendered with `| safe`."""
+        with app.app_context():
+            viewer = UserFactory()
+            partner = UserFactory()
+            conversation = self._conversation_with_body(
+                viewer, partner, "<script>alert('xss')</script>"
+            )
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f"/conversation/{conversation.id}")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "<script>alert(" not in content
+            assert "&lt;script&gt;" in content
