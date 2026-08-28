@@ -1,8 +1,10 @@
 # app/template_filters.py
 """Custom Jinja2 template filters for the Meutch application."""
 
+import re
+
 from jinja2.utils import htmlsafe_json_dumps
-from markupsafe import Markup
+from markupsafe import Markup, escape
 
 
 def utc_timestamp(value, format="datetime"):
@@ -108,8 +110,74 @@ def truncate(value, length=30):
     return value[:length] + "…"
 
 
+# Only http(s) URLs become links. Restricting the scheme here is what keeps
+# `javascript:` and `data:` URIs out of the href we generate.
+_URL_PATTERN = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
+
+# Punctuation that usually belongs to the sentence rather than the URL, e.g.
+# "see it here: https://meutch.com/item/abc." — the period is not part of the link.
+_TRAILING_PUNCTUATION = ".,;:!?'\"]}"
+
+
+def _trim_trailing_punctuation(url):
+    """Return *url* with sentence punctuation stripped from its end."""
+    while url and (url[-1] in _TRAILING_PUNCTUATION or url[-1] == ")"):
+        # A closing paren is kept when the URL opened one, so Wikipedia-style
+        # links such as .../Foo_(bar) survive intact.
+        if url[-1] == ")" and url.count("(") >= url.count(")"):
+            break
+        url = url[:-1]
+    return url
+
+
+def linkify(value, br=True):
+    """Render user-supplied plain text as HTML with clickable http(s) links.
+
+    The text is escaped first and the anchors are built afterwards, so a message
+    body can never inject markup: everything the user typed is escaped, and the
+    only HTML in the result is the anchors (and line breaks) this function adds.
+
+    Usage in templates:
+        {{ message.body|linkify }}
+
+    Args:
+        value: The plain text to render.
+        br: When True, newlines become <br> tags. Pass False where the
+            surrounding markup already preserves newlines (for example a
+            `white-space: pre-line` block in an email).
+
+    Returns:
+        A Markup object safe to render unescaped.
+    """
+    if value is None:
+        return Markup("")
+
+    text = str(value)
+    chunks = []
+    cursor = 0
+    for match in _URL_PATTERN.finditer(text):
+        url = _trim_trailing_punctuation(match.group(0))
+        if not url:
+            continue
+        chunks.append(str(escape(text[cursor : match.start()])))
+        safe_url = str(escape(url))
+        chunks.append(
+            f'<a href="{safe_url}" target="_blank" rel="noopener noreferrer nofollow">{safe_url}</a>'
+        )
+        cursor = match.start() + len(url)
+    chunks.append(str(escape(text[cursor:])))
+
+    html = "".join(chunks)
+    if br:
+        # Newlines only survive in the escaped text chunks; URLs cannot contain
+        # whitespace, so this never touches the anchors built above.
+        html = html.replace("\n", "<br>")
+    return Markup(html)
+
+
 def register_filters(app):
     """Register all custom template filters with the Flask app."""
     app.jinja_env.filters["utc_timestamp"] = utc_timestamp
     app.jinja_env.filters["tojson_images"] = tojson_images
     app.jinja_env.filters["truncate"] = truncate
+    app.jinja_env.filters["linkify"] = linkify

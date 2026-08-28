@@ -395,7 +395,7 @@
                         {% endif %}
                     </div>
                 {% endif %}
-                    <p>{{ msg.body | replace('\n', '<br>') | safe }}</p>
+                    <p>{{ msg.body|linkify }}</p>
                 </div>
             </div>
         {% endfor %}
