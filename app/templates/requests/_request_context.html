@@ -1,9 +1,14 @@
 <!-- app/templates/requests/_request_context.html -->
 {#
     Shows the request being responded to, so the responder can refer to it while
-    composing (see issue #415). Expects `item_request` in the context.
+    composing (see issue #415). Expects `item_request` in the context. The card
+    is deliberately muted, and labelled by its header, so it reads as reference
+    material rather than the part of the page the user has to act on.
 #}
-<div class="card mb-4">
+<div class="card mb-4 bg-body-tertiary border-secondary-subtle">
+    <div class="card-header bg-transparent border-secondary-subtle text-muted small text-uppercase fw-semibold">
+        <i class="fas fa-quote-left me-1"></i>The request you're answering
+    </div>
     <div class="card-body">
         <div class="d-flex align-items-start">
             <img src="{{ item_request.user.profile_image }}" alt="{{ item_request.user.full_name }}" class="rounded-circle me-3 flex-shrink-0" width="48" height="48">

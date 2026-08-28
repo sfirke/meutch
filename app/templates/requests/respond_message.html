@@ -57,18 +57,16 @@
             <!-- Message form -->
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Your Message</h5>
+                    <h5 class="card-title mb-1">Your Message</h5>
+                    <p class="text-muted small mb-3">Feel free to edit this text.</p>
                     <form method="POST">
                         {{ form.hidden_tag() }}
                         <div class="mb-3">
-                            {{ form.body.label(class="form-label") }}
+                            {{ form.body.label(class="form-label visually-hidden") }}
                             {{ form.body(class="form-control", rows="6") }}
                             {% for error in form.body.errors %}
                                 <div class="text-danger mt-1">{{ error }}</div>
                             {% endfor %}
-                            <div class="form-text">
-                                A link to your item is included in the message. You can edit the text above.
-                            </div>
                         </div>
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">
