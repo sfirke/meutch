@@ -1,6 +1,7 @@
 import requests
 from flask import current_app, url_for
 
+from app.template_filters import linkify
 from app.utils.digest_tokens import generate_digest_manage_token
 
 
@@ -266,7 +267,7 @@ The Meutch Team
 
         <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">
             <h3>Message:</h3>
-            <p style="white-space: pre-line;">{message.body}</p>
+            <p style="white-space: pre-line;">{linkify(message.body, br=False)}</p>
         </div>
 
         <div style="text-align: center; margin: 30px 0;">
@@ -1379,7 +1380,7 @@ def send_contact_form_email(sender_user, category, message):
         f"    </div>\n\n"
         f'    <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">\n'
         f"        <h3>Message:</h3>\n"
-        f'        <p style="white-space: pre-line;">{message}</p>\n'
+        f'        <p style="white-space: pre-line;">{linkify(message, br=False)}</p>\n'
         f"    </div>\n\n"
         f'    <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">\n'
         f'    <p style="color: #999; font-size: 12px;">\n'
