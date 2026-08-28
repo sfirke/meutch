@@ -12,12 +12,7 @@
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <!-- Request context -->
-            <div class="card mb-3">
-                <div class="card-body">
-                    <h5 class="mb-1">{{ item_request.title }}</h5>
-                    <p class="text-muted mb-0">Responding to <strong>{{ item_request.user.full_name }}</strong></p>
-                </div>
-            </div>
+            {% include 'requests/_request_context.html' %}
 
             <!-- Selected item -->
             <div class="card mb-4">

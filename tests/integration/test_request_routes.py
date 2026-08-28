@@ -872,6 +872,28 @@ class TestRequestConversations:
             assert message.sender_id == helper.id
             assert message.recipient_id == requester.id
 
+    def test_conversation_compose_page_shows_the_request(self, client, app):
+        """The compose page shows the request so the sender can refer to it."""
+        with app.app_context():
+            requester = UserFactory()
+            helper = UserFactory()
+            item_request = ItemRequestFactory(
+                user=requester,
+                title="Looking for a pressure washer",
+                description="Ideally electric, needed for a weekend deck project.",
+                seeking="loan",
+                visibility="public",
+            )
+            db.session.commit()
+
+            login_user(client, helper.email)
+            response = client.get(f"/requests/{item_request.id}/conversation")
+
+            assert response.status_code == 200
+            assert b"Looking for a pressure washer" in response.data
+            assert b"Ideally electric, needed for a weekend deck project." in response.data
+            assert b"is looking for" in response.data
+
     def test_conversation_route_redirects_when_thread_exists(self, client, app):
         """Route should redirect to existing conversation instead of creating duplicate."""
         with app.app_context():
@@ -1430,6 +1452,25 @@ class TestRespondWithItemFlow:
 
             assert response.status_code == 200
             assert b"Extension Ladder" in response.data
+
+    def test_respond_pages_show_the_request_description(self, client, app):
+        """Both respond steps show the full request so it can be referred to."""
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair(
+                description="A tall one, please - the gutters are two stories up."
+            )
+            item = ItemFactory(owner=responder, name="Extension Ladder")
+            db.session.commit()
+
+            login_user(client, responder.email)
+
+            picker = client.get(f"/requests/{item_request.id}/respond")
+            assert picker.status_code == 200
+            assert b"A tall one, please - the gutters are two stories up." in picker.data
+
+            compose = client.get(f"/requests/{item_request.id}/respond/{item.id}")
+            assert compose.status_code == 200
+            assert b"A tall one, please - the gutters are two stories up." in compose.data
 
     def test_respond_page_omits_claimed_giveaways(self, client, app):
         """Claimed giveaways can't be viewed by others, so don't offer them."""

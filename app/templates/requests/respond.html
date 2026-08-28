@@ -10,23 +10,7 @@
     </a>
 
     <!-- Request context card -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="d-flex align-items-start">
-                <img src="{{ item_request.user.profile_image }}" alt="{{ item_request.user.full_name }}" class="rounded-circle me-3" width="48" height="48">
-                <div>
-                    <h5 class="mb-1">{{ item_request.title }}</h5>
-                    <p class="text-muted mb-1">
-                        <strong>{{ item_request.user.full_name }}</strong> is looking for
-                        {% if item_request.seeking == 'loan' %}a loan{% elif item_request.seeking == 'giveaway' %}a giveaway{% else %}a loan or giveaway{% endif %}
-                    </p>
-                    {% if item_request.description %}
-                        <p class="mb-0 text-body">{{ item_request.description|truncate(150) }}</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
+    {% include 'requests/_request_context.html' %}
 
     <!-- Search and Create bar -->
     <div class="d-flex justify-content-between align-items-center mb-3">

@@ -7,6 +7,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Features
 **Minor**:
 - When answering a request, there's now an option to click "I have this item" and then choose or list it ([#412](https://github.com/sfirke/meutch/pull/412)).
+- The request being answered is now shown in full — title, description, what the requester is seeking, and expiration — above the message box on every compose page, so you can refer to it while writing ([#415](https://github.com/sfirke/meutch/issues/415)).
 - You can now view the profile of anyone you have a message thread with, even if you share no circles. Circle admins can view profiles of users with a pending request to join a circle they administer (profile link in the join-request notification email also now works) ([#466](https://github.com/sfirke/meutch/pull/466)).
 
 ### Bug fixes

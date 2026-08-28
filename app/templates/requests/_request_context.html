@@ -1,0 +1,32 @@
+<!-- app/templates/requests/_request_context.html -->
+{#
+    Shows the request being responded to, so the responder can refer to it while
+    composing (see issue #415). Expects `item_request` in the context.
+#}
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex align-items-start">
+            <img src="{{ item_request.user.profile_image }}" alt="{{ item_request.user.full_name }}" class="rounded-circle me-3 flex-shrink-0" width="48" height="48">
+            <div class="flex-grow-1 min-width-0">
+                <h5 class="mb-1">{{ item_request.title }}</h5>
+                <p class="text-muted mb-2">
+                    <strong>{{ item_request.user.full_name }}</strong> is looking for
+                    {% if item_request.seeking == 'loan' %}a loan{% elif item_request.seeking == 'giveaway' %}a giveaway{% else %}a loan or giveaway{% endif %}
+                </p>
+
+                {% if item_request.description %}
+                    <p class="text-body mb-2">{{ item_request.description }}</p>
+                {% endif %}
+
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    {% if item_request.status == 'open' and not item_request.is_expired %}
+                        <small class="text-muted"><i class="fas fa-hourglass-half me-1"></i>Expires {{ item_request.expires_at.strftime('%b %d, %Y') }}</small>
+                    {% endif %}
+                    <a href="{{ url_for('requests.detail', request_id=item_request.id) }}" class="small" target="_blank" rel="noopener">
+                        View full request <i class="fas fa-arrow-up-right-from-square ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
