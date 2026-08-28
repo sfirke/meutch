@@ -10,7 +10,7 @@ from app.models import ConversationParticipant, Message
 from app.services import giveaway_service
 from app.services.exceptions import AuthorizationError, InvalidActionError, ServiceError
 from app.utils.email import send_message_notification_email
-from app.utils.item_share import generate_item_share_token
+from app.utils.item_share import generate_item_share_token, item_supports_share_links
 from app.utils.item_visibility import build_item_access_state
 from app.utils.messaging_queries import (
     build_conversation_thread_state,
@@ -85,18 +85,27 @@ def validate_respond_access(item_request, sender):
     return get_request_conversation_recipient_id(item_request, sender)
 
 
-def _build_item_url_for_requester(item, item_owner, requester):
+def _build_item_url_for_requester(item, requester):
     """Return the best URL so *requester* can view *item*.
 
-    - Public giveaways → public preview URL.
-    - Regular items where owner and requester share a circle → direct URL.
-    - Regular items without shared circles → tokenized share-preview URL.
-    - Default-visibility giveaways are visible to everyone → direct URL.
+    - Public giveaways use the public preview page: it renders even when the
+      requester is signed out, and redirects signed-in users to the item.
+    - Anything else *requester* can already open links straight to the item.
+      That covers regular items reachable through a shared circle or an active
+      loan, and it covers every giveaway: giveaway detail pages are open to any
+      signed-in user, because ``giveaway_visibility`` governs browse and feed
+      discovery rather than access by direct link.
+    - Remaining regular items get a tokenized share-preview URL.  Giveaways
+      never support share tokens, so they fall back to the direct URL.
+
+    Access is read from :func:`build_item_access_state`, the same helper the
+    item detail view uses, so the link keeps matching what the requester can
+    actually open if those rules change.
     """
     if item.is_giveaway and item.giveaway_visibility == "public":
         return url_for("share.giveaway_preview", item_id=item.id, _external=True)
 
-    if item.is_giveaway or item_owner.shares_circle_with(requester):
+    if not item_supports_share_links(item) or build_item_access_state(item, requester)["can_view"]:
         return url_for("main.item_detail", item_id=item.id, _external=True)
 
     token = generate_item_share_token(item)
@@ -112,11 +121,10 @@ _RESPOND_BODY_TEMPLATE = (
 def build_respond_message_body(item_request, sender, item):
     """Build the default message body for responding to *item_request* with *item*.
 
-    Returns the formatted message body string that includes an
-    appropriate item URL based on whether *sender* and the requester
-    share a circle.
+    Returns the formatted message body string, including an item URL suited to
+    what the requester can view.
     """
-    item_url = _build_item_url_for_requester(item, sender, item_request.user)
+    item_url = _build_item_url_for_requester(item, item_request.user)
     return _RESPOND_BODY_TEMPLATE.format(
         requester_name=item_request.user.first_name,
         item_name=item.name,
@@ -128,6 +136,12 @@ def build_respond_message_body(item_request, sender, item):
 def _ensure_item_offerable(item, sender):
     if item.owner_id != sender.id:
         raise AuthorizationError("You can only respond with your own items.")
+
+    # The item picker already hides claimed giveaways, but the compose step is
+    # reachable by URL, and a claimed giveaway is no longer viewable by anyone
+    # outside the handoff -- the requester would only find a dead end.
+    if item.is_giveaway and item.claim_status == "claimed":
+        raise InvalidActionError("This giveaway has already been claimed.")
 
 
 def build_respond_draft(item_request, sender, item):

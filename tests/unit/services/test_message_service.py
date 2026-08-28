@@ -14,6 +14,7 @@ from tests.factories import (
     ConversationParticipantFactory,
     ItemFactory,
     ItemRequestFactory,
+    LoanRequestFactory,
     MessageFactory,
     UserFactory,
 )
@@ -429,10 +430,10 @@ class TestArchiveService:
 class TestRespondToRequest:
     """Tests for respond_to_request_with_item and _build_item_url_for_requester."""
 
-    def _build_url(self, item, owner, requester):
+    def _build_url(self, item, requester):
         from app.services.message_service import _build_item_url_for_requester
 
-        return _build_item_url_for_requester(item, owner, requester)
+        return _build_item_url_for_requester(item, requester)
 
     def test_public_giveaway_gets_giveaway_preview_url(self, app):
         """Public giveaways should use the public giveaway preview URL."""
@@ -441,7 +442,7 @@ class TestRespondToRequest:
             requester = UserFactory()
             item = ItemFactory(owner=owner, is_giveaway=True, giveaway_visibility="public")
 
-            url = self._build_url(item, owner, requester)
+            url = self._build_url(item, requester)
 
             assert "/share/giveaway/" in url
             assert str(item.id) in url
@@ -457,7 +458,7 @@ class TestRespondToRequest:
 
             item = ItemFactory(owner=owner, is_giveaway=False)
 
-            url = self._build_url(item, owner, requester)
+            url = self._build_url(item, requester)
 
             assert "/share/item/" not in url
             assert url.endswith(f"/item/{item.id}")
@@ -469,7 +470,7 @@ class TestRespondToRequest:
             requester = UserFactory()
             item = ItemFactory(owner=owner, is_giveaway=False)
 
-            url = self._build_url(item, owner, requester)
+            url = self._build_url(item, requester)
 
             assert "/share/item/" in url
             token = url.split("/share/item/")[1]
@@ -479,7 +480,8 @@ class TestRespondToRequest:
             assert verified_item.id == item.id
 
     def test_default_visibility_giveaway_gets_direct_url(self, app):
-        """Default-visibility giveaways are visible to everyone, so use a direct URL."""
+        """Circles-only giveaways still link directly: the detail page is open to
+        any signed-in user, and giveaways cannot be shared with a token."""
         with app.app_context():
             owner = UserFactory()
             requester = UserFactory()
@@ -490,10 +492,53 @@ class TestRespondToRequest:
                 claim_status="unclaimed",
             )
 
-            url = self._build_url(item, owner, requester)
+            url = self._build_url(item, requester)
 
             assert "/share/item/" not in url
             assert url.endswith(f"/item/{item.id}")
+
+    def test_claimed_giveaway_gets_direct_url(self, app):
+        """A claimed giveaway cannot be tokenized, so it still links directly."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="claimed",
+            )
+
+            url = self._build_url(item, requester)
+
+            assert url.endswith(f"/item/{item.id}")
+
+    def test_active_borrower_gets_direct_url(self, app):
+        """An active borrower can already open the item, so skip the share token."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=False)
+            LoanRequestFactory(item=item, borrower=requester, status="approved")
+
+            url = self._build_url(item, requester)
+
+            assert "/share/item/" not in url
+            assert url.endswith(f"/item/{item.id}")
+
+    def test_claimed_giveaway_cannot_be_offered(self, app):
+        """The compose step is reachable by URL, so sending re-checks the item."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=True, claim_status="claimed")
+            item_request = ItemRequestFactory(user=requester, visibility="public")
+
+            with pytest.raises(InvalidActionError):
+                message_service.respond_to_request_with_item(item_request, owner, item)
+
+            with pytest.raises(InvalidActionError):
+                message_service.build_respond_draft(item_request, owner, item)
 
     def test_respond_to_request_uses_share_token_when_no_shared_circle(self, app):
         """When requester can't see the item, the generated message includes a share token URL."""

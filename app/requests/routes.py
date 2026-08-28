@@ -312,13 +312,21 @@ def respond_with_item(request_id, item_id):
         flash("Your message has been sent.", "success")
         return redirect(url_for("main.view_conversation", conversation_id=message.conversation_id))
 
-    # Pre-fill the message body on GET
+    # Pre-fill the message body on GET.  build_respond_draft re-runs the same
+    # checks as sending, so an item that can no longer be offered is caught
+    # before the sender writes a message about it.
     if request.method == "GET":
-        form.body.data = message_service.build_respond_message_body(
-            item_request,
-            current_user,
-            item,
-        )
+        try:
+            form.body.data = message_service.build_respond_draft(
+                item_request,
+                current_user,
+                item,
+            )
+        except InvalidActionError as exc:
+            flash(str(exc), "warning")
+            return redirect(url_for("requests.respond", request_id=item_request.id))
+        except AuthorizationError:
+            abort(403)
 
     return render_template(
         "requests/respond_message.html",
