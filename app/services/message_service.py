@@ -118,7 +118,7 @@ def build_respond_message_body(item_request, sender, item):
     """
     item_url = _build_item_url_for_requester(item, sender, item_request.user)
     return _RESPOND_BODY_TEMPLATE.format(
-        requester_name=item_request.user.full_name,
+        requester_name=item_request.user.first_name,
         item_name=item.name,
         request_title=item_request.title,
         item_url=item_url,
