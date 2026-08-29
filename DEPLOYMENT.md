@@ -257,7 +257,7 @@ flask db upgrade
 5. **JWT Secrets**: Rotate `JWT_SECRET_KEY` with the same care as `SECRET_KEY`. Changing it invalidates all outstanding API tokens immediately.
 6. **API Rollout Flags**: Treat `API_V1_ENABLED`, `API_V1_WRITE_ENABLED`, and `API_V1_RATE_LIMITS_ENABLED` as operational controls; document any temporary override used during an incident and restore the defaults after the event.
 7. **Limiter Storage**: Use a shared backend such as Redis for production or staging deployments with multiple workers or instances. In-memory limiter storage is not sufficient for that topology.
-8. **Request Body Size**: Leave `MAX_CONTENT_LENGTH` set. Without it the app will read an arbitrarily large chunked request body into a worker, since nothing else bounds the read. Lowering it, or adding a reverse-proxy body cap, tightens the ceiling further.
+8. **Request Body Size**: `MAX_CONTENT_LENGTH` defaults to 128 MB, so the ceiling applies whether or not you set the variable — no action is needed to be protected. What matters is not raising it past what your uploads actually need: it is the only bound on a chunked request that declares no `Content-Length`, so a large value there lets one request occupy a worker for as long as it keeps sending. A reverse-proxy body cap tightens the ceiling further if your deployment has one.
 
 ## Additional Resources
 
