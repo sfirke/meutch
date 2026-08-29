@@ -47,17 +47,26 @@ class TestAccountLockout:
             assert user.failed_login_attempts == 0
 
     def test_locked_account_reports_locked_after_reload_from_database(self, app):
-        """The lockout deadline is stored without a timezone, so it must be normalized.
+        """Locking sets `locked_until` to a tz-aware UTC datetime, but the column
+        (`db.DateTime`) has no timezone type, so a value read back from the database
+        loses its tzinfo and comes back naive. The in-memory object from the request
+        that performed the lockout still has the original aware value, so the bug
+        only shows up once a *different* request loads the user fresh - which is
+        what `db.session.expunge_all()` simulates here.
 
-        Regression test: comparing the naive column against an aware "now" raised
-        TypeError, which surfaced as a 500 on every later login for that account.
+        Regression test: without `_normalize_utc`, comparing that naive `locked_until`
+        against an aware `datetime.now(UTC)` raised TypeError ("can't compare
+        offset-naive and offset-aware datetimes"), turning every login attempt against
+        a locked account into a 500 instead of a LOCKED response. The assertion below
+        is really "this call doesn't raise"; a LOCKED status confirms the lockout
+        check still ran to completion rather than short-circuiting some other way.
         """
         with app.app_context():
             UserFactory(email="reload@example.com")
             db.session.commit()
 
             _fail_login("reload@example.com", auth_service.MAX_FAILED_LOGIN_ATTEMPTS)
-            db.session.expunge_all()  # a later request loads the user afresh
+            db.session.expunge_all()  # simulate a later request loading the user fresh from the DB
 
             result = auth_service.authenticate_user("reload@example.com", WRONG_PASSWORD)
 
