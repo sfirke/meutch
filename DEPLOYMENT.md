@@ -123,13 +123,13 @@ Operational notes:
 ### Optional: Request Body Size Ceiling
 
 ```bash
-# Largest request body the app will read, in bytes (default 805 MB).
-MAX_CONTENT_LENGTH=844103680
+# Largest request body the app will read, in bytes (default 128 MB).
+MAX_CONTENT_LENGTH=134217728
 ```
 
 Werkzeug enforces this while reading the request stream, so it bounds the body whether or not the client declares an honest `Content-Length`. Gunicorn advertises `wsgi.input_terminated`, which means a chunked request that declares no length is otherwise handed an unbounded stream and can occupy a worker indefinitely.
 
-The default is deliberately generous, because it has to clear the largest legitimate upload: `MAX_ITEM_IMAGE_COUNT` photos of `MAX_UPLOAD_FILE_SIZE_BYTES` each, which is 8 x 100 MB as set in `app/utils/storage.py`. Treat it as a backstop rather than a quota. For a tighter practical ceiling, lower this value or cap total body size at the reverse proxy (for example nginx `client_max_body_size`) -- bearing in mind that any ceiling below the largest legitimate upload will reject some real photo uploads.
+This is a backstop against runaway bodies rather than a per-upload quota. It sits above the 100 MB per-file limit in `app/utils/storage.py`, so a single max-size photo still uploads, but below `MAX_ITEM_IMAGE_COUNT` files at that size (8 x 100 MB). A normal batch of phone photos is well under 128 MB, but a batch of unusually large ones is rejected with a `413`. Raise this value if that becomes a problem in practice, and cap total body size at the reverse proxy as well (for example nginx `client_max_body_size`) if your deployment has one.
 
 ### Optional: Digest Scheduler Timezone
 

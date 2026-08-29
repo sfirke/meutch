@@ -11,18 +11,21 @@ import io
 from flask import request
 from werkzeug.test import EnvironBuilder
 
-from app.utils.storage import MAX_ITEM_IMAGE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES
+from app.utils.storage import MAX_UPLOAD_FILE_SIZE_BYTES
 from config import Config
 
 
 class TestRequestBodyCeiling:
     """The ceiling bounds hostile bodies without rejecting legitimate uploads."""
 
-    def test_default_clears_the_largest_legitimate_upload(self):
-        """A full batch of max-size photos must still fit under the ceiling."""
-        largest_upload = MAX_ITEM_IMAGE_COUNT * MAX_UPLOAD_FILE_SIZE_BYTES
+    def test_ceiling_clears_a_single_max_size_photo(self):
+        """The per-file upload limit has to fit under the app-wide ceiling.
 
-        assert Config.MAX_CONTENT_LENGTH >= largest_upload
+        The ceiling is deliberately below a full batch of files at that size --
+        it bounds runaway bodies rather than acting as a per-upload quota -- but
+        one photo at the documented per-file maximum must still get through.
+        """
+        assert Config.MAX_CONTENT_LENGTH > MAX_UPLOAD_FILE_SIZE_BYTES
 
     def test_oversized_declared_body_is_rejected(self, client, app, monkeypatch):
         """A body whose Content-Length exceeds the ceiling gets a 413."""

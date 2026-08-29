@@ -206,11 +206,11 @@ class Config:
     # stream rather than by trusting the Content-Length header. Gunicorn sets
     # wsgi.input_terminated, so without this a chunked request that declares no
     # Content-Length is handed an unbounded stream and can tie up a worker.
-    # Sized to clear the largest legitimate upload: MAX_ITEM_IMAGE_COUNT files of
-    # MAX_UPLOAD_FILE_SIZE_BYTES each (app/utils/storage.py), plus room for the rest
-    # of the multipart body. It is a backstop, not a quota -- lower it here or at the
-    # reverse proxy to impose a tighter practical ceiling.
-    MAX_CONTENT_LENGTH = parse_int_env(os.environ.get("MAX_CONTENT_LENGTH"), 805 * 1024 * 1024)
+    # A backstop against runaway bodies, not a per-upload quota: it sits above
+    # MAX_UPLOAD_FILE_SIZE_BYTES (app/utils/storage.py) so a single max-size photo
+    # still fits, but below MAX_ITEM_IMAGE_COUNT files at that size, so a batch of
+    # unusually large photos can be rejected here.
+    MAX_CONTENT_LENGTH = parse_int_env(os.environ.get("MAX_CONTENT_LENGTH"), 128 * 1024 * 1024)
 
     API_V1_ENABLED = parse_bool_env(os.environ.get("API_V1_ENABLED"), True)
     API_V1_WRITE_ENABLED = parse_bool_env(os.environ.get("API_V1_WRITE_ENABLED"), True)
