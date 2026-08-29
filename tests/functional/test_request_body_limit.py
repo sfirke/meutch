@@ -56,7 +56,7 @@ class TestRequestBodyCeiling:
 
         assert response.status_code == 413
         assert response.content_type.startswith("application/json")
-        assert "error" in response.get_json()
+        assert response.get_json()["error"]["code"] == "PAYLOAD_TOO_LARGE"
 
     def test_body_without_content_length_is_bounded(self, app, monkeypatch):
         """A chunked body, which declares no length, is capped as it is read.

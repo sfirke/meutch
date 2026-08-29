@@ -105,6 +105,12 @@ API_V1_RATE_LIMITS_ENABLED=true
 # Strongly recommended for production and staging when using multiple workers or instances.
 RATELIMIT_STORAGE_URI=redis://redis:6379/0
 
+# Maximum size in bytes of an API request body that is not a file upload (default 1 MB).
+# A tighter ceiling than the app-wide MAX_CONTENT_LENGTH below, for bodies that have no
+# reason to be large. Upload endpoints are exempt so photos still go through; they are
+# bounded by the per-file limit in app/utils/storage.py.
+API_V1_MAX_CONTENT_LENGTH=1048576
+
 # Default endpoint-family limits.
 API_V1_AUTH_LOGIN_RATE_LIMIT=10 per minute
 API_V1_AUTH_REGISTER_RATE_LIMIT=5 per hour
@@ -112,10 +118,11 @@ API_V1_AUTH_RECOVERY_RATE_LIMIT=5 per hour
 API_V1_AUTH_SESSION_RATE_LIMIT=60 per minute
 API_V1_WRITE_RATE_LIMIT=30 per minute
 API_V1_IMAGE_WRITE_RATE_LIMIT=10 per minute
+API_V1_READ_RATE_LIMIT=60 per minute
 ```
 
 Operational notes:
-- API responses now include `X-Request-ID`. If a client sends its own `X-Request-ID`, the API echoes it back so application logs and client-side error reports can be correlated.
+- API responses include `X-Request-ID`, `X-API-Version: v1`, and security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`). If a client sends its own `X-Request-ID`, the API echoes it back so application logs and client-side error reports can be correlated.
 - `/api/v1/health` reports `ok`, `read_only`, or `disabled` so deploy checks can distinguish normal traffic, emergency read-only mode, and a full API shutdown.
 - `memory://` limiter storage is process-local. It is acceptable for local development and isolated test runs, but it will not enforce a shared bucket across multiple Gunicorn workers or multiple app instances.
 - Use Redis-backed limiter storage whenever staging or production can run more than one worker or instance.
@@ -130,6 +137,15 @@ MAX_CONTENT_LENGTH=134217728
 Werkzeug enforces this while reading the request stream, so it bounds the body whether or not the client declares an honest `Content-Length`. Gunicorn advertises `wsgi.input_terminated`, which means a chunked request that declares no length is otherwise handed an unbounded stream and can occupy a worker indefinitely.
 
 This is a backstop against runaway bodies rather than a per-upload quota. It sits above the 100 MB per-file limit in `app/utils/storage.py`, so a single max-size photo still uploads, but below `MAX_ITEM_IMAGE_COUNT` files at that size (8 x 100 MB). A normal batch of phone photos is well under 128 MB, but a batch of unusually large ones is rejected with a `413`. Raise this value if that becomes a problem in practice, and cap total body size at the reverse proxy as well (for example nginx `client_max_body_size`) if your deployment has one.
+### Optional: API Maintenance
+
+```bash
+# Purge token blocklist entries whose tokens have expired.
+# Default cutoff: entries older than 7 days past their token expiry.
+flask api cleanup-expired-tokens --older-than-days 7
+```
+
+Schedule this command as a periodic cron job (e.g. daily) to prevent unbounded growth of the `api_token_blocklist` table.
 
 ### Optional: Digest Scheduler Timezone
 
