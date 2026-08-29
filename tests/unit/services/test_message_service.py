@@ -75,7 +75,6 @@ class TestMessageService:
         with app.app_context():
             owner = UserFactory()
             sender = UserFactory()
-            # A circles-only giveaway is only visible to the owner's circles.
             circle = CircleFactory()
             circle.members.extend([owner, sender])
             item = ItemFactory(
@@ -102,7 +101,6 @@ class TestMessageService:
         with app.app_context():
             owner = UserFactory()
             sender = UserFactory()
-            # A circles-only giveaway is only visible to the owner's circles.
             circle = CircleFactory()
             circle.members.extend([owner, sender])
             item = ItemFactory(
