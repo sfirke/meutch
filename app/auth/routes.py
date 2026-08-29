@@ -194,9 +194,11 @@ def login():
             return redirect(url_for("auth.resend_confirmation"))
 
         if authentication_result.status == auth_service.LOGIN_STATUS_LOCKED:
+            minutes = authentication_result.retry_after_minutes
             flash(
                 "Too many failed login attempts. This account is temporarily locked. "
-                "Please try again later, or reset your password.",
+                f"Please try again in about {minutes} minute{'s' if minutes != 1 else ''}, "
+                "or reset your password.",
                 "danger",
             )
             return render_template("auth/login.html", form=form)

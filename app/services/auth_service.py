@@ -1,4 +1,5 @@
 import logging
+import math
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -84,6 +85,7 @@ class RegistrationResult:
 class AuthenticationResult:
     status: str
     user: User | None = None
+    retry_after_minutes: int | None = None
 
 
 @dataclass
@@ -201,8 +203,16 @@ def authenticate_user(email, password):
     if user is not None and user.locked_until is not None:
         # `locked_until` comes back from the database without a timezone, so it has
         # to be normalized before being compared against an aware "now".
-        if _normalize_utc(user.locked_until) > datetime.now(UTC):
-            return AuthenticationResult(status=LOGIN_STATUS_LOCKED)
+        locked_until = _normalize_utc(user.locked_until)
+        remaining = locked_until - datetime.now(UTC)
+        if remaining > timedelta(0):
+            # Round up so we never tell the user it's safe to retry a few seconds
+            # before the lockout has actually lifted.
+            retry_after_minutes = math.ceil(remaining.total_seconds() / 60)
+            return AuthenticationResult(
+                status=LOGIN_STATUS_LOCKED,
+                retry_after_minutes=retry_after_minutes,
+            )
 
         # The lockout has elapsed. Clear the deadline but keep `lockout_count` so the
         # next lockout for this user escalates.

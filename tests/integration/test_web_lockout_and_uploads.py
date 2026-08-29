@@ -25,6 +25,8 @@ class TestWebLoginLockout:
             assert response.status_code == 200
             assert b"temporarily locked" in response.data
             assert b"Invalid email or password" not in response.data
+            expected_minutes = str(auth_service.INITIAL_LOCKOUT_MINUTES).encode()
+            assert expected_minutes in response.data
 
     def test_login_form_does_not_reject_a_short_legacy_password(self, client, app, auth_user):
         """Accounts predating the 8-character minimum must still be able to log in."""

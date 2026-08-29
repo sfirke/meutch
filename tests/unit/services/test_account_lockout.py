@@ -73,6 +73,25 @@ class TestAccountLockout:
 
             assert result.status == auth_service.LOGIN_STATUS_LOCKED
 
+    def test_locked_result_reports_minutes_until_retry(self, app):
+        with app.app_context():
+            user = UserFactory(email="countdown@example.com")
+            db.session.commit()
+
+            _fail_login("countdown@example.com", auth_service.MAX_FAILED_LOGIN_ATTEMPTS)
+            result = auth_service.authenticate_user("countdown@example.com", WRONG_PASSWORD)
+
+            assert result.retry_after_minutes == auth_service.INITIAL_LOCKOUT_MINUTES
+
+            # A deadline a few seconds into the next minute still rounds up, so the
+            # user is never told it's safe to retry before the lockout actually lifts.
+            user.locked_until = datetime.now(UTC) + timedelta(minutes=1, seconds=1)
+            db.session.commit()
+
+            result = auth_service.authenticate_user("countdown@example.com", WRONG_PASSWORD)
+
+            assert result.retry_after_minutes == 2
+
     def test_successive_lockouts_escalate_then_cap(self, app):
         with app.app_context():
             user = UserFactory(email="escalate@example.com")

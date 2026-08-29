@@ -150,7 +150,9 @@ class TestApiLoginLockout:
         )
 
         assert response.status_code == 401
-        assert "temporarily locked" in response.get_json()["error"]["message"]
+        body = response.get_json()
+        assert "temporarily locked" in body["error"]["message"]
+        assert body["error"]["details"]["retry_after_minutes"] == auth_service.INITIAL_LOCKOUT_MINUTES
 
 
 class TestApiReadRateLimit:

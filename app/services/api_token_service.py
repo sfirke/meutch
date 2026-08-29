@@ -122,9 +122,11 @@ def issue_login_tokens(email, password):
         raise AuthenticationError("Invalid email or password.")
 
     if authentication_result.status == auth_service.LOGIN_STATUS_LOCKED:
+        minutes = authentication_result.retry_after_minutes
         raise AuthenticationError(
             "Your account is temporarily locked due to too many failed login attempts. "
-            "Please try again later."
+            f"Please try again in about {minutes} minute{'s' if minutes != 1 else ''}.",
+            details={"retry_after_minutes": minutes},
         )
 
     if authentication_result.status == auth_service.LOGIN_STATUS_UNCONFIRMED:
