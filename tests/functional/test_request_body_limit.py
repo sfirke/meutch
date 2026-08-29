@@ -35,6 +35,29 @@ class TestRequestBodyCeiling:
 
         assert response.status_code == 413
 
+    def test_web_413_renders_the_custom_page(self, client, app, monkeypatch):
+        """The rejection explains the limit rather than showing a bare error."""
+        monkeypatch.setitem(app.config, "MAX_CONTENT_LENGTH", 1024)
+
+        response = client.post("/login", data={"email": "a" * 4096})
+
+        assert response.status_code == 413
+        assert b"That's a lot at once!" in response.data
+        assert b"Go Home" in response.data
+
+    def test_api_413_returns_json_not_the_html_page(self, client, app, monkeypatch):
+        """API clients get the standard error envelope, not an HTML error page."""
+        monkeypatch.setitem(app.config, "MAX_CONTENT_LENGTH", 1024)
+
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"email": "a" * 4096, "password": "irrelevant"},
+        )
+
+        assert response.status_code == 413
+        assert response.content_type.startswith("application/json")
+        assert "error" in response.get_json()
+
     def test_body_without_content_length_is_bounded(self, app, monkeypatch):
         """A chunked body, which declares no length, is capped as it is read.
 
