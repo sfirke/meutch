@@ -202,6 +202,16 @@ class Config:
     REMEMBER_COOKIE_DURATION = timedelta(days=30)
     REMEMBER_COOKIE_REFRESH_EACH_REQUEST = False
 
+    # Ceiling on the size of any request body, enforced by Werkzeug as it reads the
+    # stream rather than by trusting the Content-Length header. Gunicorn sets
+    # wsgi.input_terminated, so without this a chunked request that declares no
+    # Content-Length is handed an unbounded stream and can tie up a worker.
+    # Sized to clear the largest legitimate upload: MAX_ITEM_IMAGE_COUNT files of
+    # MAX_UPLOAD_FILE_SIZE_BYTES each (app/utils/storage.py), plus room for the rest
+    # of the multipart body. It is a backstop, not a quota -- lower it here or at the
+    # reverse proxy to impose a tighter practical ceiling.
+    MAX_CONTENT_LENGTH = parse_int_env(os.environ.get("MAX_CONTENT_LENGTH"), 805 * 1024 * 1024)
+
     API_V1_ENABLED = parse_bool_env(os.environ.get("API_V1_ENABLED"), True)
     API_V1_WRITE_ENABLED = parse_bool_env(os.environ.get("API_V1_WRITE_ENABLED"), True)
     API_V1_RATE_LIMITS_ENABLED = parse_bool_env(os.environ.get("API_V1_RATE_LIMITS_ENABLED"), True)

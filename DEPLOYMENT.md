@@ -120,6 +120,17 @@ Operational notes:
 - `memory://` limiter storage is process-local. It is acceptable for local development and isolated test runs, but it will not enforce a shared bucket across multiple Gunicorn workers or multiple app instances.
 - Use Redis-backed limiter storage whenever staging or production can run more than one worker or instance.
 
+### Optional: Request Body Size Ceiling
+
+```bash
+# Largest request body the app will read, in bytes (default 805 MB).
+MAX_CONTENT_LENGTH=844103680
+```
+
+Werkzeug enforces this while reading the request stream, so it bounds the body whether or not the client declares an honest `Content-Length`. Gunicorn advertises `wsgi.input_terminated`, which means a chunked request that declares no length is otherwise handed an unbounded stream and can occupy a worker indefinitely.
+
+The default is deliberately generous, because it has to clear the largest legitimate upload: `MAX_ITEM_IMAGE_COUNT` photos of `MAX_UPLOAD_FILE_SIZE_BYTES` each, which is 8 x 100 MB as set in `app/utils/storage.py`. Treat it as a backstop rather than a quota. For a tighter practical ceiling, lower this value or cap total body size at the reverse proxy (for example nginx `client_max_body_size`) -- bearing in mind that any ceiling below the largest legitimate upload will reject some real photo uploads.
+
 ### Optional: Digest Scheduler Timezone
 
 Digest cadence boundaries are evaluated in one app timezone. The scheduler now prefers `TZ` (same timezone setting used by the server/runtime), then falls back to `DIGEST_TIMEZONE`, then UTC.
@@ -230,6 +241,7 @@ flask db upgrade
 5. **JWT Secrets**: Rotate `JWT_SECRET_KEY` with the same care as `SECRET_KEY`. Changing it invalidates all outstanding API tokens immediately.
 6. **API Rollout Flags**: Treat `API_V1_ENABLED`, `API_V1_WRITE_ENABLED`, and `API_V1_RATE_LIMITS_ENABLED` as operational controls; document any temporary override used during an incident and restore the defaults after the event.
 7. **Limiter Storage**: Use a shared backend such as Redis for production or staging deployments with multiple workers or instances. In-memory limiter storage is not sufficient for that topology.
+8. **Request Body Size**: Leave `MAX_CONTENT_LENGTH` set. Without it the app will read an arbitrarily large chunked request body into a worker, since nothing else bounds the read. Lowering it, or adding a reverse-proxy body cap, tightens the ceiling further.
 
 ## Additional Resources
 
