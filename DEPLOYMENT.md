@@ -137,12 +137,6 @@ flask api cleanup-expired-tokens --older-than-days 7
 
 Schedule this command as a periodic cron job (e.g. daily) to prevent unbounded growth of the `api_token_blocklist` table.
 
-### Account Lockout And Password Policy
-
-After 5 consecutive failed login attempts, the account is locked for 15 minutes. Each successive lockout doubles in duration, up to a 60-minute cap. A successful login clears both the failed-attempt counter and the escalation counter. Lockouts are enforced in `app/services/auth_service.py`, so they apply to the web and API login paths alike: the web login page shows a "temporarily locked" message and the API returns an authentication error saying the same.
-
-Passwords must be at least 8 characters. The minimum is enforced at registration and password reset, on both the web forms and the API; login itself does not enforce it, so accounts created before the minimum was raised can still sign in.
-
 ### Optional: Digest Scheduler Timezone
 
 Digest cadence boundaries are evaluated in one app timezone. The scheduler now prefers `TZ` (same timezone setting used by the server/runtime), then falls back to `DIGEST_TIMEZONE`, then UTC.
