@@ -8,6 +8,7 @@ from app.services import message_service
 from app.services.exceptions import AuthorizationError, InvalidActionError
 from app.utils.messaging_queries import get_or_create_conversation
 from tests.factories import (
+    CircleFactory,
     ConversationFactory,
     ConversationParticipantFactory,
     ItemFactory,
@@ -74,6 +75,8 @@ class TestMessageService:
         with app.app_context():
             owner = UserFactory()
             sender = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([owner, sender])
             item = ItemFactory(
                 owner=owner,
                 is_giveaway=True,
@@ -98,6 +101,8 @@ class TestMessageService:
         with app.app_context():
             owner = UserFactory()
             sender = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([owner, sender])
             item = ItemFactory(
                 owner=owner,
                 is_giveaway=True,
