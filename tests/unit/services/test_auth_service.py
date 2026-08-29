@@ -199,6 +199,27 @@ class TestAuthService:
             assert user.password_reset_token is None
             assert user.check_password("newpassword123") is True
 
+    def test_reset_password_clears_lockout_state(self, app):
+        """A successful reset proves control of the account's email, so it should
+        lift a lockout too -- otherwise the "reset your password" suggestion in the
+        locked-account message doesn't actually get the user back in.
+        """
+        with app.app_context():
+            user = UserFactory()
+            user.failed_login_attempts = auth_service.MAX_FAILED_LOGIN_ATTEMPTS
+            user.lockout_count = 2
+            user.locked_until = datetime.now(UTC) + timedelta(minutes=30)
+            token = user.generate_password_reset_token()
+            db.session.commit()
+
+            result = auth_service.reset_password(token, "newpassword123")
+
+            db.session.refresh(user)
+            assert result.status == auth_service.PASSWORD_RESET_STATUS_SUCCESS
+            assert user.failed_login_attempts == 0
+            assert user.lockout_count == 0
+            assert user.locked_until is None
+
     def test_reset_password_returns_expired_for_stale_token(self, app):
         with app.app_context():
             user = UserFactory()

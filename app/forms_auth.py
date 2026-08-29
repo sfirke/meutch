@@ -25,6 +25,7 @@ from app.forms_shared import (
     CountryChoice,
 )
 from app.models import User
+from app.services.auth_service import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
 
 
 class LoginForm(FlaskForm):
@@ -40,7 +41,9 @@ class LoginForm(FlaskForm):
         "Password",
         validators=[
             DataRequired(message="Password is required."),
-            Length(min=6, message="Password must be at least 6 characters long."),
+            # No minimum here: accounts created before the minimum was raised must
+            # still be able to log in.
+            Length(max=PASSWORD_MAX_LENGTH),
         ],
     )
     remember_device = BooleanField("Remember this device for 30 days")
@@ -148,7 +151,11 @@ class RegistrationForm(FlaskForm):
         "Password",
         validators=[
             DataRequired(message="Password is required."),
-            Length(min=6, message="Password must be at least 6 characters long."),
+            Length(
+                min=PASSWORD_MIN_LENGTH,
+                max=PASSWORD_MAX_LENGTH,
+                message=f"Password must be at least {PASSWORD_MIN_LENGTH} characters long.",
+            ),
         ],
     )
     confirm_password = PasswordField(
@@ -228,7 +235,11 @@ class ResetPasswordForm(FlaskForm):
         "New Password",
         validators=[
             DataRequired(message="Password is required."),
-            Length(min=6, message="Password must be at least 6 characters long."),
+            Length(
+                min=PASSWORD_MIN_LENGTH,
+                max=PASSWORD_MAX_LENGTH,
+                message=f"Password must be at least {PASSWORD_MIN_LENGTH} characters long.",
+            ),
         ],
     )
     confirm_password = PasswordField(

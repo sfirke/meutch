@@ -10,6 +10,10 @@ class ServiceError(Exception):
 class AuthenticationError(ServiceError):
     """The request could not be authenticated."""
 
+    def __init__(self, message=None, *, details=None):
+        super().__init__(message or "")
+        self.details = details or {}
+
 
 class AuthorizationError(ServiceError):
     """The acting user is not allowed to perform the requested action."""

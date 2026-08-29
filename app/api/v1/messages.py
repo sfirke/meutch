@@ -6,7 +6,7 @@ from flask_jwt_extended import jwt_required
 from app import db
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
-from app.api.v1.operational import mutation_limit
+from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.messaging import (
@@ -39,6 +39,7 @@ MESSAGE_MARK_READ_RESPONSE_SCHEMA = MessageMarkReadResponseSchema()
 
 @bp.get("/messages")
 @jwt_required()
+@read_limit()
 def list_conversations():
     """Return paginated inbox summaries for the authenticated user."""
     query_data = load_query_data(CONVERSATION_LIST_QUERY_SCHEMA)
@@ -60,6 +61,7 @@ def list_conversations():
 
 @bp.get("/messages/<uuid:message_id>")
 @jwt_required()
+@read_limit()
 def get_message_thread(message_id):
     """Return a conversation thread without mutating read state."""
     message = db.get_or_404(Message, message_id)

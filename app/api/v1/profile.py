@@ -6,7 +6,7 @@ from flask_jwt_extended import get_jwt, jwt_required
 
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
-from app.api.v1.operational import mutation_limit
+from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_request_data
 from app.api.v1.schemas.profile import (
     CurrentUserProfileResponseSchema,
@@ -48,6 +48,7 @@ def _serialize_existing_links(user):
 
 @bp.get("/me/profile")
 @jwt_required()
+@read_limit()
 def get_current_user_profile():
     """Return the authenticated user's profile details."""
     return CURRENT_USER_PROFILE_RESPONSE_SCHEMA.dump({"user": current_user})
@@ -76,6 +77,7 @@ def update_current_user_profile():
 
 @bp.get("/me/settings")
 @jwt_required()
+@read_limit()
 def get_current_user_settings():
     """Return the authenticated user's current account settings."""
     return CURRENT_USER_SETTINGS_RESPONSE_SCHEMA.dump({"settings": current_user})

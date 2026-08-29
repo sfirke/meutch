@@ -6,7 +6,7 @@ from flask_jwt_extended import jwt_required
 from app import db
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
-from app.api.v1.operational import mutation_limit
+from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.circles import (
@@ -98,6 +98,7 @@ def _annotate_circle_detail(circle, members_page=1, members_per_page=20):
 
 @bp.get("/circles")
 @jwt_required()
+@read_limit()
 def list_circles():
     """Return paginated circle summaries for the authenticated user."""
     query_data = load_query_data(CIRCLE_LIST_QUERY_SCHEMA)
@@ -134,6 +135,7 @@ def list_circles():
 
 @bp.get("/circles/<uuid:circle_id>")
 @jwt_required()
+@read_limit()
 def get_circle(circle_id):
     """Return circle details for the authenticated user."""
     circle = db.get_or_404(Circle, circle_id)
