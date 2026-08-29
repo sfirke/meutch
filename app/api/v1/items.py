@@ -97,8 +97,9 @@ def _serialize_giveaway_interest_collection(item):
     )
 
 
-def _build_item_response_payload(item):
-    access_state = _build_item_access_state_or_raise(item)
+def _build_item_response_payload(item, access_state=None):
+    if access_state is None:
+        access_state = _build_item_access_state_or_raise(item)
 
     interest_state = giveaway_service.get_giveaway_interest_state(item, current_user.id)
     item.api_viewer_interest_status = interest_state["viewer_interest_status"]
@@ -118,8 +119,8 @@ def _serialize_item_response(item):
     return ITEM_DETAIL_RESPONSE_SCHEMA.dump(_build_item_response_payload(item))
 
 
-def _prepare_item_resource(item):
-    return _build_item_response_payload(item)["item"]
+def _prepare_item_resource(item, access_state=None):
+    return _build_item_response_payload(item, access_state=access_state)["item"]
 
 
 def _ensure_current_user_owns_item(item):
@@ -299,10 +300,14 @@ def list_giveaway_interests(item_id):
 def withdraw_interest(item_id):
     """Withdraw the authenticated user's existing giveaway interest."""
     item = db.get_or_404(Item, item_id)
-    _build_item_access_state_or_raise(item)
+    # Expressing interest is one of the things that can grant access to a
+    # circles-only giveaway, so read access before withdrawing it -- otherwise
+    # serializing the response could refuse the caller their own successful
+    # withdrawal.
+    access_state = _build_item_access_state_or_raise(item)
     giveaway_service.withdraw_interest(item, current_user.id)
     return GIVEAWAY_INTEREST_WITHDRAW_RESPONSE_SCHEMA.dump(
-        {"withdrawn": True, "item": _prepare_item_resource(item)}
+        {"withdrawn": True, "item": _prepare_item_resource(item, access_state=access_state)}
     )
 
 

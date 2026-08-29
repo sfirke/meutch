@@ -77,6 +77,8 @@ class TestMessageService:
         with app.app_context():
             owner = UserFactory()
             sender = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([owner, sender])
             item = ItemFactory(
                 owner=owner,
                 is_giveaway=True,
@@ -101,6 +103,8 @@ class TestMessageService:
         with app.app_context():
             owner = UserFactory()
             sender = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([owner, sender])
             item = ItemFactory(
                 owner=owner,
                 is_giveaway=True,
