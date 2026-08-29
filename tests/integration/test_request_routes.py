@@ -1699,6 +1699,77 @@ class TestRespondWithItemFlow:
             assert response.status_code == 200
             assert b"asking to borrow" in response.data
 
+    def _stranger_pair(self, **request_kwargs):
+        """Return (responder, requester, request) sharing no circle."""
+        responder = UserFactory(email="stranger-responder@example.com")
+        requester = UserFactory(first_name="Dana")
+        item_request = ItemRequestFactory(
+            user=requester,
+            title="Looking for a ladder",
+            visibility="public",
+            **request_kwargs,
+        )
+        db.session.commit()
+        return responder, requester, item_request
+
+    def test_picker_flags_a_giveaway_the_requester_cannot_see(self, client, app):
+        """A circles-only giveaway offered to an outsider is flagged, not hidden."""
+        with app.app_context():
+            responder, _requester, item_request = self._stranger_pair(seeking="giveaway")
+            ItemFactory(
+                owner=responder,
+                name="Spare Ladder",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond")
+
+            assert response.status_code == 200
+            assert b"Spare Ladder" in response.data
+            assert b"Only your circles can open this giveaway" in response.data
+
+    def test_picker_stays_quiet_when_the_requester_can_see_the_giveaway(self, client, app):
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair(seeking="giveaway")
+            ItemFactory(
+                owner=responder,
+                name="Spare Ladder",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond")
+
+            assert response.status_code == 200
+            assert b"Only your circles can open this giveaway" not in response.data
+
+    def test_compose_page_flags_a_giveaway_the_requester_cannot_see(self, client, app):
+        """The warning shows, and the draft leaves out the link that would 403."""
+        with app.app_context():
+            responder, _requester, item_request = self._stranger_pair(seeking="giveaway")
+            item = ItemFactory(
+                owner=responder,
+                name="Spare Ladder",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond/{item.id}")
+
+            assert response.status_code == 200
+            assert b"Only your circles can open this giveaway" in response.data
+            assert b"see it here" not in response.data
+
     def test_compose_page_stays_quiet_when_the_kinds_match(self, client, app):
         with app.app_context():
             responder, _requester, item_request = self._respondable_pair(seeking="either")

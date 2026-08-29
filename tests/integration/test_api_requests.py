@@ -423,6 +423,40 @@ class TestApiRespondToRequest:
         assert "Extension Ladder" in payload["suggested_body"]
         assert f"/item/{item_id}" in payload["suggested_body"]
         assert payload["seeking_mismatch"] is None
+        assert payload["visibility_gap"] is None
+
+    def test_draft_reports_a_visibility_gap(self, client, app):
+        """A circles-only giveaway offered to an outsider is flagged, not blocked."""
+        with app.app_context():
+            responder = UserFactory(email_confirmed=True)
+            requester = UserFactory(first_name="Dana")
+            item = ItemFactory(
+                owner=responder,
+                name="Spare Ladder",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            item_request = ItemRequestFactory(
+                user=requester,
+                title="Looking for a ladder",
+                visibility="public",
+                seeking="giveaway",
+            )
+            db.session.commit()
+            item_id, request_id = item.id, item_request.id
+            access_token = login_api_user(client, responder.email)
+
+        response = client.get(
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert "Only your circles can open this giveaway" in payload["visibility_gap"]
+        # No link at all beats a link the requester would be refused.
+        assert f"/item/{item_id}" not in payload["suggested_body"]
 
     def test_draft_reports_a_seeking_mismatch(self, client, app):
         """A loan item offered to a giveaway request is flagged, not blocked."""

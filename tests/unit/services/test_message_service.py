@@ -483,12 +483,13 @@ class TestRespondToRequest:
             assert error is None
             assert verified_item.id == item.id
 
-    def test_default_visibility_giveaway_gets_direct_url(self, app):
-        """Circles-only giveaways still link directly: the detail page is open to
-        any signed-in user, and giveaways cannot be shared with a token."""
+    def test_circles_only_giveaway_links_directly_for_a_circle_mate(self, app):
+        """Someone in the owner's circles can open a circles-only giveaway."""
         with app.app_context():
             owner = UserFactory()
             requester = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([owner, requester])
             item = ItemFactory(
                 owner=owner,
                 is_giveaway=True,
@@ -501,8 +502,74 @@ class TestRespondToRequest:
             assert "/share/item/" not in url
             assert url.endswith(f"/item/{item.id}")
 
-    def test_claimed_giveaway_gets_direct_url(self, app):
-        """A claimed giveaway cannot be tokenized, so it still links directly."""
+    def test_circles_only_giveaway_has_no_url_outside_the_circles(self, app):
+        """Giveaways take no share token, so there is no working link to offer."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+
+            assert self._build_url(item, requester) is None
+
+    def test_visibility_gap_described_only_when_the_link_would_not_work(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory(first_name="Dana")
+            item_request = ItemRequestFactory(user=requester, visibility="public")
+
+            circles_only = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            gap = message_service.describe_item_visibility_gap(item_request, circles_only)
+            assert gap is not None
+            assert "Dana" in gap
+
+            public_giveaway = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="public",
+                claim_status="unclaimed",
+            )
+            regular_item = ItemFactory(owner=owner, is_giveaway=False)
+
+            assert (
+                message_service.describe_item_visibility_gap(item_request, public_giveaway) is None
+            )
+            assert message_service.describe_item_visibility_gap(item_request, regular_item) is None
+
+    def test_respond_body_omits_the_link_when_there_is_no_working_url(self, app):
+        """A message with a link the requester cannot open is worse than no link."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            item_request = ItemRequestFactory(user=requester, visibility="public")
+
+            body = message_service.build_respond_message_body(item_request, owner, item)
+
+            assert "http" not in body
+            assert "see it here" not in body
+            assert item.name in body
+
+    def test_claimed_giveaway_has_no_url(self, app):
+        """A claimed giveaway is only visible to the two people in the handoff.
+
+        Offering one is refused upstream by _ensure_item_offerable; this pins
+        down that the URL builder would not invent a link for it either.
+        """
         with app.app_context():
             owner = UserFactory()
             requester = UserFactory()
@@ -513,9 +580,7 @@ class TestRespondToRequest:
                 claim_status="claimed",
             )
 
-            url = self._build_url(item, requester)
-
-            assert url.endswith(f"/item/{item.id}")
+            assert self._build_url(item, requester) is None
 
     def test_active_borrower_gets_direct_url(self, app):
         """An active borrower can already open the item, so skip the share token."""

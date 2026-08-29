@@ -176,6 +176,7 @@ def get_respond_draft(request_id, item_id):
         {
             "suggested_body": suggested_body,
             "seeking_mismatch": describe_seeking_mismatch(item_request, item),
+            "visibility_gap": message_service.describe_item_visibility_gap(item_request, item),
         }
     )
 

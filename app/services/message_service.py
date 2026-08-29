@@ -86,30 +86,58 @@ def validate_respond_access(item_request, sender):
 
 
 def _build_item_url_for_requester(item, requester):
-    """Return the best URL so *requester* can view *item*.
+    """Return the best URL so *requester* can view *item*, or ``None``.
 
     - Public giveaways use the public preview page: it renders even when the
       requester is signed out, and redirects signed-in users to the item.
-    - Anything else *requester* can already open links straight to the item.
-      That covers regular items reachable through a shared circle or an active
-      loan, and it covers every giveaway: giveaway detail pages are open to any
-      signed-in user, because ``giveaway_visibility`` governs browse and feed
-      discovery rather than access by direct link.
-    - Remaining regular items get a tokenized share-preview URL.  Giveaways
-      never support share tokens, so they fall back to the direct URL.
+    - Anything else *requester* can already open links straight to the item --
+      a regular item reachable through a shared circle or an active loan, or a
+      giveaway visible to the circles they share with the owner.
+    - Regular items they cannot open travel with a tokenized share-preview URL.
+    - Giveaways cannot be shared with a token, so a circles-only giveaway
+      offered to someone outside the owner's circles has no working URL at all.
+      :func:`describe_item_visibility_gap` explains that case to the sender.
 
     Access is read from :func:`build_item_access_state`, the same helper the
-    item detail view uses, so the link keeps matching what the requester can
-    actually open if those rules change.
+    item detail view uses, so a link is only ever offered when the click will
+    work.
     """
     if item.is_giveaway and item.giveaway_visibility == "public":
         return url_for("share.giveaway_preview", item_id=item.id, _external=True)
 
-    if not item_supports_share_links(item) or build_item_access_state(item, requester)["can_view"]:
+    if build_item_access_state(item, requester)["can_view"]:
         return url_for("main.item_detail", item_id=item.id, _external=True)
 
-    token = generate_item_share_token(item)
-    return url_for("share.item_preview", token=token, _external=True)
+    if item_supports_share_links(item):
+        token = generate_item_share_token(item)
+        return url_for("share.item_preview", token=token, _external=True)
+
+    return None
+
+
+def describe_item_visibility_gap(item_request, item):
+    """Explain that the requester will not be able to open *item*'s page.
+
+    Returns a short sentence for display, or ``None`` when they can open it.
+    Only a circles-only giveaway can land here: a regular item always travels
+    with a share link, and a public giveaway has a public preview page.
+
+    Like a seeking mismatch this is surfaced rather than filtered out.  The
+    item may still be exactly what the requester wants, so the sender is told
+    what the requester will and will not see and can describe the item in
+    their own words.
+    """
+    if item_supports_share_links(item):
+        return None
+
+    if _build_item_url_for_requester(item, item_request.user) is not None:
+        return None
+
+    return (
+        f"Only your circles can open this giveaway's page, and "
+        f"{item_request.user.first_name} is not in any of them, so your message will "
+        "describe the item instead of linking to it."
+    )
 
 
 _RESPOND_BODY_TEMPLATE = (
@@ -117,14 +145,28 @@ _RESPOND_BODY_TEMPLATE = (
     "your request for '{request_title}'. You can see it here: {item_url}"
 )
 
+_RESPOND_BODY_WITHOUT_URL_TEMPLATE = (
+    "Hi {requester_name}! I have a {item_name} that might help with "
+    "your request for '{request_title}'."
+)
+
 
 def build_respond_message_body(item_request, sender, item):
     """Build the default message body for responding to *item_request* with *item*.
 
     Returns the formatted message body string, including an item URL suited to
-    what the requester can view.
+    what the requester can view.  A circles-only giveaway offered outside the
+    owner's circles has no URL that would work, so the draft leaves the link
+    out rather than sending the requester somewhere they cannot go.
     """
     item_url = _build_item_url_for_requester(item, item_request.user)
+    if item_url is None:
+        return _RESPOND_BODY_WITHOUT_URL_TEMPLATE.format(
+            requester_name=item_request.user.first_name,
+            item_name=item.name,
+            request_title=item_request.title,
+        )
+
     return _RESPOND_BODY_TEMPLATE.format(
         requester_name=item_request.user.first_name,
         item_name=item.name,

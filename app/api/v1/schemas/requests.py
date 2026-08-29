@@ -126,3 +126,4 @@ class RequestRespondDraftResponseSchema(ApiSchema):
 
     suggested_body = fields.String(required=True)
     seeking_mismatch = fields.String(required=True, allow_none=True)
+    visibility_gap = fields.String(required=True, allow_none=True)
