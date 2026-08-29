@@ -301,6 +301,11 @@ def reset_password(token, new_password):
 
     user = token_status.user
     if user.reset_password(token, new_password):
+        # Completing a reset proves control of the account's email, which is a
+        # stronger signal than the credential the lockout was protecting. Clear
+        # it so the flash/API message telling the user to reset their password
+        # is actually true.
+        _clear_lockout_state(user)
         db.session.commit()
         return AuthWorkflowResult(status=PASSWORD_RESET_STATUS_SUCCESS, user=user)
 
