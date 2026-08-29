@@ -106,9 +106,9 @@ API_V1_RATE_LIMITS_ENABLED=true
 RATELIMIT_STORAGE_URI=redis://redis:6379/0
 
 # Maximum size in bytes of an API request body that is not a file upload (default 1 MB).
-# Upload endpoints are exempt so photos still go through; they are bounded by the
-# per-file limit in app/utils/storage.py. Cap total body size at the reverse proxy
-# (for example nginx `client_max_body_size`).
+# A tighter ceiling than the app-wide MAX_CONTENT_LENGTH below, for bodies that have no
+# reason to be large. Upload endpoints are exempt so photos still go through; they are
+# bounded by the per-file limit in app/utils/storage.py.
 API_V1_MAX_CONTENT_LENGTH=1048576
 
 # Default endpoint-family limits.
@@ -127,6 +127,16 @@ Operational notes:
 - `memory://` limiter storage is process-local. It is acceptable for local development and isolated test runs, but it will not enforce a shared bucket across multiple Gunicorn workers or multiple app instances.
 - Use Redis-backed limiter storage whenever staging or production can run more than one worker or instance.
 
+### Optional: Request Body Size Ceiling
+
+```bash
+# Largest request body the app will read, in bytes (default 128 MB).
+MAX_CONTENT_LENGTH=134217728
+```
+
+Werkzeug enforces this while reading the request stream, so it bounds the body whether or not the client declares an honest `Content-Length`. Gunicorn advertises `wsgi.input_terminated`, which means a chunked request that declares no length is otherwise handed an unbounded stream and can occupy a worker indefinitely.
+
+This is a backstop against runaway bodies rather than a per-upload quota. It sits above the 100 MB per-file limit in `app/utils/storage.py`, so a single max-size photo still uploads, but below `MAX_ITEM_IMAGE_COUNT` files at that size (8 x 100 MB). A normal batch of phone photos is well under 128 MB, but a batch of unusually large ones is rejected with a `413`. Raise this value if that becomes a problem in practice, and cap total body size at the reverse proxy as well (for example nginx `client_max_body_size`) if your deployment has one.
 ### Optional: API Maintenance
 
 ```bash
@@ -247,6 +257,7 @@ flask db upgrade
 5. **JWT Secrets**: Rotate `JWT_SECRET_KEY` with the same care as `SECRET_KEY`. Changing it invalidates all outstanding API tokens immediately.
 6. **API Rollout Flags**: Treat `API_V1_ENABLED`, `API_V1_WRITE_ENABLED`, and `API_V1_RATE_LIMITS_ENABLED` as operational controls; document any temporary override used during an incident and restore the defaults after the event.
 7. **Limiter Storage**: Use a shared backend such as Redis for production or staging deployments with multiple workers or instances. In-memory limiter storage is not sufficient for that topology.
+8. **Request Body Size**: `MAX_CONTENT_LENGTH` defaults to 128 MB, so the ceiling applies whether or not you set the variable — no action is needed to be protected. What matters is not raising it past what your uploads actually need: it is the only bound on a chunked request that declares no `Content-Length`, so a large value there lets one request occupy a worker for as long as it keeps sending. A reverse-proxy body cap tightens the ceiling further if your deployment has one.
 
 ## Additional Resources
 

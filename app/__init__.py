@@ -152,6 +152,15 @@ def create_app(config_class=None):
             return build_http_error_response(e)
         return e
 
+    @app.errorhandler(413)
+    def request_entity_too_large(e):
+        # Raised by Werkzeug when a body exceeds MAX_CONTENT_LENGTH. The body was
+        # never parsed, so there is no form state to re-render -- send the user to a
+        # page that explains the limit instead.
+        if is_api_request_path(request.path):
+            return build_http_error_response(e)
+        return render_template("errors/413.html"), 413
+
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
         flash("Your session has expired. Please log in again to continue.", "warning")

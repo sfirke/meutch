@@ -202,14 +202,27 @@ class Config:
     REMEMBER_COOKIE_DURATION = timedelta(days=30)
     REMEMBER_COOKIE_REFRESH_EACH_REQUEST = False
 
+    # Ceiling on the size of any request body, enforced by Werkzeug as it reads the
+    # stream rather than by trusting the Content-Length header. Gunicorn sets
+    # wsgi.input_terminated, so without this a chunked request that declares no
+    # Content-Length is handed an unbounded stream and can tie up a worker.
+    # A backstop against runaway bodies, not a per-upload quota: it sits above
+    # MAX_UPLOAD_FILE_SIZE_BYTES (app/utils/storage.py) so a single max-size photo
+    # still fits, but below MAX_ITEM_IMAGE_COUNT files at that size, so a batch of
+    # unusually large photos can be rejected here.
+    MAX_CONTENT_LENGTH = parse_int_env(os.environ.get("MAX_CONTENT_LENGTH"), 128 * 1024 * 1024)
+
     API_V1_ENABLED = parse_bool_env(os.environ.get("API_V1_ENABLED"), True)
     API_V1_WRITE_ENABLED = parse_bool_env(os.environ.get("API_V1_WRITE_ENABLED"), True)
     API_V1_RATE_LIMITS_ENABLED = parse_bool_env(os.environ.get("API_V1_RATE_LIMITS_ENABLED"), True)
 
-    # Ceiling for API request bodies that are not file uploads (JSON, form-encoded).
-    # Upload endpoints are exempt: they are bounded by MAX_UPLOAD_FILE_SIZE_BYTES in
-    # app/utils/storage.py, which allows the high-resolution photos phones produce.
-    # A body-size ceiling for the whole app belongs on the reverse proxy.
+    # Tighter ceiling for API request bodies that are not file uploads (JSON,
+    # form-encoded), which have no reason to approach the app-wide MAX_CONTENT_LENGTH.
+    # Checked against the Content-Length header in the API blueprint's before_request,
+    # so it rejects an oversized body early with a PAYLOAD_TOO_LARGE envelope; the
+    # header-independent bound is MAX_CONTENT_LENGTH above. Upload endpoints are
+    # exempt: they are bounded by MAX_UPLOAD_FILE_SIZE_BYTES in app/utils/storage.py,
+    # which allows the high-resolution photos phones produce.
     API_V1_MAX_CONTENT_LENGTH = parse_int_env(
         os.environ.get("API_V1_MAX_CONTENT_LENGTH"), 1 * 1024 * 1024
     )
