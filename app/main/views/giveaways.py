@@ -17,6 +17,7 @@ from app.main import bp as main_bp
 from app.models import GiveawayInterest, Item, Message, User
 from app.services import giveaway_service, message_service
 from app.services.exceptions import ConflictError, ServiceError
+from app.utils.item_visibility import build_item_access_state
 from app.utils.messaging_queries import (
     find_context_conversation,
     get_conversation_other_user_id,
@@ -45,6 +46,13 @@ def withdraw_interest(item_id):
         flash("An error occurred. Please try again.", "danger")
     else:
         flash("Your interest has been withdrawn.", "success")
+        # Interest is one of the things that can grant access to a circles-only
+        # giveaway, so someone who is no longer in the owner's circles may have
+        # just given up their own way back to the item page.  Only check on the
+        # success path: a failed withdrawal leaves the session needing a
+        # rollback, and querying here would turn the flash above into a 500.
+        if not build_item_access_state(item, current_user)["can_view"]:
+            return redirect(url_for("main.index"))
 
     return redirect(url_for("main.item_detail", item_id=item.id))
 
