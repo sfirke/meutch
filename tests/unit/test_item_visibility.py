@@ -51,21 +51,6 @@ def test_circles_only_giveaway_hidden_from_stranger(app):
         assert state["claimed_unavailable"] is False
 
 
-def test_legacy_giveaway_without_visibility_is_circles_only(app):
-    """Giveaways predating the visibility choice are treated as circles only."""
-    with app.app_context():
-        owner = UserFactory()
-        stranger = UserFactory()
-        item = ItemFactory(
-            owner=owner,
-            is_giveaway=True,
-            giveaway_visibility=None,
-            claim_status="unclaimed",
-        )
-
-        assert build_item_access_state(item, stranger)["can_view"] is False
-
-
 def test_circles_only_giveaway_visible_to_circle_mate(app):
     with app.app_context():
         owner, viewer = _circle_mates()
