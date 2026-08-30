@@ -2307,6 +2307,65 @@ class TestItemDetailPageForGiveaways:
             assert b"Deleted User" in response.data
             assert b"Jane Smith" not in response.data
 
+    def test_selected_recipient_sees_recipient_specific_pending_pickup_message(
+        self, client, app, auth_user
+    ):
+        """The selected recipient should be told the item is theirs to pick up."""
+        with app.app_context():
+            recipient = auth_user()
+            owner = UserFactory(first_name="Olive", last_name="Owner")
+            category = CategoryFactory()
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status="pending_pickup",
+                claimed_by=recipient,
+            )
+            giveaway.available = False
+            db.session.commit()
+
+            login_user(client, recipient.email)
+
+            response = client.get(f"/item/{giveaway.id}")
+
+            assert response.status_code == 200
+            assert b"pending pickup by another user" not in response.data
+            assert b"You've been selected to receive this giveaway" in response.data
+
+    def test_other_interested_user_still_sees_pending_pickup_by_another_user(
+        self, client, app, auth_user
+    ):
+        """Non-recipients keep the neutral 'another user' pending-pickup notice."""
+        with app.app_context():
+            other_user = auth_user()
+            owner = UserFactory(first_name="Olive", last_name="Owner")
+            recipient = UserFactory(first_name="Rita", last_name="Recipient")
+            category = CategoryFactory()
+
+            circle = CircleFactory()
+            circle.members.append(owner)
+            circle.members.append(other_user)
+
+            giveaway = ItemFactory(
+                owner=owner,
+                category=category,
+                is_giveaway=True,
+                claim_status="pending_pickup",
+                claimed_by=recipient,
+            )
+            giveaway.available = False
+            db.session.commit()
+
+            login_user(client, other_user.email)
+
+            response = client.get(f"/item/{giveaway.id}")
+
+            assert response.status_code == 200
+            assert b"pending pickup by another user" in response.data
+            assert b"You've been selected to receive this giveaway" not in response.data
+
     def test_delete_modal_warns_when_item_messages_will_be_lost(self, client, app, auth_user):
         """Delete modal should warn when item messages would be removed."""
         with app.app_context():
