@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app import db
@@ -15,6 +15,7 @@ from app.models import (
     Tag,
 )
 from app.services.exceptions import AuthorizationError, ConflictError, InformationalError
+from app.utils.item_queries import build_own_item_search_filter
 from app.utils.storage import MAX_ITEM_IMAGE_COUNT, delete_item_images, upload_item_images
 
 PUBLIC_GIVEAWAY_LOCATION_MESSAGE = (
@@ -167,6 +168,39 @@ def _ensure_item_image_capacity(existing_count, new_count):
 def _ensure_public_giveaway_owner_is_geocoded(owner, is_giveaway, giveaway_visibility):
     if is_giveaway and giveaway_visibility == "public" and not owner.is_geocoded:
         raise InformationalError(PUBLIC_GIVEAWAY_LOCATION_MESSAGE)
+
+
+def list_user_items(user, search_query=None, page=1, per_page=12, exclude_claimed_giveaways=False):
+    """Return a paginated list of items owned by *user*, newest first.
+
+    Args:
+        user: The owner whose items should be listed.
+        search_query: Optional text filter matched against name and description.
+        page: 1-based page number (default 1).
+        per_page: Items per page (default 12).
+        exclude_claimed_giveaways: When True, omit giveaways that have already
+            been handed off.  Callers offering an item to someone else want
+            this, since a claimed giveaway is no longer viewable by others.
+
+    Returns:
+        A Flask-SQLAlchemy Pagination object.
+    """
+    query = Item.query.filter_by(owner_id=user.id)
+
+    if exclude_claimed_giveaways:
+        query = query.filter(
+            or_(Item.is_giveaway.is_(False), Item.claim_status.is_distinct_from("claimed"))
+        )
+
+    search_filter = build_own_item_search_filter(search_query)
+    if search_filter is not None:
+        query = query.filter(search_filter)
+
+    return query.order_by(Item.created_at.desc()).paginate(
+        page=page,
+        per_page=per_page,
+        error_out=False,
+    )
 
 
 def create_item(

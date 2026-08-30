@@ -46,7 +46,38 @@ def _ensure_item_creation_token(form):
     return creation_token
 
 
-def _duplicate_item_creation_response(item, submit_and_create_another):
+def _respond_flow_request_id():
+    """Return the request id the "I have this item" flow should return to.
+
+    The value round-trips through a hidden form field, so it is only trusted
+    once it parses as a UUID -- ``url_for`` would otherwise happily build a
+    request URL that no route can match.
+    """
+    if (request.args.get("return_to") or request.form.get("return_to")) != "respond":
+        return None
+
+    raw_request_id = request.args.get("request_id") or request.form.get("request_id")
+    try:
+        return str(uuid.UUID(str(raw_request_id)))
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def _item_created_redirect(item, submit_and_create_another, return_request_id):
+    """Pick where to send the user after their item has been listed."""
+    if return_request_id:
+        # Straight to composing the reply, so the new item needn't be hunted down.
+        return redirect(
+            url_for("requests.respond_with_item", request_id=return_request_id, item_id=item.id)
+        )
+
+    if submit_and_create_another:
+        return redirect(url_for("main.list_item"))
+
+    return redirect(url_for("main.index"))
+
+
+def _duplicate_item_creation_response(item, submit_and_create_another, return_request_id):
     from markupsafe import Markup, escape
 
     item_link = url_for("main.item_detail", item_id=item.id)
@@ -55,10 +86,7 @@ def _duplicate_item_creation_response(item, submit_and_create_another):
     ).format(item_link, escape(item.name))
     flash(message, "info")
 
-    if submit_and_create_another:
-        return redirect(url_for("main.list_item"))
-
-    return redirect(url_for("main.index"))
+    return _item_created_redirect(item, submit_and_create_another, return_request_id)
 
 
 @main_bp.route("/list-item", methods=["GET", "POST"])
@@ -67,16 +95,24 @@ def list_item():
     form = ListItemForm()
     creation_token = _ensure_item_creation_token(form)
 
+    # Carry the "I have this item" flow's target request through the form
+    return_request_id = _respond_flow_request_id()
+
+    def render_form():
+        return render_template(
+            "main/list_item.html", form=form, return_request_id=return_request_id
+        )
+
     if form.validate_on_submit():
         uploaded_files, upload_errors = _collect_item_image_uploads(form.image.data)
         if upload_errors:
             for error in upload_errors:
                 flash(error, "error")
-            return render_template("main/list_item.html", form=form)
+            return render_form()
 
         if len(uploaded_files) > MAX_ITEM_IMAGE_COUNT:
             flash(f"You can upload a maximum of {MAX_ITEM_IMAGE_COUNT} images per item.", "error")
-            return render_template("main/list_item.html", form=form)
+            return render_form()
 
         try:
             creation_result = item_service.create_item(
@@ -92,24 +128,25 @@ def list_item():
             )
         except InformationalError as exc:
             form.giveaway_visibility.errors.append(str(exc))
-            return render_template("main/list_item.html", form=form)
+            return render_form()
         except ValueError:
             flash(
                 "Image upload failed. Please ensure you upload valid image files (JPG, PNG, GIF, etc.).",
                 "error",
             )
-            return render_template("main/list_item.html", form=form)
+            return render_form()
         except Exception as exc:
             current_app.logger.error(
                 f"Failed to create item for user {current_user.id}: {str(exc)}"
             )
             flash("We could not save your item. Please try again.", "error")
-            return render_template("main/list_item.html", form=form)
+            return render_form()
 
         if not creation_result.was_created:
             return _duplicate_item_creation_response(
                 creation_result.item,
                 form.submit_and_create_another.data,
+                return_request_id,
             )
 
         from markupsafe import Markup, escape
@@ -119,14 +156,14 @@ def list_item():
             'Item "<a href="{}" class="alert-link">{}</a>" has been listed successfully!'
         ).format(item_link, escape(creation_result.item.name))
 
-        if form.submit_and_create_another.data:
-            flash(message, "success")
-            return redirect(url_for("main.list_item"))
-
         flash(message, "success")
-        return redirect(url_for("main.index"))
+        return _item_created_redirect(
+            creation_result.item,
+            form.submit_and_create_another.data,
+            return_request_id,
+        )
 
-    return render_template("main/list_item.html", form=form)
+    return render_form()
 
 
 @main_bp.route("/item/<uuid:item_id>", methods=["GET", "POST"])
