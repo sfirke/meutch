@@ -3,6 +3,7 @@
 from flask_jwt_extended import jwt_required
 
 from app.api.v1 import bp
+from app.api.v1.operational import read_limit
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.reference import CategorySchema, TagSchema
 from app.models import Category, Tag
@@ -13,6 +14,7 @@ TAG_SCHEMA = TagSchema(many=True)
 
 @bp.get("/categories")
 @jwt_required()
+@read_limit()
 def list_categories():
     """Return categories for authenticated API clients."""
     categories = Category.query.order_by(Category.name.asc()).all()
@@ -21,6 +23,7 @@ def list_categories():
 
 @bp.get("/tags")
 @jwt_required()
+@read_limit()
 def list_tags():
     """Return tags for authenticated API clients."""
     tags = Tag.query.order_by(Tag.name.asc()).all()

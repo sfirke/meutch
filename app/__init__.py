@@ -101,10 +101,11 @@ def create_app(config_class=None):
 
     # Register CLI commands
     try:
-        from app.cli import check_loan_reminders, seed, user
+        from app.cli import api, check_loan_reminders, seed, user
 
         app.cli.add_command(seed)
         app.cli.add_command(user)
+        app.cli.add_command(api)
         app.cli.add_command(check_loan_reminders)
     except ImportError as e:
         print(f"Warning: Could not import CLI commands: {e}")
@@ -150,6 +151,15 @@ def create_app(config_class=None):
         if is_api_request_path(request.path):
             return build_http_error_response(e)
         return e
+
+    @app.errorhandler(413)
+    def request_entity_too_large(e):
+        # Raised by Werkzeug when a body exceeds MAX_CONTENT_LENGTH. The body was
+        # never parsed, so there is no form state to re-render -- send the user to a
+        # page that explains the limit instead.
+        if is_api_request_path(request.path):
+            return build_http_error_response(e)
+        return render_template("errors/413.html"), 413
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):

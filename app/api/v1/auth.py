@@ -5,7 +5,7 @@ from flask_jwt_extended import get_jwt, jwt_required
 from app.api.v1 import bp
 from app.api.v1.errors import build_error_response
 from app.api.v1.jwt_auth import current_user
-from app.api.v1.operational import auth_limit, session_limit
+from app.api.v1.operational import auth_limit, read_limit, session_limit
 from app.api.v1.parsing import load_request_data
 from app.api.v1.schemas.auth import (
     CurrentUserResponseSchema,
@@ -59,6 +59,7 @@ def logout():
 
 @bp.get("/auth/me")
 @jwt_required()
+@read_limit()
 def me():
     """Return the identity of the authenticated API user."""
     return CURRENT_USER_RESPONSE_SCHEMA.dump({"user": current_user})

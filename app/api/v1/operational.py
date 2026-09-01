@@ -83,3 +83,8 @@ def session_limit(config_key="API_V1_AUTH_SESSION_RATE_LIMIT"):
 def mutation_limit(config_key="API_V1_WRITE_RATE_LIMIT"):
     """Apply an authenticated mutation rate limit sourced from app config."""
     return _conditional_limit(config_key, jwt_user_or_ip_rate_limit_key)
+
+
+def read_limit(config_key="API_V1_READ_RATE_LIMIT"):
+    """Apply a per-user read rate limit sourced from app config."""
+    return _conditional_limit(config_key, jwt_user_or_ip_rate_limit_key)

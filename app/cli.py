@@ -1678,6 +1678,42 @@ def disable_showcase(email):
     click.echo(f"✅ Public showcase disabled for {user.full_name} ({email})")
 
 
+@click.group()
+def api():
+    """API maintenance commands."""
+    pass
+
+
+@api.command("cleanup-expired-tokens")
+@click.option(
+    "--older-than-days",
+    default=7,
+    show_default=True,
+    help="Remove blocklist entries whose tokens expired at least this many days ago.",
+)
+@with_appcontext
+def cleanup_expired_tokens(older_than_days):
+    """Purge expired token blocklist entries to keep the table lean."""
+    from datetime import timedelta
+
+    from app.models import ApiTokenBlocklist
+
+    cutoff = datetime.now(UTC) - timedelta(days=older_than_days)
+    deleted = ApiTokenBlocklist.query.filter(ApiTokenBlocklist.expires_at < cutoff).delete(
+        synchronize_session=False
+    )
+    db.session.commit()
+
+    if deleted:
+        click.echo(
+            f"🗑  Removed {deleted} expired token blocklist "
+            f"{'entry' if deleted == 1 else 'entries'} older than "
+            f"{older_than_days} day{'s' if older_than_days != 1 else ''}."
+        )
+    else:
+        click.echo("✓ No expired token blocklist entries to remove.")
+
+
 @click.command()
 @click.option(
     "--force-digest",

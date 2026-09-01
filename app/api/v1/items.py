@@ -6,7 +6,7 @@ from flask_jwt_extended import jwt_required
 from app import db
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
-from app.api.v1.operational import mutation_limit
+from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.items import (
@@ -134,6 +134,7 @@ def _raise_item_upload_error(error):
 
 @bp.get("/items")
 @jwt_required()
+@read_limit()
 def list_items():
     """Return discoverable items for the authenticated user."""
     query_data = load_query_data(ITEM_LIST_QUERY_SCHEMA)
@@ -183,6 +184,7 @@ def list_my_items():
 
 @bp.get("/items/<uuid:item_id>")
 @jwt_required()
+@read_limit()
 def get_item(item_id):
     """Return item details when the authenticated user can view them."""
     item = db.get_or_404(Item, item_id)
@@ -283,6 +285,7 @@ def delete_item_image(item_id, image_id):
 
 @bp.get("/items/<uuid:item_id>/giveaway-interests")
 @jwt_required()
+@read_limit()
 def list_giveaway_interests(item_id):
     """Return owner-only giveaway interest-management state for one item."""
     item = db.get_or_404(Item, item_id)
