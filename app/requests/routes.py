@@ -281,10 +281,6 @@ def respond(request_id):
         seeking_mismatches={
             item.id: describe_seeking_mismatch(item_request, item) for item in pagination.items
         },
-        visibility_gaps={
-            item.id: message_service.describe_item_visibility_gap(item_request, item)
-            for item in pagination.items
-        },
     )
 
 
