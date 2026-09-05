@@ -1,9 +1,10 @@
+from flask import url_for
+
 from app import db
 from app.models import Item
 from app.utils.digest_tokens import generate_signed_token, verify_signed_token
 
-
-ITEM_SHARE_TOKEN_SALT = 'item-share'
+ITEM_SHARE_TOKEN_SALT = "item-share"
 ITEM_SHARE_TOKEN_MAX_AGE_DAYS = 30
 ITEM_SHARE_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * ITEM_SHARE_TOKEN_MAX_AGE_DAYS
 
@@ -14,12 +15,18 @@ def item_supports_share_links(item):
 
 def generate_item_share_token(item):
     if not item_supports_share_links(item):
-        raise ValueError('Only regular items can be shared with item share links.')
+        raise ValueError("Only regular items can be shared with item share links.")
 
     return generate_signed_token(
-        {'item_id': str(item.id)},
+        {"item_id": str(item.id)},
         salt=ITEM_SHARE_TOKEN_SALT,
     )
+
+
+def build_item_share_url(item):
+    """Return the absolute tokenized preview URL for a regular item."""
+    token = generate_item_share_token(item)
+    return url_for("share.item_preview", token=token, _external=True)
 
 
 def verify_item_share_token(token, max_age_seconds=ITEM_SHARE_TOKEN_MAX_AGE_SECONDS):
@@ -31,13 +38,13 @@ def verify_item_share_token(token, max_age_seconds=ITEM_SHARE_TOKEN_MAX_AGE_SECO
     if error:
         return None, error
 
-    item_id = payload.get('item_id')
+    item_id = payload.get("item_id")
     if not item_id:
-        return None, 'invalid'
+        return None, "invalid"
 
     item = db.session.get(Item, item_id)
     if not item or not item_supports_share_links(item):
-        return None, 'invalid'
+        return None, "invalid"
 
     return item, None
 

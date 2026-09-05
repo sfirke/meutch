@@ -439,8 +439,8 @@ class TestRespondToRequest:
 
         return _build_item_url_for_requester(item, requester)
 
-    def test_public_giveaway_gets_giveaway_preview_url(self, app):
-        """Public giveaways should use the public giveaway preview URL."""
+    def test_public_giveaway_gets_direct_item_url(self, app):
+        """Public giveaways are open to every signed-in user, so link straight to the item."""
         with app.app_context():
             owner = UserFactory()
             requester = UserFactory()
@@ -448,8 +448,26 @@ class TestRespondToRequest:
 
             url = self._build_url(item, requester)
 
-            assert "/share/giveaway/" in url
-            assert str(item.id) in url
+            assert f"/item/{item.id}" in url
+            assert "/share/" not in url
+
+    def test_pending_pickup_public_giveaway_still_links_to_item_page(self, app):
+        """A giveaway awaiting pickup stays viewable on its own page, unlike the share preview."""
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="public",
+                claim_status="pending_pickup",
+                claimed_by=UserFactory(),
+            )
+
+            url = self._build_url(item, requester)
+
+            assert f"/item/{item.id}" in url
+            assert "/share/" not in url
 
     def test_shared_circle_gets_direct_item_url(self, app):
         """When owner and requester share a circle, use a direct item URL."""
@@ -558,7 +576,7 @@ class TestRespondToRequest:
             )
             item_request = ItemRequestFactory(user=requester, visibility="public")
 
-            body = message_service.build_respond_message_body(item_request, owner, item)
+            body = message_service.build_respond_message_body(item_request, item)
 
             assert "http" not in body
             assert "see it here" not in body

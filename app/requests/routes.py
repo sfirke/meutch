@@ -234,9 +234,9 @@ def conversation(request_id):
 def _load_respondable_request(request_id):
     """Load a request the current user is allowed to respond to.
 
-    Returns ``(item_request, error_response)`` where exactly one is ``None``.
     Missing, deleted and forbidden requests abort with 404/403 to match
-    :func:`detail` and :func:`conversation`.
+    :func:`detail` and :func:`conversation`; a request that is no longer open
+    aborts with a redirect back to its detail page after flashing why.
     """
     item_request = db.session.get(ItemRequest, request_id)
     if not item_request or item_request.status == "deleted":
@@ -246,20 +246,18 @@ def _load_respondable_request(request_id):
         message_service.validate_respond_access(item_request, current_user)
     except InvalidActionError as exc:
         flash(str(exc), "warning")
-        return None, redirect(url_for("requests.detail", request_id=item_request.id))
+        abort(redirect(url_for("requests.detail", request_id=item_request.id)))
     except AuthorizationError:
         abort(403)
 
-    return item_request, None
+    return item_request
 
 
 @requests_bp.route("/<uuid:request_id>/respond")
 @login_required
 def respond(request_id):
     """Browse the current user's items to respond to a request."""
-    item_request, error_response = _load_respondable_request(request_id)
-    if error_response:
-        return error_response
+    item_request = _load_respondable_request(request_id)
 
     search_query = request.args.get("q", "").strip() or None
     page = request.args.get("page", 1, type=int)
@@ -288,45 +286,39 @@ def respond(request_id):
 @login_required
 def respond_with_item(request_id, item_id):
     """Compose a message responding to a request with a specific item."""
-    item_request, error_response = _load_respondable_request(request_id)
-    if error_response:
-        return error_response
+    item_request = _load_respondable_request(request_id)
 
     item = db.session.get(Item, item_id)
     if not item or item.owner_id != current_user.id:
         abort(404)
 
     form = MessageForm()
-    if form.validate_on_submit():
-        try:
+    try:
+        if form.validate_on_submit():
             message = message_service.respond_to_request_with_item(
                 item_request,
                 current_user,
                 item,
                 body=form.body.data,
             )
-        except (InvalidActionError, AuthorizationError) as exc:
-            flash(str(exc), "warning")
-            return redirect(url_for("requests.respond", request_id=item_request.id))
+            flash("Your message has been sent.", "success")
+            return redirect(
+                url_for("main.view_conversation", conversation_id=message.conversation_id)
+            )
 
-        flash("Your message has been sent.", "success")
-        return redirect(url_for("main.view_conversation", conversation_id=message.conversation_id))
-
-    # Pre-fill the message body on GET.  build_respond_draft re-runs the same
-    # checks as sending, so an item that can no longer be offered is caught
-    # before the sender writes a message about it.
-    if request.method == "GET":
-        try:
+        if not form.is_submitted():
+            # Pre-fill the draft; it runs the same checks as sending, so an item
+            # that can no longer be offered is caught before a message is written.
             form.body.data = message_service.build_respond_draft(
                 item_request,
                 current_user,
                 item,
             )
-        except InvalidActionError as exc:
-            flash(str(exc), "warning")
-            return redirect(url_for("requests.respond", request_id=item_request.id))
-        except AuthorizationError:
-            abort(403)
+    except InvalidActionError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("requests.respond", request_id=item_request.id))
+    except AuthorizationError:
+        abort(403)
 
     return render_template(
         "requests/respond_message.html",

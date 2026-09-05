@@ -166,6 +166,7 @@ def list_items():
 
 @bp.get("/me/items")
 @jwt_required()
+@read_limit()
 def list_my_items():
     """Return paginated items owned by the authenticated user."""
     query_data = load_query_data(MY_ITEMS_QUERY_SCHEMA)

@@ -10,7 +10,7 @@ from app.models import ConversationParticipant, Message
 from app.services import giveaway_service
 from app.services.exceptions import AuthorizationError, InvalidActionError, ServiceError
 from app.utils.email import send_message_notification_email
-from app.utils.item_share import generate_item_share_token, item_supports_share_links
+from app.utils.item_share import build_item_share_url, item_supports_share_links
 from app.utils.item_visibility import build_item_access_state
 from app.utils.messaging_queries import (
     build_conversation_thread_state,
@@ -69,17 +69,16 @@ def validate_respond_access(item_request, sender):
     """Validate that *sender* can respond to *item_request*.
 
     Returns the requester's user ID (the message recipient) on success.
+    Callers 404 deleted requests before reaching here, so this only adds the
+    "still open" rule on top of the shared request-messaging gate.
 
     Raises:
-        InvalidActionError: if the request is deleted, closed, expired,
-            or if *sender* is the requester.
+        InvalidActionError: if the request is closed or expired, or if
+            *sender* is the requester.
         AuthorizationError: if *sender* doesn't have permission to
             message the requester.
     """
-    if item_request.status == "deleted":
-        raise InvalidActionError("This request has been deleted.")
-
-    if item_request.status != "open" or item_request.is_expired:
+    if not item_request.is_active:
         raise InvalidActionError("This request is no longer open.")
 
     return get_request_conversation_recipient_id(item_request, sender)
@@ -88,11 +87,10 @@ def validate_respond_access(item_request, sender):
 def _build_item_url_for_requester(item, requester):
     """Return the best URL so *requester* can view *item*, or ``None``.
 
-    - Public giveaways use the public preview page: it renders even when the
-      requester is signed out, and redirects signed-in users to the item.
-    - Anything else *requester* can already open links straight to the item --
-      a regular item reachable through a shared circle or an active loan, or a
-      giveaway visible to the circles they share with the owner.
+    - Anything *requester* can already open links straight to the item: a
+      public giveaway, a regular item reachable through a shared circle or an
+      active loan, or a giveaway visible to the circles they share with the
+      owner.
     - Regular items they cannot open travel with a tokenized share-preview URL.
     - Giveaways cannot be shared with a token, so a circles-only giveaway
       offered to someone outside the owner's circles has no working URL at all.
@@ -102,15 +100,11 @@ def _build_item_url_for_requester(item, requester):
     item detail view uses, so a link is only ever offered when the click will
     work.
     """
-    if item.is_giveaway and item.giveaway_visibility == "public":
-        return url_for("share.giveaway_preview", item_id=item.id, _external=True)
-
     if build_item_access_state(item, requester)["can_view"]:
         return url_for("main.item_detail", item_id=item.id, _external=True)
 
     if item_supports_share_links(item):
-        token = generate_item_share_token(item)
-        return url_for("share.item_preview", token=token, _external=True)
+        return build_item_share_url(item)
 
     return None
 
@@ -120,7 +114,7 @@ def describe_item_visibility_gap(item_request, item):
 
     Returns a short sentence for display, or ``None`` when they can open it.
     Only a circles-only giveaway can land here: a regular item always travels
-    with a share link, and a public giveaway has a public preview page.
+    with a share link, and a public giveaway is open to every signed-in user.
 
     Like a seeking mismatch this is surfaced rather than filtered out.  The
     item may still be exactly what the requester wants, so the sender is told
@@ -130,7 +124,7 @@ def describe_item_visibility_gap(item_request, item):
     if item_supports_share_links(item):
         return None
 
-    if _build_item_url_for_requester(item, item_request.user) is not None:
+    if build_item_access_state(item, item_request.user)["can_view"]:
         return None
 
     return (
@@ -140,18 +134,7 @@ def describe_item_visibility_gap(item_request, item):
     )
 
 
-_RESPOND_BODY_TEMPLATE = (
-    "Hi {requester_name}! I have a {item_name} that might help with "
-    "your request for '{request_title}'. You can see it here: {item_url}"
-)
-
-_RESPOND_BODY_WITHOUT_URL_TEMPLATE = (
-    "Hi {requester_name}! I have a {item_name} that might help with "
-    "your request for '{request_title}'."
-)
-
-
-def build_respond_message_body(item_request, sender, item):
+def build_respond_message_body(item_request, item):
     """Build the default message body for responding to *item_request* with *item*.
 
     Returns the formatted message body string, including an item URL suited to
@@ -159,20 +142,14 @@ def build_respond_message_body(item_request, sender, item):
     owner's circles has no URL that would work, so the draft leaves the link
     out rather than sending the requester somewhere they cannot go.
     """
-    item_url = _build_item_url_for_requester(item, item_request.user)
-    if item_url is None:
-        return _RESPOND_BODY_WITHOUT_URL_TEMPLATE.format(
-            requester_name=item_request.user.first_name,
-            item_name=item.name,
-            request_title=item_request.title,
-        )
-
-    return _RESPOND_BODY_TEMPLATE.format(
-        requester_name=item_request.user.first_name,
-        item_name=item.name,
-        request_title=item_request.title,
-        item_url=item_url,
+    body = (
+        f"Hi {item_request.user.first_name}! I have a {item.name} that might help with "
+        f"your request for '{item_request.title}'."
     )
+    item_url = _build_item_url_for_requester(item, item_request.user)
+    if item_url is not None:
+        body += f" You can see it here: {item_url}"
+    return body
 
 
 def _ensure_item_offerable(item, sender):
@@ -198,7 +175,7 @@ def build_respond_draft(item_request, sender, item):
     _ensure_item_offerable(item, sender)
     validate_respond_access(item_request, sender)
 
-    return build_respond_message_body(item_request, sender, item)
+    return build_respond_message_body(item_request, item)
 
 
 def respond_to_request_with_item(item_request, sender, item, body=None):
@@ -226,7 +203,7 @@ def respond_to_request_with_item(item_request, sender, item, body=None):
     conversation = get_or_create_conversation("request", item_request.id, sender.id, recipient_id)
 
     if body is None:
-        body = build_respond_message_body(item_request, sender, item)
+        body = build_respond_message_body(item_request, item)
 
     return create_message(
         sender.id,

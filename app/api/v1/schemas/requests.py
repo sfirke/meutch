@@ -117,7 +117,7 @@ class RequestRespondSchema(ApiSchema):
     body = fields.String(
         load_default=None,
         allow_none=True,
-        validate=validate.Length(max=1000),
+        validate=validate.Length(min=1, max=1000),
     )
 
 

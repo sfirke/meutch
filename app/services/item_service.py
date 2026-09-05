@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from app import db
 from app.models import (
@@ -196,10 +197,10 @@ def list_user_items(user, search_query=None, page=1, per_page=12, exclude_claime
     if search_filter is not None:
         query = query.filter(search_filter)
 
-    return query.order_by(Item.created_at.desc()).paginate(
-        page=page,
-        per_page=per_page,
-        error_out=False,
+    return (
+        query.options(selectinload(Item.images))
+        .order_by(Item.created_at.desc())
+        .paginate(page=page, per_page=per_page, error_out=False)
     )
 
 

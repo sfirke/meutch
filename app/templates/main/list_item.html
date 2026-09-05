@@ -104,7 +104,9 @@
         <!-- Submit Buttons -->
         <div class="mb-3 d-grid gap-2 d-md-flex justify-content-md-start">
             {{ form.submit(class="btn btn-primary") }}
-            {{ form.submit_and_create_another(class="btn btn-outline-primary") }}
+            {% if not return_request_id %}
+                {{ form.submit_and_create_another(class="btn btn-outline-primary") }}
+            {% endif %}
         </div>
     </form>
 </div>
