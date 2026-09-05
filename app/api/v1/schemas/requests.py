@@ -105,3 +105,25 @@ class RequestWritePayloadSchema(ApiSchema):
             raise ValidationError(
                 {"expires_at": ["Expiration date cannot be more than 6 months from today."]}
             )
+
+
+class RequestRespondSchema(ApiSchema):
+    """Write payload for responding to a request with one of your items.
+
+    The item is addressed by the URL, so all this carries is the message.
+    Omit ``body`` to send the suggested draft unedited.
+    """
+
+    body = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.Length(min=1, max=1000),
+    )
+
+
+class RequestRespondDraftResponseSchema(ApiSchema):
+    """The suggested message for offering an item, before the sender edits it."""
+
+    suggested_body = fields.String(required=True)
+    seeking_mismatch = fields.String(required=True, allow_none=True)
+    visibility_gap = fields.String(required=True, allow_none=True)

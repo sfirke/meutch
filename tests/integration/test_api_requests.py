@@ -1,9 +1,18 @@
 """Integration tests for API request reads and writes."""
 
 from datetime import date, timedelta
+from unittest.mock import patch
 
 from app import db
-from tests.factories import ConversationFactory, ItemRequestFactory, MessageFactory, UserFactory
+from app.models import Conversation, Message
+from tests.factories import (
+    CircleFactory,
+    ConversationFactory,
+    ItemFactory,
+    ItemRequestFactory,
+    MessageFactory,
+    UserFactory,
+)
 
 from .api_test_helpers import auth_headers, login_api_user
 
@@ -275,3 +284,220 @@ class TestApiRequests:
         assert first_response.status_code == 200
         assert first_response.get_json()["request"]["status"] == "fulfilled"
         assert second_response.status_code == 409
+
+
+class TestApiRespondToRequest:
+    """Exercise responding to a request with one of your own items."""
+
+    def _setup(self, **request_kwargs):
+        """Create a responder, a requester who shares a circle, and a request."""
+        responder = UserFactory(email_confirmed=True)
+        requester = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([responder, requester])
+        item = ItemFactory(owner=responder, name="Extension Ladder")
+        item_request = ItemRequestFactory(
+            user=requester,
+            title="Looking for a ladder",
+            visibility="circles",
+            **request_kwargs,
+        )
+        db.session.commit()
+        return responder, requester, item, item_request
+
+    def test_respond_creates_message_with_item_link(self, client, app):
+        with app.app_context():
+            responder, requester, item, item_request = self._setup()
+            item_id, request_id, requester_id = item.id, item_request.id, requester.id
+            access_token = login_api_user(client, responder.email)
+
+        with patch("app.services.message_service.send_message_notification_email"):
+            response = client.post(
+                f"/api/v1/requests/{request_id}/respond/{item_id}",
+                json={},
+                headers=auth_headers(access_token),
+            )
+
+        assert response.status_code == 201
+        body = response.get_json()["message"]["body"]
+        assert "Extension Ladder" in body
+        assert f"/item/{item_id}" in body
+
+        with app.app_context():
+            message = Message.query.filter_by(recipient_id=requester_id).one()
+            conversation = db.session.get(Conversation, message.conversation_id)
+            assert conversation.context_type == "request"
+            assert conversation.context_id == request_id
+
+    def test_respond_accepts_a_custom_body(self, client, app):
+        with app.app_context():
+            responder, _requester, item, item_request = self._setup()
+            item_id, request_id = item.id, item_request.id
+            access_token = login_api_user(client, responder.email)
+
+        with patch("app.services.message_service.send_message_notification_email"):
+            response = client.post(
+                f"/api/v1/requests/{request_id}/respond/{item_id}",
+                json={"body": "Happy to lend you mine!"},
+                headers=auth_headers(access_token),
+            )
+
+        assert response.status_code == 201
+        assert response.get_json()["message"]["body"] == "Happy to lend you mine!"
+
+    def test_respond_rejects_an_item_you_do_not_own(self, client, app):
+        with app.app_context():
+            responder, _requester, _item, item_request = self._setup()
+            other_item = ItemFactory(owner=UserFactory(), name="Not Mine")
+            db.session.commit()
+            other_item_id, request_id = other_item.id, item_request.id
+            access_token = login_api_user(client, responder.email)
+
+        response = client.post(
+            f"/api/v1/requests/{request_id}/respond/{other_item_id}",
+            json={},
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 403
+
+    def test_respond_rejects_a_request_you_cannot_view(self, client, app):
+        with app.app_context():
+            stranger = UserFactory(email_confirmed=True)
+            requester = UserFactory()
+            item = ItemFactory(owner=stranger, name="Extension Ladder")
+            item_request = ItemRequestFactory(user=requester, visibility="circles")
+            db.session.commit()
+            item_id, request_id = item.id, item_request.id
+            access_token = login_api_user(client, stranger.email)
+
+        response = client.post(
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            json={},
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 403
+
+    def test_respond_rejects_a_closed_request(self, client, app):
+        with app.app_context():
+            responder, _requester, item, item_request = self._setup(status="fulfilled")
+            item_id, request_id = item.id, item_request.id
+            access_token = login_api_user(client, responder.email)
+
+        response = client.post(
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            json={},
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 400
+
+    def test_respond_rejects_an_over_long_body(self, client, app):
+        with app.app_context():
+            responder, _requester, item, item_request = self._setup()
+            item_id, request_id = item.id, item_request.id
+            access_token = login_api_user(client, responder.email)
+
+        response = client.post(
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            json={"body": "x" * 1001},
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 422
+
+    def test_draft_returns_the_suggested_body(self, client, app):
+        with app.app_context():
+            responder, _requester, item, item_request = self._setup()
+            item_id, request_id = item.id, item_request.id
+            access_token = login_api_user(client, responder.email)
+
+        response = client.get(
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert "Extension Ladder" in payload["suggested_body"]
+        assert f"/item/{item_id}" in payload["suggested_body"]
+        assert payload["seeking_mismatch"] is None
+        assert payload["visibility_gap"] is None
+
+    def test_draft_reports_a_visibility_gap(self, client, app):
+        """A circles-only giveaway offered to an outsider is flagged, not blocked."""
+        with app.app_context():
+            responder = UserFactory(email_confirmed=True)
+            requester = UserFactory(first_name="Dana")
+            item = ItemFactory(
+                owner=responder,
+                name="Spare Ladder",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            item_request = ItemRequestFactory(
+                user=requester,
+                title="Looking for a ladder",
+                visibility="public",
+                seeking="giveaway",
+            )
+            db.session.commit()
+            item_id, request_id = item.id, item_request.id
+            access_token = login_api_user(client, responder.email)
+
+        response = client.get(
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert "Only your circles can open this giveaway" in payload["visibility_gap"]
+        # No link at all beats a link the requester would be refused.
+        assert f"/item/{item_id}" not in payload["suggested_body"]
+
+    def test_draft_reports_a_seeking_mismatch(self, client, app):
+        """A loan item offered to a giveaway request is flagged, not blocked."""
+        with app.app_context():
+            responder, _requester, item, item_request = self._setup(seeking="giveaway")
+            item_id, request_id = item.id, item_request.id
+            access_token = login_api_user(client, responder.email)
+
+        response = client.get(
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert "asking for a giveaway" in response.get_json()["seeking_mismatch"]
+
+    def test_draft_rejects_an_item_you_do_not_own(self, client, app):
+        with app.app_context():
+            responder, _requester, _item, item_request = self._setup()
+            other_item = ItemFactory(owner=UserFactory(), name="Not Mine")
+            db.session.commit()
+            other_item_id, request_id = other_item.id, item_request.id
+            access_token = login_api_user(client, responder.email)
+
+        response = client.get(
+            f"/api/v1/requests/{request_id}/respond/{other_item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 403
+
+    def test_draft_does_not_send_anything(self, client, app):
+        with app.app_context():
+            responder, requester, item, item_request = self._setup()
+            item_id, request_id, requester_id = item.id, item_request.id, requester.id
+            access_token = login_api_user(client, responder.email)
+
+        client.get(
+            f"/api/v1/requests/{request_id}/respond/{item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        with app.app_context():
+            assert Message.query.filter_by(recipient_id=requester_id).count() == 0

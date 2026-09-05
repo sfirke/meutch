@@ -378,3 +378,17 @@ class TestConversationBodyRendering:
             assert response.status_code == 200
             assert "<script>alert(" not in content
             assert "&lt;script&gt;" in content
+
+    def test_newlines_in_a_message_become_line_breaks(self, client, app):
+        with app.app_context():
+            viewer = UserFactory()
+            partner = UserFactory()
+            conversation = self._conversation_with_body(viewer, partner, "first\nsecond")
+            db.session.commit()
+
+            login_user(client, viewer.email)
+            response = client.get(f"/conversation/{conversation.id}")
+            content = response.data.decode("utf-8")
+
+            assert response.status_code == 200
+            assert "first<br>second" in content

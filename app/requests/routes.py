@@ -7,9 +7,9 @@ from flask_login import current_user, login_required
 
 from app import db
 from app.forms import EmptyForm, ItemRequestForm, MessageForm
-from app.models import ItemRequest
+from app.models import Item, ItemRequest
 from app.requests import bp as requests_bp
-from app.services import message_service, request_service
+from app.services import item_service, message_service, request_service
 from app.services.exceptions import (
     AuthorizationError,
     ConflictError,
@@ -21,7 +21,7 @@ from app.utils.messaging_queries import (
     find_context_conversation,
 )
 from app.utils.profile_visibility import can_view_profile
-from app.utils.request_queries import can_view_request
+from app.utils.request_queries import can_view_request, describe_seeking_mismatch
 
 
 @requests_bp.route("/")
@@ -229,3 +229,102 @@ def conversation(request_id):
         return redirect(url_for("main.view_conversation", conversation_id=message.conversation_id))
 
     return render_template("requests/conversation_start.html", form=form, item_request=item_request)
+
+
+def _load_respondable_request(request_id):
+    """Load a request the current user is allowed to respond to.
+
+    Missing, deleted and forbidden requests abort with 404/403 to match
+    :func:`detail` and :func:`conversation`; a request that is no longer open
+    aborts with a redirect back to its detail page after flashing why.
+    """
+    item_request = db.session.get(ItemRequest, request_id)
+    if not item_request or item_request.status == "deleted":
+        abort(404)
+
+    try:
+        message_service.validate_respond_access(item_request, current_user)
+    except InvalidActionError as exc:
+        flash(str(exc), "warning")
+        abort(redirect(url_for("requests.detail", request_id=item_request.id)))
+    except AuthorizationError:
+        abort(403)
+
+    return item_request
+
+
+@requests_bp.route("/<uuid:request_id>/respond")
+@login_required
+def respond(request_id):
+    """Browse the current user's items to respond to a request."""
+    item_request = _load_respondable_request(request_id)
+
+    search_query = request.args.get("q", "").strip() or None
+    page = request.args.get("page", 1, type=int)
+    per_page = 12
+
+    pagination = item_service.list_user_items(
+        current_user,
+        search_query=search_query,
+        page=page,
+        per_page=per_page,
+        exclude_claimed_giveaways=True,
+    )
+
+    return render_template(
+        "requests/respond.html",
+        item_request=item_request,
+        pagination=pagination,
+        search_query=search_query or "",
+        seeking_mismatches={
+            item.id: describe_seeking_mismatch(item_request, item) for item in pagination.items
+        },
+    )
+
+
+@requests_bp.route("/<uuid:request_id>/respond/<uuid:item_id>", methods=["GET", "POST"])
+@login_required
+def respond_with_item(request_id, item_id):
+    """Compose a message responding to a request with a specific item."""
+    item_request = _load_respondable_request(request_id)
+
+    item = db.session.get(Item, item_id)
+    if not item or item.owner_id != current_user.id:
+        abort(404)
+
+    form = MessageForm()
+    try:
+        if form.validate_on_submit():
+            message = message_service.respond_to_request_with_item(
+                item_request,
+                current_user,
+                item,
+                body=form.body.data,
+            )
+            flash("Your message has been sent.", "success")
+            return redirect(
+                url_for("main.view_conversation", conversation_id=message.conversation_id)
+            )
+
+        if not form.is_submitted():
+            # Pre-fill the draft; it runs the same checks as sending, so an item
+            # that can no longer be offered is caught before a message is written.
+            form.body.data = message_service.build_respond_draft(
+                item_request,
+                current_user,
+                item,
+            )
+    except InvalidActionError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("requests.respond", request_id=item_request.id))
+    except AuthorizationError:
+        abort(403)
+
+    return render_template(
+        "requests/respond_message.html",
+        form=form,
+        item_request=item_request,
+        item=item,
+        seeking_mismatch=describe_seeking_mismatch(item_request, item),
+        visibility_gap=message_service.describe_item_visibility_gap(item_request, item),
+    )

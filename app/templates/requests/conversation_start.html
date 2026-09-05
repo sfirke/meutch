@@ -10,15 +10,11 @@
                 <i class="fas fa-arrow-left me-1"></i>Back to Request
             </a>
 
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h4 class="mb-2">{{ item_request.title }}</h4>
-                    <p class="text-muted mb-0">Message {{ item_request.user.full_name }} about this request.</p>
-                </div>
-            </div>
+            {% include 'requests/_request_context.html' %}
 
             <div class="card">
                 <div class="card-body">
+                    <h5 class="card-title mb-3">Message {{ item_request.user.full_name }} about this request</h5>
                     <form method="POST">
                         {{ form.hidden_tag() }}
                         <div class="mb-3">
