@@ -19,6 +19,10 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Text that people write — names, item and circle names, descriptions, and message bodies — is now escaped in the HTML version of every notification email: digests, new-message and circle join-request notifications, loan reminders, and Contact Us submissions. Previously, HTML typed into one of those fields was rendered as markup in the recipient's email client rather than shown as the characters that were typed ([#447](https://github.com/sfirke/meutch/pull/447)).
 - The Contact Us form no longer errors when submitting with the "Other" category ([#470](https://github.com/sfirke/meutch/pull/470)).
 - Circle join requests now show the requester's name on mobile portrait layouts — previously the name collapsed out of view, leaving only the avatar and action buttons ([#465](https://github.com/sfirke/meutch/pull/465)).
+- The page shown when a giveaway is no longer available offered both a "Browse Giveaways" button and a "Back to Home" button, which went to the same place. Only "Back to Home" remains ([#478](https://github.com/sfirke/meutch/pull/478)).
+
+### Developer Experience
+- Removed the leftover code for the standalone Giveaways and Requests browse pages, which the home feed replaced. Their templates and styles were still in the repository despite never being rendered, the two URLs were empty redirects to the home page, and the home page view was still assembling a dozen unused variables from its browse-page days. The `/giveaways` and `/requests/` URLs now return a Not Found page rather than redirecting ([#478](https://github.com/sfirke/meutch/pull/478)).
 
 ## July 2026
 
