@@ -12,7 +12,13 @@ from app.utils.email import (
     send_digest_email,
     send_email,
 )
-from tests.factories import ItemFactory, LoanRequestFactory, UserFactory
+from tests.factories import (
+    ConversationFactory,
+    ItemFactory,
+    LoanRequestFactory,
+    MessageFactory,
+    UserFactory,
+)
 
 
 class TestEmailUtils:
@@ -999,3 +1005,109 @@ class TestSendContactFormEmail:
                 html = mock_send.call_args[0][3]
                 assert "Mal &lt;script&gt;evil()&lt;/script&gt;" in html
                 assert "<script>evil()</script>" not in html
+
+
+class TestLoanOverdueEmailLinks:
+    """Overdue emails should link to the conversation holding the loan."""
+
+    def _overdue_loan(self, with_conversation=True):
+        from datetime import date, timedelta
+
+        owner = UserFactory(first_name="Olive", last_name="Owner")
+        borrower = UserFactory(first_name="Barry", last_name="Borrower")
+        item = ItemFactory(name="Cordless Drill", owner=owner)
+        loan = LoanRequestFactory(
+            item=item,
+            borrower=borrower,
+            start_date=date.today() - timedelta(days=14),
+            end_date=date.today() - timedelta(days=4),
+            status="approved",
+        )
+
+        conversation = None
+        if with_conversation:
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            MessageFactory(
+                conversation=conversation,
+                sender=borrower,
+                recipient=owner,
+                loan_request=loan,
+                body="May I borrow the drill?",
+            )
+
+        db.session.commit()
+        return loan, conversation
+
+    def test_borrower_email_links_to_conversation(self, app):
+        with app.app_context():
+            from flask import url_for
+
+            from app.utils.email import send_loan_overdue_borrower_email
+
+            loan, conversation = self._overdue_loan()
+            conversation_url = url_for(
+                "main.view_conversation", conversation_id=conversation.id, _external=True
+            )
+            item_url = url_for("main.item_detail", item_id=loan.item_id, _external=True)
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                assert send_loan_overdue_borrower_email(loan, 4) is True
+
+                _, _, text_content, html_content = mock_send_email.call_args[0]
+
+            assert conversation_url in text_content
+            assert conversation_url in html_content
+            assert item_url not in text_content
+            assert item_url not in html_content
+
+    def test_owner_email_links_to_conversation_and_keeps_extend_link(self, app):
+        with app.app_context():
+            from flask import url_for
+
+            from app.utils.email import send_loan_overdue_owner_email
+
+            loan, conversation = self._overdue_loan()
+            conversation_url = url_for(
+                "main.view_conversation", conversation_id=conversation.id, _external=True
+            )
+            item_url = url_for("main.item_detail", item_id=loan.item_id, _external=True)
+            extend_url = url_for("main.extend_loan", loan_id=loan.id, _external=True)
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                assert send_loan_overdue_owner_email(loan, 4) is True
+
+                _, _, text_content, html_content = mock_send_email.call_args[0]
+
+            assert conversation_url in text_content
+            assert conversation_url in html_content
+            assert extend_url in text_content
+            assert extend_url in html_content
+            assert item_url not in text_content
+            assert item_url not in html_content
+
+    def test_falls_back_to_item_page_when_loan_has_no_conversation(self, app):
+        with app.app_context():
+            from flask import url_for
+
+            from app.utils.email import (
+                send_loan_overdue_borrower_email,
+                send_loan_overdue_owner_email,
+            )
+
+            loan, _ = self._overdue_loan(with_conversation=False)
+            item_url = url_for("main.item_detail", item_id=loan.item_id, _external=True)
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                assert send_loan_overdue_borrower_email(loan, 4) is True
+                assert send_loan_overdue_owner_email(loan, 4) is True
+
+                for call in mock_send_email.call_args_list:
+                    _, _, text_content, html_content = call[0]
+                    assert item_url in text_content
+                    assert item_url in html_content

@@ -21,6 +21,13 @@ def get_conversation_other_user_id(message, viewer_id):
     return None
 
 
+def get_first_loan_conversation_message(loan):
+    """Return the earliest message tying a loan request to its conversation."""
+    return (
+        Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
+    )
+
+
 def find_context_conversation(context_type, context_id, user1_id, user2_id):
     """Look up an existing conversation between two users in a given context."""
     conv_subq = (

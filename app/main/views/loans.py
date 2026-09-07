@@ -4,21 +4,16 @@ from flask_login import current_user, login_required
 from app import db
 from app.forms import EmptyForm, ExtendLoanForm, LoanRequestForm
 from app.main import bp as main_bp
-from app.models import Item, LoanRequest, Message
+from app.models import Item, LoanRequest
 from app.services import loan_service
 from app.services.exceptions import ServiceError
+from app.utils.messaging_queries import get_first_loan_conversation_message
 
 from .helpers import _build_item_detail_url, _shares_circle_or_has_item_token_access
 
 
-def _get_first_loan_conversation_message(loan):
-    return (
-        Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
-    )
-
-
 def _redirect_to_loan_conversation(loan):
-    original_message = _get_first_loan_conversation_message(loan)
+    original_message = get_first_loan_conversation_message(loan)
     if original_message:
         return redirect(
             url_for(

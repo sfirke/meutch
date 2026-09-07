@@ -1152,6 +1152,20 @@ The Meutch Team
     return send_email(owner.email, subject, text_content, html_content)
 
 
+def _loan_conversation_url(loan):
+    """URL of the conversation where the loan lives, or the item page if there is none."""
+    from app.utils.messaging_queries import get_first_loan_conversation_message
+
+    first_message = get_first_loan_conversation_message(loan)
+    if first_message:
+        return url_for(
+            "main.view_conversation",
+            conversation_id=first_message.conversation_id,
+            _external=True,
+        )
+    return url_for("main.item_detail", item_id=loan.item_id, _external=True)
+
+
 def send_loan_overdue_borrower_email(loan, days_overdue):
     """Send overdue reminder email to borrower"""
     from app import db
@@ -1166,8 +1180,8 @@ def send_loan_overdue_borrower_email(loan, days_overdue):
         )
         return False
 
-    # Generate the item URL
-    item_url = url_for("main.item_detail", item_id=loan.item_id, _external=True)
+    # Link to the conversation carrying this loan rather than the item page
+    conversation_url = _loan_conversation_url(loan)
 
     subject = f"Meutch - Reminder: {loan.item.name} is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue"
 
@@ -1183,8 +1197,8 @@ Days Overdue: {days_overdue}
 
 Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
 
-You can view the item details here:
-{item_url}
+You can view the loan and message the owner here:
+{conversation_url}
 
 Thank you for your prompt attention to this matter.
 
@@ -1214,9 +1228,9 @@ The Meutch Team
         </p>
 
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{item_url}"
+            <a href="{conversation_url}"
                style="background-color: #dc3545; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Item Details
+                View Loan
             </a>
         </div>
 
@@ -1250,8 +1264,8 @@ def send_loan_overdue_owner_email(loan, days_overdue):
         )
         return False
 
-    # Generate the item URL
-    item_url = url_for("main.item_detail", item_id=loan.item_id, _external=True)
+    # Link to the conversation carrying this loan rather than the item page
+    conversation_url = _loan_conversation_url(loan)
     # Generate the extend loan URL for owners to extend the loan
     extend_url = url_for("main.extend_loan", loan_id=loan.id, _external=True)
 
@@ -1270,8 +1284,8 @@ Days Overdue: {days_overdue}
 If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time:
 {extend_url}
 
-You can view the item details here:
-{item_url}
+You can view the loan and message the borrower here:
+{conversation_url}
 
 Thank you for your patience.
 
@@ -1301,9 +1315,9 @@ The Meutch Team
         </p>
 
         <div style="text-align: center; margin: 20px 0; display:flex; gap:12px; justify-content:center;">
-            <a href="{item_url}"
+            <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Item Details
+                View Loan
             </a>
             <a href="{extend_url}"
                style="background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
