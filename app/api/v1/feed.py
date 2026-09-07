@@ -19,8 +19,9 @@ FEED_EVENT_SCHEMA = FeedEventSchema(many=True)
 DEFAULT_GEOLOCATED_FEED_DISTANCE = 20
 # The feed merges four differently-shaped event sources in Python, so a page of
 # it can only be cut after the whole window has been assembled.  Capping that
-# window keeps the work per request bounded — the same thing the homepage feed
-# does — instead of scaling with everything the caller can see.
+# window bounds the sort, the page arithmetic, and how far a client can page;
+# the source queries themselves still fetch everything the caller can see, as
+# the homepage feed's own (smaller) cap does.
 MAX_FEED_EVENTS = 500
 
 

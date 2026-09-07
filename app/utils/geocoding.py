@@ -1,4 +1,5 @@
 import logging
+import math
 from time import sleep
 from typing import Optional, Tuple
 
@@ -209,8 +210,6 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     Returns:
         Distance in miles
     """
-    import math
-
     # Convert latitude and longitude to radians
     lat1_rad, lon1_rad = math.radians(lat1), math.radians(lon1)
     lat2_rad, lon2_rad = math.radians(lat2), math.radians(lon2)
@@ -234,8 +233,6 @@ def bounding_box(latitude: float, longitude: float, radius_miles: float):
     antimeridian, the longitude bounds widen to the full range rather than
     splitting into two ranges.
     """
-    import math
-
     if latitude is None or longitude is None or radius_miles is None:
         return None
 

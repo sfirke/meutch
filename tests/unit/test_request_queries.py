@@ -146,10 +146,10 @@ def test_build_visible_requests_pagination_annotates_distance_only_for_the_page(
         circle = CircleFactory()
         circle.members.extend([viewer, author])
         now = datetime.now(UTC)
-        ItemRequestFactory(
+        older = ItemRequestFactory(
             user=author, title="Older", visibility="public", created_at=now - timedelta(hours=1)
         )
-        ItemRequestFactory(user=author, title="Newer", visibility="public", created_at=now)
+        newer = ItemRequestFactory(user=author, title="Newer", visibility="public", created_at=now)
         db.session.commit()
 
         pagination = build_visible_requests_pagination(
@@ -157,9 +157,10 @@ def test_build_visible_requests_pagination_annotates_distance_only_for_the_page(
         )
 
         assert pagination.total == 2
-        assert len(pagination.items) == 1
+        assert pagination.items == [newer]
         # The author has no coordinates, so there is no distance to report.
-        assert pagination.items[0].api_distance is None
+        assert newer.api_distance is None
+        assert not hasattr(older, "api_distance")
 
 
 def test_build_visible_requests_pagination_is_empty_when_nothing_is_visible(app):

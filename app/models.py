@@ -568,11 +568,21 @@ class Circle(db.Model):
     def __repr__(self):
         return f"<Circle {self.name}>"
 
-    def is_admin(self, user):
-        member = (
+    def membership_of(self, user):
+        """Return *user*'s ``circle_members`` row for this circle, or ``None``.
+
+        One lookup answers both "is a member" and "is an admin"; callers that
+        need both should take the row once rather than asking twice.
+        """
+        if user is None or getattr(user, "id", None) is None:
+            return None
+        return (
             db.session.query(circle_members).filter_by(user_id=user.id, circle_id=self.id).first()
         )
-        return member and member.is_admin if member else False
+
+    def is_admin(self, user):
+        member = self.membership_of(user)
+        return bool(member.is_admin) if member else False
 
     def has_member(self, user):
         """Return whether *user* belongs to this circle.
@@ -581,12 +591,7 @@ class Circle(db.Model):
         relationship loads every member row to answer it, which turns a list of
         circles into one full membership load apiece.
         """
-        if user is None or getattr(user, "id", None) is None:
-            return False
-        return (
-            db.session.query(circle_members).filter_by(user_id=user.id, circle_id=self.id).first()
-            is not None
-        )
+        return self.membership_of(user) is not None
 
     @property
     def image(self):

@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_, or_, select
+from sqlalchemy.orm import contains_eager
 
 from app import db
 from app.models import (
@@ -125,8 +126,8 @@ def _within_time_window(event_time, since=None, until=None):
     return True
 
 
-def _distance_bounding_filter(user, max_distance, latitude_column, longitude_column):
-    """Return a SQL filter dropping actors that cannot be within *max_distance*.
+def _apply_distance_prefilter(query, user, max_distance):
+    """Narrow *query* to actors that could be within *max_distance* of *user*.
 
     The exact test is a Haversine distance computed in Python, which means the
     database would otherwise have to ship every visible row so that most of them
@@ -134,24 +135,27 @@ def _distance_bounding_filter(user, max_distance, latitude_column, longitude_col
     viewer is a superset of the matching circle, so applying it in SQL first
     leaves the Python filter with the same answer over far fewer rows.
 
-    Actors without coordinates are kept, because the Python filter keeps them.
-    Returns ``None`` when no prefilter applies.
+    The query must already join ``User`` as the actor.  Actors without
+    coordinates are kept, because the Python filter keeps them.  Returns the
+    query unchanged when no prefilter applies.
     """
     if max_distance is None or not user.is_geocoded:
-        return None
+        return query
 
     box = bounding_box(user.latitude, user.longitude, float(max_distance))
     if box is None:
-        return None
+        return query
 
     min_lat, max_lat, min_lon, max_lon = box
-    return or_(
-        latitude_column.is_(None),
-        longitude_column.is_(None),
-        and_(
-            latitude_column.between(min_lat, max_lat),
-            longitude_column.between(min_lon, max_lon),
-        ),
+    return query.filter(
+        or_(
+            User.latitude.is_(None),
+            User.longitude.is_(None),
+            and_(
+                User.latitude.between(min_lat, max_lat),
+                User.longitude.between(min_lon, max_lon),
+            ),
+        )
     )
 
 
@@ -246,16 +250,16 @@ def build_visible_requests_query(
     if until_utc is not None:
         base_query = base_query.filter(ItemRequest.created_at <= until_utc)
 
-    bounding_filter = _distance_bounding_filter(
-        user,
-        effective_feed_distance(max_distance, distance_explicit),
-        User.latitude,
-        User.longitude,
+    base_query = _apply_distance_prefilter(
+        base_query, user, effective_feed_distance(max_distance, distance_explicit)
     )
-    if bounding_filter is not None:
-        base_query = base_query.filter(bounding_filter)
 
-    return base_query.order_by(ItemRequest.created_at.desc())
+    # The id tiebreaker keeps LIMIT/OFFSET pages stable when several requests
+    # share a created_at, which happens whenever they are inserted in one
+    # transaction.
+    return base_query.options(contains_eager(ItemRequest.user)).order_by(
+        ItemRequest.created_at.desc(), ItemRequest.id.desc()
+    )
 
 
 def build_visible_requests_events(
@@ -380,13 +384,11 @@ def build_visible_giveaway_events(
         )
 
     effective_distance = effective_feed_distance(max_distance, distance_explicit)
-    bounding_filter = _distance_bounding_filter(
-        user, effective_distance, User.latitude, User.longitude
-    )
-    if bounding_filter is not None:
-        base_query = base_query.filter(bounding_filter)
+    base_query = _apply_distance_prefilter(base_query, user, effective_distance)
 
-    giveaway_items = base_query.order_by(Item.created_at.desc()).all()
+    giveaway_items = (
+        base_query.options(contains_eager(Item.owner)).order_by(Item.created_at.desc()).all()
+    )
     giveaway_items = filter_items_by_distance(giveaway_items, user, effective_distance)
 
     events = []
@@ -536,13 +538,13 @@ def build_digest_request_events(
             )
 
     effective_distance = effective_feed_distance(max_distance, distance_explicit)
-    bounding_filter = _distance_bounding_filter(
-        user, effective_distance, User.latitude, User.longitude
-    )
-    if bounding_filter is not None:
-        base_query = base_query.filter(bounding_filter)
+    base_query = _apply_distance_prefilter(base_query, user, effective_distance)
 
-    visible_requests = base_query.order_by(ItemRequest.created_at.desc()).all()
+    visible_requests = (
+        base_query.options(contains_eager(ItemRequest.user))
+        .order_by(ItemRequest.created_at.desc())
+        .all()
+    )
     visible_requests = filter_requests_by_distance(visible_requests, user, effective_distance)
 
     events = []
@@ -649,13 +651,11 @@ def build_digest_giveaway_events(
         )
 
     effective_distance = effective_feed_distance(max_distance, distance_explicit)
-    bounding_filter = _distance_bounding_filter(
-        user, effective_distance, User.latitude, User.longitude
-    )
-    if bounding_filter is not None:
-        base_query = base_query.filter(bounding_filter)
+    base_query = _apply_distance_prefilter(base_query, user, effective_distance)
 
-    giveaway_items = base_query.order_by(Item.created_at.desc()).all()
+    giveaway_items = (
+        base_query.options(contains_eager(Item.owner)).order_by(Item.created_at.desc()).all()
+    )
     giveaway_items = filter_items_by_distance(giveaway_items, user, effective_distance)
 
     events = []

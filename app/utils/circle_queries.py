@@ -305,8 +305,13 @@ def get_pending_circle_join_request(circle_id, user_id):
     ).first()
 
 
-def should_show_circle_members(circle, viewer):
-    return not circle.requires_join_approval or circle.has_member(viewer)
+def should_show_circle_members(circle, viewer, is_member=None):
+    """Pass ``is_member`` when the caller already knows it to skip the lookup."""
+    if not circle.requires_join_approval:
+        return True
+    if is_member is None:
+        is_member = circle.has_member(viewer)
+    return is_member
 
 
 def get_ordered_circle_members(circle_id):

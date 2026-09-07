@@ -79,9 +79,12 @@ def _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle, m
 def _annotate_circle_detail(circle, members_page=1, members_per_page=20):
     admin_pending_counts = get_admin_circle_pending_counts(current_user.id)
     pending_requests_by_circle = _fetch_pending_requests_by_circle(current_user.id, [circle.id])
-    memberships = get_user_circle_memberships(current_user.id)
+    membership = circle.membership_of(current_user)
+    memberships = {circle.id: bool(membership.is_admin)} if membership else {}
     circle = _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle, memberships)
-    circle.api_can_view_members = should_show_circle_members(circle, current_user)
+    circle.api_can_view_members = should_show_circle_members(
+        circle, current_user, is_member=circle.api_is_member
+    )
     circle.api_members = []
     circle.api_members_total = 0
     circle.api_members_page = members_page
