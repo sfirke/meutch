@@ -7,21 +7,13 @@ from app.main import bp as main_bp
 from app.models import Item, LoanRequest
 from app.services import loan_service
 from app.services.exceptions import ServiceError
-from app.utils.messaging_queries import get_first_loan_conversation_message
+from app.utils.messaging_queries import loan_conversation_url
 
 from .helpers import _build_item_detail_url, _shares_circle_or_has_item_token_access
 
 
 def _redirect_to_loan_conversation(loan):
-    original_message = get_first_loan_conversation_message(loan)
-    if original_message:
-        return redirect(
-            url_for(
-                "main.view_conversation",
-                conversation_id=original_message.conversation_id,
-            )
-        )
-    return redirect(url_for("main.item_detail", item_id=loan.item_id))
+    return redirect(loan_conversation_url(loan))
 
 
 @main_bp.route("/items/<uuid:item_id>/request", methods=["GET", "POST"])
@@ -171,12 +163,7 @@ def owner_cancel_loan(loan_id):
 
     if loan.status != "approved":
         flash("Only approved loans can be canceled.", "warning")
-        return redirect(
-            url_for(
-                "main.view_conversation",
-                conversation_id=loan.messages[0].conversation_id,
-            )
-        )
+        return _redirect_to_loan_conversation(loan)
 
     try:
         loan_service.owner_cancel_approved_loan(loan, current_user.id)

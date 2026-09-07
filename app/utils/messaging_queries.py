@@ -1,5 +1,6 @@
 # pylint: disable=not-callable
 
+from flask import url_for
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
@@ -21,11 +22,18 @@ def get_conversation_other_user_id(message, viewer_id):
     return None
 
 
-def get_first_loan_conversation_message(loan):
-    """Return the earliest message tying a loan request to its conversation."""
-    return (
+def loan_conversation_url(loan, external=False):
+    """URL of the conversation carrying a loan, or the item page if it has no messages."""
+    first_message = (
         Message.query.filter_by(loan_request_id=loan.id).order_by(Message.timestamp.asc()).first()
     )
+    if first_message:
+        return url_for(
+            "main.view_conversation",
+            conversation_id=first_message.conversation_id,
+            _external=external,
+        )
+    return url_for("main.item_detail", item_id=loan.item_id, _external=external)
 
 
 def find_context_conversation(context_type, context_id, user1_id, user2_id):
