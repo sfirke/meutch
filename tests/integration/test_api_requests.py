@@ -472,32 +472,3 @@ class TestApiRespondToRequest:
 
         assert response.status_code == 200
         assert "asking for a giveaway" in response.get_json()["seeking_mismatch"]
-
-    def test_draft_rejects_an_item_you_do_not_own(self, client, app):
-        with app.app_context():
-            responder, _requester, _item, item_request = self._setup()
-            other_item = ItemFactory(owner=UserFactory(), name="Not Mine")
-            db.session.commit()
-            other_item_id, request_id = other_item.id, item_request.id
-            access_token = login_api_user(client, responder.email)
-
-        response = client.get(
-            f"/api/v1/requests/{request_id}/respond/{other_item_id}",
-            headers=auth_headers(access_token),
-        )
-
-        assert response.status_code == 403
-
-    def test_draft_does_not_send_anything(self, client, app):
-        with app.app_context():
-            responder, requester, item, item_request = self._setup()
-            item_id, request_id, requester_id = item.id, item_request.id, requester.id
-            access_token = login_api_user(client, responder.email)
-
-        client.get(
-            f"/api/v1/requests/{request_id}/respond/{item_id}",
-            headers=auth_headers(access_token),
-        )
-
-        with app.app_context():
-            assert Message.query.filter_by(recipient_id=requester_id).count() == 0

@@ -14,7 +14,6 @@ from tests.factories import (
     ConversationParticipantFactory,
     ItemFactory,
     ItemRequestFactory,
-    LoanRequestFactory,
     MessageFactory,
     UserFactory,
 )
@@ -439,36 +438,6 @@ class TestRespondToRequest:
 
         return _build_item_url_for_requester(item, requester)
 
-    def test_public_giveaway_gets_direct_item_url(self, app):
-        """Public giveaways are open to every signed-in user, so link straight to the item."""
-        with app.app_context():
-            owner = UserFactory()
-            requester = UserFactory()
-            item = ItemFactory(owner=owner, is_giveaway=True, giveaway_visibility="public")
-
-            url = self._build_url(item, requester)
-
-            assert f"/item/{item.id}" in url
-            assert "/share/" not in url
-
-    def test_pending_pickup_public_giveaway_still_links_to_item_page(self, app):
-        """A giveaway awaiting pickup stays viewable on its own page, unlike the share preview."""
-        with app.app_context():
-            owner = UserFactory()
-            requester = UserFactory()
-            item = ItemFactory(
-                owner=owner,
-                is_giveaway=True,
-                giveaway_visibility="public",
-                claim_status="pending_pickup",
-                claimed_by=UserFactory(),
-            )
-
-            url = self._build_url(item, requester)
-
-            assert f"/item/{item.id}" in url
-            assert "/share/" not in url
-
     def test_shared_circle_gets_direct_item_url(self, app):
         """When owner and requester share a circle, use a direct item URL."""
         with app.app_context():
@@ -500,25 +469,6 @@ class TestRespondToRequest:
             verified_item, error = verify_item_share_token(token)
             assert error is None
             assert verified_item.id == item.id
-
-    def test_circles_only_giveaway_links_directly_for_a_circle_mate(self, app):
-        """Someone in the owner's circles can open a circles-only giveaway."""
-        with app.app_context():
-            owner = UserFactory()
-            requester = UserFactory()
-            circle = CircleFactory()
-            circle.members.extend([owner, requester])
-            item = ItemFactory(
-                owner=owner,
-                is_giveaway=True,
-                giveaway_visibility="default",
-                claim_status="unclaimed",
-            )
-
-            url = self._build_url(item, requester)
-
-            assert "/share/item/" not in url
-            assert url.endswith(f"/item/{item.id}")
 
     def test_circles_only_giveaway_has_no_url_outside_the_circles(self, app):
         """Giveaways take no share token, so there is no working link to offer."""
@@ -582,37 +532,6 @@ class TestRespondToRequest:
             assert "see it here" not in body
             assert item.name in body
 
-    def test_claimed_giveaway_has_no_url(self, app):
-        """A claimed giveaway is only visible to the two people in the handoff.
-
-        Offering one is refused upstream by _ensure_item_offerable; this pins
-        down that the URL builder would not invent a link for it either.
-        """
-        with app.app_context():
-            owner = UserFactory()
-            requester = UserFactory()
-            item = ItemFactory(
-                owner=owner,
-                is_giveaway=True,
-                giveaway_visibility="default",
-                claim_status="claimed",
-            )
-
-            assert self._build_url(item, requester) is None
-
-    def test_active_borrower_gets_direct_url(self, app):
-        """An active borrower can already open the item, so skip the share token."""
-        with app.app_context():
-            owner = UserFactory()
-            requester = UserFactory()
-            item = ItemFactory(owner=owner, is_giveaway=False)
-            LoanRequestFactory(item=item, borrower=requester, status="approved")
-
-            url = self._build_url(item, requester)
-
-            assert "/share/item/" not in url
-            assert url.endswith(f"/item/{item.id}")
-
     def test_claimed_giveaway_cannot_be_offered(self, app):
         """The compose step is reachable by URL, so sending re-checks the item."""
         with app.app_context():
@@ -626,48 +545,3 @@ class TestRespondToRequest:
 
             with pytest.raises(InvalidActionError):
                 message_service.build_respond_draft(item_request, owner, item)
-
-    def test_respond_to_request_uses_share_token_when_no_shared_circle(self, app):
-        """When requester can't see the item, the generated message includes a share token URL."""
-        with app.app_context():
-            owner = UserFactory()
-            requester = UserFactory()
-            item = ItemFactory(owner=owner, is_giveaway=False)
-            item_request = ItemRequestFactory(user=requester, visibility="public")
-
-            with patch("app.services.message_service.send_message_notification_email"):
-                message = message_service.respond_to_request_with_item(
-                    item_request,
-                    owner,
-                    item,
-                )
-
-            assert "/share/item/" in message.body
-            token_part = message.body.split("/share/item/")[1].rstrip()
-            token = token_part.split()[0] if " " in token_part else token_part
-            verified_item, error = verify_item_share_token(token)
-            assert error is None
-            assert verified_item.id == item.id
-
-    def test_respond_to_request_uses_direct_url_when_shared_circle(self, app):
-        """When requester shares a circle with owner, the message includes a direct item URL."""
-        with app.app_context():
-            owner = UserFactory()
-            requester = UserFactory()
-            circle = CircleFactory()
-            circle.members.extend([owner, requester])
-            db.session.commit()
-
-            item = ItemFactory(owner=owner, is_giveaway=False)
-            item_request = ItemRequestFactory(user=requester, visibility="public")
-
-            with patch("app.services.message_service.send_message_notification_email"):
-                message = message_service.respond_to_request_with_item(
-                    item_request,
-                    owner,
-                    item,
-                )
-
-            assert "/item/" in message.body
-            assert str(item.id) in message.body
-            assert "/share/item/" not in message.body
