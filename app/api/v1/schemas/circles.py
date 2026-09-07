@@ -54,7 +54,7 @@ class CircleSummarySchema(ApiSchema):
     distance_miles = fields.Method("get_distance_miles", allow_none=True)
 
     def get_member_count(self, circle):
-        return len(circle.members)
+        return circle.member_count
 
     def get_is_member(self, circle):
         return getattr(circle, "api_is_member", False)

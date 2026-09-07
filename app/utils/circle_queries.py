@@ -24,7 +24,7 @@ def filter_circles_by_distance(circles, user, radius=None):
 
 
 def sort_circles_by_membership(circles):
-    return sorted(circles, key=lambda circle: len(circle.members), reverse=True)
+    return sorted(circles, key=lambda circle: circle.member_count, reverse=True)
 
 
 def _circle_member_user_ids_query(circle_id):
@@ -46,7 +46,7 @@ def _recommendation_sort_key(circle, user):
     distance_tier = _distance_tier(distance)
     return (
         distance_tier,
-        -len(circle.members),
+        -circle.member_count,
         distance if distance is not None else float("inf"),
         circle.circle_type != "open",
         (circle.name or "").casefold(),
@@ -57,7 +57,7 @@ def _regional_recommendation_sort_key(circle, user):
     distance = circle.distance_to_user(user)
     return (
         distance if distance is not None else float("inf"),
-        -len(circle.members),
+        -circle.member_count,
         (circle.name or "").casefold(),
     )
 
@@ -241,6 +241,21 @@ def build_circle_recommendations(user, *, circles=None, limit=3, radius=None):
     return recommendations
 
 
+def get_user_circle_memberships(user_id):
+    """Return ``{circle_id: is_admin}`` for every circle the user belongs to.
+
+    Answering "is this user a member/an admin here?" per circle costs a query
+    apiece, which is what makes rendering a list of circles expensive.  One
+    query up front turns those checks into dictionary lookups.
+    """
+    rows = (
+        db.session.query(circle_members.c.circle_id, circle_members.c.is_admin)
+        .filter(circle_members.c.user_id == user_id)
+        .all()
+    )
+    return {circle_id: bool(is_admin) for circle_id, is_admin in rows}
+
+
 def get_admin_circle_pending_counts(user_id):
     admin_circle_counts = (
         db.session.query(
@@ -279,7 +294,7 @@ def get_listed_circles(user, search_query="", radius=None):
 
 
 def get_sorted_user_circles(user):
-    return sorted(user.circles, key=lambda circle: len(circle.members), reverse=True)
+    return sorted(user.circles, key=lambda circle: circle.member_count, reverse=True)
 
 
 def get_pending_circle_join_request(circle_id, user_id):
@@ -291,7 +306,7 @@ def get_pending_circle_join_request(circle_id, user_id):
 
 
 def should_show_circle_members(circle, viewer):
-    return not circle.requires_join_approval or viewer in circle.members
+    return not circle.requires_join_approval or circle.has_member(viewer)
 
 
 def get_ordered_circle_members(circle_id):

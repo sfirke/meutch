@@ -574,6 +574,20 @@ class Circle(db.Model):
         )
         return member and member.is_admin if member else False
 
+    def has_member(self, user):
+        """Return whether *user* belongs to this circle.
+
+        Prefer this over ``user in circle.members`` for a read-only check: the
+        relationship loads every member row to answer it, which turns a list of
+        circles into one full membership load apiece.
+        """
+        if user is None or getattr(user, "id", None) is None:
+            return False
+        return (
+            db.session.query(circle_members).filter_by(user_id=user.id, circle_id=self.id).first()
+            is not None
+        )
+
     @property
     def image(self):
         return self.image_url or url_for("static", filename="img/default_item_photo.png")
@@ -595,6 +609,19 @@ class Circle(db.Model):
     @property
     def requires_join_approval(self):
         return self.circle_type in ["closed", "secret"]
+
+
+# Taking ``len(circle.members)`` loads every member row just to count it, so any
+# list of circles becomes an N+1.  A correlated subquery rides along with the
+# circle's own SELECT instead.  Note that it reflects committed membership, not
+# pending changes in the session, so mutation code that adds or removes members
+# and then checks the size should keep using ``circle.members``.
+Circle.member_count = db.column_property(
+    select(func.count(circle_members.c.user_id))
+    .where(circle_members.c.circle_id == Circle.id)
+    .correlate_except(circle_members)
+    .scalar_subquery()
+)
 
 
 class Category(db.Model):

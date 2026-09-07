@@ -18,7 +18,7 @@
                     {% if current_user.is_admin %}<span class="small text-success ms-2">{{ featured_circle_recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
                 </div>
                 {% endif %}
-                <p class="text-muted {% if featured_circle_recommendation.visible_display_counts %}mb-2{% else %}mb-3{% endif %}">Start with <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="fw-semibold text-decoration-none">{{ recommended_circle.name }}</a>{% if recommended_distance %}, {{ recommended_distance }} away{% endif %}. It has {{ recommended_circle.members|length }} members.</p>
+                <p class="text-muted {% if featured_circle_recommendation.visible_display_counts %}mb-2{% else %}mb-3{% endif %}">Start with <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="fw-semibold text-decoration-none">{{ recommended_circle.name }}</a>{% if recommended_distance %}, {{ recommended_distance }} away{% endif %}. It has {{ recommended_circle.member_count }} members.</p>
                 {% if featured_circle_recommendation.visible_display_counts %}
                 <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
                     {% for count in featured_circle_recommendation.visible_display_counts %}

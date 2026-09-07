@@ -12,7 +12,7 @@ from app.models import (
     User,
     circle_members,
 )
-from app.utils.geocoding import format_distance
+from app.utils.geocoding import bounding_box, format_distance
 
 DEFAULT_GIVEAWAY_DISTANCE_MILES = 20
 RESOLVED_FEED_WINDOW_DAYS = 7
@@ -45,7 +45,12 @@ def _shared_circle_user_ids_query(scoped_circle_ids):
     )
 
 
-def _effective_giveaway_distance(max_distance, distance_explicit):
+def effective_feed_distance(max_distance, distance_explicit):
+    """Resolve the distance cap for a feed read.
+
+    An explicit ``distance=none`` means no cap; leaving it out falls back to the
+    default radius rather than showing the whole site.
+    """
     if distance_explicit:
         return max_distance
     if max_distance is not None:
@@ -120,7 +125,45 @@ def _within_time_window(event_time, since=None, until=None):
     return True
 
 
-def _distance_filter_items(items, user, max_distance):
+def _distance_bounding_filter(user, max_distance, latitude_column, longitude_column):
+    """Return a SQL filter dropping actors that cannot be within *max_distance*.
+
+    The exact test is a Haversine distance computed in Python, which means the
+    database would otherwise have to ship every visible row so that most of them
+    could be discarded in the application.  A latitude/longitude box around the
+    viewer is a superset of the matching circle, so applying it in SQL first
+    leaves the Python filter with the same answer over far fewer rows.
+
+    Actors without coordinates are kept, because the Python filter keeps them.
+    Returns ``None`` when no prefilter applies.
+    """
+    if max_distance is None or not user.is_geocoded:
+        return None
+
+    box = bounding_box(user.latitude, user.longitude, float(max_distance))
+    if box is None:
+        return None
+
+    min_lat, max_lat, min_lon, max_lon = box
+    return or_(
+        latitude_column.is_(None),
+        longitude_column.is_(None),
+        and_(
+            latitude_column.between(min_lat, max_lat),
+            longitude_column.between(min_lon, max_lon),
+        ),
+    )
+
+
+def format_actor_distance(user, actor):
+    """Return the bucketed distance from *user* to *actor*, or ``None``."""
+    if not user.is_geocoded or actor is None or not actor.is_geocoded:
+        return None
+    raw_distance = user.distance_to(actor)
+    return format_distance(raw_distance) if raw_distance is not None else None
+
+
+def filter_items_by_distance(items, user, max_distance):
     if max_distance is None or not user.is_geocoded:
         return list(items)
 
@@ -135,7 +178,7 @@ def _distance_filter_items(items, user, max_distance):
     return filtered
 
 
-def _distance_filter_requests(item_requests, user, max_distance):
+def filter_requests_by_distance(item_requests, user, max_distance):
     if max_distance is None or not user.is_geocoded:
         return list(item_requests)
 
@@ -150,7 +193,7 @@ def _distance_filter_requests(item_requests, user, max_distance):
     return filtered
 
 
-def build_visible_requests_events(
+def build_visible_requests_query(
     user,
     scoped_circle_ids=None,
     scope="all",
@@ -160,6 +203,12 @@ def build_visible_requests_events(
     since=None,
     until=None,
 ):
+    """Return the ordered query behind the requests feed, newest first.
+
+    ``None`` means nothing is visible at all.  The rows still have to go through
+    :func:`filter_requests_by_distance`, which applies the exact Haversine test
+    the query can only approximate with a bounding box.
+    """
     now = datetime.now(UTC)
     fulfilled_cutoff = _utc(since) or (now - timedelta(days=7))
     until_utc = _utc(until)
@@ -168,7 +217,7 @@ def build_visible_requests_events(
 
     visibility_filter = _build_request_visibility_filter(shared_circle_user_ids, normalized_scope)
     if visibility_filter is None and not include_own_activity:
-        return []
+        return None
     if include_own_activity:
         own_activity_filter = ItemRequest.user_id == user.id
         if visibility_filter is None:
@@ -197,9 +246,43 @@ def build_visible_requests_events(
     if until_utc is not None:
         base_query = base_query.filter(ItemRequest.created_at <= until_utc)
 
-    visible_requests = base_query.order_by(ItemRequest.created_at.desc()).all()
-    effective_distance = _effective_giveaway_distance(max_distance, distance_explicit)
-    visible_requests = _distance_filter_requests(visible_requests, user, effective_distance)
+    bounding_filter = _distance_bounding_filter(
+        user,
+        effective_feed_distance(max_distance, distance_explicit),
+        User.latitude,
+        User.longitude,
+    )
+    if bounding_filter is not None:
+        base_query = base_query.filter(bounding_filter)
+
+    return base_query.order_by(ItemRequest.created_at.desc())
+
+
+def build_visible_requests_events(
+    user,
+    scoped_circle_ids=None,
+    scope="all",
+    max_distance=None,
+    distance_explicit=False,
+    include_own_activity=True,
+    since=None,
+    until=None,
+):
+    base_query = build_visible_requests_query(
+        user,
+        scoped_circle_ids=scoped_circle_ids,
+        scope=scope,
+        max_distance=max_distance,
+        distance_explicit=distance_explicit,
+        include_own_activity=include_own_activity,
+        since=since,
+        until=until,
+    )
+    if base_query is None:
+        return []
+
+    effective_distance = effective_feed_distance(max_distance, distance_explicit)
+    visible_requests = filter_requests_by_distance(base_query.all(), user, effective_distance)
 
     events = []
     for item_request in visible_requests:
@@ -211,10 +294,7 @@ def build_visible_requests_events(
         if not _within_time_window(event_time, since=since, until=until):
             continue
         action = "marked a request fulfilled" if item_request.status == "fulfilled" else "requested"
-        distance = None
-        if user.is_geocoded and item_request.user and item_request.user.is_geocoded:
-            raw = user.distance_to(item_request.user)
-            distance = format_distance(raw) if raw is not None else None
+        distance = format_actor_distance(user, item_request.user)
         events.append(
             {
                 "event_type": "request",
@@ -299,9 +379,15 @@ def build_visible_giveaway_events(
             )
         )
 
+    effective_distance = effective_feed_distance(max_distance, distance_explicit)
+    bounding_filter = _distance_bounding_filter(
+        user, effective_distance, User.latitude, User.longitude
+    )
+    if bounding_filter is not None:
+        base_query = base_query.filter(bounding_filter)
+
     giveaway_items = base_query.order_by(Item.created_at.desc()).all()
-    effective_distance = _effective_giveaway_distance(max_distance, distance_explicit)
-    giveaway_items = _distance_filter_items(giveaway_items, user, effective_distance)
+    giveaway_items = filter_items_by_distance(giveaway_items, user, effective_distance)
 
     events = []
     for item in giveaway_items:
@@ -311,10 +397,7 @@ def build_visible_giveaway_events(
         if not _within_time_window(event_time, since=since, until=until):
             continue
         action = "gave away" if item.claim_status == "claimed" else "posted a giveaway"
-        distance = None
-        if user.is_geocoded and item.owner and item.owner.is_geocoded:
-            raw = user.distance_to(item.owner)
-            distance = format_distance(raw) if raw is not None else None
+        distance = format_actor_distance(user, item.owner)
         events.append(
             {
                 "event_type": "giveaway",
@@ -452,9 +535,15 @@ def build_digest_request_events(
                 )
             )
 
+    effective_distance = effective_feed_distance(max_distance, distance_explicit)
+    bounding_filter = _distance_bounding_filter(
+        user, effective_distance, User.latitude, User.longitude
+    )
+    if bounding_filter is not None:
+        base_query = base_query.filter(bounding_filter)
+
     visible_requests = base_query.order_by(ItemRequest.created_at.desc()).all()
-    effective_distance = _effective_giveaway_distance(max_distance, distance_explicit)
-    visible_requests = _distance_filter_requests(visible_requests, user, effective_distance)
+    visible_requests = filter_requests_by_distance(visible_requests, user, effective_distance)
 
     events = []
     for item_request in visible_requests:
@@ -465,10 +554,7 @@ def build_digest_request_events(
         started_at = _utc(item_request.created_at)
         resolved_at = _utc(item_request.fulfilled_at) if item_request.fulfilled_at else None
         event_time = resolved_at if digest_variant == "resolved-in-window" else started_at
-        distance = None
-        if user.is_geocoded and item_request.user and item_request.user.is_geocoded:
-            raw = user.distance_to(item_request.user)
-            distance = format_distance(raw) if raw is not None else None
+        distance = format_actor_distance(user, item_request.user)
         events.append(
             {
                 "event_type": "request",
@@ -562,9 +648,15 @@ def build_digest_giveaway_events(
             )
         )
 
+    effective_distance = effective_feed_distance(max_distance, distance_explicit)
+    bounding_filter = _distance_bounding_filter(
+        user, effective_distance, User.latitude, User.longitude
+    )
+    if bounding_filter is not None:
+        base_query = base_query.filter(bounding_filter)
+
     giveaway_items = base_query.order_by(Item.created_at.desc()).all()
-    effective_distance = _effective_giveaway_distance(max_distance, distance_explicit)
-    giveaway_items = _distance_filter_items(giveaway_items, user, effective_distance)
+    giveaway_items = filter_items_by_distance(giveaway_items, user, effective_distance)
 
     events = []
     for item in giveaway_items:
@@ -575,10 +667,7 @@ def build_digest_giveaway_events(
         started_at = _utc(item.created_at)
         resolved_at = _utc(item.claimed_at) if item.claimed_at else None
         event_time = resolved_at if digest_variant == "resolved-in-window" else started_at
-        distance = None
-        if user.is_geocoded and item.owner and item.owner.is_geocoded:
-            raw = user.distance_to(item.owner)
-            distance = format_distance(raw) if raw is not None else None
+        distance = format_actor_distance(user, item.owner)
         events.append(
             {
                 "event_type": "giveaway",

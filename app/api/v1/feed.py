@@ -17,6 +17,11 @@ from app.utils.profile_visibility import viewable_profile_user_ids
 FEED_QUERY_SCHEMA = FeedQuerySchema()
 FEED_EVENT_SCHEMA = FeedEventSchema(many=True)
 DEFAULT_GEOLOCATED_FEED_DISTANCE = 20
+# The feed merges four differently-shaped event sources in Python, so a page of
+# it can only be cut after the whole window has been assembled.  Capping that
+# window keeps the work per request bounded — the same thing the homepage feed
+# does — instead of scaling with everything the caller can see.
+MAX_FEED_EVENTS = 500
 
 
 @bp.get("/feed")
@@ -39,7 +44,7 @@ def list_feed_events():
         included_event_types=query_data["types"],
         include_own_activity=query_data["show_own_activity"],
         include_claimed_giveaways=query_data["show_claimed_giveaways"],
-        max_events=None,
+        max_events=MAX_FEED_EVENTS,
     )
     pagination = ListPagination(
         items=events,

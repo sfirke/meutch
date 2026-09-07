@@ -176,7 +176,7 @@ def manage_circles():
 @login_required
 def view_circle(circle_id):
     circle = db.get_or_404(Circle, circle_id)
-    is_member = current_user in circle.members
+    is_member = circle.has_member(current_user)
 
     # Create form instance for CSRF protection
     form = EmptyForm()  # Use this for all basic forms including cancel
