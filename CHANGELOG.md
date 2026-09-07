@@ -19,6 +19,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - The Contact Us form no longer errors when submitting with the "Other" category ([#470](https://github.com/sfirke/meutch/pull/470)).
 - Circle join requests now show the requester's name on mobile portrait layouts — previously the name collapsed out of view, leaving only the avatar and action buttons ([#465](https://github.com/sfirke/meutch/pull/465)).
 
+### API development (continued)
+- Cut the query cost of the reads flagged in [#371](https://github.com/sfirke/meutch/issues/371). Counting circle members no longer loads every member row, so listing circles costs a fixed handful of queries instead of growing with the number of circles and their members. The requests and giveaways feeds now narrow by distance in the database before measuring exact distances in Python, which also speeds up the nightly digest. `GET /api/v1/requests` pages in the database rather than assembling every visible request first, and `GET /api/v1/feed` now assembles at most 500 events per request instead of the entire visible feed ([#480](https://github.com/sfirke/meutch/pull/480)).
+
 ## July 2026
 
 ### Features
