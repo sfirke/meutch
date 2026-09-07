@@ -72,10 +72,6 @@ class DeleteItemForm(FlaskForm):
     submit = SubmitField("Delete")
 
 
-class WithdrawInterestForm(FlaskForm):
-    submit = SubmitField("Withdraw Interest")
-
-
 class SelectRecipientForm(FlaskForm):
     selection_method = RadioField(
         "Selection Method",

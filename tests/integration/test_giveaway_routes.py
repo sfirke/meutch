@@ -836,45 +836,6 @@ class TestCategoryAndTagFiltering:
             assert b"Free Item" in response.data
 
 
-class TestGiveawayInterestExpression:
-    """Test giveaway interest management."""
-
-    def test_withdraw_interest(self, client, app, auth_user):
-        """Test user can withdraw their interest in a giveaway."""
-        with app.app_context():
-            owner = UserFactory()
-            user = auth_user()
-            category = CategoryFactory()
-            circle = CircleFactory()
-            circle.members.extend([owner, user])
-
-            giveaway = ItemFactory(
-                owner=owner,
-                category=category,
-                is_giveaway=True,
-                giveaway_visibility="default",
-                claim_status="unclaimed",
-            )
-
-            # Create interest record
-            interest = GiveawayInterest(item_id=giveaway.id, user_id=user.id, message="I want this")
-            db.session.add(interest)
-            db.session.commit()
-
-            login_user(client, user.email)
-
-            response = client.post(f"/item/{giveaway.id}/withdraw-interest", follow_redirects=True)
-
-            assert response.status_code == 200
-            assert b"Your interest has been withdrawn" in response.data
-
-            # Verify interest record was deleted
-            interest = GiveawayInterest.query.filter_by(
-                item_id=giveaway.id, user_id=user.id
-            ).first()
-            assert interest is None
-
-
 class TestRecipientSelection:
     """Test recipient selection for giveaways."""
 

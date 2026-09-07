@@ -11,10 +11,9 @@ from app.forms import (
     ListItemForm,
     MessageForm,
     ReleaseToAllForm,
-    WithdrawInterestForm,
 )
 from app.main import bp as main_bp
-from app.models import Conversation, GiveawayInterest, Item, Message
+from app.models import Conversation, Item, Message
 from app.services import giveaway_service, item_service, message_service
 from app.services.exceptions import (
     AuthorizationError,
@@ -184,7 +183,6 @@ def item_detail(item_id):
         abort(403)
 
     form = MessageForm()
-    withdraw_interest_form = WithdrawInterestForm()
 
     if form.validate_on_submit():
         try:
@@ -215,12 +213,6 @@ def item_detail(item_id):
     )
 
     interest_state = giveaway_service.get_giveaway_interest_state(item, current_user.id)
-    user_interest = None
-    if interest_state["viewer_interest_status"]:
-        user_interest = GiveawayInterest.query.filter_by(
-            item_id=item.id, user_id=current_user.id
-        ).first()
-
     interested_count = interest_state["interested_count"] or 0
 
     delete_form = DeleteItemForm()
@@ -234,9 +226,7 @@ def item_detail(item_id):
         form=form,
         messages=messages,
         delete_form=delete_form,
-        user_interest=user_interest,
         interested_count=interested_count,
-        withdraw_interest_form=withdraw_interest_form,
         share_token=share_token,
         has_token_access=has_token_access,
         shares_circle_with_owner=shares_circle_with_owner,

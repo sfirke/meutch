@@ -206,18 +206,6 @@ def express_interest(item, user_id, message_text, send_notification=True):
     return interest
 
 
-def withdraw_interest(item, user_id):
-    if not item.is_giveaway:
-        raise InvalidActionError("This item is not a giveaway.")
-
-    interest = GiveawayInterest.query.filter_by(item_id=item.id, user_id=user_id).first()
-    if not interest:
-        raise ConflictError("You have not expressed interest in this giveaway.")
-
-    db.session.delete(interest)
-    db.session.commit()
-
-
 def select_recipient(item, owner_id, selection_method, selected_user_id=None):
     if item.owner_id != owner_id:
         raise AuthorizationError("You do not have permission to manage this giveaway.")

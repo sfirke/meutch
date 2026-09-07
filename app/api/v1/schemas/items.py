@@ -244,13 +244,6 @@ class GiveawayInterestResponseSchema(ApiSchema):
     user = fields.Nested(UserSummarySchema(), required=True)
 
 
-class GiveawayInterestWithdrawResponseSchema(ApiSchema):
-    """Response for withdrawing giveaway interest."""
-
-    withdrawn = fields.Boolean(required=True)
-    item = fields.Nested(ItemDetailSchema(), required=True)
-
-
 class GiveawayRecipientMutationResponseSchema(ApiSchema):
     """Response for owner-side recipient selection mutations."""
 
