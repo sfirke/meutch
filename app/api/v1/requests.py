@@ -9,19 +9,26 @@ from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
+from app.api.v1.schemas.messaging import MessageResponseSchema
 from app.api.v1.schemas.query import RequestListQuerySchema
 from app.api.v1.schemas.requests import (
     ItemRequestDetailResponseSchema,
     ItemRequestResponseSchema,
     ItemRequestStatusResponseSchema,
     ItemRequestSummarySchema,
+    RequestRespondDraftResponseSchema,
+    RequestRespondSchema,
     RequestWritePayloadSchema,
 )
-from app.models import ItemRequest
-from app.services import request_service
+from app.models import Item, ItemRequest
+from app.services import message_service, request_service
 from app.services.exceptions import AuthorizationError
 from app.utils.messaging_queries import build_request_conversation_summaries
-from app.utils.request_queries import build_visible_requests_pagination, can_view_request
+from app.utils.request_queries import (
+    build_visible_requests_pagination,
+    can_view_request,
+    describe_seeking_mismatch,
+)
 
 REQUEST_LIST_QUERY_SCHEMA = RequestListQuerySchema()
 ITEM_REQUEST_SUMMARY_SCHEMA = ItemRequestSummarySchema(many=True)
@@ -29,6 +36,9 @@ ITEM_REQUEST_DETAIL_RESPONSE_SCHEMA = ItemRequestDetailResponseSchema()
 ITEM_REQUEST_RESPONSE_SCHEMA = ItemRequestResponseSchema()
 ITEM_REQUEST_STATUS_RESPONSE_SCHEMA = ItemRequestStatusResponseSchema()
 REQUEST_WRITE_PAYLOAD_SCHEMA = RequestWritePayloadSchema()
+REQUEST_RESPOND_SCHEMA = RequestRespondSchema()
+REQUEST_RESPOND_DRAFT_RESPONSE_SCHEMA = RequestRespondDraftResponseSchema()
+MESSAGE_RESPONSE_SCHEMA = MessageResponseSchema()
 DEFAULT_GEOLOCATED_REQUEST_DISTANCE = 20
 
 
@@ -60,14 +70,20 @@ def list_requests():
     )
 
 
+def _get_live_request_or_404(request_id):
+    """Load a request, treating a soft-deleted one as missing."""
+    item_request = db.session.get(ItemRequest, request_id)
+    if not item_request or item_request.status == "deleted":
+        abort(404)
+    return item_request
+
+
 @bp.get("/requests/<uuid:request_id>")
 @jwt_required()
 @read_limit()
 def get_request(request_id):
     """Return request details when the authenticated user can view them."""
-    item_request = db.session.get(ItemRequest, request_id)
-    if not item_request or item_request.status == "deleted":
-        abort(404)
+    item_request = _get_live_request_or_404(request_id)
     if not can_view_request(item_request, current_user):
         raise AuthorizationError("You are not allowed to view this request.")
 
@@ -151,3 +167,41 @@ def fulfill_request(request_id):
             }
         }
     )
+
+
+@bp.get("/requests/<uuid:request_id>/respond/<uuid:item_id>")
+@jwt_required()
+@read_limit()
+def get_respond_draft(request_id, item_id):
+    """Return the suggested message for offering *item_id* against a request.
+
+    Mirrors the web compose screen, which pre-fills the same text.  Clients
+    should show this to the sender, let them edit it, and POST the result.
+    """
+    item_request = _get_live_request_or_404(request_id)
+    item = db.get_or_404(Item, item_id)
+    suggested_body = message_service.build_respond_draft(item_request, current_user, item)
+    return REQUEST_RESPOND_DRAFT_RESPONSE_SCHEMA.dump(
+        {
+            "suggested_body": suggested_body,
+            "seeking_mismatch": describe_seeking_mismatch(item_request, item),
+            "visibility_gap": message_service.describe_item_visibility_gap(item_request, item),
+        }
+    )
+
+
+@bp.post("/requests/<uuid:request_id>/respond/<uuid:item_id>")
+@jwt_required()
+@mutation_limit()
+def respond_to_request(request_id, item_id):
+    """Respond to a request by sharing one of the authenticated user's items."""
+    item_request = _get_live_request_or_404(request_id)
+    item = db.get_or_404(Item, item_id)
+    data = load_request_data(REQUEST_RESPOND_SCHEMA)
+    message = message_service.respond_to_request_with_item(
+        item_request,
+        current_user,
+        item,
+        body=data["body"],
+    )
+    return MESSAGE_RESPONSE_SCHEMA.dump({"message": message}), 201

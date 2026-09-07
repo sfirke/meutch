@@ -3,11 +3,14 @@
 import logging
 from datetime import UTC, datetime
 
+from flask import url_for
+
 from app import db
 from app.models import ConversationParticipant, Message
 from app.services import giveaway_service
 from app.services.exceptions import AuthorizationError, InvalidActionError, ServiceError
 from app.utils.email import send_message_notification_email
+from app.utils.item_share import build_item_share_url, item_supports_share_links
 from app.utils.item_visibility import build_item_access_state
 from app.utils.messaging_queries import (
     build_conversation_thread_state,
@@ -60,6 +63,154 @@ def start_request_conversation(item_request, sender, body):
     recipient_id = get_request_conversation_recipient_id(item_request, sender)
     conversation = get_or_create_conversation("request", item_request.id, sender.id, recipient_id)
     return create_message(sender.id, recipient_id, body, conversation_id=conversation.id)
+
+
+def validate_respond_access(item_request, sender):
+    """Validate that *sender* can respond to *item_request*.
+
+    Returns the requester's user ID (the message recipient) on success.
+    Callers 404 deleted requests before reaching here, so this only adds the
+    "still open" rule on top of the shared request-messaging gate.
+
+    Raises:
+        InvalidActionError: if the request is closed or expired, or if
+            *sender* is the requester.
+        AuthorizationError: if *sender* doesn't have permission to
+            message the requester.
+    """
+    if not item_request.is_active:
+        raise InvalidActionError("This request is no longer open.")
+
+    return get_request_conversation_recipient_id(item_request, sender)
+
+
+def _build_item_url_for_requester(item, requester):
+    """Return the best URL so *requester* can view *item*, or ``None``.
+
+    - Anything *requester* can already open links straight to the item: a
+      public giveaway, a regular item reachable through a shared circle or an
+      active loan, or a giveaway visible to the circles they share with the
+      owner.
+    - Regular items they cannot open travel with a tokenized share-preview URL.
+    - Giveaways cannot be shared with a token, so a circles-only giveaway
+      offered to someone outside the owner's circles has no working URL at all.
+      :func:`describe_item_visibility_gap` explains that case to the sender.
+
+    Access is read from :func:`build_item_access_state`, the same helper the
+    item detail view uses, so a link is only ever offered when the click will
+    work.
+    """
+    if build_item_access_state(item, requester)["can_view"]:
+        return url_for("main.item_detail", item_id=item.id, _external=True)
+
+    if item_supports_share_links(item):
+        return build_item_share_url(item)
+
+    return None
+
+
+def describe_item_visibility_gap(item_request, item):
+    """Explain that the requester will not be able to open *item*'s page.
+
+    Returns a short sentence for display, or ``None`` when they can open it.
+    Only a circles-only giveaway can land here: a regular item always travels
+    with a share link, and a public giveaway is open to every signed-in user.
+
+    Like a seeking mismatch this is surfaced rather than filtered out.  The
+    item may still be exactly what the requester wants, so the sender is told
+    what the requester will and will not see and can describe the item in
+    their own words.
+    """
+    if item_supports_share_links(item):
+        return None
+
+    if build_item_access_state(item, item_request.user)["can_view"]:
+        return None
+
+    return (
+        f"Only your circles can open this giveaway's page, and "
+        f"{item_request.user.first_name} is not in any of them, so your message will "
+        "describe the item instead of linking to it."
+    )
+
+
+def build_respond_message_body(item_request, item):
+    """Build the default message body for responding to *item_request* with *item*.
+
+    Returns the formatted message body string, including an item URL suited to
+    what the requester can view.  A circles-only giveaway offered outside the
+    owner's circles has no URL that would work, so the draft leaves the link
+    out rather than sending the requester somewhere they cannot go.
+    """
+    body = (
+        f"Hi {item_request.user.first_name}! I have a {item.name} that might help with "
+        f"your request for '{item_request.title}'."
+    )
+    item_url = _build_item_url_for_requester(item, item_request.user)
+    if item_url is not None:
+        body += f" You can see it here: {item_url}"
+    return body
+
+
+def _ensure_item_offerable(item, sender):
+    if item.owner_id != sender.id:
+        raise AuthorizationError("You can only respond with your own items.")
+
+    # The item picker already hides claimed giveaways, but the compose step is
+    # reachable by URL, and a claimed giveaway is no longer viewable by anyone
+    # outside the handoff -- the requester would only find a dead end.
+    if item.is_giveaway and item.claim_status == "claimed":
+        raise InvalidActionError("This giveaway has already been claimed.")
+
+
+def build_respond_draft(item_request, sender, item):
+    """Return the suggested message body for offering *item* to a requester.
+
+    This is the checked entry point behind the compose step: it runs the same
+    ownership and access validation as :func:`respond_to_request_with_item`, so
+    a caller can safely show the draft before anything is sent.
+
+    Raises the same errors as :func:`respond_to_request_with_item`.
+    """
+    _ensure_item_offerable(item, sender)
+    validate_respond_access(item_request, sender)
+
+    return build_respond_message_body(item_request, item)
+
+
+def respond_to_request_with_item(item_request, sender, item, body=None):
+    """Respond to *item_request* by sharing *item* with the requester.
+
+    Creates a message in the request conversation that includes an
+    item link.  When the requester cannot see the item directly a share
+    token is generated automatically.
+
+    Args:
+        item_request: The :class:`ItemRequest` being responded to.
+        sender: The :class:`User` responding (must own *item*).
+        item: The :class:`Item` being offered in response.
+        body: The message to send, normally the draft from
+            :func:`build_respond_draft` after the sender has edited it.  When
+            ``None`` the draft is generated and sent as-is.
+
+    Returns:
+        The newly created :class:`Message`.
+    """
+    _ensure_item_offerable(item, sender)
+
+    recipient_id = validate_respond_access(item_request, sender)
+
+    conversation = get_or_create_conversation("request", item_request.id, sender.id, recipient_id)
+
+    if body is None:
+        body = build_respond_message_body(item_request, item)
+
+    return create_message(
+        sender.id,
+        recipient_id,
+        body,
+        conversation_id=conversation.id,
+    )
 
 
 def _commit_and_notify(message, error_prefix):

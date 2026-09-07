@@ -1,9 +1,11 @@
 from datetime import UTC, datetime, timedelta
 
 from app import db
+from app.models import Item
 from app.utils.item_queries import (
     build_category_items_pagination,
     build_find_results,
+    build_own_item_search_filter,
     build_tag_items_pagination,
 )
 from tests.factories import CategoryFactory, CircleFactory, ItemFactory, TagFactory, UserFactory
@@ -90,3 +92,26 @@ def test_build_category_items_pagination_only_returns_shared_circle_items(app):
 
         assert pagination.total == 1
         assert [item.id for item in pagination.items] == [visible_item.id]
+
+
+def test_build_own_item_search_filter_returns_none_for_empty_query(app):
+    with app.app_context():
+        assert build_own_item_search_filter("") is None
+        assert build_own_item_search_filter(None) is None
+
+
+def test_build_own_item_search_filter_matches_name_and_description(app):
+    with app.app_context():
+        owner = UserFactory()
+        ItemFactory(owner=owner, name="Extension Ladder", description="Aluminum")
+        ItemFactory(owner=owner, name="Cordless Drill", description="Has a ladder hook")
+        ItemFactory(owner=owner, name="Hand Saw", description="Sharp")
+        db.session.commit()
+
+        matches = (
+            Item.query.filter_by(owner_id=owner.id)
+            .filter(build_own_item_search_filter("ladder"))
+            .all()
+        )
+
+        assert {item.name for item in matches} == {"Extension Ladder", "Cordless Drill"}

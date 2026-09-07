@@ -10,6 +10,23 @@ from app.utils.pagination import ListPagination
 DEFAULT_ITEMS_PER_PAGE = 12
 
 
+def build_own_item_search_filter(search_query):
+    """Return a name/description filter for searching a user's own items.
+
+    Returns ``None`` for an empty query so callers can skip filtering entirely.
+    Unlike discovery search this deliberately leaves tags out: the "my items"
+    listings do not join ``Item.tags``, and adding the join would duplicate
+    rows across a paginated result.
+    """
+    if not search_query:
+        return None
+
+    return or_(
+        Item.name.ilike(f"%{search_query}%"),
+        Item.description.ilike(f"%{search_query}%"),
+    )
+
+
 def _normalize_item_type(item_type):
     if item_type in {"loans", "giveaways", "both"}:
         return item_type

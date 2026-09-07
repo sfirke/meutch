@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from app import db
-from app.models import Conversation, GiveawayInterest, ItemRequest, Message
+from app.models import Category, Conversation, GiveawayInterest, Item, ItemRequest, Message
 from conftest import login_user
 from tests.factories import (
     CircleFactory,
@@ -892,6 +892,28 @@ class TestRequestConversations:
             assert message.sender_id == helper.id
             assert message.recipient_id == requester.id
 
+    def test_conversation_compose_page_shows_the_request(self, client, app):
+        """The compose page shows the request so the sender can refer to it."""
+        with app.app_context():
+            requester = UserFactory()
+            helper = UserFactory()
+            item_request = ItemRequestFactory(
+                user=requester,
+                title="Looking for a pressure washer",
+                description="Ideally electric, needed for a weekend deck project.",
+                seeking="loan",
+                visibility="public",
+            )
+            db.session.commit()
+
+            login_user(client, helper.email)
+            response = client.get(f"/requests/{item_request.id}/conversation")
+
+            assert response.status_code == 200
+            assert b"Looking for a pressure washer" in response.data
+            assert b"Ideally electric, needed for a weekend deck project." in response.data
+            assert b"is looking for" in response.data
+
     def test_conversation_route_redirects_when_thread_exists(self, client, app):
         """Route should redirect to existing conversation instead of creating duplicate."""
         with app.app_context():
@@ -1419,3 +1441,306 @@ class TestRequestEmailNotifications:
                 assert (
                     "view_conversation" in call_args[0][3] or "conversation" in text_content
                 )  # has link
+
+
+class TestRespondWithItemFlow:
+    """Test the "I have this item" respond flow."""
+
+    def _respondable_pair(self, **request_kwargs):
+        """Return (responder, requester, request) sharing a circle."""
+        responder = UserFactory(email="responder@example.com")
+        requester = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([responder, requester])
+        item_request = ItemRequestFactory(
+            user=requester,
+            title="Looking for a ladder",
+            visibility="circles",
+            **request_kwargs,
+        )
+        db.session.commit()
+        return responder, requester, item_request
+
+    def test_respond_page_lists_own_items(self, client, app):
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair()
+            ItemFactory(owner=responder, name="Extension Ladder")
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond")
+
+            assert response.status_code == 200
+            assert b"Extension Ladder" in response.data
+
+    def test_respond_pages_show_the_request_description(self, client, app):
+        """Both respond steps show the full request so it can be referred to."""
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair(
+                description="A tall one, please - the gutters are two stories up."
+            )
+            item = ItemFactory(owner=responder, name="Extension Ladder")
+            db.session.commit()
+
+            login_user(client, responder.email)
+
+            picker = client.get(f"/requests/{item_request.id}/respond")
+            assert picker.status_code == 200
+            assert b"A tall one, please - the gutters are two stories up." in picker.data
+
+            compose = client.get(f"/requests/{item_request.id}/respond/{item.id}")
+            assert compose.status_code == 200
+            assert b"A tall one, please - the gutters are two stories up." in compose.data
+
+    def test_respond_page_omits_claimed_giveaways(self, client, app):
+        """Claimed giveaways can't be viewed by others, so don't offer them."""
+        with app.app_context():
+            responder, requester, item_request = self._respondable_pair()
+            ItemFactory(
+                owner=responder,
+                name="Already Given Ladder",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="claimed",
+                claimed_by_id=requester.id,
+            )
+            ItemFactory(
+                owner=responder,
+                name="Still Available Ladder",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond")
+
+            assert response.status_code == 200
+            assert b"Still Available Ladder" in response.data
+            assert b"Already Given Ladder" not in response.data
+
+    def test_respond_page_search_filters_items(self, client, app):
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair()
+            ItemFactory(owner=responder, name="Extension Ladder")
+            ItemFactory(owner=responder, name="Cordless Drill")
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond?q=ladder")
+
+            assert response.status_code == 200
+            assert b"Extension Ladder" in response.data
+            assert b"Cordless Drill" not in response.data
+
+    def test_respond_page_forbidden_without_visibility(self, client, app, auth_user):
+        with app.app_context():
+            stranger = auth_user()
+            requester = UserFactory()
+            item_request = ItemRequestFactory(user=requester, visibility="circles")
+            db.session.commit()
+
+            login_user(client, stranger.email)
+            response = client.get(f"/requests/{item_request.id}/respond")
+
+            assert response.status_code == 403
+
+    def test_respond_page_404_for_deleted_request(self, client, app, auth_user):
+        with app.app_context():
+            responder = auth_user()
+            requester = UserFactory()
+            item_request = ItemRequestFactory(user=requester, visibility="public", status="deleted")
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond")
+
+            assert response.status_code == 404
+
+    def test_respond_with_item_rejects_someone_elses_item(self, client, app):
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair()
+            other_item = ItemFactory(owner=UserFactory(), name="Not Mine")
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond/{other_item.id}")
+
+            assert response.status_code == 404
+
+    def test_respond_with_item_prefills_and_sends(self, client, app):
+        with app.app_context():
+            responder, requester, item_request = self._respondable_pair()
+            item = ItemFactory(owner=responder, name="Extension Ladder")
+            db.session.commit()
+            item_id = item.id
+            request_id = item_request.id
+            requester_id = requester.id
+
+            login_user(client, responder.email)
+            page = client.get(f"/requests/{request_id}/respond/{item_id}")
+
+            assert page.status_code == 200
+            assert b"Extension Ladder" in page.data
+            assert str(item_id).encode() in page.data
+
+            with patch("app.utils.email.send_email", return_value=True):
+                response = client.post(
+                    f"/requests/{request_id}/respond/{item_id}",
+                    data={"body": "I have an Extension Ladder you can borrow."},
+                    follow_redirects=True,
+                )
+
+            assert response.status_code == 200
+
+            message = Message.query.filter_by(
+                sender_id=responder.id, recipient_id=requester_id
+            ).one()
+            assert message.body == "I have an Extension Ladder you can borrow."
+            conversation = db.session.get(Conversation, message.conversation_id)
+            assert conversation.context_type == "request"
+            assert conversation.context_id == request_id
+
+    def test_created_item_returns_to_compose_page(self, client, app):
+        """Listing an item mid-flow lands on the reply composer for that item."""
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair()
+            category = Category.query.first()
+            request_id = item_request.id
+
+            login_user(client, responder.email)
+            response = client.post(
+                "/list-item",
+                data={
+                    "name": "Brand New Ladder",
+                    "description": "Just listed",
+                    "category": str(category.id),
+                    "return_to": "respond",
+                    "request_id": str(request_id),
+                    "submit": "List Item",
+                },
+            )
+
+            assert response.status_code == 302
+            item = Item.query.filter_by(owner_id=responder.id, name="Brand New Ladder").one()
+            assert response.headers["Location"] == f"/requests/{request_id}/respond/{item.id}"
+
+    def test_created_item_ignores_unparsable_request_id(self, client, app, auth_user):
+        """A tampered request id falls back to the normal post-listing redirect."""
+        with app.app_context():
+            user = auth_user()
+            category = Category.query.first()
+
+            login_user(client, user.email)
+            response = client.post(
+                "/list-item",
+                data={
+                    "name": "Fallback Ladder",
+                    "description": "Just listed",
+                    "category": str(category.id),
+                    "return_to": "respond",
+                    "request_id": "not-a-uuid",
+                    "submit": "List Item",
+                },
+            )
+
+            assert response.status_code == 302
+            assert response.headers["Location"] == "/"
+
+    def test_picker_flags_a_seeking_mismatch(self, client, app):
+        """A loan item offered to a giveaway request is flagged, not hidden."""
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair(seeking="giveaway")
+            ItemFactory(owner=responder, name="Extension Ladder", is_giveaway=False)
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond")
+
+            assert response.status_code == 200
+            assert b"Extension Ladder" in response.data
+            assert b"asking for a giveaway" in response.data
+
+    def test_picker_stays_quiet_when_the_kinds_match(self, client, app):
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair(seeking="giveaway")
+            ItemFactory(
+                owner=responder,
+                name="Spare Ladder",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond")
+
+            assert response.status_code == 200
+            assert b"Spare Ladder" in response.data
+            assert b"asking for a giveaway" not in response.data
+
+    def test_compose_page_flags_a_seeking_mismatch(self, client, app):
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair(seeking="loan")
+            item = ItemFactory(
+                owner=responder,
+                name="Spare Ladder",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond/{item.id}")
+
+            assert response.status_code == 200
+            assert b"asking to borrow" in response.data
+
+    def _stranger_pair(self, **request_kwargs):
+        """Return (responder, requester, request) sharing no circle."""
+        responder = UserFactory(email="stranger-responder@example.com")
+        requester = UserFactory(first_name="Dana")
+        item_request = ItemRequestFactory(
+            user=requester,
+            title="Looking for a ladder",
+            visibility="public",
+            **request_kwargs,
+        )
+        db.session.commit()
+        return responder, requester, item_request
+
+    def test_compose_page_flags_a_giveaway_the_requester_cannot_see(self, client, app):
+        """The warning shows, and the draft leaves out the link that would 403."""
+        with app.app_context():
+            responder, _requester, item_request = self._stranger_pair(seeking="giveaway")
+            item = ItemFactory(
+                owner=responder,
+                name="Spare Ladder",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond/{item.id}")
+
+            assert response.status_code == 200
+            assert b"Only your circles can open this giveaway" in response.data
+            assert b"see it here" not in response.data
+
+    def test_compose_page_stays_quiet_when_the_kinds_match(self, client, app):
+        with app.app_context():
+            responder, _requester, item_request = self._respondable_pair(seeking="either")
+            item = ItemFactory(owner=responder, name="Extension Ladder")
+            db.session.commit()
+
+            login_user(client, responder.email)
+            response = client.get(f"/requests/{item_request.id}/respond/{item.id}")
+
+            assert response.status_code == 200
+            assert b"asking to borrow" not in response.data
+            assert b"asking for a giveaway" not in response.data

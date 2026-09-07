@@ -738,3 +738,50 @@ class TestApiItemMutations:
 
         assert response.status_code == 403
         assert response.get_json()["error"]["code"] == "FORBIDDEN"
+
+
+class TestApiMyItems:
+    """Exercise the authenticated user's own-items listing."""
+
+    def test_lists_only_own_items_newest_first(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            ItemFactory(
+                owner=owner,
+                name="Older Drill",
+                created_at=datetime.now(UTC) - timedelta(days=2),
+            )
+            ItemFactory(
+                owner=owner,
+                name="Newer Ladder",
+                created_at=datetime.now(UTC),
+            )
+            ItemFactory(owner=UserFactory(), name="Someone Elses Saw")
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        response = client.get("/api/v1/me/items", headers=auth_headers(access_token))
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert [item["name"] for item in payload["items"]] == ["Newer Ladder", "Older Drill"]
+        assert payload["pagination"]["total"] == 2
+
+    def test_search_filters_on_name_and_description(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            ItemFactory(owner=owner, name="Extension Ladder", description="Aluminum")
+            ItemFactory(owner=owner, name="Cordless Drill", description="Has a ladder hook")
+            ItemFactory(owner=owner, name="Hand Saw", description="Sharp")
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        response = client.get("/api/v1/me/items?q=ladder", headers=auth_headers(access_token))
+
+        assert response.status_code == 200
+        names = {item["name"] for item in response.get_json()["items"]}
+        assert names == {"Extension Ladder", "Cordless Drill"}
+
+    def test_requires_authentication(self, client, app):
+        response = client.get("/api/v1/me/items")
+        assert response.status_code == 401
