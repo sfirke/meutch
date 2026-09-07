@@ -41,12 +41,10 @@ def index():
         if circle_recommendations:
             featured_circle_recommendation = circle_recommendations[0]
 
-    selected_circles = request.args.getlist("circles")
     filter_state = _parse_homepage_feed_filters(current_user)
 
     feed_events = build_homepage_feed_events(
         current_user,
-        selected_circle_ids=selected_circles,
         scope=filter_state["scope"],
         giveaway_distance=filter_state["distance"],
         giveaway_distance_explicit=filter_state["distance_explicit"],

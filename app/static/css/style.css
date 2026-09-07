@@ -1724,15 +1724,6 @@ footer h6 {
     display: none !important;
 }
 
-/* ============================================
-   Activity Feed — Card states
-   ============================================ */
-
-.giveaway-card-claimed {
-    opacity: 0.65;
-    background: #f8f9fa;
-}
-
 /* ===========================================
    Share Preview Pages & Share Button
    =========================================== */
@@ -1913,6 +1904,11 @@ footer h6 {
 
 .activity-feed-card .card-body {
     padding: 1.2rem 1.3rem;
+}
+
+.giveaway-card-claimed {
+    opacity: 0.65;
+    background: #f8f9fa;
 }
 
 .activity-feed-page .activity-feed-actor-chip {
