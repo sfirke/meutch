@@ -26,7 +26,6 @@ from app.forms_items import (
     ListItemForm,
     ReleaseToAllForm,
     SelectRecipientForm,
-    WithdrawInterestForm,
 )
 from app.forms_loans import ExtendLoanForm, LoanRequestForm
 from app.forms_messaging import BulkActionForm, MessageForm
@@ -76,5 +75,4 @@ __all__ = [
     "SelectRecipientForm",
     "UpdateLocationForm",
     "VacationModeForm",
-    "WithdrawInterestForm",
 ]

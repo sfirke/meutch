@@ -125,42 +125,6 @@ class TestApiGiveawayInterestReads:
         assert response.get_json()["error"]["code"] == "FORBIDDEN"
 
 
-class TestApiGiveawayInterestMutations:
-    """Exercise giveaway-interest create and withdraw endpoints."""
-
-    def test_withdraw_interest_removes_existing_interest(self, client, app):
-        with app.app_context():
-            owner = UserFactory()
-            requester = UserFactory(email_confirmed=True)
-            item = ItemFactory(
-                owner=owner,
-                is_giveaway=True,
-                giveaway_visibility="default",
-                claim_status="unclaimed",
-            )
-            GiveawayInterestFactory(item=item, user=requester, status="active")
-            db.session.commit()
-            access_token = login_api_user(client, requester.email)
-            item_id = item.id
-            requester_id = requester.id
-
-        response = client.delete(
-            f"/api/v1/items/{item_id}/interest",
-            headers=auth_headers(access_token),
-        )
-
-        assert response.status_code == 200
-        payload = response.get_json()
-
-        assert payload["withdrawn"] is True
-        assert payload["item"]["viewer_interest_status"] is None
-
-        with app.app_context():
-            assert (
-                GiveawayInterest.query.filter_by(item_id=item_id, user_id=requester_id).count() == 0
-            )
-
-
 class TestApiGiveawayRecipientMutations:
     """Exercise owner-side giveaway recipient actions."""
 

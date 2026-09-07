@@ -159,21 +159,7 @@
                             {% if current_user.is_authenticated and current_user.id != item.owner.id %}
                                 {% if item.is_giveaway %}
                                     <!-- Giveaway actions for non-owners -->
-                                    {% if item.claim_status in [None, 'unclaimed'] %}
-                                        {% if user_interest %}
-                                            <!-- Show confirmation that interest has been expressed -->
-                                            <div class="alert alert-success mb-2" role="alert">
-                                                <i class="fas fa-check-circle me-2"></i>You've expressed interest! The owner will contact you if selected.
-                                            </div>
-                                            <form action="{{ url_for('main.withdraw_interest', item_id=item.id) }}"
-                                                  method="post"
-                                                  class="d-inline"
-                                                  onsubmit="return confirm('Are you sure you want to withdraw your interest?');">
-                                                {{ withdraw_interest_form.hidden_tag() }}
-                                                {{ withdraw_interest_form.submit(class="btn btn-outline-secondary") }}
-                                            </form>
-                                        {% endif %}
-                                    {% elif item.claim_status == 'pending_pickup' %}
+                                    {% if item.claim_status == 'pending_pickup' %}
                                         {% if item.claimed_by_id == current_user.id %}
                                             <div class="alert alert-success mb-0" role="alert">
                                                 <i class="fas fa-gift me-2"></i>You've been selected to receive this giveaway. Arrange pickup with the owner, who will mark the handoff complete once you have it.

@@ -197,30 +197,6 @@ class TestGiveawayService:
             with pytest.raises(ConflictError, match="cannot express interest in your own"):
                 giveaway_service.express_interest(item, owner.id, "I want this")
 
-    def test_withdraw_interest_raises_conflict_when_interest_not_found(self, app):
-        with app.app_context():
-            owner = UserFactory()
-            requester = UserFactory()
-            item = ItemFactory(
-                owner=owner,
-                is_giveaway=True,
-                claim_status="unclaimed",
-                available=True,
-                giveaway_visibility="default",
-            )
-
-            with pytest.raises(ConflictError, match="not expressed interest"):
-                giveaway_service.withdraw_interest(item, requester.id)
-
-    def test_withdraw_interest_raises_invalid_action_for_non_giveaway(self, app):
-        with app.app_context():
-            owner = UserFactory()
-            requester = UserFactory()
-            item = ItemFactory(owner=owner, is_giveaway=False, available=True)
-
-            with pytest.raises(InvalidActionError, match="not a giveaway"):
-                giveaway_service.withdraw_interest(item, requester.id)
-
     def test_select_recipient_raises_auth_error_for_non_owner(self, app):
         with app.app_context():
             owner = UserFactory()
