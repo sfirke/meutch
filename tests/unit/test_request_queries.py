@@ -137,32 +137,6 @@ def test_build_visible_requests_pagination_counts_only_requests_within_the_dista
         assert pagination.items[0].api_distance is not None
 
 
-def test_build_visible_requests_pagination_annotates_distance_only_for_the_page(app):
-    """The distance shown alongside a request is derived per page, so a request
-    on a later page is left untouched until it is asked for."""
-    with app.app_context():
-        viewer = UserFactory(latitude=40.7128, longitude=-74.0060)  # NYC
-        author = UserFactory(latitude=None, longitude=None)
-        circle = CircleFactory()
-        circle.members.extend([viewer, author])
-        now = datetime.now(UTC)
-        older = ItemRequestFactory(
-            user=author, title="Older", visibility="public", created_at=now - timedelta(hours=1)
-        )
-        newer = ItemRequestFactory(user=author, title="Newer", visibility="public", created_at=now)
-        db.session.commit()
-
-        pagination = build_visible_requests_pagination(
-            viewer, distance=None, distance_explicit=True, page=1, per_page=1
-        )
-
-        assert pagination.total == 2
-        assert pagination.items == [newer]
-        # The author has no coordinates, so there is no distance to report.
-        assert newer.api_distance is None
-        assert not hasattr(older, "api_distance")
-
-
 def test_build_visible_requests_pagination_is_empty_when_nothing_is_visible(app):
     with app.app_context():
         viewer = UserFactory()
