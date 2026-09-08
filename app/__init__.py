@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from uuid import UUID
 
 from flask import Flask, flash, redirect, render_template, request, url_for
@@ -191,21 +192,51 @@ def create_app(config_class=None):
     return app
 
 
+# Marks the handler this app installs on the root logger, so a second create_app()
+# call in the same process (the test suite does this) replaces it instead of stacking
+# another copy and emitting every record twice.
+LOG_HANDLER_NAME = "meutch"
+
+# Third-party libraries that are unreadable below WARNING -- botocore alone logs every
+# request it signs. Now that the root logger has a handler, their records would reach
+# it too, so pin them and keep the app's own lines visible.
+NOISY_LIBRARY_LOGGERS = ("boto3", "botocore", "s3transfer", "urllib3", "PIL")
+
+
 def configure_logging(app):
-    # Remove the default Flask logger handlers
+    """Send every logger in the process to one handler on stdout.
+
+    The handler goes on the **root** logger, not on ``app.logger``. Modules across
+    the app use ``logging.getLogger(__name__)``, and those loggers propagate to the
+    root rather than to ``app.logger`` -- so with a handler only on ``app.logger``
+    they reached nothing at all, falling through to Python's ``lastResort`` handler,
+    which is fixed at WARNING and has no formatter. Every ``logger.info`` call
+    outside a view was silently discarded, in production and in local development
+    alike, and warnings printed bare with no timestamp.
+    """
+    level = app.config["LOG_LEVEL"]
+
+    # Flask installs its own handler on app.logger. Remove it and let those records
+    # propagate to the root handler like everyone else's, so they are formatted the
+    # same way and are not emitted twice.
     del app.logger.handlers[:]
+    app.logger.propagate = True
+    app.logger.setLevel(level)
 
-    # Create a new logger handler
-    handler = logging.StreamHandler()
-    handler.setLevel(app.config["LOG_LEVEL"])
+    root_logger = logging.getLogger()
+    for existing in list(root_logger.handlers):
+        if getattr(existing, "name", None) == LOG_HANDLER_NAME:
+            root_logger.removeHandler(existing)
 
-    # Define log format
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s")
-    handler.setFormatter(formatter)
+    handler = logging.StreamHandler(stream=sys.stdout)
+    handler.name = LOG_HANDLER_NAME
+    handler.setLevel(level)
+    # %(name)s rather than %(module)s: now that module loggers actually emit, the
+    # dotted logger name is what identifies where a line came from.
+    handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s %(name)s: %(message)s"))
 
-    # Add the handler to the app's logger
-    app.logger.addHandler(handler)
-    app.logger.setLevel(app.config["LOG_LEVEL"])
+    root_logger.addHandler(handler)
+    root_logger.setLevel(level)
 
-    # Optional: Disable werkzeug's default logger if necessary
-    # logging.getLogger('werkzeug').setLevel(logging.ERROR)
+    for noisy_logger_name in NOISY_LIBRARY_LOGGERS:
+        logging.getLogger(noisy_logger_name).setLevel(logging.WARNING)

@@ -137,6 +137,20 @@ MAX_CONTENT_LENGTH=134217728
 Werkzeug enforces this while reading the request stream, so it bounds the body whether or not the client declares an honest `Content-Length`. Gunicorn advertises `wsgi.input_terminated`, which means a chunked request that declares no length is otherwise handed an unbounded stream and can occupy a worker indefinitely.
 
 This is a backstop against runaway bodies rather than a per-upload quota. It sits above the 100 MB per-file limit in `app/utils/storage.py`, so a single max-size photo still uploads, but below `MAX_ITEM_IMAGE_COUNT` files at that size (8 x 100 MB). A normal batch of phone photos is well under 128 MB, but a batch of unusually large ones is rejected with a `413`. Raise this value if that becomes a problem in practice, and cap total body size at the reverse proxy as well (for example nginx `client_max_body_size`) if your deployment has one.
+### Optional: Log Level
+
+```bash
+# Threshold for every logger in the app. Default: INFO (DEBUG in development).
+# Accepts a level name (DEBUG, INFO, WARNING, ERROR, CRITICAL) or a numeric level.
+LOG_LEVEL=INFO
+```
+
+Logs go to stdout, where the platform's log viewer picks them up. One handler on the root logger covers `app.logger` and every module logger, so a single setting controls the lot.
+
+Turn this down to `DEBUG` while triaging an incident and back to `INFO` afterwards — it takes effect on restart, with no code deploy. An unrecognized value falls back to the default rather than stopping the app from booting.
+
+`INFO` is the useful production setting: the app's `logger.info` calls record what a user did just before whatever went wrong. Third-party libraries that are unreadable at low levels (`boto3`, `botocore`, `s3transfer`, `urllib3`, `PIL`) are pinned to `WARNING` regardless, so lowering this does not bury the app's own lines.
+
 ### Optional: API Maintenance
 
 ```bash

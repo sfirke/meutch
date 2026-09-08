@@ -63,6 +63,28 @@ def parse_bool_env(raw_value, default=False):
     return str(raw_value).strip().lower() in ("1", "true", "yes", "on")
 
 
+def parse_log_level_env(raw_value, default):
+    """Resolve a LOG_LEVEL environment variable to a logging level.
+
+    Accepts a level name ("INFO", "debug") or a numeric level. An unrecognized
+    value falls back to *default* rather than raising: a typo in a deploy-time
+    environment variable should not stop the app from booting, and the worst
+    case is that logs stay at the level they would have had anyway.
+    """
+    if raw_value is None or str(raw_value).strip() == "":
+        return default
+
+    candidate = str(raw_value).strip()
+    if candidate.isdigit():
+        return int(candidate)
+
+    resolved = logging.getLevelName(candidate.upper())
+    # getLevelName returns the string "Level X" for anything it does not know.
+    if isinstance(resolved, int):
+        return resolved
+    return default
+
+
 def parse_int_env(raw_value, default):
     """Parse an integer environment variable with a safe default."""
     if raw_value is None or str(raw_value).strip() == "":
@@ -180,9 +202,13 @@ class Config:
 
     # Environment-based configuration
     DEBUG = os.environ.get("FLASK_ENV") == "development"
-    LOG_LEVEL = logging.DEBUG if DEBUG else logging.INFO
-    LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    LOG_FILE = "app.log"
+
+    # Threshold for every logger in the app, not just app.logger -- see
+    # configure_logging() in app/__init__.py. Overridable by environment variable so
+    # that turning up the detail during an incident does not require a code deploy.
+    LOG_LEVEL = parse_log_level_env(
+        os.environ.get("LOG_LEVEL"), logging.DEBUG if DEBUG else logging.INFO
+    )
 
     # Session and persistent-login cookie configuration
     _flask_env = os.environ.get("FLASK_ENV", "production").lower()
@@ -285,7 +311,7 @@ class StagingConfig(Config):
 
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
-    LOG_LEVEL = logging.INFO
+    # LOG_LEVEL inherited from base Config: INFO, overridable by the LOG_LEVEL env var
     # SERVER_NAME and PREFERRED_URL_SCHEME inherited from base Config (parsed from SERVER_NAME env var)
 
 
@@ -293,7 +319,9 @@ class ProductionConfig(Config):
     """Configuration for production environment"""
 
     DEBUG = False
-    LOG_LEVEL = logging.WARNING
+    # LOG_LEVEL inherited from base Config: INFO, overridable by the LOG_LEVEL env var.
+    # Production used to sit at WARNING, which discarded every logger.info call in the
+    # app -- the record of what actually happened before an error.
 
     # Production should always use specific environment variables
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
