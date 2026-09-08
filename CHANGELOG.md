@@ -2,15 +2,25 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
-## August 2026
+## September 2026
 
 ### Features
 **Minor**:
 - When answering a request, there's now an option to click "I have this item" and then choose or list it. The item you pick is linked in your message, and you're warned when what you're offering does not match what was asked for, or when the person asking is outside the circles that can see the giveaway you picked. This work also displays the full details of a request above the message box on every compose page for easy reference ([#412](https://github.com/sfirke/meutch/pull/412)).
-- You can now view the profile of anyone you have a message thread with, even if you share no circles. Circle admins can view profiles of users with a pending request to join a circle they administer (profile link in the join-request notification email also now works) ([#466](https://github.com/sfirke/meutch/pull/466)).
 
 ### Bug fixes
 - The person assigned to receive a giveaways now sees that that status on the item's page. Previously even the selected recipient was told there "This giveaway is pending pickup by another user" ([#475](https://github.com/sfirke/meutch/pull/475)).
+
+### API development (continued)
+- Cut the query cost of circle, request, and feed reads across the app and the API ([#480](https://github.com/sfirke/meutch/pull/480)).
+
+## August 2026
+
+### Features
+**Minor**:
+- You can now view the profile of anyone you have a message thread with, even if you share no circles. Circle admins can view profiles of users with a pending request to join a circle they administer (profile link in the join-request notification email also now works) ([#466](https://github.com/sfirke/meutch/pull/466)).
+
+### Bug fixes
 - Request bodies are now capped at 128 MB. Previously nothing limited how much data a single request could push into the server, so one request could occupy a worker indefinitely. The 100 MB per-photo limit is unchanged and a normal batch of phone photos is far below the cap, but uploading several unusually large photos at once is now rejected with a page explaining the limit ([#474](https://github.com/sfirke/meutch/pull/474)).
 - Giveaways listed as "Circles only" are now actually limited to your circles on the item page itself. Browse, search, and the home feed already respected that setting, but anyone signed in who had the link could open the item page for a circles-only giveaway. People who already expressed interest, and the person selected to receive the item, keep their access even if they later leave the circle you share ([#473](https://github.com/sfirke/meutch/pull/473)).
 - Hyperlinked names: names in the home feed are links to user profiles, but no longer are links when you are not able to view a user's profile. Previously, pages such as a public giveaway's item page, a public request's detail page, and the giveaway recipient-selection pages offered a link that only led to "You can only view profiles of users in your circles" ([#466](https://github.com/sfirke/meutch/pull/466)).
@@ -18,9 +28,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Text that people write — names, item and circle names, descriptions, and message bodies — is now escaped in the HTML version of every notification email: digests, new-message and circle join-request notifications, loan reminders, and Contact Us submissions. Previously, HTML typed into one of those fields was rendered as markup in the recipient's email client rather than shown as the characters that were typed ([#447](https://github.com/sfirke/meutch/pull/447)).
 - The Contact Us form no longer errors when submitting with the "Other" category ([#470](https://github.com/sfirke/meutch/pull/470)).
 - Circle join requests now show the requester's name on mobile portrait layouts — previously the name collapsed out of view, leaving only the avatar and action buttons ([#465](https://github.com/sfirke/meutch/pull/465)).
-
-### API development (continued)
-- Cut the query cost of the reads flagged in [#371](https://github.com/sfirke/meutch/issues/371). Counting circle members no longer loads every member row, so listing circles costs a fixed handful of queries instead of growing with the number of circles and their members. The requests and giveaways feeds now narrow by distance in the database before measuring exact distances in Python, which also speeds up the nightly digest. `GET /api/v1/requests` pages in the database rather than assembling every visible request first, and `GET /api/v1/feed` now assembles at most 500 events per request instead of the entire visible feed ([#480](https://github.com/sfirke/meutch/pull/480)).
 
 ## July 2026
 
