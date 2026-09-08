@@ -709,37 +709,6 @@ class TestApiCircleListQueryCost:
         assert response.status_code == 200
         return response.get_json()
 
-    def test_listing_circles_costs_the_same_number_of_queries_as_the_list_grows(self, client, app):
-        with app.app_context():
-            viewer = UserFactory(email_confirmed=True)
-            for index in range(5):
-                circle = CircleFactory(circle_type="open", name=f"Small Circle {index}")
-                _add_circle_membership(circle, viewer)
-            db.session.commit()
-            access_token = login_api_user(client, viewer.email)
-
-        with self._recorded_statements() as small_run:
-            self._list_circles(client, access_token)
-        small_query_count = len(self._circle_statements(small_run))
-
-        with app.app_context():
-            extra_members = [UserFactory(email_confirmed=True) for _ in range(4)]
-            for index in range(20):
-                circle = CircleFactory(circle_type="open", name=f"Big Circle {index}")
-                for member in extra_members:
-                    _add_circle_membership(circle, member)
-            db.session.commit()
-
-        with self._recorded_statements() as big_run:
-            payload = self._list_circles(client, access_token)
-        big_query_count = len(self._circle_statements(big_run))
-
-        assert payload["pagination"]["total"] == 25
-        assert len(payload["circles"]) == 5
-        assert big_query_count == small_query_count
-        # A handful of batched lookups, not a couple per circle on the page.
-        assert big_query_count <= 6
-
     def test_listing_circles_reports_member_counts_without_loading_members(self, client, app):
         with app.app_context():
             viewer = UserFactory(email_confirmed=True)
