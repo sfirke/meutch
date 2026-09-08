@@ -4,6 +4,8 @@ import json
 import re
 from datetime import UTC, datetime
 
+from flask import render_template
+
 from app import db
 from app.models import AdminAction, circle_members
 from conftest import login_user
@@ -230,6 +232,84 @@ class TestAdminDashboardMetrics:
         assert counts["2026-03-01"] == 1
         assert counts["2026-04-01"] == 0
         assert counts["2026-05-01"] == 2
+
+
+class TestAdminTabBar:
+    """The tab bar lives in a shared partial; these pin down what it must emit."""
+
+    def test_dashboard_renders_the_tabs_as_bootstrap_tab_buttons(self, client, db_session):
+        """On the dashboard the tabs switch panes in place, so they are buttons.
+
+        The dashboard's JavaScript selects
+        `#adminTabs button[data-bs-toggle="tab"]` and reads `data-admin-tab` off
+        the element it was given, so those three hooks are load-bearing.
+        """
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+
+        login_user(client, admin.email)
+
+        content = client.get("/admin/").data.decode("utf-8")
+
+        assert 'id="adminTabs"' in content
+        for tab in ("users", "analytics"):
+            assert f'id="admin-{tab}-tab"' in content
+            assert f'data-admin-tab="{tab}"' in content
+            assert f'data-bs-target="#admin-{tab}"' in content
+        assert 'data-bs-toggle="tab"' in content
+
+    def test_users_tab_is_active_by_default(self, client, db_session):
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+
+        login_user(client, admin.email)
+
+        content = client.get("/admin/").data.decode("utf-8")
+
+        assert re.search(r'id="admin-users-tab"[^>]*aria-selected="true"', content)
+        assert re.search(r'id="admin-analytics-tab"[^>]*aria-selected="false"', content)
+
+    def test_analytics_tab_is_active_when_requested(self, client, db_session):
+        """`?active_tab=analytics` still opens on the analytics pane."""
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+
+        login_user(client, admin.email)
+
+        content = client.get("/admin/?active_tab=analytics").data.decode("utf-8")
+
+        assert re.search(r'id="admin-analytics-tab"[^>]*aria-selected="true"', content)
+        assert re.search(r'id="admin-users-tab"[^>]*aria-selected="false"', content)
+        assert re.search(r'class="tab-pane fade show active"[^>]*id="admin-analytics"', content)
+
+    def test_dashboard_keeps_its_tab_javascript(self, client, db_session):
+        """The URL sync and the lazy chart init hang off the tab buttons."""
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+
+        login_user(client, admin.email)
+
+        content = client.get("/admin/").data.decode("utf-8")
+
+        assert "function syncAdminTab(tabName)" in content
+        assert "function initializeMauChart()" in content
+        assert '#adminTabs button[data-bs-toggle="tab"]' in content
+
+    def test_a_standalone_page_renders_the_tabs_as_links(self, app):
+        """Off the dashboard there are no panes to switch, so the tabs are links.
+
+        Bootstrap styles <a> and <button> identically inside .nav-tabs, and the
+        dashboard's tab handler only ever matches buttons, so a link is simply
+        not enrolled in it.
+        """
+        with app.test_request_context("/admin/activity"):
+            markup = render_template("admin/_tab_bar.html", current_page="activity")
+
+        assert "<button" not in markup
+        assert 'href="/admin/?active_tab=users"' in markup
+        assert 'href="/admin/?active_tab=analytics"' in markup
+        assert "Users" in markup
+        assert "Analytics" in markup
 
 
 class TestAdminUserList:
