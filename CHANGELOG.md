@@ -9,6 +9,8 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - When answering a request, there's now an option to click "I have this item" and then choose or list it. The item you pick is linked in your message, and you're warned when what you're offering does not match what was asked for, or when the person asking is outside the circles that can see the giveaway you picked. This work also displays the full details of a request above the message box on every compose page for easy reference ([#412](https://github.com/sfirke/meutch/pull/412)).
 
 ### Bug fixes
+- The "View Item Details" button in loan reminder emails (due soon, due today, and overdue) is now a "View Loan" button that takes you to the message thread for that loan, where you can see its status and reply to the other person, instead of to the item page which does not show the loan at all ([#479](https://github.com/sfirke/meutch/pull/479)).
+- Removed the "Withdraw interest" button from giveaway pages, along with the "You've expressed interest!" banner that went with it. Interest in a giveaway is now recorded when you message the owner, so withdrawing did not actually take you out of the running — the owner could still pick you straight from your message thread, and sending one more message put you back in the pool. Worse, on a "Circles only" giveaway it could cost you access to the item page. If you no longer want an item, just say so in your message thread with the owner ([#477](https://github.com/sfirke/meutch/pull/477)).
 - The person assigned to receive a giveaways now sees that that status on the item's page. Previously even the selected recipient was told there "This giveaway is pending pickup by another user" ([#475](https://github.com/sfirke/meutch/pull/475)).
 
 ### API development (continued)
@@ -28,6 +30,10 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Text that people write — names, item and circle names, descriptions, and message bodies — is now escaped in the HTML version of every notification email: digests, new-message and circle join-request notifications, loan reminders, and Contact Us submissions. Previously, HTML typed into one of those fields was rendered as markup in the recipient's email client rather than shown as the characters that were typed ([#447](https://github.com/sfirke/meutch/pull/447)).
 - The Contact Us form no longer errors when submitting with the "Other" category ([#470](https://github.com/sfirke/meutch/pull/470)).
 - Circle join requests now show the requester's name on mobile portrait layouts — previously the name collapsed out of view, leaving only the avatar and action buttons ([#465](https://github.com/sfirke/meutch/pull/465)).
+- The page shown when a giveaway is no longer available offered both a "Browse Giveaways" button and a "Back to Home" button, which went to the same place. Only "Back to Home" remains ([#478](https://github.com/sfirke/meutch/pull/478)).
+
+### Developer Experience
+- Removed the leftover code for the standalone Giveaways and Requests browse pages, which the home feed replaced. Their templates and styles were still in the repository despite never being rendered, the two URLs were empty redirects to the home page, and the home page view was still assembling a dozen unused variables from its browse-page days. The `/giveaways` and `/requests/` URLs now return a Not Found page rather than redirecting ([#478](https://github.com/sfirke/meutch/pull/478)).
 
 ## July 2026
 

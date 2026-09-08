@@ -77,11 +77,11 @@ def request_preview(request_id):
     if current_user.is_authenticated:
         if show_fulfilled_fallback:
             flash("This request has already been fulfilled and is no longer available.", "info")
-            return redirect(url_for("requests.feed"))
+            return redirect(url_for("main.index"))
         return redirect(url_for("requests.detail", request_id=request_id))
 
     auth_next_url = (
-        url_for("requests.feed")
+        url_for("main.index")
         if item_request.is_fulfilled
         else url_for("requests.detail", request_id=item_request.id)
     )

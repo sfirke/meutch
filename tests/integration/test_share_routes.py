@@ -3,6 +3,7 @@
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
+from urllib.parse import urlparse
 
 from app import db
 from app.utils.item_share import generate_item_share_token
@@ -469,12 +470,10 @@ class TestRequestSharePreview:
             response = client.get(f"/share/request/{req.id}")
             assert response.status_code == 200
             assert b"This request has already been fulfilled." in response.data
-            assert b"Browse current community requests in the requests feed." in response.data
+            assert b"Browse current community requests in the activity feed." in response.data
             assert b"/register" in response.data
             assert b"/login" in response.data
-            assert (b"next=%2Frequests%2F" in response.data) or (
-                b"next=/requests/" in response.data
-            )
+            assert (b'next=%2F"' in response.data) or (b'next=/"' in response.data)
 
     def test_fulfilled_request_within_7_days_still_accessible_with_feed_next(self, client, app):
         """Test that recent fulfilled request is visible but points auth CTA to feed."""
@@ -494,9 +493,7 @@ class TestRequestSharePreview:
             assert b"This request has already been fulfilled." not in response.data
             assert b"/register" in response.data
             assert b"/login" in response.data
-            assert (b"next=%2Frequests%2F" in response.data) or (
-                b"next=/requests/" in response.data
-            )
+            assert (b'next=%2F"' in response.data) or (b'next=/"' in response.data)
 
     def test_open_request_uses_request_detail_for_auth_next(self, client, app):
         """Test that open requests preserve request-detail next links."""
@@ -516,7 +513,7 @@ class TestRequestSharePreview:
             )
 
     def test_authenticated_user_old_fulfilled_share_link_redirects_to_feed(self, client, app):
-        """Test authenticated users are redirected to requests feed for old fulfilled shared requests."""
+        """Test authenticated users are redirected to the homepage for old fulfilled shared requests."""
         with app.app_context():
             user = UserFactory()
             req = ItemRequestFactory(
@@ -530,7 +527,7 @@ class TestRequestSharePreview:
             login_user(client, user.email)
             response = client.get(f"/share/request/{req.id}")
             assert response.status_code == 302
-            assert response.headers["Location"].endswith("/requests/")
+            assert urlparse(response.headers["Location"]).path == "/"
 
 
 class TestCircleSharePreview:

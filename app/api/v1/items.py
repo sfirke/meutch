@@ -11,7 +11,6 @@ from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.items import (
     GiveawayInterestCollectionResponseSchema,
-    GiveawayInterestWithdrawResponseSchema,
     GiveawayItemResponseSchema,
     GiveawayRecipientChangeSchema,
     GiveawayRecipientMutationResponseSchema,
@@ -46,7 +45,6 @@ ITEM_DELETE_RESPONSE_SCHEMA = ItemDeleteResponseSchema()
 GIVEAWAY_INTEREST_COLLECTION_RESPONSE_SCHEMA = GiveawayInterestCollectionResponseSchema()
 GIVEAWAY_RECIPIENT_SELECTION_SCHEMA = GiveawayRecipientSelectionSchema()
 GIVEAWAY_RECIPIENT_CHANGE_SCHEMA = GiveawayRecipientChangeSchema()
-GIVEAWAY_INTEREST_WITHDRAW_RESPONSE_SCHEMA = GiveawayInterestWithdrawResponseSchema()
 GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA = GiveawayRecipientMutationResponseSchema()
 GIVEAWAY_ITEM_RESPONSE_SCHEMA = GiveawayItemResponseSchema()
 
@@ -296,23 +294,6 @@ def list_giveaway_interests(item_id):
         raise AuthorizationError("You do not have permission to manage this giveaway.")
 
     return _serialize_giveaway_interest_collection(item)
-
-
-@bp.delete("/items/<uuid:item_id>/interest")
-@jwt_required()
-@mutation_limit()
-def withdraw_interest(item_id):
-    """Withdraw the authenticated user's existing giveaway interest."""
-    item = db.get_or_404(Item, item_id)
-    # Expressing interest is one of the things that can grant access to a
-    # circles-only giveaway, so read access before withdrawing it -- otherwise
-    # serializing the response could refuse the caller their own successful
-    # withdrawal.
-    access_state = _build_item_access_state_or_raise(item)
-    giveaway_service.withdraw_interest(item, current_user.id)
-    return GIVEAWAY_INTEREST_WITHDRAW_RESPONSE_SCHEMA.dump(
-        {"withdrawn": True, "item": _prepare_item_resource(item, access_state=access_state)}
-    )
 
 
 @bp.post("/items/<uuid:item_id>/recipient/select")
