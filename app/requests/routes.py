@@ -24,13 +24,6 @@ from app.utils.profile_visibility import can_view_profile
 from app.utils.request_queries import can_view_request, describe_seeking_mismatch
 
 
-@requests_bp.route("/")
-@login_required
-def feed():
-    """Requests feed now redirects to the homepage activity feed."""
-    return redirect(url_for("main.index"))
-
-
 @requests_bp.route("/new", methods=["GET", "POST"])
 @login_required
 def new():
@@ -56,7 +49,7 @@ def new():
             return render_template("requests/new.html", form=form)
 
         flash("Your request has been posted!", "success")
-        return redirect(url_for("requests.feed"))
+        return redirect(url_for("main.index"))
 
     return render_template("requests/new.html", form=form)
 
@@ -105,7 +98,7 @@ def edit(request_id):
             )
 
         flash("Your request has been updated.", "success")
-        return redirect(url_for("requests.feed"))
+        return redirect(url_for("main.index"))
 
     return render_template(
         "requests/edit.html", form=form, item_request=item_request, fulfill_form=EmptyForm()
@@ -157,7 +150,7 @@ def delete(request_id):
         abort(404)
 
     flash("Your request has been removed.", "success")
-    return redirect(url_for("requests.feed"))
+    return redirect(url_for("main.index"))
 
 
 @requests_bp.route("/<uuid:request_id>/fulfill", methods=["POST"])
@@ -180,7 +173,7 @@ def fulfill(request_id):
         abort(404)
 
     flash("Request marked as fulfilled! 🎉 It will remain visible for a week.", "success")
-    return redirect(url_for("requests.feed"))
+    return redirect(url_for("main.index"))
 
 
 @requests_bp.route("/<uuid:request_id>/conversation", methods=["GET", "POST"])

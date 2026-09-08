@@ -160,7 +160,7 @@ class TestApiAuth:
 
         assert login_response.status_code == 200
 
-        response = client.get("/requests/", follow_redirects=False)
+        response = client.get("/requests/new", follow_redirects=False)
 
         assert response.status_code == 302
         assert "/login" in response.location
@@ -301,7 +301,7 @@ class TestApiAuth:
         assert payload["user"]["email"] == "new-api-user@example.com"
         assert payload["user"]["email_confirmed"] is False
 
-        protected_response = client.get("/requests/", follow_redirects=False)
+        protected_response = client.get("/requests/new", follow_redirects=False)
         assert protected_response.status_code == 302
         assert "/login" in protected_response.location
 
