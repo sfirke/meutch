@@ -1,6 +1,32 @@
 """Unit tests for the bounding_box prefilter used ahead of Haversine checks."""
 
-from app.utils.geocoding import bounding_box, calculate_distance
+import math
+
+import pytest
+
+from app.utils.geocoding import EARTH_RADIUS_MILES, bounding_box, calculate_distance
+
+
+def test_bounding_box_matches_the_hand_computed_box_at_the_equator():
+    """Check the box against arithmetic worked out independently of the code under test.
+
+    At the equator, a degree of latitude and a degree of longitude cover
+    almost exactly the same ground, so both edges of the box are close to
+    radius_miles / EARTH_RADIUS_MILES radians out from the center - a value
+    computable by hand, not just by trusting whatever calculate_distance
+    would also compute. (Longitude is off from that by a fraction of a
+    percent: the function widens using the latitude band's edge, which at a
+    20 mile radius is already a hair off the equator.)
+    """
+    radius_miles = 20
+    expected_delta_degrees = math.degrees(radius_miles / EARTH_RADIUS_MILES)
+
+    min_lat, max_lat, min_lon, max_lon = bounding_box(0.0, 0.0, radius_miles)
+
+    assert min_lat == pytest.approx(-expected_delta_degrees)
+    assert max_lat == pytest.approx(expected_delta_degrees)
+    assert min_lon == pytest.approx(-expected_delta_degrees, rel=1e-3)
+    assert max_lon == pytest.approx(expected_delta_degrees, rel=1e-3)
 
 
 def test_bounding_box_contains_every_point_within_the_radius():
