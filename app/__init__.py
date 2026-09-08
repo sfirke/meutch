@@ -11,6 +11,7 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.context_processors import (
     inject_distance_utils,
@@ -38,6 +39,20 @@ def create_app(config_class=None):
         config_class = config.get(flask_env, config["default"])
 
     app.config.from_object(config_class)
+
+    # Trust the platform's reverse proxy so request.remote_addr is the client rather
+    # than the load balancer. Everything that keys on the caller's address depends on
+    # this: the rate limiter buckets by it, and without ProxyFix every request shares
+    # one bucket. ProxyFix reads X-Forwarded-For from the right, skipping
+    # TRUSTED_PROXY_COUNT hops, so values a client appends itself are ignored.
+    trusted_proxy_count = app.config.get("TRUSTED_PROXY_COUNT", 0)
+    if trusted_proxy_count:
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            x_for=trusted_proxy_count,
+            x_proto=1,
+            x_host=1,
+        )
 
     # Validate storage configuration at startup
     if hasattr(config_class, "validate_storage_config"):
