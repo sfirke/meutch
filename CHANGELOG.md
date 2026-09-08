@@ -2,17 +2,27 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
-## August 2026
+## September 2026
 
 ### Features
 **Minor**:
 - When answering a request, there's now an option to click "I have this item" and then choose or list it. The item you pick is linked in your message, and you're warned when what you're offering does not match what was asked for, or when the person asking is outside the circles that can see the giveaway you picked. This work also displays the full details of a request above the message box on every compose page for easy reference ([#412](https://github.com/sfirke/meutch/pull/412)).
-- You can now view the profile of anyone you have a message thread with, even if you share no circles. Circle admins can view profiles of users with a pending request to join a circle they administer (profile link in the join-request notification email also now works) ([#466](https://github.com/sfirke/meutch/pull/466)).
 
 ### Bug fixes
 - The "View Item Details" button in loan reminder emails (due soon, due today, and overdue) is now a "View Loan" button that takes you to the message thread for that loan, where you can see its status and reply to the other person, instead of to the item page which does not show the loan at all ([#479](https://github.com/sfirke/meutch/pull/479)).
 - Removed the "Withdraw interest" button from giveaway pages, along with the "You've expressed interest!" banner that went with it. Interest in a giveaway is now recorded when you message the owner, so withdrawing did not actually take you out of the running — the owner could still pick you straight from your message thread, and sending one more message put you back in the pool. Worse, on a "Circles only" giveaway it could cost you access to the item page. If you no longer want an item, just say so in your message thread with the owner ([#477](https://github.com/sfirke/meutch/pull/477)).
 - The person assigned to receive a giveaways now sees that that status on the item's page. Previously even the selected recipient was told there "This giveaway is pending pickup by another user" ([#475](https://github.com/sfirke/meutch/pull/475)).
+
+### API development (continued)
+- Cut the query cost of circle, request, and feed reads across the app and the API ([#480](https://github.com/sfirke/meutch/pull/480)).
+
+## August 2026
+
+### Features
+**Minor**:
+- You can now view the profile of anyone you have a message thread with, even if you share no circles. Circle admins can view profiles of users with a pending request to join a circle they administer (profile link in the join-request notification email also now works) ([#466](https://github.com/sfirke/meutch/pull/466)).
+
+### Bug fixes
 - Request bodies are now capped at 128 MB. Previously nothing limited how much data a single request could push into the server, so one request could occupy a worker indefinitely. The 100 MB per-photo limit is unchanged and a normal batch of phone photos is far below the cap, but uploading several unusually large photos at once is now rejected with a page explaining the limit ([#474](https://github.com/sfirke/meutch/pull/474)).
 - Giveaways listed as "Circles only" are now actually limited to your circles on the item page itself. Browse, search, and the home feed already respected that setting, but anyone signed in who had the link could open the item page for a circles-only giveaway. People who already expressed interest, and the person selected to receive the item, keep their access even if they later leave the circle you share ([#473](https://github.com/sfirke/meutch/pull/473)).
 - Hyperlinked names: names in the home feed are links to user profiles, but no longer are links when you are not able to view a user's profile. Previously, pages such as a public giveaway's item page, a public request's detail page, and the giveaway recipient-selection pages offered a link that only led to "You can only view profiles of users in your circles" ([#466](https://github.com/sfirke/meutch/pull/466)).

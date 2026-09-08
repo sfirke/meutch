@@ -568,11 +568,30 @@ class Circle(db.Model):
     def __repr__(self):
         return f"<Circle {self.name}>"
 
-    def is_admin(self, user):
-        member = (
+    def membership_of(self, user):
+        """Return *user*'s ``circle_members`` row for this circle, or ``None``.
+
+        One lookup answers both "is a member" and "is an admin"; callers that
+        need both should take the row once rather than asking twice.
+        """
+        if user is None or getattr(user, "id", None) is None:
+            return None
+        return (
             db.session.query(circle_members).filter_by(user_id=user.id, circle_id=self.id).first()
         )
-        return member and member.is_admin if member else False
+
+    def is_admin(self, user):
+        member = self.membership_of(user)
+        return bool(member.is_admin) if member else False
+
+    def has_member(self, user):
+        """Return whether *user* belongs to this circle.
+
+        Prefer this over ``user in circle.members`` for a read-only check: the
+        relationship loads every member row to answer it, which turns a list of
+        circles into one full membership load apiece.
+        """
+        return self.membership_of(user) is not None
 
     @property
     def image(self):
@@ -595,6 +614,19 @@ class Circle(db.Model):
     @property
     def requires_join_approval(self):
         return self.circle_type in ["closed", "secret"]
+
+
+# Taking ``len(circle.members)`` loads every member row just to count it, so any
+# list of circles becomes an N+1.  A correlated subquery rides along with the
+# circle's own SELECT instead.  Note that it reflects committed membership, not
+# pending changes in the session, so mutation code that adds or removes members
+# and then checks the size should keep using ``circle.members``.
+Circle.member_count = db.column_property(
+    select(func.count(circle_members.c.user_id))
+    .where(circle_members.c.circle_id == Circle.id)
+    .correlate_except(circle_members)
+    .scalar_subquery()
+)
 
 
 class Category(db.Model):

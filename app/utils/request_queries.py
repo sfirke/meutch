@@ -1,5 +1,9 @@
-from app.models import ItemRequest
-from app.utils.home_feed import build_visible_requests_events
+from app.utils.home_feed import (
+    build_visible_requests_query,
+    effective_feed_distance,
+    filter_requests_by_distance,
+    format_actor_distance,
+)
 from app.utils.pagination import ListPagination
 
 
@@ -50,30 +54,34 @@ def build_visible_requests_pagination(
     page=1,
     per_page=12,
 ):
+    """Return one page of the requests the user can see, newest first."""
     scoped_circle_ids = _get_scoped_circle_ids(user, selected_circle_ids)
-    visible_request_events = build_visible_requests_events(
+    visible_requests_query = build_visible_requests_query(
         user,
         scoped_circle_ids=scoped_circle_ids,
         scope=scope,
         max_distance=distance,
         distance_explicit=distance_explicit,
     )
-    request_ids = [event["request_id"] for event in visible_request_events]
-    if not request_ids:
+    if visible_requests_query is None:
         return ListPagination(items=[], page=page, per_page=per_page)
 
-    visible_requests_by_id = {
-        item_request.id: item_request
-        for item_request in ItemRequest.query.filter(ItemRequest.id.in_(request_ids)).all()
-    }
-    distance_by_id = {event["request_id"]: event["distance"] for event in visible_request_events}
+    max_distance = effective_feed_distance(distance, distance_explicit)
+    if max_distance is None or not user.is_geocoded:
+        # Nothing has to be measured in Python, so the database can do the
+        # counting and slicing and hand back only the rows for this page.
+        pagination = visible_requests_query.paginate(page=page, per_page=per_page, error_out=False)
+    else:
+        # The exact distance test only runs in Python, so the whole visible set
+        # has to come back before it can be paged.  The query has already been
+        # narrowed to a bounding box around the user, which is what keeps that
+        # set small.
+        visible_requests = filter_requests_by_distance(
+            visible_requests_query.all(), user, max_distance
+        )
+        pagination = ListPagination(items=visible_requests, page=page, per_page=per_page)
 
-    ordered_requests = []
-    for request_id in request_ids:
-        item_request = visible_requests_by_id.get(request_id)
-        if item_request is None:
-            continue
-        item_request.api_distance = distance_by_id[request_id]
-        ordered_requests.append(item_request)
+    for item_request in pagination.items:
+        item_request.api_distance = format_actor_distance(user, item_request.user)
 
-    return ListPagination(items=ordered_requests, page=page, per_page=per_page)
+    return pagination

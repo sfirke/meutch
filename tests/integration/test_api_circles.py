@@ -1,8 +1,12 @@
 """Integration tests for API circle reads and writes."""
 
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from unittest.mock import patch
+
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 
 from app import db
 from app.models import Circle, CircleJoinRequest, circle_members
@@ -668,3 +672,66 @@ class TestApiCircles:
         )
 
         assert response.status_code == 404
+
+
+class TestApiCircleListQueryCost:
+    """Guard the circle list against per-circle queries creeping back in."""
+
+    @staticmethod
+    @contextmanager
+    def _recorded_statements():
+        statements = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(Engine, "before_cursor_execute", record)
+        try:
+            yield statements
+        finally:
+            event.remove(Engine, "before_cursor_execute", record)
+
+    @staticmethod
+    def _circle_statements(statements):
+        """Keep only the statements the circle list itself is responsible for.
+
+        Session-level caching of the authenticated user makes the surrounding
+        request cost vary between calls, which would otherwise drown out the
+        thing under test.
+        """
+        return [statement for statement in statements if "FROM circle" in statement]
+
+    def _list_circles(self, client, access_token):
+        response = client.get(
+            "/api/v1/circles?membership=discoverable&page=1&per_page=5",
+            headers=auth_headers(access_token),
+        )
+        assert response.status_code == 200
+        return response.get_json()
+
+    def test_listing_circles_reports_member_counts_without_loading_members(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            crowded = CircleFactory(circle_type="open", name="Crowded Circle")
+            quiet = CircleFactory(circle_type="open", name="Quiet Circle")
+            _add_circle_membership(crowded, viewer)
+            for _ in range(3):
+                _add_circle_membership(crowded, UserFactory(email_confirmed=True))
+            _add_circle_membership(quiet, UserFactory(email_confirmed=True))
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+
+        with self._recorded_statements() as statements:
+            payload = self._list_circles(client, access_token)
+
+        circles_by_name = {circle["name"]: circle for circle in payload["circles"]}
+        assert circles_by_name["Crowded Circle"]["member_count"] == 4
+        assert circles_by_name["Crowded Circle"]["is_member"] is True
+        assert circles_by_name["Quiet Circle"]["member_count"] == 1
+        assert circles_by_name["Quiet Circle"]["is_member"] is False
+        # Counting members must not turn into selecting them.
+        assert not [
+            statement
+            for statement in statements
+            if "FROM users" in statement and "circle_members" in statement
+        ]
