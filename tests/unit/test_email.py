@@ -12,7 +12,13 @@ from app.utils.email import (
     send_digest_email,
     send_email,
 )
-from tests.factories import ItemFactory, LoanRequestFactory, UserFactory
+from tests.factories import (
+    ConversationFactory,
+    ItemFactory,
+    LoanRequestFactory,
+    MessageFactory,
+    UserFactory,
+)
 
 
 class TestEmailUtils:
@@ -999,3 +1005,63 @@ class TestSendContactFormEmail:
                 html = mock_send.call_args[0][3]
                 assert "Mal &lt;script&gt;evil()&lt;/script&gt;" in html
                 assert "<script>evil()</script>" not in html
+
+
+class TestLoanReminderEmailLinks:
+    """Loan reminder emails should link to the conversation holding the loan."""
+
+    @staticmethod
+    def _loan_with_conversation():
+        from datetime import date, timedelta
+
+        owner = UserFactory()
+        borrower = UserFactory()
+        item = ItemFactory(owner=owner)
+        loan = LoanRequestFactory(
+            item=item,
+            borrower=borrower,
+            start_date=date.today() - timedelta(days=14),
+            end_date=date.today() - timedelta(days=4),
+            status="approved",
+        )
+        conversation = ConversationFactory(context_type="item", context_id=item.id)
+        MessageFactory(
+            conversation=conversation, sender=borrower, recipient=owner, loan_request=loan
+        )
+        db.session.commit()
+        return loan, conversation
+
+    @pytest.mark.parametrize(
+        "sender_name, args, for_owner",
+        [
+            ("send_loan_due_soon_email", (), False),
+            ("send_loan_due_today_borrower_email", (), False),
+            ("send_loan_due_today_owner_email", (), True),
+            ("send_loan_overdue_borrower_email", (4,), False),
+            ("send_loan_overdue_owner_email", (4,), True),
+        ],
+    )
+    def test_links_to_conversation(self, app, sender_name, args, for_owner):
+        with app.app_context():
+            from flask import url_for
+
+            from app.utils import email as email_module
+
+            loan, conversation = self._loan_with_conversation()
+            conversation_url = url_for(
+                "main.view_conversation", conversation_id=conversation.id, _external=True
+            )
+            item_url = url_for("main.item_detail", item_id=loan.item_id, _external=True)
+            extend_url = url_for("main.extend_loan", loan_id=loan.id, _external=True)
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                assert getattr(email_module, sender_name)(loan, *args) is True
+
+                _, _, text_content, html_content = mock_send_email.call_args[0]
+
+            for content in (text_content, html_content):
+                assert conversation_url in content
+                assert item_url not in content
+                assert (extend_url in content) is for_owner

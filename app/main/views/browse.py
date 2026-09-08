@@ -1,4 +1,4 @@
-from flask import abort, redirect, render_template, request, url_for
+from flask import abort, render_template, request
 from flask_login import current_user, login_required
 
 from app import db
@@ -21,29 +21,8 @@ def index():
     if not current_user.is_authenticated:
         return render_template("main/landing.html")
 
-    items = []
-    giveaway_items = []
-    feed_events = []
-    linkable_actor_ids = set()
-    pagination = None
-    total_items = 0
-    remaining_items = 0
-    query = ""
-    all_categories = []
-    user_circles = []
-    selected_categories = []
-    selected_circles = []
-    item_type = "both"
-    has_circles = False
     show_public_giveaway_nudge = False
     featured_circle_recommendation = None
-    result_count = 0
-    selected_feed_scope = "all"
-    selected_feed_types = ["requests", "giveaways", "circle_joins", "loans"]
-    selected_feed_distance = "none"
-    selected_show_own_activity = True
-    selected_show_claimed_giveaways = False
-    feed_distance_options = sorted(HOMEPAGE_DISTANCE_OPTIONS)
 
     user_circles = sorted(
         list(current_user.circles), key=lambda circle: (circle.name or "").lower()
@@ -61,23 +40,17 @@ def index():
         circle_recommendations = build_circle_recommendations(current_user, limit=1)
         if circle_recommendations:
             featured_circle_recommendation = circle_recommendations[0]
-    selected_circles = request.args.getlist("circles")
+
     filter_state = _parse_homepage_feed_filters(current_user)
-    selected_feed_scope = filter_state["scope"]
-    selected_feed_types = filter_state["selected_feed_types"]
-    selected_feed_distance = filter_state["distance_param_value"]
-    selected_show_own_activity = filter_state["show_own_activity"]
-    selected_show_claimed_giveaways = filter_state["show_claimed_giveaways"]
 
     feed_events = build_homepage_feed_events(
         current_user,
-        selected_circle_ids=selected_circles,
-        scope=selected_feed_scope,
+        scope=filter_state["scope"],
         giveaway_distance=filter_state["distance"],
         giveaway_distance_explicit=filter_state["distance_explicit"],
-        included_event_types=selected_feed_types,
-        include_own_activity=selected_show_own_activity,
-        include_claimed_giveaways=selected_show_claimed_giveaways,
+        included_event_types=filter_state["selected_feed_types"],
+        include_own_activity=filter_state["show_own_activity"],
+        include_claimed_giveaways=filter_state["show_claimed_giveaways"],
     )
     # Only link actor names to profiles the viewer is actually allowed to open —
     # public requests and giveaways surface people outside the viewer's circles.
@@ -87,29 +60,17 @@ def index():
 
     return render_template(
         "main/index.html",
-        items=items,
-        giveaway_items=giveaway_items,
         feed_events=feed_events,
         linkable_actor_ids=linkable_actor_ids,
-        pagination=pagination,
-        total_items=total_items,
-        remaining_items=remaining_items,
-        query=query,
-        categories=all_categories,
-        user_circles=user_circles,
-        selected_categories=selected_categories,
-        selected_circles=selected_circles,
-        item_type=item_type,
         has_circles=has_circles,
         show_public_giveaway_nudge=show_public_giveaway_nudge,
         featured_circle_recommendation=featured_circle_recommendation,
-        result_count=result_count,
-        selected_feed_scope=selected_feed_scope,
-        selected_feed_types=selected_feed_types,
-        selected_feed_distance=selected_feed_distance,
-        selected_show_own_activity=selected_show_own_activity,
-        selected_show_claimed_giveaways=selected_show_claimed_giveaways,
-        feed_distance_options=feed_distance_options,
+        selected_feed_scope=filter_state["scope"],
+        selected_feed_types=filter_state["selected_feed_types"],
+        selected_feed_distance=filter_state["distance_param_value"],
+        selected_show_own_activity=filter_state["show_own_activity"],
+        selected_show_claimed_giveaways=filter_state["show_claimed_giveaways"],
+        feed_distance_options=sorted(HOMEPAGE_DISTANCE_OPTIONS),
     )
 
 
@@ -118,12 +79,6 @@ def index():
 def find():
     find_context = _build_find_context(current_user)
     return render_template("main/find.html", **find_context)
-
-
-@main_bp.route("/giveaways")
-@login_required
-def giveaways():
-    return redirect(url_for("main.index"))
 
 
 @main_bp.route("/tag/<uuid:tag_id>")

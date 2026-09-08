@@ -17,16 +17,16 @@ from tests.factories import (
 )
 
 
-class TestRequestsFeedAccess:
-    """Test feed access and authentication."""
+class TestRequestsAccess:
+    """Test requests access and authentication."""
 
-    def test_feed_requires_login(self, client, app):
-        """Test that the feed requires authentication."""
-        response = client.get("/requests/")
+    def test_posting_a_request_requires_login(self, client, app):
+        """Test that posting a request requires authentication."""
+        response = client.get("/requests/new")
         assert response.status_code == 302
         assert "/login" in response.headers["Location"]
 
-    def test_feed_shows_no_circles_message(self, client, app, auth_user):
+    def test_homepage_shows_no_circles_message(self, client, app, auth_user):
         """Test homepage feed shows no-circles message for users with no circles."""
         with app.app_context():
             user = auth_user()
@@ -37,7 +37,7 @@ class TestRequestsFeedAccess:
 
 
 class TestRequestsFeedFiltering:
-    """Test feed filtering and visibility."""
+    """Test homepage feed filtering and visibility of requests."""
 
     def test_feed_default_scope_uses_all(self, client, app, auth_user):
         """Test default feed shows all-scope results (public + shared-circle requests)."""

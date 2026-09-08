@@ -913,8 +913,9 @@ def send_loan_due_soon_email(loan):
         )
         return False
 
-    # Generate the item URL
-    item_url = url_for("main.item_detail", item_id=loan.item_id, _external=True)
+    from app.utils.messaging_queries import loan_conversation_url
+
+    conversation_url = loan_conversation_url(loan, external=True)
 
     subject = f"Meutch - Reminder: {loan.item.name} is due in 3 days"
 
@@ -929,8 +930,8 @@ Due Date: {loan.end_date.strftime("%B %d, %Y")} (in 3 days)
 
 Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
 
-You can view the item details here:
-{item_url}
+You can view the loan and message the owner here:
+{conversation_url}
 
 Thank you for being a responsible borrower!
 
@@ -959,9 +960,9 @@ The Meutch Team
         </p>
 
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{item_url}"
+            <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Item Details
+                View Loan
             </a>
         </div>
 
@@ -995,8 +996,9 @@ def send_loan_due_today_borrower_email(loan):
         )
         return False
 
-    # Generate the item URL
-    item_url = url_for("main.item_detail", item_id=loan.item_id, _external=True)
+    from app.utils.messaging_queries import loan_conversation_url
+
+    conversation_url = loan_conversation_url(loan, external=True)
 
     subject = f"Meutch - {loan.item.name} is due back today"
 
@@ -1011,8 +1013,8 @@ Due Date: Today, {loan.end_date.strftime("%B %d, %Y")}
 
 Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
 
-You can view the item details here:
-{item_url}
+You can view the loan and message the owner here:
+{conversation_url}
 
 Thank you for your prompt attention!
 
@@ -1041,9 +1043,9 @@ The Meutch Team
         </p>
 
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{item_url}"
+            <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Item Details
+                View Loan
             </a>
         </div>
 
@@ -1077,8 +1079,9 @@ def send_loan_due_today_owner_email(loan):
         )
         return False
 
-    # Generate the item URL
-    item_url = url_for("main.item_detail", item_id=loan.item_id, _external=True)
+    from app.utils.messaging_queries import loan_conversation_url
+
+    conversation_url = loan_conversation_url(loan, external=True)
     # Generate the extend loan URL for owners to extend the loan
     extend_url = url_for("main.extend_loan", loan_id=loan.id, _external=True)
 
@@ -1096,8 +1099,8 @@ Due Date: Today, {loan.end_date.strftime("%B %d, %Y")}
 If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time:
 {extend_url}
 
-You can view the item details here:
-{item_url}
+You can view the loan and message the borrower here:
+{conversation_url}
 
 Thank you for sharing with your community!
 
@@ -1126,9 +1129,9 @@ The Meutch Team
         </p>
 
         <div style="text-align: center; margin: 20px 0; display:flex; gap:12px; justify-content:center;">
-            <a href="{item_url}"
+            <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Item Details
+                View Loan
             </a>
             <a href="{extend_url}"
                style="background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
@@ -1166,8 +1169,9 @@ def send_loan_overdue_borrower_email(loan, days_overdue):
         )
         return False
 
-    # Generate the item URL
-    item_url = url_for("main.item_detail", item_id=loan.item_id, _external=True)
+    from app.utils.messaging_queries import loan_conversation_url
+
+    conversation_url = loan_conversation_url(loan, external=True)
 
     subject = f"Meutch - Reminder: {loan.item.name} is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue"
 
@@ -1183,8 +1187,8 @@ Days Overdue: {days_overdue}
 
 Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
 
-You can view the item details here:
-{item_url}
+You can view the loan and message the owner here:
+{conversation_url}
 
 Thank you for your prompt attention to this matter.
 
@@ -1214,9 +1218,9 @@ The Meutch Team
         </p>
 
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{item_url}"
+            <a href="{conversation_url}"
                style="background-color: #dc3545; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Item Details
+                View Loan
             </a>
         </div>
 
@@ -1250,8 +1254,9 @@ def send_loan_overdue_owner_email(loan, days_overdue):
         )
         return False
 
-    # Generate the item URL
-    item_url = url_for("main.item_detail", item_id=loan.item_id, _external=True)
+    from app.utils.messaging_queries import loan_conversation_url
+
+    conversation_url = loan_conversation_url(loan, external=True)
     # Generate the extend loan URL for owners to extend the loan
     extend_url = url_for("main.extend_loan", loan_id=loan.id, _external=True)
 
@@ -1270,8 +1275,8 @@ Days Overdue: {days_overdue}
 If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time:
 {extend_url}
 
-You can view the item details here:
-{item_url}
+You can view the loan and message the borrower here:
+{conversation_url}
 
 Thank you for your patience.
 
@@ -1301,9 +1306,9 @@ The Meutch Team
         </p>
 
         <div style="text-align: center; margin: 20px 0; display:flex; gap:12px; justify-content:center;">
-            <a href="{item_url}"
+            <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Item Details
+                View Loan
             </a>
             <a href="{extend_url}"
                style="background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
