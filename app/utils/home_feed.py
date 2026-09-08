@@ -254,9 +254,8 @@ def build_visible_requests_query(
         base_query, user, effective_feed_distance(max_distance, distance_explicit)
     )
 
-    # The id tiebreaker keeps LIMIT/OFFSET pages stable when several requests
-    # share a created_at, which happens whenever they are inserted in one
-    # transaction.
+    # The id tiebreaker keeps LIMIT/OFFSET pages stable -- created_at ties are
+    # possible (e.g. bulk inserts share one transaction's now()).
     return base_query.options(contains_eager(ItemRequest.user)).order_by(
         ItemRequest.created_at.desc(), ItemRequest.id.desc()
     )
