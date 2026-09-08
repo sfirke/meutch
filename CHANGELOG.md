@@ -23,6 +23,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - The page shown when a giveaway is no longer available offered both a "Browse Giveaways" button and a "Back to Home" button, which went to the same place. Only "Back to Home" remains ([#478](https://github.com/sfirke/meutch/pull/478)).
 
 ### Developer Experience
+- Application logs now actually reach the logs. A handler was attached only to Flask's own logger, so the twelve modules that log through `logging.getLogger(__name__)` — the services, the auth routes, geocoding — reached nothing at all: their `info` lines were discarded and their warnings printed with no timestamp, in production and in local development alike. The handler now sits on the root logger, production runs at INFO instead of WARNING, and `LOG_LEVEL` can be changed by environment variable so turning up the detail during an incident does not need a code deploy ([#482](https://github.com/sfirke/meutch/pull/482)).
 - Removed the leftover code for the standalone Giveaways and Requests browse pages, which the home feed replaced. Their templates and styles were still in the repository despite never being rendered, the two URLs were empty redirects to the home page, and the home page view was still assembling a dozen unused variables from its browse-page days. The `/giveaways` and `/requests/` URLs now return a Not Found page rather than redirecting ([#478](https://github.com/sfirke/meutch/pull/478)).
 
 ## July 2026
