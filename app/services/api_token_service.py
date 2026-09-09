@@ -11,6 +11,8 @@ from app import db
 from app.models import ApiTokenBlocklist, ApiTokenFamily, User
 from app.services import auth_service
 from app.services.exceptions import AuthenticationError, AuthorizationError, ConflictError
+from app.utils import activity_events
+from app.utils.activity_log import log_event
 
 TOKEN_TYPE_ACCESS = "access"
 TOKEN_TYPE_REFRESH = "refresh"
@@ -168,6 +170,23 @@ def revoke_token_family(token_payload, *, reason=REVOKE_REASON_LOGOUT):
     db.session.commit()
 
 
+def _log_refresh_token_replay(token_family, *, reason):
+    """Record a replayed refresh token.
+
+    A refresh token presented after it has been rotated or revoked is the
+    highest-signal security event this app can already detect on its own, and until
+    now it was recorded nowhere. The actor is passed explicitly because this runs
+    inside the JWT blocklist callback, before flask_jwt_extended has an authenticated
+    user to resolve.
+    """
+    log_event(
+        activity_events.AUTH_TOKEN_REUSE_DETECTED,
+        actor=token_family.user_id,
+        subject=token_family.user_id,
+        context={"reason": reason},
+    )
+
+
 def is_token_revoked(token_payload):
     """Return True when a JWT should no longer be honored."""
     blocked_token = ApiTokenBlocklist.query.filter_by(jti=token_payload["jti"]).first()
@@ -177,6 +196,7 @@ def is_token_revoked(token_payload):
         if token_payload["type"] == TOKEN_TYPE_REFRESH and token_family is not None:
             token_family.revoke(REVOKE_REASON_REUSED)
             db.session.commit()
+            _log_refresh_token_replay(token_family, reason="already_revoked")
         return True
 
     if token_family is None:
@@ -191,6 +211,7 @@ def is_token_revoked(token_payload):
     ):
         token_family.revoke(REVOKE_REASON_REUSED)
         db.session.commit()
+        _log_refresh_token_replay(token_family, reason="superseded")
         return True
 
     return False
