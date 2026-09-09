@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash
 
 from app import db
 from app.models import (
+    ActivityLog,
     AdminAction,
     Category,
     Circle,
@@ -26,6 +27,7 @@ from app.models import (
     User,
     UserWebLink,
 )
+from app.utils import activity_events
 
 fake = Faker()
 
@@ -256,6 +258,27 @@ class AdminActionFactory(SQLAlchemyModelFactory):
             "target_name": obj.target_user.full_name,
         }
     )
+
+
+class ActivityLogFactory(SQLAlchemyModelFactory):
+    """Factory for ActivityLog model.
+
+    Only for building rows to read back. Production code never creates entries this
+    way -- see app/utils/activity_log.log_event, which writes on its own connection.
+    """
+
+    class Meta:
+        model = ActivityLog
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+
+    event_type = activity_events.AUTH_LOGIN_SUCCEEDED
+    occurred_at = factory.LazyFunction(lambda: datetime.now(UTC))
+    source = ActivityLog.SOURCE_WEB
+    actor = factory.SubFactory(UserFactory)
+    subject = factory.SelfAttribute("actor")
+    ip_address = "203.0.113.10"
+    user_agent = "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
 
 
 class GiveawayInterestFactory(SQLAlchemyModelFactory):

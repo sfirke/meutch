@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from flask import url_for
 from flask_login import UserMixin
 from sqlalchemy import func, select
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
@@ -1046,3 +1046,96 @@ class AdminAction(db.Model):
 
     def __repr__(self):
         return f"<AdminAction {self.action_type} by {self.admin_user_id} on {self.target_user_id}>"
+
+
+class ActivityLog(db.Model):
+    """Structured record of a single thing that happened on the platform.
+
+    Written by ``app.utils.activity_log.log_event`` on its own connection, outside
+    whatever transaction the caller is running, and browsed by admins at
+    ``/admin/activity``. Rows are pruned on a retention window, so this table is a
+    recent-history view rather than a permanent archive.
+    """
+
+    __tablename__ = "activity_log"
+
+    SOURCE_WEB = "web"
+    SOURCE_API = "api"
+    SOURCE_CLI = "cli"
+
+    TARGET_TYPE_USER = "user"
+    TARGET_TYPE_CIRCLE = "circle"
+
+    id = db.Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False
+    )
+    event_type = db.Column(db.String(64), nullable=False)
+    occurred_at = db.Column(
+        db.DateTime, default=func.now(), server_default=func.now(), nullable=False
+    )
+    source = db.Column(db.String(16), nullable=False)
+
+    # Who did it, and whose account it is about. They are usually the same person, but
+    # not always: an admin deleting someone else's account is the actor, that someone
+    # is the subject. Both are nullable -- an anonymous sign-in attempt has no actor,
+    # and a CLI job has neither.
+    actor_user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True)
+    subject_user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True)
+
+    # Polymorphic reference to whatever else the event was about, mirroring the
+    # Conversation.context_type / context_id pair. Deliberately not a foreign key: an
+    # audit row should outlive the object it describes, so a target_id left dangling
+    # by a delete is the intended behavior rather than a bug.
+    target_type = db.Column(db.String(32), nullable=True)
+    target_id = db.Column(UUID(as_uuid=True), nullable=True)
+
+    ip_address = db.Column(INET, nullable=True)
+    user_agent = db.Column(db.String(400), nullable=True)
+    request_id = db.Column(db.String(64), nullable=True)
+
+    # Flat scalars explaining *why* the event happened. Anything identifying who or
+    # what belongs in the columns above; app.utils.activity_log enforces that.
+    context = db.Column(JSONB, nullable=True)
+
+    actor = db.relationship("User", foreign_keys=[actor_user_id])
+    subject = db.relationship("User", foreign_keys=[subject_user_id])
+
+    __table_args__ = (
+        # Newest-first browsing, and the range scan the prune job walks. The id
+        # tiebreak is what keeps pagination stable when several events share a
+        # timestamp, which a single sign-in routinely produces.
+        db.Index("ix_activity_log_occurred_at_id", "occurred_at", "id"),
+        db.Index("ix_activity_log_event_type_occurred_at", "event_type", "occurred_at"),
+        # Partial on the nullable lead columns: every query that uses these supplies a
+        # concrete id, so rows with a NULL there can never match and are not worth
+        # storing in the index.
+        db.Index(
+            "ix_activity_log_actor_occurred_at",
+            "actor_user_id",
+            "occurred_at",
+            postgresql_where=db.text("actor_user_id IS NOT NULL"),
+        ),
+        db.Index(
+            "ix_activity_log_subject_occurred_at",
+            "subject_user_id",
+            "occurred_at",
+            postgresql_where=db.text("subject_user_id IS NOT NULL"),
+        ),
+        db.Index(
+            "ix_activity_log_target_occurred_at",
+            "target_type",
+            "target_id",
+            "occurred_at",
+            postgresql_where=db.text("target_id IS NOT NULL"),
+        ),
+        # The one sanctioned lookup into `context`: finding every sign-in attempt
+        # against a typed address, including addresses that match no account.
+        db.Index(
+            "ix_activity_log_attempted_email",
+            db.text("(context->>'attempted_email')"),
+            postgresql_where=db.text("(context->>'attempted_email') IS NOT NULL"),
+        ),
+    )
+
+    def __repr__(self):
+        return f"<ActivityLog {self.event_type} at {self.occurred_at}>"

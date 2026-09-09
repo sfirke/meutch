@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Log{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="mb-4">
+        <h1><i class="fas fa-user-shield me-2"></i>Admin Panel</h1>
+        <p class="text-muted">Platform administration and user management</p>
+    </div>
+
+    {% include "admin/_tab_bar.html" %}
+
+    {% if prune_overdue %}
+        <div class="alert alert-danger" role="alert">
+            <i class="fas fa-triangle-exclamation me-2"></i>
+            <strong>Entries are not being pruned.</strong>
+            The oldest entry here is from {{ oldest_occurred_at|utc_timestamp('date') }}, which is
+            well past the {{ retention_days }}-day retention window. Check that the scheduled prune
+            job is running &mdash; until it is, this table is keeping personal data it should have
+            deleted.
+        </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Activity Log</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small">
+                Everything the platform records about sign-ins and account changes, newest first.
+                Entries are kept for {{ retention_days }} days and then deleted.
+            </p>
+
+            {% if entries.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>When</th>
+                                <th>Event</th>
+                                <th>Actor</th>
+                                <th>Target</th>
+                                <th>Details</th>
+                                <th class="text-end">Client</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in entries.items %}
+                                <tr>
+                                    <td class="text-nowrap">{{ entry.occurred_at|utc_timestamp('compact') }}</td>
+                                    <td>
+                                        {{ entry.event_type|activity_event_label }}
+                                        {% if entry.source != 'web' %}
+                                            <span class="badge bg-secondary ms-1">{{ entry.source }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if entry.actor %}
+                                            <a href="{{ url_for('main.user_profile', user_id=entry.actor.id) }}" class="text-decoration-none">{{ entry.actor.full_name }}</a>
+                                            {% if entry.actor.is_deleted %}<span class="badge bg-secondary ms-1">deleted</span>{% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Not signed in</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if entry.subject %}
+                                            <a href="{{ url_for('main.user_profile', user_id=entry.subject.id) }}" class="text-decoration-none">{{ entry.subject.full_name }}</a>
+                                            {% if entry.subject.is_deleted %}<span class="badge bg-secondary ms-1">deleted</span>{% endif %}
+                                        {% else %}
+                                            <span class="text-muted">&mdash;</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if entry.context %}
+                                            {# A disclosure rather than a modal or a tooltip: no JavaScript,
+                                               keyboard-accessible, and a collapsed row stays one line tall. #}
+                                            <details>
+                                                <summary class="small">{{ entry.context|length }} field{{ '' if entry.context|length == 1 else 's' }}</summary>
+                                                <dl class="row small mb-0 mt-2">
+                                                    {% for key, value in entry.context.items()|sort %}
+                                                        <dt class="col-sm-5 fw-normal text-muted">{{ key }}</dt>
+                                                        <dd class="col-sm-7 mb-1">{{ value }}</dd>
+                                                    {% endfor %}
+                                                </dl>
+                                            </details>
+                                        {% else %}
+                                            <span class="text-muted">&mdash;</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end small text-muted text-nowrap">
+                                        {% if entry.ip_address %}{{ entry.ip_address }}{% endif %}
+                                        {% if entry.user_agent %}
+                                            <br><span title="{{ entry.user_agent }}">{{ entry.user_agent|user_agent_family }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if entries.pages > 1 %}
+                    <nav aria-label="Activity log pagination">
+                        <ul class="pagination justify-content-center mt-4">
+                            <li class="page-item {% if not entries.has_prev %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin.activity', page=entries.prev_num) if entries.has_prev else '#' }}">
+                                    Previous
+                                </a>
+                            </li>
+
+                            {% for page_num in entries.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                {% if page_num %}
+                                    <li class="page-item {% if page_num == entries.page %}active{% endif %}">
+                                        <a class="page-link" href="{{ url_for('admin.activity', page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                                {% endif %}
+                            {% endfor %}
+
+                            <li class="page-item {% if not entries.has_next %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin.activity', page=entries.next_num) if entries.has_next else '#' }}">
+                                    Next
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <p class="text-muted text-center py-4">No activity recorded yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -250,6 +250,16 @@ class Config:
     # IP address by sending its own X-Forwarded-For header.
     TRUSTED_PROXY_COUNT = parse_int_env(os.environ.get("TRUSTED_PROXY_COUNT"), 1)
 
+    # Kill switch for the activity log. Writes are already isolated from the request
+    # that triggers them, but if the table ever becomes a problem in production this
+    # turns it off without a code deploy.
+    ACTIVITY_LOG_ENABLED = parse_bool_env(os.environ.get("ACTIVITY_LOG_ENABLED"), True)
+
+    # How long an activity log entry is kept. The prune job enforces this; the admin
+    # Activity page warns when the oldest surviving row is well past it, which is how
+    # an unscheduled prune job gets noticed.
+    ACTIVITY_LOG_RETENTION_DAYS = parse_int_env(os.environ.get("ACTIVITY_LOG_RETENTION_DAYS"), 90)
+
     API_V1_ENABLED = parse_bool_env(os.environ.get("API_V1_ENABLED"), True)
     API_V1_WRITE_ENABLED = parse_bool_env(os.environ.get("API_V1_WRITE_ENABLED"), True)
     API_V1_RATE_LIMITS_ENABLED = parse_bool_env(os.environ.get("API_V1_RATE_LIMITS_ENABLED"), True)
