@@ -3,10 +3,16 @@ from unittest.mock import patch
 
 import pytest
 
-from app.models import LoanRequest, Message
+from app import db
+from app.models import LoanExtensionRequest, LoanRequest, Message
 from app.services import loan_service
 from app.services.exceptions import AuthorizationError, ConflictError, InformationalError
-from tests.factories import ItemFactory, LoanRequestFactory, UserFactory
+from tests.factories import (
+    ItemFactory,
+    LoanExtensionRequestFactory,
+    LoanRequestFactory,
+    UserFactory,
+)
 
 
 class TestLoanService:
@@ -281,3 +287,98 @@ class TestLoanService:
 
             with pytest.raises(AuthorizationError):
                 loan_service.extend_loan(loan, other.id, date.today() + timedelta(days=7), "")
+
+    def _approved_loan(self):
+        owner = UserFactory()
+        borrower = UserFactory()
+        item = ItemFactory(owner=owner, is_giveaway=False, available=True)
+        loan = LoanRequestFactory(
+            item=item,
+            borrower=borrower,
+            status="approved",
+            end_date=date.today() + timedelta(days=3),
+        )
+        return loan
+
+    def test_request_extension_rejects_a_second_pending_request(self, app):
+        with app.app_context():
+            loan = self._approved_loan()
+            db.session.add(
+                LoanExtensionRequest(
+                    loan_request_id=loan.id,
+                    proposed_end_date=date.today() + timedelta(days=7),
+                    message="First",
+                    status="pending",
+                )
+            )
+            db.session.commit()
+
+            # Two submissions arriving together both clear the in-Python check,
+            # so stub it out to reach the insert the database has to refuse.
+            with patch.object(LoanRequest, "has_pending_extension", False):
+                with pytest.raises(ConflictError, match="already have a pending extension"):
+                    loan_service.request_extension(
+                        loan,
+                        loan.borrower_id,
+                        date.today() + timedelta(days=10),
+                        "Second",
+                    )
+
+            assert LoanExtensionRequest.query.filter_by(status="pending").count() == 1
+            assert Message.query.count() == 0
+
+    def test_extend_loan_resolves_a_pending_request_it_satisfies(self, app):
+        with app.app_context():
+            loan = self._approved_loan()
+            pending = LoanExtensionRequestFactory(
+                loan_request=loan, proposed_end_date=date.today() + timedelta(days=7)
+            )
+            db.session.commit()
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                loan_service.extend_loan(
+                    loan, loan.item.owner_id, date.today() + timedelta(days=10), ""
+                )
+
+            assert pending.status == "approved"
+            assert pending.responded_at is not None
+            assert loan.has_pending_extension is False
+
+    def test_extend_loan_keeps_a_pending_request_asking_for_more(self, app):
+        with app.app_context():
+            loan = self._approved_loan()
+            pending = LoanExtensionRequestFactory(
+                loan_request=loan, proposed_end_date=date.today() + timedelta(days=14)
+            )
+            db.session.commit()
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                loan_service.extend_loan(
+                    loan, loan.item.owner_id, date.today() + timedelta(days=10), ""
+                )
+
+            assert pending.status == "pending"
+
+    def test_request_extension_allowed_again_after_a_denial(self, app):
+        with app.app_context():
+            loan = self._approved_loan()
+            db.session.add(
+                LoanExtensionRequest(
+                    loan_request_id=loan.id,
+                    proposed_end_date=date.today() + timedelta(days=7),
+                    message="First",
+                    status="denied",
+                )
+            )
+            db.session.commit()
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                loan_service.request_extension(
+                    loan,
+                    loan.borrower_id,
+                    date.today() + timedelta(days=10),
+                    "Trying again",
+                )
+
+            assert LoanExtensionRequest.query.filter_by(status="pending").count() == 1
+            assert LoanExtensionRequest.query.count() == 2
