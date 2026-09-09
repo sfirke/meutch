@@ -1053,6 +1053,9 @@ class TestLoanReminderEmailLinks:
             )
             item_url = url_for("main.item_detail", item_id=loan.item_id, _external=True)
             extend_url = url_for("main.extend_loan", loan_id=loan.id, _external=True)
+            request_extension_url = url_for(
+                "main.request_extension", loan_id=loan.id, _external=True
+            )
 
             with patch("app.utils.email.send_email") as mock_send_email:
                 mock_send_email.return_value = True
@@ -1065,3 +1068,4 @@ class TestLoanReminderEmailLinks:
                 assert conversation_url in content
                 assert item_url not in content
                 assert (extend_url in content) is for_owner
+                assert (request_extension_url in content) is not for_owner

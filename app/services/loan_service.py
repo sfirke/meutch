@@ -199,6 +199,14 @@ def extend_loan(loan, owner_id, new_end_date, owner_message):
     loan.end_date = new_end_date
     _reset_loan_reminders(loan)
 
+    # A pending borrower request that asked for this much time or less is now
+    # satisfied.  Leaving it pending would block the borrower from asking again
+    # while its Approve button fails as stale.
+    pending_request = loan.pending_extension_request
+    if pending_request and pending_request.proposed_end_date <= new_end_date:
+        pending_request.status = "approved"
+        pending_request.responded_at = datetime.now(UTC)
+
     is_extension = new_end_date > old_end_date
     cleaned_message = owner_message.strip() if owner_message else ""
     if cleaned_message:
@@ -252,6 +260,12 @@ def request_extension(loan, borrower_id, proposed_end_date, borrower_message):
 
     cleaned_message = borrower_message.strip() if borrower_message else ""
 
+    # get_or_create_conversation commits when it has to create the thread, so
+    # settle that before the extension row is added.  Otherwise a pending row
+    # could be committed on its own and the message that follows it lost.
+    owner_id = loan.item.owner_id
+    conversation = _ensure_item_conversation(loan.item, borrower_id, owner_id)
+
     db.session.add(
         LoanExtensionRequest(
             loan_request_id=loan.id,
@@ -276,9 +290,6 @@ def request_extension(loan, borrower_id, proposed_end_date, borrower_message):
         f"Proposed new due date: {proposed_end_date.strftime('%B %d, %Y')}\n\n"
         f"Message from borrower: {cleaned_message}"
     )
-
-    owner_id = loan.item.owner_id
-    conversation = _ensure_item_conversation(loan.item, borrower_id, owner_id)
 
     return message_service.create_message(
         borrower_id,

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import date, timedelta
 
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -252,7 +252,7 @@ def request_extension(loan_id):
     form = RequestExtensionForm(current_end_date=loan.end_date)
     # An overdue loan's due date is already in the past, and the form rejects
     # past dates, so the picker's floor is whichever of the two is later.
-    min_extension_date = max(loan.end_date + timedelta(days=1), datetime.now(UTC).date())
+    min_extension_date = max(loan.end_date + timedelta(days=1), date.today())
 
     if form.validate_on_submit():
         try:

@@ -724,11 +724,11 @@ class LoanRequest(db.Model):
 
     @property
     def pending_extension_request(self):
-        """Returns the latest pending extension request for this loan, if any."""
-        pending_requests = [req for req in self.extension_requests if req.status == "pending"]
-        if not pending_requests:
-            return None
-        return max(pending_requests, key=lambda req: req.created_at)
+        """Returns the pending extension request for this loan, if any.
+
+        The partial unique index allows at most one pending request per loan.
+        """
+        return next((req for req in self.extension_requests if req.status == "pending"), None)
 
     @property
     def has_pending_extension(self):
@@ -751,6 +751,7 @@ class LoanExtensionRequest(db.Model):
         UUID(as_uuid=True),
         db.ForeignKey("loan_request.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     proposed_end_date = db.Column(db.Date, nullable=False)
     message = db.Column(db.Text, nullable=False)

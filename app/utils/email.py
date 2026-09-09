@@ -216,34 +216,35 @@ def send_message_notification_email(message):
     if message.is_loan_request_message:
         item_name = conversation.item.name if conversation.item else "Unknown Item"
         message_body_lower = _generated_prefix(message.body)
+        loan_is_active = message.loan_request.status == "approved"
         # Which loan event this is has to be read back out of the wording the
-        # app used when it wrote the message.
-        if "extension requested" in message_body_lower:
+        # app used when it wrote the message.  Match the sentence shape around
+        # the quoted item name, not bare words: the item name is user-typed
+        # too, and a loan request's opening message is entirely free text.
+        if loan_is_active and message_body_lower.startswith("extension requested for '"):
             subject = f"Meutch - Extension Request for {item_name}"
             email_type = "extension request"
         elif (
-            message.loan_request.status == "approved"
-            and "extension request" in message_body_lower
-            and "approved" in message_body_lower
+            loan_is_active
+            and message_body_lower.startswith("your extension request for '")
+            and "' has been approved." in message_body_lower
         ):
             subject = f"Meutch - Extension Approved for {item_name}"
             email_type = "extension approval"
         elif (
-            message.loan_request.status == "approved" and "has been extended" in message_body_lower
-        ):
-            subject = f"Meutch - Loan Extended for {item_name}"
-            email_type = "loan extension"
-        elif message.loan_request.status == "approved" and "has been updated" in message_body_lower:
-            # The owner moved the due date earlier; "extended" would be wrong.
-            subject = f"Meutch - Due Date Updated for {item_name}"
-            email_type = "due date update"
-        elif (
-            message.loan_request.status == "approved"
-            and "extension request" in message_body_lower
-            and "denied" in message_body_lower
+            loan_is_active
+            and message_body_lower.startswith("your extension request for '")
+            and "' was denied." in message_body_lower
         ):
             subject = f"Meutch - Extension Denied for {item_name}"
             email_type = "extension denial"
+        elif loan_is_active and "' has been extended" in message_body_lower:
+            subject = f"Meutch - Loan Extended for {item_name}"
+            email_type = "loan extension"
+        elif loan_is_active and "' has been updated" in message_body_lower:
+            # The owner moved the due date earlier; "extended" would be wrong.
+            subject = f"Meutch - Due Date Updated for {item_name}"
+            email_type = "due date update"
         elif message.loan_request.status == "pending":
             subject = f"Meutch - New Loan Request for {item_name}"
             email_type = "loan request"

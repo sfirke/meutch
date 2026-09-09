@@ -113,7 +113,7 @@
                         {% elif convo.circle %}
                             <span class="context-badge context-badge--circle">{{ convo.circle.name|truncate(60) }}</span>
                         {% endif %}
-                        <span class="conv-preview">{{ convo.latest_message.body | replace('\n', ' ') }}</span>
+                        <span class="conv-preview">{{ convo.latest_message.body }}</span>
                     </div>
 
                     {# Meta: timestamp gutter #}

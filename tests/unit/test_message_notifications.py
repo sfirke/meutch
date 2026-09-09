@@ -392,6 +392,57 @@ class TestMessageNotifications:
                 args, _ = mock_send_email.call_args
                 assert "Loan Extended for Table Saw" in args[1]
 
+    def test_borrower_wording_on_a_new_loan_request_stays_a_loan_request(self, app):
+        """A loan request's opening message is free text and must not be sniffed."""
+        with app.app_context():
+            borrower = UserFactory(email="borrower6@test.com")
+            owner = UserFactory(email="owner6@test.com")
+            item = ItemFactory(name="Canoe", owner=owner)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+
+            loan_request = LoanRequestFactory(item=item, borrower=borrower, status="pending")
+            message = MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                conversation=conversation,
+                body="Extension requested for 'Canoe' if the trip runs long, otherwise a week.",
+                loan_request=loan_request,
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                assert send_message_notification_email(message) is True
+                args, _ = mock_send_email.call_args
+                assert "New Loan Request for Canoe" in args[1]
+
+    def test_item_name_does_not_decide_the_subject(self, app):
+        """The item name is user-typed too."""
+        with app.app_context():
+            owner = UserFactory(email="owner7@test.com")
+            borrower = UserFactory(email="borrower7@test.com")
+            item = ItemFactory(name="Pre-Approved Seed Starter Kit", owner=owner)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+
+            loan_request = LoanRequestFactory(item=item, borrower=borrower, status="approved")
+            message = MessageFactory(
+                sender=owner,
+                recipient=borrower,
+                conversation=conversation,
+                body=(
+                    "Your extension request for 'Pre-Approved Seed Starter Kit' was denied. "
+                    "The current due date remains April 05, 2026."
+                ),
+                loan_request=loan_request,
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                assert send_message_notification_email(message) is True
+                args, _ = mock_send_email.call_args
+                assert "Extension Denied for Pre-Approved Seed Starter Kit" in args[1]
+
     def test_shortened_due_date_uses_the_due_date_updated_subject(self, app):
         """Moving a due date earlier is not an extension."""
         with app.app_context():

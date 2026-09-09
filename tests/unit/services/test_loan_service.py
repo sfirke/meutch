@@ -7,7 +7,12 @@ from app import db
 from app.models import LoanExtensionRequest, LoanRequest, Message
 from app.services import loan_service
 from app.services.exceptions import AuthorizationError, ConflictError, InformationalError
-from tests.factories import ItemFactory, LoanRequestFactory, UserFactory
+from tests.factories import (
+    ItemFactory,
+    LoanExtensionRequestFactory,
+    LoanRequestFactory,
+    UserFactory,
+)
 
 
 class TestLoanService:
@@ -321,6 +326,38 @@ class TestLoanService:
 
             assert LoanExtensionRequest.query.filter_by(status="pending").count() == 1
             assert Message.query.count() == 0
+
+    def test_extend_loan_resolves_a_pending_request_it_satisfies(self, app):
+        with app.app_context():
+            loan = self._approved_loan()
+            pending = LoanExtensionRequestFactory(
+                loan_request=loan, proposed_end_date=date.today() + timedelta(days=7)
+            )
+            db.session.commit()
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                loan_service.extend_loan(
+                    loan, loan.item.owner_id, date.today() + timedelta(days=10), ""
+                )
+
+            assert pending.status == "approved"
+            assert pending.responded_at is not None
+            assert loan.has_pending_extension is False
+
+    def test_extend_loan_keeps_a_pending_request_asking_for_more(self, app):
+        with app.app_context():
+            loan = self._approved_loan()
+            pending = LoanExtensionRequestFactory(
+                loan_request=loan, proposed_end_date=date.today() + timedelta(days=14)
+            )
+            db.session.commit()
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                loan_service.extend_loan(
+                    loan, loan.item.owner_id, date.today() + timedelta(days=10), ""
+                )
+
+            assert pending.status == "pending"
 
     def test_request_extension_allowed_again_after_a_denial(self, app):
         with app.app_context():
