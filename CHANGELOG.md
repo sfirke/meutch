@@ -17,6 +17,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### API development (continued)
 - Cut the query cost of circle, request, and feed reads across the app and the API ([#480](https://github.com/sfirke/meutch/pull/480)).
 
+### Developer Experience
+- Application logs now actually reach the logs. Production runs at INFO instead of WARNING and `LOG_LEVEL` can be changed by an environment variable so increasing the detail during an incident doesn't require a code deploy ([#482](https://github.com/sfirke/meutch/pull/482)).
+
 ## August 2026
 
 ### Features
