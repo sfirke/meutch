@@ -168,6 +168,26 @@ Set this to `2` if another proxy (Cloudflare, an nginx front end) is added ahead
 
 Before changing it, confirm the real hop count rather than guessing: log the raw `X-Forwarded-For` header on staging for a day and count the addresses.
 
+### Optional: Activity Log
+
+```bash
+# Turn the first-party activity log off without a code deploy. Default: true.
+ACTIVITY_LOG_ENABLED=true
+
+# How long an entry is kept, in days. Default: 90.
+ACTIVITY_LOG_RETENTION_DAYS=90
+```
+
+The activity log is our own record of things that happen on the site, kept in the
+`activity_log` table. Entries are written on their own database connection, so a logging
+failure cannot break the request that triggered it; failures are logged at `WARNING`.
+
+`ACTIVITY_LOG_ENABLED=false` stops all writes. Nothing else changes.
+
+`ACTIVITY_LOG_RETENTION_DAYS` is the retention window, and **it does not delete anything
+by itself** — a scheduled prune job is what enforces it. The table holds IP addresses,
+so that job is not optional in the long run.
+
 ### Optional: API Maintenance
 
 ```bash
