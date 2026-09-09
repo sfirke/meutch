@@ -148,7 +148,7 @@ def _generated_prefix(body):
     Subject lines are chosen by looking for phrases the app itself wrote, so
     the sender's free text has to be stripped first.  Otherwise an owner who
     writes "granting the extension requested last week" has their note filed
-    as a different kind of loan event.
+    as a brand new extension request.
     """
     lowered = (body or "").lower()
     for marker in _FREE_TEXT_MARKERS:
@@ -219,8 +219,26 @@ def send_message_notification_email(message):
         loan_is_active = message.loan_request.status == "approved"
         # Which loan event this is has to be read back out of the wording the
         # app used when it wrote the message.  Match the sentence shape around
-        # the quoted item name, not bare words: the item name is user-typed too.
-        if loan_is_active and "' has been extended" in message_body_lower:
+        # the quoted item name, not bare words: the item name is user-typed
+        # too, and a loan request's opening message is entirely free text.
+        if loan_is_active and message_body_lower.startswith("extension requested for '"):
+            subject = f"Meutch - Extension Request for {item_name}"
+            email_type = "extension request"
+        elif (
+            loan_is_active
+            and message_body_lower.startswith("your extension request for '")
+            and "' has been approved." in message_body_lower
+        ):
+            subject = f"Meutch - Extension Approved for {item_name}"
+            email_type = "extension approval"
+        elif (
+            loan_is_active
+            and message_body_lower.startswith("your extension request for '")
+            and "' was denied." in message_body_lower
+        ):
+            subject = f"Meutch - Extension Denied for {item_name}"
+            email_type = "extension denial"
+        elif loan_is_active and "' has been extended" in message_body_lower:
             subject = f"Meutch - Loan Extended for {item_name}"
             email_type = "loan extension"
         elif loan_is_active and "' has been updated" in message_body_lower:
@@ -942,6 +960,7 @@ def send_loan_due_soon_email(loan):
     from app.utils.messaging_queries import loan_conversation_url
 
     conversation_url = loan_conversation_url(loan, external=True)
+    extension_url = url_for("main.request_extension", loan_id=loan.id, _external=True)
 
     subject = f"Meutch - Reminder: {loan.item.name} is due in 3 days"
 
@@ -955,6 +974,9 @@ Owner: {owner.first_name} {owner.last_name}
 Due Date: {loan.end_date.strftime("%B %d, %Y")} (in 3 days)
 
 Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
+
+Need more time? Request an extension here:
+{extension_url}
 
 You can view the loan and message the owner here:
 {conversation_url}
@@ -985,7 +1007,11 @@ The Meutch Team
             Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
         </p>
 
-        <div style="text-align: center; margin: 30px 0;">
+        <div style="text-align: center; margin: 30px 0; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <a href="{extension_url}"
+               style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Request Extension
+            </a>
             <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 View Loan
@@ -1025,6 +1051,7 @@ def send_loan_due_today_borrower_email(loan):
     from app.utils.messaging_queries import loan_conversation_url
 
     conversation_url = loan_conversation_url(loan, external=True)
+    extension_url = url_for("main.request_extension", loan_id=loan.id, _external=True)
 
     subject = f"Meutch - {loan.item.name} is due back today"
 
@@ -1038,6 +1065,9 @@ Owner: {owner.first_name} {owner.last_name}
 Due Date: Today, {loan.end_date.strftime("%B %d, %Y")}
 
 Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
+
+If you need more time, you can request an extension here:
+{extension_url}
 
 You can view the loan and message the owner here:
 {conversation_url}
@@ -1068,7 +1098,11 @@ The Meutch Team
             Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
         </p>
 
-        <div style="text-align: center; margin: 30px 0;">
+        <div style="text-align: center; margin: 30px 0; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <a href="{extension_url}"
+               style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Request Extension
+            </a>
             <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 View Loan
@@ -1198,6 +1232,7 @@ def send_loan_overdue_borrower_email(loan, days_overdue):
     from app.utils.messaging_queries import loan_conversation_url
 
     conversation_url = loan_conversation_url(loan, external=True)
+    extension_url = url_for("main.request_extension", loan_id=loan.id, _external=True)
 
     subject = f"Meutch - Reminder: {loan.item.name} is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue"
 
@@ -1212,6 +1247,9 @@ Due Date: {loan.end_date.strftime("%B %d, %Y")}
 Days Overdue: {days_overdue}
 
 Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
+
+Need additional time? Request an extension here:
+{extension_url}
 
 You can view the loan and message the owner here:
 {conversation_url}
@@ -1243,7 +1281,11 @@ The Meutch Team
             Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
         </p>
 
-        <div style="text-align: center; margin: 30px 0;">
+        <div style="text-align: center; margin: 30px 0; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <a href="{extension_url}"
+               style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Request Extension
+            </a>
             <a href="{conversation_url}"
                style="background-color: #dc3545; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 View Loan
