@@ -27,7 +27,7 @@ from app.forms_items import (
     ReleaseToAllForm,
     SelectRecipientForm,
 )
-from app.forms_loans import ExtendLoanForm, LoanRequestForm
+from app.forms_loans import ExtendLoanForm, LoanRequestForm, RequestExtensionForm
 from app.forms_messaging import BulkActionForm, MessageForm
 from app.forms_profile import (
     DeleteAccountForm,
@@ -70,6 +70,7 @@ __all__ = [
     "OptionalURL",
     "RegistrationForm",
     "ReleaseToAllForm",
+    "RequestExtensionForm",
     "ResendConfirmationForm",
     "ResetPasswordForm",
     "SelectRecipientForm",
