@@ -3,7 +3,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.utils.email import build_message_reply_address, send_message_notification_email
-from tests.factories import ConversationFactory, ItemFactory, MessageFactory, UserFactory
+from tests.factories import (
+    ConversationFactory,
+    ItemFactory,
+    LoanRequestFactory,
+    MessageFactory,
+    UserFactory,
+)
 
 
 class TestMessageNotifications:
@@ -294,6 +300,64 @@ class TestMessageNotifications:
             assert "Valid statuses are: pending, approved, denied, completed, canceled" in str(
                 exc_info.value
             )
+
+    def test_owner_wording_does_not_turn_an_extension_into_a_request(self, app):
+        """The owner's own words must not decide the subject line."""
+        with app.app_context():
+            owner = UserFactory(email="owner4@test.com", first_name="Robin", last_name="Owner")
+            borrower = UserFactory(
+                email="borrower4@test.com", first_name="Jamie", last_name="Borrower"
+            )
+            item = ItemFactory(name="Table Saw", owner=owner)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+
+            loan_request = LoanRequestFactory(item=item, borrower=borrower, status="approved")
+            message = MessageFactory(
+                sender=owner,
+                recipient=borrower,
+                conversation=conversation,
+                body=(
+                    "The loan of 'Table Saw' has been extended until April 20, 2026.\n\n"
+                    "Message from owner: the due date update requested last week"
+                ),
+                loan_request=loan_request,
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                assert send_message_notification_email(message) is True
+                args, _ = mock_send_email.call_args
+                assert "Loan Extended for Table Saw" in args[1]
+
+    def test_shortened_due_date_uses_the_due_date_updated_subject(self, app):
+        """Moving a due date earlier is not an extension."""
+        with app.app_context():
+            owner = UserFactory(email="owner5@test.com", first_name="Sky", last_name="Owner")
+            borrower = UserFactory(
+                email="borrower5@test.com", first_name="Quinn", last_name="Borrower"
+            )
+            item = ItemFactory(name="Tent", owner=owner)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+
+            loan_request = LoanRequestFactory(item=item, borrower=borrower, status="approved")
+            message = MessageFactory(
+                sender=owner,
+                recipient=borrower,
+                conversation=conversation,
+                body=(
+                    "The due date for 'Tent' has been updated. The new due date is "
+                    "April 02, 2026 (previously April 09, 2026)."
+                ),
+                loan_request=loan_request,
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                assert send_message_notification_email(message) is True
+                args, _ = mock_send_email.call_args
+                assert "Due Date Updated for Tent" in args[1]
 
 
 class TestMessageNotificationBodyRendering:
