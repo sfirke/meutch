@@ -43,7 +43,7 @@
                                         </a>
                                     </h3>
                                     <p class="text-muted small mb-0">
-                                        {{ featured_circle.members|length }} members
+                                        {{ featured_circle.member_count }} members
                                         {% if featured_distance %}
                                             <span class="ms-2"><i class="fas fa-map-marker-alt me-1"></i>{{ featured_distance }}</span>
                                         {% endif %}
@@ -61,7 +61,7 @@
                                 {% endfor %}
                             </div>
                             {% else %}
-                            <p class="small text-muted mb-3">This circle already has {{ featured_circle.members|length }} members and is a strong place to start building local sharing.</p>
+                            <p class="small text-muted mb-3">This circle already has {{ featured_circle.member_count }} members and is a strong place to start building local sharing.</p>
                             {% endif %}
                             <div class="d-flex flex-wrap gap-2">
                                 <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="btn btn-primary">View Circle</a>
@@ -106,7 +106,7 @@
                                     </a>
                                 </h3>
                                 <p class="text-muted small mb-0">
-                                    {{ recommended_circle.members|length }} members
+                                    {{ recommended_circle.member_count }} members
                                     {% if recommended_distance %}
                                         <span class="ms-1">| {{ recommended_distance }}</span>
                                     {% endif %}
@@ -220,7 +220,7 @@
                                     {% endif %}
                                 </h5>
                                 <p class="mb-1">{{ circle.description|linkify }}</p>
-                                <small>Members: {{ circle.members|length }}
+                                <small>Members: {{ circle.member_count }}
                                 {% set distance = get_distance_to_circle(circle) %}
                                 {% if distance %}
                                     | <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
@@ -316,7 +316,7 @@
                                 {% endif %}
                             </h5>
                             <p class="mb-1">{{ circle.description|linkify }}</p>
-                            <small>{{ circle.members|length }} members
+                            <small>{{ circle.member_count }} members
                             {% set distance = get_distance_to_circle(circle) %}
                             {% if distance %}
                                 | <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
@@ -333,9 +333,9 @@
                                              width="32" height="32">
                                     </div>
                                 {% endfor %}
-                                {% if circle.members|length > sample_members|length %}
+                                {% if circle.member_count > sample_members|length %}
                                     <span class="text-muted small ms-1">
-                                        +{{ circle.members|length - sample_members|length }} more
+                                        +{{ circle.member_count - sample_members|length }} more
                                     </span>
                                 {% endif %}
                             </div>
@@ -385,7 +385,7 @@
                                 {% endif %}
                             </h5>
                             <p class="mb-1">{{ circle.description|linkify }}</p>
-                            <small>{{ circle.members|length }} members
+                            <small>{{ circle.member_count }} members
                             {% set distance = get_distance_to_circle(circle) %}
                             {% if distance %}
                                 | <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
@@ -402,9 +402,9 @@
                                              width="32" height="32">
                                     </div>
                                 {% endfor %}
-                                {% if circle.members|length > sample_members|length %}
+                                {% if circle.member_count > sample_members|length %}
                                     <span class="text-muted small ms-1">
-                                        +{{ circle.members|length - sample_members|length }} more
+                                        +{{ circle.member_count - sample_members|length }} more
                                     </span>
                                 {% endif %}
                             </div>

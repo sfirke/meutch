@@ -1,4 +1,5 @@
 import logging
+import math
 from time import sleep
 from typing import Optional, Tuple
 
@@ -15,6 +16,7 @@ NOMINATIM_BASE_PARAMS = {
     "limit": 1,
     "addressdetails": 1,
 }
+EARTH_RADIUS_MILES = 3956
 
 
 class GeocodingError(Exception):
@@ -208,8 +210,6 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     Returns:
         Distance in miles
     """
-    import math
-
     # Convert latitude and longitude to radians
     lat1_rad, lon1_rad = math.radians(lat1), math.radians(lon1)
     lat2_rad, lon2_rad = math.radians(lat2), math.radians(lon2)
@@ -220,9 +220,43 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     a = math.sin(dlat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
     c = 2 * math.asin(math.sqrt(a))
 
-    # Radius of earth in miles
-    r = 3956
-    return r * c
+    return EARTH_RADIUS_MILES * c
+
+
+def bounding_box(latitude: float, longitude: float, radius_miles: float):
+    """Return ``(min_lat, max_lat, min_lon, max_lon)`` enclosing a radius.
+
+    The box is a superset of the circle of that radius, so it is safe as a
+    database-side prefilter ahead of the exact Haversine check: it can pass
+    through points that turn out to be too far away, but it never drops one
+    that is close enough.  Near the poles, or when the box would wrap the
+    antimeridian, the longitude bounds widen to the full range rather than
+    splitting into two ranges.
+    """
+    if latitude is None or longitude is None or radius_miles is None:
+        return None
+
+    latitude_delta = math.degrees(radius_miles / EARTH_RADIUS_MILES)
+    min_lat = max(latitude - latitude_delta, -90.0)
+    max_lat = min(latitude + latitude_delta, 90.0)
+
+    # A degree of longitude shrinks with latitude, so widen using whichever
+    # edge of the latitude band is closest to a pole.
+    widest_lat = max(abs(min_lat), abs(max_lat))
+    cos_widest_lat = math.cos(math.radians(widest_lat))
+    if cos_widest_lat <= 1e-9:
+        return (min_lat, max_lat, -180.0, 180.0)
+
+    longitude_delta = latitude_delta / cos_widest_lat
+    if longitude_delta >= 180.0:
+        return (min_lat, max_lat, -180.0, 180.0)
+
+    min_lon = longitude - longitude_delta
+    max_lon = longitude + longitude_delta
+    if min_lon < -180.0 or max_lon > 180.0:
+        return (min_lat, max_lat, -180.0, 180.0)
+
+    return (min_lat, max_lat, min_lon, max_lon)
 
 
 def format_distance(distance_miles: float) -> str:

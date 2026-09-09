@@ -30,6 +30,7 @@ from app.utils.circle_queries import (
     get_listed_circles,
     get_paginated_circle_members,
     get_sorted_user_circles,
+    get_user_circle_memberships,
     should_show_circle_members,
 )
 from app.utils.pagination import ListPagination
@@ -60,9 +61,15 @@ def _fetch_pending_requests_by_circle(user_id, circle_ids):
     return {req.circle_id: req for req in requests}
 
 
-def _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle):
-    circle.api_is_member = current_user in circle.members
-    circle.api_is_admin = circle.is_admin(current_user) if circle.api_is_member else False
+def _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle, memberships):
+    """Attach the caller's view of a circle without re-querying per circle.
+
+    ``memberships`` is the caller's ``{circle_id: is_admin}`` map from
+    :func:`get_user_circle_memberships`; reading membership from it keeps a list
+    of circles at a fixed number of queries.
+    """
+    circle.api_is_member = circle.id in memberships
+    circle.api_is_admin = memberships.get(circle.id, False)
     circle.api_pending_join_request = pending_requests_by_circle.get(circle.id)
     circle.api_pending_join_request_count = admin_pending_counts.get(str(circle.id), 0)
     circle.api_distance_miles = circle.distance_to_user(current_user)
@@ -72,8 +79,12 @@ def _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle):
 def _annotate_circle_detail(circle, members_page=1, members_per_page=20):
     admin_pending_counts = get_admin_circle_pending_counts(current_user.id)
     pending_requests_by_circle = _fetch_pending_requests_by_circle(current_user.id, [circle.id])
-    circle = _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle)
-    circle.api_can_view_members = should_show_circle_members(circle, current_user)
+    membership = circle.membership_of(current_user)
+    memberships = {circle.id: bool(membership.is_admin)} if membership else {}
+    circle = _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle, memberships)
+    circle.api_can_view_members = should_show_circle_members(
+        circle, current_user, is_member=circle.api_is_member
+    )
     circle.api_members = []
     circle.api_members_total = 0
     circle.api_members_page = members_page
@@ -113,22 +124,25 @@ def list_circles():
             )
         )
 
-    admin_pending_counts = get_admin_circle_pending_counts(current_user.id)
-    circle_ids = [c.id for c in circles]
-    pending_requests_by_circle = _fetch_pending_requests_by_circle(current_user.id, circle_ids)
-    annotated_circles = [
-        _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle)
-        for circle in circles
-    ]
     pagination = ListPagination(
-        items=annotated_circles,
+        items=circles,
         page=query_data["page"],
         per_page=query_data["per_page"],
     )
+    # Only the circles on this page get serialized, so only they need the
+    # caller's per-circle context looked up.
+    page_circles = pagination.items
+    admin_pending_counts = get_admin_circle_pending_counts(current_user.id)
+    memberships = get_user_circle_memberships(current_user.id)
+    pending_requests_by_circle = _fetch_pending_requests_by_circle(
+        current_user.id, [circle.id for circle in page_circles]
+    )
+    for circle in page_circles:
+        _annotate_circle(circle, admin_pending_counts, pending_requests_by_circle, memberships)
 
     return build_collection_response(
         "circles",
-        CIRCLE_SUMMARY_SCHEMA.dump(pagination.items),
+        CIRCLE_SUMMARY_SCHEMA.dump(page_circles),
         pagination=pagination,
     )
 
@@ -139,7 +153,7 @@ def list_circles():
 def get_circle(circle_id):
     """Return circle details for the authenticated user."""
     circle = db.get_or_404(Circle, circle_id)
-    if circle.circle_type == "secret" and current_user not in circle.members:
+    if circle.circle_type == "secret" and not circle.has_member(current_user):
         abort(404)
     members_page = request.args.get("members_page", 1, type=int)
     members_per_page = request.args.get("members_per_page", 20, type=int)
