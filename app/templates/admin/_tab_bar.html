@@ -1,0 +1,13 @@
+{# Takes active_tab: the key of the tab to show as selected. #}
+    <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'users' %}active{% endif %}" id="admin-users-tab" data-bs-toggle="tab" data-bs-target="#admin-users" type="button" role="tab" aria-controls="admin-users" aria-selected="{{ 'true' if active_tab == 'users' else 'false' }}" data-admin-tab="users">
+                <i class="fas fa-users-cog me-2"></i>Users
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'analytics' %}active{% endif %}" id="admin-analytics-tab" data-bs-toggle="tab" data-bs-target="#admin-analytics" type="button" role="tab" aria-controls="admin-analytics" aria-selected="{{ 'true' if active_tab == 'analytics' else 'false' }}" data-admin-tab="analytics">
+                <i class="fas fa-chart-line me-2"></i>Analytics
+            </button>
+        </li>
+    </ul>

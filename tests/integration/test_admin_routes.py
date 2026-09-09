@@ -113,6 +113,10 @@ class TestAdminDashboardMetrics:
         assert b"Monthly Active Users" in response.data
         assert b"Starting Jan 2026" in response.data
 
+        content = response.data.decode("utf-8")
+        assert re.search(r'id="admin-analytics-tab"[^>]*aria-selected="true"', content)
+        assert re.search(r'id="admin-users-tab"[^>]*aria-selected="false"', content)
+
     def test_dashboard_mau_chart_uses_qualifying_activity_only(self, client, db_session):
         """Test MAU chart counts qualifying monthly activity and excludes invalid rows."""
         admin = UserFactory(is_admin=True)

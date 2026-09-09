@@ -169,6 +169,11 @@ class TestConfig(Config):
     # Logging
     LOG_LEVEL = "ERROR"
 
+    # No proxy sits in front of the test client, so leave request.remote_addr as the
+    # direct peer. Tests that need forwarded-header handling opt in with their own
+    # config subclass.
+    TRUSTED_PROXY_COUNT = 0
+
     # Keep production-like limiter wiring active in tests, but use very high
     # defaults so ordinary integration traffic does not exhaust shared buckets.
     API_V1_RATE_LIMITS_ENABLED = True

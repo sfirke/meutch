@@ -238,6 +238,15 @@ class Config:
     # unusually large photos can be rejected here.
     MAX_CONTENT_LENGTH = parse_int_env(os.environ.get("MAX_CONTENT_LENGTH"), 128 * 1024 * 1024)
 
+    # Number of reverse proxies in front of the app whose X-Forwarded-* headers can be
+    # trusted. DigitalOcean's App Platform load balancer appends exactly one hop, so 1
+    # is the right default there; set it to 2 if another proxy (Cloudflare, nginx) is
+    # added in front. Setting it to 0 disables ProxyFix entirely and makes
+    # request.remote_addr the direct peer, which is what a local server or the test
+    # suite wants. Trusting more hops than actually exist lets a client spoof its own
+    # IP address by sending its own X-Forwarded-For header.
+    TRUSTED_PROXY_COUNT = parse_int_env(os.environ.get("TRUSTED_PROXY_COUNT"), 1)
+
     API_V1_ENABLED = parse_bool_env(os.environ.get("API_V1_ENABLED"), True)
     API_V1_WRITE_ENABLED = parse_bool_env(os.environ.get("API_V1_WRITE_ENABLED"), True)
     API_V1_RATE_LIMITS_ENABLED = parse_bool_env(os.environ.get("API_V1_RATE_LIMITS_ENABLED"), True)

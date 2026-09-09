@@ -151,6 +151,23 @@ Turn this down to `DEBUG` while triaging an incident and back to `INFO` afterwar
 
 `INFO` is the useful production setting: the app's `logger.info` calls record what a user did just before whatever went wrong. Third-party libraries that are unreadable at low levels (`boto3`, `botocore`, `s3transfer`, `urllib3`, `PIL`) are pinned to `WARNING` regardless, so lowering this does not bury the app's own lines.
 
+### Optional: Reverse Proxy Trust
+
+```bash
+# Number of proxy hops in front of the app whose X-Forwarded-* headers are trusted.
+# Default: 1, which is correct for DigitalOcean App Platform.
+TRUSTED_PROXY_COUNT=1
+```
+
+The app sits behind a load balancer, so the address it sees on the socket is the proxy, not the visitor. `TRUSTED_PROXY_COUNT` tells the app how many hops to skip from the **right-hand end** of `X-Forwarded-For` to find the real client. The rate limiter keys on that address, so getting it wrong in either direction matters:
+
+- **Too low (or 0 behind a proxy):** every request looks like it came from the load balancer, so all clients share a single rate-limit bucket.
+- **Too high:** the app trusts an address the proxy did not append — that is, one the caller supplied — so a client can claim any IP it likes.
+
+Set this to `2` if another proxy (Cloudflare, an nginx front end) is added ahead of the platform load balancer, and to `0` when the app is exposed directly with nothing in front of it.
+
+Before changing it, confirm the real hop count rather than guessing: log the raw `X-Forwarded-For` header on staging for a day and count the addresses.
+
 ### Optional: API Maintenance
 
 ```bash

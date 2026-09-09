@@ -81,7 +81,7 @@ def log_api_response(response):
         response.status_code,
         duration_ms,
         request_id,
-        request.headers.get("X-Forwarded-For", request.remote_addr),
+        request.remote_addr,
     )
     return response
 
