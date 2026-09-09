@@ -4,8 +4,6 @@ import json
 import re
 from datetime import UTC, datetime
 
-from flask import render_template
-
 from app import db
 from app.models import AdminAction, circle_members
 from conftest import login_user
@@ -235,14 +233,12 @@ class TestAdminDashboardMetrics:
 
 
 class TestAdminTabBar:
-    """The tab bar lives in a shared partial; these pin down what it must emit."""
+    """The tab bar moved into a shared partial; these pin down what it emits."""
 
     def test_dashboard_renders_the_tabs_as_bootstrap_tab_buttons(self, client, db_session):
-        """On the dashboard the tabs switch panes in place, so they are buttons.
-
-        The dashboard's JavaScript selects
+        """The dashboard's JavaScript selects
         `#adminTabs button[data-bs-toggle="tab"]` and reads `data-admin-tab` off
-        the element it was given, so those three hooks are load-bearing.
+        the element it was given, so the partial has to keep emitting all three.
         """
         admin = UserFactory(is_admin=True)
         db_session.commit()
@@ -294,22 +290,6 @@ class TestAdminTabBar:
         assert "function syncAdminTab(tabName)" in content
         assert "function initializeMauChart()" in content
         assert '#adminTabs button[data-bs-toggle="tab"]' in content
-
-    def test_a_standalone_page_renders_the_tabs_as_links(self, app):
-        """Off the dashboard there are no panes to switch, so the tabs are links.
-
-        Bootstrap styles <a> and <button> identically inside .nav-tabs, and the
-        dashboard's tab handler only ever matches buttons, so a link is simply
-        not enrolled in it.
-        """
-        with app.test_request_context("/admin/activity"):
-            markup = render_template("admin/_tab_bar.html", current_page="activity")
-
-        assert "<button" not in markup
-        assert 'href="/admin/?active_tab=users"' in markup
-        assert 'href="/admin/?active_tab=analytics"' in markup
-        assert "Users" in markup
-        assert "Analytics" in markup
 
 
 class TestAdminUserList:

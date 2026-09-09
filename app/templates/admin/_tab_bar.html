@@ -1,48 +1,13 @@
-{#
-    The admin panel's tab bar.
-
-    Both tabs are panes of the admin dashboard, so on the dashboard itself they are
-    Bootstrap tab buttons that switch panes without a page load. A standalone admin
-    page has no such panes to switch to, so there the same tabs render as ordinary
-    links back to the dashboard. Bootstrap styles <a> and <button> identically inside
-    .nav-tabs, so the two forms look the same.
-
-    Context:
-      active_tab   -- key of the tab to mark active ('users' or 'analytics')
-      current_page -- 'dashboard' (the default) when rendered inside the dashboard's
-                      tab interface; the name of a standalone admin page otherwise
-#}
-{% set current_page = current_page | default('dashboard') %}
-{% set tabs = [
-    {'key': 'users', 'label': 'Users', 'icon': 'fa-users-cog'},
-    {'key': 'analytics', 'label': 'Analytics', 'icon': 'fa-chart-line'},
-] %}
-{% if current_page == 'dashboard' %}
+{# Takes active_tab: the key of the tab to show as selected. #}
     <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
-        {% for tab in tabs %}
-            <li class="nav-item" role="presentation">
-                <button class="nav-link {% if active_tab == tab.key %}active{% endif %}"
-                        id="admin-{{ tab.key }}-tab"
-                        data-bs-toggle="tab"
-                        data-bs-target="#admin-{{ tab.key }}"
-                        type="button"
-                        role="tab"
-                        aria-controls="admin-{{ tab.key }}"
-                        aria-selected="{{ 'true' if active_tab == tab.key else 'false' }}"
-                        data-admin-tab="{{ tab.key }}">
-                    <i class="fas {{ tab.icon }} me-2"></i>{{ tab.label }}
-                </button>
-            </li>
-        {% endfor %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'users' %}active{% endif %}" id="admin-users-tab" data-bs-toggle="tab" data-bs-target="#admin-users" type="button" role="tab" aria-controls="admin-users" aria-selected="{{ 'true' if active_tab == 'users' else 'false' }}" data-admin-tab="users">
+                <i class="fas fa-users-cog me-2"></i>Users
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'analytics' %}active{% endif %}" id="admin-analytics-tab" data-bs-toggle="tab" data-bs-target="#admin-analytics" type="button" role="tab" aria-controls="admin-analytics" aria-selected="{{ 'true' if active_tab == 'analytics' else 'false' }}" data-admin-tab="analytics">
+                <i class="fas fa-chart-line me-2"></i>Analytics
+            </button>
+        </li>
     </ul>
-{% else %}
-    <ul class="nav nav-tabs mb-4" id="adminTabs">
-        {% for tab in tabs %}
-            <li class="nav-item">
-                <a class="nav-link" href="{{ url_for('admin.dashboard', active_tab=tab.key) }}">
-                    <i class="fas {{ tab.icon }} me-2"></i>{{ tab.label }}
-                </a>
-            </li>
-        {% endfor %}
-    </ul>
-{% endif %}
