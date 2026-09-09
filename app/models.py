@@ -725,9 +725,7 @@ class LoanRequest(db.Model):
     @property
     def pending_extension_request(self):
         """Returns the latest pending extension request for this loan, if any."""
-        pending_requests = [
-            req for req in self.extension_requests if req.status == "pending"
-        ]
+        pending_requests = [req for req in self.extension_requests if req.status == "pending"]
         if not pending_requests:
             return None
         return max(pending_requests, key=lambda req: req.created_at)
@@ -769,9 +767,7 @@ class LoanExtensionRequest(db.Model):
     )
 
     def __repr__(self):
-        return (
-            f"<LoanExtensionRequest {self.id} for LoanRequest {self.loan_request_id}>"
-        )
+        return f"<LoanExtensionRequest {self.id} for LoanRequest {self.loan_request_id}>"
 
 
 class Feedback(db.Model):

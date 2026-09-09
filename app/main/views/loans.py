@@ -252,9 +252,7 @@ def request_extension(loan_id):
     form = RequestExtensionForm(current_end_date=loan.end_date)
     # An overdue loan's due date is already in the past, and the form rejects
     # past dates, so the picker's floor is whichever of the two is later.
-    min_extension_date = max(
-        loan.end_date + timedelta(days=1), datetime.now(UTC).date()
-    )
+    min_extension_date = max(loan.end_date + timedelta(days=1), datetime.now(UTC).date())
 
     if form.validate_on_submit():
         try:
@@ -267,9 +265,7 @@ def request_extension(loan_id):
         except ServiceError as exc:
             flash(str(exc), exc.flash_category)
         except Exception as exc:
-            flash(
-                "An error occurred while submitting your extension request.", "danger"
-            )
+            flash("An error occurred while submitting your extension request.", "danger")
             current_app.logger.error(
                 f"Error creating extension request for loan {loan_id}: {str(exc)}"
             )
@@ -299,16 +295,12 @@ def process_extension_request(extension_id, action):
     loan = extension_request.loan_request
 
     try:
-        result = loan_service.process_extension_request(
-            extension_request, current_user.id, action
-        )
+        result = loan_service.process_extension_request(extension_request, current_user.id, action)
     except ServiceError as exc:
         flash(str(exc), exc.flash_category)
     except Exception as exc:
         flash("An error occurred while processing the extension request.", "danger")
-        current_app.logger.error(
-            f"Error processing extension request {extension_id}: {str(exc)}"
-        )
+        current_app.logger.error(f"Error processing extension request {extension_id}: {str(exc)}")
     else:
         if result.approved:
             flash("Extension request approved and due date updated.", "success")

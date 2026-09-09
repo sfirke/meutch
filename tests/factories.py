@@ -166,18 +166,21 @@ class ConversationParticipantFactory(SQLAlchemyModelFactory):
     is_archived = False
 
 
-
 class LoanExtensionRequestFactory(SQLAlchemyModelFactory):
     """Factory for LoanExtensionRequest model."""
+
     class Meta:
         model = LoanExtensionRequest
         sqlalchemy_session = db.session
         sqlalchemy_session_persistence = "flush"
 
     loan_request = factory.SubFactory(LoanRequestFactory)
-    proposed_end_date = factory.LazyAttribute(lambda obj: obj.loan_request.end_date + timedelta(days=7))
+    proposed_end_date = factory.LazyAttribute(
+        lambda obj: obj.loan_request.end_date + timedelta(days=7)
+    )
     message = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=200))
-    status = 'pending'
+    status = "pending"
+
 
 class MessageFactory(SQLAlchemyModelFactory):
     """Factory for Message model.

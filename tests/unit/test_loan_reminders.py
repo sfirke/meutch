@@ -38,9 +38,9 @@ class TestRequestExtensionForm:
             form = RequestExtensionForm(
                 current_end_date=current_end_date,
                 data={
-                    'proposed_end_date': date.today() + timedelta(days=10),
-                    'message': 'I need two more days to finish using this item responsibly.'
-                }
+                    "proposed_end_date": date.today() + timedelta(days=10),
+                    "message": "I need two more days to finish using this item responsibly.",
+                },
             )
             assert form.validate() is True
 
@@ -51,13 +51,16 @@ class TestRequestExtensionForm:
             form = RequestExtensionForm(
                 current_end_date=current_end_date,
                 data={
-                    'proposed_end_date': current_end_date,
-                    'message': 'I still need this item for a little longer.'
-                }
+                    "proposed_end_date": current_end_date,
+                    "message": "I still need this item for a little longer.",
+                },
             )
             assert form.validate() is False
-            assert 'proposed_end_date' in form.errors
-            assert any('after the current due date' in error.lower() for error in form.errors['proposed_end_date'])
+            assert "proposed_end_date" in form.errors
+            assert any(
+                "after the current due date" in error.lower()
+                for error in form.errors["proposed_end_date"]
+            )
 
     def test_form_message_is_required(self, app):
         """Test that extension request message is required."""
@@ -65,14 +68,11 @@ class TestRequestExtensionForm:
             current_end_date = date.today() + timedelta(days=5)
             form = RequestExtensionForm(
                 current_end_date=current_end_date,
-                data={
-                    'proposed_end_date': date.today() + timedelta(days=10),
-                    'message': ''
-                }
+                data={"proposed_end_date": date.today() + timedelta(days=10), "message": ""},
             )
             assert form.validate() is False
-            assert 'message' in form.errors
-    
+            assert "message" in form.errors
+
     def test_form_fails_when_new_date_in_past(self, app):
         """Test that form fails validation when new_end_date is in the past."""
         with app.app_context():
@@ -371,23 +371,23 @@ class TestLoanRequestHelperMethods:
                 borrower=borrower,
                 start_date=date.today() - timedelta(days=4),
                 end_date=date.today() + timedelta(days=2),
-                status='approved'
+                status="approved",
             )
 
             first_pending = LoanExtensionRequestFactory(
                 loan_request=loan,
                 proposed_end_date=date.today() + timedelta(days=5),
-                status='pending'
+                status="pending",
             )
             latest_pending = LoanExtensionRequestFactory(
                 loan_request=loan,
                 proposed_end_date=date.today() + timedelta(days=7),
-                status='pending'
+                status="pending",
             )
             LoanExtensionRequestFactory(
                 loan_request=loan,
                 proposed_end_date=date.today() + timedelta(days=9),
-                status='denied'
+                status="denied",
             )
 
             assert loan.pending_extension_request is not None
@@ -405,12 +405,12 @@ class TestLoanRequestHelperMethods:
                 borrower=borrower,
                 start_date=date.today() - timedelta(days=4),
                 end_date=date.today() + timedelta(days=2),
-                status='approved'
+                status="approved",
             )
             LoanExtensionRequestFactory(
                 loan_request=loan,
                 proposed_end_date=date.today() + timedelta(days=7),
-                status='denied'
+                status="denied",
             )
 
             assert loan.pending_extension_request is None

@@ -301,16 +301,13 @@ class TestMessageNotifications:
                 exc_info.value
             )
 
-
     def test_send_message_notification_email_extension_request_subject(self, app):
         """Test extension request messages use extension request subject line."""
         with app.app_context():
             borrower = UserFactory(
                 email="borrower2@test.com", first_name="Alex", last_name="Borrower"
             )
-            owner = UserFactory(
-                email="owner2@test.com", first_name="Casey", last_name="Owner"
-            )
+            owner = UserFactory(email="owner2@test.com", first_name="Casey", last_name="Owner")
             item = ItemFactory(name="Cordless Drill", owner=owner)
             conversation = ConversationFactory(context_type="item", context_id=item.id)
 
@@ -338,9 +335,7 @@ class TestMessageNotifications:
     def test_send_message_notification_email_extension_denial_subject(self, app):
         """Test extension denial messages use extension denied subject line."""
         with app.app_context():
-            owner = UserFactory(
-                email="owner3@test.com", first_name="Morgan", last_name="Owner"
-            )
+            owner = UserFactory(email="owner3@test.com", first_name="Morgan", last_name="Owner")
             borrower = UserFactory(
                 email="borrower3@test.com", first_name="Taylor", last_name="Borrower"
             )

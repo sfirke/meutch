@@ -237,17 +237,13 @@ def extend_loan(loan, owner_id, new_end_date, owner_message):
 
 def request_extension(loan, borrower_id, proposed_end_date, borrower_message):
     if loan.borrower_id != borrower_id:
-        raise AuthorizationError(
-            "You are not authorized to request an extension for this loan."
-        )
+        raise AuthorizationError("You are not authorized to request an extension for this loan.")
 
     if loan.status != "approved":
         raise ConflictError("Only approved loans can have extension requests.")
 
     if loan.has_pending_extension:
-        raise ConflictError(
-            "You already have a pending extension request for this loan."
-        )
+        raise ConflictError("You already have a pending extension request for this loan.")
 
     if proposed_end_date <= loan.end_date:
         raise ConflictError("Proposed due date must be after the current due date.")
@@ -286,9 +282,7 @@ def process_extension_request(extension_request, owner_id, action):
     loan = extension_request.loan_request
 
     if loan.item.owner_id != owner_id:
-        raise AuthorizationError(
-            "You are not authorized to process this extension request."
-        )
+        raise AuthorizationError("You are not authorized to process this extension request.")
 
     if action not in ["approve", "deny"]:
         raise InvalidActionError("Invalid action.")

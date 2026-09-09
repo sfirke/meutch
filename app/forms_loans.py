@@ -69,9 +69,7 @@ class RequestExtensionForm(FlaskForm):
     message = TextAreaField(
         "Message to Owner",
         validators=[
-            DataRequired(
-                message="Please include a message with your extension request."
-            ),
+            DataRequired(message="Please include a message with your extension request."),
             Length(
                 min=10,
                 max=1000,
@@ -89,6 +87,4 @@ class RequestExtensionForm(FlaskForm):
         if field.data < datetime.now().date():
             raise ValidationError("Proposed due date cannot be in the past.")
         if self.current_end_date and field.data <= self.current_end_date:
-            raise ValidationError(
-                "Proposed due date must be after the current due date."
-            )
+            raise ValidationError("Proposed due date must be after the current due date.")
