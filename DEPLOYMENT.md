@@ -147,9 +147,9 @@ LOG_LEVEL=INFO
 
 Logs go to stdout, where the platform's log viewer picks them up. One handler on the root logger covers `app.logger` and every module logger, so a single setting controls the lot.
 
-Turn this down to `DEBUG` while triaging an incident and back to `INFO` afterwards — it takes effect on restart, with no code deploy. An unrecognized value falls back to the default rather than stopping the app from booting.
+Turn this up to `DEBUG` while triaging an incident and back to `INFO` afterwards — it takes effect on restart, with no code deploy. An unrecognized value falls back to the default rather than stopping the app from booting.
 
-`INFO` is the useful production setting: the app's `logger.info` calls record what a user did just before whatever went wrong. Third-party libraries that are unreadable at low levels (`boto3`, `botocore`, `s3transfer`, `urllib3`, `PIL`) are pinned to `WARNING` regardless, so lowering this does not bury the app's own lines.
+`INFO` is the useful production setting: the app's `logger.info` calls record what a user did just before whatever went wrong. Third-party libraries that are unreadable at low levels (`boto3`, `botocore`, `s3transfer`, `urllib3`, `PIL`) are pinned to `WARNING` regardless, so turning this up does not bury the app's own lines.
 
 ### Optional: Reverse Proxy Trust
 
