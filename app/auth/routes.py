@@ -15,6 +15,8 @@ from app.forms import (
 )
 from app.services import auth_service
 from app.services.exceptions import ConflictError
+from app.utils import activity_events
+from app.utils.activity_log import log_event
 
 logger = logging.getLogger(__name__)
 logger.debug("Loading app.auth.routes")
@@ -210,7 +212,16 @@ def login():
 @auth_bp.route("/logout")
 def logout():
     _clear_confirmation_page_state()
+    # Capture the actor before logout_user() clears the session: after it runs there
+    # is no current_user for the activity log to resolve.
+    signed_out_user_id = current_user.id if current_user.is_authenticated else None
     logout_user()
+    if signed_out_user_id is not None:
+        log_event(
+            activity_events.AUTH_LOGOUT,
+            actor=signed_out_user_id,
+            subject=signed_out_user_id,
+        )
     return redirect(url_for("main.index"))
 
 
