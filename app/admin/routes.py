@@ -3,15 +3,17 @@
 import logging
 from datetime import UTC, datetime, timedelta
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from sqlalchemy import and_, false, func, select, true, union_all
+from sqlalchemy.orm import joinedload
 
 from app import db
 from app.admin import bp
 from app.auth.decorators import admin_required
 from app.forms import EmptyForm
 from app.models import (
+    ActivityLog,
     AdminAction,
     Conversation,
     GiveawayInterest,
@@ -23,6 +25,7 @@ from app.models import (
     circle_members,
 )
 from app.services import account_service
+from app.utils.activity_log import oldest_entry_at
 
 logger = logging.getLogger(__name__)
 
@@ -251,6 +254,66 @@ def dashboard():
         active_tab=active_tab,
         current_sort=sort_by,
         current_order=order,
+    )
+
+
+ACTIVITY_PER_PAGE = 50
+
+# How far past the retention window the oldest surviving row has to be before the page
+# says the prune job is not running. Wide enough that a job which ran yesterday never
+# trips it, narrow enough to notice within a couple of weeks.
+PRUNE_OVERDUE_GRACE_DAYS = 10
+
+
+def _prune_is_overdue(oldest_occurred_at, retention_days):
+    """Return True when the oldest entry is well past the retention window.
+
+    The retention window is enforced by a scheduled job outside the app, so the app
+    cannot tell whether that job exists. If nobody ever schedules it the table grows
+    without bound and, worse, keeps holding typed email addresses that should have
+    aged out -- so the page says so where an admin will actually see it.
+    """
+    if oldest_occurred_at is None:
+        return False
+
+    # occurred_at is stored without a timezone, so compare against a naive UTC now.
+    now = datetime.now(UTC).replace(tzinfo=None)
+    return oldest_occurred_at < now - timedelta(days=retention_days + PRUNE_OVERDUE_GRACE_DAYS)
+
+
+@bp.route("/activity")
+@admin_required
+def activity():
+    """Read-only view of the activity log, newest first.
+
+    Its own route rather than a third pane on the dashboard: the dashboard already
+    owns `page`, `sort_by` and `order` for the Users tab, and it runs the monthly
+    active users rollup on every load, which this page has no reason to pay for.
+    """
+    page = request.args.get("page", 1, type=int)
+
+    entries = (
+        ActivityLog.query.options(
+            joinedload(ActivityLog.actor),
+            joinedload(ActivityLog.subject),
+        )
+        # The id tiebreak is load-bearing, not decoration: a single sign-in writes
+        # several rows in the same millisecond, and without it Postgres is free to
+        # return one of them on two consecutive pages and drop another entirely.
+        .order_by(ActivityLog.occurred_at.desc(), ActivityLog.id.desc())
+        .paginate(page=page, per_page=ACTIVITY_PER_PAGE, error_out=False)
+    )
+
+    retention_days = current_app.config["ACTIVITY_LOG_RETENTION_DAYS"]
+    oldest_occurred_at = oldest_entry_at()
+
+    return render_template(
+        "admin/activity.html",
+        active_tab="activity",
+        entries=entries,
+        retention_days=retention_days,
+        oldest_occurred_at=oldest_occurred_at,
+        prune_overdue=_prune_is_overdue(oldest_occurred_at, retention_days),
     )
 
 

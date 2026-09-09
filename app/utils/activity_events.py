@@ -39,6 +39,23 @@ EVENT_TYPES = frozenset(
     }
 )
 
+# Human-readable names for the admin Activity page. A row whose event type is missing
+# here still renders -- see `activity_event_label` in app/template_filters.py -- so a
+# rolling deploy or a reverted branch never produces a blank cell.
+EVENT_LABELS = {
+    AUTH_LOGIN_SUCCEEDED: "Signed in",
+    AUTH_LOGIN_FAILED: "Sign-in failed",
+    AUTH_LOGIN_BLOCKED: "Sign-in blocked (locked out)",
+    AUTH_LOGIN_REJECTED_UNCONFIRMED: "Sign-in refused (email unconfirmed)",
+    AUTH_LOGOUT: "Signed out",
+    AUTH_ACCOUNT_LOCKED: "Account locked",
+    AUTH_REGISTER_SUCCEEDED: "Registered",
+    AUTH_EMAIL_CONFIRMED: "Email confirmed",
+    AUTH_PASSWORD_RESET_REQUESTED: "Password reset requested",
+    AUTH_PASSWORD_RESET_COMPLETED: "Password reset completed",
+    AUTH_TOKEN_REUSE_DETECTED: "API refresh token replayed",
+}
+
 # Context keys permitted past the PII denylist, for specific events only.
 # Each entry is a deliberate privacy decision -- do not add to this without one.
 CONTEXT_KEY_EXEMPTIONS = {

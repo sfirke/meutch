@@ -223,9 +223,28 @@ def linkify(value, br=True, shorten=None):
     return Markup(html)
 
 
+def activity_event_label(event_type):
+    """Render an activity log event type as a human-readable name.
+
+    An unrecognized type falls back to its raw dotted name rather than to a blank
+    cell, so a row written by a build that has since been rolled back -- or by the
+    other half of a rolling deploy -- still reads as something.
+    """
+    from app.utils.activity_events import EVENT_LABELS
+
+    if not event_type:
+        return ""
+
+    return EVENT_LABELS.get(event_type, event_type)
+
+
 def register_filters(app):
     """Register all custom template filters with the Flask app."""
+    from app.utils.activity_log import user_agent_family
+
     app.jinja_env.filters["utc_timestamp"] = utc_timestamp
     app.jinja_env.filters["tojson_images"] = tojson_images
     app.jinja_env.filters["truncate"] = truncate
     app.jinja_env.filters["linkify"] = linkify
+    app.jinja_env.filters["activity_event_label"] = activity_event_label
+    app.jinja_env.filters["user_agent_family"] = user_agent_family

@@ -305,3 +305,44 @@ def log_event(
         # WARNING rather than ERROR: a dropped audit row is worth noticing but is not
         # a failure of anything the user asked for.
         logger.warning("failed to write activity log event %r", event_type, exc_info=True)
+
+
+# --- Read helpers -----------------------------------------------------------------
+
+# Substring ladder from a User-Agent string to a browser family, most specific first
+# (every Chromium browser also says "Chrome", and Chrome and Safari both say
+# "Safari"). This is deliberately crude: the full string is kept in the column and
+# shown on hover, and this is only the scannable summary. Werkzeug's own UA parsing
+# was removed in 2.x, so request.user_agent.browser is always None here.
+_USER_AGENT_FAMILIES = (
+    ("Edg/", "Edge"),
+    ("OPR/", "Opera"),
+    ("Firefox/", "Firefox"),
+    ("Chrome/", "Chrome"),
+    ("Safari/", "Safari"),
+    ("curl/", "curl"),
+    ("python-requests", "python-requests"),
+    ("okhttp", "okhttp"),
+    ("Dart/", "Dart"),
+)
+
+
+def user_agent_family(raw_user_agent):
+    """Return a short browser or client name for a raw User-Agent string."""
+    if not raw_user_agent:
+        return None
+
+    for marker, family in _USER_AGENT_FAMILIES:
+        if marker in raw_user_agent:
+            return family
+
+    return "Other"
+
+
+def oldest_entry_at():
+    """Return the timestamp of the oldest surviving row, or None if the log is empty.
+
+    Used by the admin page to notice that the prune job is not running. Cheap: an
+    index-only scan of the first entry in ``ix_activity_log_occurred_at_id``.
+    """
+    return db.session.query(db.func.min(ActivityLog.occurred_at)).scalar()

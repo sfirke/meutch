@@ -15,7 +15,7 @@ from flask_login import login_user as flask_login_user
 from app import db
 from app.models import ActivityLog, User
 from app.utils import activity_events
-from app.utils.activity_log import log_event, sanitize_context
+from app.utils.activity_log import log_event, sanitize_context, user_agent_family
 from tests.factories import UserFactory
 
 
@@ -221,3 +221,20 @@ class TestSanitizeContext:
 
     def test_a_non_dict_context_is_dropped_without_raising(self):
         assert sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, "not a dict") is None
+
+
+class TestUserAgentFamily:
+    @pytest.mark.parametrize(
+        "raw_user_agent,expected",
+        [
+            ("Mozilla/5.0 ... Chrome/120.0.0.0 Safari/537.36 Edg/120.0", "Edge"),
+            ("Mozilla/5.0 ... Chrome/120.0.0.0 Safari/537.36", "Chrome"),
+            ("Mozilla/5.0 ... Version/17.0 Safari/605.1.15", "Safari"),
+            ("Mozilla/5.0 ... Firefox/121.0", "Firefox"),
+            ("curl/8.4.0", "curl"),
+            ("SomeUnknownBot/1.0", "Other"),
+            (None, None),
+        ],
+    )
+    def test_families(self, raw_user_agent, expected):
+        assert user_agent_family(raw_user_agent) == expected
