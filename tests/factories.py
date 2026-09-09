@@ -20,6 +20,7 @@ from app.models import (
     Item,
     ItemImage,
     ItemRequest,
+    LoanExtensionRequest,
     LoanRequest,
     Message,
     Tag,
@@ -163,6 +164,22 @@ class ConversationParticipantFactory(SQLAlchemyModelFactory):
     conversation = factory.SubFactory(ConversationFactory)
     user = factory.SubFactory(UserFactory)
     is_archived = False
+
+
+class LoanExtensionRequestFactory(SQLAlchemyModelFactory):
+    """Factory for LoanExtensionRequest model."""
+
+    class Meta:
+        model = LoanExtensionRequest
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+
+    loan_request = factory.SubFactory(LoanRequestFactory)
+    proposed_end_date = factory.LazyAttribute(
+        lambda obj: obj.loan_request.end_date + timedelta(days=7)
+    )
+    message = factory.LazyAttribute(lambda obj: fake.text(max_nb_chars=200))
+    status = "pending"
 
 
 class MessageFactory(SQLAlchemyModelFactory):

@@ -3,7 +3,12 @@
 from datetime import date, timedelta
 
 from app.forms import ExtendLoanForm
-from tests.factories import ItemFactory, LoanRequestFactory, UserFactory
+from tests.factories import (
+    ItemFactory,
+    LoanExtensionRequestFactory,
+    LoanRequestFactory,
+    UserFactory,
+)
 
 
 class TestExtendLoanForm:
@@ -308,3 +313,58 @@ class TestLoanRequestHelperMethods:
                 status="approved",
             )
             assert loan.due_state == "on_time"
+
+    def test_pending_extension_request_skips_resolved_records(self, app):
+        """A loan has at most one pending request; resolved ones are ignored."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                start_date=date.today() - timedelta(days=4),
+                end_date=date.today() + timedelta(days=2),
+                status="approved",
+            )
+
+            LoanExtensionRequestFactory(
+                loan_request=loan,
+                proposed_end_date=date.today() + timedelta(days=5),
+                status="denied",
+            )
+            pending = LoanExtensionRequestFactory(
+                loan_request=loan,
+                proposed_end_date=date.today() + timedelta(days=7),
+                status="pending",
+            )
+            LoanExtensionRequestFactory(
+                loan_request=loan,
+                proposed_end_date=date.today() + timedelta(days=9),
+                status="approved",
+            )
+
+            assert loan.pending_extension_request.id == pending.id
+            assert loan.has_pending_extension is True
+
+    def test_has_pending_extension_false_without_pending_records(self, app):
+        """Test has_pending_extension returns False when no pending extension exists."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                start_date=date.today() - timedelta(days=4),
+                end_date=date.today() + timedelta(days=2),
+                status="approved",
+            )
+            LoanExtensionRequestFactory(
+                loan_request=loan,
+                proposed_end_date=date.today() + timedelta(days=7),
+                status="denied",
+            )
+
+            assert loan.pending_extension_request is None
+            assert loan.has_pending_extension is False
