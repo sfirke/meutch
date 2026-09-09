@@ -157,10 +157,12 @@ def view_conversation(conversation_id):
     has_unread_messages = thread_state["has_unread_messages"]
 
     active_loan = None
+    pending_extension_request = None
     if conversation.context_type == "item":
         for msg in thread_messages:
             if msg.loan_request and msg.loan_request.status in ["pending", "approved"]:
                 active_loan = msg.loan_request
+                pending_extension_request = active_loan.pending_extension_request
                 break
 
     item = conversation.item
@@ -239,6 +241,7 @@ def view_conversation(conversation_id):
         form=form,
         shared_circles=shared_circles,
         active_loan=active_loan,
+        pending_extension_request=pending_extension_request,
         giveaway_selection_item=giveaway_selection_item,
         giveaway_selection_form=giveaway_selection_form,
         giveaway_selection_interested_count=giveaway_selection_interested_count,

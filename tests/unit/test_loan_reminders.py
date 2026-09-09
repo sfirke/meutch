@@ -2,7 +2,7 @@
 
 from datetime import date, timedelta
 
-from app.forms import ExtendLoanForm
+from app.forms import ExtendLoanForm, RequestExtensionForm
 from tests.factories import (
     ItemFactory,
     LoanExtensionRequestFactory,
@@ -61,6 +61,52 @@ class TestExtendLoanForm:
                 },
             )
             assert form.validate() is True
+
+
+class TestRequestExtensionForm:
+    """Test RequestExtensionForm validation."""
+
+    def test_form_validates_with_future_date_after_current_due_date(self, app):
+        """Test that extension request form validates for future date after current due date."""
+        with app.app_context():
+            current_end_date = date.today() + timedelta(days=5)
+            form = RequestExtensionForm(
+                current_end_date=current_end_date,
+                data={
+                    "proposed_end_date": date.today() + timedelta(days=10),
+                    "message": "I need two more days to finish using this item responsibly.",
+                },
+            )
+            assert form.validate() is True
+
+    def test_form_fails_when_proposed_date_not_after_current_due_date(self, app):
+        """Test that proposed end date must be after current due date."""
+        with app.app_context():
+            current_end_date = date.today() + timedelta(days=5)
+            form = RequestExtensionForm(
+                current_end_date=current_end_date,
+                data={
+                    "proposed_end_date": current_end_date,
+                    "message": "I still need this item for a little longer.",
+                },
+            )
+            assert form.validate() is False
+            assert "proposed_end_date" in form.errors
+            assert any(
+                "after the current due date" in error.lower()
+                for error in form.errors["proposed_end_date"]
+            )
+
+    def test_form_message_is_required(self, app):
+        """Test that extension request message is required."""
+        with app.app_context():
+            current_end_date = date.today() + timedelta(days=5)
+            form = RequestExtensionForm(
+                current_end_date=current_end_date,
+                data={"proposed_end_date": date.today() + timedelta(days=10), "message": ""},
+            )
+            assert form.validate() is False
+            assert "message" in form.errors
 
 
 class TestLoanRequestHelperMethods:
