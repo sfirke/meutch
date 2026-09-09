@@ -6,6 +6,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Minor**:
+- Admins have a new Activity tab in the admin panel showing sign-ins, sign-outs, registrations, email confirmations and password resets, newest first, with the address and browser each came from. Failed sign-ins are recorded too, including the email address exactly as it was typed even when no account matches it — so that when someone writes in saying they can't sign in, we can see that they have been typing `you@gmial.com`. The privacy policy has been updated to describe all of this, and entries are deleted after 90 days ([#484](https://github.com/sfirke/meutch/pull/484)).
 - When answering a request, there's now an option to click "I have this item" and then choose or list it. The item you pick is linked in your message, and you're warned when what you're offering does not match what was asked for, or when the person asking is outside the circles that can see the giveaway you picked. This work also displays the full details of a request above the message box on every compose page for easy reference ([#412](https://github.com/sfirke/meutch/pull/412)).
 
 ### Bug fixes
