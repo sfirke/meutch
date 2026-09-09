@@ -71,18 +71,21 @@ def parse_log_level_env(raw_value, default):
     environment variable should not stop the app from booting, and the worst
     case is that logs stay at the level they would have had anyway.
     """
-    if raw_value is None or str(raw_value).strip() == "":
+    if raw_value is None:
         return default
 
-    candidate = str(raw_value).strip()
-    if candidate.isdigit():
-        return int(candidate)
+    candidate = str(raw_value).strip().upper()
+    if not candidate:
+        return default
 
-    resolved = logging.getLevelName(candidate.upper())
-    # getLevelName returns the string "Level X" for anything it does not know.
-    if isinstance(resolved, int):
-        return resolved
-    return default
+    if candidate.isascii() and candidate.isdigit():
+        resolved = int(candidate)
+    else:
+        resolved = logging.getLevelNamesMapping().get(candidate, default)
+
+    # 0 (NOTSET) on the root logger means "log everything", which is never what an
+    # operator typing 0 wants, so treat it as unrecognized.
+    return resolved if resolved > 0 else default
 
 
 def parse_int_env(raw_value, default):
@@ -328,9 +331,7 @@ class ProductionConfig(Config):
     """Configuration for production environment"""
 
     DEBUG = False
-    # LOG_LEVEL inherited from base Config: INFO, overridable by the LOG_LEVEL env var.
-    # Production used to sit at WARNING, which discarded every logger.info call in the
-    # app -- the record of what actually happened before an error.
+    # LOG_LEVEL inherited from base Config: INFO, overridable by the LOG_LEVEL env var
 
     # Production should always use specific environment variables
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")

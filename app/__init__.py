@@ -235,20 +235,22 @@ def configure_logging(app):
     # propagate to the root handler like everyone else's, so they are formatted the
     # same way and are not emitted twice.
     del app.logger.handlers[:]
-    app.logger.propagate = True
     app.logger.setLevel(level)
 
     root_logger = logging.getLogger()
     for existing in list(root_logger.handlers):
-        if getattr(existing, "name", None) == LOG_HANDLER_NAME:
+        if existing.name == LOG_HANDLER_NAME:
             root_logger.removeHandler(existing)
 
+    # The threshold lives on the loggers, not the handler, so a single logger can be
+    # turned up (say, botocore to DEBUG) without the handler dropping its records.
     handler = logging.StreamHandler(stream=sys.stdout)
     handler.name = LOG_HANDLER_NAME
-    handler.setLevel(level)
-    # %(name)s rather than %(module)s: now that module loggers actually emit, the
-    # dotted logger name is what identifies where a line came from.
-    handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s %(name)s: %(message)s"))
+    # %(name)s identifies module loggers by their dotted path. Every app.logger call
+    # shares the one name "app", so %(module)s is what says which file those came from.
+    handler.setFormatter(
+        logging.Formatter("[%(asctime)s] %(levelname)s %(name)s [%(module)s]: %(message)s")
+    )
 
     root_logger.addHandler(handler)
     root_logger.setLevel(level)

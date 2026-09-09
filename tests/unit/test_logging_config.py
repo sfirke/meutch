@@ -1,47 +1,46 @@
-"""Tests that application logs actually reach a handler.
-
-Modules across the app log through ``logging.getLogger(__name__)``. Those
-loggers propagate to the root logger, so a handler installed only on
-``app.logger`` never saw them: their ``info`` calls were discarded outright and
-their warnings fell through to Python's ``lastResort`` handler, unformatted.
-These tests pin down that a module logger's records now reach the app's handler,
-and that they arrive exactly once.
-"""
+"""Tests that a module logger's records reach the app's handler, exactly once."""
 
 import io
 import logging
 
 import pytest
 
-from app import LOG_HANDLER_NAME, create_app
+from app import LOG_HANDLER_NAME, NOISY_LIBRARY_LOGGERS, create_app
 from config import parse_log_level_env
 from conftest import TestConfig
 
 
 @pytest.fixture
 def restore_root_logger():
-    """Put the root logger back the way the test session had it.
+    """Put process-wide logging state back the way the test session had it.
 
-    ``configure_logging`` mutates process-wide logging state, so a test that
-    calls it has to undo that or every later test inherits the change.
+    ``configure_logging`` mutates the root logger, the ``app`` logger (shared by
+    every app built in this process) and the pinned library loggers.
     """
     root_logger = logging.getLogger()
     original_handlers = list(root_logger.handlers)
     original_level = root_logger.level
+    other_loggers = ("app", *NOISY_LIBRARY_LOGGERS)
+    original_levels = {name: logging.getLogger(name).level for name in other_loggers}
 
     yield
 
     root_logger.handlers[:] = original_handlers
     root_logger.setLevel(original_level)
+    for name, level in original_levels.items():
+        logging.getLogger(name).setLevel(level)
+
+
+def _app_log_handlers():
+    return [h for h in logging.getLogger().handlers if h.name == LOG_HANDLER_NAME]
 
 
 def _capture_app_log_output():
     """Point the app's handler at a buffer and return it."""
-    for handler in logging.getLogger().handlers:
-        if getattr(handler, "name", None) == LOG_HANDLER_NAME:
-            handler.stream = io.StringIO()
-            return handler.stream
-    raise AssertionError(f"no handler named {LOG_HANDLER_NAME!r} on the root logger")
+    handlers = _app_log_handlers()
+    assert handlers, f"no handler named {LOG_HANDLER_NAME!r} on the root logger"
+    handlers[0].stream = io.StringIO()
+    return handlers[0].stream
 
 
 class LoggingTestConfig(TestConfig):
@@ -50,7 +49,6 @@ class LoggingTestConfig(TestConfig):
 
 class TestModuleLoggersReachTheHandler:
     def test_module_logger_info_is_emitted(self, restore_root_logger):
-        """The bug this fixes: logger.info from a module went nowhere."""
         create_app(LoggingTestConfig)
         stream = _capture_app_log_output()
 
@@ -59,7 +57,6 @@ class TestModuleLoggersReachTheHandler:
         assert "service did a thing" in stream.getvalue()
 
     def test_logger_name_appears_in_the_output(self, restore_root_logger):
-        """A line is only useful if it says where it came from."""
         create_app(LoggingTestConfig)
         stream = _capture_app_log_output()
 
@@ -67,8 +64,16 @@ class TestModuleLoggersReachTheHandler:
 
         assert "app.services.pretend_service" in stream.getvalue()
 
+    def test_app_logger_output_names_the_calling_module(self, restore_root_logger):
+        """Every app.logger call shares the name "app"; the module says which file."""
+        app = create_app(LoggingTestConfig)
+        stream = _capture_app_log_output()
+
+        app.logger.warning("from a view")
+
+        assert "app [test_logging_config]" in stream.getvalue()
+
     def test_app_logger_is_emitted_exactly_once(self, restore_root_logger):
-        """app.logger propagates to the root handler and must not double up."""
         app = create_app(LoggingTestConfig)
         stream = _capture_app_log_output()
 
@@ -77,16 +82,10 @@ class TestModuleLoggersReachTheHandler:
         assert stream.getvalue().count("just the once") == 1
 
     def test_creating_the_app_twice_leaves_one_handler(self, restore_root_logger):
-        """The test suite builds several apps; handlers must not accumulate."""
         create_app(LoggingTestConfig)
         create_app(LoggingTestConfig)
 
-        matching = [
-            handler
-            for handler in logging.getLogger().handlers
-            if getattr(handler, "name", None) == LOG_HANDLER_NAME
-        ]
-        assert len(matching) == 1
+        assert len(_app_log_handlers()) == 1
 
     def test_below_the_configured_level_nothing_is_emitted(self, restore_root_logger):
         class QuietConfig(TestConfig):
@@ -99,9 +98,17 @@ class TestModuleLoggersReachTheHandler:
 
         assert stream.getvalue() == ""
 
-    def test_noisy_libraries_are_pinned_to_warning(self, restore_root_logger):
-        """Turning the app down to DEBUG must not drown it in botocore."""
+    def test_one_logger_can_be_turned_up_past_the_configured_level(self, restore_root_logger):
+        create_app(LoggingTestConfig)
+        stream = _capture_app_log_output()
 
+        chatty = logging.getLogger("app.services.pretend_service")
+        chatty.setLevel(logging.DEBUG)
+        chatty.debug("detail")
+
+        assert "detail" in stream.getvalue()
+
+    def test_noisy_libraries_are_pinned_to_warning(self, restore_root_logger):
         class VerboseConfig(TestConfig):
             LOG_LEVEL = logging.DEBUG
 
@@ -125,5 +132,10 @@ class TestParseLogLevelEnv:
         assert parse_log_level_env("   ", logging.INFO) == logging.INFO
 
     def test_unrecognized_value_falls_back_rather_than_raising(self):
-        """A typo in a deploy variable should not stop the app from booting."""
         assert parse_log_level_env("VERBOSE", logging.INFO) == logging.INFO
+        assert parse_log_level_env("²", logging.INFO) == logging.INFO
+
+    def test_zero_and_notset_fall_back_to_the_default(self):
+        """Level 0 on the root logger would mean "log everything"."""
+        assert parse_log_level_env("0", logging.INFO) == logging.INFO
+        assert parse_log_level_env("NOTSET", logging.INFO) == logging.INFO
