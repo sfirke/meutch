@@ -1,8 +1,11 @@
 import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime
+
+from sqlalchemy.exc import IntegrityError
 
 from app import db
-from app.models import LoanRequest, Message
+from app.models import LoanExtensionRequest, LoanRequest, Message
 from app.services import message_service
 from app.services.exceptions import (
     AuthorizationError,
@@ -21,6 +24,22 @@ class LoanExtendResult:
 
     message: Message
     is_extension: bool
+
+
+@dataclass(frozen=True)
+class LoanExtensionDecisionResult:
+    """Result payload for a borrower extension request decision."""
+
+    message: Message
+    approved: bool
+
+
+def _reset_loan_reminders(loan):
+    """Clear reminder bookkeeping after the due date moves."""
+    loan.due_soon_reminder_sent = None
+    loan.due_date_reminder_sent = None
+    loan.last_overdue_reminder_sent = None
+    loan.overdue_reminder_count = 0
 
 
 def _ensure_item_is_lendable(item):
@@ -178,10 +197,15 @@ def extend_loan(loan, owner_id, new_end_date, owner_message):
 
     old_end_date = loan.end_date
     loan.end_date = new_end_date
-    loan.due_soon_reminder_sent = None
-    loan.due_date_reminder_sent = None
-    loan.last_overdue_reminder_sent = None
-    loan.overdue_reminder_count = 0
+    _reset_loan_reminders(loan)
+
+    # A pending borrower request that asked for this much time or less is now
+    # satisfied.  Leaving it pending would block the borrower from asking again
+    # while its Approve button fails as stale.
+    pending_request = loan.pending_extension_request
+    if pending_request and pending_request.proposed_end_date <= new_end_date:
+        pending_request.status = "approved"
+        pending_request.responded_at = datetime.now(UTC)
 
     is_extension = new_end_date > old_end_date
     cleaned_message = owner_message.strip() if owner_message else ""
@@ -219,3 +243,114 @@ def extend_loan(loan, owner_id, new_end_date, owner_message):
         loan_request_id=loan.id,
     )
     return LoanExtendResult(message=message, is_extension=is_extension)
+
+
+def request_extension(loan, borrower_id, proposed_end_date, borrower_message):
+    if loan.borrower_id != borrower_id:
+        raise AuthorizationError("You are not authorized to request an extension for this loan.")
+
+    if loan.status != "approved":
+        raise ConflictError("Only approved loans can have extension requests.")
+
+    if loan.has_pending_extension:
+        raise ConflictError("You already have a pending extension request for this loan.")
+
+    if proposed_end_date <= loan.end_date:
+        raise ConflictError("Proposed due date must be after the current due date.")
+
+    cleaned_message = borrower_message.strip() if borrower_message else ""
+
+    # get_or_create_conversation commits when it has to create the thread, so
+    # settle that before the extension row is added.  Otherwise a pending row
+    # could be committed on its own and the message that follows it lost.
+    owner_id = loan.item.owner_id
+    conversation = _ensure_item_conversation(loan.item, borrower_id, owner_id)
+
+    db.session.add(
+        LoanExtensionRequest(
+            loan_request_id=loan.id,
+            proposed_end_date=proposed_end_date,
+            message=cleaned_message,
+            status="pending",
+        )
+    )
+
+    # The has_pending_extension check above can be passed by two simultaneous
+    # submissions, so let the partial unique index settle the race before any
+    # message is created.  The loser gets the same answer as the early check.
+    try:
+        db.session.flush()
+    except IntegrityError:
+        db.session.rollback()
+        raise ConflictError("You already have a pending extension request for this loan.")
+
+    message_body = (
+        f"Extension requested for '{loan.item.name}'.\n"
+        f"Current due date: {loan.end_date.strftime('%B %d, %Y')}\n"
+        f"Proposed new due date: {proposed_end_date.strftime('%B %d, %Y')}\n\n"
+        f"Message from borrower: {cleaned_message}"
+    )
+
+    return message_service.create_message(
+        borrower_id,
+        owner_id,
+        message_body,
+        conversation_id=conversation.id,
+        loan_request_id=loan.id,
+    )
+
+
+def process_extension_request(extension_request, owner_id, action):
+    loan = extension_request.loan_request
+
+    if loan.item.owner_id != owner_id:
+        raise AuthorizationError("You are not authorized to process this extension request.")
+
+    if action not in ["approve", "deny"]:
+        raise InvalidActionError("Invalid action.")
+
+    if loan.status != "approved":
+        raise ConflictError("Only active loans can be extended.")
+
+    if extension_request.status != "pending":
+        raise ConflictError("This extension request has already been processed.")
+
+    approving = action == "approve"
+
+    # The due date can move between the request and the decision - the owner may
+    # have used "Extend Loan Period" in the meantime - and approving a stale
+    # request would pull the due date back in.
+    if approving and extension_request.proposed_end_date <= loan.end_date:
+        raise ConflictError(
+            "The proposed due date is no longer later than the current due date. "
+            "Ask the borrower to send a new request."
+        )
+
+    extension_request.status = "approved" if approving else "denied"
+    extension_request.responded_at = datetime.now(UTC)
+
+    if approving:
+        old_end_date = loan.end_date
+        loan.end_date = extension_request.proposed_end_date
+        _reset_loan_reminders(loan)
+        message_body = (
+            f"Your extension request for '{loan.item.name}' has been approved. "
+            f"The due date has been updated from {old_end_date.strftime('%B %d, %Y')} "
+            f"to {loan.end_date.strftime('%B %d, %Y')}."
+        )
+    else:
+        message_body = (
+            f"Your extension request for '{loan.item.name}' was denied. "
+            f"The current due date remains {loan.end_date.strftime('%B %d, %Y')}."
+        )
+
+    conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
+
+    message = message_service.create_message(
+        owner_id,
+        loan.borrower_id,
+        message_body,
+        conversation_id=conversation.id,
+        loan_request_id=loan.id,
+    )
+    return LoanExtensionDecisionResult(message=message, approved=approving)
