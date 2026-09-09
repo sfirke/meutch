@@ -18,7 +18,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Cut the query cost of circle, request, and feed reads across the app and the API ([#480](https://github.com/sfirke/meutch/pull/480)).
 
 ### Developer Experience
-- Application logs now actually reach the logs. A handler was attached only to Flask's own logger, so the twelve modules that log through `logging.getLogger(__name__)` — the services, the auth routes, geocoding — reached nothing at all: their `info` lines were discarded and their warnings printed with no timestamp, in production and in local development alike. The handler now sits on the root logger, production runs at INFO instead of WARNING, and `LOG_LEVEL` can be changed by environment variable so turning up the detail during an incident does not need a code deploy ([#482](https://github.com/sfirke/meutch/pull/482)).
+- Application logs now actually reach the logs. Production runs at INFO instead of WARNING and `LOG_LEVEL` can be changed by an environment variable so increasing the detail during an incident doesn't require a code deploy ([#482](https://github.com/sfirke/meutch/pull/482)).
 
 ## August 2026
 
