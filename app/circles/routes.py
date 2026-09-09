@@ -176,7 +176,7 @@ def manage_circles():
 @login_required
 def view_circle(circle_id):
     circle = db.get_or_404(Circle, circle_id)
-    is_member = current_user in circle.members
+    is_member = circle.has_member(current_user)
 
     # Create form instance for CSRF protection
     form = EmptyForm()  # Use this for all basic forms including cancel
@@ -191,7 +191,7 @@ def view_circle(circle_id):
     pending_request = get_pending_circle_join_request(circle_id, current_user.id)
 
     page = request.args.get("page", 1, type=int)
-    if should_show_circle_members(circle, current_user):
+    if should_show_circle_members(circle, current_user, is_member=is_member):
         members_pagination = get_paginated_circle_members(circle_id, page=page, per_page=20)
     else:
         members_pagination = ListPagination(items=[], page=1, per_page=20)

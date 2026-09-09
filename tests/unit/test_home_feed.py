@@ -922,3 +922,64 @@ def test_build_digest_payload_skips_pending_pickup_giveaway_without_claimed_at(a
 
         assert payload["giveaways"] == []
         assert payload["events"] == []
+
+
+def test_request_feed_keeps_authors_without_coordinates_under_a_distance_cap(app):
+    """The distance cap is narrowed in SQL with a latitude/longitude box, which
+    must not swallow authors that have no coordinates to compare."""
+    with app.app_context():
+        viewer = UserFactory(latitude=40.7128, longitude=-74.0060)  # NYC
+        ungeocoded_requester = UserFactory(latitude=None, longitude=None)
+        far_requester = UserFactory(latitude=42.3601, longitude=-71.0589)  # Boston
+        circle = CircleFactory()
+        circle.members.extend([viewer, ungeocoded_requester, far_requester])
+
+        ungeocoded_request = ItemRequestFactory(
+            user=ungeocoded_requester, title="No Location Request", visibility="public"
+        )
+        far_request = ItemRequestFactory(
+            user=far_requester, title="Far Request", visibility="public"
+        )
+        db.session.commit()
+
+        events = build_visible_requests_events(
+            viewer,
+            scoped_circle_ids={circle.id},
+            scope="all",
+            max_distance=20,
+            distance_explicit=True,
+        )
+
+        request_ids = {event["request_id"] for event in events}
+        assert ungeocoded_request.id in request_ids
+        assert far_request.id not in request_ids
+
+
+def test_giveaway_feed_applies_the_distance_cap_but_keeps_owners_without_coordinates(app):
+    with app.app_context():
+        viewer = UserFactory(latitude=40.7128, longitude=-74.0060)  # NYC
+        near_owner = UserFactory(latitude=40.7400, longitude=-74.0100)  # Nearby NYC
+        far_owner = UserFactory(latitude=42.3601, longitude=-71.0589)  # Boston
+        ungeocoded_owner = UserFactory(latitude=None, longitude=None)
+        circle = CircleFactory()
+        circle.members.extend([viewer, near_owner, far_owner, ungeocoded_owner])
+
+        near_item = ItemFactory(owner=near_owner, is_giveaway=True, giveaway_visibility="public")
+        far_item = ItemFactory(owner=far_owner, is_giveaway=True, giveaway_visibility="public")
+        ungeocoded_item = ItemFactory(
+            owner=ungeocoded_owner, is_giveaway=True, giveaway_visibility="public"
+        )
+        db.session.commit()
+
+        events = build_visible_giveaway_events(
+            viewer,
+            scoped_circle_ids={circle.id},
+            scope="all",
+            max_distance=20,
+            distance_explicit=True,
+        )
+
+        item_ids = {event["item_id"] for event in events}
+        assert near_item.id in item_ids
+        assert ungeocoded_item.id in item_ids
+        assert far_item.id not in item_ids
