@@ -297,9 +297,9 @@ def activity():
             joinedload(ActivityLog.actor),
             joinedload(ActivityLog.subject),
         )
-        # The id tiebreak is load-bearing, not decoration: a single sign-in writes
-        # several rows in the same millisecond, and without it Postgres is free to
-        # return one of them on two consecutive pages and drop another entirely.
+        # The id tiebreak matters: a single sign-in writes several rows in the same
+        # millisecond, and without it Postgres is free to return one of them on two
+        # consecutive pages and drop another entirely.
         .order_by(ActivityLog.occurred_at.desc(), ActivityLog.id.desc())
         .paginate(page=page, per_page=ACTIVITY_PER_PAGE, error_out=False)
     )
