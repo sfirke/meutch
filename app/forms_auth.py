@@ -1,0 +1,264 @@
+from flask_wtf import FlaskForm
+from wtforms import (
+    BooleanField,
+    FloatField,
+    PasswordField,
+    RadioField,
+    SelectField,
+    StringField,
+    SubmitField,
+)
+from wtforms.validators import (
+    DataRequired,
+    Email,
+    EqualTo,
+    Length,
+    NumberRange,
+    Optional,
+    ValidationError,
+)
+
+from app.forms_shared import (
+    COUNTRY_CHOICES,
+    COUNTRY_DEFAULT,
+    DIGEST_FREQUENCY_CHOICES,
+    CountryChoice,
+)
+from app.models import User
+from app.services.auth_service import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
+
+
+class LoginForm(FlaskForm):
+    email = StringField(
+        "Email",
+        validators=[
+            DataRequired(message="Email is required."),
+            Email(message="Invalid email format."),
+            Length(max=120, message="Email must be under 120 characters."),
+        ],
+    )
+    password = PasswordField(
+        "Password",
+        validators=[
+            DataRequired(message="Password is required."),
+            # No minimum here: accounts created before the minimum was raised must
+            # still be able to log in.
+            Length(max=PASSWORD_MAX_LENGTH),
+        ],
+    )
+    remember_device = BooleanField("Remember this device for 30 days")
+    submit = SubmitField("Log In")
+
+
+class RegistrationForm(FlaskForm):
+    email = StringField(
+        "Email",
+        validators=[
+            DataRequired(message="Email is required."),
+            Email(message="Invalid email format."),
+            Length(max=120, message="Email must be under 120 characters."),
+        ],
+    )
+    first_name = StringField(
+        "First Name",
+        validators=[
+            DataRequired(message="First name is required."),
+            Length(max=50, message="First name must be under 50 characters."),
+        ],
+    )
+    last_name = StringField(
+        "Last Name",
+        validators=[
+            DataRequired(message="Last name is required."),
+            Length(max=50, message="Last name must be under 50 characters."),
+        ],
+    )
+    digest_frequency = SelectField(
+        "Email Digest Frequency",
+        choices=DIGEST_FREQUENCY_CHOICES,
+        default=User.DIGEST_FREQUENCY_WEEKLY,
+        validators=[DataRequired()],
+    )
+
+    location_method = RadioField(
+        "How would you like to set your location?",
+        choices=[
+            ("address", "Enter an address (we'll look up coordinates)"),
+            ("coordinates", "Enter latitude and longitude directly"),
+            ("skip", "Skip for now (you can add this later on your profile)"),
+        ],
+        default="address",
+        validators=[DataRequired()],
+    )
+
+    street = StringField(
+        "Street Address",
+        validators=[
+            Optional(),
+            Length(max=200, message="Street address must be under 200 characters."),
+        ],
+    )
+    city = StringField(
+        "City",
+        validators=[
+            Optional(),
+            Length(max=100, message="City must be under 100 characters."),
+        ],
+    )
+    state = StringField(
+        "State/Province",
+        validators=[
+            Optional(),
+            Length(max=100, message="State/Province must be under 100 characters."),
+        ],
+    )
+    zip_code = StringField(
+        "Postal Code",
+        validators=[
+            Optional(),
+            Length(max=20, message="Postal Code must be under 20 characters."),
+        ],
+    )
+    country = SelectField(
+        "Country",
+        validators=[
+            Optional(),
+            CountryChoice(),
+        ],
+        choices=COUNTRY_CHOICES,
+        default=COUNTRY_DEFAULT,
+        validate_choice=False,
+    )
+
+    latitude = FloatField(
+        "Latitude",
+        validators=[
+            Optional(),
+            NumberRange(min=-90, max=90, message="Latitude must be between -90 and 90 degrees."),
+        ],
+    )
+    longitude = FloatField(
+        "Longitude",
+        validators=[
+            Optional(),
+            NumberRange(
+                min=-180, max=180, message="Longitude must be between -180 and 180 degrees."
+            ),
+        ],
+    )
+
+    password = PasswordField(
+        "Password",
+        validators=[
+            DataRequired(message="Password is required."),
+            Length(
+                min=PASSWORD_MIN_LENGTH,
+                max=PASSWORD_MAX_LENGTH,
+                message=f"Password must be at least {PASSWORD_MIN_LENGTH} characters long.",
+            ),
+        ],
+    )
+    confirm_password = PasswordField(
+        "Confirm Password",
+        validators=[
+            DataRequired(message="Please confirm your password."),
+            EqualTo("password", message="Passwords must match."),
+        ],
+    )
+    age_confirm = BooleanField(
+        "I confirm I am at least 13 years old",
+        validators=[
+            DataRequired(message="You must be at least 13 years old to use Meutch."),
+        ],
+    )
+    submit = SubmitField("Register")
+
+    def validate_email(self, email):
+        """Check if email is already registered with contextual status."""
+        from app.services.auth_service import check_existing_email
+
+        result = check_existing_email(email.data)
+        if result.exists:
+            if result.is_confirmed:
+                self.email_status = "confirmed"
+                raise ValidationError(
+                    "This email is already registered. Use the forgot-password link below to regain access."
+                )
+            else:
+                self.email_status = "unconfirmed"
+                raise ValidationError(
+                    "This email is already registered but hasn't been confirmed yet. "
+                    "Use the resend-confirmation link below or try a different email."
+                )
+
+    def validate(self, extra_validators=None):
+        """Custom validation to ensure required fields are filled based on location method"""
+        rv = FlaskForm.validate(self, extra_validators)
+        if not rv:
+            return False
+
+        if self.location_method.data == "address":
+            required_fields = [self.street, self.city, self.state, self.zip_code, self.country]
+            for field in required_fields:
+                if not field.data or not field.data.strip():
+                    field.errors.append(f"{field.label.text} is required when entering an address.")
+                    rv = False
+        elif self.location_method.data == "coordinates":
+            if self.latitude.data is None:
+                self.latitude.errors.append(
+                    "Latitude is required when entering coordinates directly."
+                )
+                rv = False
+            if self.longitude.data is None:
+                self.longitude.errors.append(
+                    "Longitude is required when entering coordinates directly."
+                )
+                rv = False
+
+        return rv
+
+
+class ForgotPasswordForm(FlaskForm):
+    email = StringField(
+        "Email",
+        validators=[
+            DataRequired(message="Email is required."),
+            Email(message="Invalid email format."),
+            Length(max=120, message="Email must be under 120 characters."),
+        ],
+    )
+    submit = SubmitField("Send Reset Link")
+
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField(
+        "New Password",
+        validators=[
+            DataRequired(message="Password is required."),
+            Length(
+                min=PASSWORD_MIN_LENGTH,
+                max=PASSWORD_MAX_LENGTH,
+                message=f"Password must be at least {PASSWORD_MIN_LENGTH} characters long.",
+            ),
+        ],
+    )
+    confirm_password = PasswordField(
+        "Confirm New Password",
+        validators=[
+            DataRequired(message="Please confirm your password."),
+            EqualTo("password", message="Passwords must match."),
+        ],
+    )
+    submit = SubmitField("Reset Password")
+
+
+class ResendConfirmationForm(FlaskForm):
+    email = StringField(
+        "Email Address",
+        validators=[
+            DataRequired(message="Email is required."),
+            Email(message="Invalid email format."),
+            Length(max=120, message="Email must be under 120 characters."),
+        ],
+    )
+    submit = SubmitField("Resend Confirmation Email")

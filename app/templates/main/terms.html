@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Terms &amp; Conditions{% endblock %}
+
+{% block content %}
+<div class="row mb-5">
+    <div class="col-lg-8">
+        <h1 class="mb-4">Terms &amp; Conditions</h1>
+        <p class="text-muted">Last updated: June 2026</p>
+
+        <h4 class="mt-4">1. What Meutch Is</h4>
+        <p>
+            Meutch is a free, nonprofit, open-source platform for sharing and borrowing items within your community.
+            It is run by volunteers and provided as a service to help neighbors help each other.
+        </p>
+
+        <h4 class="mt-4">2. Using the Platform</h4>
+        <p>
+            Meutch is provided as-is, without warranty of any kind. The people behind Meutch are volunteers.
+            We do our best, but we cannot guarantee the platform will always be available, error-free,
+            or suitable for every purpose.
+        </p>
+
+        <h4 class="mt-4">3. Your Privacy</h4>
+        <p>
+            Meutch does not share your data with any other entity. See our
+            <a href="{{ url_for('main.privacy_policy') }}">Privacy Policy</a> for full details.
+        </p>
+
+        <h4 class="mt-4">4. Borrowing and Lending Is At Your Own Risk</h4>
+        <p>
+            Meutch connects people who want to share, but we are not responsible for what happens to items.
+            If you borrow something and it breaks, gets lost, or is stolen, that is between you and the owner.
+            If you lend something and it comes back damaged, that is between you and the borrower.
+        </p>
+        <p>
+            <strong>Our advice:</strong> Take care of other people's things. If you break or lose something you borrowed,
+            make it right with the owner. If you are lending something valuable or sentimental, use your judgment
+            about who you lend to. Meutch cannot insure or replace items.
+        </p>
+
+        <h4 class="mt-4">5. What You Cannot List</h4>
+        <p>Meutch is for sharing, not selling. The following are not allowed on the platform:</p>
+        <ul>
+            <li><strong>No commercial listings.</strong> Items may not be listed with the expectation of payment, trade, or barter.</li>
+            <li><strong>No controlled substances.</strong> This includes alcohol, recreational drugs, and prescription medication.</li>
+            <li><strong>No weapons.</strong> This includes firearms, knives intended as weapons, explosives, and similar items.</li>
+            <li><strong>No items of a sexual nature.</strong> This includes toys, media, and any other sexually-oriented items. Nursing-related items are allowed.</li>
+        </ul>
+
+        <h4 class="mt-4">6. Conduct and Content</h4>
+        <p>Meutch is a community platform. To keep it welcoming and safe for everyone:</p>
+        <ul>
+            <li>Be respectful of other users. Harassment, hate speech, threats, and abusive behavior are not tolerated.</li>
+            <li>Keep content G-rated. No profanity, no sexually-explicit material, no violence.</li>
+            <li>Post honestly. Do not misrepresent items, yourself, or your intentions.</li>
+            <li>Moderators and administrators reserve the right to remove content, suspend, or permanently ban users who violate these terms, at their discretion.</li>
+        </ul>
+
+        <h4 class="mt-4">7. Age Requirement</h4>
+        <p>
+            You must be at least <strong>13 years old</strong> to use Meutch.
+        </p>
+
+        <h4 class="mt-4">8. Changes to These Terms</h4>
+        <p>
+            We may update these terms from time to time. When we do, we will note the date of the latest update at the top of this page.
+            Continued use of Meutch after changes means you accept the updated terms.
+        </p>
+
+        <h4 class="mt-4">9. Contact</h4>
+        <p>
+            You can report issues or ask questions on our
+            <a href="https://github.com/sfirke/meutch/issues" target="_blank" rel="noopener noreferrer">GitHub issue tracker</a>. For private concerns, contact Sam directly.
+        </p>
+    </div>
+</div>
+{% endblock %}

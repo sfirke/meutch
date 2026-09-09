@@ -7,9 +7,15 @@
 {% block content %}
 <div class="container mt-5">
     <h2>List a New Item</h2>
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" enctype="multipart/form-data" data-single-submit="true">
         {{ form.csrf_token }}
-        
+        {{ form.creation_token() }}
+        {% if return_request_id %}
+            {# Keeps the "I have this item" flow intact across a failed submission #}
+            <input type="hidden" name="return_to" value="respond">
+            <input type="hidden" name="request_id" value="{{ return_request_id }}">
+        {% endif %}
+
         <!-- Item Name -->
         <div class="mb-3">
             {{ form.name.label(class="form-label") }}
@@ -18,7 +24,7 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Description -->
         <div class="mb-3">
             {{ form.description.label(class="form-label") }}
@@ -27,7 +33,7 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Images -->
         <div class="mb-3 multi-image-upload"
              data-max-images="{{ item_upload_limits.max_images }}"
@@ -60,7 +66,7 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Tags -->
         <div class="mb-3">
             {{ form.tags.label(class="form-label") }}
@@ -69,7 +75,7 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Giveaway Option -->
         <div class="mb-3">
             <div class="form-check">
@@ -80,7 +86,7 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Giveaway Visibility (conditional) -->
         <div class="mb-3" id="giveawayVisibilitySection" style="display: none;">
             {{ form.giveaway_visibility.label(class="form-label") }}
@@ -94,11 +100,13 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Submit Buttons -->
         <div class="mb-3 d-grid gap-2 d-md-flex justify-content-md-start">
             {{ form.submit(class="btn btn-primary") }}
-            {{ form.submit_and_create_another(class="btn btn-outline-primary") }}
+            {% if not return_request_id %}
+                {{ form.submit_and_create_another(class="btn btn-outline-primary") }}
+            {% endif %}
         </div>
     </form>
 </div>
@@ -108,7 +116,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         const giveawayCheckbox = document.getElementById('isGiveawayCheckbox');
         const visibilitySection = document.getElementById('giveawayVisibilitySection');
-        
+
         function toggleVisibilitySection() {
             if (giveawayCheckbox.checked) {
                 visibilitySection.style.display = 'block';
@@ -116,10 +124,10 @@
                 visibilitySection.style.display = 'none';
             }
         }
-        
+
         // Initialize on page load
         toggleVisibilitySection();
-        
+
         // Update when checkbox changes
         giveawayCheckbox.addEventListener('change', toggleVisibilitySection);
     });

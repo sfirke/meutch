@@ -1,0 +1,446 @@
+"""Messaging workflow service helpers."""
+
+import logging
+from datetime import UTC, datetime
+
+from flask import url_for
+
+from app import db
+from app.models import ConversationParticipant, Message
+from app.services import giveaway_service
+from app.services.exceptions import AuthorizationError, InvalidActionError, ServiceError
+from app.utils.email import send_message_notification_email
+from app.utils.item_share import build_item_share_url, item_supports_share_links
+from app.utils.item_visibility import build_item_access_state
+from app.utils.messaging_queries import (
+    build_conversation_thread_state,
+    get_or_create_conversation,
+    mark_conversation_messages_read,
+)
+from app.utils.request_queries import can_view_request
+
+logger = logging.getLogger(__name__)
+
+
+def get_item_conversation_recipient_id(item, sender, *, share_token=None):
+    if item.owner_id == sender.id:
+        raise InvalidActionError("You cannot message yourself about your own item.")
+
+    access_state = build_item_access_state(item, sender, share_token=share_token)
+    if not access_state["can_view"]:
+        raise AuthorizationError("You do not have permission to message the owner about this item.")
+
+    return item.owner_id
+
+
+def get_request_conversation_recipient_id(item_request, sender):
+    if item_request.user_id == sender.id:
+        raise InvalidActionError("You cannot message yourself about your own request.")
+
+    if not can_view_request(item_request, sender):
+        raise AuthorizationError("You do not have permission to message this request owner.")
+
+    return item_request.user_id
+
+
+def start_item_conversation(item, sender, body, *, share_token=None):
+    recipient_id = get_item_conversation_recipient_id(item, sender, share_token=share_token)
+    conversation = get_or_create_conversation("item", item.id, sender.id, recipient_id)
+    message = create_message(sender.id, recipient_id, body, conversation_id=conversation.id)
+
+    # When a non-owner messages about a giveaway item, also record their
+    # interest so the owner can select them as a recipient later.
+    if item.is_giveaway and sender.id != item.owner_id:
+        try:
+            giveaway_service.express_interest(item, sender.id, body, send_notification=False)
+        except ServiceError:
+            pass  # Already interested or item unavailable — silently fine
+
+    return message
+
+
+def start_request_conversation(item_request, sender, body):
+    recipient_id = get_request_conversation_recipient_id(item_request, sender)
+    conversation = get_or_create_conversation("request", item_request.id, sender.id, recipient_id)
+    return create_message(sender.id, recipient_id, body, conversation_id=conversation.id)
+
+
+def validate_respond_access(item_request, sender):
+    """Validate that *sender* can respond to *item_request*.
+
+    Returns the requester's user ID (the message recipient) on success.
+    Callers 404 deleted requests before reaching here, so this only adds the
+    "still open" rule on top of the shared request-messaging gate.
+
+    Raises:
+        InvalidActionError: if the request is closed or expired, or if
+            *sender* is the requester.
+        AuthorizationError: if *sender* doesn't have permission to
+            message the requester.
+    """
+    if not item_request.is_active:
+        raise InvalidActionError("This request is no longer open.")
+
+    return get_request_conversation_recipient_id(item_request, sender)
+
+
+def _build_item_url_for_requester(item, requester):
+    """Return the best URL so *requester* can view *item*, or ``None``.
+
+    - Anything *requester* can already open links straight to the item: a
+      public giveaway, a regular item reachable through a shared circle or an
+      active loan, or a giveaway visible to the circles they share with the
+      owner.
+    - Regular items they cannot open travel with a tokenized share-preview URL.
+    - Giveaways cannot be shared with a token, so a circles-only giveaway
+      offered to someone outside the owner's circles has no working URL at all.
+      :func:`describe_item_visibility_gap` explains that case to the sender.
+
+    Access is read from :func:`build_item_access_state`, the same helper the
+    item detail view uses, so a link is only ever offered when the click will
+    work.
+    """
+    if build_item_access_state(item, requester)["can_view"]:
+        return url_for("main.item_detail", item_id=item.id, _external=True)
+
+    if item_supports_share_links(item):
+        return build_item_share_url(item)
+
+    return None
+
+
+def describe_item_visibility_gap(item_request, item):
+    """Explain that the requester will not be able to open *item*'s page.
+
+    Returns a short sentence for display, or ``None`` when they can open it.
+    Only a circles-only giveaway can land here: a regular item always travels
+    with a share link, and a public giveaway is open to every signed-in user.
+
+    Like a seeking mismatch this is surfaced rather than filtered out.  The
+    item may still be exactly what the requester wants, so the sender is told
+    what the requester will and will not see and can describe the item in
+    their own words.
+    """
+    if item_supports_share_links(item):
+        return None
+
+    if build_item_access_state(item, item_request.user)["can_view"]:
+        return None
+
+    return (
+        f"Only your circles can open this giveaway's page, and "
+        f"{item_request.user.first_name} is not in any of them, so your message will "
+        "describe the item instead of linking to it."
+    )
+
+
+def build_respond_message_body(item_request, item):
+    """Build the default message body for responding to *item_request* with *item*.
+
+    Returns the formatted message body string, including an item URL suited to
+    what the requester can view.  A circles-only giveaway offered outside the
+    owner's circles has no URL that would work, so the draft leaves the link
+    out rather than sending the requester somewhere they cannot go.
+    """
+    body = (
+        f"Hi {item_request.user.first_name}! I have a {item.name} that might help with "
+        f"your request for '{item_request.title}'."
+    )
+    item_url = _build_item_url_for_requester(item, item_request.user)
+    if item_url is not None:
+        body += f" You can see it here: {item_url}"
+    return body
+
+
+def _ensure_item_offerable(item, sender):
+    if item.owner_id != sender.id:
+        raise AuthorizationError("You can only respond with your own items.")
+
+    # The item picker already hides claimed giveaways, but the compose step is
+    # reachable by URL, and a claimed giveaway is no longer viewable by anyone
+    # outside the handoff -- the requester would only find a dead end.
+    if item.is_giveaway and item.claim_status == "claimed":
+        raise InvalidActionError("This giveaway has already been claimed.")
+
+
+def build_respond_draft(item_request, sender, item):
+    """Return the suggested message body for offering *item* to a requester.
+
+    This is the checked entry point behind the compose step: it runs the same
+    ownership and access validation as :func:`respond_to_request_with_item`, so
+    a caller can safely show the draft before anything is sent.
+
+    Raises the same errors as :func:`respond_to_request_with_item`.
+    """
+    _ensure_item_offerable(item, sender)
+    validate_respond_access(item_request, sender)
+
+    return build_respond_message_body(item_request, item)
+
+
+def respond_to_request_with_item(item_request, sender, item, body=None):
+    """Respond to *item_request* by sharing *item* with the requester.
+
+    Creates a message in the request conversation that includes an
+    item link.  When the requester cannot see the item directly a share
+    token is generated automatically.
+
+    Args:
+        item_request: The :class:`ItemRequest` being responded to.
+        sender: The :class:`User` responding (must own *item*).
+        item: The :class:`Item` being offered in response.
+        body: The message to send, normally the draft from
+            :func:`build_respond_draft` after the sender has edited it.  When
+            ``None`` the draft is generated and sent as-is.
+
+    Returns:
+        The newly created :class:`Message`.
+    """
+    _ensure_item_offerable(item, sender)
+
+    recipient_id = validate_respond_access(item_request, sender)
+
+    conversation = get_or_create_conversation("request", item_request.id, sender.id, recipient_id)
+
+    if body is None:
+        body = build_respond_message_body(item_request, item)
+
+    return create_message(
+        sender.id,
+        recipient_id,
+        body,
+        conversation_id=conversation.id,
+    )
+
+
+def _commit_and_notify(message, error_prefix):
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+    try:
+        send_message_notification_email(message)
+    except Exception as exc:  # pragma: no cover - behavior is unchanged if email sending fails
+        logger.error("%s: %s", error_prefix, exc)
+
+    return message
+
+
+def _commit_only(message):
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+    return message
+
+
+def create_message(
+    sender_id,
+    recipient_id,
+    body,
+    *,
+    # `notify=False` lets callers suppress the message-notification email.
+    # Use this when a dedicated, context-specific email is already being sent
+    # for the same event (e.g. circle join-request decisions already send a
+    # separate approval/rejection email via send_circle_join_request_decision_email).
+    notify=True,
+    conversation_id=None,
+    parent_id=None,
+    loan_request_id=None,
+):
+    if sender_id == recipient_id:
+        raise InvalidActionError("You cannot message yourself.")
+
+    message = Message(
+        sender_id=sender_id,
+        recipient_id=recipient_id,
+        conversation_id=conversation_id,
+        body=body,
+        is_read=False,
+        parent_id=parent_id,
+        loan_request_id=loan_request_id,
+    )
+    db.session.add(message)
+
+    # Auto-unarchive for the recipient when a new message arrives
+    ConversationParticipant.query.filter_by(
+        conversation_id=conversation_id, user_id=recipient_id, is_archived=True
+    ).update({"is_archived": False, "archived_at": None}, synchronize_session=False)
+
+    if notify:
+        return _commit_and_notify(
+            message,
+            f"Failed to send email notification for message {message.id}",
+        )
+
+    return _commit_only(message)
+
+
+def reply_to_message(message, sender_id, body):
+    if sender_id not in {message.sender_id, message.recipient_id}:
+        raise AuthorizationError("You do not have permission to reply to this message.")
+
+    recipient_id = message.recipient_id if message.sender_id == sender_id else message.sender_id
+    return create_message(
+        sender_id,
+        recipient_id,
+        body,
+        conversation_id=message.conversation_id,
+        parent_id=message.id,
+    )
+
+
+def _build_authorized_conversation_thread_state(message, viewer_id):
+    if viewer_id not in {message.sender_id, message.recipient_id}:
+        raise AuthorizationError("You do not have permission to view this message.")
+
+    return build_conversation_thread_state(message, viewer_id)
+
+
+def get_conversation_thread_state(message, viewer_id, *, mark_read=True):
+    thread_state = _build_authorized_conversation_thread_state(message, viewer_id)
+
+    if mark_read:
+        mark_conversation_messages_read(thread_state["unread_messages"])
+
+    return {
+        "thread_messages": thread_state["thread_messages"],
+        "has_unread_messages": thread_state["has_unread_messages"],
+    }
+
+
+def mark_message_thread_read(message, viewer_id):
+    thread_state = _build_authorized_conversation_thread_state(message, viewer_id)
+    unread_messages = thread_state["unread_messages"]
+
+    if unread_messages:
+        mark_conversation_messages_read(unread_messages)
+
+    return {
+        "has_unread_messages": False,
+    }
+
+
+# ── Archive & bulk-action helpers ──────────────────────────────────────────
+
+
+def archive_conversation(user_id, conversation_id):
+    """Archive a conversation for a user. Each user's archive state is independent."""
+    ConversationParticipant.query.filter_by(
+        conversation_id=conversation_id, user_id=user_id
+    ).update({"is_archived": True, "archived_at": datetime.now(UTC)}, synchronize_session=False)
+    db.session.commit()
+
+
+def unarchive_conversation(user_id, conversation_id):
+    """Unarchive a conversation for a user."""
+    ConversationParticipant.query.filter_by(
+        conversation_id=conversation_id, user_id=user_id
+    ).update({"is_archived": False, "archived_at": None}, synchronize_session=False)
+    db.session.commit()
+
+
+def bulk_archive(user_id, conversation_ids):
+    """Archive multiple conversations in a single UPDATE."""
+    if not conversation_ids:
+        return
+    ConversationParticipant.query.filter(
+        ConversationParticipant.conversation_id.in_(conversation_ids),
+        ConversationParticipant.user_id == user_id,
+    ).update({"is_archived": True, "archived_at": datetime.now(UTC)}, synchronize_session=False)
+    db.session.commit()
+
+
+def bulk_unarchive(user_id, conversation_ids):
+    """Unarchive multiple conversations in a single UPDATE."""
+    if not conversation_ids:
+        return
+    ConversationParticipant.query.filter(
+        ConversationParticipant.conversation_id.in_(conversation_ids),
+        ConversationParticipant.user_id == user_id,
+    ).update({"is_archived": False, "archived_at": None}, synchronize_session=False)
+    db.session.commit()
+
+
+def bulk_mark_read(user_id, conversation_ids):
+    """Mark all unread messages as read in the given conversations."""
+    if not conversation_ids:
+        return
+    Message.query.filter(
+        Message.conversation_id.in_(conversation_ids),
+        Message.recipient_id == user_id,
+        Message.is_read.is_(False),
+    ).update({"is_read": True}, synchronize_session=False)
+    db.session.commit()
+
+
+def bulk_mark_unread(user_id, conversation_ids):
+    """Mark the latest message in each conversation as unread for the user.
+
+    Only the single most-recent message (by timestamp) per conversation is
+    flipped back to unread.  That is enough to surface the conversation in
+    the inbox while avoiding an explosion of unread counts.
+    """
+    if not conversation_ids:
+        return
+
+    # Window-function subquery: row_number = 1 picks the latest message
+    # per conversation where the user is the recipient.
+
+    ranked = (
+        db.session.query(
+            Message.id,
+            db.func.row_number()
+            .over(
+                partition_by=Message.conversation_id,
+                order_by=Message.timestamp.desc(),
+            )
+            .label("rn"),
+        )
+        .filter(
+            Message.conversation_id.in_(conversation_ids),
+            Message.recipient_id == user_id,
+        )
+        .subquery()
+    )
+
+    latest_ids = db.session.query(ranked.c.id).filter(ranked.c.rn == 1).scalar_subquery()
+
+    Message.query.filter(Message.id.in_(latest_ids)).update(
+        {"is_read": False}, synchronize_session=False
+    )
+    db.session.commit()
+
+
+def mark_all_read_in_view(user_id, status="inbox"):
+    """Mark all unread messages as read for conversations in the active view.
+
+    ``status`` is ``"inbox"`` (non-archived conversations) or ``"archived"``.
+    """
+    is_archived_flag = status == "archived"
+    if is_archived_flag:
+        archive_filter = ConversationParticipant.is_archived.is_(True)
+    else:
+        # Use isnot(True) rather than is_(False) so that NULL rows
+        # (where is_archived was never set) are also treated as "not archived".
+        archive_filter = ConversationParticipant.is_archived.isnot(True)
+
+    view_conversation_ids = (
+        db.session.query(ConversationParticipant.conversation_id)
+        .filter(
+            ConversationParticipant.user_id == user_id,
+            archive_filter,
+        )
+        .scalar_subquery()
+    )
+
+    Message.query.filter(
+        Message.conversation_id.in_(view_conversation_ids),
+        Message.recipient_id == user_id,
+        Message.is_read.is_(False),
+    ).update({"is_read": True}, synchronize_session=False)
+    db.session.commit()

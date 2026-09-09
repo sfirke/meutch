@@ -1,51 +1,63 @@
+"""Outbound email: Mailgun delivery plus the text and HTML body for each notification.
+
+Every email here is assembled with f-strings rather than Jinja, so nothing escapes
+automatically. Any value that a user can influence — names, item and circle names,
+descriptions, message bodies — must be wrapped in `escape()` before it goes into the
+HTML body, or in `linkify()` where URLs in the text should also become clickable
+(linkify escapes first, then adds the anchors). The plain-text body is not markup and
+is left alone.
+"""
+
 import requests
-import os
 from flask import current_app, url_for
+from markupsafe import escape
+
+from app.template_filters import linkify
 from app.utils.digest_tokens import generate_digest_manage_token
 
 
-def send_email(to_email, subject, text_content, html_content=None):
+def send_email(to_email, subject, text_content, html_content=None, reply_to=None):
     """Send email using Mailgun API"""
     try:
-        api_key = current_app.config.get('MAILGUN_API_KEY')
-        domain = current_app.config.get('MAILGUN_DOMAIN')
-        
+        api_key = current_app.config.get("MAILGUN_API_KEY")
+        domain = current_app.config.get("MAILGUN_DOMAIN")
+
         if not api_key or not domain:
             current_app.logger.error("Mailgun configuration missing")
             return False
-        
+
         # Check email allowlist (for staging/testing environments)
-        allowlist = current_app.config.get('EMAIL_ALLOWLIST')
+        allowlist = current_app.config.get("EMAIL_ALLOWLIST")
         if allowlist is not None:  # Allowlist is configured
             if to_email.lower() not in allowlist:
-                current_app.logger.info(f"Email to {to_email} blocked by allowlist. Subject: {subject}")
+                current_app.logger.info(
+                    f"Email to {to_email} blocked by allowlist. Subject: {subject}"
+                )
                 return True  # Return True since this is not an error - just filtered
-        
+
         from_email = f"Meutch <postmaster@{domain}>"
-        
-        data = {
-            "from": from_email,
-            "to": to_email,
-            "subject": subject,
-            "text": text_content
-        }
-        
+
+        data = {"from": from_email, "to": to_email, "subject": subject, "text": text_content}
+
         if html_content:
             data["html"] = html_content
-            
+
+        if reply_to:
+            data["h:Reply-To"] = reply_to
+
         response = requests.post(
-            f"https://api.mailgun.net/v3/{domain}/messages",
-            auth=("api", api_key),
-            data=data
+            f"https://api.mailgun.net/v3/{domain}/messages", auth=("api", api_key), data=data
         )
-        
+
         if response.status_code == 200:
             current_app.logger.info(f"Email sent successfully to {to_email}")
             return True
         else:
-            current_app.logger.error(f"Failed to send email: {response.status_code} - {response.text}")
+            current_app.logger.error(
+                f"Failed to send email: {response.status_code} - {response.text}"
+            )
             return False
-            
+
     except Exception as e:
         current_app.logger.error(f"Error sending email: {str(e)}")
         return False
@@ -54,20 +66,20 @@ def send_email(to_email, subject, text_content, html_content=None):
 def send_confirmation_email(user, next_url=None):
     """Send email confirmation to user"""
     from app import db  # Import db here to avoid circular imports
-    
+
     token = user.generate_confirmation_token()
-    
+
     db.session.commit()
-    
+
     url_kwargs = dict(token=token, _external=True)
     if next_url:
-        url_kwargs['next'] = next_url
-    confirmation_url = url_for('auth.confirm_email', **url_kwargs)
-    
+        url_kwargs["next"] = next_url
+    confirmation_url = url_for("auth.confirm_email", **url_kwargs)
+
     print(f"Confirmation URL: {confirmation_url}")
-    
+
     subject = "Welcome to Meutch - Please confirm your email"
-    
+
     text_content = f"""
 Hello {user.first_name},
 
@@ -82,21 +94,22 @@ This link will expire in 24 hours. If you didn't create an account with Meutch, 
 Best regards,
 The Meutch Team
     """.strip()
-    
+
     return send_email(user.email, subject, text_content)
+
 
 def send_password_reset_email(user):
     """Send password reset email to user"""
     from app import db  # Import db here to avoid circular imports
-    
+
     token = user.generate_password_reset_token()
-    
+
     db.session.commit()
-    
-    reset_url = url_for('auth.reset_password', token=token, _external=True)
-    
+
+    reset_url = url_for("auth.reset_password", token=token, _external=True)
+
     subject = "Meutch - Reset Your Password"
-    
+
     text_content = f"""
 Hello {user.first_name},
 
@@ -113,80 +126,147 @@ If you continue to have trouble accessing your account, please contact our suppo
 Best regards,
 The Meutch Team
     """.strip()
-    
+
     return send_email(user.email, subject, text_content)
+
+
+def build_message_reply_address(message):
+    domain = current_app.config.get("MAILGUN_DOMAIN")
+    if not domain:
+        return None
+    prefix = current_app.config.get("MAILGUN_REPLY_PREFIX", "")
+    return f"Meutch Replies <reply+{prefix}{message.id}@{domain}>"
 
 
 def send_message_notification_email(message):
     """Send email notification for new messages"""
-    from app.models import User  # Import here to avoid circular imports
     from app import db
-    
+    from app.models import User  # Import here to avoid circular imports
+
     # Get the recipient user
     recipient = db.session.get(User, message.recipient_id)
     sender = db.session.get(User, message.sender_id)
-    
+
     if not recipient or not sender:
-        current_app.logger.error(f"User not found for message notification: recipient={message.recipient_id}, sender={message.sender_id}")
+        current_app.logger.error(
+            f"User not found for message notification: recipient={message.recipient_id}, sender={message.sender_id}"
+        )
         return False
-    
+
     # Generate the conversation URL
-    conversation_url = url_for('main.view_conversation', message_id=message.id, _external=True)
-    
+    conversation_url = url_for(
+        "main.view_conversation", conversation_id=message.conversation_id, _external=True
+    )
+
+    conversation = message.conversation
     context_label = None
     context_type_label = None  # User-facing label for email
-    if message.item is not None:
-        context_label = message.item.name
-        context_type_label = f"Item: {message.item.name}"
-    elif message.is_request_message:
-        context_label = f"request: {message.request.title}"
-        context_type_label = f"Request: {message.request.title}"
-    elif message.is_circle_message:
-        context_label = f"circle: {message.circle.name}"
-        context_type_label = f"Circle: {message.circle.name}"
+    if conversation.context_type == "item":
+        item = conversation.item
+        if item is None:
+            current_app.logger.error(
+                f"Message {message.id} conversation {conversation.id}: item not found"
+            )
+            return False
+        context_label = item.name
+        context_type_label = f"Item: {item.name}"
+    elif conversation.context_type == "request":
+        req = conversation.request
+        if req is None:
+            current_app.logger.error(
+                f"Message {message.id} conversation {conversation.id}: request not found"
+            )
+            return False
+        context_label = f"request: {req.title}"
+        context_type_label = f"Request: {req.title}"
+    elif conversation.context_type == "circle":
+        circle = conversation.circle
+        if circle is None:
+            current_app.logger.error(
+                f"Message {message.id} conversation {conversation.id}: circle not found"
+            )
+            return False
+        context_label = f"circle: {circle.name}"
+        context_type_label = f"Circle: {circle.name}"
     else:
-        current_app.logger.error(f"Message {message.id} has no item, request, or circle context")
+        current_app.logger.error(
+            f"Message {message.id} has unknown context_type '{conversation.context_type}'"
+        )
         return False
 
     # Determine the subject and email content based on message type
     if message.is_loan_request_message:
-        message_body_lower = (message.body or '').lower()
+        item_name = conversation.item.name if conversation.item else "Unknown Item"
+        message_body_lower = (message.body or "").lower()
         # Check if this is a loan extension message (owner extending the due date)
-        if 'extension requested' in message_body_lower:
-            subject = f"Meutch - Extension Request for {message.item.name}"
+        if "extension requested" in message_body_lower:
+            subject = f"Meutch - Extension Request for {item_name}"
             email_type = "extension request"
-        elif message.loan_request.status == 'approved' and 'extension request' in message_body_lower and 'approved' in message_body_lower:
-            subject = f"Meutch - Extension Approved for {message.item.name}"
+        elif (
+            message.loan_request.status == "approved"
+            and "extension request" in message_body_lower
+            and "approved" in message_body_lower
+        ):
+            subject = f"Meutch - Extension Approved for {item_name}"
             email_type = "extension approval"
-        elif message.loan_request.status == 'approved' and ('has been extended' in message_body_lower or 'due date has been updated' in message_body_lower):
-            subject = f"Meutch - Loan Extended for {message.item.name}"
+        elif message.loan_request.status == "approved" and (
+            "has been extended" in message_body_lower
+            or "due date has been updated" in message_body_lower
+        ):
+            subject = f"Meutch - Loan Extended for {item_name}"
             email_type = "loan extension"
-        elif message.loan_request.status == 'approved' and 'extension request' in message_body_lower and 'denied' in message_body_lower:
-            subject = f"Meutch - Extension Denied for {message.item.name}"
+        elif (
+            message.loan_request.status == "approved"
+            and "extension request" in message_body_lower
+            and "denied" in message_body_lower
+        ):
+            subject = f"Meutch - Extension Denied for {item_name}"
             email_type = "extension denial"
-        elif message.loan_request.status == 'pending':
-            subject = f"Meutch - New Loan Request for {message.item.name}"
+        elif message.loan_request.status == "pending":
+            subject = f"Meutch - New Loan Request for {item_name}"
             email_type = "loan request"
-        elif message.loan_request.status == 'approved':
-            subject = f"Meutch - Loan Request Approved for {message.item.name}"
+        elif message.loan_request.status == "approved":
+            subject = f"Meutch - Loan Request Approved for {item_name}"
             email_type = "loan approval"
-        elif message.loan_request.status == 'denied':
-            subject = f"Meutch - Loan Request Denied for {message.item.name}"
+        elif message.loan_request.status == "denied":
+            subject = f"Meutch - Loan Request Denied for {item_name}"
             email_type = "loan denial"
-        elif message.loan_request.status == 'completed':
-            subject = f"Meutch - Loan Completed for {message.item.name}"
+        elif message.loan_request.status == "completed":
+            subject = f"Meutch - Loan Completed for {item_name}"
             email_type = "loan completion"
-        elif message.loan_request.status == 'canceled':
-            subject = f"Meutch - Loan Request Canceled for {message.item.name}"
+        elif message.loan_request.status == "canceled":
+            subject = f"Meutch - Loan Request Canceled for {item_name}"
             email_type = "loan cancellation"
         else:
             # Strict validation: raise exception for unknown statuses
-            raise ValueError(f"Unknown loan request status '{message.loan_request.status}' for message {message.id}. "
-                           f"Valid statuses are: pending, approved, denied, completed, canceled")
+            raise ValueError(
+                f"Unknown loan request status '{message.loan_request.status}' for message {message.id}. "
+                f"Valid statuses are: pending, approved, denied, completed, canceled"
+            )
     else:
         subject = f"Meutch - New Message about {context_label}"
         email_type = "message"
-    
+
+    can_reply_by_email = not message.is_loan_request_message
+    if can_reply_by_email:
+        response_text = f"""Reply to this email directly, or view the conversation on Meutch:
+{conversation_url}"""
+        response_html = f"""
+        <p style="color: #666; font-size: 14px;">
+            You can reply to this email directly, or
+            <a href="{conversation_url}" style="color: #007bff;">view the conversation on Meutch</a>.
+        </p>
+        """
+    else:
+        response_text = f"""To view the full conversation on Meutch, click here:
+{conversation_url}"""
+        response_html = f"""
+        <p style="color: #666; font-size: 14px;">
+            To view the full conversation on Meutch,
+            <a href="{conversation_url}" style="color: #007bff;">click here</a>.
+        </p>
+        """
+
     text_content = f"""
 Hello {recipient.first_name},
 
@@ -198,42 +278,39 @@ From: {sender.first_name} {sender.last_name}
 Message:
 {message.body}
 
-To view the full conversation and respond, click here:
-{conversation_url}
+{response_text}
 
 You can also log into your Meutch account to view all your messages at any time.
 
 Best regards,
 The Meutch Team
     """.strip()
-    
+
     # Create HTML content for better presentation
     html_content = f"""
     <html>
     <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #333;">You have a new {email_type} on Meutch</h2>
-        
+
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>From:</strong> {sender.first_name} {sender.last_name}</p>
-            <p>{context_type_label}</p>
+            <p><strong>From:</strong> {escape(sender.first_name)} {escape(sender.last_name)}</p>
+            <p>{escape(context_type_label)}</p>
         </div>
-        
+
         <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">
             <h3>Message:</h3>
-            <p style="white-space: pre-line;">{message.body}</p>
+            <p style="white-space: pre-line;">{linkify(message.body, br=False)}</p>
         </div>
-        
+
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{conversation_url}" 
+            <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Conversation & Respond
+                View Conversation
             </a>
         </div>
-        
-        <p style="color: #666; font-size: 14px;">
-            You can also log into your Meutch account to view all your messages at any time.
-        </p>
-        
+
+        {response_html}
+
         <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
         <p style="color: #999; font-size: 12px;">
             Best regards,<br>
@@ -242,48 +319,58 @@ The Meutch Team
     </body>
     </html>
     """
-    
-    return send_email(recipient.email, subject, text_content, html_content)
+
+    return send_email(
+        recipient.email,
+        subject,
+        text_content,
+        html_content,
+        reply_to=build_message_reply_address(message) if can_reply_by_email else None,
+    )
 
 
 def send_circle_join_request_notification_email(join_request):
     """Send email notification to circle admins when a user requests to join"""
-    from app.models import User, circle_members  # Import here to avoid circular imports
     from sqlalchemy import and_
-    
+
+    from app.models import User, circle_members  # Import here to avoid circular imports
+
     # Get the circle and requesting user
     circle = join_request.circle
     requesting_user = join_request.user
-    
+
     if not circle or not requesting_user:
-        current_app.logger.error(f"Circle or user not found for join request notification: circle={join_request.circle_id}, user={join_request.user_id}")
+        current_app.logger.error(
+            f"Circle or user not found for join request notification: circle={join_request.circle_id}, user={join_request.user_id}"
+        )
         return False
-    
+
     # Get all admins of the circle
     admin_users = User.query.join(
         circle_members,
         and_(
             User.id == circle_members.c.user_id,
             circle_members.c.circle_id == circle.id,
-            circle_members.c.is_admin == True
-        )
+            circle_members.c.is_admin.is_(True),
+        ),
     ).all()
-    
+
     if not admin_users:
         current_app.logger.error(f"No admins found for circle {circle.id}")
         return False
-    
+
     # Generate the circle details URL
-    circle_url = url_for('circles.view_circle', circle_id=circle.id, _external=True)
-    
+    circle_url = url_for("circles.view_circle", circle_id=circle.id, _external=True)
+
     subject = f"Meutch - New Join Request for {circle.name}"
-    
+
     success_count = 0
     for admin in admin_users:
         # Link to the requesting user's profile for quick review context
-        profile_url = url_for('main.user_profile', user_id=requesting_user.id, _external=True)
+        profile_url = url_for("main.user_profile", user_id=requesting_user.id, _external=True)
 
-        text_content = f"""
+        text_content = (
+            f"""
 Hello {admin.first_name},
 
 You have received a new request to join your circle "{circle.name}" on Meutch.
@@ -291,10 +378,16 @@ You have received a new request to join your circle "{circle.name}" on Meutch.
 Requesting User: {requesting_user.first_name} {requesting_user.last_name}
 Profile: {profile_url}
 Circle: {circle.name}
-""" + (f"""
+"""
+            + (
+                f"""
 Request Message:
 {join_request.message}
-""" if join_request.message else "") + f"""
+"""
+                if join_request.message
+                else ""
+            )
+            + f"""
 To review this request and take action, visit your circle:
 {circle_url}
 
@@ -303,34 +396,42 @@ You can approve or reject the request from your circle's management page.
 Best regards,
 The Meutch Team
         """.strip()
-        
+        )
+
         # Create HTML content for better presentation
-        html_content = f"""
+        html_content = (
+            f"""
         <html>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h2 style="color: #333;">New Join Request for Your Circle</h2>
-            
+
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p><strong>Requesting User:</strong> <a href="{profile_url}" style="color: #007bff; text-decoration: none;">{requesting_user.first_name} {requesting_user.last_name}</a></p>
-                <p><strong>Circle:</strong> {circle.name}</p>
+                <p><strong>Requesting User:</strong> <a href="{profile_url}" style="color: #007bff; text-decoration: none;">{escape(requesting_user.first_name)} {escape(requesting_user.last_name)}</a></p>
+                <p><strong>Circle:</strong> {escape(circle.name)}</p>
             </div>
-            """ + (f"""
+            """
+            + (
+                f"""
             <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">
                 <h3>Request Message:</h3>
-                <p style="white-space: pre-line;">{join_request.message}</p>
+                <p style="white-space: pre-line;">{escape(join_request.message)}</p>
             </div>
-            """ if join_request.message else "") + f"""
+            """
+                if join_request.message
+                else ""
+            )
+            + f"""
             <div style="text-align: center; margin: 30px 0;">
-                <a href="{circle_url}" 
+                <a href="{circle_url}"
                    style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                     Review Join Request
                 </a>
             </div>
-            
+
             <p style="color: #666; font-size: 14px;">
                 You can approve or reject the request from your circle's management page.
             </p>
-            
+
             <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
             <p style="color: #999; font-size: 12px;">
                 Best regards,<br>
@@ -339,90 +440,111 @@ The Meutch Team
         </body>
         </html>
         """
-        
+        )
+
         if send_email(admin.email, subject, text_content, html_content):
             success_count += 1
         else:
-            current_app.logger.error(f"Failed to send circle join request notification to admin {admin.id}")
-    
+            current_app.logger.error(
+                f"Failed to send circle join request notification to admin {admin.id}"
+            )
+
     return success_count > 0
 
 
 def send_circle_join_request_decision_email(join_request):
     """Send email notification to user when their join request is acted upon"""
-    from app.models import User  # Import here to avoid circular imports
-    
+
     # Get the circle and requesting user
     circle = join_request.circle
     requesting_user = join_request.user
-    
+
     if not circle or not requesting_user:
-        current_app.logger.error(f"Circle or user not found for join request decision notification: circle={join_request.circle_id}, user={join_request.user_id}")
+        current_app.logger.error(
+            f"Circle or user not found for join request decision notification: circle={join_request.circle_id}, user={join_request.user_id}"
+        )
         return False
-    
+
     # Generate the circle details URL
-    circle_url = url_for('circles.view_circle', circle_id=circle.id, _external=True)
-    
+    circle_url = url_for("circles.view_circle", circle_id=circle.id, _external=True)
+
     # Determine the subject and email content based on status
-    if join_request.status == 'approved':
+    if join_request.status == "approved":
         subject = f"Meutch - Join Request Approved for {circle.name}"
         decision_text = "approved"
         button_text = "View Circle"
         html_color = "#28a745"
-    elif join_request.status == 'rejected':
+    elif join_request.status == "rejected":
         subject = f"Meutch - Join Request Denied for {circle.name}"
         decision_text = "denied"
         button_text = "Browse Other Circles"
         html_color = "#dc3545"
     else:
-        current_app.logger.error(f"Unknown join request status '{join_request.status}' for request {join_request.id}")
+        current_app.logger.error(
+            f"Unknown join request status '{join_request.status}' for request {join_request.id}"
+        )
         return False
-    
-    text_content = f"""
+
+    text_content = (
+        f"""
 Hello {requesting_user.first_name},
 
 Your request to join the circle "{circle.name}" has been {decision_text}.
 
 Circle: {circle.name}
 Status: {decision_text.title()}
-""" + (f"""
+"""
+        + (
+            f"""
 To view the circle, visit:
 {circle_url}
-""" if join_request.status == 'approved' else f"""
+"""
+            if join_request.status == "approved"
+            else """
 You can search for other circles to join by visiting your Meutch account.
-""") + f"""
+"""
+        )
+        + """
 Thank you for using Meutch!
 
 Best regards,
 The Meutch Team
     """.strip()
-    
+    )
+
     # Create HTML content for better presentation
-    html_content = f"""
+    html_content = (
+        f"""
     <html>
     <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #333;">Circle Join Request {decision_text.title()}</h2>
-        
+
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Circle:</strong> {circle.name}</p>
+            <p><strong>Circle:</strong> {escape(circle.name)}</p>
             <p><strong>Status:</strong> <span style="color: {html_color}; font-weight: bold;">{decision_text.title()}</span></p>
         </div>
-        """ + (f"""
+        """
+        + (
+            f"""
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{circle_url}" 
+            <a href="{circle_url}"
                style="background-color: {html_color}; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 {button_text}
             </a>
         </div>
-        """ if join_request.status == 'approved' else f"""
+        """
+            if join_request.status == "approved"
+            else """
         <p style="color: #666; font-size: 14px;">
             You can search for other circles to join by visiting your Meutch account.
         </p>
-        """) + f"""
+        """
+        )
+        + """
         <p style="color: #666; font-size: 14px;">
             Thank you for using Meutch!
         </p>
-        
+
         <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
         <p style="color: #999; font-size: 12px;">
             Best regards,<br>
@@ -431,14 +553,15 @@ The Meutch Team
     </body>
     </html>
     """
-    
+    )
+
     return send_email(requesting_user.email, subject, text_content, html_content)
 
 
 def send_account_deletion_email(user_email, user_first_name):
     """Send account deletion confirmation email"""
     subject = "Meutch - Account Successfully Deleted"
-    
+
     text_content = f"""
 Hello {user_first_name},
 
@@ -455,44 +578,95 @@ Thank you for being part of the Meutch community. We're sorry to see you go!
 Best regards,
 The Meutch Team
     """.strip()
-    
+
     return send_email(user_email, subject, text_content)
 
 
 def _digest_event_url(event):
-    event_type = event.get('event_type')
-    if event_type in {'giveaway', 'lent'} and event.get('item_id'):
-        return url_for('main.item_detail', item_id=event['item_id'], _external=True)
-    if event_type == 'request' and event.get('request_id'):
-        return url_for('requests.detail', request_id=event['request_id'], _external=True)
-    if event_type == 'circle_join' and event.get('circle_id'):
-        return url_for('circles.view_circle', circle_id=event['circle_id'], _external=True)
-    return url_for('main.index', _external=True)
+    event_type = event.get("event_type")
+    if event_type in {"giveaway", "lent"} and event.get("item_id"):
+        return url_for("main.item_detail", item_id=event["item_id"], _external=True)
+    if event_type == "request" and event.get("request_id"):
+        return url_for("requests.detail", request_id=event["request_id"], _external=True)
+    if event_type == "circle_join" and event.get("circle_id"):
+        return url_for("circles.view_circle", circle_id=event["circle_id"], _external=True)
+    return url_for("main.index", _external=True)
 
 
 def _digest_event_title(event):
-    event_type = event.get('event_type')
-    if event_type == 'circle_join':
-        return event.get('title') or 'Circle activity'
-    return event.get('title') or 'Community activity'
+    return event["title"]
+
+
+def _digest_resolution_only_text(event):
+    title = _digest_event_title(event)
+    if event["event_type"] == "request":
+        return f"{title} was marked fulfilled"
+    if event["event_type"] == "giveaway":
+        actor = event.get("actor_name", "Unknown")
+        return f"{title} offered by {actor} was claimed"
+    return title
 
 
 def _digest_cadence_label(user):
-    cadence = (getattr(user, 'digest_frequency', None) or '').lower()
-    if cadence == 'daily':
-        return 'daily'
-    if cadence == 'weekly':
-        return 'weekly'
-    return 'off'
+    cadence = (getattr(user, "digest_frequency", None) or "").lower()
+    if cadence == "daily":
+        return "daily"
+    if cadence == "weekly":
+        return "weekly"
+    return "off"
+
+
+def _format_names_list(names):
+    """Format ['Alice', 'Bob', 'Celeste'] as 'Alice, Bob, and Celeste'."""
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+    return ", ".join(names[:-1]) + f", and {names[-1]}"
+
+
+def _group_circle_joins_for_digest(circle_joins):
+    """Group per-person circle-join events into per-circle groups for compact rendering."""
+    groups = {}
+    order = []
+    for event in circle_joins:
+        cid = event.get("circle_id")
+        if cid not in groups:
+            groups[cid] = {
+                "event": event,
+                "circle_name": event["title"],
+                "image_url": event.get("image_url"),
+                "actors": [],
+            }
+            order.append(cid)
+        groups[cid]["actors"].append(event["actor_name"])
+    return [groups[cid] for cid in order]
 
 
 def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url):
-    giveaways = digest_payload.get('giveaways', [])
-    requests = digest_payload.get('requests', [])
-    circle_joins = digest_payload.get('circle_joins', [])
-    loans = digest_payload.get('loans', [])
+    giveaways = digest_payload.get("giveaways", [])
+    requests = digest_payload.get("requests", [])
+    circle_joins = digest_payload.get("circle_joins", [])
+    loans = digest_payload.get("loans", [])
 
-    events = digest_payload.get('events')
+    # Split giveaways into posted (still available) and claimed
+    posted_giveaways = [g for g in giveaways if g.get("resolution_status") != "claimed"]
+    claimed_giveaways = [g for g in giveaways if g.get("resolution_status") == "claimed"]
+    # Split requests into posted (still open) and fulfilled
+    posted_requests = [r for r in requests if r.get("resolution_status") != "fulfilled"]
+    fulfilled_requests = [r for r in requests if r.get("resolution_status") == "fulfilled"]
+
+    # Sort fulfilled/claimed so new-resolved-in-window items appear first.
+    # Python sort is stable, so within each subgroup the existing order
+    # (created_at descending from build_digest_payload) is preserved.
+    claimed_giveaways.sort(
+        key=lambda e: (0 if e.get("digest_variant") == "new-resolved-in-window" else 1)
+    )
+    fulfilled_requests.sort(
+        key=lambda e: (0 if e.get("digest_variant") == "new-resolved-in-window" else 1)
+    )
+
+    events = digest_payload.get("events")
     if events is None:
         events = giveaways + requests + circle_joins + loans
 
@@ -501,12 +675,16 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     subject = f"Meutch Digest - {total_activities} new activities"
 
     summary_entries = [
-        ("giveaways", len(giveaways)),
-        ("requests", len(requests)),
-        ("circle joins", len(circle_joins)),
-        ("loans", len(loans)),
+        ("giveaway", "giveaways", len(giveaways)),
+        ("request", "requests", len(requests)),
+        ("circle join", "circle joins", len(circle_joins)),
+        ("loan", "loans", len(loans)),
     ]
-    summary_lines = [f"- {count} {label}" for label, count in summary_entries if count > 0]
+    summary_lines = [
+        f"- {count} {singular if count == 1 else plural}"
+        for singular, plural, count in summary_entries
+        if count > 0
+    ]
 
     text_lines = [
         f"Hello {user.first_name},",
@@ -520,63 +698,118 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         text_lines.extend(summary_lines)
         text_lines.append("")
 
-    def append_text_section(section_title, events, include_description=False):
+    def append_text_section(section_title, events, include_description=False, include_image=True):
         if not events:
             return
         text_lines.append(f"{section_title}:")
         for event in events:
-            actor = event.get('actor_name') or 'Someone'
-            title = _digest_event_title(event)
-            action = event.get('action') or 'shared'
-            text_lines.append(f"- {actor} {action}: {title}")
-            if include_description and event.get('description'):
+            actor = event["actor_name"]
+            is_resolution_only = event.get("digest_variant") in (
+                "resolved-in-window",
+                "new-resolved-in-window",
+            )
+            is_new_in_window = event.get("digest_variant") == "new-resolved-in-window"
+            if is_resolution_only:
+                # For giveaways, the message already includes the actor name
+                if event["event_type"] == "giveaway":
+                    line = f"- {_digest_resolution_only_text(event)}"
+                else:
+                    line = f"- {actor}: {_digest_resolution_only_text(event)}"
+            else:
+                title = _digest_event_title(event)
+                action = event["action"]
+                line = f"- {actor} {action}: {title}"
+            if is_new_in_window:
+                line = f"{line} [New]"
+            text_lines.append(line)
+            show_desc = (not is_resolution_only and include_description) or is_new_in_window
+            if show_desc and event.get("description"):
                 text_lines.append(f"  {event['description']}")
-            if event.get('image_url'):
+            if include_image and event.get("image_url"):
                 text_lines.append(f"  Image: {event['image_url']}")
             text_lines.append(f"  {_digest_event_url(event)}")
         text_lines.append("")
 
-    append_text_section('Giveaways', giveaways, include_description=True)
-    append_text_section('Requests', requests, include_description=True)
-    append_text_section('Circle Joins', circle_joins)
-    append_text_section('Loans', loans)
+    append_text_section("Giveaways \u2014 Posted", posted_giveaways, include_description=True)
+    append_text_section(
+        "Giveaways \u2014 Claimed", claimed_giveaways, include_description=True, include_image=False
+    )
+    append_text_section("Requests \u2014 Posted", posted_requests, include_description=True)
+    append_text_section("Requests \u2014 Fulfilled", fulfilled_requests, include_description=False)
 
-    text_lines.extend([
-        "Manage your digest emails:",
-        f"- Manage settings: {manage_url}",
-        f"- One-click unsubscribe: {unsubscribe_url}",
-        "",
-        "Best regards,",
-        "The Meutch Team",
-    ])
+    if circle_joins:
+        grouped_joins = _group_circle_joins_for_digest(circle_joins)
+        text_lines.append("Circle Joins:")
+        for group in grouped_joins:
+            count = len(group["actors"])
+            label = f"{count} {'person' if count == 1 else 'people'}"
+            names = _format_names_list(group["actors"])
+            text_lines.append(f"- {label} joined {group['circle_name']}: {names}")
+            text_lines.append(f"  {_digest_event_url(group['event'])}")
+        text_lines.append("")
 
-    def build_html_section(title, events, include_description=False):
+    append_text_section("Loans", loans)
+
+    text_lines.extend(
+        [
+            "Manage your digest emails:",
+            f"- Manage settings: {manage_url}",
+            f"- One-click unsubscribe: {unsubscribe_url}",
+            "",
+            "Best regards,",
+            "The Meutch Team",
+        ]
+    )
+
+    def build_html_section(title, events, include_description=False, include_image=True):
         if not events:
-            return ''
+            return ""
 
         items_html = []
         for event in events:
-            actor = event.get('actor_name') or 'Someone'
-            item_title = _digest_event_title(event)
-            action = event.get('action') or 'shared'
+            actor = event["actor_name"]
             link = _digest_event_url(event)
-            description_html = ''
-            if include_description and event.get('description'):
-                description_html = f"<p style=\"margin: 6px 0 0 0; color: #555;\">{event['description']}</p>"
+            is_resolution_only = event.get("digest_variant") in (
+                "resolved-in-window",
+                "new-resolved-in-window",
+            )
+            is_new_in_window = event.get("digest_variant") == "new-resolved-in-window"
+            show_desc = (not is_resolution_only and include_description) or is_new_in_window
+            description_html = ""
+            if show_desc and event.get("description"):
+                description_html = (
+                    f'<p style="margin: 6px 0 0 0; color: #555;">{escape(event["description"])}</p>'
+                )
 
-            image_html = ''
-            if event.get('image_url'):
+            image_html = ""
+            if include_image and event.get("image_url"):
                 image_html = (
-                    f"<div style=\"margin: 8px 0;\">"
-                    f"<img src=\"{event['image_url']}\" alt=\"Activity image\" "
-                    f"style=\"max-width: 100%; width: 220px; height: auto; border-radius: 8px;\">"
+                    f'<div style="margin: 8px 0;">'
+                    f'<img src="{escape(event["image_url"])}" alt="Activity image" '
+                    f'style="max-width: 100%; width: 220px; height: auto; border-radius: 8px;">'
                     f"</div>"
+                )
+
+            if is_resolution_only:
+                # For giveaways, the message already includes the actor name
+                if event["event_type"] == "giveaway":
+                    activity_html = f"{escape(_digest_resolution_only_text(event))}"
+                else:
+                    activity_html = f"<strong>{escape(actor)}</strong>: {escape(_digest_resolution_only_text(event))}"
+                if is_new_in_window:
+                    activity_html += ' <span style="color: #6c757d; font-size: 12px;">New</span>'
+                activity_html += "<br>"
+            else:
+                item_title = _digest_event_title(event)
+                action = event["action"]
+                activity_html = (
+                    f"<strong>{escape(actor)}</strong> {escape(action)}: {escape(item_title)}<br>"
                 )
 
             items_html.append(
                 f"""
                 <li style=\"margin-bottom: 10px;\">
-                    <strong>{actor}</strong> {action}: {item_title}<br>
+                    {activity_html}
                     {description_html}
                     {image_html}
                     <a href=\"{link}\" style=\"color: #007bff; text-decoration: none;\">View activity</a>
@@ -587,14 +820,48 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         return f"""
         <h3 style=\"margin-top: 24px; color: #333;\">{title}</h3>
         <ul style=\"padding-left: 20px;\">
-            {''.join(items_html)}
+            {"".join(items_html)}
         </ul>
         """
 
-    summary_html = ''
+    def _build_circle_joins_html_section(circle_join_events):
+        if not circle_join_events:
+            return ""
+        grouped = _group_circle_joins_for_digest(circle_join_events)
+        items_html = []
+        for group in grouped:
+            count = len(group["actors"])
+            label = f"{count} {'person' if count == 1 else 'people'}"
+            names = _format_names_list(group["actors"])
+            link = _digest_event_url(group["event"])
+            image_html = ""
+            if group["image_url"]:
+                image_html = (
+                    f'<div style="margin: 8px 0;">'
+                    f'<img src="{escape(group["image_url"])}" alt="Circle image" '
+                    f'style="max-width: 100%; width: 220px; height: auto; border-radius: 8px;">'
+                    f"</div>"
+                )
+            items_html.append(
+                f"""
+                <li style=\"margin-bottom: 10px;\">
+                    <strong>{label}</strong> joined {escape(group["circle_name"])}: {escape(names)}<br>
+                    {image_html}
+                    <a href=\"{link}\" style=\"color: #007bff; text-decoration: none;\">View circle</a>
+                </li>
+                """
+            )
+        return f"""
+        <h3 style=\"margin-top: 24px; color: #333;\">Circle Joins</h3>
+        <ul style=\"padding-left: 20px;\">
+            {"".join(items_html)}
+        </ul>
+        """
+
+    summary_html = ""
     if summary_lines:
-        summary_items_html = ''.join(
-            [f"<li style=\"margin: 0 0 4px 16px;\">{line[2:]}</li>" for line in summary_lines]
+        summary_items_html = "".join(
+            [f'<li style="margin: 0 0 4px 16px;">{line[2:]}</li>' for line in summary_lines]
         )
         summary_html = f"""
         <div style=\"background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin: 18px 0;\">
@@ -607,15 +874,17 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     <html>
     <body style=\"font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;\">
         <h2 style=\"color: #333;\">Your Meutch Digest</h2>
-        <p>Hello {user.first_name},</p>
+        <p>Hello {escape(user.first_name)},</p>
         <p style=\"margin: 0 0 16px 0;\">This is your {cadence_label} Meutch digest.</p>
 
         {summary_html}
 
-        {build_html_section('Giveaways', giveaways, include_description=True)}
-        {build_html_section('Requests', requests, include_description=True)}
-        {build_html_section('Circle Joins', circle_joins)}
-        {build_html_section('Loans', loans)}
+        {build_html_section("Giveaways \u2014 Posted", posted_giveaways, include_description=True)}
+        {build_html_section("Giveaways \u2014 Claimed", claimed_giveaways, include_description=True, include_image=False)}
+        {build_html_section("Requests \u2014 Posted", posted_requests, include_description=True)}
+        {build_html_section("Requests \u2014 Fulfilled", fulfilled_requests, include_description=False)}
+        {_build_circle_joins_html_section(circle_joins)}
+        {build_html_section("Loans", loans)}
 
         <hr style=\"margin: 28px 0; border: none; border-top: 1px solid #ddd;\">
         <p style=\"font-size: 14px; color: #666;\">
@@ -628,47 +897,50 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     """
 
     return {
-        'subject': subject,
-        'text': '\n'.join(text_lines),
-        'html': html_content,
+        "subject": subject,
+        "text": "\n".join(text_lines),
+        "html": html_content,
     }
 
 
 def send_digest_email(user, digest_payload):
     """Send digest email only if there are events to report.
-    
+
     Returns False if payload has no events (should not send).
     """
-    events = digest_payload.get('events', [])
+    events = digest_payload.get("events", [])
     if not events:
-        current_app.logger.debug(f'Digest email skipped for user {user.id}: no events')
+        current_app.logger.debug(f"Digest email skipped for user {user.id}: no events")
         return False
-    
+
     token = generate_digest_manage_token(user)
-    manage_url = url_for('main.digest_manage', token=token, _external=True)
-    unsubscribe_url = url_for('main.digest_unsubscribe', token=token, _external=True)
+    manage_url = url_for("main.digest_manage", token=token, _external=True)
+    unsubscribe_url = url_for("main.digest_unsubscribe", token=token, _external=True)
     content = build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url)
-    return send_email(user.email, content['subject'], content['text'], content['html'])
+    return send_email(user.email, content["subject"], content["text"], content["html"])
 
 
 def send_loan_due_soon_email(loan):
     """Send 3-day reminder email to borrower that loan is due soon"""
-    from app.models import User  # Import here to avoid circular imports
     from app import db
-    
+    from app.models import User  # Import here to avoid circular imports
+
     borrower = db.session.get(User, loan.borrower_id)
     owner = db.session.get(User, loan.item.owner_id)
-    
+
     if not borrower or not owner:
-        current_app.logger.error(f"User not found for loan due soon email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
+        current_app.logger.error(
+            f"User not found for loan due soon email: borrower={loan.borrower_id}, owner={loan.item.owner_id}"
+        )
         return False
-    
-    # Generate the item URL
-    item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
-    extension_url = url_for('main.request_extension', loan_id=loan.id, _external=True)
-    
+
+    from app.utils.messaging_queries import loan_conversation_url
+
+    conversation_url = loan_conversation_url(loan, external=True)
+    extension_url = url_for("main.request_extension", loan_id=loan.id, _external=True)
+
     subject = f"Meutch - Reminder: {loan.item.name} is due in 3 days"
-    
+
     text_content = f"""
 Hello {borrower.first_name},
 
@@ -676,57 +948,57 @@ This is a friendly reminder that the item you borrowed is due back soon.
 
 Item: {loan.item.name}
 Owner: {owner.first_name} {owner.last_name}
-Due Date: {loan.end_date.strftime('%B %d, %Y')} (in 3 days)
+Due Date: {loan.end_date.strftime("%B %d, %Y")} (in 3 days)
 
 Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
 
 Need more time? Request an extension here:
 {extension_url}
 
-You can view the item details here:
-{item_url}
+You can view the loan and message the owner here:
+{conversation_url}
 
 Thank you for being a responsible borrower!
 
 Best regards,
 The Meutch Team
     """.strip()
-    
+
     # Create HTML content
     html_content = f"""
     <html>
     <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #333;">Loan Due Soon Reminder</h2>
-        
+
         <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
             <p style="margin: 0;"><strong>⏰ Your borrowed item is due back in 3 days</strong></p>
         </div>
-        
+
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Item:</strong> {loan.item.name}</p>
-            <p><strong>Owner:</strong> {owner.first_name} {owner.last_name}</p>
-            <p><strong>Due Date:</strong> {loan.end_date.strftime('%B %d, %Y')}</p>
+            <p><strong>Item:</strong> {escape(loan.item.name)}</p>
+            <p><strong>Owner:</strong> {escape(owner.first_name)} {escape(owner.last_name)}</p>
+            <p><strong>Due Date:</strong> {loan.end_date.strftime("%B %d, %Y")}</p>
         </div>
-        
+
         <p style="color: #666; font-size: 14px;">
             Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
         </p>
-        
+
         <div style="text-align: center; margin: 30px 0; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-            <a href="{extension_url}" 
+            <a href="{extension_url}"
                style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 Request Extension
             </a>
-            <a href="{item_url}" 
+            <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Item Details
+                View Loan
             </a>
         </div>
-        
+
         <p style="color: #666; font-size: 14px;">
             Thank you for being a responsible borrower!
         </p>
-        
+
         <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
         <p style="color: #999; font-size: 12px;">
             Best regards,<br>
@@ -735,28 +1007,31 @@ The Meutch Team
     </body>
     </html>
     """
-    
+
     return send_email(borrower.email, subject, text_content, html_content)
 
 
 def send_loan_due_today_borrower_email(loan):
     """Send due date reminder email to borrower"""
-    from app.models import User  # Import here to avoid circular imports
     from app import db
-    
+    from app.models import User  # Import here to avoid circular imports
+
     borrower = db.session.get(User, loan.borrower_id)
     owner = db.session.get(User, loan.item.owner_id)
-    
+
     if not borrower or not owner:
-        current_app.logger.error(f"User not found for loan due today email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
+        current_app.logger.error(
+            f"User not found for loan due today email: borrower={loan.borrower_id}, owner={loan.item.owner_id}"
+        )
         return False
-    
-    # Generate the item URL
-    item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
-    extension_url = url_for('main.request_extension', loan_id=loan.id, _external=True)
-    
+
+    from app.utils.messaging_queries import loan_conversation_url
+
+    conversation_url = loan_conversation_url(loan, external=True)
+    extension_url = url_for("main.request_extension", loan_id=loan.id, _external=True)
+
     subject = f"Meutch - {loan.item.name} is due back today"
-    
+
     text_content = f"""
 Hello {borrower.first_name},
 
@@ -764,57 +1039,57 @@ This is a reminder that the item you borrowed is due back today.
 
 Item: {loan.item.name}
 Owner: {owner.first_name} {owner.last_name}
-Due Date: Today, {loan.end_date.strftime('%B %d, %Y')}
+Due Date: Today, {loan.end_date.strftime("%B %d, %Y")}
 
 Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
 
 If you need more time, you can request an extension here:
 {extension_url}
 
-You can view the item details here:
-{item_url}
+You can view the loan and message the owner here:
+{conversation_url}
 
 Thank you for your prompt attention!
 
 Best regards,
 The Meutch Team
     """.strip()
-    
+
     # Create HTML content
     html_content = f"""
     <html>
     <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #333;">Item Due Today</h2>
-        
+
         <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
             <p style="margin: 0;"><strong>📅 Your borrowed item is due back today</strong></p>
         </div>
-        
+
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Item:</strong> {loan.item.name}</p>
-            <p><strong>Owner:</strong> {owner.first_name} {owner.last_name}</p>
-            <p><strong>Due Date:</strong> Today, {loan.end_date.strftime('%B %d, %Y')}</p>
+            <p><strong>Item:</strong> {escape(loan.item.name)}</p>
+            <p><strong>Owner:</strong> {escape(owner.first_name)} {escape(owner.last_name)}</p>
+            <p><strong>Due Date:</strong> Today, {loan.end_date.strftime("%B %d, %Y")}</p>
         </div>
-        
+
         <p style="color: #666; font-size: 14px;">
             Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
         </p>
-        
+
         <div style="text-align: center; margin: 30px 0; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-            <a href="{extension_url}" 
+            <a href="{extension_url}"
                style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 Request Extension
             </a>
-            <a href="{item_url}" 
+            <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Item Details
+                View Loan
             </a>
         </div>
-        
+
         <p style="color: #666; font-size: 14px;">
             Thank you for your prompt attention!
         </p>
-        
+
         <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
         <p style="color: #999; font-size: 12px;">
             Best regards,<br>
@@ -823,29 +1098,32 @@ The Meutch Team
     </body>
     </html>
     """
-    
+
     return send_email(borrower.email, subject, text_content, html_content)
 
 
 def send_loan_due_today_owner_email(loan):
     """Send due date notification email to owner"""
-    from app.models import User  # Import here to avoid circular imports
     from app import db
-    
+    from app.models import User  # Import here to avoid circular imports
+
     borrower = db.session.get(User, loan.borrower_id)
     owner = db.session.get(User, loan.item.owner_id)
-    
+
     if not borrower or not owner:
-        current_app.logger.error(f"User not found for loan due today owner email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
+        current_app.logger.error(
+            f"User not found for loan due today owner email: borrower={loan.borrower_id}, owner={loan.item.owner_id}"
+        )
         return False
-    
-    # Generate the item URL
-    item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
+
+    from app.utils.messaging_queries import loan_conversation_url
+
+    conversation_url = loan_conversation_url(loan, external=True)
     # Generate the extend loan URL for owners to extend the loan
-    extend_url = url_for('main.extend_loan', loan_id=loan.id, _external=True)
-    
+    extend_url = url_for("main.extend_loan", loan_id=loan.id, _external=True)
+
     subject = f"Meutch - Your item {loan.item.name} is due back today"
-    
+
     text_content = f"""
 Hello {owner.first_name},
 
@@ -853,55 +1131,55 @@ This is a notification that your item is due to be returned today.
 
 Item: {loan.item.name}
 Borrower: {borrower.first_name} {borrower.last_name}
-Due Date: Today, {loan.end_date.strftime('%B %d, %Y')}
+Due Date: Today, {loan.end_date.strftime("%B %d, %Y")}
 
 If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time:
 {extend_url}
 
-You can view the item details here:
-{item_url}
+You can view the loan and message the borrower here:
+{conversation_url}
 
 Thank you for sharing with your community!
 
 Best regards,
 The Meutch Team
     """.strip()
-    
+
     # Create HTML content
     html_content = f"""
     <html>
     <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #333;">Item Due Back Today</h2>
-        
+
         <div style="background-color: #d1ecf1; padding: 20px; border-radius: 8px; border-left: 4px solid #17a2b8; margin: 20px 0;">
             <p style="margin: 0;"><strong>📅 Your loaned item is due back today</strong></p>
         </div>
-        
+
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Item:</strong> {loan.item.name}</p>
-            <p><strong>Borrower:</strong> {borrower.first_name} {borrower.last_name}</p>
-            <p><strong>Due Date:</strong> Today, {loan.end_date.strftime('%B %d, %Y')}</p>
+            <p><strong>Item:</strong> {escape(loan.item.name)}</p>
+            <p><strong>Borrower:</strong> {escape(borrower.first_name)} {escape(borrower.last_name)}</p>
+            <p><strong>Due Date:</strong> Today, {loan.end_date.strftime("%B %d, %Y")}</p>
         </div>
-        
+
         <p style="color: #666; font-size: 14px;">
             If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time.
         </p>
 
         <div style="text-align: center; margin: 20px 0; display:flex; gap:12px; justify-content:center;">
-            <a href="{item_url}" 
+            <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Item Details
+                View Loan
             </a>
-            <a href="{extend_url}" 
+            <a href="{extend_url}"
                style="background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 Extend Loan
             </a>
         </div>
-        
+
         <p style="color: #666; font-size: 14px;">
             Thank you for sharing with your community!
         </p>
-        
+
         <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
         <p style="color: #999; font-size: 12px;">
             Best regards,<br>
@@ -910,28 +1188,31 @@ The Meutch Team
     </body>
     </html>
     """
-    
+
     return send_email(owner.email, subject, text_content, html_content)
 
 
 def send_loan_overdue_borrower_email(loan, days_overdue):
     """Send overdue reminder email to borrower"""
-    from app.models import User  # Import here to avoid circular imports
     from app import db
-    
+    from app.models import User  # Import here to avoid circular imports
+
     borrower = db.session.get(User, loan.borrower_id)
     owner = db.session.get(User, loan.item.owner_id)
-    
+
     if not borrower or not owner:
-        current_app.logger.error(f"User not found for loan overdue email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
+        current_app.logger.error(
+            f"User not found for loan overdue email: borrower={loan.borrower_id}, owner={loan.item.owner_id}"
+        )
         return False
-    
-    # Generate the item URL
-    item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
-    extension_url = url_for('main.request_extension', loan_id=loan.id, _external=True)
-    
+
+    from app.utils.messaging_queries import loan_conversation_url
+
+    conversation_url = loan_conversation_url(loan, external=True)
+    extension_url = url_for("main.request_extension", loan_id=loan.id, _external=True)
+
     subject = f"Meutch - Reminder: {loan.item.name} is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue"
-    
+
     text_content = f"""
 Hello {borrower.first_name},
 
@@ -939,7 +1220,7 @@ This is a reminder that the item you borrowed is now overdue.
 
 Item: {loan.item.name}
 Owner: {owner.first_name} {owner.last_name}
-Due Date: {loan.end_date.strftime('%B %d, %Y')}
+Due Date: {loan.end_date.strftime("%B %d, %Y")}
 Days Overdue: {days_overdue}
 
 Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
@@ -947,51 +1228,51 @@ Please return the item to the owner as soon as possible. If you need more time, 
 Need additional time? Request an extension here:
 {extension_url}
 
-You can view the item details here:
-{item_url}
+You can view the loan and message the owner here:
+{conversation_url}
 
 Thank you for your prompt attention to this matter.
 
 Best regards,
 The Meutch Team
     """.strip()
-    
+
     # Create HTML content
     html_content = f"""
     <html>
     <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #333;">Overdue Item Reminder</h2>
-        
+
         <div style="background-color: #f8d7da; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545; margin: 20px 0;">
-            <p style="margin: 0;"><strong>⚠️ Your borrowed item is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue</strong></p>
+            <p style="margin: 0;"><strong>⚠️ Your borrowed item is {days_overdue} day{"s" if days_overdue != 1 else ""} overdue</strong></p>
         </div>
-        
+
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Item:</strong> {loan.item.name}</p>
-            <p><strong>Owner:</strong> {owner.first_name} {owner.last_name}</p>
-            <p><strong>Due Date:</strong> {loan.end_date.strftime('%B %d, %Y')}</p>
+            <p><strong>Item:</strong> {escape(loan.item.name)}</p>
+            <p><strong>Owner:</strong> {escape(owner.first_name)} {escape(owner.last_name)}</p>
+            <p><strong>Due Date:</strong> {loan.end_date.strftime("%B %d, %Y")}</p>
             <p><strong>Days Overdue:</strong> <span style="color: #dc3545; font-weight: bold;">{days_overdue}</span></p>
         </div>
-        
+
         <p style="color: #666; font-size: 14px;">
             Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
         </p>
-        
+
         <div style="text-align: center; margin: 30px 0; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-            <a href="{extension_url}" 
+            <a href="{extension_url}"
                style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 Request Extension
             </a>
-            <a href="{item_url}" 
+            <a href="{conversation_url}"
                style="background-color: #dc3545; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Item Details
+                View Loan
             </a>
         </div>
-        
+
         <p style="color: #666; font-size: 14px;">
             Thank you for your prompt attention to this matter.
         </p>
-        
+
         <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
         <p style="color: #999; font-size: 12px;">
             Best regards,<br>
@@ -1000,29 +1281,32 @@ The Meutch Team
     </body>
     </html>
     """
-    
+
     return send_email(borrower.email, subject, text_content, html_content)
 
 
 def send_loan_overdue_owner_email(loan, days_overdue):
     """Send overdue notification email to owner"""
-    from app.models import User  # Import here to avoid circular imports
     from app import db
-    
+    from app.models import User  # Import here to avoid circular imports
+
     borrower = db.session.get(User, loan.borrower_id)
     owner = db.session.get(User, loan.item.owner_id)
-    
+
     if not borrower or not owner:
-        current_app.logger.error(f"User not found for loan overdue owner email: borrower={loan.borrower_id}, owner={loan.item.owner_id}")
+        current_app.logger.error(
+            f"User not found for loan overdue owner email: borrower={loan.borrower_id}, owner={loan.item.owner_id}"
+        )
         return False
-    
-    # Generate the item URL
-    item_url = url_for('main.item_detail', item_id=loan.item_id, _external=True)
+
+    from app.utils.messaging_queries import loan_conversation_url
+
+    conversation_url = loan_conversation_url(loan, external=True)
     # Generate the extend loan URL for owners to extend the loan
-    extend_url = url_for('main.extend_loan', loan_id=loan.id, _external=True)
-    
+    extend_url = url_for("main.extend_loan", loan_id=loan.id, _external=True)
+
     subject = f"Meutch - Your item {loan.item.name} is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue"
-    
+
     text_content = f"""
 Hello {owner.first_name},
 
@@ -1030,57 +1314,57 @@ This is a notification that your loaned item is now overdue.
 
 Item: {loan.item.name}
 Borrower: {borrower.first_name} {borrower.last_name}
-Due Date: {loan.end_date.strftime('%B %d, %Y')}
+Due Date: {loan.end_date.strftime("%B %d, %Y")}
 Days Overdue: {days_overdue}
 
 If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time:
 {extend_url}
 
-You can view the item details here:
-{item_url}
+You can view the loan and message the borrower here:
+{conversation_url}
 
 Thank you for your patience.
 
 Best regards,
 The Meutch Team
     """.strip()
-    
+
     # Create HTML content
     html_content = f"""
     <html>
     <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #333;">Loaned Item Overdue</h2>
-        
+
         <div style="background-color: #f8d7da; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545; margin: 20px 0;">
-            <p style="margin: 0;"><strong>⚠️ Your loaned item is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue</strong></p>
+            <p style="margin: 0;"><strong>⚠️ Your loaned item is {days_overdue} day{"s" if days_overdue != 1 else ""} overdue</strong></p>
         </div>
-        
+
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Item:</strong> {loan.item.name}</p>
-            <p><strong>Borrower:</strong> {borrower.first_name} {borrower.last_name}</p>
-            <p><strong>Due Date:</strong> {loan.end_date.strftime('%B %d, %Y')}</p>
+            <p><strong>Item:</strong> {escape(loan.item.name)}</p>
+            <p><strong>Borrower:</strong> {escape(borrower.first_name)} {escape(borrower.last_name)}</p>
+            <p><strong>Due Date:</strong> {loan.end_date.strftime("%B %d, %Y")}</p>
             <p><strong>Days Overdue:</strong> <span style="color: #dc3545; font-weight: bold;">{days_overdue}</span></p>
         </div>
-        
+
         <p style="color: #666; font-size: 14px;">
             If you need to coordinate the return, please reach out to them. Or you can extend the loan to give them more time.
         </p>
-        
+
         <div style="text-align: center; margin: 20px 0; display:flex; gap:12px; justify-content:center;">
-            <a href="{item_url}" 
+            <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                View Item Details
+                View Loan
             </a>
-            <a href="{extend_url}" 
+            <a href="{extend_url}"
                style="background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 Extend Loan
             </a>
         </div>
-        
+
         <p style="color: #666; font-size: 14px;">
             Thank you for your patience.
         </p>
-        
+
         <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
         <p style="color: #999; font-size: 12px;">
             Best regards,<br>
@@ -1089,5 +1373,97 @@ The Meutch Team
     </body>
     </html>
     """
-    
+
     return send_email(owner.email, subject, text_content, html_content)
+
+
+_CATEGORY_LABELS = {
+    "bug_report": "Bug Report",
+    "feature_suggestion": "Feature Suggestion",
+    "question": "Question",
+    "other": "Other",
+}
+
+
+def send_contact_form_email(sender_user, category, message):
+    """Send a contact form message to all active admin users.
+
+    Args:
+        sender_user: The authenticated user submitting the form.
+        category: One of 'bug_report', 'feature_suggestion', 'question', 'other'.
+        message: The message body from the contact form.
+
+    Returns:
+        True if at least one admin received the email, False otherwise.
+
+    Raises:
+        ValueError: If the category is not a known value.
+    """
+    from app.models import User  # Import here to avoid circular imports
+
+    admins = User.query.filter_by(is_admin=True, is_deleted=False).all()
+
+    if not admins:
+        current_app.logger.warning(
+            "No active admin users found to send contact form email from user %s",
+            sender_user.id,
+        )
+        return False
+
+    category_label = _CATEGORY_LABELS.get(category)
+    if category_label is None:
+        current_app.logger.error(
+            "Unknown contact form category '%s' from user %s", category, sender_user.id
+        )
+        raise ValueError(
+            f"Unknown contact form category '{category}'. "
+            f"Valid categories are: bug_report, feature_suggestion, question, other"
+        )
+
+    subject = f"Meutch - {category_label} from {sender_user.first_name} {sender_user.last_name}"
+
+    text_content = (
+        f"You have received a new contact form submission on Meutch.\n\n"
+        f"From: {sender_user.first_name} {sender_user.last_name}\n"
+        f"Email: {sender_user.email}\n"
+        f"Category: {category_label}\n\n"
+        f"Message:\n{message}\n"
+    )
+
+    html_content = (
+        f"<html>\n"
+        f'<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">\n'
+        f'    <h2 style="color: #333;">New Contact Form Submission</h2>\n\n'
+        f'    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">\n'
+        f"        <p><strong>From:</strong> {escape(sender_user.first_name)} {escape(sender_user.last_name)}</p>\n"
+        f"        <p><strong>Email:</strong> {escape(sender_user.email)}</p>\n"
+        f"        <p><strong>Category:</strong> {category_label}</p>\n"
+        f"    </div>\n\n"
+        f'    <div style="background-color: white; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">\n'
+        f"        <h3>Message:</h3>\n"
+        f'        <p style="white-space: pre-line;">{linkify(message, br=False)}</p>\n'
+        f"    </div>\n\n"
+        f'    <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">\n'
+        f'    <p style="color: #999; font-size: 12px;">\n'
+        f"        Best regards,<br>\n"
+        f"        The Meutch Team\n"
+        f"    </p>\n"
+        f"</body>\n"
+        f"</html>\n"
+    )
+
+    success_count = 0
+    for admin in admins:
+        if send_email(admin.email, subject, text_content, html_content):
+            success_count += 1
+            current_app.logger.info(
+                "Contact form email sent to admin %s from user %s", admin.id, sender_user.id
+            )
+        else:
+            current_app.logger.error(
+                "Failed to send contact form email to admin %s from user %s",
+                admin.id,
+                sender_user.id,
+            )
+
+    return success_count > 0

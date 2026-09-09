@@ -12,10 +12,13 @@
 {% block twitter_card %}summary{% endblock %}
 {% block twitter_image %}{{ preview_image_url }}{% endblock %}
 
-{% block content %}
-<div class="container mt-5 mb-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
+{% block body_attrs %}class="landing-page"{% endblock %}
+
+{% block page_content %}
+<section class="share-preview-hero">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
             <div class="card shadow-sm share-preview-card">
                 <div class="card-body">
                     {% if show_fulfilled_fallback %}
@@ -24,7 +27,7 @@
                             <i class="fas fa-check-circle text-success me-2"></i>This request has already been fulfilled.
                         </h1>
                         <p class="fs-5 mb-3">
-                            <i class="fas fa-search me-2 text-primary"></i>Browse current community requests in the requests feed.
+                            <i class="fas fa-search me-2 text-primary"></i>Browse current community requests in the activity feed.
                         </p>
                         <p class="text-muted mb-4">
                             Join Meutch to discover active requests and connect with neighbors.
@@ -69,7 +72,7 @@
 
                     <!-- Description -->
                     {% if item_request.description %}
-                        <p class="fs-5 {% if item_request.is_fulfilled %}text-muted{% endif %} mb-4">{{ item_request.description }}</p>
+                        <p class="fs-5 {% if item_request.is_fulfilled %}text-muted{% endif %} mb-4">{{ item_request.description|linkify }}</p>
                     {% endif %}
 
                     <!-- Badges -->
@@ -124,7 +127,10 @@
                     {% endif %}
                 </div>
             </div>
+            </div>
         </div>
     </div>
-</div>
+</section>
+
+{% include 'share/_meutch_pitch.html' %}
 {% endblock %}

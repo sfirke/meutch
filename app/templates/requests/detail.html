@@ -7,8 +7,8 @@
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <a href="{{ url_for('requests.feed') }}" class="btn btn-outline-secondary btn-sm mb-3">
-                <i class="fas fa-arrow-left me-1"></i>Back to Requests
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-sm mb-3">
+                <i class="fas fa-arrow-left me-1"></i>Back to Home
             </a>
 
             <div class="card shadow-sm">
@@ -17,9 +17,17 @@
                     <div class="d-flex align-items-center mb-3">
                         <img src="{{ item_request.user.profile_image }}" alt="{{ item_request.user.full_name }}" class="rounded-circle me-3" width="56" height="56">
                         <div>
-                            <a href="{{ url_for('main.user_profile', user_id=item_request.user.id) if item_request.user_id != current_user.id else url_for('main.profile') }}" class="text-decoration-none">
+                            {% if item_request.user_id == current_user.id %}
+                                <a href="{{ url_for('main.profile') }}" class="text-decoration-none">
+                                    <strong class="text-dark fs-5">{{ item_request.user.full_name }}</strong>
+                                </a>
+                            {% elif can_view_author_profile %}
+                                <a href="{{ url_for('main.user_profile', user_id=item_request.user.id) }}" class="text-decoration-none">
+                                    <strong class="text-dark fs-5">{{ item_request.user.full_name }}</strong>
+                                </a>
+                            {% else %}
                                 <strong class="text-dark fs-5">{{ item_request.user.full_name }}</strong>
-                            </a>
+                            {% endif %}
                             <div class="text-muted small">
                                 Posted {{ item_request.created_at|utc_timestamp('date') if item_request.created_at else '' }}
                             </div>
@@ -43,7 +51,7 @@
 
                     <!-- Description -->
                     {% if item_request.description %}
-                        <p class="mb-3 fs-5 {% if item_request.is_fulfilled %}text-muted{% endif %}">{{ item_request.description }}</p>
+                        <p class="mb-3 fs-5 {% if item_request.is_fulfilled %}text-muted{% endif %}">{{ item_request.description|linkify }}</p>
                     {% endif %}
 
                     <!-- Badges -->
@@ -82,9 +90,12 @@
                     {% endif %}
 
                     {% if item_request.user_id != current_user.id and item_request.status == 'open' and not item_request.is_expired and (item_request.visibility == 'public' or current_user.shares_circle_with(item_request.user)) %}
-                        <div class="mb-3">
+                        <div class="mb-3 d-flex gap-2">
                             <a href="{{ url_for('requests.conversation', request_id=item_request.id) }}" class="btn btn-outline-primary">
                                 <i class="fas fa-comment-dots me-1"></i>Message
+                            </a>
+                            <a href="{{ url_for('requests.respond', request_id=item_request.id) }}" class="btn btn-outline-success">
+                                I have this item<i class="fas fa-arrow-right ms-1"></i>
                             </a>
                         </div>
                     {% endif %}
@@ -104,12 +115,10 @@
                                     </button>
                                 </form>
                             {% endif %}
-                            <form method="POST" action="{{ url_for('requests.delete', request_id=item_request.id) }}" class="d-inline" onsubmit="return confirm('Remove this request?');">
-                                {{ delete_form.hidden_tag() }}
-                                <button type="submit" class="btn btn-outline-danger btn-sm">
-                                    <i class="fas fa-trash me-1"></i>Delete
-                                </button>
-                            </form>
+                            {# Delete button triggers modal #}
+                            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteRequestModal-{{ item_request.id }}">
+                                <i class="fas fa-trash me-1"></i>Delete
+                            </button>
                         </div>
                     {% endif %}
 
@@ -121,7 +130,7 @@
                         </h5>
                         <div class="list-group">
                             {% for conv in conversations %}
-                                <a href="{{ url_for('main.view_conversation', message_id=conv.latest_message.id) }}" class="list-group-item list-group-item-action">
+                                <a href="{{ url_for('main.view_conversation', conversation_id=conv.latest_message.conversation_id) }}" class="list-group-item list-group-item-action">
                                     <div class="d-flex w-100 align-items-center">
                                         <img src="{{ conv.other_user.profile_image }}" alt="{{ conv.other_user.full_name }}" class="rounded-circle me-2 flex-shrink-0" width="40" height="40">
                                         <div class="flex-grow-1 min-width-0">
@@ -141,6 +150,11 @@
         </div>
     </div>
 </div>
+
+<!-- Delete confirmation modal (placed outside .card to avoid stacking-context issues) -->
+{% set delete_modal_id = 'deleteRequestModal-' ~ item_request.id %}
+{% set request_title = item_request.title %}
+{% set fulfill_url = url_for('requests.fulfill', request_id=item_request.id) %}
+{% set delete_url = url_for('requests.delete', request_id=item_request.id) %}
+{% include 'requests/_delete_request_modal.html' %}
 {% endblock %}
-
-

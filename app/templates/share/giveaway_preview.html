@@ -12,10 +12,13 @@
 {% block twitter_card %}{{ 'summary_large_image' if item.images else 'summary' }}{% endblock %}
 {% block twitter_image %}{{ preview_image_url }}{% endblock %}
 
-{% block content %}
-<div class="container mt-5 mb-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
+{% block body_attrs %}class="landing-page"{% endblock %}
+
+{% block page_content %}
+<section class="share-preview-hero">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
             <!-- Preview Card -->
             <div class="card shadow-sm share-preview-card">
                 <!-- Image -->
@@ -50,10 +53,10 @@
 
                     <!-- Title -->
                     <h1 class="card-title h2 mb-3">{{ item.name }}</h1>
-                    
+
                     <!-- Description -->
                     {% if item.description %}
-                        <p class="card-text fs-5 text-muted mb-4">{{ item.description }}</p>
+                        <p class="card-text fs-5 text-muted mb-4">{{ item.description|linkify }}</p>
                     {% endif %}
 
                     <!-- Details -->
@@ -84,11 +87,11 @@
                             {% endif %}
                         </p>
                         <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
-                            <a href="{{ url_for('auth.register', next=auth_next_url) }}" 
+                            <a href="{{ url_for('auth.register', next=auth_next_url) }}"
                                class="btn btn-primary btn-lg">
                                 <i class="fas fa-user-plus me-2"></i>Sign Up
                             </a>
-                            <a href="{{ url_for('auth.login', next=auth_next_url) }}" 
+                            <a href="{{ url_for('auth.login', next=auth_next_url) }}"
                                class="btn btn-outline-secondary btn-lg">
                                 <i class="fas fa-sign-in-alt me-2"></i>Log In
                             </a>
@@ -99,7 +102,10 @@
                     </div>
                 </div>
             </div>
+            </div>
         </div>
     </div>
-</div>
+</section>
+
+{% include 'share/_meutch_pitch.html' %}
 {% endblock %}

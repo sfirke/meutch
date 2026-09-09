@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy{% endblock %}
+
+{% block content %}
+<div class="row mb-5">
+    <div class="col-lg-8">
+        <h1 class="mb-4">Privacy Policy</h1>
+        <p class="text-muted">Last updated: June 2026</p>
+
+        <h4 class="mt-4">1. What We Collect</h4>
+        <p>
+            Meutch collects only the information you choose to provide when using the platform:
+            your name, email address, and your approximate location (stored as latitude and longitude).
+            If you provide a street address during registration, we use it only to look up coordinates
+            and then discard it.
+        </p>
+        <p>
+            We also store the content you create: items you list, messages you send, circles you join,
+            and feedback you give. This is the data needed to make the platform work.
+        </p>
+
+        <h4 class="mt-4">2. Cookies</h4>
+        <p>
+            Meutch uses only two cookies, both essential for logging in:
+        </p>
+        <ul>
+            <li><strong>Session cookie</strong> — keeps you logged in during your visit. Expires when you close your browser.</li>
+            <li><strong>Remember-me cookie</strong> — an optional cookie set only if you check "Remember this device for 30 days" when logging in. Lets you stay logged in between visits.</li>
+        </ul>
+        <p>
+            Both cookies are secured (HttpOnly, SameSite=Lax, and transmitted over HTTPS).
+            We do not use any tracking cookies, advertising cookies, or analytics cookies.
+        </p>
+
+        <h4 class="mt-4">3. What We Don't Do</h4>
+        <ul>
+            <li>We do not share your data with any third party. No advertisers, no data brokers, no one.</li>
+            <li>We do not use any tracking or analytics services.</li>
+            <li>We do not send marketing emails. The only emails you may receive are account-related (confirmation, password reset) and optional digest summaries of activity in your circles. Meutch may also send site-related update emails.</li>
+            <li>We do not monetize your data. Meutch is a nonprofit, volunteer-run project.</li>
+        </ul>
+
+        <h4 class="mt-4">5. Account Deletion</h4>
+        <p>
+            When you delete your account:
+        </p>
+        <ul>
+            <li>Your profile is anonymized — your email address is replaced and your name is removed.</li>
+            <li>Your items are removed, unless one of your items is currently on loan to another user. In that case, the item stays in the system until the loan ends, so the borrower's history is preserved.</li>
+            <li>Any pending loan requests you sent or received are canceled.</li>
+            <li>Your circle memberships are removed.</li>
+            <li>Messages you sent remain in the conversations of the recipients, to preserve their message history. However, your name is no longer associated with those messages.</li>
+        </ul>
+
+        <h4 class="mt-4">6. Data Security</h4>
+        <p>
+            We take reasonable measures to protect your data, including encrypting passwords (using industry-standard hashing),
+            requiring HTTPS for all connections, and securing our servers. However, no online service can guarantee
+            absolute security.
+        </p>
+
+        <h4 class="mt-4">7. API Access</h4>
+        <p>
+            If you use the Meutch API, authentication is handled through JSON Web Tokens (JWT) sent via HTTP headers.
+            No browser cookies are used for API access.
+        </p>
+
+        <h4 class="mt-4">8. Questions?</h4>
+        <p>
+            Meutch is open source. You can review the code, report issues, or ask questions on our
+            <a href="https://github.com/sfirke/meutch/issues" target="_blank" rel="noopener noreferrer">GitHub issue tracker</a>.
+        </p>
+    </div>
+</div>
+{% endblock %}

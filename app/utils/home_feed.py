@@ -1,12 +1,23 @@
-from datetime import datetime, UTC, timedelta
-from sqlalchemy import and_, func, or_, select
-from app import db
-from app.models import Circle, CircleJoinRequest, Item, ItemRequest, LoanRequest, User, circle_members
-from app.utils.geocoding import format_distance
+from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import and_, or_, select
+from sqlalchemy.orm import contains_eager
+
+from app import db
+from app.models import (
+    Circle,
+    CircleJoinRequest,
+    Item,
+    ItemRequest,
+    LoanRequest,
+    User,
+    circle_members,
+)
+from app.utils.geocoding import bounding_box, format_distance
 
 DEFAULT_GIVEAWAY_DISTANCE_MILES = 20
-HOMEPAGE_FEED_EVENT_TYPES = {'requests', 'giveaways', 'loans', 'circle_joins'}
+RESOLVED_FEED_WINDOW_DAYS = 7
+HOMEPAGE_FEED_EVENT_TYPES = {"requests", "giveaways", "loans", "circle_joins"}
 
 
 def _utc(value):
@@ -28,12 +39,19 @@ def _get_scoped_circle_ids(user, selected_circle_ids=None):
 def _shared_circle_user_ids_query(scoped_circle_ids):
     if not scoped_circle_ids:
         return None
-    return select(circle_members.c.user_id).where(
-        circle_members.c.circle_id.in_(scoped_circle_ids)
-    ).distinct()
+    return (
+        select(circle_members.c.user_id)
+        .where(circle_members.c.circle_id.in_(scoped_circle_ids))
+        .distinct()
+    )
 
 
-def _effective_giveaway_distance(max_distance, distance_explicit):
+def effective_feed_distance(max_distance, distance_explicit):
+    """Resolve the distance cap for a feed read.
+
+    An explicit ``distance=none`` means no cap; leaving it out falls back to the
+    default radius rather than showing the whole site.
+    """
     if distance_explicit:
         return max_distance
     if max_distance is not None:
@@ -42,7 +60,45 @@ def _effective_giveaway_distance(max_distance, distance_explicit):
 
 
 def _normalize_scope(scope):
-    return 'circles' if scope == 'circles' else 'all'
+    return "circles" if scope == "circles" else "all"
+
+
+def _build_request_visibility_filter(shared_circle_user_ids, normalized_scope):
+    if normalized_scope == "circles":
+        if shared_circle_user_ids is None:
+            return None
+        return ItemRequest.user_id.in_(shared_circle_user_ids)
+
+    public_filter = ItemRequest.visibility == "public"
+    if shared_circle_user_ids is None:
+        return public_filter
+
+    return or_(
+        and_(
+            ItemRequest.visibility == "circles",
+            ItemRequest.user_id.in_(shared_circle_user_ids),
+        ),
+        public_filter,
+    )
+
+
+def _build_giveaway_visibility_filter(shared_circle_user_ids, normalized_scope):
+    if normalized_scope == "circles":
+        if shared_circle_user_ids is None:
+            return None
+        return Item.owner_id.in_(shared_circle_user_ids)
+
+    public_filter = Item.giveaway_visibility == "public"
+    if shared_circle_user_ids is None:
+        return public_filter
+
+    return or_(
+        and_(
+            or_(Item.giveaway_visibility == "default", Item.giveaway_visibility.is_(None)),
+            Item.owner_id.in_(shared_circle_user_ids),
+        ),
+        public_filter,
+    )
 
 
 def _normalize_event_types(included_event_types):
@@ -70,7 +126,48 @@ def _within_time_window(event_time, since=None, until=None):
     return True
 
 
-def _distance_filter_items(items, user, max_distance):
+def _apply_distance_prefilter(query, user, max_distance):
+    """Narrow *query* to actors that could be within *max_distance* of *user*.
+
+    The exact test is a Haversine distance computed in Python, which means the
+    database would otherwise have to ship every visible row so that most of them
+    could be discarded in the application.  A latitude/longitude box around the
+    viewer is a superset of the matching circle, so applying it in SQL first
+    leaves the Python filter with the same answer over far fewer rows.
+
+    The query must already join ``User`` as the actor.  Actors without
+    coordinates are kept, because the Python filter keeps them.  Returns the
+    query unchanged when no prefilter applies.
+    """
+    if max_distance is None or not user.is_geocoded:
+        return query
+
+    box = bounding_box(user.latitude, user.longitude, float(max_distance))
+    if box is None:
+        return query
+
+    min_lat, max_lat, min_lon, max_lon = box
+    return query.filter(
+        or_(
+            User.latitude.is_(None),
+            User.longitude.is_(None),
+            and_(
+                User.latitude.between(min_lat, max_lat),
+                User.longitude.between(min_lon, max_lon),
+            ),
+        )
+    )
+
+
+def format_actor_distance(user, actor):
+    """Return the bucketed distance from *user* to *actor*, or ``None``."""
+    if not user.is_geocoded or actor is None or not actor.is_geocoded:
+        return None
+    raw_distance = user.distance_to(actor)
+    return format_distance(raw_distance) if raw_distance is not None else None
+
+
+def filter_items_by_distance(items, user, max_distance):
     if max_distance is None or not user.is_geocoded:
         return list(items)
 
@@ -85,7 +182,7 @@ def _distance_filter_items(items, user, max_distance):
     return filtered
 
 
-def _distance_filter_requests(item_requests, user, max_distance):
+def filter_requests_by_distance(item_requests, user, max_distance):
     if max_distance is None or not user.is_geocoded:
         return list(item_requests)
 
@@ -100,160 +197,507 @@ def _distance_filter_requests(item_requests, user, max_distance):
     return filtered
 
 
-def build_visible_requests_events(
+def build_visible_requests_query(
     user,
     scoped_circle_ids=None,
-    scope='all',
+    scope="all",
     max_distance=None,
     distance_explicit=False,
+    include_own_activity=True,
     since=None,
     until=None,
 ):
+    """Return the ordered query behind the requests feed, newest first.
+
+    ``None`` means nothing is visible at all.  The rows still have to go through
+    :func:`filter_requests_by_distance`, which applies the exact Haversine test
+    the query can only approximate with a bounding box.
+    """
     now = datetime.now(UTC)
     fulfilled_cutoff = _utc(since) or (now - timedelta(days=7))
     until_utc = _utc(until)
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
     normalized_scope = _normalize_scope(scope)
 
+    visibility_filter = _build_request_visibility_filter(shared_circle_user_ids, normalized_scope)
+    if visibility_filter is None and not include_own_activity:
+        return None
+    if include_own_activity:
+        own_activity_filter = ItemRequest.user_id == user.id
+        if visibility_filter is None:
+            visibility_filter = own_activity_filter
+        else:
+            visibility_filter = or_(own_activity_filter, visibility_filter)
+
     base_query = ItemRequest.query.join(User, ItemRequest.user_id == User.id).filter(
-        ItemRequest.user_id != user.id,
-        User.is_deleted == False,
-        User.vacation_mode == False,
+        User.is_deleted.is_(False),
+        User.vacation_mode.is_(False),
         or_(
             and_(
-                ItemRequest.status == 'open',
+                ItemRequest.status == "open",
                 ItemRequest.expires_at > now,
             ),
             and_(
-                ItemRequest.status == 'fulfilled',
+                ItemRequest.status == "fulfilled",
                 ItemRequest.fulfilled_at > fulfilled_cutoff,
             ),
         ),
+        visibility_filter,
     )
+    if not include_own_activity:
+        base_query = base_query.filter(ItemRequest.user_id != user.id)
 
     if until_utc is not None:
         base_query = base_query.filter(ItemRequest.created_at <= until_utc)
 
-    if normalized_scope == 'circles':
-        if shared_circle_user_ids is None:
-            return []
-        base_query = base_query.filter(ItemRequest.user_id.in_(shared_circle_user_ids))
-    else:
-        if shared_circle_user_ids is None:
-            base_query = base_query.filter(ItemRequest.visibility == 'public')
-        else:
-            base_query = base_query.filter(
-                or_(
-                    ItemRequest.visibility == 'public',
-                    and_(
-                        ItemRequest.visibility == 'circles',
-                        ItemRequest.user_id.in_(shared_circle_user_ids),
-                    ),
-                )
-            )
+    base_query = _apply_distance_prefilter(
+        base_query, user, effective_feed_distance(max_distance, distance_explicit)
+    )
 
-    visible_requests = base_query.order_by(ItemRequest.created_at.desc()).all()
-    effective_distance = _effective_giveaway_distance(max_distance, distance_explicit)
-    visible_requests = _distance_filter_requests(visible_requests, user, effective_distance)
+    # The id tiebreaker keeps LIMIT/OFFSET pages stable -- created_at ties are
+    # possible (e.g. bulk inserts share one transaction's now()).
+    return base_query.options(contains_eager(ItemRequest.user)).order_by(
+        ItemRequest.created_at.desc(), ItemRequest.id.desc()
+    )
+
+
+def build_visible_requests_events(
+    user,
+    scoped_circle_ids=None,
+    scope="all",
+    max_distance=None,
+    distance_explicit=False,
+    include_own_activity=True,
+    since=None,
+    until=None,
+):
+    base_query = build_visible_requests_query(
+        user,
+        scoped_circle_ids=scoped_circle_ids,
+        scope=scope,
+        max_distance=max_distance,
+        distance_explicit=distance_explicit,
+        include_own_activity=include_own_activity,
+        since=since,
+        until=until,
+    )
+    if base_query is None:
+        return []
+
+    effective_distance = effective_feed_distance(max_distance, distance_explicit)
+    visible_requests = filter_requests_by_distance(base_query.all(), user, effective_distance)
 
     events = []
     for item_request in visible_requests:
-        event_time = _utc(item_request.fulfilled_at) if item_request.status == 'fulfilled' else _utc(item_request.created_at)
+        event_time = (
+            _utc(item_request.fulfilled_at)
+            if item_request.status == "fulfilled"
+            else _utc(item_request.created_at)
+        )
         if not _within_time_window(event_time, since=since, until=until):
             continue
-        distance = None
-        if user.is_geocoded and item_request.user and item_request.user.is_geocoded:
-            raw = user.distance_to(item_request.user)
-            distance = format_distance(raw) if raw is not None else None
-        events.append({
-            'event_type': 'request',
-            'created_at': event_time,
-            'request_id': item_request.id,
-            'title': item_request.title,
-            'description': item_request.description,
-            'status': item_request.status,
-            'actor_name': item_request.user.full_name if item_request.user else 'Deleted User',
-            'actor_avatar_url': item_request.user.profile_image_url if item_request.user else None,
-            'image_url': None,
-            'action': 'requested',
-            'visibility': item_request.visibility,
-            'distance': distance,
-        })
+        action = "marked a request fulfilled" if item_request.status == "fulfilled" else "requested"
+        distance = format_actor_distance(user, item_request.user)
+        events.append(
+            {
+                "event_type": "request",
+                "created_at": event_time,
+                "request_id": item_request.id,
+                "title": item_request.title,
+                "description": item_request.description,
+                "status": item_request.status,
+                "actor_name": item_request.user.full_name if item_request.user else "Deleted User",
+                "actor_avatar_url": item_request.user.profile_image_url
+                if item_request.user
+                else None,
+                "actor_id": item_request.user_id if item_request.user else None,
+                "image_url": None,
+                "action": action,
+                "visibility": item_request.visibility,
+                "distance": distance,
+            }
+        )
     return events
 
 
 def build_visible_giveaway_events(
     user,
     scoped_circle_ids=None,
-    scope='all',
+    scope="all",
+    max_distance=None,
+    distance_explicit=False,
+    include_own_activity=True,
+    include_claimed_giveaways=False,
+    since=None,
+    until=None,
+):
+    now = datetime.now(UTC)
+    claimed_cutoff = _utc(since) or (now - timedelta(days=RESOLVED_FEED_WINDOW_DAYS))
+    shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
+    normalized_scope = _normalize_scope(scope)
+    visibility_filter = _build_giveaway_visibility_filter(shared_circle_user_ids, normalized_scope)
+    if visibility_filter is None and not include_own_activity:
+        return []
+    if include_own_activity:
+        own_activity_filter = Item.owner_id == user.id
+        if visibility_filter is None:
+            visibility_filter = own_activity_filter
+        else:
+            visibility_filter = or_(own_activity_filter, visibility_filter)
+    claim_status_filter = or_(
+        Item.claim_status == "unclaimed",
+        Item.claim_status.is_(None),
+    )
+    if include_claimed_giveaways:
+        claim_status_filter = or_(
+            claim_status_filter,
+            and_(
+                Item.claim_status == "claimed",
+                Item.claimed_at.isnot(None),
+                Item.claimed_at > claimed_cutoff,
+            ),
+        )
+
+    base_query = Item.query.join(User, Item.owner_id == User.id).filter(
+        Item.is_giveaway.is_(True),
+        User.vacation_mode.is_(False),
+        and_(
+            claim_status_filter,
+            visibility_filter,
+        ),
+    )
+    if not include_own_activity:
+        base_query = base_query.filter(Item.owner_id != user.id)
+
+    until_utc = _utc(until)
+    if until_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                Item.created_at <= until_utc,
+                and_(
+                    Item.claim_status == "claimed",
+                    Item.claimed_at.isnot(None),
+                    Item.claimed_at <= until_utc,
+                ),
+            )
+        )
+
+    effective_distance = effective_feed_distance(max_distance, distance_explicit)
+    base_query = _apply_distance_prefilter(base_query, user, effective_distance)
+
+    giveaway_items = (
+        base_query.options(contains_eager(Item.owner)).order_by(Item.created_at.desc()).all()
+    )
+    giveaway_items = filter_items_by_distance(giveaway_items, user, effective_distance)
+
+    events = []
+    for item in giveaway_items:
+        event_time = (
+            _utc(item.claimed_at) if item.claim_status == "claimed" else _utc(item.created_at)
+        )
+        if not _within_time_window(event_time, since=since, until=until):
+            continue
+        action = "gave away" if item.claim_status == "claimed" else "posted a giveaway"
+        distance = format_actor_distance(user, item.owner)
+        events.append(
+            {
+                "event_type": "giveaway",
+                "created_at": event_time,
+                "item_id": item.id,
+                "title": item.name,
+                "description": item.description,
+                "claim_status": item.claim_status,
+                "actor_name": item.owner.full_name if item.owner else "Deleted User",
+                "actor_avatar_url": item.owner.profile_image_url if item.owner else None,
+                "actor_id": item.owner_id if item.owner else None,
+                "image_url": item.image,
+                "action": action,
+                "distance": distance,
+            }
+        )
+    return events
+
+
+def _classify_request_digest_variant(item_request, since=None, until=None):
+    created_in_window = _within_time_window(item_request.created_at, since=since, until=until)
+    fulfilled_in_window = (
+        item_request.status == "fulfilled"
+        and item_request.fulfilled_at is not None
+        and _within_time_window(item_request.fulfilled_at, since=since, until=until)
+    )
+
+    if created_in_window and fulfilled_in_window:
+        return "new-resolved-in-window"
+    if created_in_window:
+        return "new"
+    if fulfilled_in_window:
+        return "resolved-in-window"
+    return None
+
+
+def _classify_giveaway_digest_variant(item, since=None, until=None):
+    created_in_window = _within_time_window(item.created_at, since=since, until=until)
+    claimed_in_window = (
+        item.claim_status == "claimed"
+        and item.claimed_at is not None
+        and _within_time_window(item.claimed_at, since=since, until=until)
+    )
+
+    if created_in_window and claimed_in_window:
+        return "new-resolved-in-window"
+    if created_in_window:
+        return "new"
+    if claimed_in_window:
+        return "resolved-in-window"
+    return None
+
+
+def build_digest_request_events(
+    user,
+    scoped_circle_ids=None,
+    scope="all",
     max_distance=None,
     distance_explicit=False,
     since=None,
     until=None,
 ):
-    if not scoped_circle_ids:
-        return []
-
+    now = datetime.now(UTC)
+    since_utc = _utc(since)
+    until_utc = _utc(until)
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
-    all_circle_user_ids = select(circle_members.c.user_id).distinct()
     normalized_scope = _normalize_scope(scope)
 
-    if normalized_scope == 'circles':
-        visibility_filter = Item.owner_id.in_(shared_circle_user_ids)
-    else:
-        visibility_filter = or_(
+    base_query = ItemRequest.query.join(User, ItemRequest.user_id == User.id).filter(
+        ItemRequest.user_id != user.id,
+        User.is_deleted.is_(False),
+        User.vacation_mode.is_(False),
+        or_(
             and_(
-                or_(Item.giveaway_visibility == 'default', Item.giveaway_visibility.is_(None)),
-                Item.owner_id.in_(shared_circle_user_ids),
+                ItemRequest.status == "open",
+                ItemRequest.expires_at > now,
             ),
             and_(
-                Item.giveaway_visibility == 'public',
-                Item.owner_id.in_(all_circle_user_ids),
+                ItemRequest.status == "fulfilled",
+                ItemRequest.fulfilled_at.isnot(None),
             ),
-        )
-
-    base_query = Item.query.join(User, Item.owner_id == User.id).filter(
-        Item.is_giveaway == True,
-        User.vacation_mode == False,
-        and_(
-            or_(Item.claim_status == 'unclaimed', Item.claim_status.is_(None)),
-            visibility_filter,
-            Item.owner_id != user.id,
         ),
     )
 
-    if _utc(until) is not None:
-        base_query = base_query.filter(Item.created_at <= _utc(until))
+    if since_utc is not None and until_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                and_(
+                    ItemRequest.created_at >= since_utc,
+                    ItemRequest.created_at <= until_utc,
+                ),
+                and_(
+                    ItemRequest.fulfilled_at.isnot(None),
+                    ItemRequest.fulfilled_at >= since_utc,
+                    ItemRequest.fulfilled_at <= until_utc,
+                ),
+            )
+        )
+    elif since_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                ItemRequest.created_at >= since_utc,
+                and_(
+                    ItemRequest.fulfilled_at.isnot(None),
+                    ItemRequest.fulfilled_at >= since_utc,
+                ),
+            )
+        )
+    elif until_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                ItemRequest.created_at <= until_utc,
+                and_(
+                    ItemRequest.fulfilled_at.isnot(None),
+                    ItemRequest.fulfilled_at <= until_utc,
+                ),
+            )
+        )
 
-    giveaway_items = base_query.order_by(Item.created_at.desc()).all()
-    effective_distance = _effective_giveaway_distance(max_distance, distance_explicit)
-    giveaway_items = _distance_filter_items(giveaway_items, user, effective_distance)
+    if normalized_scope == "circles":
+        if shared_circle_user_ids is None:
+            return []
+        base_query = base_query.filter(ItemRequest.user_id.in_(shared_circle_user_ids))
+    else:
+        if shared_circle_user_ids is None:
+            base_query = base_query.filter(ItemRequest.visibility == "public")
+        else:
+            base_query = base_query.filter(
+                or_(
+                    ItemRequest.visibility == "public",
+                    and_(
+                        ItemRequest.visibility == "circles",
+                        ItemRequest.user_id.in_(shared_circle_user_ids),
+                    ),
+                )
+            )
+
+    effective_distance = effective_feed_distance(max_distance, distance_explicit)
+    base_query = _apply_distance_prefilter(base_query, user, effective_distance)
+
+    visible_requests = (
+        base_query.options(contains_eager(ItemRequest.user))
+        .order_by(ItemRequest.created_at.desc())
+        .all()
+    )
+    visible_requests = filter_requests_by_distance(visible_requests, user, effective_distance)
 
     events = []
-    for item in giveaway_items:
-        event_time = _utc(item.created_at)
-        if not _within_time_window(event_time, since=since, until=until):
+    for item_request in visible_requests:
+        digest_variant = _classify_request_digest_variant(item_request, since=since, until=until)
+        if digest_variant is None:
             continue
-        distance = None
-        if user.is_geocoded and item.owner and item.owner.is_geocoded:
-            raw = user.distance_to(item.owner)
-            distance = format_distance(raw) if raw is not None else None
-        events.append({
-            'event_type': 'giveaway',
-            'created_at': event_time,
-            'item_id': item.id,
-            'title': item.name,
-            'description': item.description,
-            'actor_name': item.owner.full_name if item.owner else 'Deleted User',
-            'actor_avatar_url': item.owner.profile_image_url if item.owner else None,
-            'image_url': item.image,
-            'action': 'posted a giveaway',
-            'distance': distance,
-        })
+
+        started_at = _utc(item_request.created_at)
+        resolved_at = _utc(item_request.fulfilled_at) if item_request.fulfilled_at else None
+        event_time = resolved_at if digest_variant == "resolved-in-window" else started_at
+        distance = format_actor_distance(user, item_request.user)
+        events.append(
+            {
+                "event_type": "request",
+                "created_at": event_time,
+                "started_at": started_at,
+                "resolved_at": resolved_at,
+                "resolution_status": "fulfilled" if resolved_at is not None else None,
+                "digest_variant": digest_variant,
+                "request_id": item_request.id,
+                "title": item_request.title,
+                "description": item_request.description,
+                "status": item_request.status,
+                "actor_name": item_request.user.full_name if item_request.user else "Deleted User",
+                "actor_avatar_url": item_request.user.profile_image_url
+                if item_request.user
+                else None,
+                "actor_id": item_request.user_id if item_request.user else None,
+                "image_url": None,
+                "action": "requested",
+                "visibility": item_request.visibility,
+                "distance": distance,
+            }
+        )
     return events
 
 
-def build_recent_lent_events(user, scoped_circle_ids=None, days=30, since=None, until=None):
+def build_digest_giveaway_events(
+    user,
+    scoped_circle_ids=None,
+    scope="all",
+    max_distance=None,
+    distance_explicit=False,
+    since=None,
+    until=None,
+):
+    since_utc = _utc(since)
+    until_utc = _utc(until)
+    shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
+    normalized_scope = _normalize_scope(scope)
+    visibility_filter = _build_giveaway_visibility_filter(shared_circle_user_ids, normalized_scope)
+    if visibility_filter is None:
+        return []
+
+    base_query = Item.query.join(User, Item.owner_id == User.id).filter(
+        Item.is_giveaway.is_(True),
+        User.vacation_mode.is_(False),
+        visibility_filter,
+        Item.owner_id != user.id,
+        or_(
+            Item.claim_status.is_(None),
+            Item.claim_status == "unclaimed",
+            and_(
+                Item.claim_status == "claimed",
+                Item.claimed_at.isnot(None),
+            ),
+        ),
+    )
+
+    if since_utc is not None and until_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                and_(
+                    Item.created_at >= since_utc,
+                    Item.created_at <= until_utc,
+                ),
+                and_(
+                    Item.claimed_at.isnot(None),
+                    Item.claimed_at >= since_utc,
+                    Item.claimed_at <= until_utc,
+                ),
+            )
+        )
+    elif since_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                Item.created_at >= since_utc,
+                and_(
+                    Item.claimed_at.isnot(None),
+                    Item.claimed_at >= since_utc,
+                ),
+            )
+        )
+    elif until_utc is not None:
+        base_query = base_query.filter(
+            or_(
+                Item.created_at <= until_utc,
+                and_(
+                    Item.claimed_at.isnot(None),
+                    Item.claimed_at <= until_utc,
+                ),
+            )
+        )
+
+    effective_distance = effective_feed_distance(max_distance, distance_explicit)
+    base_query = _apply_distance_prefilter(base_query, user, effective_distance)
+
+    giveaway_items = (
+        base_query.options(contains_eager(Item.owner)).order_by(Item.created_at.desc()).all()
+    )
+    giveaway_items = filter_items_by_distance(giveaway_items, user, effective_distance)
+
+    events = []
+    for item in giveaway_items:
+        digest_variant = _classify_giveaway_digest_variant(item, since=since, until=until)
+        if digest_variant is None:
+            continue
+
+        started_at = _utc(item.created_at)
+        resolved_at = _utc(item.claimed_at) if item.claimed_at else None
+        event_time = resolved_at if digest_variant == "resolved-in-window" else started_at
+        distance = format_actor_distance(user, item.owner)
+        events.append(
+            {
+                "event_type": "giveaway",
+                "created_at": event_time,
+                "started_at": started_at,
+                "resolved_at": resolved_at,
+                "resolution_status": "claimed" if resolved_at is not None else None,
+                "digest_variant": digest_variant,
+                "item_id": item.id,
+                "title": item.name,
+                "description": item.description,
+                "claim_status": item.claim_status,
+                "actor_name": item.owner.full_name if item.owner else "Deleted User",
+                "actor_avatar_url": item.owner.profile_image_url if item.owner else None,
+                "actor_id": item.owner_id if item.owner else None,
+                "image_url": item.image,
+                "action": "posted a giveaway",
+                "distance": distance,
+            }
+        )
+    return events
+
+
+def build_recent_lent_events(
+    user,
+    scoped_circle_ids=None,
+    days=30,
+    include_own_activity=True,
+    since=None,
+    until=None,
+):
     if not scoped_circle_ids:
         return []
 
@@ -261,14 +705,19 @@ def build_recent_lent_events(user, scoped_circle_ids=None, days=30, since=None, 
     until_utc = _utc(until)
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
 
-    base_query = LoanRequest.query.join(Item, LoanRequest.item_id == Item.id).join(User, Item.owner_id == User.id).filter(
-        LoanRequest.status == 'approved',
-        LoanRequest.borrower_id.isnot(None),
-        LoanRequest.created_at >= recent_cutoff,
-        Item.owner_id != user.id,
-        User.vacation_mode == False,
-        Item.owner_id.in_(shared_circle_user_ids),
+    base_query = (
+        LoanRequest.query.join(Item, LoanRequest.item_id == Item.id)
+        .join(User, Item.owner_id == User.id)
+        .filter(
+            LoanRequest.status == "approved",
+            LoanRequest.borrower_id.isnot(None),
+            LoanRequest.created_at >= recent_cutoff,
+            User.vacation_mode.is_(False),
+            Item.owner_id.in_(shared_circle_user_ids),
+        )
     )
+    if not include_own_activity:
+        base_query = base_query.filter(Item.owner_id != user.id)
 
     if until_utc is not None:
         base_query = base_query.filter(LoanRequest.created_at <= until_utc)
@@ -282,33 +731,38 @@ def build_recent_lent_events(user, scoped_circle_ids=None, days=30, since=None, 
             continue
         if not _within_time_window(loan.created_at, since=since, until=until):
             continue
-        owner_name = item.owner.full_name if item.owner else 'Deleted User'
-        events.append({
-            'event_type': 'lent',
-            'created_at': _utc(loan.created_at),
-            'loan_request_id': loan.id,
-            'item_id': item.id,
-            'title': item.name,
-            'description': item.description,
-            'actor_name': owner_name,
-            'actor_avatar_url': item.owner.profile_image_url if item.owner else None,
-            'image_url': item.image,
-            'action': 'lent out',
-        })
+        owner_name = item.owner.full_name if item.owner else "Deleted User"
+        events.append(
+            {
+                "event_type": "lent",
+                "created_at": _utc(loan.created_at),
+                "loan_request_id": loan.id,
+                "item_id": item.id,
+                "title": item.name,
+                "description": item.description,
+                "actor_name": owner_name,
+                "actor_avatar_url": item.owner.profile_image_url if item.owner else None,
+                "actor_id": item.owner_id if item.owner else None,
+                "image_url": item.image,
+                "action": "lent out",
+            }
+        )
     return events
 
 
 def consolidate_circle_join_activity(join_rows, circle_sizes):
     grouped = {}
     for row in join_rows:
-        grouped.setdefault(row['user_id'], []).append(row)
+        grouped.setdefault(row["user_id"], []).append(row)
 
     events = []
     for user_rows in grouped.values():
-        user_rows.sort(key=lambda entry: (
-            circle_sizes.get(entry['circle_id'], float('inf')),
-            (entry['circle_name'] or '').lower(),
-        ))
+        user_rows.sort(
+            key=lambda entry: (
+                circle_sizes.get(entry["circle_id"], float("inf")),
+                (entry["circle_name"] or "").lower(),
+            )
+        )
         primary_circle = user_rows[0]
         extra_count = len(user_rows) - 1
 
@@ -317,40 +771,54 @@ def consolidate_circle_join_activity(join_rows, circle_sizes):
             title = f"{primary_circle['circle_name']} + {extra_count} more of your circles"
         else:
             action = "joined"
-            title = primary_circle['circle_name']
+            title = primary_circle["circle_name"]
 
-        events.append({
-            'event_type': 'circle_join',
-            'created_at': primary_circle['created_at'],
-            'user_id': primary_circle['user_id'],
-            'actor_name': primary_circle['user_name'],
-            'actor_avatar_url': primary_circle.get('user_avatar_url'),
-            'image_url': primary_circle.get('circle_image_url'),
-            'circle_id': primary_circle['circle_id'],
-            'title': title,
-            'description': None,
-            'extra_circle_count': extra_count,
-            'action': action,
-        })
+        events.append(
+            {
+                "event_type": "circle_join",
+                "created_at": primary_circle["created_at"],
+                "user_id": primary_circle["user_id"],
+                "actor_id": primary_circle["user_id"],
+                "actor_name": primary_circle["user_name"],
+                "actor_avatar_url": primary_circle.get("user_avatar_url"),
+                "image_url": primary_circle.get("circle_image_url"),
+                "circle_id": primary_circle["circle_id"],
+                "title": title,
+                "description": None,
+                "extra_circle_count": extra_count,
+                "action": action,
+            }
+        )
 
     return events
 
 
-def build_circle_join_events(user, scoped_circle_ids=None, days=30, since=None, until=None):
+def build_circle_join_events(
+    user,
+    scoped_circle_ids=None,
+    days=30,
+    include_own_activity=True,
+    since=None,
+    until=None,
+):
     if not scoped_circle_ids:
         return []
 
     recent_cutoff = _utc(since) or (datetime.now(UTC) - timedelta(days=days))
     until_utc = _utc(until)
-    base_query = db.session.query(CircleJoinRequest).join(User, CircleJoinRequest.user_id == User.id).join(
-        Circle, CircleJoinRequest.circle_id == Circle.id
-    ).filter(
-        CircleJoinRequest.status == 'approved',
-        CircleJoinRequest.created_at >= recent_cutoff,
-        CircleJoinRequest.user_id != user.id,
-        CircleJoinRequest.circle_id.in_(scoped_circle_ids),
-        User.is_deleted == False,
+    base_query = (
+        db.session.query(CircleJoinRequest)
+        .join(User, CircleJoinRequest.user_id == User.id)
+        .join(Circle, CircleJoinRequest.circle_id == Circle.id)
+        .filter(
+            CircleJoinRequest.status == "approved",
+            CircleJoinRequest.created_at >= recent_cutoff,
+            CircleJoinRequest.circle_id.in_(scoped_circle_ids),
+            User.is_deleted.is_(False),
+        )
     )
+    if not include_own_activity:
+        base_query = base_query.filter(CircleJoinRequest.user_id != user.id)
 
     if until_utc is not None:
         base_query = base_query.filter(CircleJoinRequest.created_at <= until_utc)
@@ -360,27 +828,38 @@ def build_circle_join_events(user, scoped_circle_ids=None, days=30, since=None, 
     if not join_requests:
         return []
 
-    circle_sizes_query = db.session.query(
-        circle_members.c.circle_id,
-        func.count(circle_members.c.user_id),
-    ).filter(
-        circle_members.c.circle_id.in_(scoped_circle_ids),
-    ).group_by(circle_members.c.circle_id).all()
+    circle_sizes_query = (
+        db.session.query(
+            circle_members.c.circle_id,
+            db.func.count(circle_members.c.user_id),
+        )
+        .filter(
+            circle_members.c.circle_id.in_(scoped_circle_ids),
+        )
+        .group_by(circle_members.c.circle_id)
+        .all()
+    )
     circle_sizes = {circle_id: size for circle_id, size in circle_sizes_query}
 
     join_rows = []
     for join_request in join_requests:
         if not _within_time_window(join_request.created_at, since=since, until=until):
             continue
-        join_rows.append({
-            'user_id': join_request.user_id,
-            'user_name': join_request.user.full_name if join_request.user else 'Deleted User',
-            'user_avatar_url': join_request.user.profile_image_url if join_request.user else None,
-            'circle_id': join_request.circle_id,
-            'circle_name': join_request.circle.name if join_request.circle else 'Unknown Circle',
-            'circle_image_url': join_request.circle.image_url if join_request.circle else None,
-            'created_at': _utc(join_request.created_at),
-        })
+        join_rows.append(
+            {
+                "user_id": join_request.user_id,
+                "user_name": join_request.user.full_name if join_request.user else "Deleted User",
+                "user_avatar_url": join_request.user.profile_image_url
+                if join_request.user
+                else None,
+                "circle_id": join_request.circle_id,
+                "circle_name": join_request.circle.name
+                if join_request.circle
+                else "Unknown Circle",
+                "circle_image_url": join_request.circle.image_url if join_request.circle else None,
+                "created_at": _utc(join_request.created_at),
+            }
+        )
 
     return consolidate_circle_join_activity(join_rows, circle_sizes)
 
@@ -388,11 +867,13 @@ def build_circle_join_events(user, scoped_circle_ids=None, days=30, since=None, 
 def _assemble_feed_events(
     user,
     selected_circle_ids=None,
-    request_scope='all',
-    giveaway_scope='all',
+    request_scope="all",
+    giveaway_scope="all",
     giveaway_distance=None,
     giveaway_distance_explicit=False,
     included_event_types=None,
+    include_own_activity=True,
+    include_claimed_giveaways=False,
     since=None,
     until=None,
     max_events=100,
@@ -401,7 +882,7 @@ def _assemble_feed_events(
     normalized_event_types = _normalize_event_types(included_event_types)
 
     events = []
-    if 'requests' in normalized_event_types:
+    if "requests" in normalized_event_types:
         events.extend(
             build_visible_requests_events(
                 user,
@@ -409,11 +890,12 @@ def _assemble_feed_events(
                 scope=request_scope,
                 max_distance=giveaway_distance,
                 distance_explicit=giveaway_distance_explicit,
+                include_own_activity=include_own_activity,
                 since=since,
                 until=until,
             )
         )
-    if 'giveaways' in normalized_event_types:
+    if "giveaways" in normalized_event_types:
         events.extend(
             build_visible_giveaway_events(
                 user,
@@ -421,40 +903,50 @@ def _assemble_feed_events(
                 scope=giveaway_scope,
                 max_distance=giveaway_distance,
                 distance_explicit=giveaway_distance_explicit,
+                include_own_activity=include_own_activity,
+                include_claimed_giveaways=include_claimed_giveaways,
                 since=since,
                 until=until,
             )
         )
-    if 'loans' in normalized_event_types:
+    if "loans" in normalized_event_types:
         events.extend(
             build_recent_lent_events(
                 user,
                 scoped_circle_ids=scoped_circle_ids,
+                include_own_activity=include_own_activity,
                 since=since,
                 until=until,
             )
         )
-    if 'circle_joins' in normalized_event_types:
+    if "circle_joins" in normalized_event_types:
         events.extend(
             build_circle_join_events(
                 user,
                 scoped_circle_ids=scoped_circle_ids,
+                include_own_activity=include_own_activity,
                 since=since,
                 until=until,
             )
         )
 
-    events.sort(key=lambda event: event.get('created_at') or datetime.min.replace(tzinfo=UTC), reverse=True)
+    events.sort(
+        key=lambda event: event.get("created_at") or datetime.min.replace(tzinfo=UTC), reverse=True
+    )
+    if max_events is None:
+        return events
     return events[:max_events]
 
 
 def build_homepage_feed_events(
     user,
     selected_circle_ids=None,
-    scope='all',
+    scope="all",
     giveaway_distance=None,
     giveaway_distance_explicit=False,
     included_event_types=None,
+    include_own_activity=True,
+    include_claimed_giveaways=False,
     max_events=100,
 ):
     return _assemble_feed_events(
@@ -465,6 +957,8 @@ def build_homepage_feed_events(
         giveaway_distance=giveaway_distance,
         giveaway_distance_explicit=giveaway_distance_explicit,
         included_event_types=included_event_types,
+        include_own_activity=include_own_activity,
+        include_claimed_giveaways=include_claimed_giveaways,
         max_events=max_events,
     )
 
@@ -472,50 +966,98 @@ def build_homepage_feed_events(
 def _digest_included_event_types(user):
     included = []
     if user.digest_include_requests:
-        included.append('requests')
+        included.append("requests")
     if user.digest_include_giveaways:
-        included.append('giveaways')
+        included.append("giveaways")
     if user.digest_include_circle_joins:
-        included.append('circle_joins')
+        included.append("circle_joins")
     if user.digest_include_loans:
-        included.append('loans')
+        included.append("loans")
     return included
 
 
 def build_digest_payload(user, since=None, until=None, max_events=200):
     window_end = _utc(until) or datetime.now(UTC)
     window_start = _utc(since) or _utc(user.digest_last_sent_at) or (window_end - timedelta(days=7))
+    # Guard against an inverted window (e.g. digest_last_sent_at is in the future relative to until)
+    if window_start >= window_end:
+        window_start = window_end - timedelta(days=7)
 
     included_event_types = _digest_included_event_types(user)
-    events = _assemble_feed_events(
-        user,
-        selected_circle_ids=None,
-        request_scope='all' if user.digest_requests_include_public else 'circles',
-        giveaway_scope='all' if user.digest_giveaways_include_public else 'circles',
-        giveaway_distance=user.digest_radius_miles,
-        giveaway_distance_explicit=True,
-        included_event_types=included_event_types,
-        since=window_start,
-        until=window_end,
-        max_events=max_events,
+    scoped_circle_ids = _get_scoped_circle_ids(user)
+    events = []
+
+    if "requests" in included_event_types:
+        events.extend(
+            build_digest_request_events(
+                user,
+                scoped_circle_ids=scoped_circle_ids,
+                scope="all" if user.digest_requests_include_public else "circles",
+                max_distance=user.digest_radius_miles,
+                distance_explicit=True,
+                since=window_start,
+                until=window_end,
+            )
+        )
+    if "giveaways" in included_event_types:
+        events.extend(
+            build_digest_giveaway_events(
+                user,
+                scoped_circle_ids=scoped_circle_ids,
+                scope="all" if user.digest_giveaways_include_public else "circles",
+                max_distance=user.digest_radius_miles,
+                distance_explicit=True,
+                since=window_start,
+                until=window_end,
+            )
+        )
+    if "loans" in included_event_types:
+        events.extend(
+            build_recent_lent_events(
+                user,
+                scoped_circle_ids=scoped_circle_ids,
+                include_own_activity=False,
+                since=window_start,
+                until=window_end,
+            )
+        )
+    if "circle_joins" in included_event_types:
+        events.extend(
+            build_circle_join_events(
+                user,
+                scoped_circle_ids=scoped_circle_ids,
+                include_own_activity=False,
+                since=window_start,
+                until=window_end,
+            )
+        )
+
+    events.sort(key=lambda event: event["created_at"], reverse=True)
+    events = events[:max_events]
+
+    giveaways = [event for event in events if event.get("event_type") == "giveaway"]
+    requests = [event for event in events if event.get("event_type") == "request"]
+    circle_joins = [event for event in events if event.get("event_type") == "circle_join"]
+    loans = [event for event in events if event.get("event_type") == "lent"]
+
+    giveaways_count = sum(
+        1 for event in giveaways if event.get("digest_variant") != "resolved-in-window"
+    )
+    requests_count = sum(
+        1 for event in requests if event.get("digest_variant") != "resolved-in-window"
     )
 
-    giveaways = [event for event in events if event.get('event_type') == 'giveaway']
-    requests = [event for event in events if event.get('event_type') == 'request']
-    circle_joins = [event for event in events if event.get('event_type') == 'circle_join']
-    loans = [event for event in events if event.get('event_type') == 'lent']
-
     return {
-        'window_start': window_start,
-        'window_end': window_end,
-        'events': events,
-        'giveaways': giveaways,
-        'requests': requests,
-        'circle_joins': circle_joins,
-        'loans': loans,
-        'summary_stats': {
-            'total_new_items': len(giveaways) + len(requests),
-            'giveaways_count': len(giveaways),
-            'borrow_requests_count': len(requests),
+        "window_start": window_start,
+        "window_end": window_end,
+        "events": events,
+        "giveaways": giveaways,
+        "requests": requests,
+        "circle_joins": circle_joins,
+        "loans": loans,
+        "summary_stats": {
+            "total_new_items": giveaways_count + requests_count,
+            "giveaways_count": giveaways_count,
+            "borrow_requests_count": requests_count,
         },
     }

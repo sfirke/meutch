@@ -1,0 +1,322 @@
+import logging
+import math
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy.exc import IntegrityError
+
+from app import db
+from app.models import User
+from app.services import location_service
+from app.services.exceptions import ConflictError
+from app.utils.email import send_confirmation_email, send_password_reset_email
+
+logger = logging.getLogger(__name__)
+
+CONFIRMATION_TOKEN_TTL = timedelta(hours=24)
+PASSWORD_RESET_TOKEN_TTL = timedelta(hours=1)
+
+LOGIN_STATUS_SUCCESS = "success"
+LOGIN_STATUS_INVALID_CREDENTIALS = "invalid_credentials"
+LOGIN_STATUS_UNCONFIRMED = "unconfirmed"
+LOGIN_STATUS_LOCKED = "locked"
+
+# Password policy, shared by the web forms and the API schemas so a password that
+# can be set in one place is always accepted by the other.
+PASSWORD_MIN_LENGTH = 8
+PASSWORD_MAX_LENGTH = 100
+
+MAX_FAILED_LOGIN_ATTEMPTS = 5
+INITIAL_LOCKOUT_MINUTES = 15
+MAX_LOCKOUT_MINUTES = 60
+
+CONFIRM_EMAIL_STATUS_CONFIRMED = "confirmed"
+CONFIRM_EMAIL_STATUS_EXPIRED = "expired"
+CONFIRM_EMAIL_STATUS_INVALID_LINK = "invalid_link"
+CONFIRM_EMAIL_STATUS_INVALID_TOKEN = "invalid_token"
+
+RESEND_CONFIRMATION_STATUS_SENT = "sent"
+RESEND_CONFIRMATION_STATUS_ALREADY_CONFIRMED = "already_confirmed"
+RESEND_CONFIRMATION_STATUS_NOT_FOUND = "not_found"
+RESEND_CONFIRMATION_STATUS_SEND_FAILED = "send_failed"
+
+PASSWORD_RESET_REQUEST_STATUS_SENT = "sent"
+PASSWORD_RESET_REQUEST_STATUS_NOT_FOUND = "not_found"
+PASSWORD_RESET_REQUEST_STATUS_SEND_FAILED = "send_failed"
+
+PASSWORD_RESET_TOKEN_STATUS_VALID = "valid"
+PASSWORD_RESET_TOKEN_STATUS_INVALID = "invalid"
+PASSWORD_RESET_TOKEN_STATUS_EXPIRED = "expired"
+
+PASSWORD_RESET_STATUS_SUCCESS = "success"
+PASSWORD_RESET_STATUS_INVALID = "invalid"
+PASSWORD_RESET_STATUS_EXPIRED = "expired"
+
+
+@dataclass(frozen=True)
+class ExistingEmailResult:
+    exists: bool
+    is_confirmed: bool = False
+
+
+def check_existing_email(email) -> ExistingEmailResult:
+    """Check if an email is already registered and whether the user is confirmed.
+
+    Returns an ExistingEmailResult with:
+    - exists: whether the email is registered
+    - is_confirmed: whether the existing user has confirmed their email
+        (only meaningful if exists is True)
+    """
+    user = _get_user_by_email(email)
+    if user is None:
+        return ExistingEmailResult(exists=False)
+    return ExistingEmailResult(exists=True, is_confirmed=user.is_confirmed())
+
+
+@dataclass
+class RegistrationResult:
+    user: User
+    email_sent: bool
+    location_method: str
+    geocoding_failed: bool
+
+
+@dataclass
+class AuthenticationResult:
+    status: str
+    user: User | None = None
+    retry_after_minutes: int | None = None
+
+
+@dataclass
+class AuthWorkflowResult:
+    status: str
+    user: User | None = None
+    email_sent: bool | None = None
+
+
+def _get_user_by_email(email):
+    return User.query.filter(db.func.lower(User.email) == db.func.lower(email)).first()
+
+
+def _normalize_utc(timestamp):
+    if timestamp is None:
+        return None
+
+    if timestamp.tzinfo is None:
+        return timestamp.replace(tzinfo=UTC)
+
+    return timestamp
+
+
+def _is_expired(sent_at, ttl):
+    normalized_sent_at = _normalize_utc(sent_at)
+    if normalized_sent_at is None:
+        return False
+
+    return datetime.now(UTC) - normalized_sent_at > ttl
+
+
+def register_user(
+    *,
+    email,
+    first_name,
+    last_name,
+    password,
+    digest_frequency,
+    location_method,
+    next_url=None,
+    street=None,
+    city=None,
+    state=None,
+    zip_code=None,
+    country=None,
+    latitude=None,
+    longitude=None,
+):
+    user = User(
+        email=email.lower(),
+        first_name=first_name,
+        last_name=last_name,
+        digest_frequency=digest_frequency,
+    )
+    user.set_password(password)
+
+    location_status = location_service.apply_registration_location(
+        user,
+        location_method=location_method,
+        street=street,
+        city=city,
+        state=state,
+        zip_code=zip_code,
+        country=country,
+        latitude=latitude,
+        longitude=longitude,
+    )
+
+    db.session.add(user)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        existing = check_existing_email(email)
+        if existing.is_confirmed:
+            raise ConflictError(
+                "An account with this email is already registered. "
+                "If this is your account, use the forgot password link to regain access.",
+                details={"email_status": "confirmed"},
+            ) from None
+        else:
+            raise ConflictError(
+                "An account with this email exists but hasn't been confirmed yet. "
+                "Please check your email for the confirmation link or request a new one.",
+                details={"email_status": "unconfirmed"},
+            ) from None
+    email_sent = send_confirmation_email(user, next_url=next_url)
+    return RegistrationResult(
+        user=user,
+        email_sent=email_sent,
+        location_method=location_method,
+        geocoding_failed=(
+            location_status != location_service.LOCATION_UPDATE_STATUS_SUCCESS
+            and location_method == "address"
+        ),
+    )
+
+
+def _lockout_minutes(lockout_count):
+    """Escalate lockout duration: double per successive lockout up to a hard cap."""
+    minutes = INITIAL_LOCKOUT_MINUTES * (2 ** (lockout_count - 1))
+    return min(minutes, MAX_LOCKOUT_MINUTES)
+
+
+def _clear_lockout_state(user):
+    """Reset every counter that tracks failed logins for this user."""
+    user.failed_login_attempts = 0
+    user.lockout_count = 0
+    user.locked_until = None
+
+
+def authenticate_user(email, password):
+    user = _get_user_by_email(email)
+
+    if user is not None and user.locked_until is not None:
+        # `locked_until` comes back from the database without a timezone, so it has
+        # to be normalized before being compared against an aware "now".
+        locked_until = _normalize_utc(user.locked_until)
+        remaining = locked_until - datetime.now(UTC)
+        if remaining > timedelta(0):
+            # Round up so we never tell the user it's safe to retry a few seconds
+            # before the lockout has actually lifted.
+            retry_after_minutes = math.ceil(remaining.total_seconds() / 60)
+            return AuthenticationResult(
+                status=LOGIN_STATUS_LOCKED,
+                retry_after_minutes=retry_after_minutes,
+            )
+
+        # The lockout has elapsed. Clear the deadline but keep `lockout_count` so the
+        # next lockout for this user escalates.
+        user.locked_until = None
+        db.session.commit()
+
+    if not user or not user.check_password(password):
+        if user is not None:
+            user.failed_login_attempts += 1
+
+            if user.failed_login_attempts >= MAX_FAILED_LOGIN_ATTEMPTS:
+                user.lockout_count += 1
+                user.locked_until = datetime.now(UTC) + timedelta(
+                    minutes=_lockout_minutes(user.lockout_count)
+                )
+                user.failed_login_attempts = 0
+
+            db.session.commit()
+
+        return AuthenticationResult(status=LOGIN_STATUS_INVALID_CREDENTIALS)
+
+    if not user.is_confirmed():
+        return AuthenticationResult(status=LOGIN_STATUS_UNCONFIRMED, user=user)
+
+    user.last_login = datetime.now(UTC)
+    _clear_lockout_state(user)
+    db.session.commit()
+    return AuthenticationResult(status=LOGIN_STATUS_SUCCESS, user=user)
+
+
+def confirm_email_token(token):
+    user = User.query.filter_by(email_confirmation_token=token).first()
+    if not user:
+        return AuthWorkflowResult(status=CONFIRM_EMAIL_STATUS_INVALID_LINK)
+
+    if _is_expired(user.email_confirmation_sent_at, CONFIRMATION_TOKEN_TTL):
+        return AuthWorkflowResult(status=CONFIRM_EMAIL_STATUS_EXPIRED, user=user)
+
+    if user.confirm_email(token):
+        db.session.commit()
+        return AuthWorkflowResult(status=CONFIRM_EMAIL_STATUS_CONFIRMED, user=user)
+
+    return AuthWorkflowResult(status=CONFIRM_EMAIL_STATUS_INVALID_TOKEN, user=user)
+
+
+def resend_confirmation_email_for_user(email):
+    user = _get_user_by_email(email)
+    if not user:
+        return AuthWorkflowResult(status=RESEND_CONFIRMATION_STATUS_NOT_FOUND)
+
+    if user.is_confirmed():
+        return AuthWorkflowResult(
+            status=RESEND_CONFIRMATION_STATUS_ALREADY_CONFIRMED,
+            user=user,
+        )
+
+    email_sent = send_confirmation_email(user)
+    status = (
+        RESEND_CONFIRMATION_STATUS_SENT if email_sent else RESEND_CONFIRMATION_STATUS_SEND_FAILED
+    )
+    return AuthWorkflowResult(status=status, user=user, email_sent=email_sent)
+
+
+def request_password_reset(email):
+    user = _get_user_by_email(email)
+    if not user:
+        return AuthWorkflowResult(status=PASSWORD_RESET_REQUEST_STATUS_NOT_FOUND)
+
+    email_sent = send_password_reset_email(user)
+    status = (
+        PASSWORD_RESET_REQUEST_STATUS_SENT
+        if email_sent
+        else PASSWORD_RESET_REQUEST_STATUS_SEND_FAILED
+    )
+    return AuthWorkflowResult(status=status, user=user, email_sent=email_sent)
+
+
+def get_password_reset_token_status(token):
+    user = User.query.filter_by(password_reset_token=token).first()
+    if not user:
+        return AuthWorkflowResult(status=PASSWORD_RESET_TOKEN_STATUS_INVALID)
+
+    if _is_expired(user.password_reset_sent_at, PASSWORD_RESET_TOKEN_TTL):
+        return AuthWorkflowResult(status=PASSWORD_RESET_TOKEN_STATUS_EXPIRED, user=user)
+
+    return AuthWorkflowResult(status=PASSWORD_RESET_TOKEN_STATUS_VALID, user=user)
+
+
+def reset_password(token, new_password):
+    token_status = get_password_reset_token_status(token)
+    if token_status.status == PASSWORD_RESET_TOKEN_STATUS_INVALID:
+        return AuthWorkflowResult(status=PASSWORD_RESET_STATUS_INVALID)
+
+    if token_status.status == PASSWORD_RESET_TOKEN_STATUS_EXPIRED:
+        return AuthWorkflowResult(status=PASSWORD_RESET_STATUS_EXPIRED, user=token_status.user)
+
+    user = token_status.user
+    if user.reset_password(token, new_password):
+        # Completing a reset proves control of the account's email, which is a
+        # stronger signal than the credential the lockout was protecting. Clear
+        # it so the flash/API message telling the user to reset their password
+        # is actually true.
+        _clear_lockout_state(user)
+        db.session.commit()
+        return AuthWorkflowResult(status=PASSWORD_RESET_STATUS_SUCCESS, user=user)
+
+    return AuthWorkflowResult(status=PASSWORD_RESET_STATUS_INVALID, user=user)

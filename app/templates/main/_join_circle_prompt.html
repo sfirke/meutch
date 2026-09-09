@@ -1,8 +1,35 @@
+{% set show_public_giveaway_nudge = show_public_giveaway_nudge|default(false) %}
+{% set featured_circle_recommendation = featured_circle_recommendation|default(None) %}
+
 <div class="card border-info mb-4">
     <div class="card-body text-center py-4">
         <i class="fas fa-users text-info mb-2" style="font-size: 2rem;"></i>
-        <h5>Join a circle to get started</h5>
-        <p class="text-muted mb-3">Circles connect you with nearby people who share and lend items.</p>
+        {% if show_public_giveaway_nudge %}
+            <h5>Your giveaway is live. Join a circle to unlock the rest of Meutch.</h5>
+            <p class="text-muted mb-3">Public giveaways can help you get started, but circles connect you with trusted nearby people, surface more requests, and let you borrow too.</p>
+        {% else %}
+            <h5>Join a circle to get started</h5>
+            {% if featured_circle_recommendation %}
+                {% set recommended_circle = featured_circle_recommendation.circle %}
+                {% set recommended_distance = get_distance_to_circle(recommended_circle) %}
+                {% if featured_circle_recommendation.is_regional %}
+                <div class="mb-2">
+                    <span class="badge bg-regional"><i class="fas fa-map-pin me-1"></i>Regional circle</span>
+                    {% if current_user.is_admin %}<span class="small text-success ms-2">{{ featured_circle_recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
+                </div>
+                {% endif %}
+                <p class="text-muted {% if featured_circle_recommendation.visible_display_counts %}mb-2{% else %}mb-3{% endif %}">Start with <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="fw-semibold text-decoration-none">{{ recommended_circle.name }}</a>{% if recommended_distance %}, {{ recommended_distance }} away{% endif %}. It has {{ recommended_circle.member_count }} members.</p>
+                {% if featured_circle_recommendation.visible_display_counts %}
+                <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
+                    {% for count in featured_circle_recommendation.visible_display_counts %}
+                    <span class="badge text-bg-light border">{{ count.text }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% else %}
+                <p class="text-muted mb-3">Circles connect you with nearby people who share, request, and lend items.</p>
+            {% endif %}
+        {% endif %}
         <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
             <i class="fas fa-search me-1"></i>Find Circles to Join
         </a>

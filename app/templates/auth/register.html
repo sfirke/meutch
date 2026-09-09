@@ -15,26 +15,34 @@
             {{ form.first_name.label }}<br>
             {{ form.first_name(size=32) }}<br>
             {% for error in form.first_name.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
         </p>
-        
+
         <!-- Last Name -->
         <p>
             {{ form.last_name.label }}<br>
             {{ form.last_name(size=32) }}<br>
             {% for error in form.last_name.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
         </p>
 
         <!-- Email -->
         <p>
             {{ form.email.label }}<br>
-            {{ form.email(size=32) }}<br>
-            {% for error in form.email.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
+            {{ form.email(size=32, aria_describedby="email-help") }}<br>
+            <span id="email-help" role="alert">
+                {% for error in form.email.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+                {% if form.email_status == 'unconfirmed' %}
+                    <br><a href="{{ url_for('auth.resend_confirmation') }}" class="btn btn-link btn-sm p-0"><i class="fas fa-envelope me-1"></i>Resend confirmation email</a>
+                {% endif %}
+                {% if form.email_status == 'confirmed' %}
+                    <br><a href="{{ url_for('auth.forgot_password') }}" class="btn btn-link btn-sm p-0"><i class="fas fa-key me-1"></i>Forgot your password?</a>
+                {% endif %}
+            </span>
         </p>
 
         <!-- Password -->
@@ -42,16 +50,16 @@
             {{ form.password.label }}<br>
             {{ form.password(size=32) }}<br>
             {% for error in form.password.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
         </p>
-        
+
         <!-- Confirm Password -->
         <p>
             {{ form.confirm_password.label }}<br>
             {{ form.confirm_password(size=32) }}<br>
             {% for error in form.confirm_password.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
         </p>
 
@@ -61,7 +69,7 @@
             <p class="text-muted mb-2">Meutch sends digest emails with a recap of activity in your circles. How often would you like to receive it?</p>
             {{ form.digest_frequency(class="form-select") }}
             {% for error in form.digest_frequency.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
         </div>
 
@@ -69,19 +77,19 @@
             <h6><i class="fas fa-exclamation-triangle me-2"></i>Heads up</h6>
             <p class="mb-0">If you choose never, you may miss nearby requests, giveaways, and circle activity.</p>
         </div>
-        
+
         <!-- Location Method Choice -->
         <div class="mb-4">
             <h5>Location</h5>
             <div id="location-info" class="alert alert-info mb-3">
                 <h6><i class="fas fa-shield-alt me-2"></i>Your Privacy is Protected</h6>
                 <p class="mb-2">
-                    <strong>We never store your address.</strong> 
-                    If you provide an address, we use it only to look up coordinates from OpenStreetMap, then discard it. 
+                    <strong>We never store your address.</strong>
+                    If you provide an address, we use it only to look up coordinates from OpenStreetMap, then discard it.
                     We store only your latitude and longitude to calculate distances.
                 </p>
                 <p class="mb-0">
-                    <strong>We never share your location.</strong> 
+                    <strong>We never share your location.</strong>
                     Other users only see approximate distance ranges like "2-5 mi".
                 </p>
             </div>
@@ -93,60 +101,63 @@
                 </div>
             {% endfor %}
             {% for error in form.location_method.errors %}
-                <span style="color: red;">{{ error }}</span>
+                <span class="text-danger">{{ error }}</span>
             {% endfor %}
         </div>
-        
+
         <!-- Address Fields (shown when address method is selected) -->
         <div id="address-fields" class="mb-4">
             <h6 class="mb-3">Enter Address</h6>
-            
+            <p class="text-muted mb-3">
+                <small>Geocoding has been tested with addresses in USA and Canada.</small>
+            </p>
+
             <!-- Street Address -->
             <p>
                 {{ form.street.label }}<br>
                 {{ form.street(size=64) }}<br>
                 {% for error in form.street.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
-            
+
             <!-- City -->
             <p>
                 {{ form.city.label }}<br>
                 {{ form.city(size=32) }}<br>
                 {% for error in form.city.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
-            
-            <!-- State -->
+
+            <!-- State/Province -->
             <p>
                 {{ form.state.label }}<br>
                 {{ form.state(size=32) }}<br>
                 {% for error in form.state.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
-            
-            <!-- ZIP Code -->
+
+            <!-- Postal Code -->
             <p>
                 {{ form.zip_code.label }}<br>
                 {{ form.zip_code(size=10) }}<br>
                 {% for error in form.zip_code.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
-            
+
             <!-- Country -->
             <p>
                 {{ form.country.label }}<br>
-                {{ form.country(size=32) }}<br>
+                {{ form.country() }}<br>
                 {% for error in form.country.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
         </div>
-        
+
         <!-- Coordinate Fields (shown when coordinate method is selected) -->
         <div id="coordinate-fields" class="mb-4" style="display: none;">
             <h6 class="mb-3">Enter Coordinates</h6>
@@ -160,28 +171,28 @@
                     </ul>
                 </small>
             </div>
-            
+
             <!-- Latitude -->
             <p>
                 {{ form.latitude.label }}<br>
                 {{ form.latitude(size=32, step="any", placeholder="e.g., 40.7128") }}<br>
                 <small class="text-muted">Between -90 and 90 degrees</small><br>
                 {% for error in form.latitude.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
-            
+
             <!-- Longitude -->
             <p>
                 {{ form.longitude.label }}<br>
                 {{ form.longitude(size=32, step="any", placeholder="e.g., -74.0060") }}<br>
                 <small class="text-muted">Between -180 and 180 degrees</small><br>
                 {% for error in form.longitude.errors %}
-                    <span style="color: red;">{{ error }}</span>
+                    <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </p>
         </div>
-        
+
         <!-- Warning for Skip Option -->
         <div id="skip-warning" class="alert alert-warning" style="display: none;">
             <h6><i class="fas fa-exclamation-triangle me-2"></i>Important Note</h6>
@@ -196,11 +207,25 @@
                 <strong>Note:</strong> You can always add your location later from your profile page.
             </p>
         </div>
-        
+
+        <!-- Age Confirmation -->
+        <div class="mb-4">
+            <div class="form-check">
+                {{ form.age_confirm(class="form-check-input") }}
+                {{ form.age_confirm.label(class="form-check-label") }}
+            </div>
+            {% for error in form.age_confirm.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+            <small class="text-muted">
+                Read our <a href="{{ url_for('main.terms') }}" target="_blank">Terms &amp; Conditions</a>.
+            </small>
+        </div>
+
         <!-- Submit Button -->
         <p>{{ form.submit() }}</p>
     </form>
-    
+
     <script>
     // Show/hide fields based on location method selection
     document.addEventListener('DOMContentLoaded', function() {
@@ -213,7 +238,7 @@
         const locationInfo = document.getElementById('location-info');
         const digestFrequency = document.getElementById('digest_frequency');
         const digestNoneWarning = document.getElementById('digest-none-warning');
-        
+
         function toggleFields() {
             if (coordinateRadio.checked) {
                 addressFields.style.display = 'none';
@@ -232,10 +257,10 @@
                 locationInfo.style.display = 'block';
             }
         }
-        
+
         // Initial state
         toggleFields();
-        
+
         // Listen for changes
         addressRadio.addEventListener('change', toggleFields);
         coordinateRadio.addEventListener('change', toggleFields);

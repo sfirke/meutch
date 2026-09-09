@@ -1,51 +1,60 @@
 """Routes for the Requests (community asks) blueprint."""
-from datetime import datetime, UTC, timedelta
-from flask import render_template, request, flash, redirect, url_for, abort, current_app
-from flask_login import login_required, current_user
-from sqlalchemy import or_, and_
+
+from datetime import datetime, timedelta
+
+from flask import abort, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+
 from app import db
-from app.models import ItemRequest, User, Message
-from app.forms import ItemRequestForm, EmptyForm, MessageForm
+from app.forms import EmptyForm, ItemRequestForm, MessageForm
+from app.models import Item, ItemRequest
 from app.requests import bp as requests_bp
-from app.utils.email import send_message_notification_email
+from app.services import item_service, message_service, request_service
+from app.services.exceptions import (
+    AuthorizationError,
+    ConflictError,
+    InformationalError,
+    InvalidActionError,
+)
+from app.utils.messaging_queries import (
+    build_request_conversation_summaries,
+    find_context_conversation,
+)
+from app.utils.profile_visibility import can_view_profile
+from app.utils.request_queries import can_view_request, describe_seeking_mismatch
 
 
-@requests_bp.route('/')
-@login_required
-def feed():
-    """Requests feed now redirects to the homepage activity feed."""
-    return redirect(url_for('main.index'))
-
-
-@requests_bp.route('/new', methods=['GET', 'POST'])
+@requests_bp.route("/new", methods=["GET", "POST"])
 @login_required
 def new():
     """Create a new item request."""
     form = ItemRequestForm()
 
     # Set default expiration to 30 days from now
-    if request.method == 'GET' and not form.expires_at.data:
+    if request.method == "GET" and not form.expires_at.data:
         form.expires_at.data = (datetime.now() + timedelta(days=30)).date()
 
     if form.validate_on_submit():
-        item_request = ItemRequest(
-            user_id=current_user.id,
-            title=form.title.data.strip(),
-            description=form.description.data.strip() if form.description.data else None,
-            expires_at=datetime.combine(form.expires_at.data, datetime.min.time()),
-            seeking=form.seeking.data,
-            visibility=form.visibility.data,
-        )
-        db.session.add(item_request)
-        db.session.commit()
+        try:
+            request_service.create_request(
+                current_user,
+                form.title.data,
+                form.description.data,
+                form.expires_at.data,
+                form.seeking.data,
+                form.visibility.data,
+            )
+        except InformationalError as exc:
+            form.visibility.errors.append(str(exc))
+            return render_template("requests/new.html", form=form)
 
-        flash('Your request has been posted!', 'success')
-        return redirect(url_for('requests.feed'))
+        flash("Your request has been posted!", "success")
+        return redirect(url_for("main.index"))
 
-    return render_template('requests/new.html', form=form)
+    return render_template("requests/new.html", form=form)
 
 
-@requests_bp.route('/<uuid:request_id>/edit', methods=['GET', 'POST'])
+@requests_bp.route("/<uuid:request_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit(request_id):
     """Edit an existing item request."""
@@ -54,71 +63,74 @@ def edit(request_id):
         abort(404)
     if item_request.user_id != current_user.id:
         abort(403)
-    if item_request.status == 'deleted':
+    if item_request.status == "deleted":
         abort(404)
 
     form = ItemRequestForm(obj=item_request)
 
     # Convert datetime to date for the form field on GET
-    if request.method == 'GET' and item_request.expires_at:
-        form.expires_at.data = item_request.expires_at.date() if hasattr(item_request.expires_at, 'date') else item_request.expires_at
+    if request.method == "GET" and item_request.expires_at:
+        form.expires_at.data = (
+            item_request.expires_at.date()
+            if hasattr(item_request.expires_at, "date")
+            else item_request.expires_at
+        )
 
     if form.validate_on_submit():
-        item_request.title = form.title.data.strip()
-        item_request.description = form.description.data.strip() if form.description.data else None
-        item_request.expires_at = datetime.combine(form.expires_at.data, datetime.min.time())
-        item_request.seeking = form.seeking.data
-        item_request.visibility = form.visibility.data
-        db.session.commit()
+        try:
+            request_service.update_request(
+                item_request,
+                current_user,
+                form.title.data,
+                form.description.data,
+                form.expires_at.data,
+                form.seeking.data,
+                form.visibility.data,
+            )
+        except AuthorizationError:
+            abort(403)
+        except ConflictError:
+            abort(404)
+        except InformationalError as exc:
+            form.visibility.errors.append(str(exc))
+            return render_template(
+                "requests/edit.html", form=form, item_request=item_request, fulfill_form=EmptyForm()
+            )
 
-        flash('Your request has been updated.', 'success')
-        return redirect(url_for('requests.feed'))
+        flash("Your request has been updated.", "success")
+        return redirect(url_for("main.index"))
 
-    return render_template('requests/edit.html', form=form, item_request=item_request)
+    return render_template(
+        "requests/edit.html", form=form, item_request=item_request, fulfill_form=EmptyForm()
+    )
 
 
-@requests_bp.route('/<uuid:request_id>/detail')
+@requests_bp.route("/<uuid:request_id>/detail")
 @login_required
 def detail(request_id):
     """View a single request in detail."""
     item_request = db.session.get(ItemRequest, request_id)
-    if not item_request or item_request.status == 'deleted':
+    if not item_request or item_request.status == "deleted":
         abort(404)
+    if not can_view_request(item_request, current_user):
+        abort(403)
 
     # Get conversations about this request (for the author only)
     conversations = []
     if current_user.id == item_request.user_id:
-        # Get all messages about this request, ordered by timestamp
-        messages = Message.query.filter(
-            Message.request_id == item_request.id,
-            Message.item_id.is_(None),
-        ).order_by(Message.timestamp.desc()).all()
-        
-        # Group by unique (sender, recipient) pairs to get conversation threads
-        conversation_map = {}
-        for msg in messages:
-            # Normalize key so same conversation appears only once
-            pair = tuple(sorted([msg.sender_id, msg.recipient_id]))
-            if pair not in conversation_map:
-                conversation_map[pair] = msg
-        
-        # Convert to list with the other person's info
-        for pair, latest_msg in conversation_map.items():
-            other_user_id = pair[0] if pair[1] == current_user.id else pair[1]
-            other_user = db.session.get(User, other_user_id)
-            conversations.append({
-                'other_user': other_user,
-                'latest_message': latest_msg,
-            })
+        conversations = build_request_conversation_summaries(item_request.id, current_user.id)
 
-    return render_template('requests/detail.html',
-                           item_request=item_request,
-                           conversations=conversations,
-                           fulfill_form=EmptyForm(),
-                           delete_form=EmptyForm())
+    return render_template(
+        "requests/detail.html",
+        item_request=item_request,
+        conversations=conversations,
+        can_view_author_profile=can_view_profile(current_user, item_request.user),
+        fulfill_form=EmptyForm(),
+        delete_form=EmptyForm(),
+    )
 
 
-@requests_bp.route('/<uuid:request_id>/delete', methods=['POST'])
+@requests_bp.route("/<uuid:request_id>/delete", methods=["POST"])
 @login_required
 def delete(request_id):
     """Soft-delete a request."""
@@ -129,17 +141,19 @@ def delete(request_id):
     item_request = db.session.get(ItemRequest, request_id)
     if not item_request:
         abort(404)
-    if item_request.user_id != current_user.id:
+
+    try:
+        request_service.delete_request(item_request, current_user)
+    except AuthorizationError:
         abort(403)
+    except ConflictError:
+        abort(404)
 
-    item_request.status = 'deleted'
-    db.session.commit()
-
-    flash('Your request has been removed.', 'success')
-    return redirect(url_for('requests.feed'))
+    flash("Your request has been removed.", "success")
+    return redirect(url_for("main.index"))
 
 
-@requests_bp.route('/<uuid:request_id>/fulfill', methods=['POST'])
+@requests_bp.route("/<uuid:request_id>/fulfill", methods=["POST"])
 @login_required
 def fulfill(request_id):
     """Mark a request as fulfilled."""
@@ -150,63 +164,160 @@ def fulfill(request_id):
     item_request = db.session.get(ItemRequest, request_id)
     if not item_request:
         abort(404)
-    if item_request.user_id != current_user.id:
+
+    try:
+        request_service.fulfill_request(item_request, current_user)
+    except AuthorizationError:
         abort(403)
+    except ConflictError:
+        abort(404)
 
-    item_request.status = 'fulfilled'
-    item_request.fulfilled_at = datetime.now(UTC)
-    db.session.commit()
-
-    flash('Request marked as fulfilled! 🎉 It will remain visible for a week.', 'success')
-    return redirect(url_for('requests.feed'))
+    flash("Request marked as fulfilled! 🎉 It will remain visible for a week.", "success")
+    return redirect(url_for("main.index"))
 
 
-@requests_bp.route('/<uuid:request_id>/conversation', methods=['GET', 'POST'])
+@requests_bp.route("/<uuid:request_id>/conversation", methods=["GET", "POST"])
 @login_required
 def conversation(request_id):
     """Start or continue a conversation with a request author."""
     item_request = db.session.get(ItemRequest, request_id)
-    if not item_request or item_request.status == 'deleted':
+    if not item_request or item_request.status == "deleted":
         abort(404)
 
-    if item_request.user_id == current_user.id:
-        flash('You cannot message yourself about your own request.', 'warning')
-        return redirect(url_for('requests.detail', request_id=item_request.id))
-
-    if item_request.visibility == 'circles' and not current_user.shares_circle_with(item_request.user):
+    try:
+        recipient_id = message_service.get_request_conversation_recipient_id(
+            item_request,
+            current_user,
+        )
+    except InvalidActionError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("requests.detail", request_id=item_request.id))
+    except AuthorizationError:
         abort(403)
 
-    existing_message = Message.query.filter(
-        Message.request_id == item_request.id,
-        Message.item_id.is_(None),
-        or_(
-            and_(Message.sender_id == current_user.id, Message.recipient_id == item_request.user_id),
-            and_(Message.sender_id == item_request.user_id, Message.recipient_id == current_user.id),
-        )
-    ).order_by(Message.timestamp.asc()).first()
+    existing_conv = find_context_conversation(
+        "request",
+        item_request.id,
+        current_user.id,
+        recipient_id,
+    )
 
-    if existing_message:
-        return redirect(url_for('main.view_conversation', message_id=existing_message.id))
+    if existing_conv:
+        return redirect(
+            url_for(
+                "main.view_conversation",
+                conversation_id=existing_conv.id,
+            )
+        )
 
     form = MessageForm()
     if form.validate_on_submit():
-        message = Message(
-            sender_id=current_user.id,
-            recipient_id=item_request.user_id,
-            item_id=None,
-            request_id=item_request.id,
-            body=form.body.data,
-            is_read=False,
+        message = message_service.start_request_conversation(
+            item_request,
+            current_user,
+            form.body.data,
         )
-        db.session.add(message)
-        db.session.commit()
 
-        try:
-            send_message_notification_email(message)
-        except Exception as e:
-            current_app.logger.error(f"Failed to send email notification for request message {message.id}: {str(e)}")
+        flash("Your message has been sent.", "success")
+        return redirect(url_for("main.view_conversation", conversation_id=message.conversation_id))
 
-        flash('Your message has been sent.', 'success')
-        return redirect(url_for('main.view_conversation', message_id=message.id))
+    return render_template("requests/conversation_start.html", form=form, item_request=item_request)
 
-    return render_template('requests/conversation_start.html', form=form, item_request=item_request)
+
+def _load_respondable_request(request_id):
+    """Load a request the current user is allowed to respond to.
+
+    Missing, deleted and forbidden requests abort with 404/403 to match
+    :func:`detail` and :func:`conversation`; a request that is no longer open
+    aborts with a redirect back to its detail page after flashing why.
+    """
+    item_request = db.session.get(ItemRequest, request_id)
+    if not item_request or item_request.status == "deleted":
+        abort(404)
+
+    try:
+        message_service.validate_respond_access(item_request, current_user)
+    except InvalidActionError as exc:
+        flash(str(exc), "warning")
+        abort(redirect(url_for("requests.detail", request_id=item_request.id)))
+    except AuthorizationError:
+        abort(403)
+
+    return item_request
+
+
+@requests_bp.route("/<uuid:request_id>/respond")
+@login_required
+def respond(request_id):
+    """Browse the current user's items to respond to a request."""
+    item_request = _load_respondable_request(request_id)
+
+    search_query = request.args.get("q", "").strip() or None
+    page = request.args.get("page", 1, type=int)
+    per_page = 12
+
+    pagination = item_service.list_user_items(
+        current_user,
+        search_query=search_query,
+        page=page,
+        per_page=per_page,
+        exclude_claimed_giveaways=True,
+    )
+
+    return render_template(
+        "requests/respond.html",
+        item_request=item_request,
+        pagination=pagination,
+        search_query=search_query or "",
+        seeking_mismatches={
+            item.id: describe_seeking_mismatch(item_request, item) for item in pagination.items
+        },
+    )
+
+
+@requests_bp.route("/<uuid:request_id>/respond/<uuid:item_id>", methods=["GET", "POST"])
+@login_required
+def respond_with_item(request_id, item_id):
+    """Compose a message responding to a request with a specific item."""
+    item_request = _load_respondable_request(request_id)
+
+    item = db.session.get(Item, item_id)
+    if not item or item.owner_id != current_user.id:
+        abort(404)
+
+    form = MessageForm()
+    try:
+        if form.validate_on_submit():
+            message = message_service.respond_to_request_with_item(
+                item_request,
+                current_user,
+                item,
+                body=form.body.data,
+            )
+            flash("Your message has been sent.", "success")
+            return redirect(
+                url_for("main.view_conversation", conversation_id=message.conversation_id)
+            )
+
+        if not form.is_submitted():
+            # Pre-fill the draft; it runs the same checks as sending, so an item
+            # that can no longer be offered is caught before a message is written.
+            form.body.data = message_service.build_respond_draft(
+                item_request,
+                current_user,
+                item,
+            )
+    except InvalidActionError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("requests.respond", request_id=item_request.id))
+    except AuthorizationError:
+        abort(403)
+
+    return render_template(
+        "requests/respond_message.html",
+        form=form,
+        item_request=item_request,
+        item=item,
+        seeking_mismatch=describe_seeking_mismatch(item_request, item),
+        visibility_gap=message_service.describe_item_visibility_gap(item_request, item),
+    )

@@ -2,6 +2,124 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
+## September 2026
+
+### Features
+**Minor**:
+- When answering a request, there's now an option to click "I have this item" and then choose or list it. The item you pick is linked in your message, and you're warned when what you're offering does not match what was asked for, or when the person asking is outside the circles that can see the giveaway you picked. This work also displays the full details of a request above the message box on every compose page for easy reference ([#412](https://github.com/sfirke/meutch/pull/412)).
+
+### Bug fixes
+- The app now recognizes the address of the person making a request, rather than seeing every visitor as the load balancer sitting in front of it. Rate limits on the mobile API are counted per client again — previously every caller shared one budget, so one busy app could use up the allowance for everyone — and the address recorded in the server logs is the one the load balancer vouches for instead of one a caller could make up ([#481](https://github.com/sfirke/meutch/pull/481)).
+- The "View Item Details" button in loan reminder emails (due soon, due today, and overdue) is now a "View Loan" button that takes you to the message thread for that loan, where you can see its status and reply to the other person, instead of to the item page which does not show the loan at all ([#479](https://github.com/sfirke/meutch/pull/479)).
+- Removed the "Withdraw interest" button from giveaway pages, along with the "You've expressed interest!" banner that went with it. Interest in a giveaway is now recorded when you message the owner, so withdrawing did not actually take you out of the running — the owner could still pick you straight from your message thread, and sending one more message put you back in the pool. Worse, on a "Circles only" giveaway it could cost you access to the item page. If you no longer want an item, just say so in your message thread with the owner ([#477](https://github.com/sfirke/meutch/pull/477)).
+- The person assigned to receive a giveaways now sees that that status on the item's page. Previously even the selected recipient was told there "This giveaway is pending pickup by another user" ([#475](https://github.com/sfirke/meutch/pull/475)).
+
+### API development (continued)
+- Cut the query cost of circle, request, and feed reads across the app and the API ([#480](https://github.com/sfirke/meutch/pull/480)).
+
+## August 2026
+
+### Features
+**Minor**:
+- You can now view the profile of anyone you have a message thread with, even if you share no circles. Circle admins can view profiles of users with a pending request to join a circle they administer (profile link in the join-request notification email also now works) ([#466](https://github.com/sfirke/meutch/pull/466)).
+
+### Bug fixes
+- Request bodies are now capped at 128 MB. Previously nothing limited how much data a single request could push into the server, so one request could occupy a worker indefinitely. The 100 MB per-photo limit is unchanged and a normal batch of phone photos is far below the cap, but uploading several unusually large photos at once is now rejected with a page explaining the limit ([#474](https://github.com/sfirke/meutch/pull/474)).
+- Giveaways listed as "Circles only" are now actually limited to your circles on the item page itself. Browse, search, and the home feed already respected that setting, but anyone signed in who had the link could open the item page for a circles-only giveaway. People who already expressed interest, and the person selected to receive the item, keep their access even if they later leave the circle you share ([#473](https://github.com/sfirke/meutch/pull/473)).
+- Hyperlinked names: names in the home feed are links to user profiles, but no longer are links when you are not able to view a user's profile. Previously, pages such as a public giveaway's item page, a public request's detail page, and the giveaway recipient-selection pages offered a link that only led to "You can only view profiles of users in your circles" ([#466](https://github.com/sfirke/meutch/pull/466)).
+- Links are now clickable wherever people write text — message threads and message notification emails, request and item descriptions (home feed, detail pages, and public share pages), circle descriptions, profile bios, and the message attached to a giveaway request — so a URL someone sends you no longer has to be copied and pasted. URLs written without a scheme, like `www.example.com`, are linked too, and long links in the home feed are shortened so they do not crowd out the description. This text is also now properly escaped everywhere it is displayed ([#472](https://github.com/sfirke/meutch/pull/472)).
+- Text that people write — names, item and circle names, descriptions, and message bodies — is now escaped in the HTML version of every notification email: digests, new-message and circle join-request notifications, loan reminders, and Contact Us submissions. Previously, HTML typed into one of those fields was rendered as markup in the recipient's email client rather than shown as the characters that were typed ([#447](https://github.com/sfirke/meutch/pull/447)).
+- The Contact Us form no longer errors when submitting with the "Other" category ([#470](https://github.com/sfirke/meutch/pull/470)).
+- Circle join requests now show the requester's name on mobile portrait layouts — previously the name collapsed out of view, leaving only the avatar and action buttons ([#465](https://github.com/sfirke/meutch/pull/465)).
+- The page shown when a giveaway is no longer available offered both a "Browse Giveaways" button and a "Back to Home" button, which went to the same place. Only "Back to Home" remains ([#478](https://github.com/sfirke/meutch/pull/478)).
+
+### Developer Experience
+- Removed the leftover code for the standalone Giveaways and Requests browse pages, which the home feed replaced. Their templates and styles were still in the repository despite never being rendered, the two URLs were empty redirects to the home page, and the home page view was still assembling a dozen unused variables from its browse-page days. The `/giveaways` and `/requests/` URLs now return a Not Found page rather than redirecting ([#478](https://github.com/sfirke/meutch/pull/478)).
+
+## July 2026
+
+### Features
+**Major**:
+- Refactor messages infrastructure to create conversations, enabling archiving of messages and an overhaul of the inbox with pagination, sorting, and bulk actions to mark-read and archive:
+  - Revised database schema in ([#436](https://github.com/sfirke/meutch/pull/436))
+  - New inbox backend functionality in ([#438](https://github.com/sfirke/meutch/pull/438)).
+  - Frontend changes to finish the work in ([#439](https://github.com/sfirke/meutch/pull/439)).
+
+**Minor**:
+- Registration now shows contextual guidance when a user signs up with an already-registered email — unconfirmed users are prompted to resend the confirmation link, and confirmed users are directed to the forgot-password flow ([#456](https://github.com/sfirke/meutch/pull/456)).
+- Message notification emails can now be replied to by email; Mailgun inbound replies create normal conversation replies in Meutch ([#449](https://github.com/sfirke/meutch/issues/449)).
+- Added a Contact Us form so authenticated users can message the Meutch team directly from the app, replacing the external GitHub Issues link in the footer ([#448](https://github.com/sfirke/meutch/pull/448)).
+- Improved the giveaway request and handoff experience - no more needing to click "I want this!", instead owners can choose from anyone who messages. Also allows for marking giveaways handed off outside of Meutch ([#445](https://github.com/sfirke/meutch/pull/445)).
+- On the View Circle page, show the members 20/page instead of all at once ([#433](https://github.com/sfirke/meutch/pull/433)).
+- Community Activity now hides claimed giveaways by default and includes a filter to show them when desired ([#424](https://github.com/sfirke/meutch/issues/424)).
+- Claimed giveaway cards in the home feed are now visually distinct — dimmed with a gray border and reduced opacity — making it clear at a glance which giveaways are no longer available ([#455](https://github.com/sfirke/meutch/pull/455)).
+
+### Developer Experience
+- Remove legacy `item`/`request`/`circle` kwargs from `MessageFactory`; all test call sites now use `conversation=` directly via `ConversationFactory` ([#437](https://github.com/sfirke/meutch/pull/437)).
+- Get dev data seeding working again, it broke in #436 ([#450](https://github.com/sfirke/meutch/pull/450)).
+
+### Bug fixes
+- Hide "View Item" link for claimed giveaway events in the home feed - clicking it previously led to a page stating the item was already claimed ([#453](https://github.com/sfirke/meutch/pull/453)).
+- Streamlined email digest fulfilled/claimed rendering: unified phrasing across both resolution variants, replaced green status pills with a subtle gray "New" label for items the user hasn't seen before, kept descriptions only for first-time items, and grouped new-resolved entries before previously-seen resolutions ([#427](https://github.com/sfirke/meutch/pull/427)).
+- Improve formatting of buttons, especially on mobile, for the circle admin interface as well as site admin and item detail card ([#434](https://github.com/sfirke/meutch/pull/434)).
+
+## June 2026
+
+### Features
+**Minor**:
+- Added a Privacy Policy and Terms & Conditions, linked from the site footer ([#421](https://github.com/sfirke/meutch/pull/421)).
+- Make it the default to view one's own activity in feed, add a toggle to disable if desired ([#414](https://github.com/sfirke/meutch/pull/414)).
+- New members who have not joined any circles yet are now redirected into circle discovery after login, with a stronger onboarding prompt and personalized recommendations that preview what each suggested circle would unlock ([#395](https://github.com/sfirke/meutch/pull/395)).
+- Introduced "regional" circles that are stand-ins for e.g., a Craigslist region. Admins promote these circles to official regional status, at which point they get pinned at the top of zero-circle onboarding recommendations ([#400](https://github.com/sfirke/meutch/pull/400)).
+- Improve workflow for marking a request fulfilled, showing the button in every location where the user might want to take that action ([#431](https://github.com/sfirke/meutch/pull/431)).
+
+### Bug fixes
+- Claimed giveaways no longer show a "Borrowed" status badge in the conversation "Item Status" card — they now correctly display "Rehomed" ([#398](https://github.com/sfirke/meutch/pull/398)).
+- Can no longer edit a fulfilled giveaway ([#406](https://github.com/sfirke/meutch/pull/406)).
+- Clicking "View Loan" on My Activity page now takes you to the current loan, not the first time the item was loaned (affected both borrowers and lenders) ([#410](https://github.com/sfirke/meutch/pull/410)).
+
+### API development (continued)
+- Add API loan activity reads and loan actions, including active borrowing/lending views plus loan request, approve/deny, cancel, complete, and extend endpoints ([#393](https://github.com/sfirke/meutch/pull/393)).
+- Add API giveaway-interest reads and giveaway actions, including owner-side interest management, express/withdraw interest, recipient select/change, release-to-all, and confirm-handoff endpoints([#405](https://github.com/sfirke/meutch/pull/405)).
+- Harden the API for production with request-level throttles on auth and write endpoints, rollout controls for full-disable and read-only modes, request-id correlation headers, JSON `429`/`500` handling, and deployment guidance for shared limiter storage. ([#407](https://github.com/sfirke/meutch/pull/407)).
+- Harden the API further: progressive account lockout after repeated failed logins (15 minutes, doubling per successive lockout up to an hour), a password minimum of 8 characters applied consistently to the web forms and the API, per-user rate limits on read endpoints, a 1 MB ceiling on non-upload API request bodies with `413` responses, `X-API-Version` and security response headers, and a `flask api cleanup-expired-tokens` CLI command for token blocklist maintenance ([#426](https://github.com/sfirke/meutch/pull/426)).
+
+## May 2026
+
+### Features
+
+**Minor**:
+- Profiles, loan-request conversations, and giveaway requester views now show the circles you have in common with the other user, with linked circle badges for quick context and an explicit empty state when a giveaway requester shares no circles with you ([#345](https://github.com/sfirke/meutch/pull/345)).
+- Digest emails now surface fulfilled requests and claimed giveaways, including clear labels when an item is both created and resolved within the same digest window ([#339](https://github.com/sfirke/meutch/pull/339)).
+- Admin panel now separates user management from analytics, with a new Monthly Active Users chart that tracks qualifying activity from January 2026 onward ([#342](https://github.com/sfirke/meutch/pull/342)).
+- Address entry forms now use Canada-friendly "State/Province" and "Postal Code" wording, plus country dropdowns that put the United States of America and Canada first while keeping the existing geocoding flow ([#362](https://github.com/sfirke/meutch/pull/362)).
+- Registration now lands on a clearer email-confirmation guidance page that explains the next step, keeps resend as a secondary action until it is needed, routes unconfirmed logins back into the same flow, and offers a start-over path for mistyped email addresses ([#390](https://github.com/sfirke/meutch/pull/390)).
+
+### Bug fixes
+- Geocoding now sends structured address components to Nominatim and retries without the postal code when that field blocks an otherwise valid street-level match ([#362](https://github.com/sfirke/meutch/pull/362)).
+- Public giveaways from user without circles now appear in home feed and digest, consistent with how requests are treated ([#369](https://github.com/sfirke/meutch/pull/369)).
+- Fixes to block block dual-item creation: adopt idempotency token, disable form submission button ([#377](https://github.com/sfirke/meutch/pull/377)).
+- Delete item modal is no longer grayed out and untouchable when deleting an item from profile page (fixes #376) ([#377](https://github.com/sfirke/meutch/pull/377)).
+
+
+### Developer Experience
+- Massive refactor that split `routes.py` into many views and pushed the app logic down into a new service layer ([#352](https://github.com/sfirke/meutch/pull/352)).
+- Align local pre-push linting with CI by sharing the same branch-diff `pre-commit` runner and documenting the diff-scoped command ([#339](https://github.com/sfirke/meutch/pull/339)).
+
+### API development
+- Add initial `app/api/v1` scaffolding, bootstrap JSON endpoints, and an API design document to prepare for a mobile client ([#354](https://github.com/sfirke/meutch/pull/354)).
+- Extract auth, profile, location, and account-setting workflows into reusable services so the web layer and upcoming API can share the same business logic ([#355](https://github.com/sfirke/meutch/pull/355)).
+- Extract shared read-side query helpers for item discovery, messaging inboxes/threads, request visibility, and circle browse/detail views so future API endpoints can reuse the web app's visibility and pagination rules ([#358](https://github.com/sfirke/meutch/pull/358)).
+- Extract shared write-side logic into service layer ([#360](https://github.com/sfirke/meutch/pull/360)).
+- Add the first reusable API foundation layer: structured JSON error handling, shared pagination helpers, and Marshmallow boundary schemas for upcoming read endpoints ([#361](https://github.com/sfirke/meutch/pull/361)).
+- Add JWT-backed `/api/v1/auth` endpoints with access/refresh tokens, refresh rotation and revocation, current-user identity, and mobile-facing register/reset workflows ([#363](https://github.com/sfirke/meutch/pull/363)).
+- Add read-only API endpoints with some minor related refactoring ([#370](https://github.com/sfirke/meutch/pull/370)).
+- Add foundation for API writes ([#374](https://github.com/sfirke/meutch/pull/374)).
+- Add API mutation parity for user profile/settings/location/acct deletion ([#382](https://github.com/sfirke/meutch/pull/382)).
+- Add API mutation parity for requests/messages ([#384](https://github.com/sfirke/meutch/pull/384)).
+- Add API mutation parity for circles, including create/edit flows, join-request actions, leave/delete behavior, and admin/member management ([#385](https://github.com/sfirke/meutch/pull/385)).
+- Add API mutation parity for items, including item create/edit/delete flows, image upload/reorder/delete endpoints, and shared giveaway-versus-loan invariant enforcement ([#391](https://github.com/sfirke/meutch/pull/391)).
+
 ## Apr 2026
 
 ### Features
@@ -9,8 +127,20 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 **Major**
 - Allow users to upload up to eight images per item listed, with associated enhancements ([#316](https://github.com/sfirke/meutch/pull/316)).
 
+**Minor**
+- `share/` pages get the aesthetic and the "how/why" content from the main landing page ([#323](https://github.com/sfirke/meutch/pull/323)).
+- Surface giveaway actions in the owner-recipient conversation, both for recipient assignment and handoff confirmation. Also add item deletion modal that stops pending-pickup items and active loans from being deleted ([#329](https://github.com/sfirke/meutch/pull/329)).
+
+### Bug fixes
+- Items can no longer be converted to giveaways while they still have pending or approved loan requests ([#334](https://github.com/sfirke/meutch/pull/334)).
+- Giveaways can no longer be converted back into loan items once people have expressed interest, pickup is pending, or the handoff is complete ([#335](https://github.com/sfirke/meutch/pull/335)).
+- Fix section stretch on request giveaway screen ([#336](https://github.com/sfirke/meutch/pull/336)).
+- Hide loan extension button from pending loan, improve redirect after extending loan ([#337](https://github.com/sfirke/meutch/pull/337)).
+
+
 ### Developer Experience
 - Seeded loan data now includes messages, `./dev-start seed` can run when alembic table is missing/hasn't been initialized yet ([#307](https://github.com/sfirke/meutch/pull/307)).
+- Add shared `pre-commit` linting with `ruff` and `pylint --errors-only`, plus GitHub PR enforcement for the same hooks ([#338](https://github.com/sfirke/meutch/pull/338)).
 
 ## Mar 2026
 
@@ -25,7 +155,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Convert unauthenticated landing page to a modern vertical long-scrolling page ([#298](https://github.com/sfirke/meutch/pull/298)).
 
 **Minor**
-- Let borrowers request loan extensions by proposing a new due date with a required message, and let owners approve or deny requests directly in the conversation view. Borrower due-soon/due-today/overdue reminder emails now include a direct "Request Extension" link.
 - Hide pending-pickup claimed giveaways from view of users other than owner and recipient, create item-unavailable page, improve formatting of rehomed item ([#215](https://github.com/sfirke/meutch/pull/215)).
 - Add search bar for own items ([#252](https://github.com/sfirke/meutch/pull/252)).
 - Requests feed now defaults to an "All" view that combines public requests and shared-circle requests, keeps a "My Circles" filter, and defaults new requests to public visibility ([#255](https://github.com/sfirke/meutch/pull/255)).
@@ -42,7 +171,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Bug Fixes
 - Fix: submitting a borrow request without a message now correctly shows an inline validation error instead of silently doing nothing on mobile browsers ([#213](https://github.com/sfirke/meutch/pull/213)).
-- Fix: users without location set now can't create public giveaways or requests ([#231](https://github.com/sfirke/meutch/pull/231)). 
+- Fix: users without location set now can't create public giveaways or requests ([#231](https://github.com/sfirke/meutch/pull/231)).
 - Fix: pending private-circle join approvals no longer count as unread messages; circles pending badge remains the admin signal, and already-handled join requests can no longer be re-processed by another admin ([#257](https://github.com/sfirke/meutch/pull/257)).
 - Fix: hide members of a closed circle from being viewable in search results ([#273](https://github.com/sfirke/meutch/pull/273)).
 - Fix: consolidate digest display/change UI in the admin panel to eliminate scrollbar ([#291](https://github.com/sfirke/meutch/pull/291)).

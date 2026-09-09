@@ -28,6 +28,7 @@
     var newFiles = new Map();
     var deletedIds = new Set();
     var clickedSubmitBtn = null;
+    var isSubmitting = false;
     var pendingFilesCount = 0;
     var maxImages = parsePositiveInt(container.dataset.maxImages, DEFAULT_MAX_IMAGES);
     var maxFileSize = parsePositiveInt(container.dataset.maxFileSizeBytes, DEFAULT_MAX_FILE_SIZE);
@@ -38,6 +39,15 @@
     var compressMaxWidth = parsePositiveInt(container.dataset.compressMaxWidth, DEFAULT_COMPRESS_MAX_WIDTH);
     var compressMaxHeight = parsePositiveInt(container.dataset.compressMaxHeight, DEFAULT_COMPRESS_MAX_HEIGHT);
     var compressionQuality = parseQuality(container.dataset.compressionQuality, DEFAULT_COMPRESSION_QUALITY);
+    var singleSubmit = form && form.dataset.singleSubmit === 'true';
+
+    function setSubmitControlsDisabled(disabled) {
+      if (!form) return;
+
+      form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (control) {
+        control.disabled = disabled;
+      });
+    }
 
     // Parse existing images from data attribute
     var existingImages = [];
@@ -51,6 +61,29 @@
     }
 
     // Build UI
+    var emptyDropZone = document.createElement('div');
+    emptyDropZone.className = 'drag-drop-zone mb-3';
+    emptyDropZone.innerHTML = '<div class="drag-drop-content">' +
+      '<i class="fas fa-cloud-upload-alt fa-3x mb-3 text-muted"></i>' +
+      '<p class="mb-2">Drag and drop photos here</p>' +
+      '<p class="text-muted small mb-3">or</p>' +
+      '<button type="button" class="browse-btn btn btn-sm btn-outline-primary">Select files</button>' +
+      '<p class="text-muted small mt-3 mb-0">Maximum upload file size: ' + maxFileSizeLabel + '.</p>' +
+      '</div>';
+    imageContainer.appendChild(emptyDropZone);
+
+    var emptyBrowseBtn = emptyDropZone.querySelector('.browse-btn');
+
+    emptyDropZone.addEventListener('click', function () {
+      fileInput.click();
+    });
+
+    emptyBrowseBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      fileInput.click();
+    });
+
     var grid = document.createElement('div');
     grid.className = 'multi-image-grid';
     imageContainer.appendChild(grid);
@@ -122,10 +155,36 @@
       });
     }
 
+    var dragCounter = 0;
+
+    function clearDragOverState() {
+      emptyDropZone.classList.remove('drag-over');
+      grid.classList.remove('drag-over');
+    }
+
+    function setDragOverState() {
+      clearDragOverState();
+      if (emptyDropZone.style.display !== 'none') {
+        emptyDropZone.classList.add('drag-over');
+        return;
+      }
+      grid.classList.add('drag-over');
+    }
+
     function updateCounter() {
       var count = grid.querySelectorAll('.multi-image-thumb').length + pendingFilesCount;
       counter.textContent = count + ' / ' + maxImages;
       var atMax = count >= maxImages;
+      var showEmptyDropZone = count === 0 && !isTouchDevice;
+
+      if (showEmptyDropZone) {
+        emptyDropZone.style.display = 'block';
+        grid.style.display = 'none';
+      } else {
+        emptyDropZone.style.display = 'none';
+        grid.style.display = '';
+      }
+
       addBtn.style.display = atMax ? 'none' : '';
       if (showCameraBtn) {
         cameraBtn.style.display = atMax ? 'none' : '';
@@ -513,6 +572,40 @@
       handleFiles(captureInput.files, captureInput);
     });
 
+    // Drag and drop functionality
+    imageContainer.addEventListener('dragenter', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter += 1;
+      setDragOverState();
+    });
+
+    imageContainer.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragOverState();
+    });
+
+    imageContainer.addEventListener('dragleave', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter = Math.max(0, dragCounter - 1);
+      if (dragCounter === 0) {
+        clearDragOverState();
+      }
+    });
+
+    imageContainer.addEventListener('drop', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter = 0;
+      clearDragOverState();
+
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFiles(e.dataTransfer.files, fileInput);
+      }
+    });
+
     // Listen for cropped image from external modal
     container.addEventListener('multi-image:cropped', function (e) {
       var id = e.detail.id;
@@ -548,6 +641,13 @@
 
     // Form submission
     if (form) {
+      window.addEventListener('pageshow', function () {
+        isSubmitting = false;
+        if (singleSubmit) {
+          setSubmitControlsDisabled(false);
+        }
+      });
+
       // Track which submit button was clicked
       form.addEventListener('click', function (e) {
         var btn = e.target.closest('button[type=submit], input[type=submit]');
@@ -560,6 +660,11 @@
         if (pendingFilesCount > 0) {
           e.preventDefault();
           showNotification('Please wait for photos to finish processing.', 'warning');
+          return;
+        }
+
+        if (singleSubmit && isSubmitting) {
+          e.preventDefault();
           return;
         }
 
@@ -600,6 +705,11 @@
           hidden.value = clickedSubmitBtn.value;
           hidden.className = 'multi-image-submit-proxy';
           form.appendChild(hidden);
+        }
+
+        if (singleSubmit) {
+          isSubmitting = true;
+          setSubmitControlsDisabled(true);
         }
 
         // Let the form submit naturally

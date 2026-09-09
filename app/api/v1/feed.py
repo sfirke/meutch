@@ -1,0 +1,68 @@
+"""Feed activity endpoints for API v1."""
+
+from flask import request
+from flask_jwt_extended import jwt_required
+
+from app.api.v1 import bp
+from app.api.v1.jwt_auth import current_user
+from app.api.v1.operational import read_limit
+from app.api.v1.parsing import load_query_data
+from app.api.v1.responses import build_collection_response
+from app.api.v1.schemas.feed import FeedEventSchema
+from app.api.v1.schemas.query import FeedQuerySchema
+from app.utils.home_feed import build_homepage_feed_events
+from app.utils.pagination import ListPagination
+from app.utils.profile_visibility import viewable_profile_user_ids
+
+FEED_QUERY_SCHEMA = FeedQuerySchema()
+FEED_EVENT_SCHEMA = FeedEventSchema(many=True)
+DEFAULT_GEOLOCATED_FEED_DISTANCE = 20
+# The feed merges four differently-shaped event sources in Python, so a page of
+# it can only be cut after the whole window has been assembled.  Capping that
+# window bounds the sort, the page arithmetic, and how far a client can page;
+# the source queries themselves still fetch everything the caller can see, as
+# the homepage feed's own (smaller) cap does.
+MAX_FEED_EVENTS = 500
+
+
+@bp.get("/feed")
+@jwt_required()
+@read_limit()
+def list_feed_events():
+    """Return paginated feed events for the authenticated user."""
+    query_data = load_query_data(FEED_QUERY_SCHEMA)
+    distance_explicit = "distance" in request.args
+    selected_distance = query_data["distance"]
+    if not distance_explicit and current_user.is_geocoded:
+        selected_distance = DEFAULT_GEOLOCATED_FEED_DISTANCE
+
+    events = build_homepage_feed_events(
+        current_user,
+        selected_circle_ids=query_data["circles"],
+        scope=query_data["scope"],
+        giveaway_distance=selected_distance,
+        giveaway_distance_explicit=distance_explicit,
+        included_event_types=query_data["types"],
+        include_own_activity=query_data["show_own_activity"],
+        include_claimed_giveaways=query_data["show_claimed_giveaways"],
+        max_events=MAX_FEED_EVENTS,
+    )
+    pagination = ListPagination(
+        items=events,
+        page=query_data["page"],
+        per_page=query_data["per_page"],
+    )
+    # actor_id alone says nothing about whether the caller may open that
+    # profile — public requests and giveaways surface people outside the
+    # caller's circles — so say so explicitly for the page being returned.
+    viewable_actor_ids = viewable_profile_user_ids(
+        current_user, (event.get("actor_id") for event in pagination.items)
+    )
+    for event in pagination.items:
+        event["actor_profile_viewable"] = event.get("actor_id") in viewable_actor_ids
+
+    return build_collection_response(
+        "events",
+        FEED_EVENT_SCHEMA.dump(pagination.items),
+        pagination=pagination,
+    )

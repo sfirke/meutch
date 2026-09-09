@@ -8,6 +8,7 @@
     --success-color: #38b2ac;        /* Teal green */
     --warning-color: #f6ad55;        /* Goldenrod */
     --danger-color: #fc8181;         /* Coral */
+    --regional-color: #198754;       /* Emerald green (giveaway ribbon, regional badges) */
     --light-bg: #fffffe;             /* Off-white */
     --dark-text: #2d3748;            /* Dark gray */
     --muted-text: #718096;           /* Muted gray */
@@ -334,6 +335,66 @@ h1 {
     color: white !important;
 }
 
+.btn-outline-secondary {
+    border: 2px solid var(--secondary-color, #6c757d) !important;
+    color: var(--secondary-color, #6c757d) !important;
+    background: transparent !important;
+}
+
+.btn-outline-secondary:hover {
+    background: var(--secondary-color, #6c757d) !important;
+    border-color: var(--secondary-color, #6c757d) !important;
+    color: white !important;
+}
+
+.btn-outline-danger {
+    border: 2px solid var(--danger-color, #dc3545) !important;
+    color: var(--danger-color, #dc3545) !important;
+    background: transparent !important;
+}
+
+.btn-outline-danger:hover {
+    background: var(--danger-color, #dc3545) !important;
+    border-color: var(--danger-color, #dc3545) !important;
+    color: white !important;
+}
+
+.btn-outline-info {
+    border: 2px solid #0dcaf0 !important;
+    color: #0dcaf0 !important;
+    background: transparent !important;
+}
+
+.btn-outline-info:hover {
+    background: #0dcaf0 !important;
+    border-color: #0dcaf0 !important;
+    color: #000 !important;
+}
+
+.btn-outline-success {
+    border: 2px solid var(--success-color, #198754) !important;
+    color: var(--success-color, #198754) !important;
+    background: transparent !important;
+}
+
+.btn-outline-success:hover {
+    background: var(--success-color, #198754) !important;
+    border-color: var(--success-color, #198754) !important;
+    color: white !important;
+}
+
+.btn-outline-warning {
+    border: 2px solid var(--warning-color, #f6ad55) !important;
+    color: var(--warning-color, #f6ad55) !important;
+    background: transparent !important;
+}
+
+.btn-outline-warning:hover {
+    background: var(--warning-color, #f6ad55) !important;
+    border-color: var(--warning-color, #f6ad55) !important;
+    color: #000 !important;
+}
+
 /* Badges */
 .badge {
     font-weight: 500;
@@ -353,13 +414,21 @@ h1 {
     background-color: var(--danger-color) !important;
 }
 
+.badge.bg-regional {
+    background-color: var(--regional-color) !important;
+}
+
+.border-regional {
+    border-color: var(--regional-color) !important;
+}
+
 .giveaway-ribbon {
     position: absolute;
     top: 1.1rem;
     left: -3.1rem;
     width: 11rem;
     padding: 0.3rem 0;
-    background-color: #198754;
+    background-color: var(--regional-color);
     color: #fff;
     text-align: center;
     font-size: 0.72rem;
@@ -463,7 +532,7 @@ input[type="file"]:focus {
         justify-content: center;
         text-align: center;
     }
-    
+
     input[type="file"]::file-selector-button {
         background: var(--primary-color);
         color: white;
@@ -475,7 +544,7 @@ input[type="file"]:focus {
         cursor: pointer;
         transition: background-color 0.2s ease;
     }
-    
+
     input[type="file"]::file-selector-button:hover {
         background: var(--primary-dark);
     }
@@ -577,43 +646,65 @@ footer h6 {
     .main-content {
         padding: 1rem 0;
     }
-    
+
     h1 {
         font-size: 2rem;
     }
-    
+
     /* Hero logo smaller on mobile */
     .hero-logo {
         width: 80px;
         height: 80px;
     }
-    
+
     .items-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
+
     .circles-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
+
     .card-body {
         padding: 1rem;
     }
-    
+
     .circle-card {
         padding: 1rem;
     }
 
-    .conversation-card .row {
+    /* note: .join-request-item is stacked via its inner > .d-flex (below);
+       this rule only applies to .circle-member-item, the flex <li> */
+    .circle-member-item {
         flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.5rem !important;
     }
 
-    .conversation-card .col-auto {
-        margin-left: 0 !important;
-        margin-top: 1rem !important;
-        text-align: left;
+    .circle-member-item .button-group,
+    .join-request-item .button-group {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .circle-member-item .btn-sm,
+    .join-request-item .btn-sm {
+        padding: 0.5rem 1rem;
+    }
+
+    /* Join request items — stack the inner flex container so the name
+       doesn't collapse against the action buttons on narrow screens */
+    .join-request-item > .d-flex {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    /* the <a> wraps only the requester name; the message <p> shares the
+       member-list-name class and must not be affected */
+    .join-request-item a .member-list-name {
+        min-width: 80px;
     }
 }
 
@@ -621,11 +712,11 @@ footer h6 {
     body {
         padding-top: 70px;
     }
-    
+
     .navbar-brand {
         font-size: 1.25rem;
     }
-    
+
     .container {
         padding: 0 1rem;
     }
@@ -663,11 +754,11 @@ footer h6 {
     .btn {
         display: none !important;
     }
-    
+
     .main-content {
         padding-top: 0;
     }
-    
+
     .card {
         box-shadow: none;
         border: 1px solid #ccc;
@@ -857,98 +948,361 @@ footer h6 {
     margin-bottom: 0;
 }
 
+/* Owner management tools — consistent button heights */
+.item-detail-content .btn-sm {
+    min-height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Primary CTA badge vertical centering */
+.item-detail-content .btn-lg .badge {
+    vertical-align: middle;
+    line-height: 1.2;
+}
+
+/* Metadata row icons — size to match text cap height, centered in flex row */
+.item-detail-content .d-flex.align-items-center > .fas {
+    font-size: 1.15em;
+}
+
 /* Responsive adjustments */
 @media (max-width: 992px) {
     .item-detail-image-container {
         position: static;
         margin-bottom: 2rem;
     }
-    
+
     .item-detail-image {
         max-height: 60vh;
     }
-    
+
     .item-detail-image-placeholder {
         height: 300px;
     }
 }
 
-/* Messaging Styles */
-.conversations-list {
+/* ── Messaging: Inbox List Layout ── */
+.conversation-list {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    background: #fff;
+    margin-bottom: 2rem;
+}
+
+/* ── Conversation Row (vertical stacking, taller rows) ── */
+.conversation-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 1rem 1.125rem;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    text-decoration: none;
+    color: inherit;
+}
+
+.conversation-row:last-child {
+    border-bottom: none;
+}
+
+.conversation-row:hover {
+    background-color: #f5f7fa;
+    text-decoration: none;
+    color: inherit;
+}
+
+.conversation-row.conversation-unread {
+    background-color: #fafdfd;
+}
+
+.conversation-row.conversation-unread:hover {
+    background-color: #f0f7f7;
+}
+
+/* ── Row cells ── */
+
+/* 48×48 checkbox hitbox — wraps the tiny <input> so tapping is easy */
+.conversation-row .conv-checkbox-hitbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 2;
+    /* Push the hitbox away from the avatar so they don't overlap */
+    margin-right: 0;
+    transition: background-color 0.15s ease;
+}
+
+.conversation-row .conv-checkbox-hitbox:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
+/* The actual checkbox sits in the center of the hitbox */
+.conversation-row .conv-checkbox {
+    margin: 0;
+    z-index: 3;
+}
+
+.conversation-row .conv-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    overflow: hidden;
+    margin-top: 0.2rem;
+}
+
+.conversation-row .conv-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* ── Body: vertically stacked name → context tag → preview ── */
+.conversation-row .conv-body {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.3rem;
 }
 
-.conversation-link-wrapper {
-    color: inherit;
-    text-decoration: none;
-    transition: all 0.2s ease;
-}
-
-.conversation-link-wrapper:hover {
-    text-decoration: none;
-    color: inherit;
-}
-
-.conversation-card {
-    position: relative;
-    border: 1px solid var(--border-color);
-    transition: all 0.3s ease;
-    cursor: pointer;
-    overflow: hidden;
-}
-
-.conversation-card:hover {
-    box-shadow: var(--shadow-lg);
-    border-color: var(--primary-color);
-    transform: translateY(-2px);
-}
-
-.conversation-card.conversation-unread {
-    background-color: #fffbf0;
-    border-left: 5px solid var(--warning-color);
-    border-color: #ffeccc;
-}
-
-.conversation-card.conversation-unread:hover {
-    background-color: #fff8e1;
-    border-color: var(--warning-color);
-}
-
-.conversation-hover-indicator {
-    position: absolute;
-    right: 0;
-    top: 0;
-    height: 100%;
-    width: 4px;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.conversation-card:hover .conversation-hover-indicator {
-    opacity: 1;
-}
-
-.message-preview {
-    color: var(--muted-text);
+.conversation-row .conv-name {
+    font-weight: 400;
     font-size: 0.95rem;
-    line-height: 1.4;
+    color: var(--dark-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.25;
+    min-width: 0;
 }
 
-/* Truncate text to 2 lines */
-.text-truncate-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
+.conversation-row.conversation-unread .conv-name {
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.conversation-row .conv-preview {
+    color: var(--muted-text);
+    font-size: 0.875rem;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.conversation-row.conversation-unread .conv-preview {
+    color: #4a5568;
+    font-weight: 600;
+}
+
+/* ── Meta: fixed-width right-aligned date gutter ── */
+.conversation-row .conv-meta {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+    min-width: 68px;
+    margin-left: auto;
+}
+
+.conversation-row .conv-time {
+    font-size: 0.8rem;
+    color: var(--muted-text);
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* ── Conv-body header: dot + name row ── */
+.conversation-row .conv-body__header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+/* ── Unread dot (teal dot, inline before sender name) ── */
+.conversation-row .unread-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #0d9488;
+    flex-shrink: 0;
+}
+
+/* ── Context Badge (standalone pill tag on its own line) ── */
+.context-badge {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 0.15rem 0.5rem;
+    border-radius: 0.3rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    max-width: fit-content;
+    line-height: 1.3;
+}
+
+.context-badge--item { background: #e3f2fd; color: #1565c0; }
+.context-badge--request { background: #fce4ec; color: #c62828; }
+.context-badge--circle { background: #e8f5e9; color: #2e7d32; }
+
+/* ── Inbox Toolbar (consolidated control bar above conversation list) ── */
+.inbox-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.25rem;
+    margin-bottom: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.inbox-toolbar__select {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.inbox-toolbar__mark-read {
+    white-space: nowrap;
+}
+
+.inbox-toolbar__spacer {
+    flex: 1;
+}
+
+.inbox-toolbar .btn-link {
+    font-size: 0.875rem;
+    padding: 0;
+}
+
+/* ── Bulk Action Bar ── */
+.bulk-action-bar {
+    position: sticky;
+    bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--dark-text);
+    color: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 100;
+}
+
+.bulk-action-bar--visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.bulk-action-bar .btn {
+    font-size: 0.875rem;
+}
+
+/* ── Sort Dropdown ── */
+.sort-dropdown .dropdown-toggle {
+    font-size: 0.875rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .conversation-row {
+        padding: 0.75rem 0.75rem;
+        gap: 0.6rem;
+    }
+
+    .conversation-row .conv-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 0.8rem;
+    }
+
+    .conversation-row .conv-name {
+        font-size: 0.875rem;
+    }
+
+    .conversation-row .conv-preview {
+        font-size: 0.8rem;
+    }
+
+    .conversation-row .conv-meta {
+        min-width: 52px;
+    }
+
+    .conversation-row .conv-time {
+        font-size: 0.75rem;
+    }
+
+    .inbox-toolbar {
+        gap: 0.5rem;
+        padding: 0.4rem 0;\n    }
+}
+
+/* ── Messaging Toolbar ── */
+.messaging-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.messaging-toolbar .nav-tabs .nav-link {
+    padding: 0.5rem 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted-text);
+    border: none;
+}
+
+.messaging-toolbar .nav-tabs .nav-link.active {
+    font-weight: 600;
+    color: var(--primary-dark);
+    background: transparent;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.messaging-toolbar .nav-tabs .nav-link:hover:not(.active) {
+    color: var(--dark-text);
+    border-bottom: 2px solid transparent;
 }
 
 .button-group {
     display: flex;
     gap: 5px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+/* Circle member list — prevent long names from pushing action buttons out of view */
+.member-list-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Smaller Form Control for Datepickers */
@@ -962,6 +1316,88 @@ footer h6 {
     gap: 20px; /* Space between the columns */
     align-items: flex-start; /* Align items to the top */
     margin-bottom: 15px; /* Space below the row */
+}
+
+.conversation-summary-card {
+    overflow: hidden;
+    background: linear-gradient(180deg, #fbfdff 0%, #ffffff 100%);
+    border: 1px solid rgba(49, 151, 149, 0.12);
+}
+
+.conversation-summary-media {
+    display: block;
+    height: 100%;
+    min-height: 240px;
+    background: linear-gradient(135deg, #edfdfd 0%, #f7fafc 100%);
+}
+
+.conversation-summary-media img {
+    width: 100%;
+    height: 100%;
+    min-height: 240px;
+    object-fit: cover;
+}
+
+.conversation-summary-media-placeholder {
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    color: var(--primary-dark);
+}
+
+.conversation-summary-kicker {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-text);
+}
+
+.conversation-summary-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.05;
+}
+
+.conversation-summary-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--muted-text);
+}
+
+.conversation-summary-item-link {
+    color: var(--dark-text);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.conversation-summary-item-link:hover {
+    color: var(--primary-dark);
+}
+
+.conversation-summary-description {
+    color: var(--muted-text);
+    font-size: 1.05rem;
+}
+
+.conversation-summary-panel {
+    padding: 1rem 1.125rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.9rem;
+    background: #f8fafc;
+}
+
+@media (max-width: 767.98px) {
+    .conversation-summary-media,
+    .conversation-summary-media img,
+    .conversation-summary-media-placeholder {
+        min-height: 180px;
+    }
+
+    .conversation-summary-title {
+        font-size: 2.1rem;
+    }
 }
 
 .message-card {
@@ -1178,6 +1614,7 @@ footer h6 {
 
 .drag-drop-zone .browse-btn {
     pointer-events: all;
+    cursor: pointer;
 }
 
 .drag-drop-zone .file-info {
@@ -1193,81 +1630,126 @@ footer h6 {
     .drag-drop-zone .drag-drop-content > p:nth-of-type(2) {
         display: none;
     }
-    
+
     /* Make the icon smaller and adjust spacing */
     .drag-drop-content .fa-cloud-upload-alt {
         font-size: 2rem !important;
         margin-bottom: 0.5rem !important;
     }
-    
+
     /* Reduce padding on mobile */
     .drag-drop-zone {
         padding: 1.5rem 1rem;
     }
-    
+
     /* Disable hover effects on touch devices */
     .drag-drop-zone:hover {
         border-color: var(--border-color);
         background-color: #fafafa;
     }
-    
+
     .drag-drop-zone:hover .fa-cloud-upload-alt {
         color: var(--muted-text);
     }
 }
 
 /* Photo Preview - Cropper.js Customization */
-/* Make all corner handles mobile-friendly with large touch targets (48px minimum per WCAG) */
-/* but show as small, consistent circles for a polished appearance */
-/* Clip handles to the crop-box so all four corners show a consistent quarter-arc on load */
-.cropper-crop-box {
-    overflow: hidden !important;
-}
+/* Node sizes and symmetry - 30px circular handles with perfect centering */
 .cropper-point {
-    width: 48px !important;
-    height: 48px !important;
-    margin-top: -24px !important;
-    margin-left: -24px !important;
-    background-color: transparent !important;
-    border: 3px solid var(--primary-color) !important;
+    width: 30px !important;
+    height: 30px !important;
+    background-color: var(--primary-color) !important;
+    opacity: 0.9 !important;
     border-radius: 50% !important;
-    opacity: 0.75 !important;
+    transition: all 0.2s ease;
+    z-index: 10;
+    transform: translate(-50%, -50%) !important;
+    margin: 0 !important;
 }
 
-/* ============================================
-   Requests Feed — Social-media-style cards
-   ============================================ */
-
-.request-card {
-    background: #fff;
-    border: 1px solid var(--border-color, #dee2e6);
-    border-radius: 0.75rem;
-    padding: 1.25rem;
-    transition: box-shadow 0.15s ease-in-out;
+/* Bulletproof positioning using top/left percentages and translate */
+.cropper-point.point-e {
+    top: 50% !important;
+    left: 100% !important;
+    right: auto !important;
 }
 
-.request-card:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.cropper-point.point-n {
+    top: 0 !important;
+    left: 50% !important;
 }
 
-.request-card-fulfilled {
-    opacity: 0.65;
-    background: #f8f9fa;
+.cropper-point.point-w {
+    top: 50% !important;
+    left: 0 !important;
 }
 
-.request-card-expired {
-    opacity: 0.55;
-    background: #f8f9fa;
+.cropper-point.point-s {
+    top: 100% !important;
+    left: 50% !important;
+    bottom: auto !important;
 }
 
-.request-avatar img {
-    object-fit: cover;
-    border: 2px solid var(--border-color, #dee2e6);
+.cropper-point.point-ne {
+    top: 0 !important;
+    left: 100% !important;
+    right: auto !important;
+}
+
+.cropper-point.point-nw {
+    top: 0 !important;
+    left: 0 !important;
+}
+
+.cropper-point.point-sw {
+    top: 100% !important;
+    left: 0 !important;
+    bottom: auto !important;
+}
+
+.cropper-point.point-se {
+    top: 100% !important;
+    left: 100% !important;
+    right: auto !important;
+    bottom: auto !important;
+}
+
+/* Hover */
+.cropper-point:hover {
+    transform: translate(-50%, -50%) scale(1.1) !important;
+}
+
+/* Cleanup */
+.cropper-point::before {
+    display: none !important;
 }
 
 /* ===========================================
    Share Preview Pages & Share Button
    =========================================== */
+
+/* Dark hero background for the share card area — mirrors the landing page hero */
+.share-preview-hero {
+    background: linear-gradient(150deg, #155e5c 0%, #1e7874 45%, #2a9490 100%);
+    padding: 120px 0 80px;
+    position: relative;
+    overflow: hidden;
+}
+
+.share-preview-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+}
+
+@media (max-width: 768px) {
+    .share-preview-hero {
+        padding: 100px 0 60px;
+        background: linear-gradient(160deg, #1e8480 0%, #2aadaa 100%);
+    }
+}
 
 .share-preview-card {
     border: none;
@@ -1280,11 +1762,14 @@ footer h6 {
     max-height: 400px;
     object-fit: contain;
     background-color: #f8f9fa;
+    padding: 12px;
+    box-sizing: border-box;
 }
 
 .share-preview-image-placeholder {
     height: 250px;
     border-bottom: 1px solid var(--border-color, #dee2e6);
+    padding: 12px;
 }
 
 .share-member-avatar img {
@@ -1387,10 +1872,6 @@ footer h6 {
     border: 1px solid var(--border-color);
 }
 
-.activity-feed-actions {
-    flex-wrap: wrap;
-}
-
 .activity-feed-cta {
     border-radius: 9999px !important;
     padding: 0.6rem 1.1rem;
@@ -1423,6 +1904,11 @@ footer h6 {
 
 .activity-feed-card .card-body {
     padding: 1.2rem 1.3rem;
+}
+
+.giveaway-card-claimed {
+    opacity: 0.65;
+    background: #f8f9fa;
 }
 
 .activity-feed-page .activity-feed-actor-chip {
@@ -1472,6 +1958,11 @@ footer h6 {
 
 .activity-feed-link {
     border-radius: 9999px !important;
+}
+
+.activity-feed-actor-link:hover,
+.activity-feed-actor-link:focus-visible {
+    text-decoration: underline !important;
 }
 
 @media (max-width: 767.98px) {
@@ -1959,6 +2450,18 @@ html {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 0.75rem;
     margin-bottom: 0.5rem;
+}
+
+.multi-image-grid.drag-over {
+    outline: 2px dashed var(--primary-color);
+    outline-offset: 4px;
+    border-radius: var(--border-radius);
+}
+
+.multi-image-grid.drag-over .multi-image-add-btn {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: #e6fffa;
 }
 
 .multi-image-thumb {

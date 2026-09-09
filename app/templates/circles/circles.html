@@ -8,6 +8,131 @@
 <div class="container mt-5">
     <h1 class="mb-4">Circles</h1>
 
+    {% if show_circle_onboarding %}
+    <section class="card border-info shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="row g-4 align-items-start">
+                <div class="col-lg-6">
+                    <span class="badge bg-info text-dark mb-2">Best next step</span>
+                    <h2 class="h4 mb-2">Join a circle before you browse Meutch</h2>
+                    <p class="text-muted mb-3">Most sharing happens inside circles. Right now you're only seeing public giveaways and requests, no borrowable items.</p>
+                    <p class="text-muted mb-3">Here are some suggested circles near you. Scroll down for the full list.</p>
+                    {% if needs_location_hint %}
+                    <p class="small text-muted mb-0">
+                        <i class="fas fa-map-marker-alt me-1"></i>
+                        <a href="{{ url_for('main.update_location') }}">Set your location</a> to rank circles by distance. For now we're featuring larger circles first.
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="col-lg-6">
+                    {% if featured_circle_recommendation %}
+                        {% set featured_circle = featured_circle_recommendation.circle %}
+                        {% set featured_distance = get_distance_to_circle(featured_circle) %}
+                        <div class="border rounded-3 h-100 p-3 {% if featured_circle_recommendation.is_regional %}border-regional border-2 bg-light{% else %}bg-light{% endif %}">
+                            <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                                <div>
+                                    {% if featured_circle_recommendation.is_regional %}
+                                    <div class="mb-2">
+                                        <span class="badge bg-regional"><i class="fas fa-map-pin me-1"></i>Regional circle</span>
+                                        {% if current_user.is_admin %}<span class="small text-success ms-2">{{ featured_circle_recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
+                                    </div>
+                                    {% endif %}
+                                    <h3 class="h5 mb-1">
+                                        <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="text-decoration-none">
+                                            {{ featured_circle.name }}
+                                        </a>
+                                    </h3>
+                                    <p class="text-muted small mb-0">
+                                        {{ featured_circle.member_count }} members
+                                        {% if featured_distance %}
+                                            <span class="ms-2"><i class="fas fa-map-marker-alt me-1"></i>{{ featured_distance }}</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <span class="badge {% if featured_circle_recommendation.is_open %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {% if featured_circle_recommendation.is_open %}Open circle{% else %}Approval required{% endif %}
+                                </span>
+                            </div>
+                            <p class="mb-3">{{ featured_circle.description|linkify }}</p>
+                            {% if featured_circle_recommendation.visible_display_counts %}
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                {% for count in featured_circle_recommendation.visible_display_counts %}
+                                <span class="badge text-bg-light border">{{ count.text }}</span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="small text-muted mb-3">This circle already has {{ featured_circle.member_count }} members and is a strong place to start building local sharing.</p>
+                            {% endif %}
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="btn btn-primary">View Circle</a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="border rounded-3 h-100 p-3 bg-light">
+                            <h3 class="h5 mb-2">No listed circles yet</h3>
+                            <p class="text-muted mb-3">If there isn't a public circle to join yet, you can create one and invite people nearby.</p>
+                            <button class="btn btn-primary" type="button" data-bs-toggle="tab" data-bs-target="#create-circle">Create a Circle</button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if secondary_circle_recommendations %}
+            {% set secondary_count = secondary_circle_recommendations|length %}
+            <div class="row g-3 mt-1">
+                {% for recommendation in secondary_circle_recommendations %}
+                    {% set recommended_circle = recommendation.circle %}
+                    {% set recommended_distance = get_distance_to_circle(recommended_circle) %}
+                    {% if secondary_count == 1 %}
+                        {% set secondary_card_class = 'col-12 col-lg-8 mx-auto' %}
+                    {% elif secondary_count == 2 %}
+                        {% set secondary_card_class = 'col-12 col-md-6' %}
+                    {% else %}
+                        {% set secondary_card_class = 'col-12 col-md-6 col-xl-4' %}
+                    {% endif %}
+                <div class="{{ secondary_card_class }}">
+                    <div class="border rounded-3 h-100 p-3 {% if recommendation.is_regional %}border-regional border-2 bg-light{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                {% if recommendation.is_regional %}
+                                <div class="mb-2">
+                                    <span class="badge bg-regional"><i class="fas fa-map-pin me-1"></i>Regional circle</span>
+                                    {% if current_user.is_admin %}<span class="small text-success ms-2">{{ recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
+                                </div>
+                                {% endif %}
+                                <h3 class="h6 mb-1">
+                                    <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="text-decoration-none">
+                                        {{ recommended_circle.name }}
+                                    </a>
+                                </h3>
+                                <p class="text-muted small mb-0">
+                                    {{ recommended_circle.member_count }} members
+                                    {% if recommended_distance %}
+                                        <span class="ms-1">| {{ recommended_distance }}</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <span class="badge {% if recommendation.is_open %}bg-success{% else %}bg-secondary{% endif %}">
+                                {% if recommendation.is_open %}Open{% else %}Approval Required{% endif %}
+                            </span>
+                        </div>
+                        {% if recommendation.visible_display_counts %}
+                        <p class="small text-muted mb-3">{{ recommendation.visible_display_text }}</p>
+                        {% else %}
+                        <p class="small text-muted mb-3">Meet members who are already active in this circle.</p>
+                        {% endif %}
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="btn btn-outline-primary btn-sm">View Circle</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
+
     {% if total_pending > 0 %}
     <section id="pending-requests" class="card border-warning mb-4">
         <div class="card-header bg-warning text-dark fw-semibold">
@@ -84,6 +209,9 @@
                                     <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}text-dark{% endif %}">
                                         {{ circle.name }}
                                     </a>
+                                    {% if circle.is_regional %}
+                                        <span class="badge bg-regional ms-2"><i class="fas fa-map-pin me-1"></i>Regional</span>
+                                    {% endif %}
                                     {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}
                                         <span class="badge bg-warning text-dark ms-2">
                                             <i class="fas fa-bell me-1"></i>
@@ -91,8 +219,8 @@
                                         </span>
                                     {% endif %}
                                 </h5>
-                                <p class="mb-1">{{ circle.description }}</p>
-                                <small>Members: {{ circle.members|length }}
+                                <p class="mb-1">{{ circle.description|linkify }}</p>
+                                <small>Members: {{ circle.member_count }}
                                 {% set distance = get_distance_to_circle(circle) %}
                                 {% if distance %}
                                     | <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
@@ -178,14 +306,17 @@
                                 <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
                                     {{ circle.name }}
                                 </a>
+                                {% if circle.is_regional %}
+                                    <span class="badge bg-regional ms-2"><i class="fas fa-map-pin me-1"></i>Regional</span>
+                                {% endif %}
                                 {% if circle.id in user_circle_ids %}
                                     <span class="badge bg-success ms-2">
                                         <i class="fas fa-check-circle me-1"></i>Member
                                     </span>
                                 {% endif %}
                             </h5>
-                            <p class="mb-1">{{ circle.description }}</p>
-                            <small>{{ circle.members|length }} members
+                            <p class="mb-1">{{ circle.description|linkify }}</p>
+                            <small>{{ circle.member_count }} members
                             {% set distance = get_distance_to_circle(circle) %}
                             {% if distance %}
                                 | <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
@@ -202,9 +333,9 @@
                                              width="32" height="32">
                                     </div>
                                 {% endfor %}
-                                {% if circle.members|length > sample_members|length %}
+                                {% if circle.member_count > sample_members|length %}
                                     <span class="text-muted small ms-1">
-                                        +{{ circle.members|length - sample_members|length }} more
+                                        +{{ circle.member_count - sample_members|length }} more
                                     </span>
                                 {% endif %}
                             </div>
@@ -244,14 +375,17 @@
                                 <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
                                     {{ circle.name }}
                                 </a>
+                                {% if circle.is_regional %}
+                                    <span class="badge bg-regional ms-2"><i class="fas fa-map-pin me-1"></i>Regional</span>
+                                {% endif %}
                                 {% if circle.id in user_circle_ids %}
                                     <span class="badge bg-success ms-2">
                                         <i class="fas fa-check-circle me-1"></i>Member
                                     </span>
                                 {% endif %}
                             </h5>
-                            <p class="mb-1">{{ circle.description }}</p>
-                            <small>{{ circle.members|length }} members
+                            <p class="mb-1">{{ circle.description|linkify }}</p>
+                            <small>{{ circle.member_count }} members
                             {% set distance = get_distance_to_circle(circle) %}
                             {% if distance %}
                                 | <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
@@ -268,9 +402,9 @@
                                              width="32" height="32">
                                     </div>
                                 {% endfor %}
-                                {% if circle.members|length > sample_members|length %}
+                                {% if circle.member_count > sample_members|length %}
                                     <span class="text-muted small ms-1">
-                                        +{{ circle.members|length - sample_members|length }} more
+                                        +{{ circle.member_count - sample_members|length }} more
                                     </span>
                                 {% endif %}
                             </div>
@@ -313,7 +447,7 @@
             <p class="text-muted mb-4">Create a community for sharing items with friends, neighbors, or colleagues.</p>
             <form method="post">
         {{ circle_form.csrf_token }}
-        
+
         <!-- Circle Name -->
         <div class="mb-3">
             {{ circle_form.name.label(class="form-label") }}
@@ -322,7 +456,7 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Description -->
         <div class="mb-3">
             {{ circle_form.description.label(class="form-label") }}
@@ -331,7 +465,7 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Circle Type -->
         <div class="mb-3">
             {{ circle_form.circle_type.label(class="form-label") }}
@@ -340,12 +474,12 @@
                 <div class="text-danger">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Location Section -->
         <div class="mb-4">
             <h5 class="mb-3"><i class="fas fa-map-marker-alt me-2"></i>Circle Location (Optional)</h5>
             <p class="text-muted small mb-3">Setting a location helps members find circles near them. This is optional and can be added or updated later.</p>
-            
+
             <!-- Location Method Choice -->
             {{ circle_form.location_method.label(class="form-label") }}
             {% for subfield in circle_form.location_method %}
@@ -358,10 +492,13 @@
                 <div class="text-danger small">{{ error }}</div>
             {% endfor %}
         </div>
-        
+
         <!-- Address Fields -->
         <div id="create-address-fields" class="mb-4" style="display: none;">
             <h6 class="mb-3">Enter Address</h6>
+            <p class="text-muted small mb-3">
+                Geocoding has been tested with addresses in USA and Canada.
+            </p>
             <div class="row">
                 <div class="col-12 mb-3">
                     {{ circle_form.street.label(class="form-label") }}
@@ -397,14 +534,14 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     {{ circle_form.country.label(class="form-label") }}
-                    {{ circle_form.country(class="form-control") }}
+                    {{ circle_form.country(class="form-select") }}
                     {% for error in circle_form.country.errors %}
                         <div class="text-danger small">{{ error }}</div>
                     {% endfor %}
                 </div>
             </div>
         </div>
-        
+
         <!-- Coordinate Fields -->
         <div id="create-coordinate-fields" class="mb-4" style="display: none;">
             <h6 class="mb-3">Enter Coordinates</h6>
@@ -432,7 +569,7 @@
                 </div>
             </div>
         </div>
-        
+
                 <!-- Submit Button -->
                 <div class="mb-3">
                     <button type="submit" class="btn btn-primary" name="create_circle"><i class="fas fa-check me-2"></i>{{ circle_form.submit.label.text }}</button>
@@ -446,7 +583,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Determine which tab should be active
     let activeTab = 'your-circles-tab';  // Default tab
-    
+
     // Check if we should show a specific tab based on form submissions or search results
     {% if searched_circles or show_browse %}
         // If there are search results, show the Find Circles tab
@@ -461,26 +598,26 @@ document.addEventListener('DOMContentLoaded', function() {
             activeTab = savedTab;
         }
     {% endif %}
-    
+
     // Activate the determined tab
     const tabTrigger = document.getElementById(activeTab);
     if (tabTrigger) {
         const tab = new bootstrap.Tab(tabTrigger);
         tab.show();
     }
-    
+
     // Save the active tab to localStorage when user clicks a tab
     document.querySelectorAll('#circlesTabs button[data-bs-toggle="tab"]').forEach(function(tabButton) {
         tabButton.addEventListener('shown.bs.tab', function(event) {
             localStorage.setItem('activeCirclesTab', event.target.id);
         });
     });
-    
+
     // Show/hide location fields based on location method selection for circle creation
     const locationMethodRadios = document.querySelectorAll('.location-method-radio');
     const addressFields = document.getElementById('create-address-fields');
     const coordinateFields = document.getElementById('create-coordinate-fields');
-    
+
     function toggleLocationFields() {
         const selectedMethod = document.querySelector('.location-method-radio:checked');
         if (selectedMethod) {
@@ -497,10 +634,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-    
+
     // Initialize on page load
     toggleLocationFields();
-    
+
     // Update when radio selection changes
     locationMethodRadios.forEach(function(radio) {
         radio.addEventListener('change', toggleLocationFields);

@@ -40,7 +40,130 @@ DO_SPACES_BUCKET=<your-bucket-name>
 ```bash
 MAILGUN_API_KEY=<your-mailgun-api-key>
 MAILGUN_DOMAIN=<your-mailgun-domain>
+MAILGUN_WEBHOOK_SIGNING_KEY=<your-mailgun-webhook-signing-key>
+
+# Only needed when sharing a single Mailgun domain across environments
+# (e.g. both staging and prod use replies@meutch.com).
+# Set to "staging-" on staging so Mailgun routes can distinguish.
+MAILGUN_REPLY_PREFIX=staging-
 ```
+
+For reply-by-email, configure a Mailgun inbound route that forwards parsed messages to:
+
+```text
+https://your-domain.com/webhooks/mailgun/messages
+```
+
+**Multi-environment setup with a single Mailgun domain:** Use `MAILGUN_REPLY_PREFIX`
+to encode the environment in the reply-to local part:
+
+- Production: `reply+{uuid}@meutch.com` (no prefix)
+- Staging:   `reply+staging-{uuid}@meutch.com`
+
+Create two Mailgun routes on the same domain (routes are free):
+
+1. `match_recipient("reply\+staging-.*@meutch.com")` → forward to `https://staging.meutch.com/webhooks/mailgun/messages`
+2. `match_recipient("reply\+.*@meutch.com")` → forward to `https://meutch.com/webhooks/mailgun/messages`
+
+Route order matters — put the more specific `staging-` rule first.
+
+### Optional: Mobile API JWT Auth
+
+The web app still uses Flask-Login sessions. These variables configure the parallel JWT auth surface under `/api/v1/auth` for mobile clients.
+
+```bash
+# Recommended: separate signing secret for API JWTs
+JWT_SECRET_KEY=<generate-with-secrets.token_hex(32)>
+
+# Token lifetimes
+JWT_ACCESS_TOKEN_EXPIRES_MINUTES=15
+JWT_REFRESH_TOKEN_EXPIRES_DAYS=30
+```
+
+Operational notes:
+- Access tokens are sent as `Authorization: Bearer <token>` headers and should stay short-lived.
+- Refresh tokens rotate on every successful `POST /api/v1/auth/refresh` call. Clients must replace the stored refresh token with the newly returned one each time.
+- `POST /api/v1/auth/logout` revokes the whole current token family (session). Reusing an already-rotated refresh token also revokes that family and forces the user to log in again.
+- If `JWT_SECRET_KEY` is unset, the app falls back to `SECRET_KEY`, but production deployments should set a dedicated JWT secret explicitly.
+
+### Optional: API Rollout Controls And Rate Limiting
+
+These variables harden the `/api/v1` surface for mobile clients and give deploys an operational rollback path without removing routes from the codebase.
+
+```bash
+# Emergency kill switch for the whole versioned API surface.
+# When false, /api/v1/health still answers 200 with status=disabled.
+API_V1_ENABLED=true
+
+# Emergency read-only mode for non-auth mutations.
+# When false, GETs plus /api/v1/auth/* remain available and other writes return 503.
+API_V1_WRITE_ENABLED=true
+
+# API-specific limiter toggle.
+API_V1_RATE_LIMITS_ENABLED=true
+
+# Strongly recommended for production and staging when using multiple workers or instances.
+RATELIMIT_STORAGE_URI=redis://redis:6379/0
+
+# Maximum size in bytes of an API request body that is not a file upload (default 1 MB).
+# A tighter ceiling than the app-wide MAX_CONTENT_LENGTH below, for bodies that have no
+# reason to be large. Upload endpoints are exempt so photos still go through; they are
+# bounded by the per-file limit in app/utils/storage.py.
+API_V1_MAX_CONTENT_LENGTH=1048576
+
+# Default endpoint-family limits.
+API_V1_AUTH_LOGIN_RATE_LIMIT=10 per minute
+API_V1_AUTH_REGISTER_RATE_LIMIT=5 per hour
+API_V1_AUTH_RECOVERY_RATE_LIMIT=5 per hour
+API_V1_AUTH_SESSION_RATE_LIMIT=60 per minute
+API_V1_WRITE_RATE_LIMIT=30 per minute
+API_V1_IMAGE_WRITE_RATE_LIMIT=10 per minute
+API_V1_READ_RATE_LIMIT=60 per minute
+```
+
+Operational notes:
+- API responses include `X-Request-ID`, `X-API-Version: v1`, and security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`). If a client sends its own `X-Request-ID`, the API echoes it back so application logs and client-side error reports can be correlated.
+- `/api/v1/health` reports `ok`, `read_only`, or `disabled` so deploy checks can distinguish normal traffic, emergency read-only mode, and a full API shutdown.
+- `memory://` limiter storage is process-local. It is acceptable for local development and isolated test runs, but it will not enforce a shared bucket across multiple Gunicorn workers or multiple app instances.
+- Use Redis-backed limiter storage whenever staging or production can run more than one worker or instance.
+
+### Optional: Request Body Size Ceiling
+
+```bash
+# Largest request body the app will read, in bytes (default 128 MB).
+MAX_CONTENT_LENGTH=134217728
+```
+
+Werkzeug enforces this while reading the request stream, so it bounds the body whether or not the client declares an honest `Content-Length`. Gunicorn advertises `wsgi.input_terminated`, which means a chunked request that declares no length is otherwise handed an unbounded stream and can occupy a worker indefinitely.
+
+This is a backstop against runaway bodies rather than a per-upload quota. It sits above the 100 MB per-file limit in `app/utils/storage.py`, so a single max-size photo still uploads, but below `MAX_ITEM_IMAGE_COUNT` files at that size (8 x 100 MB). A normal batch of phone photos is well under 128 MB, but a batch of unusually large ones is rejected with a `413`. Raise this value if that becomes a problem in practice, and cap total body size at the reverse proxy as well (for example nginx `client_max_body_size`) if your deployment has one.
+
+### Optional: Reverse Proxy Trust
+
+```bash
+# Number of proxy hops in front of the app whose X-Forwarded-* headers are trusted.
+# Default: 1, which is correct for DigitalOcean App Platform.
+TRUSTED_PROXY_COUNT=1
+```
+
+The app sits behind a load balancer, so the address it sees on the socket is the proxy, not the visitor. `TRUSTED_PROXY_COUNT` tells the app how many hops to skip from the **right-hand end** of `X-Forwarded-For` to find the real client. The rate limiter keys on that address, so getting it wrong in either direction matters:
+
+- **Too low (or 0 behind a proxy):** every request looks like it came from the load balancer, so all clients share a single rate-limit bucket.
+- **Too high:** the app trusts an address the proxy did not append — that is, one the caller supplied — so a client can claim any IP it likes.
+
+Set this to `2` if another proxy (Cloudflare, an nginx front end) is added ahead of the platform load balancer, and to `0` when the app is exposed directly with nothing in front of it.
+
+Before changing it, confirm the real hop count rather than guessing: log the raw `X-Forwarded-For` header on staging for a day and count the addresses.
+
+### Optional: API Maintenance
+
+```bash
+# Purge token blocklist entries whose tokens have expired.
+# Default cutoff: entries older than 7 days past their token expiry.
+flask api cleanup-expired-tokens --older-than-days 7
+```
+
+Schedule this command as a periodic cron job (e.g. daily) to prevent unbounded growth of the `api_token_blocklist` table.
 
 ### Optional: Digest Scheduler Timezone
 
@@ -63,7 +186,7 @@ To prevent staging environments from sending emails to real users, configure an 
 EMAIL_ALLOWLIST=test1@example.com,test2@example.com
 ```
 
-When `EMAIL_ALLOWLIST` is set, only listed addresses will receive emails. All other email attempts are logged but blocked. This allows for selected testing while not spamming users with duplicated overdue notices, etc. that are already being sent from the production environment. 
+When `EMAIL_ALLOWLIST` is set, only listed addresses will receive emails. All other email attempts are logged but blocked. This allows for selected testing while not spamming users with duplicated overdue notices, etc. that are already being sent from the production environment.
 
 **Important:** Leave `EMAIL_ALLOWLIST` unset or empty in production to send emails to all users.
 
@@ -149,6 +272,10 @@ flask db upgrade
 3. **HTTPS**: Always use HTTPS in production (set `SERVER_NAME=https://...`).
 
 4. **Environment Variables**: Store sensitive values in your platform's secret management system, not in plain text files.
+5. **JWT Secrets**: Rotate `JWT_SECRET_KEY` with the same care as `SECRET_KEY`. Changing it invalidates all outstanding API tokens immediately.
+6. **API Rollout Flags**: Treat `API_V1_ENABLED`, `API_V1_WRITE_ENABLED`, and `API_V1_RATE_LIMITS_ENABLED` as operational controls; document any temporary override used during an incident and restore the defaults after the event.
+7. **Limiter Storage**: Use a shared backend such as Redis for production or staging deployments with multiple workers or instances. In-memory limiter storage is not sufficient for that topology.
+8. **Request Body Size**: `MAX_CONTENT_LENGTH` defaults to 128 MB, so the ceiling applies whether or not you set the variable — no action is needed to be protected. What matters is not raising it past what your uploads actually need: it is the only bound on a chunked request that declares no `Content-Length`, so a large value there lets one request occupy a worker for as long as it keeps sending. A reverse-proxy body cap tightens the ceiling further if your deployment has one.
 
 ## Additional Resources
 

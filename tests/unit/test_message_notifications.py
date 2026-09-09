@@ -1,10 +1,15 @@
-import pytest
-from unittest.mock import patch, MagicMock
-from flask import url_for
+from unittest.mock import MagicMock, patch
 
-from app.models import User, Item, Message
-from app.utils.email import send_message_notification_email
-from tests.factories import UserFactory, ItemFactory, MessageFactory
+import pytest
+
+from app.utils.email import build_message_reply_address, send_message_notification_email
+from tests.factories import (
+    ConversationFactory,
+    ItemFactory,
+    LoanRequestFactory,
+    MessageFactory,
+    UserFactory,
+)
 
 
 class TestMessageNotifications:
@@ -14,89 +19,150 @@ class TestMessageNotifications:
         """Test sending email notification for a regular message."""
         with app.app_context():
             # Create test users and item
-            sender = UserFactory(email='sender@test.com', first_name='John', last_name='Doe')
-            recipient = UserFactory(email='recipient@test.com', first_name='Jane', last_name='Smith')
-            item = ItemFactory(name='Test Item', owner=recipient)
-            
+            sender = UserFactory(email="sender@test.com", first_name="John", last_name="Doe")
+            recipient = UserFactory(
+                email="recipient@test.com", first_name="Jane", last_name="Smith"
+            )
+            item = ItemFactory(name="Test Item", owner=recipient)
+
             # Create a regular message
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             message = MessageFactory(
                 sender=sender,
-                recipient=recipient, 
-                item=item,
-                body='Hi, I am interested in this item!'
+                recipient=recipient,
+                conversation=conversation,
+                body="Hi, I am interested in this item!",
             )
-            
-            with patch('app.utils.email.send_email') as mock_send_email:
+
+            with patch("app.utils.email.send_email") as mock_send_email:
                 mock_send_email.return_value = True
-                
+
                 result = send_message_notification_email(message)
-                
+
                 assert result is True
                 mock_send_email.assert_called_once()
-                
+
                 # Check the call arguments
                 call_args = mock_send_email.call_args
-                assert call_args[0][0] == 'recipient@test.com'  # to_email
-                assert 'New Message about Test Item' in call_args[0][1]  # subject
-                assert 'John Doe' in call_args[0][2]  # text content includes sender name
-                assert 'Hi, I am interested in this item!' in call_args[0][2]  # text content includes message body
-                assert call_args[0][3] is not None  # HTML content provided as 4th positional argument
+                assert call_args[0][0] == "recipient@test.com"  # to_email
+                assert "New Message about Test Item" in call_args[0][1]  # subject
+                assert "John Doe" in call_args[0][2]  # text content includes sender name
+                assert (
+                    "Hi, I am interested in this item!" in call_args[0][2]
+                )  # text content includes message body
+                assert (
+                    call_args[0][3] is not None
+                )  # HTML content provided as 4th positional argument
+                assert "Reply to this email directly" in call_args[0][2]
+                assert "reply to this email directly" in call_args[0][3]
+
+    def test_send_message_notification_email_sets_reply_to(self, app):
+        """Test message notifications include a reply-to address for email replies."""
+        with app.app_context():
+            app.config["MAILGUN_DOMAIN"] = "meutch.com"
+            sender = UserFactory(email="sender@test.com")
+            recipient = UserFactory(email="recipient@test.com")
+            item = ItemFactory(name="Test Item", owner=recipient)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(sender=sender, recipient=recipient, conversation=conversation)
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_message_notification_email(message)
+
+                assert result is True
+                assert mock_send_email.call_args.kwargs["reply_to"] == (
+                    f"Meutch Replies <reply+{message.id}@meutch.com>"
+                )
+
+    def test_build_message_reply_address_returns_none_without_domain(self, app):
+        with app.app_context():
+            app.config["MAILGUN_DOMAIN"] = None
+            message = MessageFactory()
+
+            assert build_message_reply_address(message) is None
+
+    def test_build_message_reply_address_with_prefix(self, app):
+        """Reply address includes MAILGUN_REPLY_PREFIX when configured."""
+        with app.app_context():
+            app.config["MAILGUN_DOMAIN"] = "meutch.com"
+            app.config["MAILGUN_REPLY_PREFIX"] = "staging-"
+            message = MessageFactory()
+
+            address = build_message_reply_address(message)
+            assert address == f"Meutch Replies <reply+staging-{message.id}@meutch.com>"
+
+    def test_build_message_reply_address_without_prefix(self, app):
+        """Reply address omits prefix when MAILGUN_REPLY_PREFIX is empty."""
+        with app.app_context():
+            app.config["MAILGUN_DOMAIN"] = "meutch.com"
+            app.config["MAILGUN_REPLY_PREFIX"] = ""
+            message = MessageFactory()
+
+            address = build_message_reply_address(message)
+            assert address == f"Meutch Replies <reply+{message.id}@meutch.com>"
 
     def test_send_message_notification_email_loan_request(self, app):
         """Test sending email notification for a loan request message."""
         with app.app_context():
             from tests.factories import LoanRequestFactory
-            
+
             # Create test users and item
-            sender = UserFactory(email='borrower@test.com', first_name='John', last_name='Doe')
-            recipient = UserFactory(email='owner@test.com', first_name='Jane', last_name='Smith')
-            item = ItemFactory(name='Test Item', owner=recipient)
-            
+            sender = UserFactory(email="borrower@test.com", first_name="John", last_name="Doe")
+            recipient = UserFactory(email="owner@test.com", first_name="Jane", last_name="Smith")
+            item = ItemFactory(name="Test Item", owner=recipient)
+
             # Create a loan request
-            loan_request = LoanRequestFactory(
-                item=item,
-                borrower=sender,
-                status='pending'
-            )
-            
+            loan_request = LoanRequestFactory(item=item, borrower=sender, status="pending")
+
             # Create a loan request message
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             message = MessageFactory(
                 sender=sender,
-                recipient=recipient, 
-                item=item,
-                body='Can I borrow this item please?',
-                loan_request=loan_request
+                recipient=recipient,
+                conversation=conversation,
+                body="Can I borrow this item please?",
+                loan_request=loan_request,
             )
-            
-            with patch('app.utils.email.send_email') as mock_send_email:
+
+            with patch("app.utils.email.send_email") as mock_send_email:
                 mock_send_email.return_value = True
-                
+
                 result = send_message_notification_email(message)
-                
+
                 assert result is True
                 mock_send_email.assert_called_once()
-                
+
                 # Check the call arguments
                 call_args = mock_send_email.call_args
-                assert call_args[0][0] == 'owner@test.com'  # to_email
-                assert 'New Loan Request for Test Item' in call_args[0][1]  # subject for pending loan request
-                assert 'loan request' in call_args[0][2]  # text content indicates loan request
+                assert call_args[0][0] == "owner@test.com"  # to_email
+                assert (
+                    "New Loan Request for Test Item" in call_args[0][1]
+                )  # subject for pending loan request
+                assert "loan request" in call_args[0][2]  # text content indicates loan request
+                assert "Reply to this email directly" not in call_args[0][2]
+                assert "reply to this email directly" not in call_args[0][3]
+                assert "and respond" not in call_args[0][2]
+                assert "& Respond" not in call_args[0][3]
+                assert mock_send_email.call_args.kwargs["reply_to"] is None
 
     def test_send_message_notification_email_missing_users(self, app):
         """Test handling of missing users."""
         with app.app_context():
             # Create a message with non-existent user IDs
             import uuid
+
             fake_message = MagicMock()
             fake_message.sender_id = uuid.uuid4()
             fake_message.recipient_id = uuid.uuid4()
-            
-            with patch('app.utils.email.send_email') as mock_send_email:
-                with patch('app.models.User.query') as mock_query:
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                with patch("app.models.User.query") as mock_query:
                     mock_query.get.return_value = None  # Simulate users not found
-                    
+
                     result = send_message_notification_email(fake_message)
-                    
+
                     assert result is False
                     mock_send_email.assert_not_called()
 
@@ -104,23 +170,21 @@ class TestMessageNotifications:
         """Test handling of email sending failure."""
         with app.app_context():
             # Create test users and item
-            sender = UserFactory(email='sender@test.com')
-            recipient = UserFactory(email='recipient@test.com')
-            item = ItemFactory(name='Test Item', owner=recipient)
-            
+            sender = UserFactory(email="sender@test.com")
+            recipient = UserFactory(email="recipient@test.com")
+            item = ItemFactory(name="Test Item", owner=recipient)
+
             # Create a regular message
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             message = MessageFactory(
-                sender=sender,
-                recipient=recipient, 
-                item=item,
-                body='Test message'
+                sender=sender, recipient=recipient, conversation=conversation, body="Test message"
             )
-            
-            with patch('app.utils.email.send_email') as mock_send_email:
+
+            with patch("app.utils.email.send_email") as mock_send_email:
                 mock_send_email.return_value = False  # Simulate email failure
-                
+
                 result = send_message_notification_email(message)
-                
+
                 assert result is False
                 mock_send_email.assert_called_once()
 
@@ -128,130 +192,232 @@ class TestMessageNotifications:
         """Test sending email notification for a canceled loan request."""
         with app.app_context():
             from tests.factories import LoanRequestFactory
-            
+
             # Create test users and item
-            sender = UserFactory(email='borrower@test.com', first_name='John', last_name='Doe')
-            recipient = UserFactory(email='owner@test.com', first_name='Jane', last_name='Smith')
-            item = ItemFactory(name='Test Item', owner=recipient)
-            
+            sender = UserFactory(email="borrower@test.com", first_name="John", last_name="Doe")
+            recipient = UserFactory(email="owner@test.com", first_name="Jane", last_name="Smith")
+            item = ItemFactory(name="Test Item", owner=recipient)
+
             # Create a canceled loan request
-            loan_request = LoanRequestFactory(
-                item=item,
-                borrower=sender,
-                status='canceled'
-            )
-            
+            loan_request = LoanRequestFactory(item=item, borrower=sender, status="canceled")
+
             # Create a loan cancellation message
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             message = MessageFactory(
                 sender=sender,
-                recipient=recipient, 
-                item=item,
-                body='Loan request has been canceled by the borrower.',
-                loan_request=loan_request
+                recipient=recipient,
+                conversation=conversation,
+                body="Loan request has been canceled by the borrower.",
+                loan_request=loan_request,
             )
-            
-            with patch('app.utils.email.send_email') as mock_send_email:
+
+            with patch("app.utils.email.send_email") as mock_send_email:
                 mock_send_email.return_value = True
-                
+
                 result = send_message_notification_email(message)
-                
+
                 assert result is True
                 mock_send_email.assert_called_once()
-                
+
                 # Verify the email content
                 args, kwargs = mock_send_email.call_args
                 to_email, subject, text_content, html_content = args
-                
-                assert to_email == 'owner@test.com'
-                assert 'Loan Request Canceled' in subject
-                assert 'Test Item' in subject
-                assert 'loan cancellation' in text_content.lower()
-                assert 'canceled by the borrower' in text_content
-                assert 'loan cancellation' in html_content.lower()
+
+                assert to_email == "owner@test.com"
+                assert "Loan Request Canceled" in subject
+                assert "Test Item" in subject
+                assert "loan cancellation" in text_content.lower()
+                assert "canceled by the borrower" in text_content
+                assert "loan cancellation" in html_content.lower()
+                assert "Reply to this email directly" not in text_content
+                assert "reply to this email directly" not in html_content
+                assert kwargs["reply_to"] is None
+
+    def test_sender_and_item_names_are_escaped(self, app):
+        """The sender's name and the item name sit in the same block of the HTML body."""
+        with app.app_context():
+            sender = UserFactory(email="sender@test.com", first_name="John", last_name="<b>Doe</b>")
+            recipient = UserFactory(
+                email="recipient@test.com", first_name="Jane", last_name="Smith"
+            )
+            item = ItemFactory(name="Drill <b>Pro</b> 3000", owner=recipient)
+
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                body="normal message",
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                result = send_message_notification_email(message)
+
+                assert result is True
+                mock_send_email.assert_called_once()
+
+                html_content = mock_send_email.call_args[0][3]
+
+                assert "John &lt;b&gt;Doe&lt;/b&gt;" in html_content
+                assert "Drill &lt;b&gt;Pro&lt;/b&gt; 3000" in html_content
+                assert "<b>Doe</b>" not in html_content
+                assert "<b>Pro</b>" not in html_content
 
     def test_send_message_notification_email_invalid_status(self, app):
         """Test that invalid loan request status raises ValueError."""
         with app.app_context():
             from tests.factories import LoanRequestFactory
-            
+
             # Create test users and item
-            sender = UserFactory(email='borrower@test.com', first_name='John', last_name='Doe')
-            recipient = UserFactory(email='owner@test.com', first_name='Jane', last_name='Smith')
-            item = ItemFactory(name='Test Item', owner=recipient)
-            
+            sender = UserFactory(email="borrower@test.com", first_name="John", last_name="Doe")
+            recipient = UserFactory(email="owner@test.com", first_name="Jane", last_name="Smith")
+            item = ItemFactory(name="Test Item", owner=recipient)
+
             # Create a loan request with invalid status
             loan_request = LoanRequestFactory(
                 item=item,
                 borrower=sender,
-                status='invalid_status'  # This should trigger the ValueError
+                status="invalid_status",  # This should trigger the ValueError
             )
-            
+
             # Create a loan request message
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
             message = MessageFactory(
                 sender=sender,
-                recipient=recipient, 
-                item=item,
-                body='Test message with invalid status.',
-                loan_request=loan_request
+                recipient=recipient,
+                conversation=conversation,
+                body="Test message with invalid status.",
+                loan_request=loan_request,
             )
-            
+
             # Should raise ValueError for unknown status
             with pytest.raises(ValueError) as exc_info:
                 send_message_notification_email(message)
-            
+
             assert "Unknown loan request status 'invalid_status'" in str(exc_info.value)
-            assert "Valid statuses are: pending, approved, denied, completed, canceled" in str(exc_info.value)
+            assert "Valid statuses are: pending, approved, denied, completed, canceled" in str(
+                exc_info.value
+            )
+
 
     def test_send_message_notification_email_extension_request_subject(self, app):
         """Test extension request messages use extension request subject line."""
         with app.app_context():
-            from tests.factories import LoanRequestFactory
+            borrower = UserFactory(
+                email="borrower2@test.com", first_name="Alex", last_name="Borrower"
+            )
+            owner = UserFactory(
+                email="owner2@test.com", first_name="Casey", last_name="Owner"
+            )
+            item = ItemFactory(name="Cordless Drill", owner=owner)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
 
-            borrower = UserFactory(email='borrower2@test.com', first_name='Alex', last_name='Borrower')
-            owner = UserFactory(email='owner2@test.com', first_name='Casey', last_name='Owner')
-            item = ItemFactory(name='Cordless Drill', owner=owner)
-
-            loan_request = LoanRequestFactory(item=item, borrower=borrower, status='approved')
+            loan_request = LoanRequestFactory(item=item, borrower=borrower, status="approved")
             message = MessageFactory(
                 sender=borrower,
                 recipient=owner,
-                item=item,
-                body='Extension requested for \'Cordless Drill\'.\nProposed new due date: April 12, 2026',
-                loan_request=loan_request
+                conversation=conversation,
+                body=(
+                    "Extension requested for 'Cordless Drill'.\n"
+                    "Proposed new due date: April 12, 2026"
+                ),
+                loan_request=loan_request,
             )
 
-            with patch('app.utils.email.send_email') as mock_send_email:
+            with patch("app.utils.email.send_email") as mock_send_email:
                 mock_send_email.return_value = True
 
                 result = send_message_notification_email(message)
 
                 assert result is True
                 args, _ = mock_send_email.call_args
-                assert 'Extension Request for Cordless Drill' in args[1]
+                assert "Extension Request for Cordless Drill" in args[1]
 
     def test_send_message_notification_email_extension_denial_subject(self, app):
         """Test extension denial messages use extension denied subject line."""
         with app.app_context():
-            from tests.factories import LoanRequestFactory
+            owner = UserFactory(
+                email="owner3@test.com", first_name="Morgan", last_name="Owner"
+            )
+            borrower = UserFactory(
+                email="borrower3@test.com", first_name="Taylor", last_name="Borrower"
+            )
+            item = ItemFactory(name="Ladder", owner=owner)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
 
-            owner = UserFactory(email='owner3@test.com', first_name='Morgan', last_name='Owner')
-            borrower = UserFactory(email='borrower3@test.com', first_name='Taylor', last_name='Borrower')
-            item = ItemFactory(name='Ladder', owner=owner)
-
-            loan_request = LoanRequestFactory(item=item, borrower=borrower, status='approved')
+            loan_request = LoanRequestFactory(item=item, borrower=borrower, status="approved")
             message = MessageFactory(
                 sender=owner,
                 recipient=borrower,
-                item=item,
-                body='Your extension request for \'Ladder\' was denied. The current due date remains April 05, 2026.',
-                loan_request=loan_request
+                conversation=conversation,
+                body=(
+                    "Your extension request for 'Ladder' was denied. "
+                    "The current due date remains April 05, 2026."
+                ),
+                loan_request=loan_request,
             )
 
-            with patch('app.utils.email.send_email') as mock_send_email:
+            with patch("app.utils.email.send_email") as mock_send_email:
                 mock_send_email.return_value = True
 
                 result = send_message_notification_email(message)
 
                 assert result is True
                 args, _ = mock_send_email.call_args
-                assert 'Extension Denied for Ladder' in args[1]
+                assert "Extension Denied for Ladder" in args[1]
+
+
+class TestMessageNotificationBodyRendering:
+    """The HTML part of a notification escapes the body and links its URLs."""
+
+    def _notify(self, body):
+        sender = UserFactory(email="sender@test.com")
+        recipient = UserFactory(email="recipient@test.com")
+        item = ItemFactory(name="Test Item", owner=recipient)
+        conversation = ConversationFactory(context_type="item", context_id=item.id)
+        message = MessageFactory(
+            sender=sender, recipient=recipient, conversation=conversation, body=body
+        )
+
+        with patch("app.utils.email.send_email") as mock_send_email:
+            mock_send_email.return_value = True
+            send_message_notification_email(message)
+            return mock_send_email.call_args[0][3]  # html_content
+
+    def test_html_body_linkifies_urls(self, app):
+        with app.app_context():
+            html = self._notify("You can see it here: https://meutch.com/item/abc")
+
+            assert 'href="https://meutch.com/item/abc"' in html
+            assert 'rel="noopener noreferrer nofollow"' in html
+
+    def test_html_body_escapes_markup(self, app):
+        """A message body must not be able to inject markup into the email."""
+        with app.app_context():
+            html = self._notify('<a href="https://evil.example.com">click me</a>')
+
+            assert "evil.example.com" in html  # the text is still shown
+            assert '<a href="https://evil.example.com">' not in html
+            assert "&lt;a href=" in html
+
+    def test_text_body_keeps_the_raw_message(self, app):
+        """The plain-text part is not HTML, so it is left untouched."""
+        with app.app_context():
+            sender = UserFactory(email="sender@test.com")
+            recipient = UserFactory(email="recipient@test.com")
+            item = ItemFactory(name="Test Item", owner=recipient)
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            message = MessageFactory(
+                sender=sender,
+                recipient=recipient,
+                conversation=conversation,
+                body="5 > 3 & you know it",
+            )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+                send_message_notification_email(message)
+
+                assert "5 > 3 & you know it" in mock_send_email.call_args[0][2]

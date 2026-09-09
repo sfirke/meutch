@@ -1,39 +1,61 @@
 import logging
 import os
-from flask import Flask, flash, redirect, render_template, url_for
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+from uuid import UUID
+
+from flask import Flask, flash, redirect, render_template, request, url_for
+from flask_jwt_extended import JWTManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_login import LoginManager
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
-from config import config
-from uuid import UUID
-from app.context_processors import (
-    inject_unread_messages_count, 
-    inject_total_pending,
-    inject_distance_utils,
-    inject_static_url_for,
-    inject_item_upload_limits,
-)
+from werkzeug.middleware.proxy_fix import ProxyFix
 
+from app.context_processors import (
+    inject_distance_utils,
+    inject_item_upload_limits,
+    inject_static_url_for,
+    inject_total_pending,
+    inject_unread_messages_count,
+)
+from config import config
 
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
+jwt = JWTManager()
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
+
 
 def create_app(config_class=None):
     app = Flask(__name__)
-    
+
     # Auto-detect environment if no config provided
     if config_class is None:
-        flask_env = os.environ.get('FLASK_ENV', 'development')
-        config_class = config.get(flask_env, config['default'])
-    
+        flask_env = os.environ.get("FLASK_ENV", "development")
+        config_class = config.get(flask_env, config["default"])
+
     app.config.from_object(config_class)
-    
+
+    # Trust the platform's reverse proxy so request.remote_addr is the client rather
+    # than the load balancer. Everything that keys on the caller's address depends on
+    # this: the rate limiter buckets by it, and without ProxyFix every request shares
+    # one bucket. ProxyFix reads X-Forwarded-For from the right, skipping
+    # TRUSTED_PROXY_COUNT hops, so values a client appends itself are ignored.
+    trusted_proxy_count = app.config.get("TRUSTED_PROXY_COUNT", 0)
+    if trusted_proxy_count:
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            x_for=trusted_proxy_count,
+            x_proto=1,
+            x_host=1,
+        )
+
     # Validate storage configuration at startup
-    if hasattr(config_class, 'validate_storage_config'):
+    if hasattr(config_class, "validate_storage_config"):
         config_instance = config_class()
         config_instance.validate_storage_config()
 
@@ -42,38 +64,63 @@ def create_app(config_class=None):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
-    
+    jwt.init_app(app)
+    limiter.init_app(app)
+
+    from app.api.v1.jwt_auth import register_jwt_callbacks
+
+    register_jwt_callbacks(jwt)
+
     configure_logging(app)
 
     # Set the login view for @login_required
-    login_manager.login_view = 'auth.login'
-    login_manager.login_message = 'Please log in to access this page.'
-    login_manager.login_message_category = 'info'
-    
+    login_manager.login_view = "auth.login"
+    login_manager.login_message = "Please log in to access this page."
+    login_manager.login_message_category = "info"
+
     # Register blueprints
     from app.main import bp as main_bp
+
     app.register_blueprint(main_bp)
 
     from app.auth import bp as auth_bp
-    app.register_blueprint(auth_bp, url_prefix='')
+
+    app.register_blueprint(auth_bp, url_prefix="")
 
     from app.circles import bp as circles_bp
-    app.register_blueprint(circles_bp, url_prefix='/circles')
+
+    app.register_blueprint(circles_bp, url_prefix="/circles")
 
     from app.admin import bp as admin_bp
-    app.register_blueprint(admin_bp, url_prefix='/admin')
+
+    app.register_blueprint(admin_bp, url_prefix="/admin")
 
     from app.requests import bp as requests_bp
-    app.register_blueprint(requests_bp, url_prefix='/requests')
+
+    app.register_blueprint(requests_bp, url_prefix="/requests")
 
     from app.share import bp as share_bp
-    app.register_blueprint(share_bp, url_prefix='/share')
+
+    app.register_blueprint(share_bp, url_prefix="/share")
+
+    from app.webhooks import bp as webhooks_bp
+
+    app.register_blueprint(webhooks_bp, url_prefix="/webhooks")
+    csrf.exempt(webhooks_bp)
+
+    from app.api import v1_bp as api_v1_bp
+    from app.api.v1.errors import build_http_error_response, is_api_request_path
+
+    app.register_blueprint(api_v1_bp, url_prefix="/api/v1")
+    csrf.exempt(api_v1_bp)
 
     # Register CLI commands
     try:
-        from app.cli import seed, user, check_loan_reminders
+        from app.cli import api, check_loan_reminders, seed, user
+
         app.cli.add_command(seed)
         app.cli.add_command(user)
+        app.cli.add_command(api)
         app.cli.add_command(check_loan_reminders)
     except ImportError as e:
         print(f"Warning: Could not import CLI commands: {e}")
@@ -82,48 +129,73 @@ def create_app(config_class=None):
     @login_manager.user_loader
     def load_user(user_id):
         from app.models import User
+
         try:
             uuid_obj = UUID(user_id, version=4)
         except ValueError:
             return None
         return db.session.get(User, uuid_obj)
-    
+
     # Register the context processor
     app.context_processor(inject_unread_messages_count)
     app.context_processor(inject_total_pending)
     app.context_processor(inject_distance_utils)
     app.context_processor(inject_static_url_for)
     app.context_processor(inject_item_upload_limits)
-    
+
     # Register custom Jinja filters
     from app.template_filters import register_filters
+
     register_filters(app)
 
     # Register error handlers
     @app.errorhandler(403)
     def forbidden(e):
-        return render_template('errors/403.html'), 403
+        if is_api_request_path(request.path):
+            return build_http_error_response(e)
+        return render_template("errors/403.html"), 403
 
     @app.errorhandler(404)
     def page_not_found(e):
-        return render_template('errors/404.html'), 404
-    
+        if is_api_request_path(request.path):
+            return build_http_error_response(e)
+        return render_template("errors/404.html"), 404
+
+    @app.errorhandler(405)
+    def method_not_allowed(e):
+        if is_api_request_path(request.path):
+            return build_http_error_response(e)
+        return e
+
+    @app.errorhandler(413)
+    def request_entity_too_large(e):
+        # Raised by Werkzeug when a body exceeds MAX_CONTENT_LENGTH. The body was
+        # never parsed, so there is no form state to re-render -- send the user to a
+        # page that explains the limit instead.
+        if is_api_request_path(request.path):
+            return build_http_error_response(e)
+        return render_template("errors/413.html"), 413
+
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
-        flash('Your session has expired. Please log in again to continue.', 'warning')
-        return redirect(url_for('auth.login'))
+        flash("Your session has expired. Please log in again to continue.", "warning")
+        return redirect(url_for("auth.login"))
 
     # Optional auto-seed for development (disabled by default)
     with app.app_context():
-        if app.config.get('FLASK_ENV') == 'development' and os.environ.get('AUTO_SEED_ON_STARTUP', '').lower() in ('1', 'true', 'yes', 'on'):
+        if app.config.get("FLASK_ENV") == "development" and os.environ.get(
+            "AUTO_SEED_ON_STARTUP", ""
+        ).lower() in ("1", "true", "yes", "on"):
             try:
                 from app.models import User
+
                 # First check if tables exist by trying a simple query
                 try:
                     user_count = User.query.count()
                     if user_count == 0:
                         print("🌱 Development database is empty, auto-seeding...")
                         from app.utils.data_seeding import check_and_seed_if_empty
+
                         check_and_seed_if_empty()
                 except Exception as table_error:
                     print(f"Note: Database tables not ready for auto-seeding: {table_error}")
@@ -137,20 +209,18 @@ def create_app(config_class=None):
 def configure_logging(app):
     # Remove the default Flask logger handlers
     del app.logger.handlers[:]
-    
+
     # Create a new logger handler
     handler = logging.StreamHandler()
-    handler.setLevel(app.config['LOG_LEVEL'])
+    handler.setLevel(app.config["LOG_LEVEL"])
 
     # Define log format
-    formatter = logging.Formatter(
-        '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
-    )
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s")
     handler.setFormatter(formatter)
 
     # Add the handler to the app's logger
     app.logger.addHandler(handler)
-    app.logger.setLevel(app.config['LOG_LEVEL'])
+    app.logger.setLevel(app.config["LOG_LEVEL"])
 
     # Optional: Disable werkzeug's default logger if necessary
     # logging.getLogger('werkzeug').setLevel(logging.ERROR)
