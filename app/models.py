@@ -759,6 +759,19 @@ class LoanExtensionRequest(db.Model):
     created_at = db.Column(db.DateTime, default=func.now(), nullable=False)
     responded_at = db.Column(db.DateTime, nullable=True)
 
+    # At most one pending request per loan.  Without this, two simultaneous
+    # submissions both pass the has_pending_extension check and insert; the
+    # owner then resolves one and the other stays pending forever, which
+    # permanently blocks the borrower from asking again.
+    __table_args__ = (
+        db.Index(
+            "uq_loan_extension_request_pending",
+            "loan_request_id",
+            unique=True,
+            postgresql_where=db.text("status = 'pending'"),
+        ),
+    )
+
     # passive_deletes lets the database-level ON DELETE CASCADE clean these up,
     # which also covers the bulk LoanRequest deletes in item and account teardown.
     loan_request = db.relationship(

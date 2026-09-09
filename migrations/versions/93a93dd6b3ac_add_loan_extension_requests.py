@@ -35,9 +35,22 @@ def upgrade():
         "loan_extension_request",
         ["loan_request_id"],
     )
+    # At most one pending request per loan, so two simultaneous submissions
+    # cannot leave an orphan pending row that blocks the borrower forever.
+    op.create_index(
+        "uq_loan_extension_request_pending",
+        "loan_extension_request",
+        ["loan_request_id"],
+        unique=True,
+        postgresql_where=sa.text("status = 'pending'"),
+    )
 
 
 def downgrade():
+    op.drop_index(
+        "uq_loan_extension_request_pending",
+        table_name="loan_extension_request",
+    )
     op.drop_index(
         op.f("ix_loan_extension_request_loan_request_id"),
         table_name="loan_extension_request",

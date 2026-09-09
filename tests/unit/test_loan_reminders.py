@@ -360,8 +360,8 @@ class TestLoanRequestHelperMethods:
             )
             assert loan.due_state == "on_time"
 
-    def test_pending_extension_request_returns_latest_pending(self, app):
-        """Test pending_extension_request returns the latest pending extension record."""
+    def test_pending_extension_request_skips_resolved_records(self, app):
+        """A loan has at most one pending request; resolved ones are ignored."""
         with app.app_context():
             owner = UserFactory()
             borrower = UserFactory()
@@ -374,12 +374,12 @@ class TestLoanRequestHelperMethods:
                 status="approved",
             )
 
-            first_pending = LoanExtensionRequestFactory(
+            LoanExtensionRequestFactory(
                 loan_request=loan,
                 proposed_end_date=date.today() + timedelta(days=5),
-                status="pending",
+                status="denied",
             )
-            latest_pending = LoanExtensionRequestFactory(
+            pending = LoanExtensionRequestFactory(
                 loan_request=loan,
                 proposed_end_date=date.today() + timedelta(days=7),
                 status="pending",
@@ -387,11 +387,10 @@ class TestLoanRequestHelperMethods:
             LoanExtensionRequestFactory(
                 loan_request=loan,
                 proposed_end_date=date.today() + timedelta(days=9),
-                status="denied",
+                status="approved",
             )
 
-            assert loan.pending_extension_request is not None
-            assert loan.pending_extension_request.id in {first_pending.id, latest_pending.id}
+            assert loan.pending_extension_request.id == pending.id
             assert loan.has_pending_extension is True
 
     def test_has_pending_extension_false_without_pending_records(self, app):

@@ -2,6 +2,8 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from sqlalchemy.exc import IntegrityError
+
 from app import db
 from app.models import LoanExtensionRequest, LoanRequest, Message
 from app.services import message_service
@@ -258,6 +260,15 @@ def request_extension(loan, borrower_id, proposed_end_date, borrower_message):
             status="pending",
         )
     )
+
+    # The has_pending_extension check above can be passed by two simultaneous
+    # submissions, so let the partial unique index settle the race before any
+    # message is created.  The loser gets the same answer as the early check.
+    try:
+        db.session.flush()
+    except IntegrityError:
+        db.session.rollback()
+        raise ConflictError("You already have a pending extension request for this loan.")
 
     message_body = (
         f"Extension requested for '{loan.item.name}'.\n"
