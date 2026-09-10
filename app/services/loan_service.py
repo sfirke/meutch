@@ -207,6 +207,8 @@ def extend_loan(loan, owner_id, new_end_date, owner_message):
         pending_request.status = "approved"
         pending_request.responded_at = datetime.now(UTC)
 
+    db.session.commit()
+
     is_extension = new_end_date > old_end_date
     cleaned_message = owner_message.strip() if owner_message else ""
     if cleaned_message:
@@ -334,6 +336,10 @@ def process_extension_request(extension_request, owner_id, action):
         old_end_date = loan.end_date
         loan.end_date = extension_request.proposed_end_date
         _reset_loan_reminders(loan)
+
+    db.session.commit()
+
+    if approving:
         message_body = (
             f"Your extension request for '{loan.item.name}' has been approved. "
             f"The due date has been updated from {old_end_date.strftime('%B %d, %Y')} "
