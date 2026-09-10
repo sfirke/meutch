@@ -722,8 +722,66 @@ class LoanRequest(db.Model):
             return "due_soon"
         return "on_time"
 
+    @property
+    def pending_extension_request(self):
+        """Returns the pending extension request for this loan, if any.
+
+        The partial unique index allows at most one pending request per loan.
+        """
+        return next((req for req in self.extension_requests if req.status == "pending"), None)
+
+    @property
+    def has_pending_extension(self):
+        """Returns True when this loan has a pending extension request."""
+        return self.pending_extension_request is not None
+
     def __repr__(self):
         return f"<LoanRequest {self.id} for Item {self.item_id} by User {self.borrower_id}>"
+
+
+class LoanExtensionRequest(db.Model):
+    id = db.Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        unique=True,
+        nullable=False,
+    )
+    loan_request_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("loan_request.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    proposed_end_date = db.Column(db.Date, nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    # pending, approved, denied
+    status = db.Column(db.String(20), default="pending", nullable=False)
+    created_at = db.Column(db.DateTime, default=func.now(), nullable=False)
+    responded_at = db.Column(db.DateTime, nullable=True)
+
+    # At most one pending request per loan.  Without this, two simultaneous
+    # submissions both pass the has_pending_extension check and insert; the
+    # owner then resolves one and the other stays pending forever, which
+    # permanently blocks the borrower from asking again.
+    __table_args__ = (
+        db.Index(
+            "uq_loan_extension_request_pending",
+            "loan_request_id",
+            unique=True,
+            postgresql_where=db.text("status = 'pending'"),
+        ),
+    )
+
+    # passive_deletes lets the database-level ON DELETE CASCADE clean these up,
+    # which also covers the bulk LoanRequest deletes in item and account teardown.
+    loan_request = db.relationship(
+        "LoanRequest",
+        backref=db.backref("extension_requests", passive_deletes=True),
+    )
+
+    def __repr__(self):
+        return f"<LoanExtensionRequest {self.id} for LoanRequest {self.loan_request_id}>"
 
 
 class Feedback(db.Model):
