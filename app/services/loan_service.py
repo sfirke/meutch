@@ -287,9 +287,10 @@ def request_extension(loan, borrower_id, proposed_end_date, borrower_message):
     message_body = (
         f"Extension requested for '{loan.item.name}'.\n"
         f"Current due date: {loan.end_date.strftime('%B %d, %Y')}\n"
-        f"Proposed new due date: {proposed_end_date.strftime('%B %d, %Y')}\n\n"
-        f"Message from borrower: {cleaned_message}"
+        f"Proposed new due date: {proposed_end_date.strftime('%B %d, %Y')}"
     )
+    if cleaned_message:
+        message_body += f"\n\nMessage from borrower: {cleaned_message}"
 
     return message_service.create_message(
         borrower_id,
