@@ -1,9 +1,17 @@
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.services import loan_service
 from app.utils.email import build_message_reply_address, send_message_notification_email
-from tests.factories import ConversationFactory, ItemFactory, MessageFactory, UserFactory
+from tests.factories import (
+    ConversationFactory,
+    ItemFactory,
+    LoanRequestFactory,
+    MessageFactory,
+    UserFactory,
+)
 
 
 class TestMessageNotifications:
@@ -294,6 +302,51 @@ class TestMessageNotifications:
             assert "Valid statuses are: pending, approved, denied, completed, canceled" in str(
                 exc_info.value
             )
+
+    @pytest.mark.parametrize(
+        ("day_shift", "owner_message", "expected_subject"),
+        [
+            (5, "", "Loan Extended for Table Saw"),
+            # The owner's note says "update", but the loan still got longer.
+            (5, "the due date update you asked for last week", "Loan Extended for Table Saw"),
+            (-3, "", "Due Date Updated for Table Saw"),
+            # And here the note says "extended" on a loan that got shorter.
+            (-3, "sorry, my extended trip got moved up", "Due Date Updated for Table Saw"),
+        ],
+    )
+    def test_due_date_change_subject_follows_the_real_change(
+        self, app, day_shift, owner_message, expected_subject
+    ):
+        """The subject tracks the date change, not words the owner happened to type."""
+        with app.app_context():
+            owner = UserFactory(email="owner4@test.com", first_name="Robin", last_name="Owner")
+            borrower = UserFactory(
+                email="borrower4@test.com", first_name="Jamie", last_name="Borrower"
+            )
+            item = ItemFactory(name="Table Saw", owner=owner, available=False)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status="approved",
+                start_date=date.today() - timedelta(days=1),
+                end_date=date.today() + timedelta(days=7),
+            )
+
+            # Let the app write the message itself, so a reworded notice fails here.
+            with patch("app.services.message_service.send_message_notification_email"):
+                extend_result = loan_service.extend_loan(
+                    loan,
+                    owner.id,
+                    loan.end_date + timedelta(days=day_shift),
+                    owner_message,
+                )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                assert send_message_notification_email(extend_result.message) is True
+                args, _ = mock_send_email.call_args
+                assert expected_subject in args[1]
 
 
 class TestMessageNotificationBodyRendering:

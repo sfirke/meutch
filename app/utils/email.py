@@ -138,6 +138,24 @@ def build_message_reply_address(message):
     return f"Meutch Replies <reply+{prefix}{message.id}@{domain}>"
 
 
+# Loan event messages append the sender's own words after these markers.
+_FREE_TEXT_MARKERS = ("message from owner:", "message from borrower:")
+
+
+def _generated_prefix(body):
+    """Return the system-generated leading part of a loan message body.
+
+    Subject lines are chosen by looking for phrases the app itself wrote, so
+    the sender's free text has to be stripped first.  Otherwise an owner who
+    writes "granting the extension requested last week" has their note filed
+    as a different kind of loan event.
+    """
+    lowered = (body or "").lower()
+    for marker in _FREE_TEXT_MARKERS:
+        lowered = lowered.split(marker, 1)[0]
+    return lowered
+
+
 def send_message_notification_email(message):
     """Send email notification for new messages"""
     from app import db
@@ -197,10 +215,18 @@ def send_message_notification_email(message):
     # Determine the subject and email content based on message type
     if message.is_loan_request_message:
         item_name = conversation.item.name if conversation.item else "Unknown Item"
-        # Check if this is a loan extension message (owner extending the due date)
-        if message.loan_request.status == "approved" and "has been extended" in message.body:
+        message_body_lower = _generated_prefix(message.body)
+        loan_is_active = message.loan_request.status == "approved"
+        # Which loan event this is has to be read back out of the wording the
+        # app used when it wrote the message.  Match the sentence shape around
+        # the quoted item name, not bare words: the item name is user-typed too.
+        if loan_is_active and "' has been extended" in message_body_lower:
             subject = f"Meutch - Loan Extended for {item_name}"
             email_type = "loan extension"
+        elif loan_is_active and "' has been updated" in message_body_lower:
+            # The owner moved the due date earlier; "extended" would be wrong.
+            subject = f"Meutch - Due Date Updated for {item_name}"
+            email_type = "due date update"
         elif message.loan_request.status == "pending":
             subject = f"Meutch - New Loan Request for {item_name}"
             email_type = "loan request"
