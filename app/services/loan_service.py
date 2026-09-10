@@ -207,8 +207,6 @@ def extend_loan(loan, owner_id, new_end_date, owner_message):
         pending_request.status = "approved"
         pending_request.responded_at = datetime.now(UTC)
 
-    db.session.commit()
-
     is_extension = new_end_date > old_end_date
     cleaned_message = owner_message.strip() if owner_message else ""
     if cleaned_message:
@@ -237,6 +235,9 @@ def extend_loan(loan, owner_id, new_end_date, owner_message):
 
     conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
 
+    # create_message commits the session, so the loan and extension request
+    # changes above are saved in the same transaction as the notice.  If the
+    # message fails, everything rolls back together.
     message = message_service.create_message(
         owner_id,
         loan.borrower_id,
@@ -336,10 +337,6 @@ def process_extension_request(extension_request, owner_id, action):
         old_end_date = loan.end_date
         loan.end_date = extension_request.proposed_end_date
         _reset_loan_reminders(loan)
-
-    db.session.commit()
-
-    if approving:
         message_body = (
             f"Your extension request for '{loan.item.name}' has been approved. "
             f"The due date has been updated from {old_end_date.strftime('%B %d, %Y')} "
@@ -353,6 +350,9 @@ def process_extension_request(extension_request, owner_id, action):
 
     conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
 
+    # create_message commits the session, so the extension request and loan
+    # changes above are saved in the same transaction as the notice.  If the
+    # message fails, everything rolls back together.
     message = message_service.create_message(
         owner_id,
         loan.borrower_id,
