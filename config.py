@@ -283,6 +283,12 @@ class Config:
     API_V1_IMAGE_WRITE_RATE_LIMIT = os.environ.get("API_V1_IMAGE_WRITE_RATE_LIMIT", "10 per minute")
     API_V1_READ_RATE_LIMIT = os.environ.get("API_V1_READ_RATE_LIMIT", "60 per minute")
 
+    # Web sign-up form, counted per client address on every submission, so it also
+    # slows anyone probing which email addresses already have accounts. A group
+    # signing up together on shared Wi-Fi can hit this; raise it by environment
+    # variable if that happens.
+    AUTH_REGISTER_RATE_LIMIT = os.environ.get("AUTH_REGISTER_RATE_LIMIT", "10 per hour")
+
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or SECRET_KEY
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(
         minutes=parse_int_env(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES_MINUTES"), 15)
@@ -316,6 +322,7 @@ class TestingConfig(Config):
     API_V1_WRITE_RATE_LIMIT = "1000 per minute"
     API_V1_IMAGE_WRITE_RATE_LIMIT = "1000 per minute"
     API_V1_READ_RATE_LIMIT = "1000 per minute"
+    AUTH_REGISTER_RATE_LIMIT = "1000 per minute"
 
 
 class StagingConfig(Config):
