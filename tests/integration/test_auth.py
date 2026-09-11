@@ -338,7 +338,7 @@ class TestAuthenticationRoutes:
             _db.session.commit()
             token_value = user.email_confirmation_token
 
-        response = client.get(
+        response = client.post(
             f"/confirm/{token_value}?next=/share/giveaway/abc123", follow_redirects=False
         )
 
@@ -357,11 +357,29 @@ class TestAuthenticationRoutes:
             _db.session.commit()
             token_value = user.email_confirmation_token
 
-        response = client.get(f"/confirm/{token_value}", follow_redirects=False)
+        response = client.post(f"/confirm/{token_value}", follow_redirects=False)
 
         assert response.status_code == 302
         assert "/login" in response.location
         assert "next=" not in response.location
+
+    def test_opening_confirmation_link_asks_for_a_click_before_confirming(self, client, app):
+        """Mail scanners open links without clicking anything, so a GET alone must not
+        confirm the address. The page it shows keeps ?next for the button's POST."""
+        with app.app_context():
+            user = UserFactory(email_confirmed=False)
+            user.generate_confirmation_token()
+            db.session.commit()
+            user_id = user.id
+            token_value = user.email_confirmation_token
+
+        response = client.get(f"/confirm/{token_value}?next=/share/giveaway/abc123")
+
+        assert response.status_code == 200
+        assert b"Confirm my email" in response.data
+        assert b"abc123" in response.data
+        with app.app_context():
+            assert db.session.get(User, user_id).email_confirmed is False
 
     def test_register_duplicate_email_confirmed(self, client, app, auth_user):
         """Test registration with duplicate confirmed email shows forgot-password link."""

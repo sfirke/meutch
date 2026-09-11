@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Confirm Email{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Confirm Your Email</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        One more step: click the button below to confirm <strong>{{ email }}</strong>
+                        and finish setting up your Meutch account.
+                    </p>
+
+                    <form method="POST" action="{{ url_for('auth.confirm_email', token=token, next=next_page) }}">
+                        {{ form.hidden_tag() }}
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Confirm my email</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

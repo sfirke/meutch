@@ -7,6 +7,7 @@ from flask_login import current_user, login_user, logout_user
 from app.auth import bp as auth
 from app.auth import bp as auth_bp
 from app.forms import (
+    EmptyForm,
     ForgotPasswordForm,
     LoginForm,
     RegistrationForm,
@@ -214,11 +215,20 @@ def logout():
     return redirect(url_for("main.index"))
 
 
-@auth_bp.route("/confirm/<token>")
+@auth_bp.route("/confirm/<token>", methods=["GET", "POST"])
 def confirm_email(token):
-    """Confirm user email with token"""
+    """Confirm user email with token.
 
-    confirmation_result = auth_service.confirm_email_token(token)
+    Opening the link only shows a Confirm button, and the address is confirmed when
+    that button is pressed. Mail security scanners open every link in the messages
+    they deliver, so a visit to the link alone doesn't mean a person read the email.
+    """
+    form = EmptyForm()
+    if form.validate_on_submit():
+        confirmation_result = auth_service.confirm_email_token(token)
+    else:
+        confirmation_result = auth_service.get_confirmation_token_status(token)
+
     if confirmation_result.status == auth_service.CONFIRM_EMAIL_STATUS_INVALID_LINK:
         flash("Invalid or expired confirmation link.", "danger")
         return redirect(url_for("auth.login"))
@@ -231,6 +241,15 @@ def confirm_email(token):
             show_resend=True,
         )
         return redirect(url_for("auth.resend_confirmation"))
+
+    if confirmation_result.status == auth_service.CONFIRM_EMAIL_STATUS_VALID:
+        return render_template(
+            "auth/confirm_email.html",
+            form=form,
+            token=token,
+            email=confirmation_result.user.email,
+            next_page=request.args.get("next"),
+        )
 
     if confirmation_result.status == auth_service.CONFIRM_EMAIL_STATUS_CONFIRMED:
         _clear_confirmation_page_state()
