@@ -108,6 +108,27 @@ class TestRequestExtensionForm:
             assert form.validate() is False
             assert "message" in form.errors
 
+    def test_min_date_is_day_after_current_due_date(self, app):
+        with app.app_context():
+            current_end_date = date.today() + timedelta(days=5)
+            form = RequestExtensionForm(current_end_date=current_end_date)
+            assert form.min_date == current_end_date + timedelta(days=1)
+
+    def test_min_date_is_today_for_overdue_loan(self, app):
+        """A past due date cannot floor the picker below today."""
+        with app.app_context():
+            current_end_date = date.today() - timedelta(days=3)
+            form = RequestExtensionForm(
+                current_end_date=current_end_date,
+                data={
+                    "proposed_end_date": date.today() - timedelta(days=1),
+                    "message": "I still need this item for a little longer.",
+                },
+            )
+            assert form.min_date == date.today()
+            assert form.validate() is False
+            assert any("past" in error.lower() for error in form.errors["proposed_end_date"])
+
 
 class TestLoanRequestHelperMethods:
     """Test LoanRequest model helper methods for due date calculations."""

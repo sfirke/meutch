@@ -11,6 +11,7 @@ from tests.factories import (
     CircleFactory,
     ConversationFactory,
     ItemFactory,
+    LoanExtensionRequestFactory,
     LoanRequestFactory,
     MessageFactory,
     UserFactory,
@@ -369,22 +370,10 @@ class TestLoanExtensionRequests:
                 last_overdue_reminder_sent=None,
                 overdue_reminder_count=2,
             )
-            db.session.commit()
-
-            login_user(client, borrower.email)
-            client.post(
-                url_for("main.request_extension", loan_id=loan.id),
-                data={
-                    "proposed_end_date": new_due_date.strftime("%Y-%m-%d"),
-                    "message": "Could I keep this longer while waiting for a replacement?",
-                },
-                follow_redirects=True,
+            extension_request = LoanExtensionRequestFactory(
+                loan_request=loan, proposed_end_date=new_due_date
             )
-
-            extension_request = LoanExtensionRequest.query.filter_by(
-                loan_request_id=loan.id, status="pending"
-            ).first()
-            assert extension_request is not None
+            db.session.commit()
 
             login_user(client, owner.email)
             response = client.post(
@@ -422,22 +411,10 @@ class TestLoanExtensionRequests:
                 end_date=due_date,
                 status="approved",
             )
-            db.session.commit()
-
-            login_user(client, borrower.email)
-            client.post(
-                url_for("main.request_extension", loan_id=loan.id),
-                data={
-                    "proposed_end_date": (date.today() + timedelta(days=8)).strftime("%Y-%m-%d"),
-                    "message": "I need a little more time due to travel delays this week.",
-                },
-                follow_redirects=True,
+            extension_request = LoanExtensionRequestFactory(
+                loan_request=loan, proposed_end_date=date.today() + timedelta(days=8)
             )
-
-            extension_request = LoanExtensionRequest.query.filter_by(
-                loan_request_id=loan.id, status="pending"
-            ).first()
-            assert extension_request is not None
+            db.session.commit()
 
             login_user(client, owner.email)
             response = client.post(

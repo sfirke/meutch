@@ -150,6 +150,7 @@
                                             </form>
                                         {% endif %}
                                     {% elif active_loan and active_loan.status == 'approved' %}
+                                        {% set pending_extension_request = active_loan.pending_extension_request %}
                                         {% if is_item_owner %}
                                             <h2 class="h5 mb-3">Owner Actions</h2>
                                             {% if pending_extension_request %}
@@ -202,11 +203,9 @@
                                                     Proposed due date {{ pending_extension_request.proposed_end_date.strftime('%B %d, %Y') }}.
                                                 </div>
                                             {% else %}
-                                                <div class="mb-3">
-                                                    <a href="{{ url_for('main.request_extension', loan_id=active_loan.id) }}" class="btn btn-outline-primary">
-                                                        <i class="fas fa-calendar-plus me-1"></i>Request Extension
-                                                    </a>
-                                                </div>
+                                                <a href="{{ url_for('main.request_extension', loan_id=active_loan.id) }}" class="btn btn-outline-primary mb-3">
+                                                    <i class="fas fa-calendar-plus me-1"></i>Request Extension
+                                                </a>
                                             {% endif %}
                                             {% if active_loan.due_state == 'overdue' %}
                                                 <div class="alert alert-danger mb-0">
