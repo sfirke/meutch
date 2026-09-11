@@ -20,6 +20,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Developer Experience
 - Application logs now actually reach the logs. Production runs at INFO instead of WARNING and `LOG_LEVEL` can be changed by an environment variable so increasing the detail during an incident doesn't require a code deploy ([#482](https://github.com/sfirke/meutch/pull/482)).
+- The site now runs two web workers instead of one, so a single slow request no longer holds up everyone else. Previously one stuck request could make the whole site unreachable until it restarted itself ([#494](https://github.com/sfirke/meutch/pull/494)).
 
 ## August 2026
 
