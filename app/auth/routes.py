@@ -13,6 +13,7 @@ from app.forms import (
     ResendConfirmationForm,
     ResetPasswordForm,
 )
+from app.forms_auth import issue_registration_started_token
 from app.services import auth_service
 from app.services.exceptions import ConflictError
 
@@ -110,12 +111,32 @@ def _get_post_login_redirect_target(user, next_page=None):
     return url_for("main.index")
 
 
+def _render_registration_form(form):
+    # Every render starts the fill timer again and clears the honeypot, so a person
+    # whose browser autofilled it can simply resubmit.
+    form.website.data = ""
+    form.started.data = issue_registration_started_token()
+    return render_template("auth/register.html", title="Register", form=form)
+
+
 @auth.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for("main.index"))
 
     form = RegistrationForm()
+    if request.method == "POST":
+        bot_trap = form.bot_trap_reason()
+        if bot_trap:
+            logger.warning(
+                "Turned away a likely automated sign-up (%s) for %s from %s",
+                bot_trap,
+                form.email.data,
+                request.remote_addr,
+            )
+            flash("Sorry, we couldn't process that sign-up. Please try again.", "warning")
+            return _render_registration_form(form)
+
     if form.validate_on_submit():
         next_page = request.args.get("next")
         safe_next = next_page if (next_page and _is_safe_url(next_page)) else None
@@ -138,7 +159,7 @@ def register():
             )
         except ConflictError as exc:
             flash(str(exc), "warning")
-            return render_template("auth/register.html", title="Register", form=form)
+            return _render_registration_form(form)
 
         if registration_result.location_method == "skip":
             flash(
@@ -168,7 +189,7 @@ def register():
 
         return redirect(url_for("auth.resend_confirmation"))
 
-    return render_template("auth/register.html", title="Register", form=form)
+    return _render_registration_form(form)
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
