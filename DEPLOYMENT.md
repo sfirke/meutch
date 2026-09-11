@@ -209,6 +209,7 @@ Meutch includes one daily scheduled CLI job (`flask check-loan-reminders`) that 
 
 1. Loan reminder emails
 2. Digest emails
+3. Removing accounts that never confirmed their email address
 
 Loan reminder behavior:
 - **3-day reminder**: Sent when a loan is 3 days from due
@@ -221,6 +222,12 @@ Digest cadence behavior:
 - **none** users: skipped
 - **Idempotency**: `digest_last_sent_at` is checked against cadence period boundary in resolved scheduler timezone (`TZ` first, then `DIGEST_TIMEZONE`, then UTC) and updated only after successful send
 - **Fault isolation**: one user send failure does not abort the rest of the run
+
+Unconfirmed account cleanup:
+- Accounts whose email address was never confirmed are deleted 14 days after sign-up. They could never sign in, so they own nothing; they are removed outright and no email is sent.
+- The removed addresses are listed in the job output.
+- A cleanup failure is reported in the job output but doesn't fail the job or affect reminders and digests.
+- To run it on its own: `flask user purge-unconfirmed --older-than-days 14`
 
 
 ### Running Manually

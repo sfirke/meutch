@@ -1685,6 +1685,59 @@ def disable_showcase(email):
     click.echo(f"✅ Public showcase disabled for {user.full_name} ({email})")
 
 
+UNCONFIRMED_ACCOUNT_RETENTION_DAYS = 14
+
+
+def purge_unconfirmed_accounts_logic(older_than_days=UNCONFIRMED_ACCOUNT_RETENTION_DAYS):
+    """Delete accounts whose email address was never confirmed; return their emails.
+
+    These accounts could never sign in, so they own nothing. They are removed
+    outright rather than through the member account-deletion workflow, which would
+    email the address a goodbye note. Accounts an admin already deleted are left
+    alone because the admin action log still points at them.
+    """
+    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=older_than_days)
+    stale_users = User.query.filter(
+        User.email_confirmed.is_(False),
+        User.is_deleted.is_(False),
+        User.created_at < cutoff,
+    ).all()
+
+    removed_emails = [stale_user.email for stale_user in stale_users]
+    for stale_user in stale_users:
+        db.session.delete(stale_user)
+    db.session.commit()
+    return removed_emails
+
+
+def _echo_purged_accounts(removed_emails, older_than_days):
+    if not removed_emails:
+        click.echo("  ✓ No unconfirmed accounts to remove.")
+        return
+
+    click.echo(
+        f"  🗑  Removed {len(removed_emails)} unconfirmed "
+        f"account{'s' if len(removed_emails) != 1 else ''} older than "
+        f"{older_than_days} day{'s' if older_than_days != 1 else ''}:"
+    )
+    for email in removed_emails:
+        click.echo(f"    • {email}")
+
+
+@user.command("purge-unconfirmed")
+@click.option(
+    "--older-than-days",
+    default=UNCONFIRMED_ACCOUNT_RETENTION_DAYS,
+    show_default=True,
+    help="Remove accounts created at least this many days ago that never confirmed their email.",
+)
+@with_appcontext
+def purge_unconfirmed(older_than_days):
+    """Delete accounts that never confirmed their email address."""
+    removed_emails = purge_unconfirmed_accounts_logic(older_than_days)
+    _echo_purged_accounts(removed_emails, older_than_days)
+
+
 @click.group()
 def api():
     """API maintenance commands."""
@@ -1815,6 +1868,18 @@ def check_loan_reminders(force_digest, force_loan_reminders, today_override, dig
         f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_NONE]["skipped"]}/'
         f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_NONE]["errors"]}'
     )
+
+    click.echo("\n🧹 Unconfirmed accounts:")
+    try:
+        removed_emails = purge_unconfirmed_accounts_logic()
+    except Exception as exc:
+        # Reminders and digests have already gone out. Report the failure without
+        # failing the whole job.
+        db.session.rollback()
+        click.echo(f"  ⚠ Cleanup failed: {exc}")
+    else:
+        _echo_purged_accounts(removed_emails, UNCONFIRMED_ACCOUNT_RETENTION_DAYS)
+
     click.echo("✅ Done!")
 
 
