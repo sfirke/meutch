@@ -2,9 +2,14 @@ from flask import abort, current_app, flash, redirect, render_template, request,
 from flask_login import current_user, login_required
 
 from app import db
-from app.forms import EmptyForm, ExtendLoanForm, LoanRequestForm
+from app.forms import (
+    EmptyForm,
+    ExtendLoanForm,
+    LoanRequestForm,
+    RequestExtensionForm,
+)
 from app.main import bp as main_bp
-from app.models import Item, LoanRequest
+from app.models import Item, LoanExtensionRequest, LoanRequest
 from app.services import loan_service
 from app.services.exceptions import ServiceError
 from app.utils.messaging_queries import loan_conversation_url
@@ -222,3 +227,83 @@ def extend_loan(loan_id):
         return redirect(url_for("main.profile", tab="my-activity"))
 
     return render_template("main/extend_loan.html", form=form, loan=loan)
+
+
+@main_bp.route("/loan/<uuid:loan_id>/request-extension", methods=["GET", "POST"])
+@login_required
+def request_extension(loan_id):
+    """Allow a borrower to request an extension for an active loan."""
+    loan = db.get_or_404(LoanRequest, loan_id)
+
+    if loan.borrower_id != current_user.id:
+        flash("You are not authorized to request an extension for this loan.", "danger")
+        return redirect(url_for("main.messages"))
+
+    if loan.status != "approved":
+        flash("Only approved loans can have extension requests.", "warning")
+        return redirect(url_for("main.messages"))
+
+    if loan.has_pending_extension:
+        flash("You already have a pending extension request for this loan.", "warning")
+        return _redirect_to_loan_conversation(loan)
+
+    form = RequestExtensionForm(current_end_date=loan.end_date)
+
+    if form.validate_on_submit():
+        try:
+            loan_service.request_extension(
+                loan,
+                current_user.id,
+                form.proposed_end_date.data,
+                form.message.data,
+            )
+        except ServiceError as exc:
+            flash(str(exc), exc.flash_category)
+        except Exception as exc:
+            flash("An error occurred while submitting your extension request.", "danger")
+            current_app.logger.error(
+                f"Error creating extension request for loan {loan_id}: {str(exc)}"
+            )
+        else:
+            flash("Extension request sent to the item owner.", "success")
+
+        return _redirect_to_loan_conversation(loan)
+
+    return render_template(
+        "main/request_extension.html",
+        form=form,
+        loan=loan,
+        cancel_url=loan_conversation_url(loan),
+    )
+
+
+@main_bp.route("/loan-extension/<uuid:extension_id>/<action>", methods=["POST"])
+@login_required
+def process_extension_request(extension_id, action):
+    """Allow an item owner to approve or deny a borrower extension request."""
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Invalid request.", "danger")
+        return redirect(url_for("main.messages"))
+
+    extension_request = db.get_or_404(LoanExtensionRequest, extension_id)
+    loan = extension_request.loan_request
+
+    if loan.item.owner_id != current_user.id:
+        flash("You are not authorized to perform this action.", "danger")
+        return redirect(url_for("main.messages"))
+
+    try:
+        result = loan_service.process_extension_request(extension_request, current_user.id, action)
+    except ServiceError as exc:
+        flash(str(exc), exc.flash_category)
+    except Exception as exc:
+        flash("An error occurred while processing the extension request.", "danger")
+        current_app.logger.error(f"Error processing extension request {extension_id}: {str(exc)}")
+    else:
+        if result.approved:
+            flash("Extension request approved and due date updated.", "success")
+        else:
+            flash("Extension request denied.", "info")
+
+    return _redirect_to_loan_conversation(loan)

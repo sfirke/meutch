@@ -7,6 +7,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Features
 **Minor**:
 - When answering a request, there's now an option to click "I have this item" and then choose or list it. The item you pick is linked in your message, and you're warned when what you're offering does not match what was asked for, or when the person asking is outside the circles that can see the giveaway you picked. This work also displays the full details of a request above the message box on every compose page for easy reference ([#412](https://github.com/sfirke/meutch/pull/412)).
+- Borrowers can now ask for more time on a loan instead of having to talk the owner into changing the date. From the loan's message thread, propose a new due date and add a note; the owner can approve or deny it from that same thread. Approving moves the due date and restarts the reminder emails. One open request per loan at a time ([#493](https://github.com/sfirke/meutch/pull/493)).
 
 ### Security
 - **Spam protection**: The sign-up form now limits how many times it can be submitted from one connection in an hour. This slows down scripts creating fake accounts, which also sent confirmation emails to people who never signed up ([#495](https://github.com/sfirke/meutch/pull/495)).

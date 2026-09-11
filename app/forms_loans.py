@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, timedelta
 
 from flask_wtf import FlaskForm
 from wtforms import DateField, SubmitField, TextAreaField
@@ -30,11 +30,11 @@ class LoanRequestForm(FlaskForm):
     def validate_end_date(self, field):
         if field.data < self.start_date.data:
             raise ValidationError("End date must be after start date.")
-        if field.data < datetime.now().date():
+        if field.data < date.today():
             raise ValidationError("End date cannot be in the past.")
 
     def validate_start_date(self, field):
-        if field.data < datetime.now().date():
+        if field.data < date.today():
             raise ValidationError("Start date cannot be in the past.")
 
 
@@ -57,5 +57,47 @@ class ExtendLoanForm(FlaskForm):
         self.current_end_date = current_end_date
 
     def validate_new_end_date(self, field):
-        if field.data < datetime.now().date():
+        if field.data < date.today():
             raise ValidationError("New end date cannot be in the past.")
+
+
+class RequestExtensionForm(FlaskForm):
+    proposed_end_date = DateField(
+        "Proposed New Due Date",
+        validators=[DataRequired(message="Please select a proposed new due date.")],
+    )
+    message = TextAreaField(
+        "Message to Owner",
+        validators=[
+            DataRequired(message="Please include a message with your extension request."),
+            Length(
+                min=10,
+                max=1000,
+                message="Message must be between 10 and 1000 characters.",
+            ),
+        ],
+    )
+    submit = SubmitField("Request Extension")
+
+    def __init__(self, current_end_date=None, *args, **kwargs):
+        super(RequestExtensionForm, self).__init__(*args, **kwargs)
+        self.current_end_date = current_end_date
+
+    @property
+    def min_date(self):
+        """Earliest date the borrower may propose; also the date picker's floor.
+
+        An overdue loan's due date is already in the past, so the floor is
+        whichever is later: the day after the current due date, or today.
+        """
+        today = date.today()
+        if self.current_end_date is None:
+            return today
+        return max(self.current_end_date + timedelta(days=1), today)
+
+    def validate_proposed_end_date(self, field):
+        if field.data >= self.min_date:
+            return
+        if self.current_end_date and field.data <= self.current_end_date:
+            raise ValidationError("Proposed due date must be after the current due date.")
+        raise ValidationError("Proposed due date cannot be in the past.")
