@@ -8,6 +8,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 **Minor**:
 - When answering a request, there's now an option to click "I have this item" and then choose or list it. The item you pick is linked in your message, and you're warned when what you're offering does not match what was asked for, or when the person asking is outside the circles that can see the giveaway you picked. This work also displays the full details of a request above the message box on every compose page for easy reference ([#412](https://github.com/sfirke/meutch/pull/412)).
 
+### Spam protection
+- The sign-up form now limits how many times it can be submitted from one connection in an hour. This slows down scripts creating fake accounts, which also sent confirmation emails to people who never signed up ([#495](https://github.com/sfirke/meutch/pull/495)).
+
 ### Bug fixes
 - When an item owner moves a loan's due date earlier, the borrower's email now says "Due Date Updated" rather than "Loan Request Approved", which is what it said before. Loan emails also no longer pick their subject line out of wording the sender typed themselves, so an owner's own note can no longer be mistaken for a different kind of loan event ([#485](https://github.com/sfirke/meutch/pull/485)).
 - The app now recognizes the address of the person making a request, rather than seeing every visitor as the load balancer sitting in front of it. Rate limits on the mobile API are counted per client again — previously every caller shared one budget, so one busy app could use up the allowance for everyone — and the address recorded in the server logs is the one the load balancer vouches for instead of one a caller could make up ([#481](https://github.com/sfirke/meutch/pull/481)).
