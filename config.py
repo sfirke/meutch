@@ -318,11 +318,23 @@ class TestingConfig(Config):
     API_V1_READ_RATE_LIMIT = "1000 per minute"
 
 
+# Each gunicorn worker keeps its own connection pool, so the app can hold up to
+# workers x (pool_size + max_overflow) connections at once. The managed Postgres
+# plan allows about 22, and the loan-reminders job and admin sessions need some
+# of those too, so keep each worker's share small. Not applied to testing or
+# development, where SQLite rejects these options.
+DATABASE_POOL_OPTIONS = {
+    "pool_size": parse_int_env(os.environ.get("DB_POOL_SIZE"), 3),
+    "max_overflow": parse_int_env(os.environ.get("DB_MAX_OVERFLOW"), 2),
+}
+
+
 class StagingConfig(Config):
     """Configuration for staging environment"""
 
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    SQLALCHEMY_ENGINE_OPTIONS = DATABASE_POOL_OPTIONS
     # LOG_LEVEL inherited from base Config: INFO, overridable by the LOG_LEVEL env var
     # SERVER_NAME and PREFERRED_URL_SCHEME inherited from base Config (parsed from SERVER_NAME env var)
 
@@ -335,6 +347,7 @@ class ProductionConfig(Config):
 
     # Production should always use specific environment variables
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    SQLALCHEMY_ENGINE_OPTIONS = DATABASE_POOL_OPTIONS
 
     # SERVER_NAME and PREFERRED_URL_SCHEME inherited from base Config (parsed from SERVER_NAME env var)
 
