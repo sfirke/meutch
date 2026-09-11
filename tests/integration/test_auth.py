@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app import db
+from app import db, limiter
 from app.forms_auth import issue_registration_started_token
 from app.models import User
 from conftest import TEST_PASSWORD, login_user
@@ -454,6 +454,34 @@ class TestAuthenticationRoutes:
                 assert b"could not send the confirmation email yet" in response.data
                 assert b"Your account is ready" in response.data
                 assert b'class="collapse show" id="resend-confirmation-panel"' in response.data
+
+    def test_register_submissions_are_rate_limited_per_client(self, app, client):
+        """Sign-up submissions past the limit get the friendly 429 page, but the form
+        itself still loads."""
+        registration_data = {
+            "email": "ratelimited@example.com",
+            "first_name": "Rate",
+            "last_name": "Limited",
+            "location_method": "skip",
+            "age_confirm": True,
+            "password": "ratelimited123",
+            "confirm_password": "ratelimited123",
+        }
+        original_limit = app.config["AUTH_REGISTER_RATE_LIMIT"]
+        try:
+            app.config["AUTH_REGISTER_RATE_LIMIT"] = "1 per minute"
+
+            first_response = client.post("/register", data=registration_data)
+            limited_response = client.post("/register", data=registration_data)
+            page_response = client.get("/register")
+        finally:
+            app.config["AUTH_REGISTER_RATE_LIMIT"] = original_limit
+            limiter.reset()
+
+        assert first_response.status_code == 302
+        assert limited_response.status_code == 429
+        assert b"too many attempts from your connection" in limited_response.data
+        assert page_response.status_code == 200
 
     def test_case_insensitive_login(self, client, app):
         """Test that login is case-insensitive for email addresses."""

@@ -290,6 +290,12 @@ class Config:
     API_V1_IMAGE_WRITE_RATE_LIMIT = os.environ.get("API_V1_IMAGE_WRITE_RATE_LIMIT", "10 per minute")
     API_V1_READ_RATE_LIMIT = os.environ.get("API_V1_READ_RATE_LIMIT", "60 per minute")
 
+    # Web sign-up form, counted per client address on every submission, so it also
+    # slows anyone probing which email addresses already have accounts. A group
+    # signing up together on shared Wi-Fi can hit this; raise it by environment
+    # variable if that happens.
+    AUTH_REGISTER_RATE_LIMIT = os.environ.get("AUTH_REGISTER_RATE_LIMIT", "10 per hour")
+
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or SECRET_KEY
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(
         minutes=parse_int_env(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES_MINUTES"), 15)
@@ -324,6 +330,15 @@ class TestingConfig(Config):
     API_V1_WRITE_RATE_LIMIT = "1000 per minute"
     API_V1_IMAGE_WRITE_RATE_LIMIT = "1000 per minute"
     API_V1_READ_RATE_LIMIT = "1000 per minute"
+    AUTH_REGISTER_RATE_LIMIT = "1000 per minute"
+
+
+# Each gunicorn worker keeps its own connection pool, so the app can hold up to
+# workers x (pool_size + max_overflow) connections at once.
+DATABASE_POOL_OPTIONS = {
+    "pool_size": parse_int_env(os.environ.get("DB_POOL_SIZE"), 3),
+    "max_overflow": parse_int_env(os.environ.get("DB_MAX_OVERFLOW"), 2),
+}
 
 
 class StagingConfig(Config):
@@ -331,6 +346,7 @@ class StagingConfig(Config):
 
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    SQLALCHEMY_ENGINE_OPTIONS = DATABASE_POOL_OPTIONS
     # LOG_LEVEL inherited from base Config: INFO, overridable by the LOG_LEVEL env var
     # SERVER_NAME and PREFERRED_URL_SCHEME inherited from base Config (parsed from SERVER_NAME env var)
 
@@ -343,6 +359,7 @@ class ProductionConfig(Config):
 
     # Production should always use specific environment variables
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    SQLALCHEMY_ENGINE_OPTIONS = DATABASE_POOL_OPTIONS
 
     # SERVER_NAME and PREFERRED_URL_SCHEME inherited from base Config (parsed from SERVER_NAME env var)
 

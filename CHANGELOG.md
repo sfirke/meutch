@@ -9,6 +9,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - When answering a request, there's now an option to click "I have this item" and then choose or list it. The item you pick is linked in your message, and you're warned when what you're offering does not match what was asked for, or when the person asking is outside the circles that can see the giveaway you picked. This work also displays the full details of a request above the message box on every compose page for easy reference ([#412](https://github.com/sfirke/meutch/pull/412)).
 
 ### Security
+- **Spam protection**: The sign-up form now limits how many times it can be submitted from one connection in an hour. This slows down scripts creating fake accounts, which also sent confirmation emails to people who never signed up ([#495](https://github.com/sfirke/meutch/pull/495)).
 - **Spam protection**: The sign-up form now turns away submissions that look automated: ones that fill in a hidden field people never see, or that come back within a few seconds of the page loading. If this ever catches a real person, submitting the form again works ([#496](https://github.com/sfirke/meutch/pull/496)).
 
 ### Bug fixes
@@ -23,6 +24,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Developer Experience
 - Application logs now actually reach the logs. Production runs at INFO instead of WARNING and `LOG_LEVEL` can be changed by an environment variable so increasing the detail during an incident doesn't require a code deploy ([#482](https://github.com/sfirke/meutch/pull/482)).
+- The site now runs two web workers instead of one, so a single slow request no longer holds up everyone else. Previously one stuck request could make the whole site unreachable until it restarted itself. Each worker's database connections are now capped so that two workers can't use up everything the database allows ([#494](https://github.com/sfirke/meutch/pull/494)).
 
 ## August 2026
 

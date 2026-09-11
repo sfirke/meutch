@@ -1,9 +1,10 @@
 import logging
 from urllib.parse import urljoin, urlparse
 
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_user, logout_user
 
+from app import limiter
 from app.auth import bp as auth
 from app.auth import bp as auth_bp
 from app.forms import (
@@ -120,6 +121,7 @@ def _render_registration_form(form):
 
 
 @auth.route("/register", methods=["GET", "POST"])
+@limiter.limit(lambda: current_app.config["AUTH_REGISTER_RATE_LIMIT"], methods=["POST"])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for("main.index"))
