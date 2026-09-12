@@ -10,6 +10,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Security
 - **Spam protection**: The sign-up form now limits how many times it can be submitted from one connection in an hour. This slows down scripts creating fake accounts, which also sent confirmation emails to people who never signed up ([#495](https://github.com/sfirke/meutch/pull/495)).
+- **Spam protection**: The sign-up form now turns away submissions that look automated: ones that fill in a hidden field people never see, or that come back within a few seconds of the page loading. If this ever catches a real person, submitting the form again works ([#496](https://github.com/sfirke/meutch/pull/496)).
 
 ### Bug fixes
 - When an item owner moves a loan's due date earlier, the borrower's email now says "Due Date Updated" rather than "Loan Request Approved", which is what it said before. Loan emails also no longer pick their subject line out of wording the sender typed themselves, so an owner's own note can no longer be mistaken for a different kind of loan event ([#485](https://github.com/sfirke/meutch/pull/485)).
