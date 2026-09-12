@@ -379,7 +379,8 @@ class TestAuthenticationRoutes:
         response = client.get(f"/confirm/{token_value}?next=/share/giveaway/abc123")
 
         assert response.status_code == 200
-        assert b"Confirm my email" in response.data
+        assert f'action="/confirm/{token_value}'.encode() in response.data
+        assert b'type="submit"' in response.data
         assert b"abc123" in response.data
         with app.app_context():
             assert db.session.get(User, user_id).email_confirmed is False
