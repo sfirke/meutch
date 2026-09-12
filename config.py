@@ -250,6 +250,13 @@ class Config:
     # IP address by sending its own X-Forwarded-For header.
     TRUSTED_PROXY_COUNT = parse_int_env(os.environ.get("TRUSTED_PROXY_COUNT"), 1)
 
+    # Sign-up submissions that arrive sooner than this after the form was served are
+    # turned away as automated. People take far longer to fill in the form; set to 0
+    # to switch the check off.
+    REGISTRATION_MIN_FILL_SECONDS = parse_int_env(
+        os.environ.get("REGISTRATION_MIN_FILL_SECONDS"), 3
+    )
+
     API_V1_ENABLED = parse_bool_env(os.environ.get("API_V1_ENABLED"), True)
     API_V1_WRITE_ENABLED = parse_bool_env(os.environ.get("API_V1_WRITE_ENABLED"), True)
     API_V1_RATE_LIMITS_ENABLED = parse_bool_env(os.environ.get("API_V1_RATE_LIMITS_ENABLED"), True)
@@ -314,6 +321,7 @@ class TestingConfig(Config):
     PREFERRED_URL_SCHEME = "http"
     SESSION_COOKIE_SECURE = False
     REMEMBER_COOKIE_SECURE = False
+    REGISTRATION_MIN_FILL_SECONDS = 0
     API_V1_RATE_LIMITS_ENABLED = True
     API_V1_AUTH_LOGIN_RATE_LIMIT = "1000 per minute"
     API_V1_AUTH_REGISTER_RATE_LIMIT = "1000 per minute"

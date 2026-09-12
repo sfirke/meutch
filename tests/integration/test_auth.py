@@ -1,11 +1,14 @@
 """Integration tests for authentication routes."""
 
+import re
+import time
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
 
 from app import db, limiter
+from app.forms_auth import issue_registration_started_token
 from app.models import User
 from conftest import TEST_PASSWORD, login_user
 from tests.factories import CircleFactory, ItemFactory, UserFactory
@@ -618,6 +621,80 @@ class TestAuthenticationRoutes:
             user = User.query.filter_by(first_name="Test", last_name="User").first()
             assert user is not None
             assert user.email == "testuser@example.com"  # Should be stored as lowercase
+
+
+class TestRegistrationBotTraps:
+    """Sign-ups that look automated are turned away before an account is created."""
+
+    @pytest.fixture(autouse=True)
+    def min_fill_seconds(self, app):
+        original = app.config["REGISTRATION_MIN_FILL_SECONDS"]
+        app.config["REGISTRATION_MIN_FILL_SECONDS"] = 3
+        yield
+        app.config["REGISTRATION_MIN_FILL_SECONDS"] = original
+
+    @staticmethod
+    def _registration_data(**overrides):
+        data = {
+            "email": "traps@example.com",
+            "first_name": "Trap",
+            "last_name": "Tester",
+            "location_method": "skip",
+            "age_confirm": True,
+            "password": "trappassword123",
+            "confirm_password": "trappassword123",
+        }
+        data.update(overrides)
+        return data
+
+    @staticmethod
+    def _account_count(app):
+        with app.app_context():
+            return User.query.filter_by(email="traps@example.com").count()
+
+    def test_person_who_takes_their_time_gets_an_account(self, app, client):
+        page = client.get("/register")
+        started = re.search(rb'name="started" type="hidden" value="([^"]+)"', page.data).group(1)
+
+        with patch("app.forms_auth.time") as mock_time:
+            mock_time.time.return_value = time.time() + 10
+            response = client.post(
+                "/register", data=self._registration_data(started=started.decode())
+            )
+
+        assert response.status_code == 302
+        assert self._account_count(app) == 1
+
+    def test_submission_right_after_the_page_loads_is_turned_away(self, app, client):
+        page = client.get("/register")
+        started = re.search(rb'name="started" type="hidden" value="([^"]+)"', page.data).group(1)
+
+        response = client.post("/register", data=self._registration_data(started=started.decode()))
+
+        assert response.status_code == 200
+        assert b"process that sign-up" in response.data
+        assert self._account_count(app) == 0
+
+    def test_filled_honeypot_is_turned_away(self, app, client):
+        with app.app_context():
+            started = issue_registration_started_token(now=time.time() - 10)
+
+        response = client.post(
+            "/register",
+            data=self._registration_data(started=started, website="http://spam.example"),
+        )
+
+        assert response.status_code == 200
+        assert b"process that sign-up" in response.data
+        assert self._account_count(app) == 0
+
+    @pytest.mark.parametrize("started", ["", "not-a-signed-value"])
+    def test_missing_or_forged_start_time_is_turned_away(self, app, client, started):
+        response = client.post("/register", data=self._registration_data(started=started))
+
+        assert response.status_code == 200
+        assert b"process that sign-up" in response.data
+        assert self._account_count(app) == 0
 
 
 class TestProtectedRoutes:
