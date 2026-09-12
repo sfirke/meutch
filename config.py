@@ -298,8 +298,8 @@ class Config:
 
     # Web password reset and resend confirmation, counted per client address on every
     # submission. Both send an email to whatever address they are given, so without a
-    # limit either one can be used to mail somebody repeatedly, and both reveal whether
-    # an address has an account. Matches the API's recovery limit.
+    # limit either one can be used to mail somebody repeatedly. Resend confirmation also
+    # says whether an address has an account. Matches the API's recovery limit.
     AUTH_RECOVERY_RATE_LIMIT = os.environ.get("AUTH_RECOVERY_RATE_LIMIT", "5 per hour")
 
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or SECRET_KEY

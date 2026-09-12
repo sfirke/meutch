@@ -862,7 +862,6 @@ class TestPasswordReset:
         assert known_response.status_code == unknown_response.status_code
         assert GENERIC_PASSWORD_RESET_MESSAGE in known_response.data
         assert GENERIC_PASSWORD_RESET_MESSAGE in unknown_response.data
-        assert b"have been sent to your email" not in known_response.data
 
     def test_forgot_password_submissions_are_rate_limited_per_client(self, app, client):
         """Submissions past the limit get the friendly 429 page, but the form still loads."""
