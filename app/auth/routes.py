@@ -227,7 +227,12 @@ def login():
             )
             return render_template("auth/login.html", form=form)
 
-        flash("Invalid email or password", "danger")
+        flash(
+            "Invalid email or password. If you signed up but never confirmed your "
+            "email address, the account may have been removed. You're welcome to "
+            "sign up again.",
+            "danger",
+        )
     return render_template("auth/login.html", form=form)
 
 
@@ -300,7 +305,12 @@ def resend_confirmation():
                 source=CONFIRMATION_SOURCE_MANUAL,
                 show_resend=True,
             )
-            flash("We could not find an account with that email address.", "danger")
+            flash(
+                "We could not find an account with that email address. If you signed up "
+                "but never confirmed it, the account may have been removed. You're "
+                "welcome to sign up again.",
+                "danger",
+            )
             return redirect(url_for("auth.resend_confirmation"))
 
         if resend_result.status == auth_service.RESEND_CONFIRMATION_STATUS_ALREADY_CONFIRMED:
