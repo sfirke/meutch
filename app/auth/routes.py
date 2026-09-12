@@ -287,6 +287,7 @@ def confirm_email(token):
 
 
 @auth_bp.route("/resend-confirmation", methods=["GET", "POST"])
+@limiter.limit(lambda: current_app.config["AUTH_RECOVERY_RATE_LIMIT"], methods=["POST"])
 def resend_confirmation():
     """Resend confirmation email"""
     form = ResendConfirmationForm()
@@ -337,6 +338,7 @@ def resend_confirmation():
 
 
 @auth_bp.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit(lambda: current_app.config["AUTH_RECOVERY_RATE_LIMIT"], methods=["POST"])
 def forgot_password():
     """Request password reset"""
     if current_user.is_authenticated:
@@ -345,13 +347,11 @@ def forgot_password():
     form = ForgotPasswordForm()
     if form.validate_on_submit():
         password_reset_request = auth_service.request_password_reset(form.email.data)
-        if password_reset_request.status == auth_service.PASSWORD_RESET_REQUEST_STATUS_SENT:
-            flash("Password reset instructions have been sent to your email.", "info")
-        elif (
-            password_reset_request.status == auth_service.PASSWORD_RESET_REQUEST_STATUS_SEND_FAILED
-        ):
+        if password_reset_request.status == auth_service.PASSWORD_RESET_REQUEST_STATUS_SEND_FAILED:
             flash("Error sending password reset email. Please try again later.", "error")
         else:
+            # Deliberately the same message whether or not that address has an account,
+            # so the form cannot be used to find out who has one.
             flash(
                 "If an account with that email exists, password reset instructions have been sent.",
                 "info",
