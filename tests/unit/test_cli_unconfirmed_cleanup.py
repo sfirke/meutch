@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from app import db
 from app.cli import check_loan_reminders, purge_unconfirmed
 from app.models import User
-from tests.factories import UserFactory
+from tests.factories import AdminActionFactory, UserFactory
 
 
 def _user(*, days_old, confirmed=False, deleted=False):
@@ -32,6 +32,18 @@ class TestPurgeUnconfirmed:
             remaining = {user.email for user in User.query.all()}
             assert stale_email not in remaining
             assert kept_emails <= remaining
+
+    def test_keeps_accounts_the_admin_action_log_points_at(self, app, runner):
+        with app.app_context():
+            logged = _user(days_old=400)
+            AdminActionFactory(target_user=logged)
+            db.session.commit()
+            logged_email = logged.email
+
+            result = runner.invoke(purge_unconfirmed, [])
+
+            assert result.exit_code == 0, result.output
+            assert logged_email in {user.email for user in User.query.all()}
 
     def test_reports_when_there_is_nothing_to_remove(self, app, runner):
         with app.app_context():

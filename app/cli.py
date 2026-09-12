@@ -1693,14 +1693,16 @@ def purge_unconfirmed_accounts_logic(older_than_days=UNCONFIRMED_ACCOUNT_RETENTI
 
     These accounts could never sign in, so they own nothing. They are removed
     outright rather than through the member account-deletion workflow, which would
-    email the address a goodbye note. Accounts an admin already deleted are left
-    alone because the admin action log still points at them.
+    email the address a goodbye note. Accounts the admin action log points at are
+    left alone: those rows reference the user, so deleting the user would fail and
+    take the rest of the run down with it.
     """
     cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=older_than_days)
     stale_users = User.query.filter(
         User.email_confirmed.is_(False),
         User.is_deleted.is_(False),
         User.created_at < cutoff,
+        ~User.actions_received.any(),
     ).all()
 
     removed_emails = [stale_user.email for stale_user in stale_users]
