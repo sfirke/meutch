@@ -226,22 +226,19 @@ class RegistrationForm(FlaskForm):
         return None
 
     def validate_email(self, email):
-        """Check if email is already registered with contextual status."""
+        """Reject an address that already belongs to a confirmed account.
+
+        An address on an unconfirmed account is left alone: nobody has proved they
+        control it, so this sign-up is allowed to claim it.
+        """
         from app.services.auth_service import check_existing_email
 
         result = check_existing_email(email.data)
-        if result.exists:
-            if result.is_confirmed:
-                self.email_status = "confirmed"
-                raise ValidationError(
-                    "This email is already registered. Use the forgot-password link below to regain access."
-                )
-            else:
-                self.email_status = "unconfirmed"
-                raise ValidationError(
-                    "This email is already registered but hasn't been confirmed yet. "
-                    "Use the resend-confirmation link below or try a different email."
-                )
+        if result.exists and result.is_confirmed:
+            self.email_status = "confirmed"
+            raise ValidationError(
+                "This email is already registered. Use the forgot-password link below to regain access."
+            )
 
     def validate(self, extra_validators=None):
         """Custom validation to ensure required fields are filled based on location method"""
