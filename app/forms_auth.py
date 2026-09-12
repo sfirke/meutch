@@ -31,6 +31,7 @@ from app.forms_shared import (
 )
 from app.models import User
 from app.services.auth_service import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
+from app.utils.name_plausibility import implausible_name_reason
 
 REGISTRATION_STARTED_SALT = "registration-form-started"
 
@@ -213,6 +214,11 @@ class RegistrationForm(FlaskForm):
         """Return why this submission looks automated, or None if it passes."""
         if self.website.data:
             return "honeypot"
+
+        for field in (self.first_name, self.last_name):
+            name_reason = implausible_name_reason(field.data)
+            if name_reason:
+                return f"{field.name}_{name_reason}"
 
         min_seconds = current_app.config["REGISTRATION_MIN_FILL_SECONDS"]
         if min_seconds <= 0:

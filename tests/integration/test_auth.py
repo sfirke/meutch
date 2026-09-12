@@ -689,6 +689,42 @@ class TestRegistrationBotTraps:
         assert b"process that sign-up" in response.data
         assert self._account_count(app) == 0
 
+    @pytest.mark.parametrize(
+        "first_name, last_name",
+        [
+            ("ZspMSWgBftjwEHvOnFjWgHCn", "XgpaMpyjmoggqgJDEW"),
+            ("Trap", "qwrtpsdfghjklzxcvb"),
+        ],
+    )
+    def test_generated_looking_name_is_turned_away(self, app, client, first_name, last_name):
+        with app.app_context():
+            started = issue_registration_started_token(now=time.time() - 10)
+
+        response = client.post(
+            "/register",
+            data=self._registration_data(
+                started=started, first_name=first_name, last_name=last_name
+            ),
+        )
+
+        assert response.status_code == 200
+        assert b"process that sign-up" in response.data
+        assert self._account_count(app) == 0
+
+    def test_an_awkward_real_name_still_gets_an_account(self, app, client):
+        with app.app_context():
+            started = issue_registration_started_token(now=time.time() - 10)
+
+        response = client.post(
+            "/register",
+            data=self._registration_data(
+                started=started, first_name="Krzysztof", last_name="DeLaCruz-O'Brien"
+            ),
+        )
+
+        assert response.status_code == 302
+        assert self._account_count(app) == 1
+
     @pytest.mark.parametrize("started", ["", "not-a-signed-value"])
     def test_missing_or_forged_start_time_is_turned_away(self, app, client, started):
         response = client.post("/register", data=self._registration_data(started=started))
