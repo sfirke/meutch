@@ -6,13 +6,13 @@ from app.api.v1.schemas.base import ApiDateTime, ApiSchema, validate_location_me
 from app.api.v1.schemas.users import UserIdentitySchema
 from app.models import User
 from app.services.auth_service import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
-from app.utils.name_plausibility import implausible_name_reason
+from app.utils.name_plausibility import IMPLAUSIBLE_NAME_MESSAGE, implausible_name_reason
 
 
 def validate_plausible_name(value):
     """Turn away the machine-generated names that spam sign-ups use."""
     if implausible_name_reason(value):
-        raise ValidationError("Enter your name the way you would normally write it.")
+        raise ValidationError(IMPLAUSIBLE_NAME_MESSAGE)
 
 
 class LoginRequestSchema(ApiSchema):

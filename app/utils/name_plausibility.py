@@ -40,6 +40,10 @@ REASON_INTERNAL_CAPITALS = "internal_capitals"
 REASON_CONSONANT_RUN = "consonant_run"
 REASON_NO_VOWELS = "no_vowels"
 
+# What a person sees when their name is turned away. It tells a real person what
+# to change without spelling out the rules for a script to work around.
+IMPLAUSIBLE_NAME_MESSAGE = "Enter your name as you normally write it."
+
 # Punctuation that shows up inside real names: O'Brien, Mary-Jane, Jr., van der
 # Berg, and the curly apostrophe a phone keyboard produces.
 _ALLOWED_PUNCTUATION = frozenset(" '’ʼ-‐‑.,")

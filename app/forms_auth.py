@@ -1,6 +1,7 @@
+import logging
 import time
 
-from flask import current_app
+from flask import current_app, request
 from flask_wtf import FlaskForm
 from itsdangerous import BadSignature, URLSafeSerializer
 from wtforms import (
@@ -31,7 +32,9 @@ from app.forms_shared import (
 )
 from app.models import User
 from app.services.auth_service import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
-from app.utils.name_plausibility import implausible_name_reason
+from app.utils.name_plausibility import IMPLAUSIBLE_NAME_MESSAGE, implausible_name_reason
+
+logger = logging.getLogger(__name__)
 
 REGISTRATION_STARTED_SALT = "registration-form-started"
 
@@ -215,11 +218,6 @@ class RegistrationForm(FlaskForm):
         if self.website.data:
             return "honeypot"
 
-        for field in (self.first_name, self.last_name):
-            name_reason = implausible_name_reason(field.data)
-            if name_reason:
-                return f"{field.name}_{name_reason}"
-
         min_seconds = current_app.config["REGISTRATION_MIN_FILL_SECONDS"]
         if min_seconds <= 0:
             return None
@@ -230,6 +228,24 @@ class RegistrationForm(FlaskForm):
         if elapsed < min_seconds:
             return "too_fast"
         return None
+
+    def _reject_implausible_name(self, field):
+        reason = implausible_name_reason(field.data)
+        if reason:
+            logger.warning(
+                "Turned away a sign-up with a machine-generated %s (%s) for %s from %s",
+                field.name,
+                reason,
+                self.email.data,
+                request.remote_addr,
+            )
+            raise ValidationError(IMPLAUSIBLE_NAME_MESSAGE)
+
+    def validate_first_name(self, first_name):
+        self._reject_implausible_name(first_name)
+
+    def validate_last_name(self, last_name):
+        self._reject_implausible_name(last_name)
 
     def validate_email(self, email):
         """Check if email is already registered with contextual status."""

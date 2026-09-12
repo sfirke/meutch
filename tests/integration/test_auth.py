@@ -708,7 +708,8 @@ class TestRegistrationBotTraps:
         )
 
         assert response.status_code == 200
-        assert b"process that sign-up" in response.data
+        assert b"Enter your name as you normally write it." in response.data
+        assert b"process that sign-up" not in response.data
         assert self._account_count(app) == 0
 
     def test_an_awkward_real_name_still_gets_an_account(self, app, client):
