@@ -34,6 +34,7 @@ CONFIRM_EMAIL_STATUS_CONFIRMED = "confirmed"
 CONFIRM_EMAIL_STATUS_EXPIRED = "expired"
 CONFIRM_EMAIL_STATUS_INVALID_LINK = "invalid_link"
 CONFIRM_EMAIL_STATUS_INVALID_TOKEN = "invalid_token"
+CONFIRM_EMAIL_STATUS_VALID = "valid"
 
 RESEND_CONFIRMATION_STATUS_SENT = "sent"
 RESEND_CONFIRMATION_STATUS_ALREADY_CONFIRMED = "already_confirmed"
@@ -243,7 +244,8 @@ def authenticate_user(email, password):
     return AuthenticationResult(status=LOGIN_STATUS_SUCCESS, user=user)
 
 
-def confirm_email_token(token):
+def get_confirmation_token_status(token):
+    """Check a confirmation link without using it up."""
     user = User.query.filter_by(email_confirmation_token=token).first()
     if not user:
         return AuthWorkflowResult(status=CONFIRM_EMAIL_STATUS_INVALID_LINK)
@@ -251,6 +253,15 @@ def confirm_email_token(token):
     if _is_expired(user.email_confirmation_sent_at, CONFIRMATION_TOKEN_TTL):
         return AuthWorkflowResult(status=CONFIRM_EMAIL_STATUS_EXPIRED, user=user)
 
+    return AuthWorkflowResult(status=CONFIRM_EMAIL_STATUS_VALID, user=user)
+
+
+def confirm_email_token(token):
+    token_status = get_confirmation_token_status(token)
+    if token_status.status != CONFIRM_EMAIL_STATUS_VALID:
+        return token_status
+
+    user = token_status.user
     if user.confirm_email(token):
         db.session.commit()
         return AuthWorkflowResult(status=CONFIRM_EMAIL_STATUS_CONFIRMED, user=user)

@@ -10,6 +10,8 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Security
 - **Spam protection**: The sign-up form now limits how many times it can be submitted from one connection in an hour. This slows down scripts creating fake accounts, which also sent confirmation emails to people who never signed up ([#495](https://github.com/sfirke/meutch/pull/495)).
+- **Spam protection**: The sign-up form now turns away submissions that look automated: ones that fill in a hidden field people never see, or that come back within a few seconds of the page loading. If this ever catches a real person, submitting the form again works ([#496](https://github.com/sfirke/meutch/pull/496)).
+- **Spam protection**: The link in the confirmation email now opens a page with a "Confirm my email" button, and your address is confirmed when you click it. Before, just opening the link confirmed the account, so the link scanners many workplace email systems run could confirm an account nobody actually signed up for ([#497](https://github.com/sfirke/meutch/pull/497)).
 - **Spam protection**: Accounts whose email address is never confirmed are now deleted automatically 14 days after sign-up. If that happens to you, you can simply sign up again. The privacy policy now says so ([#498](https://github.com/sfirke/meutch/pull/498)).
 
 ### Bug fixes
