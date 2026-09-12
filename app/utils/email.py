@@ -85,7 +85,7 @@ Hello {user.first_name},
 
 Welcome to Meutch!
 
-To complete your registration, please click the link below to confirm your email address:
+To complete your registration, open the link below and click the button to confirm your email address:
 
 {confirmation_url}
 
