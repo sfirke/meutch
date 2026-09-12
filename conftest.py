@@ -188,6 +188,7 @@ class TestConfig(Config):
     API_V1_WRITE_RATE_LIMIT = "1000 per minute"
     API_V1_IMAGE_WRITE_RATE_LIMIT = "1000 per minute"
     AUTH_REGISTER_RATE_LIMIT = "1000 per minute"
+    AUTH_RECOVERY_RATE_LIMIT = "1000 per minute"
 
 
 @pytest.fixture(scope="session")
