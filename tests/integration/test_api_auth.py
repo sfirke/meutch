@@ -373,9 +373,10 @@ class TestApiAuth:
         assert "already registered" in payload["error"]["message"].lower()
         assert "forgot-password" in payload["error"]["message"].lower()
 
-    def test_register_rejects_duplicate_unconfirmed_email(self, client, app):
+    def test_register_claims_a_duplicate_unconfirmed_email(self, client, app):
         with app.app_context():
             user = UserFactory(email_confirmed=False)
+            user.set_password("squatterpassword123")
             db.session.commit()
             user_email = user.email
 
@@ -383,15 +384,25 @@ class TestApiAuth:
             "/api/v1/auth/register",
             json={
                 "email": user_email,
-                "first_name": "Dupe",
-                "last_name": "User",
-                "password": "somepassword123",
+                "first_name": "Real",
+                "last_name": "Owner",
+                "password": "realownerpassword123",
                 "location_method": "skip",
             },
         )
 
-        assert response.status_code == 409
-        payload = response.get_json()
-        assert payload["error"]["code"] == "CONFLICT"
-        assert payload["error"]["details"]["email_status"] == "unconfirmed"
-        assert "hasn't been confirmed" in payload["error"]["message"].lower()
+        assert response.status_code == 201
+
+        # The password the earlier sign-up chose is gone: it is now rejected as a bad
+        # credential, while the new one gets as far as the confirmation gate.
+        stale = client.post(
+            "/api/v1/auth/login",
+            json={"email": user_email, "password": "squatterpassword123"},
+        )
+        assert stale.status_code == 401
+
+        claimed = client.post(
+            "/api/v1/auth/login",
+            json={"email": user_email, "password": "realownerpassword123"},
+        )
+        assert claimed.status_code == 403

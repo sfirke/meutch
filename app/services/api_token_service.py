@@ -199,18 +199,11 @@ def is_token_revoked(token_payload):
 def register_api_user(**user_data):
     """Register a new API user while preserving web-auth workflow behavior."""
     existing = auth_service.check_existing_email(user_data["email"])
-    if existing.exists:
-        if existing.is_confirmed:
-            raise ConflictError(
-                "An account with this email is already registered. "
-                "Use the forgot-password flow to regain access.",
-                details={"email_status": "confirmed"},
-            )
-        else:
-            raise ConflictError(
-                "An account with this email exists but hasn't been confirmed. "
-                "Check your email or request a new confirmation.",
-                details={"email_status": "unconfirmed"},
-            )
+    if existing.exists and existing.is_confirmed:
+        raise ConflictError(
+            "An account with this email is already registered. "
+            "Use the forgot-password flow to regain access.",
+            details={"email_status": "confirmed"},
+        )
 
     return auth_service.register_user(**user_data)

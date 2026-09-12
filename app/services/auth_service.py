@@ -118,6 +118,32 @@ def _is_expired(sent_at, ttl):
     return datetime.now(UTC) - normalized_sent_at > ttl
 
 
+def _clear_pending_registration(user):
+    """Discard what an earlier, never-confirmed sign-up left on this row.
+
+    The address is about to be claimed by whoever is signing up now, so none of
+    the previous attempt's profile, tokens or flags may carry over to them. The
+    sign-up date is reset too, which restarts the clock the unconfirmed-account
+    cleanup runs on.
+    """
+    user.about_me = ""
+    user.profile_image_url = None
+    user.latitude = None
+    user.longitude = None
+    user.geocoded_at = None
+    user.geocoding_failed = False
+    user.email_confirmation_token = None
+    user.email_confirmation_sent_at = None
+    user.password_reset_token = None
+    user.password_reset_sent_at = None
+    user.created_at = datetime.now(UTC).replace(tzinfo=None)
+    user.last_login = None
+    user.is_admin = False
+    user.is_public_showcase = False
+    user.vacation_mode = False
+    _clear_lockout_state(user)
+
+
 def register_user(
     *,
     email,
@@ -135,12 +161,26 @@ def register_user(
     latitude=None,
     longitude=None,
 ):
-    user = User(
-        email=email.lower(),
-        first_name=first_name,
-        last_name=last_name,
-        digest_frequency=digest_frequency,
-    )
+    user = _get_user_by_email(email)
+    if user is not None and user.is_confirmed():
+        raise ConflictError(
+            "An account with this email is already registered. "
+            "If this is your account, use the forgot password link to regain access.",
+            details={"email_status": "confirmed"},
+        )
+
+    if user is None:
+        user = User(email=email.lower())
+        db.session.add(user)
+    else:
+        # An unconfirmed row is a pending registration, not an account: nobody has
+        # proved they control the address yet. This sign-up takes it over, and
+        # everything the previous attempt left on the row is discarded.
+        _clear_pending_registration(user)
+
+    user.first_name = first_name
+    user.last_name = last_name
+    user.digest_frequency = digest_frequency
     user.set_password(password)
 
     location_status = location_service.apply_registration_location(
@@ -155,24 +195,15 @@ def register_user(
         longitude=longitude,
     )
 
-    db.session.add(user)
     try:
         db.session.commit()
     except IntegrityError:
+        # Two sign-ups for the same new address raced each other to the insert.
         db.session.rollback()
-        existing = check_existing_email(email)
-        if existing.is_confirmed:
-            raise ConflictError(
-                "An account with this email is already registered. "
-                "If this is your account, use the forgot password link to regain access.",
-                details={"email_status": "confirmed"},
-            ) from None
-        else:
-            raise ConflictError(
-                "An account with this email exists but hasn't been confirmed yet. "
-                "Please check your email for the confirmation link or request a new one.",
-                details={"email_status": "unconfirmed"},
-            ) from None
+        raise ConflictError(
+            "We couldn't complete that sign-up. Please try again.",
+            details={"email_status": "conflict"},
+        ) from None
     email_sent = send_confirmation_email(user, next_url=next_url)
     return RegistrationResult(
         user=user,

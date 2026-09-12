@@ -145,30 +145,39 @@ class TestAuthService:
             assert "already registered" in str(excinfo.value).lower()
             assert "forgot password" in str(excinfo.value).lower()
 
-    def test_register_user_catches_integrity_error_unconfirmed(self, app):
+    def test_register_user_claims_an_unconfirmed_pending_registration(self, app):
         with app.app_context():
-            _user = UserFactory(email="unconfirmed@example.com", email_confirmed=False)
+            pending = UserFactory(
+                email="pending@example.com",
+                first_name="Squatter",
+                email_confirmed=False,
+            )
+            pending.set_password("squatterpassword123")
+            pending.created_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=10)
             db.session.commit()
+            pending_id = pending.id
 
-            with (
-                patch("app.services.auth_service.send_confirmation_email", return_value=True),
-                patch.object(
-                    auth_service.db.session,
-                    "commit",
-                    side_effect=IntegrityError("mock", "orig", "stmt"),
-                ),
-            ):
-                with pytest.raises(ConflictError) as excinfo:
-                    auth_service.register_user(
-                        email="unconfirmed@example.com",
-                        first_name="Unconfirmed",
-                        last_name="User",
-                        password=TEST_PASSWORD,
-                        digest_frequency="weekly",
-                        location_method="skip",
-                    )
+            with patch("app.services.auth_service.send_confirmation_email", return_value=True):
+                result = auth_service.register_user(
+                    email="pending@example.com",
+                    first_name="Real",
+                    last_name="Owner",
+                    password=TEST_PASSWORD,
+                    digest_frequency="weekly",
+                    location_method="skip",
+                )
 
-            assert "hasn't been confirmed" in str(excinfo.value).lower()
+            # The row is reused, so anything still pointing at it stays valid.
+            assert result.user.id == pending_id
+            assert result.user.first_name == "Real"
+            assert result.user.check_password(TEST_PASSWORD)
+            assert not result.user.check_password("squatterpassword123")
+            assert result.user.email_confirmed is False
+            # The sign-up date restarts, giving the new registrant a full window
+            # before the unconfirmed-account cleanup looks at the row.
+            assert result.user.created_at > datetime.now(UTC).replace(tzinfo=None) - timedelta(
+                days=1
+            )
 
     def test_resend_confirmation_email_for_user_returns_already_confirmed(self, app):
         with app.app_context():

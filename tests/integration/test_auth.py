@@ -406,32 +406,35 @@ class TestAuthenticationRoutes:
             assert b"already registered" in response.data
             assert b"Forgot your password" in response.data or b"forgot-password" in response.data
 
-    def test_register_duplicate_email_unconfirmed(self, client, app):
-        """Test registration with duplicate unconfirmed email shows resend-confirmation link."""
+    def test_register_over_unconfirmed_email_claims_it(self, client, app):
+        """A sign-up for an address nobody confirmed takes that address over."""
         with app.app_context():
-            user = UserFactory(email_confirmed=False)
+            user = UserFactory(email_confirmed=False, first_name="Squatter")
+            user.set_password("squatterpassword123")
             db.session.commit()
+            user_email = user.email
+            user_id = user.id
+
             response = client.post(
                 "/register",
                 data={
-                    "email": user.email,
-                    "first_name": "Duplicate",
-                    "last_name": "User",
+                    "email": user_email,
+                    "first_name": "Real",
+                    "last_name": "Owner",
                     "location_method": "skip",
-                    "password": "duplicatepassword123",
-                    "confirm_password": "duplicatepassword123",
+                    "password": "realownerpassword123",
+                    "confirm_password": "realownerpassword123",
                     "age_confirm": True,
                 },
             )
 
-            assert response.status_code == 200
-            assert b"already registered" in response.data
-            response_text = response.get_data(as_text=True).lower()
-            assert "hasn&#39;t been confirmed" in response_text
-            assert (
-                "resend confirmation email" in response_text
-                or "resend-confirmation" in response_text
-            )
+            assert response.status_code == 302
+            db.session.expire_all()
+            claimed = db.session.get(User, user_id)
+            assert claimed.first_name == "Real"
+            assert claimed.check_password("realownerpassword123")
+            assert not claimed.check_password("squatterpassword123")
+            assert User.query.filter_by(email=user_email).count() == 1
 
     def test_register_password_mismatch(self, client):
         """Test registration with password mismatch."""
@@ -548,6 +551,12 @@ class TestAuthenticationRoutes:
                 follow_redirects=True,
             )
             assert response.status_code == 200
+
+            # An address is only taken for good once it has been confirmed. Until
+            # then it is a pending registration that a later sign-up may claim.
+            registered = User.query.filter_by(email="unique@example.com").first()
+            registered.email_confirmed = True
+            db.session.commit()
 
             # Try to register again with a small set of different cases - should fail
             test_emails = [
