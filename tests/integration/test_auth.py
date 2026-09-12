@@ -813,6 +813,11 @@ class TestEmailConfirmation:
         assert b'class="collapse show" id="resend-confirmation-panel"' in response.data
 
 
+GENERIC_PASSWORD_RESET_MESSAGE = (
+    b"If an account with that email exists, password reset instructions have been sent."
+)
+
+
 class TestPasswordReset:
     """Test password reset functionality."""
 
@@ -831,7 +836,7 @@ class TestPasswordReset:
             )
 
             assert response.status_code == 200
-            assert b"Password reset instructions have been sent to your email." in response.data
+            assert GENERIC_PASSWORD_RESET_MESSAGE in response.data
 
     def test_forgot_password_invalid_email(self, client):
         """Test forgot password with invalid email."""
@@ -839,6 +844,64 @@ class TestPasswordReset:
 
         assert response.status_code == 302
         assert response.location.endswith("/login")
+
+    def test_forgot_password_answers_the_same_for_known_and_unknown_emails(
+        self, client, app, auth_user
+    ):
+        """The form cannot be used to find out which addresses have accounts."""
+        with app.app_context():
+            user = auth_user()
+            known_response = client.post(
+                "/forgot-password", data={"email": user.email}, follow_redirects=True
+            )
+
+        unknown_response = client.post(
+            "/forgot-password", data={"email": "nobody@example.com"}, follow_redirects=True
+        )
+
+        assert known_response.status_code == unknown_response.status_code
+        assert GENERIC_PASSWORD_RESET_MESSAGE in known_response.data
+        assert GENERIC_PASSWORD_RESET_MESSAGE in unknown_response.data
+        assert b"have been sent to your email" not in known_response.data
+
+    def test_forgot_password_submissions_are_rate_limited_per_client(self, app, client):
+        """Submissions past the limit get the friendly 429 page, but the form still loads."""
+        original_limit = app.config["AUTH_RECOVERY_RATE_LIMIT"]
+        try:
+            app.config["AUTH_RECOVERY_RATE_LIMIT"] = "1 per minute"
+
+            first_response = client.post("/forgot-password", data={"email": "who@example.com"})
+            limited_response = client.post("/forgot-password", data={"email": "who@example.com"})
+            page_response = client.get("/forgot-password")
+        finally:
+            app.config["AUTH_RECOVERY_RATE_LIMIT"] = original_limit
+            limiter.reset()
+
+        assert first_response.status_code == 302
+        assert limited_response.status_code == 429
+        assert b"too many attempts from your connection" in limited_response.data
+        assert page_response.status_code == 200
+
+    def test_resend_confirmation_submissions_are_rate_limited_per_client(self, app, client):
+        """Resending a confirmation email is limited too: it also mails whatever address
+        it is given."""
+        original_limit = app.config["AUTH_RECOVERY_RATE_LIMIT"]
+        try:
+            app.config["AUTH_RECOVERY_RATE_LIMIT"] = "1 per minute"
+
+            first_response = client.post("/resend-confirmation", data={"email": "who@example.com"})
+            limited_response = client.post(
+                "/resend-confirmation", data={"email": "who@example.com"}
+            )
+            page_response = client.get("/resend-confirmation")
+        finally:
+            app.config["AUTH_RECOVERY_RATE_LIMIT"] = original_limit
+            limiter.reset()
+
+        assert first_response.status_code == 302
+        assert limited_response.status_code == 429
+        assert b"too many attempts from your connection" in limited_response.data
+        assert page_response.status_code == 200
 
 
 class TestRedirectAfterLogin:

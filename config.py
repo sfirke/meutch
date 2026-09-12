@@ -296,6 +296,12 @@ class Config:
     # variable if that happens.
     AUTH_REGISTER_RATE_LIMIT = os.environ.get("AUTH_REGISTER_RATE_LIMIT", "10 per hour")
 
+    # Web password reset and resend confirmation, counted per client address on every
+    # submission. Both send an email to whatever address they are given, so without a
+    # limit either one can be used to mail somebody repeatedly, and both reveal whether
+    # an address has an account. Matches the API's recovery limit.
+    AUTH_RECOVERY_RATE_LIMIT = os.environ.get("AUTH_RECOVERY_RATE_LIMIT", "5 per hour")
+
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or SECRET_KEY
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(
         minutes=parse_int_env(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES_MINUTES"), 15)
@@ -331,6 +337,7 @@ class TestingConfig(Config):
     API_V1_IMAGE_WRITE_RATE_LIMIT = "1000 per minute"
     API_V1_READ_RATE_LIMIT = "1000 per minute"
     AUTH_REGISTER_RATE_LIMIT = "1000 per minute"
+    AUTH_RECOVERY_RATE_LIMIT = "1000 per minute"
 
 
 # Each gunicorn worker keeps its own connection pool, so the app can hold up to
