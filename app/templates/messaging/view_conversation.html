@@ -385,10 +385,11 @@
     <h3>Messages</h3>
     <div class="thread-container">
         {% for msg in thread_messages %}
+            {% set extension_request = msg.loan_extension_request %}
             <div class="card message-card
                 {% if msg.sender_id == current_user.id %}message-mine{% else %}message-theirs{% endif %}
                 {% if msg.has_pending_action %}unread-message{% endif %}
-                {% if msg.is_loan_request_message and msg.loan_request.messages[0] == msg %} message-loan{% endif %}">
+                {% if extension_request or (msg.is_loan_request_message and msg.loan_request.messages[0] == msg) %} message-loan{% endif %}">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -432,7 +433,25 @@
                         {% endif %}
                     </div>
                 {% endif %}
+                {% if extension_request %}
+                    <div class="loan-request-details mb-3">
+                        <h5>Extension Request</h5>
+                        <p>
+                            <strong>Due date:</strong>
+                            {{ extension_request.previous_end_date.strftime('%B %d, %Y') }} &rarr; {{ extension_request.proposed_end_date.strftime('%B %d, %Y') }}
+                        </p>
+                        <p><strong>Status:</strong>
+                            <span class="badge bg-{{ 'warning text-dark' if extension_request.status == 'pending' else 'success' if extension_request.status == 'approved' else 'danger' }}">
+                                {{ extension_request.status|title }}
+                            </span>
+                        </p>
+                    </div>
+                    {% if extension_request.message %}
+                        <p>{{ extension_request.message|linkify }}</p>
+                    {% endif %}
+                {% else %}
                     <p>{{ msg.body|linkify }}</p>
+                {% endif %}
                 </div>
             </div>
         {% endfor %}
