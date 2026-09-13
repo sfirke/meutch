@@ -1,11 +1,14 @@
 """Integration tests for authentication routes."""
 
+import re
+import time
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
 
-from app import db
+from app import db, limiter
+from app.forms_auth import issue_registration_started_token
 from app.models import User
 from conftest import TEST_PASSWORD, login_user
 from tests.factories import CircleFactory, ItemFactory, UserFactory
@@ -338,7 +341,7 @@ class TestAuthenticationRoutes:
             _db.session.commit()
             token_value = user.email_confirmation_token
 
-        response = client.get(
+        response = client.post(
             f"/confirm/{token_value}?next=/share/giveaway/abc123", follow_redirects=False
         )
 
@@ -357,11 +360,30 @@ class TestAuthenticationRoutes:
             _db.session.commit()
             token_value = user.email_confirmation_token
 
-        response = client.get(f"/confirm/{token_value}", follow_redirects=False)
+        response = client.post(f"/confirm/{token_value}", follow_redirects=False)
 
         assert response.status_code == 302
         assert "/login" in response.location
         assert "next=" not in response.location
+
+    def test_opening_confirmation_link_asks_for_a_click_before_confirming(self, client, app):
+        """Mail scanners open links without clicking anything, so a GET alone must not
+        confirm the address. The page it shows keeps ?next for the button's POST."""
+        with app.app_context():
+            user = UserFactory(email_confirmed=False)
+            user.generate_confirmation_token()
+            db.session.commit()
+            user_id = user.id
+            token_value = user.email_confirmation_token
+
+        response = client.get(f"/confirm/{token_value}?next=/share/giveaway/abc123")
+
+        assert response.status_code == 200
+        assert f'action="/confirm/{token_value}'.encode() in response.data
+        assert b'type="submit"' in response.data
+        assert b"abc123" in response.data
+        with app.app_context():
+            assert db.session.get(User, user_id).email_confirmed is False
 
     def test_register_duplicate_email_confirmed(self, client, app, auth_user):
         """Test registration with duplicate confirmed email shows forgot-password link."""
@@ -451,6 +473,34 @@ class TestAuthenticationRoutes:
                 assert b"could not send the confirmation email yet" in response.data
                 assert b"Your account is ready" in response.data
                 assert b'class="collapse show" id="resend-confirmation-panel"' in response.data
+
+    def test_register_submissions_are_rate_limited_per_client(self, app, client):
+        """Sign-up submissions past the limit get the friendly 429 page, but the form
+        itself still loads."""
+        registration_data = {
+            "email": "ratelimited@example.com",
+            "first_name": "Rate",
+            "last_name": "Limited",
+            "location_method": "skip",
+            "age_confirm": True,
+            "password": "ratelimited123",
+            "confirm_password": "ratelimited123",
+        }
+        original_limit = app.config["AUTH_REGISTER_RATE_LIMIT"]
+        try:
+            app.config["AUTH_REGISTER_RATE_LIMIT"] = "1 per minute"
+
+            first_response = client.post("/register", data=registration_data)
+            limited_response = client.post("/register", data=registration_data)
+            page_response = client.get("/register")
+        finally:
+            app.config["AUTH_REGISTER_RATE_LIMIT"] = original_limit
+            limiter.reset()
+
+        assert first_response.status_code == 302
+        assert limited_response.status_code == 429
+        assert b"too many attempts from your connection" in limited_response.data
+        assert page_response.status_code == 200
 
     def test_case_insensitive_login(self, client, app):
         """Test that login is case-insensitive for email addresses."""
@@ -574,6 +624,117 @@ class TestAuthenticationRoutes:
             assert user.email == "testuser@example.com"  # Should be stored as lowercase
 
 
+class TestRegistrationBotTraps:
+    """Sign-ups that look automated are turned away before an account is created."""
+
+    @pytest.fixture(autouse=True)
+    def min_fill_seconds(self, app):
+        original = app.config["REGISTRATION_MIN_FILL_SECONDS"]
+        app.config["REGISTRATION_MIN_FILL_SECONDS"] = 3
+        yield
+        app.config["REGISTRATION_MIN_FILL_SECONDS"] = original
+
+    @staticmethod
+    def _registration_data(**overrides):
+        data = {
+            "email": "traps@example.com",
+            "first_name": "Trap",
+            "last_name": "Tester",
+            "location_method": "skip",
+            "age_confirm": True,
+            "password": "trappassword123",
+            "confirm_password": "trappassword123",
+        }
+        data.update(overrides)
+        return data
+
+    @staticmethod
+    def _account_count(app):
+        with app.app_context():
+            return User.query.filter_by(email="traps@example.com").count()
+
+    def test_person_who_takes_their_time_gets_an_account(self, app, client):
+        page = client.get("/register")
+        started = re.search(rb'name="started" type="hidden" value="([^"]+)"', page.data).group(1)
+
+        with patch("app.forms_auth.time") as mock_time:
+            mock_time.time.return_value = time.time() + 10
+            response = client.post(
+                "/register", data=self._registration_data(started=started.decode())
+            )
+
+        assert response.status_code == 302
+        assert self._account_count(app) == 1
+
+    def test_submission_right_after_the_page_loads_is_turned_away(self, app, client):
+        page = client.get("/register")
+        started = re.search(rb'name="started" type="hidden" value="([^"]+)"', page.data).group(1)
+
+        response = client.post("/register", data=self._registration_data(started=started.decode()))
+
+        assert response.status_code == 200
+        assert b"process that sign-up" in response.data
+        assert self._account_count(app) == 0
+
+    def test_filled_honeypot_is_turned_away(self, app, client):
+        with app.app_context():
+            started = issue_registration_started_token(now=time.time() - 10)
+
+        response = client.post(
+            "/register",
+            data=self._registration_data(started=started, website="http://spam.example"),
+        )
+
+        assert response.status_code == 200
+        assert b"process that sign-up" in response.data
+        assert self._account_count(app) == 0
+
+    @pytest.mark.parametrize(
+        "first_name, last_name",
+        [
+            ("ZspMSWgBftjwEHvOnFjWgHCn", "XgpaMpyjmoggqgJDEW"),
+            ("Trap", "qwrtpsdfghjklzxcvb"),
+        ],
+    )
+    def test_generated_looking_name_is_turned_away(self, app, client, first_name, last_name):
+        with app.app_context():
+            started = issue_registration_started_token(now=time.time() - 10)
+
+        response = client.post(
+            "/register",
+            data=self._registration_data(
+                started=started, first_name=first_name, last_name=last_name
+            ),
+        )
+
+        assert response.status_code == 200
+        assert b"Enter your name as you normally write it." in response.data
+        assert b"process that sign-up" not in response.data
+        assert self._account_count(app) == 0
+
+    def test_an_awkward_real_name_still_gets_an_account(self, app, client):
+        with app.app_context():
+            started = issue_registration_started_token(now=time.time() - 10)
+
+        response = client.post(
+            "/register",
+            data=self._registration_data(
+                started=started, first_name="Krzysztof", last_name="DeLaCruz-O'Brien"
+            ),
+        )
+
+        assert response.status_code == 302
+        assert self._account_count(app) == 1
+
+    @pytest.mark.parametrize("started", ["", "not-a-signed-value"])
+    def test_missing_or_forged_start_time_is_turned_away(self, app, client, started):
+        response = client.post("/register", data=self._registration_data(started=started))
+
+        assert response.status_code == 200
+        assert b"process that sign-up" in response.data
+        assert self._account_count(app) == 0
+
+
 class TestProtectedRoutes:
     """Test that protected routes require authentication."""
 
@@ -689,6 +850,11 @@ class TestEmailConfirmation:
         assert b'class="collapse show" id="resend-confirmation-panel"' in response.data
 
 
+GENERIC_PASSWORD_RESET_MESSAGE = (
+    b"If an account with that email exists, password reset instructions have been sent."
+)
+
+
 class TestPasswordReset:
     """Test password reset functionality."""
 
@@ -707,7 +873,7 @@ class TestPasswordReset:
             )
 
             assert response.status_code == 200
-            assert b"Password reset instructions have been sent to your email." in response.data
+            assert GENERIC_PASSWORD_RESET_MESSAGE in response.data
 
     def test_forgot_password_invalid_email(self, client):
         """Test forgot password with invalid email."""
@@ -715,6 +881,63 @@ class TestPasswordReset:
 
         assert response.status_code == 302
         assert response.location.endswith("/login")
+
+    def test_forgot_password_answers_the_same_for_known_and_unknown_emails(
+        self, client, app, auth_user
+    ):
+        """The form cannot be used to find out which addresses have accounts."""
+        with app.app_context():
+            user = auth_user()
+            known_response = client.post(
+                "/forgot-password", data={"email": user.email}, follow_redirects=True
+            )
+
+        unknown_response = client.post(
+            "/forgot-password", data={"email": "nobody@example.com"}, follow_redirects=True
+        )
+
+        assert known_response.status_code == unknown_response.status_code
+        assert GENERIC_PASSWORD_RESET_MESSAGE in known_response.data
+        assert GENERIC_PASSWORD_RESET_MESSAGE in unknown_response.data
+
+    def test_forgot_password_submissions_are_rate_limited_per_client(self, app, client):
+        """Submissions past the limit get the friendly 429 page, but the form still loads."""
+        original_limit = app.config["AUTH_RECOVERY_RATE_LIMIT"]
+        try:
+            app.config["AUTH_RECOVERY_RATE_LIMIT"] = "1 per minute"
+
+            first_response = client.post("/forgot-password", data={"email": "who@example.com"})
+            limited_response = client.post("/forgot-password", data={"email": "who@example.com"})
+            page_response = client.get("/forgot-password")
+        finally:
+            app.config["AUTH_RECOVERY_RATE_LIMIT"] = original_limit
+            limiter.reset()
+
+        assert first_response.status_code == 302
+        assert limited_response.status_code == 429
+        assert b"too many attempts from your connection" in limited_response.data
+        assert page_response.status_code == 200
+
+    def test_resend_confirmation_submissions_are_rate_limited_per_client(self, app, client):
+        """Resending a confirmation email is limited too: it also mails whatever address
+        it is given."""
+        original_limit = app.config["AUTH_RECOVERY_RATE_LIMIT"]
+        try:
+            app.config["AUTH_RECOVERY_RATE_LIMIT"] = "1 per minute"
+
+            first_response = client.post("/resend-confirmation", data={"email": "who@example.com"})
+            limited_response = client.post(
+                "/resend-confirmation", data={"email": "who@example.com"}
+            )
+            page_response = client.get("/resend-confirmation")
+        finally:
+            app.config["AUTH_RECOVERY_RATE_LIMIT"] = original_limit
+            limiter.reset()
+
+        assert first_response.status_code == 302
+        assert limited_response.status_code == 429
+        assert b"too many attempts from your connection" in limited_response.data
+        assert page_response.status_code == 200
 
 
 class TestRedirectAfterLogin:

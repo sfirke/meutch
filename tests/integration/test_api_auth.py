@@ -6,7 +6,7 @@ from flask_jwt_extended import create_access_token
 from werkzeug.datastructures import MultiDict
 
 from app import db
-from app.models import ApiTokenFamily
+from app.models import ApiTokenFamily, User
 from app.services import api_token_service
 from tests.factories import UserFactory
 
@@ -395,3 +395,22 @@ class TestApiAuth:
         assert payload["error"]["code"] == "CONFLICT"
         assert payload["error"]["details"]["email_status"] == "unconfirmed"
         assert "hasn't been confirmed" in payload["error"]["message"].lower()
+
+    def test_register_rejects_a_generated_looking_name(self, client, app):
+        response = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "generated-name@example.com",
+                "first_name": "ZspMSWgBftjwEHvOnFjWgHCn",
+                "last_name": "XgpaMpyjmoggqgJDEW",
+                "password": "somepassword123",
+                "location_method": "skip",
+            },
+        )
+
+        assert response.status_code == 422
+        payload = response.get_json()
+        assert payload["error"]["code"] == "VALIDATION_ERROR"
+        assert set(payload["error"]["details"]) == {"first_name", "last_name"}
+        with app.app_context():
+            assert User.query.filter_by(email="generated-name@example.com").count() == 0

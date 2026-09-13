@@ -177,6 +177,12 @@ def create_app(config_class=None):
             return build_http_error_response(e)
         return render_template("errors/413.html"), 413
 
+    @app.errorhandler(429)
+    def too_many_requests(e):
+        if is_api_request_path(request.path):
+            return build_http_error_response(e)
+        return render_template("errors/429.html"), 429
+
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
         flash("Your session has expired. Please log in again to continue.", "warning")

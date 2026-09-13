@@ -142,6 +142,18 @@ def cancel_loan_request(loan, borrower_id):
     )
 
 
+def _close_pending_extension_request(loan):
+    """Close an unanswered extension request when its loan ends.
+
+    Nobody can approve or deny it once the loan is over, so left alone it
+    would read as pending forever.
+    """
+    pending_request = loan.pending_extension_request
+    if pending_request:
+        pending_request.status = "canceled"
+        pending_request.responded_at = datetime.now(UTC)
+
+
 def complete_loan(loan, owner_id):
     if loan.item.owner_id != owner_id:
         raise AuthorizationError("You are not authorized to perform this action.")
@@ -154,6 +166,7 @@ def complete_loan(loan, owner_id):
     conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
     loan.status = "completed"
     loan.item.available = True
+    _close_pending_extension_request(loan)
 
     return message_service.create_message(
         owner_id,
@@ -176,6 +189,7 @@ def owner_cancel_approved_loan(loan, owner_id):
     conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
     loan.status = "canceled"
     loan.item.available = True
+    _close_pending_extension_request(loan)
 
     return message_service.create_message(
         owner_id,
@@ -235,6 +249,9 @@ def extend_loan(loan, owner_id, new_end_date, owner_message):
 
     conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
 
+    # create_message commits the session, so the loan and extension request
+    # changes above are saved in the same transaction as the notice.  If the
+    # message fails, everything rolls back together.
     message = message_service.create_message(
         owner_id,
         loan.borrower_id,
@@ -287,9 +304,10 @@ def request_extension(loan, borrower_id, proposed_end_date, borrower_message):
     message_body = (
         f"Extension requested for '{loan.item.name}'.\n"
         f"Current due date: {loan.end_date.strftime('%B %d, %Y')}\n"
-        f"Proposed new due date: {proposed_end_date.strftime('%B %d, %Y')}\n\n"
-        f"Message from borrower: {cleaned_message}"
+        f"Proposed new due date: {proposed_end_date.strftime('%B %d, %Y')}"
     )
+    if cleaned_message:
+        message_body += f"\n\nMessage from borrower: {cleaned_message}"
 
     return message_service.create_message(
         borrower_id,
@@ -346,6 +364,9 @@ def process_extension_request(extension_request, owner_id, action):
 
     conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
 
+    # create_message commits the session, so the extension request and loan
+    # changes above are saved in the same transaction as the notice.  If the
+    # message fails, everything rolls back together.
     message = message_service.create_message(
         owner_id,
         loan.borrower_id,
