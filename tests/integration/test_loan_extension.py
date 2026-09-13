@@ -258,6 +258,45 @@ class TestLoanExtension:
             assert b"Deny Request" in response.data
             assert b"Extend Loan Period" not in response.data
 
+    def test_owner_decides_pending_extension_instead_of_extending(self, app, client):
+        """While a borrower's extension request is pending, the owner is offered
+        Approve/Deny Extension rather than a separate 'Extend Loan Period'."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                start_date=date.today(),
+                end_date=date.today() + timedelta(days=7),
+                status="approved",
+            )
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            msg = MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                conversation=conversation,
+                body="Can I borrow this?",
+            )
+            msg.loan_request = loan
+            db.session.commit()
+
+            login_user(client, owner.email)
+            conversation_url = url_for("main.view_conversation", conversation_id=conversation.id)
+
+            response = client.get(conversation_url)
+            assert b"Extend Loan Period" in response.data
+            assert b"Approve Extension" not in response.data
+
+            LoanExtensionRequestFactory(loan_request=loan)
+            db.session.commit()
+
+            response = client.get(conversation_url)
+            assert b"Approve Extension" in response.data
+            assert b"Deny Extension" in response.data
+            assert b"Extend Loan Period" not in response.data
+
     def test_pending_loan_conversation_shows_shared_circle_links(self, app, client):
         """Pending loan conversations should show the circles both users share."""
         with app.app_context():
