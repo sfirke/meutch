@@ -175,6 +175,7 @@ class LoanExtensionRequestFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "flush"
 
     loan_request = factory.SubFactory(LoanRequestFactory)
+    previous_end_date = factory.LazyAttribute(lambda obj: obj.loan_request.end_date)
     proposed_end_date = factory.LazyAttribute(
         lambda obj: obj.loan_request.end_date + timedelta(days=7)
     )

@@ -388,6 +388,8 @@ class TestLoanExtensionRequests:
             )
             assert message is not None
             assert "Extension requested" in message.body
+            assert message.loan_extension_request == extension_request
+            assert extension_request.previous_end_date == date.today() + timedelta(days=2)
 
     def test_owner_can_approve_extension_request_and_due_date_updates(self, app, client):
         """Owner approval updates due date and resolves extension request."""

@@ -269,14 +269,14 @@ def request_extension(loan, borrower_id, proposed_end_date, borrower_message):
     owner_id = loan.item.owner_id
     conversation = _ensure_item_conversation(loan.item, borrower_id, owner_id)
 
-    db.session.add(
-        LoanExtensionRequest(
-            loan_request_id=loan.id,
-            proposed_end_date=proposed_end_date,
-            message=cleaned_message,
-            status="pending",
-        )
+    extension_request = LoanExtensionRequest(
+        loan_request_id=loan.id,
+        previous_end_date=loan.end_date,
+        proposed_end_date=proposed_end_date,
+        message=cleaned_message,
+        status="pending",
     )
+    db.session.add(extension_request)
 
     # The has_pending_extension check above can be passed by two simultaneous
     # submissions, so let the partial unique index settle the race before any
@@ -301,6 +301,7 @@ def request_extension(loan, borrower_id, proposed_end_date, borrower_message):
         message_body,
         conversation_id=conversation.id,
         loan_request_id=loan.id,
+        loan_extension_request_id=extension_request.id,
     )
 
 
