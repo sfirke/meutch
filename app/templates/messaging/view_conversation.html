@@ -463,7 +463,8 @@
                             {{ extension_request.previous_end_date.strftime('%B %d, %Y') }} &rarr; {{ extension_request.proposed_end_date.strftime('%B %d, %Y') }}
                         </p>
                         <p><strong>Status:</strong>
-                            <span class="badge bg-{{ 'warning text-dark' if extension_request.status == 'pending' else 'success' if extension_request.status == 'approved' else 'danger' }}">
+                            {% set extension_badge_colors = {'pending': 'warning text-dark', 'approved': 'success', 'denied': 'danger', 'canceled': 'secondary'} %}
+                            <span class="badge bg-{{ extension_badge_colors.get(extension_request.status, 'secondary') }}">
                                 {{ extension_request.status|title }}
                             </span>
                         </p>
