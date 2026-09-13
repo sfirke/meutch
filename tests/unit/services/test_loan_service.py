@@ -384,3 +384,21 @@ class TestLoanService:
 
             assert LoanExtensionRequest.query.filter_by(status="pending").count() == 1
             assert LoanExtensionRequest.query.count() == 2
+
+    @pytest.mark.parametrize(
+        "end_loan", [loan_service.complete_loan, loan_service.owner_cancel_approved_loan]
+    )
+    def test_ending_a_loan_cancels_its_pending_extension_request(self, app, end_loan):
+        with app.app_context():
+            loan = self._approved_loan()
+            pending = LoanExtensionRequestFactory(
+                loan_request=loan, proposed_end_date=date.today() + timedelta(days=7)
+            )
+            db.session.commit()
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                end_loan(loan, loan.item.owner_id)
+
+            db.session.expire_all()
+            assert pending.status == "canceled"
+            assert pending.responded_at is not None

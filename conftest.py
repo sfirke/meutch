@@ -174,6 +174,10 @@ class TestConfig(Config):
     # config subclass.
     TRUSTED_PROXY_COUNT = 0
 
+    # Test clients submit forms instantly. Tests of the minimum fill time turn it on
+    # themselves.
+    REGISTRATION_MIN_FILL_SECONDS = 0
+
     # Keep production-like limiter wiring active in tests, but use very high
     # defaults so ordinary integration traffic does not exhaust shared buckets.
     API_V1_RATE_LIMITS_ENABLED = True
@@ -183,6 +187,8 @@ class TestConfig(Config):
     API_V1_AUTH_SESSION_RATE_LIMIT = "1000 per minute"
     API_V1_WRITE_RATE_LIMIT = "1000 per minute"
     API_V1_IMAGE_WRITE_RATE_LIMIT = "1000 per minute"
+    AUTH_REGISTER_RATE_LIMIT = "1000 per minute"
+    AUTH_RECOVERY_RATE_LIMIT = "1000 per minute"
 
 
 @pytest.fixture(scope="session")

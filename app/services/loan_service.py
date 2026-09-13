@@ -142,6 +142,18 @@ def cancel_loan_request(loan, borrower_id):
     )
 
 
+def _close_pending_extension_request(loan):
+    """Close an unanswered extension request when its loan ends.
+
+    Nobody can approve or deny it once the loan is over, so left alone it
+    would read as pending forever.
+    """
+    pending_request = loan.pending_extension_request
+    if pending_request:
+        pending_request.status = "canceled"
+        pending_request.responded_at = datetime.now(UTC)
+
+
 def complete_loan(loan, owner_id):
     if loan.item.owner_id != owner_id:
         raise AuthorizationError("You are not authorized to perform this action.")
@@ -154,6 +166,7 @@ def complete_loan(loan, owner_id):
     conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
     loan.status = "completed"
     loan.item.available = True
+    _close_pending_extension_request(loan)
 
     return message_service.create_message(
         owner_id,
@@ -176,6 +189,7 @@ def owner_cancel_approved_loan(loan, owner_id):
     conversation = _ensure_item_conversation(loan.item, owner_id, loan.borrower_id)
     loan.status = "canceled"
     loan.item.available = True
+    _close_pending_extension_request(loan)
 
     return message_service.create_message(
         owner_id,

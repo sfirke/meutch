@@ -1,11 +1,18 @@
 """Authentication API schemas."""
 
-from marshmallow import fields, validate, validates_schema
+from marshmallow import ValidationError, fields, validate, validates_schema
 
 from app.api.v1.schemas.base import ApiDateTime, ApiSchema, validate_location_method_fields
 from app.api.v1.schemas.users import UserIdentitySchema
 from app.models import User
 from app.services.auth_service import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
+from app.utils.name_plausibility import IMPLAUSIBLE_NAME_MESSAGE, implausible_name_reason
+
+
+def validate_plausible_name(value):
+    """Turn away the machine-generated names that spam sign-ups use."""
+    if implausible_name_reason(value):
+        raise ValidationError(IMPLAUSIBLE_NAME_MESSAGE)
 
 
 class LoginRequestSchema(ApiSchema):
@@ -24,8 +31,12 @@ class RegisterRequestSchema(ApiSchema):
     """Registration payload for API account creation."""
 
     email = fields.Email(required=True, validate=validate.Length(max=120))
-    first_name = fields.String(required=True, validate=validate.Length(max=50))
-    last_name = fields.String(required=True, validate=validate.Length(max=50))
+    first_name = fields.String(
+        required=True, validate=[validate.Length(max=50), validate_plausible_name]
+    )
+    last_name = fields.String(
+        required=True, validate=[validate.Length(max=50), validate_plausible_name]
+    )
     password = fields.String(
         required=True,
         validate=validate.Length(min=PASSWORD_MIN_LENGTH, max=PASSWORD_MAX_LENGTH),

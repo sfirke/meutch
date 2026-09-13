@@ -6,6 +6,13 @@
     <h1>Register</h1>
     <form method="post" action="{{ url_for('auth.register', next=request.args.get('next')) }}">
         {{ form.csrf_token }}
+        {{ form.started() }}
+
+        {# Kept off-screen and out of the tab order, so only a script filling in every field puts anything here. #}
+        <div style="position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden;" aria-hidden="true">
+            {{ form.website.label }}
+            {{ form.website(tabindex="-1", autocomplete="off") }}
+        </div>
 
         <h5>Who You Are</h5>
         <p class="text-muted">Meutch uses real names for sharing within communities.</p>

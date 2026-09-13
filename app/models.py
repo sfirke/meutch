@@ -758,7 +758,7 @@ class LoanExtensionRequest(db.Model):
     previous_end_date = db.Column(db.Date, nullable=False)
     proposed_end_date = db.Column(db.Date, nullable=False)
     message = db.Column(db.Text, nullable=False)
-    # pending, approved, denied
+    # pending, approved, denied, canceled (the loan ended before the owner answered)
     status = db.Column(db.String(20), default="pending", nullable=False)
     created_at = db.Column(db.DateTime, default=func.now(), nullable=False)
     responded_at = db.Column(db.DateTime, nullable=True)
