@@ -960,7 +960,6 @@ def send_loan_due_soon_email(loan):
     from app.utils.messaging_queries import loan_conversation_url
 
     conversation_url = loan_conversation_url(loan, external=True)
-    extension_url = url_for("main.request_extension", loan_id=loan.id, _external=True)
 
     subject = f"Meutch - Reminder: {loan.item.name} is due in 3 days"
 
@@ -973,10 +972,7 @@ Item: {loan.item.name}
 Owner: {owner.first_name} {owner.last_name}
 Due Date: {loan.end_date.strftime("%B %d, %Y")} (in 3 days)
 
-Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
-
-Need more time? Request an extension here:
-{extension_url}
+Please make arrangements to return the item by the due date. If you need more time, you can request an extension from the loan page.
 
 You can view the loan and message the owner here:
 {conversation_url}
@@ -1004,14 +1000,10 @@ The Meutch Team
         </div>
 
         <p style="color: #666; font-size: 14px;">
-            Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
+            Please make arrangements to return the item by the due date. If you need more time, you can request an extension from the loan page.
         </p>
 
-        <div style="text-align: center; margin: 30px 0; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-            <a href="{extension_url}"
-               style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                Request Extension
-            </a>
+        <div style="text-align: center; margin: 30px 0;">
             <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 View Loan
@@ -1051,7 +1043,6 @@ def send_loan_due_today_borrower_email(loan):
     from app.utils.messaging_queries import loan_conversation_url
 
     conversation_url = loan_conversation_url(loan, external=True)
-    extension_url = url_for("main.request_extension", loan_id=loan.id, _external=True)
 
     subject = f"Meutch - {loan.item.name} is due back today"
 
@@ -1064,10 +1055,7 @@ Item: {loan.item.name}
 Owner: {owner.first_name} {owner.last_name}
 Due Date: Today, {loan.end_date.strftime("%B %d, %Y")}
 
-Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
-
-If you need more time, you can request an extension here:
-{extension_url}
+Please return the item to the owner as soon as possible. If you need more time, you can request an extension from the loan page. If you have already returned it, please let the owner know.
 
 You can view the loan and message the owner here:
 {conversation_url}
@@ -1095,14 +1083,10 @@ The Meutch Team
         </div>
 
         <p style="color: #666; font-size: 14px;">
-            Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
+            Please return the item to the owner as soon as possible. If you need more time, you can request an extension from the loan page. If you have already returned it, please let the owner know.
         </p>
 
-        <div style="text-align: center; margin: 30px 0; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-            <a href="{extension_url}"
-               style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                Request Extension
-            </a>
+        <div style="text-align: center; margin: 30px 0;">
             <a href="{conversation_url}"
                style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 View Loan
@@ -1232,7 +1216,6 @@ def send_loan_overdue_borrower_email(loan, days_overdue):
     from app.utils.messaging_queries import loan_conversation_url
 
     conversation_url = loan_conversation_url(loan, external=True)
-    extension_url = url_for("main.request_extension", loan_id=loan.id, _external=True)
 
     subject = f"Meutch - Reminder: {loan.item.name} is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue"
 
@@ -1246,10 +1229,7 @@ Owner: {owner.first_name} {owner.last_name}
 Due Date: {loan.end_date.strftime("%B %d, %Y")}
 Days Overdue: {days_overdue}
 
-Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
-
-Need additional time? Request an extension here:
-{extension_url}
+Please return the item to the owner as soon as possible. If you need more time, you can request an extension from the loan page.
 
 You can view the loan and message the owner here:
 {conversation_url}
@@ -1278,14 +1258,10 @@ The Meutch Team
         </div>
 
         <p style="color: #666; font-size: 14px;">
-            Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
+            Please return the item to the owner as soon as possible. If you need more time, you can request an extension from the loan page.
         </p>
 
-        <div style="text-align: center; margin: 30px 0; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-            <a href="{extension_url}"
-               style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                Request Extension
-            </a>
+        <div style="text-align: center; margin: 30px 0;">
             <a href="{conversation_url}"
                style="background-color: #dc3545; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 View Loan
