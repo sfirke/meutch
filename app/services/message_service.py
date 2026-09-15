@@ -251,6 +251,7 @@ def create_message(
     conversation_id=None,
     parent_id=None,
     loan_request_id=None,
+    loan_extension_request_id=None,
 ):
     if sender_id == recipient_id:
         raise InvalidActionError("You cannot message yourself.")
@@ -263,6 +264,7 @@ def create_message(
         is_read=False,
         parent_id=parent_id,
         loan_request_id=loan_request_id,
+        loan_extension_request_id=loan_extension_request_id,
     )
     db.session.add(message)
 

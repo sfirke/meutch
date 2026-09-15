@@ -306,6 +306,7 @@ class TestLoanService:
             db.session.add(
                 LoanExtensionRequest(
                     loan_request_id=loan.id,
+                    previous_end_date=loan.end_date,
                     proposed_end_date=date.today() + timedelta(days=7),
                     message="First",
                     status="pending",
@@ -365,6 +366,7 @@ class TestLoanService:
             db.session.add(
                 LoanExtensionRequest(
                     loan_request_id=loan.id,
+                    previous_end_date=loan.end_date,
                     proposed_end_date=date.today() + timedelta(days=7),
                     message="First",
                     status="denied",

@@ -1325,17 +1325,21 @@ footer h6 {
 }
 
 .conversation-summary-media {
+    position: relative;
     display: block;
     height: 100%;
     min-height: 240px;
     background: linear-gradient(135deg, #edfdfd 0%, #f7fafc 100%);
 }
 
+/* Taken out of the flow so a tall photo shrinks to fit the card instead of
+   stretching it, and letterboxed rather than cropped. */
 .conversation-summary-media img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
-    min-height: 240px;
-    object-fit: cover;
+    object-fit: contain;
 }
 
 .conversation-summary-media-placeholder {
@@ -1393,6 +1397,14 @@ footer h6 {
     .conversation-summary-media img,
     .conversation-summary-media-placeholder {
         min-height: 180px;
+    }
+
+    /* Stacked above the card body there is no row height to fit into. */
+    .conversation-summary-media img {
+        position: static;
+        display: block;
+        height: auto;
+        max-height: 320px;
     }
 
     .conversation-summary-title {
