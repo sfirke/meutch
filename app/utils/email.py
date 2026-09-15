@@ -217,12 +217,14 @@ def send_message_notification_email(message):
         item_name = conversation.item.name if conversation.item else "Unknown Item"
         body_lower = (message.body or "").lower()
         message_body_lower = _generated_prefix(message.body)
-        loan_is_active = message.loan_request.status == "approved"
         # The borrower's extension request is linked to its row.  Every other
         # loan event has to be read back out of the wording the app used when
         # it wrote the message.  Match the whole app-written sentence, item
         # name included, rather than bare words: the item name is user-typed
         # too, and a loan request's opening message is entirely free text.
+        # extend_loan() writes the "has been extended" wording for pending
+        # loans too (the owner can move a still-pending request's dates
+        # before it's approved), so that check isn't gated on loan status.
         decision_prefix = f"your extension request for '{item_name.lower()}'"
         if message.loan_extension_request is not None:
             subject = f"Meutch - Extension Request for {item_name}"
@@ -233,10 +235,10 @@ def send_message_notification_email(message):
         elif body_lower.startswith(f"{decision_prefix} was denied."):
             subject = f"Meutch - Extension Denied for {item_name}"
             email_type = "extension denial"
-        elif loan_is_active and "' has been extended" in message_body_lower:
+        elif "' has been extended" in message_body_lower:
             subject = f"Meutch - Loan Extended for {item_name}"
             email_type = "loan extension"
-        elif loan_is_active and "' has been updated" in message_body_lower:
+        elif "' has been updated" in message_body_lower:
             # The owner moved the due date earlier; "extended" would be wrong.
             subject = f"Meutch - Due Date Updated for {item_name}"
             email_type = "due date update"

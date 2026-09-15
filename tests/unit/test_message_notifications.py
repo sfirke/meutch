@@ -414,6 +414,38 @@ class TestMessageNotifications:
 
             assert expected_subject in self._subject_for(extend_result.message)
 
+    def test_due_date_change_subject_on_pending_loan(self, app):
+        """Moving the dates on a still-pending request emails "extended", not "new request"."""
+        with app.app_context():
+            owner = UserFactory(email="owner5@test.com", first_name="Robin", last_name="Owner")
+            borrower = UserFactory(
+                email="borrower5@test.com", first_name="Jamie", last_name="Borrower"
+            )
+            item = ItemFactory(name="Ladder", owner=owner, available=True)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status="pending",
+                start_date=date.today() + timedelta(days=1),
+                end_date=date.today() + timedelta(days=7),
+            )
+
+            # Let the app write the message itself, so a reworded notice fails here.
+            with patch("app.services.message_service.send_message_notification_email"):
+                extend_result = loan_service.extend_loan(
+                    loan,
+                    owner.id,
+                    loan.end_date + timedelta(days=5),
+                    "",
+                )
+
+            with patch("app.utils.email.send_email") as mock_send_email:
+                mock_send_email.return_value = True
+
+                assert send_message_notification_email(extend_result.message) is True
+                args, _ = mock_send_email.call_args
+                assert "Loan Extended for Ladder" in args[1]
+
 
 class TestMessageNotificationBodyRendering:
     """The HTML part of a notification escapes the body and links its URLs."""
