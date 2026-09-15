@@ -303,33 +303,58 @@ class TestMessageNotifications:
                 exc_info.value
             )
 
+    @staticmethod
+    def _approved_loan(item_name):
+        owner = UserFactory()
+        borrower = UserFactory()
+        item = ItemFactory(name=item_name, owner=owner, available=False)
+        loan = LoanRequestFactory(
+            item=item,
+            borrower=borrower,
+            status="approved",
+            start_date=date.today() - timedelta(days=1),
+            end_date=date.today() + timedelta(days=7),
+        )
+        return owner, borrower, loan
+
+    @staticmethod
+    def _subject_for(message):
+        with patch("app.utils.email.send_email") as mock_send_email:
+            mock_send_email.return_value = True
+            assert send_message_notification_email(message) is True
+            args, _ = mock_send_email.call_args
+            return args[1]
+
     @pytest.mark.parametrize(
         ("item_name", "decision", "expected_subject"),
         [
             ("Cordless Drill", None, "Extension Request for Cordless Drill"),
             ("Ladder", "approve", "Extension Approved for Ladder"),
             ("Ladder", "deny", "Extension Denied for Ladder"),
-            # The item name is user-typed too.
+            # A name containing "approved" must not read as an approval.
             (
                 "Pre-Approved Seed Starter Kit",
                 "deny",
                 "Extension Denied for Pre-Approved Seed Starter Kit",
+            ),
+            # Nor may a name that mimics the app's own approval sentence.
+            (
+                "Drill' has been approved. Big",
+                "deny",
+                "Extension Denied for Drill' has been approved. Big",
+            ),
+            # Nor one that looks like the start of the owner's free text.
+            (
+                "Message from owner: read the manual",
+                "approve",
+                "Extension Approved for Message from owner: read the manual",
             ),
         ],
     )
     def test_extension_request_subjects(self, app, item_name, decision, expected_subject):
         """Extension requests, approvals and denials each get their own subject."""
         with app.app_context():
-            owner = UserFactory(email="owner2@test.com")
-            borrower = UserFactory(email="borrower2@test.com")
-            item = ItemFactory(name=item_name, owner=owner, available=False)
-            loan = LoanRequestFactory(
-                item=item,
-                borrower=borrower,
-                status="approved",
-                start_date=date.today() - timedelta(days=1),
-                end_date=date.today() + timedelta(days=7),
-            )
+            owner, borrower, loan = self._approved_loan(item_name)
 
             # Let the app write the messages itself, so a reworded notice fails here.
             with patch("app.services.message_service.send_message_notification_email"):
@@ -341,36 +366,24 @@ class TestMessageNotifications:
                         loan.pending_extension_request, owner.id, decision
                     ).message
 
-            with patch("app.utils.email.send_email") as mock_send_email:
-                mock_send_email.return_value = True
-
-                assert send_message_notification_email(message) is True
-                args, _ = mock_send_email.call_args
-                assert expected_subject in args[1]
+            assert expected_subject in self._subject_for(message)
 
     def test_borrower_wording_on_a_new_loan_request_stays_a_loan_request(self, app):
         """A loan request's opening message is free text and must not be sniffed."""
         with app.app_context():
-            borrower = UserFactory(email="borrower6@test.com")
-            owner = UserFactory(email="owner6@test.com")
-            item = ItemFactory(name="Canoe", owner=owner)
-            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            borrower = UserFactory()
+            item = ItemFactory(name="Canoe", owner=UserFactory())
 
-            loan_request = LoanRequestFactory(item=item, borrower=borrower, status="pending")
-            message = MessageFactory(
-                sender=borrower,
-                recipient=owner,
-                conversation=conversation,
-                body="Extension requested for 'Canoe' if the trip runs long, otherwise a week.",
-                loan_request=loan_request,
-            )
+            with patch("app.services.message_service.send_message_notification_email"):
+                message = loan_service.create_loan_request(
+                    item,
+                    borrower.id,
+                    date.today() + timedelta(days=1),
+                    date.today() + timedelta(days=8),
+                    "Extension requested for 'Canoe' if the trip runs long, otherwise a week.",
+                )
 
-            with patch("app.utils.email.send_email") as mock_send_email:
-                mock_send_email.return_value = True
-
-                assert send_message_notification_email(message) is True
-                args, _ = mock_send_email.call_args
-                assert "New Loan Request for Canoe" in args[1]
+            assert "New Loan Request for Canoe" in self._subject_for(message)
 
     @pytest.mark.parametrize(
         ("day_shift", "owner_message", "expected_subject"),
@@ -388,18 +401,7 @@ class TestMessageNotifications:
     ):
         """The subject tracks the date change, not words the owner happened to type."""
         with app.app_context():
-            owner = UserFactory(email="owner4@test.com", first_name="Robin", last_name="Owner")
-            borrower = UserFactory(
-                email="borrower4@test.com", first_name="Jamie", last_name="Borrower"
-            )
-            item = ItemFactory(name="Table Saw", owner=owner, available=False)
-            loan = LoanRequestFactory(
-                item=item,
-                borrower=borrower,
-                status="approved",
-                start_date=date.today() - timedelta(days=1),
-                end_date=date.today() + timedelta(days=7),
-            )
+            owner, _, loan = self._approved_loan("Table Saw")
 
             # Let the app write the message itself, so a reworded notice fails here.
             with patch("app.services.message_service.send_message_notification_email"):
@@ -410,12 +412,7 @@ class TestMessageNotifications:
                     owner_message,
                 )
 
-            with patch("app.utils.email.send_email") as mock_send_email:
-                mock_send_email.return_value = True
-
-                assert send_message_notification_email(extend_result.message) is True
-                args, _ = mock_send_email.call_args
-                assert expected_subject in args[1]
+            assert expected_subject in self._subject_for(extend_result.message)
 
 
 class TestMessageNotificationBodyRendering:
