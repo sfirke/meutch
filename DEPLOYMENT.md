@@ -178,15 +178,19 @@ ACTIVITY_LOG_ENABLED=true
 ACTIVITY_LOG_RETENTION_DAYS=90
 ```
 
-The activity log is our own record of things that happen on the site, kept in the
-`activity_log` table. Entries are written on their own database connection, so a logging
-failure cannot break the request that triggered it; failures are logged at `WARNING`.
+The activity log records sign-ins, sign-outs, registrations, email confirmations,
+password resets and replayed API refresh tokens, with the client's IP address and
+browser. Entries are written on their own database connection, so a logging failure
+cannot break the request that triggered it; failures are logged at `WARNING`.
 
 `ACTIVITY_LOG_ENABLED=false` stops all writes. Nothing else changes.
 
 `ACTIVITY_LOG_RETENTION_DAYS` is the retention window, and **it does not delete anything
-by itself** — a scheduled prune job is what enforces it. The table holds IP addresses,
-so that job is not optional in the long run.
+by itself** — a scheduled prune job is what enforces it. The table holds IP addresses and
+typed email addresses that are supposed to age out, so that job is not optional.
+
+The privacy policy describes exactly what goes in this table. Changing what is recorded
+means changing that page in the same pull request.
 
 ### Optional: API Maintenance
 
