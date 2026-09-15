@@ -303,67 +303,50 @@ class TestMessageNotifications:
                 exc_info.value
             )
 
-    def test_send_message_notification_email_extension_request_subject(self, app):
-        """Test extension request messages use extension request subject line."""
+    @pytest.mark.parametrize(
+        ("item_name", "decision", "expected_subject"),
+        [
+            ("Cordless Drill", None, "Extension Request for Cordless Drill"),
+            ("Ladder", "approve", "Extension Approved for Ladder"),
+            ("Ladder", "deny", "Extension Denied for Ladder"),
+            # The item name is user-typed too.
+            (
+                "Pre-Approved Seed Starter Kit",
+                "deny",
+                "Extension Denied for Pre-Approved Seed Starter Kit",
+            ),
+        ],
+    )
+    def test_extension_request_subjects(self, app, item_name, decision, expected_subject):
+        """Extension requests, approvals and denials each get their own subject."""
         with app.app_context():
-            borrower = UserFactory(
-                email="borrower2@test.com", first_name="Alex", last_name="Borrower"
+            owner = UserFactory(email="owner2@test.com")
+            borrower = UserFactory(email="borrower2@test.com")
+            item = ItemFactory(name=item_name, owner=owner, available=False)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status="approved",
+                start_date=date.today() - timedelta(days=1),
+                end_date=date.today() + timedelta(days=7),
             )
-            owner = UserFactory(email="owner2@test.com", first_name="Casey", last_name="Owner")
-            item = ItemFactory(name="Cordless Drill", owner=owner)
-            conversation = ConversationFactory(context_type="item", context_id=item.id)
 
-            loan_request = LoanRequestFactory(item=item, borrower=borrower, status="approved")
-            message = MessageFactory(
-                sender=borrower,
-                recipient=owner,
-                conversation=conversation,
-                body=(
-                    "Extension requested for 'Cordless Drill'.\n"
-                    "Proposed new due date: April 12, 2026"
-                ),
-                loan_request=loan_request,
-            )
+            # Let the app write the messages itself, so a reworded notice fails here.
+            with patch("app.services.message_service.send_message_notification_email"):
+                message = loan_service.request_extension(
+                    loan, borrower.id, loan.end_date + timedelta(days=7), ""
+                )
+                if decision:
+                    message = loan_service.process_extension_request(
+                        loan.pending_extension_request, owner.id, decision
+                    ).message
 
             with patch("app.utils.email.send_email") as mock_send_email:
                 mock_send_email.return_value = True
 
-                result = send_message_notification_email(message)
-
-                assert result is True
+                assert send_message_notification_email(message) is True
                 args, _ = mock_send_email.call_args
-                assert "Extension Request for Cordless Drill" in args[1]
-
-    def test_send_message_notification_email_extension_denial_subject(self, app):
-        """Test extension denial messages use extension denied subject line."""
-        with app.app_context():
-            owner = UserFactory(email="owner3@test.com", first_name="Morgan", last_name="Owner")
-            borrower = UserFactory(
-                email="borrower3@test.com", first_name="Taylor", last_name="Borrower"
-            )
-            item = ItemFactory(name="Ladder", owner=owner)
-            conversation = ConversationFactory(context_type="item", context_id=item.id)
-
-            loan_request = LoanRequestFactory(item=item, borrower=borrower, status="approved")
-            message = MessageFactory(
-                sender=owner,
-                recipient=borrower,
-                conversation=conversation,
-                body=(
-                    "Your extension request for 'Ladder' was denied. "
-                    "The current due date remains April 05, 2026."
-                ),
-                loan_request=loan_request,
-            )
-
-            with patch("app.utils.email.send_email") as mock_send_email:
-                mock_send_email.return_value = True
-
-                result = send_message_notification_email(message)
-
-                assert result is True
-                args, _ = mock_send_email.call_args
-                assert "Extension Denied for Ladder" in args[1]
+                assert expected_subject in args[1]
 
     def test_borrower_wording_on_a_new_loan_request_stays_a_loan_request(self, app):
         """A loan request's opening message is free text and must not be sniffed."""
@@ -388,33 +371,6 @@ class TestMessageNotifications:
                 assert send_message_notification_email(message) is True
                 args, _ = mock_send_email.call_args
                 assert "New Loan Request for Canoe" in args[1]
-
-    def test_item_name_does_not_decide_the_subject(self, app):
-        """The item name is user-typed too."""
-        with app.app_context():
-            owner = UserFactory(email="owner7@test.com")
-            borrower = UserFactory(email="borrower7@test.com")
-            item = ItemFactory(name="Pre-Approved Seed Starter Kit", owner=owner)
-            conversation = ConversationFactory(context_type="item", context_id=item.id)
-
-            loan_request = LoanRequestFactory(item=item, borrower=borrower, status="approved")
-            message = MessageFactory(
-                sender=owner,
-                recipient=borrower,
-                conversation=conversation,
-                body=(
-                    "Your extension request for 'Pre-Approved Seed Starter Kit' was denied. "
-                    "The current due date remains April 05, 2026."
-                ),
-                loan_request=loan_request,
-            )
-
-            with patch("app.utils.email.send_email") as mock_send_email:
-                mock_send_email.return_value = True
-
-                assert send_message_notification_email(message) is True
-                args, _ = mock_send_email.call_args
-                assert "Extension Denied for Pre-Approved Seed Starter Kit" in args[1]
 
     @pytest.mark.parametrize(
         ("day_shift", "owner_message", "expected_subject"),

@@ -27,7 +27,7 @@
 
                         <div class="mb-3">
                             {{ form.proposed_end_date.label(class="form-label") }}
-                            {{ form.proposed_end_date(class="form-control" + (" is-invalid" if form.proposed_end_date.errors else ""), type="date", min=min_extension_date.strftime('%Y-%m-%d')) }}
+                            {{ form.proposed_end_date(class="form-control" + (" is-invalid" if form.proposed_end_date.errors else ""), type="date", min=form.min_date.isoformat()) }}
                             {% if form.proposed_end_date.errors %}
                                 <div class="invalid-feedback">
                                     {% for error in form.proposed_end_date.errors %}
@@ -51,7 +51,7 @@
 
                         <div class="d-grid gap-2">
                             {{ form.submit(class="btn btn-primary") }}
-                            <a href="{{ url_for('main.messages') }}" class="btn btn-secondary">Cancel</a>
+                            <a href="{{ cancel_url }}" class="btn btn-secondary">Cancel</a>
                         </div>
                     </form>
                 </div>

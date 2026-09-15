@@ -753,6 +753,9 @@ class LoanExtensionRequest(db.Model):
         nullable=False,
         index=True,
     )
+    # The loan's due date when the request was made.  Approving the request
+    # overwrites loan.end_date, so the thread needs this to show what changed.
+    previous_end_date = db.Column(db.Date, nullable=False)
     proposed_end_date = db.Column(db.Date, nullable=False)
     message = db.Column(db.Text, nullable=False)
     # pending, approved, denied, canceled (the loan ended before the owner answered)
@@ -873,8 +876,20 @@ class Message(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey("messages.id"), nullable=True)
     loan_request_id = db.Column(UUID(as_uuid=True), db.ForeignKey("loan_request.id"), nullable=True)
+    # Set on the borrower's extension request message, so the thread can show
+    # the request's dates and live status instead of the plain message body.
+    loan_extension_request_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("loan_extension_request.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     loan_request = db.relationship("LoanRequest", backref="messages")
+    loan_extension_request = db.relationship(
+        "LoanExtensionRequest",
+        backref=db.backref("messages", passive_deletes=True),
+    )
 
     sender = db.relationship("User", foreign_keys=[sender_id], backref="sent_messages")
     recipient = db.relationship("User", foreign_keys=[recipient_id], backref="received_messages")

@@ -1,5 +1,3 @@
-from datetime import date, timedelta
-
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
@@ -250,9 +248,6 @@ def request_extension(loan_id):
         return _redirect_to_loan_conversation(loan)
 
     form = RequestExtensionForm(current_end_date=loan.end_date)
-    # An overdue loan's due date is already in the past, and the form rejects
-    # past dates, so the picker's floor is whichever of the two is later.
-    min_extension_date = max(loan.end_date + timedelta(days=1), date.today())
 
     if form.validate_on_submit():
         try:
@@ -278,7 +273,7 @@ def request_extension(loan_id):
         "main/request_extension.html",
         form=form,
         loan=loan,
-        min_extension_date=min_extension_date,
+        cancel_url=loan_conversation_url(loan),
     )
 
 
@@ -293,6 +288,10 @@ def process_extension_request(extension_id, action):
 
     extension_request = db.get_or_404(LoanExtensionRequest, extension_id)
     loan = extension_request.loan_request
+
+    if loan.item.owner_id != current_user.id:
+        flash("You are not authorized to perform this action.", "danger")
+        return redirect(url_for("main.messages"))
 
     try:
         result = loan_service.process_extension_request(extension_request, current_user.id, action)

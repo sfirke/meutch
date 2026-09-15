@@ -19,7 +19,7 @@
                 <div class="row g-0">
                     <div class="col-md-4">
                         {% if item.image %}
-                            <img src="{{ item.image }}" class="img-fluid rounded-start h-100" alt="{{ item.name }}" style="object-fit: cover; min-height: 120px;">
+                            <img src="{{ item.image }}" class="img-fluid rounded-start w-100 h-100 bg-light" alt="{{ item.name }}" style="object-fit: contain; min-height: 120px; max-height: 320px;">
                         {% else %}
                             <div class="d-flex align-items-center justify-content-center bg-light h-100 rounded-start" style="min-height: 120px;">
                                 <i class="fas fa-image text-muted" style="font-size: 2rem;"></i>

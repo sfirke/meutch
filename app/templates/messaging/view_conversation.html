@@ -58,6 +58,7 @@
                             <p class="conversation-summary-description mb-4">{{ conversation_item.description|linkify }}</p>
                         {% endif %}
 
+                        {% set pending_extension_request = active_loan.pending_extension_request if active_loan and active_loan.status == 'approved' else None %}
                         <div class="row g-3">
                             <div class="col-lg-7">
                                 <div class="conversation-summary-panel h-100">
@@ -78,9 +79,6 @@
                                                     {% endif %}
                                                 {% endif %}
                                             </h2>
-                                            <span class="badge bg-{{ 'warning text-dark' if active_loan.status == 'pending' else 'success' if active_loan.status == 'approved' else 'danger' }}">
-                                                {{ active_loan.status|title }}
-                                            </span>
                                             {% if active_loan.status == 'approved' %}
                                                 {% if active_loan.due_state == 'overdue' %}
                                                     <span class="badge bg-danger">Overdue by {{ active_loan.days_overdue() }} day{{ 's' if active_loan.days_overdue() != 1 else '' }}</span>
@@ -89,11 +87,22 @@
                                                 {% elif active_loan.due_state == 'due_soon' %}
                                                     <span class="badge bg-warning text-dark">Due in {{ active_loan.days_until_due() }} day{{ 's' if active_loan.days_until_due() != 1 else '' }}</span>
                                                 {% endif %}
+                                            {% else %}
+                                                <span class="badge bg-{{ 'warning text-dark' if active_loan.status == 'pending' else 'danger' }}">
+                                                    {{ active_loan.status|title }}
+                                                </span>
                                             {% endif %}
                                         </div>
-                                        <p class="mb-0">
-                                            <strong>Requested dates:</strong> {{ active_loan.start_date.strftime('%Y-%m-%d') }} to {{ active_loan.end_date.strftime('%Y-%m-%d') }}
-                                        </p>
+                                        {% if active_loan.status == 'approved' %}
+                                            <p class="mb-1 text-muted">Start date: {{ active_loan.start_date.strftime('%B %d, %Y') }}</p>
+                                            <p class="mb-0">
+                                                <strong>Due date:</strong> {{ active_loan.end_date.strftime('%B %d, %Y') }}
+                                            </p>
+                                        {% else %}
+                                            <p class="mb-0">
+                                                <strong>Requested dates:</strong> {{ active_loan.start_date.strftime('%B %d, %Y') }} to {{ active_loan.end_date.strftime('%B %d, %Y') }}
+                                            </p>
+                                        {% endif %}
                                     {% else %}
                                         <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                                             <h2 class="h5 mb-0">Item Status</h2>
@@ -153,75 +162,87 @@
                                         {% if is_item_owner %}
                                             <h2 class="h5 mb-3">Owner Actions</h2>
                                             {% if pending_extension_request %}
+                                                {% set extra_days = (pending_extension_request.proposed_end_date - active_loan.end_date).days %}
                                                 <div class="alert alert-warning mb-3">
-                                                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-                                                        <div>
-                                                            <strong>Extension request pending</strong><br>
-                                                            Proposed due date: {{ pending_extension_request.proposed_end_date.strftime('%B %d, %Y') }}<br>
-                                                            <small>{{ pending_extension_request.message|linkify }}</small>
-                                                        </div>
-                                                        <div class="d-flex gap-2 flex-wrap">
-                                                            <form method="POST" action="{{ url_for('main.process_extension_request', extension_id=pending_extension_request.id, action='approve') }}" class="d-inline">
-                                                                {{ loan_action_form.hidden_tag() }}
-                                                                <button type="submit" class="btn btn-success btn-sm">
-                                                                    <i class="fas fa-check me-1"></i>Approve
-                                                                </button>
-                                                            </form>
-                                                            <form method="POST" action="{{ url_for('main.process_extension_request', extension_id=pending_extension_request.id, action='deny') }}" class="d-inline">
-                                                                {{ loan_action_form.hidden_tag() }}
-                                                                <button type="submit" class="btn btn-danger btn-sm">
-                                                                    <i class="fas fa-times me-1"></i>Deny
-                                                                </button>
-                                                            </form>
-                                                        </div>
+                                                    <p class="fw-semibold mb-2">
+                                                        <i class="fas fa-hourglass-half me-2"></i>{{ active_loan.borrower.first_name }} asked for more time
+                                                    </p>
+                                                    <p class="mb-2">
+                                                        <span class="text-nowrap">{{ active_loan.end_date.strftime('%B %d, %Y') }} &rarr;</span>
+                                                        <strong class="text-nowrap">{{ pending_extension_request.proposed_end_date.strftime('%B %d, %Y') }}</strong>
+                                                        {% if extra_days > 0 %}
+                                                            <span class="text-nowrap">(+{{ extra_days }} day{{ 's' if extra_days != 1 else '' }})</span>
+                                                        {% endif %}
+                                                    </p>
+                                                    {% if pending_extension_request.message %}
+                                                        <blockquote class="border-start border-2 border-warning ps-2 mb-3 fst-italic">
+                                                            {{ pending_extension_request.message|linkify }}
+                                                        </blockquote>
+                                                    {% endif %}
+                                                    <div class="d-grid gap-2">
+                                                        <form method="POST" action="{{ url_for('main.process_extension_request', extension_id=pending_extension_request.id, action='approve') }}">
+                                                            {{ loan_action_form.hidden_tag() }}
+                                                            <button type="submit" class="btn btn-success w-100">
+                                                                <i class="fas fa-check me-1"></i>Approve Extension
+                                                            </button>
+                                                        </form>
+                                                        <form method="POST" action="{{ url_for('main.process_extension_request', extension_id=pending_extension_request.id, action='deny') }}">
+                                                            {{ loan_action_form.hidden_tag() }}
+                                                            <button type="submit" class="btn btn-danger w-100">
+                                                                <i class="fas fa-times me-1"></i>Deny Extension
+                                                            </button>
+                                                        </form>
                                                     </div>
                                                 </div>
                                             {% endif %}
-                                            <div class="d-flex flex-wrap gap-2">
-                                                <a href="{{ url_for('main.extend_loan', loan_id=active_loan.id) }}" class="btn btn-primary">
-                                                    <i class="fas fa-calendar-plus me-1"></i>Extend Loan Period
-                                                </a>
-                                                <form method="POST" action="{{ url_for('main.complete_loan', loan_id=active_loan.id) }}" class="d-inline">
+                                            <div class="d-grid gap-2">
+                                                {% if not pending_extension_request %}
+                                                    <a href="{{ url_for('main.extend_loan', loan_id=active_loan.id) }}" class="btn btn-primary">
+                                                        <i class="fas fa-calendar-plus me-1"></i>Extend Loan Period
+                                                    </a>
+                                                {% endif %}
+                                                <form method="POST" action="{{ url_for('main.complete_loan', loan_id=active_loan.id) }}">
                                                     {{ loan_action_form.hidden_tag() }}
-                                                    <button type="submit" class="btn btn-success">
+                                                    <button type="submit" class="btn {{ 'btn-outline-success' if pending_extension_request else 'btn-success' }} w-100">
                                                         <i class="fas fa-check-circle me-1"></i>Mark as Returned
                                                     </button>
                                                 </form>
-                                                <form method="POST" action="{{ url_for('main.owner_cancel_loan', loan_id=active_loan.id) }}" class="d-inline">
+                                                <form method="POST" action="{{ url_for('main.owner_cancel_loan', loan_id=active_loan.id) }}">
                                                     {{ loan_action_form.hidden_tag() }}
-                                                    <button type="submit" class="btn btn-secondary">
+                                                    <button type="submit" class="btn {{ 'btn-outline-secondary' if pending_extension_request else 'btn-secondary' }} w-100">
                                                         <i class="fas fa-ban me-1"></i>Cancel Loan
                                                     </button>
                                                 </form>
                                             </div>
                                         {% elif active_loan.borrower_id == current_user.id %}
-                                            {% if pending_extension_request %}
-                                                <div class="alert alert-secondary mb-3">
-                                                    <i class="fas fa-hourglass-half me-2"></i>
-                                                    <strong>Extension request pending:</strong>
-                                                    Proposed due date {{ pending_extension_request.proposed_end_date.strftime('%B %d, %Y') }}.
-                                                </div>
-                                            {% else %}
-                                                <div class="mb-3">
+                                            <h2 class="h5 mb-3">Borrower Actions</h2>
+                                            {% set due_date_text = active_loan.end_date.strftime('%B %d, %Y') %}
+                                            <div class="alert alert-{{ 'danger' if active_loan.due_state == 'overdue' else 'warning' if active_loan.due_state in ('due_today', 'due_soon') else 'info' }} {{ 'mb-0' if pending_extension_request else 'mb-3' }}">
+                                                <p class="mb-0">
+                                                    {% if active_loan.due_state == 'overdue' %}
+                                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                                        <strong>This item is overdue!</strong> Please return it as soon as possible. It was due <span class="text-nowrap">{{ due_date_text }}</span>.
+                                                    {% elif active_loan.due_state in ('due_today', 'due_soon') %}
+                                                        <i class="fas fa-clock me-2"></i>
+                                                        <strong>Due soon!</strong> Please return this item by <span class="text-nowrap">{{ due_date_text }}</span>.
+                                                    {% else %}
+                                                        <i class="fas fa-info-circle me-2"></i>
+                                                        <strong>Enjoy the item!</strong> Please return it by <span class="text-nowrap">{{ due_date_text }}</span>.
+                                                    {% endif %}
+                                                </p>
+                                                {% if pending_extension_request %}
+                                                    <p class="mb-0 mt-2">
+                                                        <i class="fas fa-hourglass-half me-2"></i>
+                                                        You asked to extend to <strong class="text-nowrap">{{ pending_extension_request.proposed_end_date.strftime('%B %d, %Y') }}</strong>.
+                                                        Waiting for {{ conversation_item.owner.first_name }} to respond.
+                                                    </p>
+                                                {% endif %}
+                                            </div>
+                                            {% if not pending_extension_request %}
+                                                <div class="d-grid">
                                                     <a href="{{ url_for('main.request_extension', loan_id=active_loan.id) }}" class="btn btn-outline-primary">
                                                         <i class="fas fa-calendar-plus me-1"></i>Request Extension
                                                     </a>
-                                                </div>
-                                            {% endif %}
-                                            {% if active_loan.due_state == 'overdue' %}
-                                                <div class="alert alert-danger mb-0">
-                                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                                    <strong>This item is overdue!</strong> Please return it as soon as possible. It was due {{ active_loan.end_date.strftime('%B %d, %Y') }}.
-                                                </div>
-                                            {% elif active_loan.due_state in ('due_today', 'due_soon') %}
-                                                <div class="alert alert-warning mb-0">
-                                                    <i class="fas fa-clock me-2"></i>
-                                                    <strong>Due soon!</strong> Please return this item by {{ active_loan.end_date.strftime('%B %d, %Y') }}.
-                                                </div>
-                                            {% else %}
-                                                <div class="alert alert-info mb-0">
-                                                    <i class="fas fa-info-circle me-2"></i>
-                                                    <strong>Enjoy the item!</strong> Please return it by {{ active_loan.end_date.strftime('%B %d, %Y') }}.
                                                 </div>
                                             {% endif %}
                                         {% endif %}
@@ -386,10 +407,11 @@
     <h3>Messages</h3>
     <div class="thread-container">
         {% for msg in thread_messages %}
+            {% set extension_request = msg.loan_extension_request %}
             <div class="card message-card
                 {% if msg.sender_id == current_user.id %}message-mine{% else %}message-theirs{% endif %}
                 {% if msg.has_pending_action %}unread-message{% endif %}
-                {% if msg.is_loan_request_message and msg.loan_request.messages[0] == msg %} message-loan{% endif %}">
+                {% if extension_request or (msg.is_loan_request_message and msg.loan_request.messages[0] == msg) %} message-loan{% endif %}">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -433,7 +455,26 @@
                         {% endif %}
                     </div>
                 {% endif %}
+                {% if extension_request %}
+                    <div class="loan-request-details mb-3">
+                        <h5>Extension Request</h5>
+                        <p>
+                            <strong>Due date:</strong>
+                            {{ extension_request.previous_end_date.strftime('%B %d, %Y') }} &rarr; {{ extension_request.proposed_end_date.strftime('%B %d, %Y') }}
+                        </p>
+                        <p><strong>Status:</strong>
+                            {% set extension_badge_colors = {'pending': 'warning text-dark', 'approved': 'success', 'denied': 'danger', 'canceled': 'secondary'} %}
+                            <span class="badge bg-{{ extension_badge_colors.get(extension_request.status, 'secondary') }}">
+                                {{ extension_request.status|title }}
+                            </span>
+                        </p>
+                    </div>
+                    {% if extension_request.message %}
+                        <p>{{ extension_request.message|linkify }}</p>
+                    {% endif %}
+                {% else %}
                     <p>{{ msg.body|linkify }}</p>
+                {% endif %}
                 </div>
             </div>
         {% endfor %}

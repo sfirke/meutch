@@ -11,6 +11,7 @@ from tests.factories import (
     CircleFactory,
     ConversationFactory,
     ItemFactory,
+    LoanExtensionRequestFactory,
     LoanRequestFactory,
     MessageFactory,
     UserFactory,
@@ -257,6 +258,45 @@ class TestLoanExtension:
             assert b"Deny Request" in response.data
             assert b"Extend Loan Period" not in response.data
 
+    def test_owner_decides_pending_extension_instead_of_extending(self, app, client):
+        """While a borrower's extension request is pending, the owner is offered
+        Approve/Deny Extension rather than a separate 'Extend Loan Period'."""
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory()
+            item = ItemFactory(owner=owner)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                start_date=date.today(),
+                end_date=date.today() + timedelta(days=7),
+                status="approved",
+            )
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            msg = MessageFactory(
+                sender=borrower,
+                recipient=owner,
+                conversation=conversation,
+                body="Can I borrow this?",
+            )
+            msg.loan_request = loan
+            db.session.commit()
+
+            login_user(client, owner.email)
+            conversation_url = url_for("main.view_conversation", conversation_id=conversation.id)
+
+            response = client.get(conversation_url)
+            assert b"Extend Loan Period" in response.data
+            assert b"Approve Extension" not in response.data
+
+            LoanExtensionRequestFactory(loan_request=loan)
+            db.session.commit()
+
+            response = client.get(conversation_url)
+            assert b"Approve Extension" in response.data
+            assert b"Deny Extension" in response.data
+            assert b"Extend Loan Period" not in response.data
+
     def test_pending_loan_conversation_shows_shared_circle_links(self, app, client):
         """Pending loan conversations should show the circles both users share."""
         with app.app_context():
@@ -348,6 +388,8 @@ class TestLoanExtensionRequests:
             )
             assert message is not None
             assert "Extension requested" in message.body
+            assert message.loan_extension_request == extension_request
+            assert extension_request.previous_end_date == date.today() + timedelta(days=2)
 
     def test_owner_can_approve_extension_request_and_due_date_updates(self, app, client):
         """Owner approval updates due date and resolves extension request."""
@@ -369,22 +411,10 @@ class TestLoanExtensionRequests:
                 last_overdue_reminder_sent=None,
                 overdue_reminder_count=2,
             )
-            db.session.commit()
-
-            login_user(client, borrower.email)
-            client.post(
-                url_for("main.request_extension", loan_id=loan.id),
-                data={
-                    "proposed_end_date": new_due_date.strftime("%Y-%m-%d"),
-                    "message": "Could I keep this longer while waiting for a replacement?",
-                },
-                follow_redirects=True,
+            extension_request = LoanExtensionRequestFactory(
+                loan_request=loan, proposed_end_date=new_due_date
             )
-
-            extension_request = LoanExtensionRequest.query.filter_by(
-                loan_request_id=loan.id, status="pending"
-            ).first()
-            assert extension_request is not None
+            db.session.commit()
 
             login_user(client, owner.email)
             response = client.post(
@@ -422,22 +452,10 @@ class TestLoanExtensionRequests:
                 end_date=due_date,
                 status="approved",
             )
-            db.session.commit()
-
-            login_user(client, borrower.email)
-            client.post(
-                url_for("main.request_extension", loan_id=loan.id),
-                data={
-                    "proposed_end_date": (date.today() + timedelta(days=8)).strftime("%Y-%m-%d"),
-                    "message": "I need a little more time due to travel delays this week.",
-                },
-                follow_redirects=True,
+            extension_request = LoanExtensionRequestFactory(
+                loan_request=loan, proposed_end_date=date.today() + timedelta(days=8)
             )
-
-            extension_request = LoanExtensionRequest.query.filter_by(
-                loan_request_id=loan.id, status="pending"
-            ).first()
-            assert extension_request is not None
+            db.session.commit()
 
             login_user(client, owner.email)
             response = client.post(
