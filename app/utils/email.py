@@ -216,14 +216,16 @@ def send_message_notification_email(message):
     if message.is_loan_request_message:
         item_name = conversation.item.name if conversation.item else "Unknown Item"
         message_body_lower = _generated_prefix(message.body)
-        loan_is_active = message.loan_request.status == "approved"
         # Which loan event this is has to be read back out of the wording the
         # app used when it wrote the message.  Match the sentence shape around
         # the quoted item name, not bare words: the item name is user-typed too.
-        if loan_is_active and "' has been extended" in message_body_lower:
+        # extend_loan() writes this wording for pending loans too (the owner
+        # can move a still-pending request's dates before it's approved), so
+        # this isn't gated on the loan being approved.
+        if "' has been extended" in message_body_lower:
             subject = f"Meutch - Loan Extended for {item_name}"
             email_type = "loan extension"
-        elif loan_is_active and "' has been updated" in message_body_lower:
+        elif "' has been updated" in message_body_lower:
             # The owner moved the due date earlier; "extended" would be wrong.
             subject = f"Meutch - Due Date Updated for {item_name}"
             email_type = "due date update"
