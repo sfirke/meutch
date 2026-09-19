@@ -180,7 +180,18 @@ class TestActorResolution:
 class TestSanitizeContext:
     @pytest.mark.parametrize(
         "key",
-        ["first_name", "email_address", "reset_token", "message_body", "street", "latitude"],
+        [
+            "first_name",
+            "email_address",
+            "reset_token",
+            "message_body",
+            "street",
+            "latitude",
+            "firstName",
+            "emailAddress",
+            "IPAddress",
+            "userIPAddress",
+        ],
     )
     def test_denied_keys_are_dropped(self, key):
         assert sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, {key: "x"}) is None
@@ -208,6 +219,13 @@ class TestSanitizeContext:
         result = sanitize_context(
             activity_events.AUTH_LOGIN_SUCCEEDED,
             {"nested": {"a": 1}, "listed": [1, 2], "count": 3},
+        )
+        assert result == {"count": 3}
+
+    @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+    def test_non_finite_floats_are_dropped(self, value):
+        result = sanitize_context(
+            activity_events.AUTH_LOGIN_SUCCEEDED, {"ratio": value, "count": 3}
         )
         assert result == {"count": 3}
 

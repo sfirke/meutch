@@ -28,6 +28,7 @@ account, which writes nothing else -- would silently vanish with the rollback.
 import ipaddress
 import json
 import logging
+import math
 import re
 
 from flask import current_app, g, has_request_context, request
@@ -94,6 +95,10 @@ DENIED_KEY_TOKENS = frozenset(
 )
 
 _KEY_TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
+# Splits camelCase before lowercasing, so `emailAddress` is checked as `email`
+# and `address` rather than slipping through as one unknown token. The second
+# branch handles a run of capitals, so `IPAddress` splits as `IP` and `Address`.
+_CAMEL_CASE_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 
 # Sentinel for "work the actor out from the request", so that passing actor=None can
 # mean "this event genuinely has no actor" -- which is the case for every sign-in
@@ -102,7 +107,7 @@ _RESOLVE_ACTOR = object()
 
 
 def _key_tokens(key):
-    return _KEY_TOKEN_PATTERN.findall(str(key).lower())
+    return _KEY_TOKEN_PATTERN.findall(_CAMEL_CASE_BOUNDARY.sub("_", str(key)).lower())
 
 
 def sanitize_context(event_type, context):
@@ -138,6 +143,16 @@ def sanitize_context(event_type, context):
                 key,
                 event_type,
                 type(value),
+            )
+            continue
+
+        # JSON has no NaN or Infinity, so Postgres would reject the whole row.
+        if isinstance(value, float) and not math.isfinite(value):
+            logger.warning(
+                "dropped activity log context key %r on %s: %r is not finite",
+                key,
+                event_type,
+                value,
             )
             continue
 
