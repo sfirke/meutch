@@ -56,9 +56,17 @@
                                         {% endif %}
                                     </td>
                                     <td>
+                                        {# The address under the name because full names are not unique, and
+                                           it is what support tickets and the members table are searched by.
+                                           A deleted account's email column holds a placeholder, so the badge
+                                           stands in for it. #}
                                         {% if entry.actor %}
                                             <a href="{{ url_for('main.user_profile', user_id=entry.actor.id) }}" class="text-decoration-none">{{ entry.actor.full_name }}</a>
-                                            {% if entry.actor.is_deleted %}<span class="badge bg-secondary ms-1">deleted</span>{% endif %}
+                                            {% if entry.actor.is_deleted %}
+                                                <span class="badge bg-secondary ms-1">deleted</span>
+                                            {% else %}
+                                                <br><span class="small text-muted">{{ entry.actor.email }}</span>
+                                            {% endif %}
                                         {% else %}
                                             <span class="text-muted">Not signed in</span>
                                         {% endif %}
@@ -66,7 +74,11 @@
                                     <td>
                                         {% if entry.subject %}
                                             <a href="{{ url_for('main.user_profile', user_id=entry.subject.id) }}" class="text-decoration-none">{{ entry.subject.full_name }}</a>
-                                            {% if entry.subject.is_deleted %}<span class="badge bg-secondary ms-1">deleted</span>{% endif %}
+                                            {% if entry.subject.is_deleted %}
+                                                <span class="badge bg-secondary ms-1">deleted</span>
+                                            {% else %}
+                                                <br><span class="small text-muted">{{ entry.subject.email }}</span>
+                                            {% endif %}
                                         {% else %}
                                             <span class="text-muted">&mdash;</span>
                                         {% endif %}

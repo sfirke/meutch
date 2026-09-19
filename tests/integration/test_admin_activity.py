@@ -86,6 +86,19 @@ class TestActivityPageRendering:
 
         assert "some.future.event" in content
 
+    def test_shows_the_address_of_the_actor_and_the_subject(self, client, db_session):
+        """Two members can share a full name, so the address is what identifies a row."""
+        admin = UserFactory(is_admin=True, email="theadmin@example.com")
+        member = UserFactory(email="member@example.com")
+        ActivityLogFactory(actor=admin, subject=member)
+        db_session.commit()
+
+        login_user(client, admin.email)
+        content = client.get("/admin/activity").data.decode("utf-8")
+
+        assert "theadmin@example.com" in content
+        assert "member@example.com" in content
+
     def test_an_entry_about_a_deleted_account_still_renders(self, client, db_session):
         admin = UserFactory(is_admin=True)
         departed = UserFactory(first_name="Gone", last_name="Away", is_deleted=True)
@@ -97,6 +110,9 @@ class TestActivityPageRendering:
 
         assert response.status_code == 200
         assert b"Gone Away" in response.data
+        # Deleting an account overwrites its email with a placeholder, so there is
+        # nothing worth showing and the "deleted" badge stands in its place.
+        assert departed.email.encode() not in response.data
 
     def test_empty_log_says_so(self, client, db_session, app):
         """Reachable in practice only with the kill switch on, which is exactly when
