@@ -1124,10 +1124,10 @@ class AdminAction(db.Model):
 class ActivityLog(db.Model):
     """Structured record of a single thing that happened on the platform.
 
-    Written by ``app.utils.activity_log.log_event`` on its own connection, outside
-    whatever transaction the caller is running, and browsed by admins at
-    ``/admin/activity``. Rows are pruned on a retention window, so this table is a
-    recent-history view rather than a permanent archive.
+    One row per event: what happened, when, who did it, whose account it was about,
+    and where the request came from. Meant as a recent-history view that gets pruned
+    on a retention window, not a permanent archive. The writer and the admin page
+    that reads it land in follow-up changes.
     """
 
     __tablename__ = "activity_log"
@@ -1136,12 +1136,10 @@ class ActivityLog(db.Model):
     SOURCE_API = "api"
     SOURCE_CLI = "cli"
 
-    TARGET_TYPE_USER = "user"
+    # Users are never targets: they go in actor_user_id / subject_user_id.
     TARGET_TYPE_CIRCLE = "circle"
 
-    id = db.Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False
-    )
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     event_type = db.Column(db.String(64), nullable=False)
     occurred_at = db.Column(
         db.DateTime, default=func.now(), server_default=func.now(), nullable=False
@@ -1151,9 +1149,14 @@ class ActivityLog(db.Model):
     # Who did it, and whose account it is about. They are usually the same person, but
     # not always: an admin deleting someone else's account is the actor, that someone
     # is the subject. Both are nullable -- an anonymous sign-in attempt has no actor,
-    # and a CLI job has neither.
-    actor_user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True)
-    subject_user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True)
+    # and a CLI job has neither. SET NULL so the row outlives a hard-deleted user
+    # instead of blocking the delete.
+    actor_user_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    subject_user_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Polymorphic reference to whatever else the event was about, mirroring the
     # Conversation.context_type / context_id pair. Deliberately not a foreign key: an
@@ -1167,7 +1170,7 @@ class ActivityLog(db.Model):
     request_id = db.Column(db.String(64), nullable=True)
 
     # Flat scalars explaining *why* the event happened. Anything identifying who or
-    # what belongs in the columns above; app.utils.activity_log enforces that.
+    # what belongs in the columns above.
     context = db.Column(JSONB, nullable=True)
 
     actor = db.relationship("User", foreign_keys=[actor_user_id])
@@ -1202,10 +1205,12 @@ class ActivityLog(db.Model):
             postgresql_where=db.text("target_id IS NOT NULL"),
         ),
         # The one sanctioned lookup into `context`: finding every sign-in attempt
-        # against a typed address, including addresses that match no account.
+        # against a typed address, including addresses that match no account. The
+        # address is stored as typed, so the index is on lower() and the search must
+        # compare lower() to lower(), the way every other email match in the app does.
         db.Index(
             "ix_activity_log_attempted_email",
-            db.text("(context->>'attempted_email')"),
+            db.text("lower(context->>'attempted_email')"),
             postgresql_where=db.text("(context->>'attempted_email') IS NOT NULL"),
         ),
     )
