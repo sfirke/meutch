@@ -37,38 +37,41 @@ STATEMENT_TIMEOUT = "2s"
 # Key words that mean a value carries personal information. Keys are matched token by
 # token rather than by substring, which is what lets "lat" reject `latitude` without
 # also rejecting `violation` and `translation`.
+#
+# Every entry spells a token of a real column, form field or payload key in this app --
+# matching is exact, so `coordinates` and `postalcode` are not covered by `coordinate`
+# and `postal`. Adding a word for data we do not hold only invites false drops.
 DENIED_KEY_TOKENS = frozenset(
     {
+        "about",
         "address",
         "body",
         "city",
         "comment",
         "content",
-        "coordinate",
         "coordinates",
-        "coords",
         "description",
         "email",
         "lat",
         "latitude",
-        "lng",
         "lon",
         "longitude",
         "message",
         "name",
-        "note",
-        "notes",
         "password",
-        "phone",
-        "postal",
+        "postalcode",
+        "q",
+        "query",
+        "search",
         "secret",
+        "signature",
         "street",
         "subject",
+        "tags",
         "text",
         "title",
         "token",
         "zip",
-        "zipcode",
     }
 )
 

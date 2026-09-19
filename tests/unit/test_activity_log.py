@@ -168,6 +168,8 @@ class TestSanitizeContext:
             "message_body",
             "street",
             "latitude",
+            "about_me",
+            "search_query",
             "firstName",
             "emailAddress",
             "IPAddress",
