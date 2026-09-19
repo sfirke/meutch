@@ -257,14 +257,11 @@ class Config:
         os.environ.get("REGISTRATION_MIN_FILL_SECONDS"), 3
     )
 
-    # Kill switch for the activity log. Writes are already isolated from the request
-    # that triggers them, but if the table ever becomes a problem in production this
-    # turns it off without a code deploy.
+    # Kill switch, so the activity log can be turned off without a code deploy.
     ACTIVITY_LOG_ENABLED = parse_bool_env(os.environ.get("ACTIVITY_LOG_ENABLED"), True)
 
-    # How long an activity log entry is kept. The prune job enforces this; the admin
-    # Activity page warns when the oldest surviving row is well past it, which is how
-    # an unscheduled prune job gets noticed.
+    # How long an activity log entry is kept. Enforced by the prune job, not by this
+    # setting; the admin Activity page warns when the oldest row is well past it.
     ACTIVITY_LOG_RETENTION_DAYS = parse_int_env(os.environ.get("ACTIVITY_LOG_RETENTION_DAYS"), 90)
 
     API_V1_ENABLED = parse_bool_env(os.environ.get("API_V1_ENABLED"), True)

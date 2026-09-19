@@ -178,15 +178,15 @@ ACTIVITY_LOG_ENABLED=true
 ACTIVITY_LOG_RETENTION_DAYS=90
 ```
 
-The activity log is our own record of things that happen on the site, kept in the
-`activity_log` table. Entries are written on their own database connection, so a logging
-failure cannot break the request that triggered it; failures are logged at `WARNING`.
+Our own record of things that happen on the site, kept in the `activity_log` table.
+Entries are written on their own database connection, so a logging failure cannot break
+the request that triggered it; failures are logged at `WARNING`.
 
 `ACTIVITY_LOG_ENABLED=false` stops all writes. Nothing else changes.
 
-`ACTIVITY_LOG_RETENTION_DAYS` is the retention window, and **it does not delete anything
-by itself** — a scheduled prune job is what enforces it. The table holds IP addresses,
-so that job is not optional in the long run.
+`ACTIVITY_LOG_RETENTION_DAYS` **does not delete anything by itself** — a scheduled prune
+job enforces it. The table holds IP addresses, so that job is not optional in the long
+run.
 
 ### Optional: API Maintenance
 
