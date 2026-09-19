@@ -32,16 +32,15 @@ def upgrade():
         sa.Column("user_agent", sa.String(length=400), nullable=True),
         sa.Column("request_id", sa.String(length=64), nullable=True),
         sa.Column("context", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.ForeignKeyConstraint(["actor_user_id"], ["users.id"]),
-        sa.ForeignKeyConstraint(["subject_user_id"], ["users.id"]),
+        sa.ForeignKeyConstraint(["actor_user_id"], ["users.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["subject_user_id"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("id"),
     )
 
     # All six indexes are created here, with the table, even though the filtering they
-    # serve arrives in later PRs. Adding an index to a table that is already large
-    # means CREATE INDEX CONCURRENTLY, which Alembic cannot run inside its default
-    # transaction; doing it now costs nothing.
+    # serve arrives in later changes. Creating them on an empty table is free; adding
+    # them later means either locking a populated table or a CONCURRENTLY build in an
+    # autocommit block.
     op.create_index("ix_activity_log_occurred_at_id", "activity_log", ["occurred_at", "id"])
     op.create_index(
         "ix_activity_log_event_type_occurred_at", "activity_log", ["event_type", "occurred_at"]
@@ -64,14 +63,14 @@ def upgrade():
         ["target_type", "target_id", "occurred_at"],
         postgresql_where=sa.text("target_id IS NOT NULL"),
     )
-    # Expression index behind the attempted-email search. The natural predicate here
-    # is `context ? 'attempted_email'`, but JSONB's ? operator collides with
-    # psycopg2's parameter placeholder; `->> ... IS NOT NULL` is equivalent for this
-    # purpose and needs no escaping.
+    # Expression index behind the attempted-email search. The address is stored as
+    # typed, so the index is on lower() and the search compares lower() to lower().
+    # `->> ... IS NOT NULL` is used instead of the `?` key-exists operator so the
+    # predicate reads the same way as the expression.
     op.create_index(
         "ix_activity_log_attempted_email",
         "activity_log",
-        [sa.text("(context->>'attempted_email')")],
+        [sa.text("lower(context->>'attempted_email')")],
         postgresql_where=sa.text("(context->>'attempted_email') IS NOT NULL"),
     )
 
