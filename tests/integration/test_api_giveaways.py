@@ -6,6 +6,7 @@ from unittest.mock import patch
 from app import db
 from app.models import GiveawayInterest
 from tests.factories import (
+    CircleFactory,
     ConversationFactory,
     GiveawayInterestFactory,
     ItemFactory,
@@ -339,3 +340,85 @@ class TestApiGiveawayRecipientMutations:
             refreshed_item = db.session.get(type(item), item_id)
             assert refreshed_item.available is False
             assert refreshed_item.claimed_at is not None
+
+
+class TestApiGiveawayRecipientVisibility:
+    """The recipient is named only to the owner and the recipient."""
+
+    @staticmethod
+    def _create_giveaway(claim_status, visibility="default"):
+        owner = UserFactory(email_confirmed=True)
+        recipient = UserFactory(email_confirmed=True)
+        circle_mate = UserFactory(email_confirmed=True)
+        outsider = UserFactory(email_confirmed=True)
+        circle = CircleFactory()
+        circle.members.extend([owner, recipient, circle_mate])
+        item = ItemFactory(
+            owner=owner,
+            is_giveaway=True,
+            giveaway_visibility=visibility,
+            claim_status=claim_status,
+            claimed_by=recipient,
+            claimed_at=datetime.now(UTC),
+        )
+        db.session.commit()
+        return item, {
+            "owner": owner,
+            "recipient": recipient,
+            "circle_mate": circle_mate,
+            "outsider": outsider,
+        }
+
+    def test_pending_pickup_recipient_is_visible_only_to_owner_and_recipient(self, client, app):
+        with app.app_context():
+            item, users = self._create_giveaway("pending_pickup", visibility="public")
+            item_id = item.id
+            recipient_id = str(users["recipient"].id)
+            recipient_name = users["recipient"].full_name
+            tokens = {role: login_api_user(client, u.email) for role, u in users.items()}
+
+        for role in ("owner", "recipient"):
+            response = client.get(f"/api/v1/items/{item_id}", headers=auth_headers(tokens[role]))
+            assert response.status_code == 200
+            assert response.get_json()["item"]["claimed_by"]["id"] == recipient_id
+
+        for role in ("circle_mate", "outsider"):
+            response = client.get(f"/api/v1/items/{item_id}", headers=auth_headers(tokens[role]))
+            assert response.status_code == 200
+            payload = response.get_json()
+            assert payload["item"]["claimed_by"] is None
+            assert payload["item"]["claim_status"] == "pending_pickup"
+            body = response.get_data(as_text=True)
+            assert recipient_id not in body
+            assert recipient_name not in body
+
+    def test_claimed_giveaway_recipient_is_visible_to_owner_and_recipient(self, client, app):
+        with app.app_context():
+            item, users = self._create_giveaway("claimed")
+            item_id = item.id
+            recipient_id = str(users["recipient"].id)
+            tokens = {role: login_api_user(client, u.email) for role, u in users.items()}
+
+        for role in ("owner", "recipient"):
+            response = client.get(f"/api/v1/items/{item_id}", headers=auth_headers(tokens[role]))
+            assert response.status_code == 200
+            assert response.get_json()["item"]["claimed_by"]["id"] == recipient_id
+
+        for role in ("circle_mate", "outsider"):
+            response = client.get(f"/api/v1/items/{item_id}", headers=auth_headers(tokens[role]))
+            assert response.status_code == 404
+
+    def test_owner_mutation_response_includes_recipient(self, client, app):
+        with app.app_context():
+            item, users = self._create_giveaway("pending_pickup")
+            item_id = item.id
+            recipient_id = str(users["recipient"].id)
+            owner_token = login_api_user(client, users["owner"].email)
+
+        response = client.post(
+            f"/api/v1/items/{item_id}/confirm-handoff",
+            headers=auth_headers(owner_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["item"]["claimed_by"]["id"] == recipient_id
