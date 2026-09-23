@@ -100,6 +100,7 @@ def _build_item_response_payload(item, access_state=None):
         access_state = _build_item_access_state_or_raise(item)
 
     interest_state = giveaway_service.get_giveaway_interest_state(item, current_user.id)
+    item.api_viewer_id = current_user.id
     item.api_viewer_interest_status = interest_state["viewer_interest_status"]
     item.api_interested_count = interest_state["interested_count"]
 
