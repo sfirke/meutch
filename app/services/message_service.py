@@ -427,9 +427,7 @@ def mark_all_read_in_view(user_id, status="inbox"):
     if is_archived_flag:
         archive_filter = ConversationParticipant.is_archived.is_(True)
     else:
-        # Use isnot(True) rather than is_(False) so that NULL rows
-        # (where is_archived was never set) are also treated as "not archived".
-        archive_filter = ConversationParticipant.is_archived.isnot(True)
+        archive_filter = ConversationParticipant.is_archived.is_(False)
 
     view_conversation_ids = (
         db.session.query(ConversationParticipant.conversation_id)
