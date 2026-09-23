@@ -345,6 +345,8 @@ class TestingConfig(Config):
 DATABASE_POOL_OPTIONS = {
     "pool_size": parse_int_env(os.environ.get("DB_POOL_SIZE"), 3),
     "max_overflow": parse_int_env(os.environ.get("DB_MAX_OVERFLOW"), 2),
+    "pool_pre_ping": True,
+    "connect_args": {"connect_timeout": 5},
 }
 
 
