@@ -1,11 +1,15 @@
 """Integration tests for API messaging reads and writes."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import text
 
 from app import db
 from app.models import ConversationParticipant, Message
+from app.services.message_service import archive_conversation
+from app.utils.messaging_queries import get_or_create_conversation
 from tests.factories import (
     CircleFactory,
     ConversationFactory,
@@ -560,3 +564,38 @@ class TestApiConversationArchive:
         resp = client.get("/api/v1/messages?status=archived", headers=auth_headers(access_token))
         assert resp.status_code == 200
         assert resp.get_json()["pagination"]["total"] == 1
+
+    def test_messages_list_never_returns_null_is_archived(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            other = UserFactory()
+            raw_conv = ConversationFactory()
+            for participant_user in (user, other):
+                db.session.execute(
+                    text(
+                        "INSERT INTO conversation_participants (id, conversation_id, user_id) "
+                        "VALUES (:id, :conversation_id, :user_id)"
+                    ),
+                    {
+                        "id": uuid.uuid4(),
+                        "conversation_id": raw_conv.id,
+                        "user_id": participant_user.id,
+                    },
+                )
+            MessageFactory(sender=other, recipient=user, conversation=raw_conv)
+
+            archived_conv = get_or_create_conversation(
+                "item", ItemFactory(owner=other).id, user.id, other.id
+            )
+            MessageFactory(sender=other, recipient=user, conversation=archived_conv)
+            db.session.commit()
+            archive_conversation(user.id, archived_conv.id)
+            access_token = login_api_user(client, user.email)
+
+        inbox = client.get("/api/v1/messages", headers=auth_headers(access_token)).get_json()
+        archived = client.get(
+            "/api/v1/messages?status=archived", headers=auth_headers(access_token)
+        ).get_json()
+
+        assert [c["is_archived"] for c in inbox["conversations"]] == [False]
+        assert [c["is_archived"] for c in archived["conversations"]] == [True]
