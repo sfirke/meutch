@@ -34,13 +34,10 @@ MAX_REQUEST_ID_LENGTH = 64
 
 STATEMENT_TIMEOUT = "2s"
 
-# Key words that mean a value carries personal information. Keys are matched token by
-# token rather than by substring, which is what lets "lat" reject `latitude` without
-# also rejecting `violation` and `translation`.
-#
-# Every entry spells a token of a real column, form field or payload key in this app --
-# matching is exact, so `coordinates` and `postalcode` are not covered by `coordinate`
-# and `postal`. Adding a word for data we do not hold only invites false drops.
+# Key words that mean a value carries personal information. A key is split into words
+# (`user_lat` -> `user`, `lat`) and each word must equal an entry exactly, so "lat"
+# rejects `user_lat` but not `violation`, and `latitude` needs its own entry. List only
+# words used by real columns, form fields or payload keys in this app.
 DENIED_KEY_TOKENS = frozenset(
     {
         "about",
