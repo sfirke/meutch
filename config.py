@@ -257,6 +257,13 @@ class Config:
         os.environ.get("REGISTRATION_MIN_FILL_SECONDS"), 3
     )
 
+    # Kill switch, so the activity log can be turned off without a code deploy.
+    ACTIVITY_LOG_ENABLED = parse_bool_env(os.environ.get("ACTIVITY_LOG_ENABLED"), True)
+
+    # How long an activity log entry is kept. Enforced by the prune job, not by this
+    # setting; the admin Activity page warns when the oldest row is well past it.
+    ACTIVITY_LOG_RETENTION_DAYS = parse_int_env(os.environ.get("ACTIVITY_LOG_RETENTION_DAYS"), 90)
+
     API_V1_ENABLED = parse_bool_env(os.environ.get("API_V1_ENABLED"), True)
     API_V1_WRITE_ENABLED = parse_bool_env(os.environ.get("API_V1_WRITE_ENABLED"), True)
     API_V1_RATE_LIMITS_ENABLED = parse_bool_env(os.environ.get("API_V1_RATE_LIMITS_ENABLED"), True)
