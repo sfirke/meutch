@@ -1,11 +1,4 @@
-"""Unit tests for the activity log writer.
-
-The four things that matter here are the ones that would ship a working-looking
-Activity tab that quietly drops events: the write has to survive the caller rolling
-back, a failed write must not damage the caller, the actor has to be resolved from
-whichever kind of request is in flight, and the PII guard has to drop what it
-promises to drop without ever raising.
-"""
+"""Unit tests for the activity log writer."""
 
 from unittest.mock import patch
 
@@ -42,11 +35,7 @@ class TestTransactionIndependence:
             assert entries[0].actor_user_id == user.id
 
     def test_caller_pending_objects_are_not_committed_by_the_write(self, app):
-        """The audit row must not drag the caller's unflushed work in with it.
-
-        This is the other half of independence: log_event neither depends on the
-        caller's transaction nor commits it.
-        """
+        """log_event neither depends on the caller's transaction nor commits it."""
         with app.app_context():
             actor = UserFactory()
             db.session.commit()
@@ -106,12 +95,10 @@ class TestFailureIsolation:
 
 class TestActorResolution:
     def test_no_request_context_records_a_cli_event_with_no_actor(self, app):
-        """A CLI caller -- the nightly digest job, say -- must not explode on the
-        request-only lookups.
+        """A CLI caller must not explode on the request-only lookups.
 
-        pytest-flask keeps a request context pushed for the whole of every test that
-        uses the `app` fixture, so the absence of one has to be simulated rather than
-        arranged.
+        The `app` fixture keeps a request context pushed for the whole test, so the
+        absence of one has to be simulated.
         """
         with app.app_context():
             with patch("app.utils.activity_log.has_request_context", return_value=False):
@@ -143,11 +130,7 @@ class TestActorResolution:
             assert entry.user_agent == "curl/8.4.0"
 
     def test_an_explicit_none_actor_beats_the_signed_in_user(self, app):
-        """A sign-in attempt has no actor even if a session cookie is present.
-
-        Passing actor=None has to mean "nobody has proved who they are", which is
-        different from omitting the argument.
-        """
+        """actor=None means "nobody has proved who they are", unlike omitting it."""
         with app.app_context():
             user = UserFactory()
             db.session.commit()
@@ -166,9 +149,7 @@ class TestActorResolution:
             assert _rows()[0].source == ActivityLog.SOURCE_API
 
     def test_an_unparseable_client_address_is_stored_as_null(self, app):
-        """The address ultimately comes from a header, so it cannot be trusted to be
-        an address at all -- and an INET column would raise DataError on the insert,
-        losing the event."""
+        """An unparseable header value would raise DataError and lose the event."""
         with app.test_request_context("/login", environ_base={"REMOTE_ADDR": "not-an-address"}):
             log_event(activity_events.AUTH_LOGIN_FAILED, actor=None)
 
@@ -178,46 +159,40 @@ class TestActorResolution:
 
 
 class TestSanitizeContext:
-    @pytest.mark.parametrize(
-        "key",
-        ["first_name", "email_address", "reset_token", "message_body", "street", "latitude"],
-    )
-    def test_denied_keys_are_dropped(self, key):
-        assert sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, {key: "x"}) is None
-
-    @pytest.mark.parametrize(
-        "key",
-        [
-            "user_agent",
-            "attempt_count",
-            "retry_after_minutes",
-            "account_exists",
-            "notification_sent",
-        ],
-    )
-    def test_allowed_keys_survive(self, key):
-        assert sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, {key: 1}) == {key: 1}
-
-    def test_exempted_key_survives_only_on_its_own_event(self):
-        payload = {"attempted_email": "you@gmial.com"}
-
+    def test_listed_keys_survive(self):
+        payload = {"attempted_email": "you@gmial.com", "account_exists": False}
         assert sanitize_context(activity_events.AUTH_LOGIN_FAILED, payload) == payload
+
+    def test_unlisted_keys_are_dropped_but_listed_ones_beside_them_are_kept(self):
+        result = sanitize_context(
+            activity_events.AUTH_LOGIN_FAILED,
+            {"account_exists": True, "first_name": "Ada"},
+        )
+        assert result == {"account_exists": True}
+
+    def test_a_key_is_only_allowed_on_the_events_that_list_it(self):
+        payload = {"attempted_email": "you@gmial.com"}
         assert sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, payload) is None
 
-    def test_nested_values_are_dropped_but_scalars_beside_them_are_kept(self):
-        result = sanitize_context(
-            activity_events.AUTH_LOGIN_SUCCEEDED,
-            {"nested": {"a": 1}, "listed": [1, 2], "count": 3},
+    def test_an_unregistered_event_keeps_no_context(self):
+        assert sanitize_context("made.up.event", {"reason": "x"}) is None
+
+    @pytest.mark.parametrize("value", [{"a": 1}, [1, 2]])
+    def test_nested_values_are_dropped(self, value):
+        assert (
+            sanitize_context(activity_events.AUTH_TOKEN_REUSE_DETECTED, {"reason": value}) is None
         )
-        assert result == {"count": 3}
+
+    @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+    def test_non_finite_floats_are_dropped(self, value):
+        result = sanitize_context(
+            activity_events.AUTH_LOGIN_BLOCKED, {"retry_after_minutes": value}
+        )
+        assert result is None
 
     def test_long_strings_are_truncated_rather_than_dropped(self):
-        result = sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, {"reason": "x" * 500})
+        result = sanitize_context(activity_events.AUTH_TOKEN_REUSE_DETECTED, {"reason": "x" * 500})
         assert len(result["reason"]) == 200
-
-    def test_an_oversized_payload_is_dropped_whole(self):
-        payload = {f"field_{index}": "y" * 200 for index in range(50)}
-        assert sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, payload) is None
 
     def test_a_non_dict_context_is_dropped_without_raising(self):
         assert sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, "not a dict") is None

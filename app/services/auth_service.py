@@ -254,8 +254,8 @@ def authenticate_user(email, password):
 
         # The address is recorded exactly as typed rather than normalized -- the typo
         # is the diagnostic value -- and whether or not it matches an account, so that
-        # one search by address turns up every attempt. That is the exemption in
-        # activity_events.CONTEXT_KEY_EXEMPTIONS, and the privacy policy says so.
+        # one search by address turns up every attempt. That is why it is listed in
+        # activity_events.EVENT_CONTEXT_KEYS, and the privacy policy says so.
         log_event(
             activity_events.AUTH_LOGIN_FAILED,
             subject=user,

@@ -277,10 +277,8 @@ def clean_db(app):
         # Exclude 'category' table since it's seeded at session start
         # Use actual PostgreSQL table names (not model names)
         tables_to_truncate = [
-            # First in the list and listed explicitly: activity log rows are written on
-            # their own connection outside the test's session, so nothing else in the
-            # test's own transaction clears them and they would otherwise leak into the
-            # next test's counts.
+            # Written on their own connection, outside the test's session, so nothing
+            # else here clears them and they leak into the next test's counts.
             "activity_log",
             "giveaway_interest",
             "messages",

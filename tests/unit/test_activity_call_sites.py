@@ -12,8 +12,7 @@ import ast
 from pathlib import Path
 
 from app.utils import activity_events
-from app.utils.activity_events import CONTEXT_KEY_EXEMPTIONS, EVENT_TYPES
-from app.utils.activity_log import DENIED_KEY_TOKENS, _key_tokens
+from app.utils.activity_events import EVENT_CONTEXT_KEYS, EVENT_TYPES
 
 APP_ROOT = Path(__file__).resolve().parents[2] / "app"
 
@@ -83,7 +82,7 @@ def test_every_declared_event_constant_is_registered():
         assert getattr(activity_events, name) in EVENT_TYPES, f"{name} is missing from EVENT_TYPES"
 
 
-def test_literal_context_keys_pass_the_denylist():
+def test_literal_context_keys_are_listed_for_their_event():
     offenders = []
     for source_path, call in _log_event_calls():
         keys = _literal_context_keys(call)
@@ -92,16 +91,14 @@ def test_literal_context_keys_pass_the_denylist():
 
         constant_name = _event_constant_name(call)
         event_type = getattr(activity_events, constant_name, None) if constant_name else None
-        exempt = CONTEXT_KEY_EXEMPTIONS.get(event_type, frozenset())
+        allowed = EVENT_CONTEXT_KEYS.get(event_type, frozenset())
 
         for key in keys:
-            if key in exempt:
-                continue
-            if DENIED_KEY_TOKENS.intersection(_key_tokens(key)):
+            if key not in allowed:
                 offenders.append(f"{source_path.name}:{call.lineno} context key {key!r}")
 
     assert not offenders, (
-        "These context keys would be silently dropped at runtime. Either rename them "
-        "or, if the value really has to be recorded, add a per-event entry to "
-        "CONTEXT_KEY_EXEMPTIONS and say why in the pull request:\n" + "\n".join(offenders)
+        "These context keys would be silently dropped at runtime. If the value really "
+        "has to be recorded, add it to the event's entry in EVENT_CONTEXT_KEYS and say "
+        "why in the pull request:\n" + "\n".join(offenders)
     )
