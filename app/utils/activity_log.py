@@ -12,79 +12,27 @@ nothing else.
 """
 
 import ipaddress
-import json
 import logging
 import math
-import re
 
 from flask import current_app, g, has_request_context, request
 
 from app import db
 from app.models import ActivityLog
-from app.utils.activity_events import CONTEXT_KEY_EXEMPTIONS, EVENT_TYPES
+from app.utils.activity_events import EVENT_CONTEXT_KEYS, EVENT_TYPES
 
 logger = logging.getLogger(__name__)
 
-# Caps on `context`, so one bad call site cannot bloat the table.
 MAX_CONTEXT_VALUE_LENGTH = 200
-MAX_CONTEXT_BYTES = 2048
 
 MAX_USER_AGENT_LENGTH = 400
 MAX_REQUEST_ID_LENGTH = 64
 
 STATEMENT_TIMEOUT = "2s"
 
-# Key words that mean a value carries personal information. A key is split into words
-# (`user_lat` -> `user`, `lat`) and each word must equal an entry exactly, so "lat"
-# rejects `user_lat` but not `violation`, and `latitude` needs its own entry. List only
-# words used by real columns, form fields or payload keys in this app.
-DENIED_KEY_TOKENS = frozenset(
-    {
-        "about",
-        "address",
-        "body",
-        "city",
-        "comment",
-        "content",
-        "coordinates",
-        "description",
-        "email",
-        "lat",
-        "latitude",
-        "lon",
-        "longitude",
-        "message",
-        "name",
-        "password",
-        "postalcode",
-        "q",
-        "query",
-        "search",
-        "secret",
-        "signature",
-        "street",
-        "subject",
-        "tags",
-        "text",
-        "title",
-        "token",
-        "zip",
-    }
-)
-
-_KEY_TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
-# Split camelCase before lowercasing, so `emailAddress` is checked as `email` + `address`
-# rather than slipping through as one unknown token. The second branch handles a run of
-# capitals: `IPAddress` splits as `IP` + `Address`.
-_CAMEL_CASE_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
-
 # Means "work the actor out from the request", leaving actor=None free to mean "this
 # event genuinely has no actor" -- the case for every sign-in attempt.
 _RESOLVE_ACTOR = object()
-
-
-def _key_tokens(key):
-    return _KEY_TOKEN_PATTERN.findall(_CAMEL_CASE_BOUNDARY.sub("_", str(key)).lower())
 
 
 def sanitize_context(event_type, context):
@@ -102,12 +50,12 @@ def sanitize_context(event_type, context):
         logger.warning("activity log context for %s was %s, not a dict", event_type, type(context))
         return None
 
-    exempt_keys = CONTEXT_KEY_EXEMPTIONS.get(event_type, frozenset())
+    allowed_keys = EVENT_CONTEXT_KEYS.get(event_type, frozenset())
     sanitized = {}
 
     for key, value in context.items():
-        if key not in exempt_keys and DENIED_KEY_TOKENS.intersection(_key_tokens(key)):
-            logger.warning("dropped activity log context key %r on %s", key, event_type)
+        if key not in allowed_keys:
+            logger.warning("dropped unlisted activity log context key %r on %s", key, event_type)
             continue
 
         # Scalars only: a nested dict or list is how a whole model's __dict__ or a raw
@@ -137,10 +85,6 @@ def sanitize_context(event_type, context):
         sanitized[key] = value
 
     if not sanitized:
-        return None
-
-    if len(json.dumps(sanitized, default=str).encode("utf-8")) > MAX_CONTEXT_BYTES:
-        logger.warning("dropped oversized activity log context on %s", event_type)
         return None
 
     return sanitized

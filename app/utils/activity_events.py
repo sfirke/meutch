@@ -36,12 +36,18 @@ EVENT_TYPES = frozenset(
     }
 )
 
-# Context keys permitted past the PII denylist, for specific events only. Each entry is
-# a deliberate privacy decision -- do not add one without making it.
-CONTEXT_KEY_EXEMPTIONS = {
+# The only context keys each event may store; anything else is dropped. Each key is a
+# deliberate privacy decision -- do not add one without making it.
+EVENT_CONTEXT_KEYS = {
     # The address exactly as typed is what lets support see that a member has been
     # signing in as sam@gmial.com. The privacy policy covers it, and it is deleted with
     # the rest of the row at the end of the retention window.
-    AUTH_LOGIN_FAILED: frozenset({"attempted_email"}),
-    AUTH_PASSWORD_RESET_REQUESTED: frozenset({"attempted_email"}),
+    AUTH_LOGIN_FAILED: frozenset({"attempted_email", "account_exists"}),
+    AUTH_PASSWORD_RESET_REQUESTED: frozenset(
+        {"attempted_email", "account_exists", "notification_sent"}
+    ),
+    AUTH_LOGIN_BLOCKED: frozenset({"retry_after_minutes"}),
+    AUTH_ACCOUNT_LOCKED: frozenset({"lockout_count"}),
+    AUTH_REGISTER_SUCCEEDED: frozenset({"location_method"}),
+    AUTH_TOKEN_REUSE_DETECTED: frozenset({"reason"}),
 }

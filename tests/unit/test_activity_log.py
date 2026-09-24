@@ -159,66 +159,40 @@ class TestActorResolution:
 
 
 class TestSanitizeContext:
-    @pytest.mark.parametrize(
-        "key",
-        [
-            "first_name",
-            "email_address",
-            "reset_token",
-            "message_body",
-            "street",
-            "latitude",
-            "about_me",
-            "search_query",
-            "firstName",
-            "emailAddress",
-            "IPAddress",
-            "userIPAddress",
-        ],
-    )
-    def test_denied_keys_are_dropped(self, key):
-        assert sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, {key: "x"}) is None
-
-    @pytest.mark.parametrize(
-        "key",
-        [
-            "user_agent",
-            "attempt_count",
-            "retry_after_minutes",
-            "account_exists",
-            "notification_sent",
-        ],
-    )
-    def test_allowed_keys_survive(self, key):
-        assert sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, {key: 1}) == {key: 1}
-
-    def test_exempted_key_survives_only_on_its_own_event(self):
-        payload = {"attempted_email": "you@gmial.com"}
-
+    def test_listed_keys_survive(self):
+        payload = {"attempted_email": "you@gmial.com", "account_exists": False}
         assert sanitize_context(activity_events.AUTH_LOGIN_FAILED, payload) == payload
+
+    def test_unlisted_keys_are_dropped_but_listed_ones_beside_them_are_kept(self):
+        result = sanitize_context(
+            activity_events.AUTH_LOGIN_FAILED,
+            {"account_exists": True, "first_name": "Ada"},
+        )
+        assert result == {"account_exists": True}
+
+    def test_a_key_is_only_allowed_on_the_events_that_list_it(self):
+        payload = {"attempted_email": "you@gmial.com"}
         assert sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, payload) is None
 
-    def test_nested_values_are_dropped_but_scalars_beside_them_are_kept(self):
-        result = sanitize_context(
-            activity_events.AUTH_LOGIN_SUCCEEDED,
-            {"nested": {"a": 1}, "listed": [1, 2], "count": 3},
+    def test_an_unregistered_event_keeps_no_context(self):
+        assert sanitize_context("made.up.event", {"reason": "x"}) is None
+
+    @pytest.mark.parametrize("value", [{"a": 1}, [1, 2]])
+    def test_nested_values_are_dropped(self, value):
+        assert (
+            sanitize_context(activity_events.AUTH_TOKEN_REUSE_DETECTED, {"reason": value}) is None
         )
-        assert result == {"count": 3}
 
     @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
     def test_non_finite_floats_are_dropped(self, value):
         result = sanitize_context(
-            activity_events.AUTH_LOGIN_SUCCEEDED, {"ratio": value, "count": 3}
+            activity_events.AUTH_LOGIN_BLOCKED, {"retry_after_minutes": value}
         )
-        assert result == {"count": 3}
+        assert result is None
 
     def test_long_strings_are_truncated_rather_than_dropped(self):
-        result = sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, {"reason": "x" * 500})
+        result = sanitize_context(activity_events.AUTH_TOKEN_REUSE_DETECTED, {"reason": "x" * 500})
         assert len(result["reason"]) == 200
-
-    def test_an_oversized_payload_is_dropped_whole(self):
-        payload = {f"field_{index}": "y" * 200 for index in range(50)}
-        assert sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, payload) is None
 
     def test_a_non_dict_context_is_dropped_without_raising(self):
         assert sanitize_context(activity_events.AUTH_LOGIN_SUCCEEDED, "not a dict") is None
