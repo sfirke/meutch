@@ -8,6 +8,7 @@ from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
+from app.api.v1.profile_flags import dump_with_viewable_profiles
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.messaging import (
     ConversationSummarySchema,
@@ -52,9 +53,21 @@ def list_conversations():
         per_page=query_data["per_page"],
     )
 
+    candidate_ids = set()
+    for summary in pagination.items:
+        other_user = summary.get("other_user")
+        if other_user is not None:
+            candidate_ids.add(other_user.id)
+        latest_message = summary.get("latest_message")
+        if latest_message is not None:
+            candidate_ids.add(latest_message.sender_id)
+            candidate_ids.add(latest_message.recipient_id)
+
     return build_collection_response(
         "conversations",
-        CONVERSATION_SUMMARY_SCHEMA.dump(pagination.items),
+        dump_with_viewable_profiles(
+            CONVERSATION_SUMMARY_SCHEMA, pagination.items, candidate_ids, many=True
+        ),
         pagination=pagination,
     )
 
@@ -85,7 +98,13 @@ def get_message_thread(message_id):
                 active_loan = loan_request
                 break
 
-    return MESSAGE_THREAD_RESPONSE_SCHEMA.dump(
+    candidate_ids = {other_user.id}
+    for thread_message in thread_state["thread_messages"]:
+        candidate_ids.add(thread_message.sender_id)
+        candidate_ids.add(thread_message.recipient_id)
+
+    return dump_with_viewable_profiles(
+        MESSAGE_THREAD_RESPONSE_SCHEMA,
         {
             "conversation_id": str(conversation.id),
             "other_user": other_user,
@@ -98,7 +117,8 @@ def get_message_thread(message_id):
             "active_loan": active_loan,
             "has_unread_messages": thread_state["has_unread_messages"],
             "messages": thread_state["thread_messages"],
-        }
+        },
+        candidate_ids,
     )
 
 
