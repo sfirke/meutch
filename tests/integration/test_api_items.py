@@ -159,6 +159,47 @@ class TestApiItems:
         assert response.status_code == 200
         assert response.get_json()["viewer"]["is_active_borrower"] is True
 
+    def test_item_detail_shows_active_loan_only_to_owner_and_borrower(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            borrower = UserFactory(email_confirmed=True)
+            circle_mate = UserFactory(email_confirmed=True)
+            circle = CircleFactory()
+            circle.members.extend([owner, borrower, circle_mate])
+            item = ItemFactory(owner=owner, category=CategoryFactory(), name="Loaned ladder")
+            loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
+            db.session.commit()
+            item_id = item.id
+            borrower_id = str(borrower.id)
+            borrower_name = borrower.full_name
+            loan_id = str(loan.id)
+            loan_dates = (loan.start_date.isoformat(), loan.end_date.isoformat())
+            tokens = {
+                "owner": login_api_user(client, owner.email),
+                "borrower": login_api_user(client, borrower.email),
+                "circle_mate": login_api_user(client, circle_mate.email),
+            }
+
+        def fetch(role):
+            return client.get(f"/api/v1/items/{item_id}", headers=auth_headers(tokens[role]))
+
+        for role in ("owner", "borrower"):
+            response = fetch(role)
+            assert response.status_code == 200
+            loan_payload = response.get_json()["item"]["current_loan"]
+            assert loan_payload["id"] == loan_id
+            assert loan_payload["borrower"]["id"] == borrower_id
+            assert (loan_payload["start_date"], loan_payload["end_date"]) == loan_dates
+
+        response = fetch("circle_mate")
+        assert response.status_code == 200
+        assert response.get_json()["item"]["current_loan"] is None
+        body = response.get_data(as_text=True)
+        assert borrower_id not in body
+        assert borrower_name not in body
+        assert loan_dates[0] not in body
+        assert loan_dates[1] not in body
+
     def test_item_detail_returns_404_for_claimed_giveaway_past_visibility_window(self, client, app):
         with app.app_context():
             owner = UserFactory(email_confirmed=True)
