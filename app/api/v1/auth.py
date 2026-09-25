@@ -18,6 +18,8 @@ from app.api.v1.schemas.auth import (
     TokenBundleSchema,
 )
 from app.services import api_token_service, auth_service
+from app.utils import activity_events
+from app.utils.activity_log import log_event
 
 LOGIN_REQUEST_SCHEMA = LoginRequestSchema()
 REGISTER_REQUEST_SCHEMA = RegisterRequestSchema()
@@ -53,7 +55,15 @@ def refresh():
 @session_limit()
 def logout():
     """Revoke the current JWT session."""
+    # Read the identity before the token is revoked, for the same reason the web route
+    # does: afterwards there is nothing left to resolve the actor from.
+    signed_out_user_id = current_user.id if current_user else None
     api_token_service.revoke_token_family(get_jwt())
+    log_event(
+        activity_events.AUTH_LOGOUT,
+        actor=signed_out_user_id,
+        subject=signed_out_user_id,
+    )
     return MESSAGE_RESPONSE_SCHEMA.dump({"message": "You have been logged out."})
 
 

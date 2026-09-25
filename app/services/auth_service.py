@@ -9,6 +9,8 @@ from app import db
 from app.models import User
 from app.services import location_service
 from app.services.exceptions import ConflictError
+from app.utils import activity_events
+from app.utils.activity_log import log_event
 from app.utils.email import send_confirmation_email, send_password_reset_email
 
 logger = logging.getLogger(__name__)
@@ -173,6 +175,14 @@ def register_user(
                 "Please check your email for the confirmation link or request a new one.",
                 details={"email_status": "unconfirmed"},
             ) from None
+
+    log_event(
+        activity_events.AUTH_REGISTER_SUCCEEDED,
+        actor=user,
+        subject=user,
+        context={"location_method": location_method},
+    )
+
     email_sent = send_confirmation_email(user, next_url=next_url)
     return RegistrationResult(
         user=user,
@@ -210,6 +220,12 @@ def authenticate_user(email, password):
             # Round up so we never tell the user it's safe to retry a few seconds
             # before the lockout has actually lifted.
             retry_after_minutes = math.ceil(remaining.total_seconds() / 60)
+            log_event(
+                activity_events.AUTH_LOGIN_BLOCKED,
+                actor=None,
+                subject=user,
+                context={"retry_after_minutes": retry_after_minutes},
+            )
             return AuthenticationResult(
                 status=LOGIN_STATUS_LOCKED,
                 retry_after_minutes=retry_after_minutes,
@@ -221,6 +237,7 @@ def authenticate_user(email, password):
         db.session.commit()
 
     if not user or not user.check_password(password):
+        locked_out = False
         if user is not None:
             user.failed_login_attempts += 1
 
@@ -230,17 +247,42 @@ def authenticate_user(email, password):
                     minutes=_lockout_minutes(user.lockout_count)
                 )
                 user.failed_login_attempts = 0
+                locked_out = True
 
             db.session.commit()
+
+        # The address is recorded exactly as typed rather than normalized -- the typo
+        # is the diagnostic value -- and whether or not it matches an account, so that
+        # one search by address turns up every attempt. That is why it is listed in
+        # activity_events.EVENT_CONTEXT_KEYS, and the privacy policy says so.
+        # actor=None on purpose: a signed-in member can submit the login form for
+        # someone else's address.
+        log_event(
+            activity_events.AUTH_LOGIN_FAILED,
+            actor=None,
+            subject=user,
+            context={"attempted_email": email, "account_exists": user is not None},
+        )
+        if locked_out:
+            log_event(
+                activity_events.AUTH_ACCOUNT_LOCKED,
+                actor=None,
+                subject=user,
+                context={"lockout_count": user.lockout_count},
+            )
 
         return AuthenticationResult(status=LOGIN_STATUS_INVALID_CREDENTIALS)
 
     if not user.is_confirmed():
+        log_event(activity_events.AUTH_LOGIN_REJECTED_UNCONFIRMED, actor=None, subject=user)
         return AuthenticationResult(status=LOGIN_STATUS_UNCONFIRMED, user=user)
 
     user.last_login = datetime.now(UTC)
     _clear_lockout_state(user)
     db.session.commit()
+    # The caller has not started the session yet, so there is nothing in the request
+    # to resolve the actor from and it has to be passed explicitly.
+    log_event(activity_events.AUTH_LOGIN_SUCCEEDED, actor=user, subject=user)
     return AuthenticationResult(status=LOGIN_STATUS_SUCCESS, user=user)
 
 
@@ -264,6 +306,7 @@ def confirm_email_token(token):
     user = token_status.user
     if user.confirm_email(token):
         db.session.commit()
+        log_event(activity_events.AUTH_EMAIL_CONFIRMED, actor=user, subject=user)
         return AuthWorkflowResult(status=CONFIRM_EMAIL_STATUS_CONFIRMED, user=user)
 
     return AuthWorkflowResult(status=CONFIRM_EMAIL_STATUS_INVALID_TOKEN, user=user)
@@ -290,9 +333,28 @@ def resend_confirmation_email_for_user(email):
 def request_password_reset(email):
     user = _get_user_by_email(email)
     if not user:
+        # The same support case as a failed sign-in, one step removed: "I asked for a
+        # reset and never got the email" cannot be answered without the typed address.
+        log_event(
+            activity_events.AUTH_PASSWORD_RESET_REQUESTED,
+            context={
+                "attempted_email": email,
+                "account_exists": False,
+                "notification_sent": False,
+            },
+        )
         return AuthWorkflowResult(status=PASSWORD_RESET_REQUEST_STATUS_NOT_FOUND)
 
     email_sent = send_password_reset_email(user)
+    log_event(
+        activity_events.AUTH_PASSWORD_RESET_REQUESTED,
+        subject=user,
+        context={
+            "attempted_email": email,
+            "account_exists": True,
+            "notification_sent": email_sent,
+        },
+    )
     status = (
         PASSWORD_RESET_REQUEST_STATUS_SENT
         if email_sent
@@ -328,6 +390,7 @@ def reset_password(token, new_password):
         # is actually true.
         _clear_lockout_state(user)
         db.session.commit()
+        log_event(activity_events.AUTH_PASSWORD_RESET_COMPLETED, actor=user, subject=user)
         return AuthWorkflowResult(status=PASSWORD_RESET_STATUS_SUCCESS, user=user)
 
     return AuthWorkflowResult(status=PASSWORD_RESET_STATUS_INVALID, user=user)

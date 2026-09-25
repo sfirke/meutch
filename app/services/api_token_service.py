@@ -11,6 +11,8 @@ from app import db
 from app.models import ApiTokenBlocklist, ApiTokenFamily, User
 from app.services import auth_service
 from app.services.exceptions import AuthenticationError, AuthorizationError, ConflictError
+from app.utils import activity_events
+from app.utils.activity_log import log_event
 
 TOKEN_TYPE_ACCESS = "access"
 TOKEN_TYPE_REFRESH = "refresh"
@@ -168,6 +170,28 @@ def revoke_token_family(token_payload, *, reason=REVOKE_REASON_LOGOUT):
     db.session.commit()
 
 
+def _revoke_family_for_reuse(token_family, *, reason):
+    """Kill a live family whose superseded refresh token was presented, and log it.
+
+    A family that is already revoked (logout, account deletion, an earlier reuse)
+    is left alone and nothing is logged: a stale token after that point is a client
+    retrying, not evidence that a token was stolen. The actor is passed explicitly
+    because this runs inside the JWT blocklist callback, before flask_jwt_extended
+    has an authenticated user to resolve.
+    """
+    if token_family.revoked_at is not None:
+        return
+
+    token_family.revoke(REVOKE_REASON_REUSED)
+    db.session.commit()
+    log_event(
+        activity_events.AUTH_TOKEN_REUSE_DETECTED,
+        actor=token_family.user_id,
+        subject=token_family.user_id,
+        context={"reason": reason},
+    )
+
+
 def is_token_revoked(token_payload):
     """Return True when a JWT should no longer be honored."""
     blocked_token = ApiTokenBlocklist.query.filter_by(jti=token_payload["jti"]).first()
@@ -175,8 +199,7 @@ def is_token_revoked(token_payload):
 
     if blocked_token is not None:
         if token_payload["type"] == TOKEN_TYPE_REFRESH and token_family is not None:
-            token_family.revoke(REVOKE_REASON_REUSED)
-            db.session.commit()
+            _revoke_family_for_reuse(token_family, reason=blocked_token.reason)
         return True
 
     if token_family is None:
@@ -189,8 +212,7 @@ def is_token_revoked(token_payload):
         token_payload["type"] == TOKEN_TYPE_REFRESH
         and token_payload["jti"] != token_family.current_refresh_jti
     ):
-        token_family.revoke(REVOKE_REASON_REUSED)
-        db.session.commit()
+        _revoke_family_for_reuse(token_family, reason="superseded")
         return True
 
     return False
