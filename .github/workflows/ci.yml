@@ -18,13 +18,13 @@ jobs:
         fetch-depth: 0
         ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v4
+    - name: Set up Python 3.14
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.12
+        python-version: "3.14"
 
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-dev-${{ hashFiles('**/requirements.txt', '**/requirements-dev.txt') }}
@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.12]
+        python-version: ["3.14"]
 
     services:
       postgres:
@@ -69,12 +69,12 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -116,18 +116,19 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.11
+        python-version: "3.14"
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install safety bandit
+        pip install pip-audit bandit
         pip install -r requirements.txt
 
-    - name: Run safety check
-      run: safety check --json || true
+    # Fails the build when a pinned or transitive dependency has a known vulnerability.
+    - name: Run pip-audit
+      run: pip-audit -r requirements.txt
 
     - name: Run bandit security scan
       run: bandit -r app/ -f json || true
