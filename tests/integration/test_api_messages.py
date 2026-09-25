@@ -360,6 +360,71 @@ class TestApiMessaging:
         assert response.status_code == 401
 
 
+class TestApiMessagingProfileViewable:
+    """Exercise the profile_viewable flag on nested users in messaging reads."""
+
+    def _conversation_with(self, viewer, partner):
+        conversation = ConversationFactory()
+        ConversationParticipantFactory(conversation=conversation, user=viewer)
+        ConversationParticipantFactory(conversation=conversation, user=partner)
+        return conversation
+
+    def test_inbox_marks_conversation_partner_viewable(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            partner = UserFactory()
+            conversation = self._conversation_with(viewer, partner)
+            MessageFactory(sender=viewer, recipient=partner, conversation=conversation)
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+
+        response = client.get("/api/v1/messages", headers=auth_headers(access_token))
+
+        assert response.status_code == 200
+        summary = response.get_json()["conversations"][0]
+        assert summary["other_user"]["profile_viewable"] is True
+        assert summary["latest_message"]["sender"]["profile_viewable"] is False
+        assert summary["latest_message"]["recipient"]["profile_viewable"] is True
+
+    def test_thread_marks_partner_and_senders_viewable(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            partner = UserFactory()
+            conversation = self._conversation_with(viewer, partner)
+            first_message = MessageFactory(
+                sender=partner, recipient=viewer, conversation=conversation, is_read=True
+            )
+            MessageFactory(
+                sender=viewer, recipient=partner, conversation=conversation, is_read=True
+            )
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            message_id = first_message.id
+
+        response = client.get(f"/api/v1/messages/{message_id}", headers=auth_headers(access_token))
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["other_user"]["profile_viewable"] is True
+        senders_viewable = [m["sender"]["profile_viewable"] for m in payload["messages"]]
+        assert senders_viewable == [True, False]
+
+    def test_thread_hides_deleted_partner(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            partner = UserFactory(is_deleted=True)
+            conversation = self._conversation_with(viewer, partner)
+            message = MessageFactory(sender=partner, recipient=viewer, conversation=conversation)
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            message_id = message.id
+
+        response = client.get(f"/api/v1/messages/{message_id}", headers=auth_headers(access_token))
+
+        assert response.status_code == 200
+        assert response.get_json()["other_user"]["profile_viewable"] is False
+
+
 class TestApiConversationArchive:
     """Exercise conversation-level archive / unarchive endpoints."""
 

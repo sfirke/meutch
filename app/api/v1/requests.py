@@ -8,6 +8,7 @@ from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_request_data
+from app.api.v1.profile_flags import dump_with_viewable_profiles
 from app.api.v1.schemas.messaging import MessageResponseSchema
 from app.api.v1.schemas.requests import (
     ItemRequestDetailResponseSchema,
@@ -32,6 +33,17 @@ REQUEST_RESPOND_DRAFT_RESPONSE_SCHEMA = RequestRespondDraftResponseSchema()
 MESSAGE_RESPONSE_SCHEMA = MessageResponseSchema()
 
 
+def _request_candidate_ids(item_request, conversations=()):
+    """User ids nested in a request dump: the requester and conversation partners."""
+    ids = [item_request.user_id]
+    ids.extend(
+        conversation["other_user"].id
+        for conversation in conversations
+        if conversation.get("other_user")
+    )
+    return ids
+
+
 def _get_live_request_or_404(request_id):
     """Load a request, treating a soft-deleted one as missing."""
     item_request = db.session.get(ItemRequest, request_id)
@@ -53,11 +65,13 @@ def get_request(request_id):
     if current_user.id == item_request.user_id:
         conversations = build_request_conversation_summaries(item_request.id, current_user.id)
 
-    return ITEM_REQUEST_DETAIL_RESPONSE_SCHEMA.dump(
+    return dump_with_viewable_profiles(
+        ITEM_REQUEST_DETAIL_RESPONSE_SCHEMA,
         {
             "request": item_request,
             "conversations": conversations,
-        }
+        },
+        _request_candidate_ids(item_request, conversations),
     )
 
 
@@ -75,7 +89,14 @@ def create_request():
         data["seeking"],
         data["visibility"],
     )
-    return ITEM_REQUEST_RESPONSE_SCHEMA.dump({"request": item_request}), 201
+    return (
+        dump_with_viewable_profiles(
+            ITEM_REQUEST_RESPONSE_SCHEMA,
+            {"request": item_request},
+            _request_candidate_ids(item_request),
+        ),
+        201,
+    )
 
 
 @bp.patch("/requests/<uuid:request_id>")
@@ -94,7 +115,11 @@ def update_request(request_id):
         data["seeking"],
         data["visibility"],
     )
-    return ITEM_REQUEST_RESPONSE_SCHEMA.dump({"request": item_request})
+    return dump_with_viewable_profiles(
+        ITEM_REQUEST_RESPONSE_SCHEMA,
+        {"request": item_request},
+        _request_candidate_ids(item_request),
+    )
 
 
 @bp.delete("/requests/<uuid:request_id>")
