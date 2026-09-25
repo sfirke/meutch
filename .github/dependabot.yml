@@ -2,6 +2,8 @@ version: 2
 updates:
   - package-ecosystem: pip
     directory: /
+    # Bumps land on staging first so they deploy there before reaching main.
+    target-branch: staging
     schedule:
       interval: weekly
     groups:
@@ -13,5 +15,6 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
+    target-branch: staging
     schedule:
       interval: weekly
