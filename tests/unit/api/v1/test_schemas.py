@@ -5,8 +5,10 @@ from uuid import uuid4
 
 import pytest
 from marshmallow import ValidationError
+from marshmallow.experimental.context import Context
 
 from app import db
+from app.api.v1 import profile_flags
 from app.api.v1.schemas import ItemSummarySchema, UserSummarySchema
 from app.api.v1.schemas.circles import CircleWritePayloadSchema
 from app.api.v1.schemas.items import ItemWritePayloadSchema
@@ -14,7 +16,15 @@ from app.api.v1.schemas.loans import LoanRequestCreateSchema
 from app.api.v1.schemas.messaging import MessageStartSchema
 from app.api.v1.schemas.profile import LocationUpdateSchema, ProfileUpdateSchema
 from app.api.v1.schemas.requests import RequestWritePayloadSchema
-from tests.factories import CategoryFactory, ItemFactory, ItemImageFactory, TagFactory, UserFactory
+from app.api.v1.schemas.users import UserIdentitySchema
+from tests.factories import (
+    CategoryFactory,
+    CircleFactory,
+    ItemFactory,
+    ItemImageFactory,
+    TagFactory,
+    UserFactory,
+)
 
 
 class TestApiSchemas:
@@ -38,6 +48,7 @@ class TestApiSchemas:
             "last_name": "Lovelace",
             "full_name": "Ada Lovelace",
             "profile_image_url": "https://example.com/profiles/ada.png",
+            "profile_viewable": False,
         }
         assert "email" not in payload
         assert "password_hash" not in payload
@@ -91,6 +102,7 @@ class TestApiSchemas:
                 "last_name": "Hopper",
                 "full_name": "Grace Hopper",
                 "profile_image_url": "https://example.com/profiles/grace.png",
+                "profile_viewable": False,
             },
             "category": {
                 "id": str(category.id),
@@ -117,6 +129,70 @@ class TestApiSchemas:
             payload = ItemSummarySchema().dump(item)
 
         assert payload["image_url"] is None
+
+
+class TestProfileViewableFlag:
+    """Test the context-driven profile_viewable flag on nested users."""
+
+    def test_defaults_false_without_context(self, app):
+        with app.app_context():
+            user = UserFactory()
+            payload = UserSummarySchema().dump(user)
+
+        assert payload["profile_viewable"] is False
+
+    def test_true_when_id_in_context(self, app):
+        with app.app_context():
+            viewable, hidden = UserFactory(), UserFactory()
+            with Context({"viewable_user_ids": {viewable.id}}):
+                payload = UserSummarySchema().dump([viewable, hidden], many=True)
+
+        assert [entry["profile_viewable"] for entry in payload] == [True, False]
+
+    def test_matches_string_ids_and_dict_objects(self):
+        user_id = uuid4()
+        user = {
+            "id": user_id,
+            "first_name": "Ada",
+            "last_name": "Lovelace",
+            "full_name": "Ada Lovelace",
+            "profile_image_url": None,
+        }
+        with Context({"viewable_user_ids": [str(user_id).upper()]}):
+            payload = UserSummarySchema().dump(user)
+
+        assert payload["profile_viewable"] is True
+
+    def test_identity_schema_has_no_flag(self, app):
+        with app.app_context():
+            user = UserFactory()
+            with Context({"viewable_user_ids": {user.id}}):
+                payload = UserIdentitySchema().dump(user)
+
+        assert "profile_viewable" not in payload
+        assert "profile_viewable" not in UserIdentitySchema().fields
+
+    def test_dump_helper_marks_viewable_users(self, app, monkeypatch):
+        with app.app_context():
+            viewer, member, stranger = UserFactory(), UserFactory(), UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, member])
+            db.session.commit()
+            monkeypatch.setattr(profile_flags, "current_user", viewer)
+
+            users = [viewer, member, stranger]
+            payload = profile_flags.dump_with_viewable_profiles(
+                UserSummarySchema(),
+                users,
+                [user.id for user in users] + [member.id, None],
+                many=True,
+            )
+            single = profile_flags.dump_with_viewable_profiles(
+                UserSummarySchema(), member, [member.id]
+            )
+
+        assert [entry["profile_viewable"] for entry in payload] == [False, True, False]
+        assert single["profile_viewable"] is True
 
 
 class TestApiWriteSchemas:
