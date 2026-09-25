@@ -57,7 +57,7 @@
             an address we do not recognize.
         </p>
         <p>
-            Activity log entries are deleted after 90 days. They are never shared with anyone
+            Activity log entries are deleted after {{ config.ACTIVITY_LOG_RETENTION_DAYS }} days. They are never shared with anyone
             outside the project, and they do not contain the contents of your messages.
         </p>
 
@@ -72,9 +72,9 @@
             <li>Your circle memberships are removed.</li>
             <li>Messages you sent remain in the conversations of the recipients, to preserve their message history. However, your name is no longer associated with those messages.</li>
             <li>Activity log entries about the account, including IP addresses, are kept for up to
-                90 days after deletion and are then deleted along with everything else in the log.
+                {{ config.ACTIVITY_LOG_RETENTION_DAYS }} days after deletion and are then deleted along with everything else in the log.
                 We do not erase them immediately: a deletion is sometimes the last step of an
-                account takeover, and that 90-day window is exactly when we would need to see it.</li>
+                account takeover, and that window is exactly when we would need to see it.</li>
         </ul>
 
         <h4 class="mt-4">6. Data Security</h4>
