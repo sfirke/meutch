@@ -4,7 +4,7 @@ from marshmallow import fields, validate
 
 from app.api.v1.schemas.base import ApiSchema
 from app.api.v1.schemas.messaging import CircleConversationContextSchema
-from app.api.v1.schemas.profile import UserWebLinkSchema
+from app.api.v1.schemas.profile import dump_web_links
 from app.utils.profile_visibility import (
     PROFILE_ACCESS_ADMIN,
     PROFILE_ACCESS_CIRCLE,
@@ -12,8 +12,6 @@ from app.utils.profile_visibility import (
     PROFILE_ACCESS_JOIN_REQUEST,
     PROFILE_ACCESS_SELF,
 )
-
-_USER_WEB_LINKS_SCHEMA = UserWebLinkSchema(many=True)
 
 
 class PublicUserProfileSchema(ApiSchema):
@@ -28,9 +26,7 @@ class PublicUserProfileSchema(ApiSchema):
     web_links = fields.Method("get_web_links")
 
     def get_web_links(self, user):
-        """Return external links in display order."""
-        ordered_links = sorted(user.web_links, key=lambda link: link.display_order)
-        return _USER_WEB_LINKS_SCHEMA.dump(ordered_links)
+        return dump_web_links(user)
 
 
 class PublicUserProfileResponseSchema(ApiSchema):
