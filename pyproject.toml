@@ -1,5 +1,6 @@
 [tool.ruff]
-target-version = "py312"
+# ruff 0.6.9 predates py314; bump alongside ruff.
+target-version = "py313"
 line-length = 100
 extend-exclude = ["migrations"]
 
@@ -10,7 +11,7 @@ ignore = ["E501"]
 [tool.pylint.main]
 jobs = 0
 ignore-paths = ["^migrations/"]
-py-version = "3.12"
+py-version = "3.14"
 
 [tool.pylint.messages_control]
 disable = [
