@@ -37,6 +37,8 @@ repos:
         name: pylint (errors only)
         entry: pylint --errors-only --score=n --recursive=n
         language: system
+        # Linting app.py alongside the app/ package makes pylint resolve `app` to the file.
+        exclude: ^app\.py$
         types_or:
           - python
           - pyi
