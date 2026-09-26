@@ -101,7 +101,7 @@ jobs:
         pytest --cov=app --cov-report=xml --cov-report=html -v
 
     - name: Archive test results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: always()
       with:
         name: test-results-${{ matrix.python-version }}
