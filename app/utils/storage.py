@@ -227,7 +227,7 @@ def get_file_size(file):
         file_size = file.tell()
         file.seek(current_position)
         return file_size
-    except (AttributeError, OSError):
+    except AttributeError, OSError:
         return None
 
 

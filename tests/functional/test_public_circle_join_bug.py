@@ -1,49 +1,53 @@
 """Functional test to ensure public circles can be joined by other users."""
-from flask import url_for
-from app.models import Circle
+
 from app import db
-from tests.factories import UserFactory
+from app.models import Circle
 from conftest import login_user
+from tests.factories import UserFactory
 
 
 def test_public_circle_join_flow(client, app):
     with app.app_context():
         # Create two users
-        creator = UserFactory(email='creator_public@test.com')
-        joiner = UserFactory(email='joiner_public@test.com')
+        creator = UserFactory(email="creator_public@test.com")
+        joiner = UserFactory(email="joiner_public@test.com")
 
         # Creator logs in and creates an open circle
         login_user(client, creator.email)
 
-        response = client.post('/circles', data={
-            'create_circle': True,
-            'name': 'Public Circle Test',
-            'description': 'A public circle for testing',
-            'circle_type': 'open',
-        }, follow_redirects=True)
+        response = client.post(
+            "/circles",
+            data={
+                "create_circle": True,
+                "name": "Public Circle Test",
+                "description": "A public circle for testing",
+                "circle_type": "open",
+            },
+            follow_redirects=True,
+        )
 
         assert response.status_code == 200
-        assert b'Public Circle Test' in response.data
+        assert b"Public Circle Test" in response.data
 
-        circle = Circle.query.filter_by(name='Public Circle Test').first()
+        circle = Circle.query.filter_by(name="Public Circle Test").first()
         assert circle is not None
-        assert circle.circle_type == 'open'
+        assert circle.circle_type == "open"
 
         # Logout creator
-        client.get('/logout', follow_redirects=True)
+        client.get("/logout", follow_redirects=True)
 
         # Joiner logs in and attempts to join the public circle
         login_user(client, joiner.email)
 
         # Joiner should be able to view the circle details page before joining
-        response = client.get(f'/circles/{circle.id}', follow_redirects=True)
+        response = client.get(f"/circles/{circle.id}", follow_redirects=True)
         assert response.status_code == 200
-        assert b'Public Circle Test' in response.data
+        assert b"Public Circle Test" in response.data
         # Page should show a join button for public circles
-        assert b'Join Circle' in response.data
+        assert b"Join Circle" in response.data
 
         # For public circles, POST to join should immediately add the member
-        response = client.post(f'/circles/join/{circle.id}', follow_redirects=True)
+        response = client.post(f"/circles/join/{circle.id}", follow_redirects=True)
         assert response.status_code == 200
 
         # Reload circle from DB and confirm membership

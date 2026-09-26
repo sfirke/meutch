@@ -125,8 +125,7 @@ def forgot_password():
     return MESSAGE_RESPONSE_SCHEMA.dump(
         {
             "message": (
-                "If an account with that email exists, password reset instructions have been "
-                "sent."
+                "If an account with that email exists, password reset instructions have been sent."
             )
         }
     )

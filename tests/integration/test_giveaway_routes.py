@@ -581,9 +581,9 @@ class TestGiveawaysFeed:
             new_pos = response.data.find(b"New Giveaway")
             old_pos = response.data.find(b"Old Giveaway")
             assert new_pos != -1 and old_pos != -1, "Both giveaways should be found in response"
-            assert (
-                new_pos < old_pos
-            ), "New Giveaway should appear before Old Giveaway when sorting by date"
+            assert new_pos < old_pos, (
+                "New Giveaway should appear before Old Giveaway when sorting by date"
+            )
 
     def test_public_giveaway_visible_without_shared_circles(self, client, app, auth_user):
         """Test that public giveaways are visible to users who don't share circles with owner."""
@@ -628,12 +628,12 @@ class TestGiveawaysFeed:
             response = client.get("/?distance=")
 
             assert response.status_code == 200
-            assert (
-                b"Public Free Item" in response.data
-            ), "Public giveaway should be visible to all circle members"
-            assert (
-                b"Circles Only Free Item" not in response.data
-            ), "Default visibility giveaway should not be visible without shared circles"
+            assert b"Public Free Item" in response.data, (
+                "Public giveaway should be visible to all circle members"
+            )
+            assert b"Circles Only Free Item" not in response.data, (
+                "Default visibility giveaway should not be visible without shared circles"
+            )
 
     def test_public_giveaway_visible_in_search_without_shared_circles(self, client, app, auth_user):
         """Test that public giveaways appear in search for users who don't share circles with owner."""
@@ -681,12 +681,12 @@ class TestGiveawaysFeed:
             response = client.get("/find?q=Searchable&item_type=giveaways")
 
             assert response.status_code == 200
-            assert (
-                b"Searchable Public Giveaway" in response.data
-            ), "Public giveaway should appear in search for all circle members"
-            assert (
-                b"Searchable Default Giveaway" not in response.data
-            ), "Default visibility giveaway should not appear in search without shared circles"
+            assert b"Searchable Public Giveaway" in response.data, (
+                "Public giveaway should appear in search for all circle members"
+            )
+            assert b"Searchable Default Giveaway" not in response.data, (
+                "Default visibility giveaway should not appear in search without shared circles"
+            )
 
 
 class TestSearchFiltering:
@@ -2201,12 +2201,12 @@ class TestConfirmHandoff:
             response = client.get("/?distance=")
 
             assert response.status_code == 200
-            assert (
-                b"Available Public Item" in response.data
-            ), "Unclaimed public giveaway should appear"
-            assert (
-                b"Pending Public Item" not in response.data
-            ), "Pending pickup giveaway should NOT appear to other users"
+            assert b"Available Public Item" in response.data, (
+                "Unclaimed public giveaway should appear"
+            )
+            assert b"Pending Public Item" not in response.data, (
+                "Pending pickup giveaway should NOT appear to other users"
+            )
 
 
 class TestItemDetailPageForGiveaways:
