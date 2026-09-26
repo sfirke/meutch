@@ -752,6 +752,51 @@ class TestEmailUtils:
                 # Text content should have unescaped item name
                 assert item_name in text_content
 
+    @pytest.mark.parametrize(
+        ("send", "extra_args"),
+        [
+            ("send_loan_due_soon_email", ()),
+            ("send_loan_due_today_borrower_email", ()),
+            ("send_loan_overdue_borrower_email", (2,)),
+        ],
+    )
+    def test_borrower_reminders_only_offer_an_extension_while_none_is_pending(
+        self, app, send, extra_args
+    ):
+        """The loan page hides "Request Extension" once a request is waiting."""
+        from datetime import date, timedelta
+
+        from app.services import loan_service
+        from app.utils import email as email_utils
+
+        with app.app_context():
+            borrower = UserFactory()
+            item = ItemFactory(owner=UserFactory(), available=False)
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                start_date=date.today() - timedelta(days=10),
+                end_date=date.today() + timedelta(days=3),
+                status="approved",
+            )
+
+            def text_sent():
+                with patch("app.utils.email.send_email") as mock_send_email:
+                    mock_send_email.return_value = True
+                    assert getattr(email_utils, send)(loan, *extra_args) is True
+                    return mock_send_email.call_args[0][2]
+
+            assert "you can request an extension" in text_sent()
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                loan_service.request_extension(
+                    loan, borrower.id, loan.end_date + timedelta(days=7), ""
+                )
+
+            text = text_sent()
+            assert "you can request an extension" not in text
+            assert "still waiting for the owner" in text
+
 
 class TestSendContactFormEmail:
     """Test send_contact_form_email function."""

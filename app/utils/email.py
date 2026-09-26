@@ -147,8 +147,8 @@ def _generated_prefix(body):
 
     Subject lines are chosen by looking for phrases the app itself wrote, so
     the sender's free text has to be stripped first.  Otherwise an owner who
-    writes "granting the extension requested last week" has their note filed
-    as a different kind of loan event.
+    shortens a loan and writes "last time 'Ladder' has been extended, this
+    time I need it back sooner" has their note filed as a loan extension.
     """
     lowered = (body or "").lower()
     for marker in _FREE_TEXT_MARKERS:
@@ -215,14 +215,27 @@ def send_message_notification_email(message):
     # Determine the subject and email content based on message type
     if message.is_loan_request_message:
         item_name = conversation.item.name if conversation.item else "Unknown Item"
+        body_lower = (message.body or "").lower()
         message_body_lower = _generated_prefix(message.body)
-        # Which loan event this is has to be read back out of the wording the
-        # app used when it wrote the message.  Match the sentence shape around
-        # the quoted item name, not bare words: the item name is user-typed too.
-        # extend_loan() writes this wording for pending loans too (the owner
-        # can move a still-pending request's dates before it's approved), so
-        # this isn't gated on the loan being approved.
-        if "' has been extended" in message_body_lower:
+        # The borrower's extension request is linked to its row.  Every other
+        # loan event has to be read back out of the wording the app used when
+        # it wrote the message.  Match the whole app-written sentence, item
+        # name included, rather than bare words: the item name is user-typed
+        # too, and a loan request's opening message is entirely free text.
+        # extend_loan() writes the "has been extended" wording for pending
+        # loans too (the owner can move a still-pending request's dates
+        # before it's approved), so that check isn't gated on loan status.
+        decision_prefix = f"your extension request for '{item_name.lower()}'"
+        if message.loan_extension_request is not None:
+            subject = f"Meutch - Extension Request for {item_name}"
+            email_type = "extension request"
+        elif body_lower.startswith(f"{decision_prefix} has been approved."):
+            subject = f"Meutch - Extension Approved for {item_name}"
+            email_type = "extension approval"
+        elif body_lower.startswith(f"{decision_prefix} was denied."):
+            subject = f"Meutch - Extension Denied for {item_name}"
+            email_type = "extension denial"
+        elif "' has been extended" in message_body_lower:
             subject = f"Meutch - Loan Extended for {item_name}"
             email_type = "loan extension"
         elif "' has been updated" in message_body_lower:
@@ -927,6 +940,17 @@ def send_digest_email(user, digest_payload):
     return send_email(user.email, content["subject"], content["text"], content["html"])
 
 
+def _more_time_hint(loan):
+    """Tell the borrower how to get more time, or that they already asked.
+
+    The loan page only offers "Request Extension" while no request is
+    pending, so a reminder must not promise it while one is.
+    """
+    if loan.has_pending_extension:
+        return "Your extension request is still waiting for the owner's reply."
+    return "If you need more time, you can request an extension from the loan page."
+
+
 def send_loan_due_soon_email(loan):
     """Send 3-day reminder email to borrower that loan is due soon"""
     from app import db
@@ -944,6 +968,7 @@ def send_loan_due_soon_email(loan):
     from app.utils.messaging_queries import loan_conversation_url
 
     conversation_url = loan_conversation_url(loan, external=True)
+    more_time_hint = _more_time_hint(loan)
 
     subject = f"Meutch - Reminder: {loan.item.name} is due in 3 days"
 
@@ -956,7 +981,7 @@ Item: {loan.item.name}
 Owner: {owner.first_name} {owner.last_name}
 Due Date: {loan.end_date.strftime("%B %d, %Y")} (in 3 days)
 
-Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
+Please make arrangements to return the item by the due date. {more_time_hint}
 
 You can view the loan and message the owner here:
 {conversation_url}
@@ -984,7 +1009,7 @@ The Meutch Team
         </div>
 
         <p style="color: #666; font-size: 14px;">
-            Please make arrangements to return the item by the due date. If you need more time, please contact the owner to discuss extending the loan.
+            Please make arrangements to return the item by the due date. {more_time_hint}
         </p>
 
         <div style="text-align: center; margin: 30px 0;">
@@ -1027,6 +1052,7 @@ def send_loan_due_today_borrower_email(loan):
     from app.utils.messaging_queries import loan_conversation_url
 
     conversation_url = loan_conversation_url(loan, external=True)
+    more_time_hint = _more_time_hint(loan)
 
     subject = f"Meutch - {loan.item.name} is due back today"
 
@@ -1039,7 +1065,7 @@ Item: {loan.item.name}
 Owner: {owner.first_name} {owner.last_name}
 Due Date: Today, {loan.end_date.strftime("%B %d, %Y")}
 
-Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
+Please return the item to the owner as soon as possible. {more_time_hint} If you have already returned it, please let the owner know.
 
 You can view the loan and message the owner here:
 {conversation_url}
@@ -1067,7 +1093,7 @@ The Meutch Team
         </div>
 
         <p style="color: #666; font-size: 14px;">
-            Please return the item to the owner as soon as possible. If you need more time or have already returned it, please contact the owner to coordinate.
+            Please return the item to the owner as soon as possible. {more_time_hint} If you have already returned it, please let the owner know.
         </p>
 
         <div style="text-align: center; margin: 30px 0;">
@@ -1200,6 +1226,7 @@ def send_loan_overdue_borrower_email(loan, days_overdue):
     from app.utils.messaging_queries import loan_conversation_url
 
     conversation_url = loan_conversation_url(loan, external=True)
+    more_time_hint = _more_time_hint(loan)
 
     subject = f"Meutch - Reminder: {loan.item.name} is {days_overdue} day{'s' if days_overdue != 1 else ''} overdue"
 
@@ -1213,7 +1240,7 @@ Owner: {owner.first_name} {owner.last_name}
 Due Date: {loan.end_date.strftime("%B %d, %Y")}
 Days Overdue: {days_overdue}
 
-Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
+Please return the item to the owner as soon as possible. {more_time_hint}
 
 You can view the loan and message the owner here:
 {conversation_url}
@@ -1242,7 +1269,7 @@ The Meutch Team
         </div>
 
         <p style="color: #666; font-size: 14px;">
-            Please return the item to the owner as soon as possible. If you need more time, please contact the owner immediately to request an extension or discuss the situation.
+            Please return the item to the owner as soon as possible. {more_time_hint}
         </p>
 
         <div style="text-align: center; margin: 30px 0;">

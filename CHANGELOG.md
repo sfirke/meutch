@@ -8,6 +8,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 **Minor**:
 - When answering a request, there's now an option to click "I have this item" and then choose or list it. This work also displays the full details of a request above the message box on every compose page for easy reference ([#412](https://github.com/sfirke/meutch/pull/412)).
 - Borrowers can now request more time on a loan instead of having to talk the owner into changing the date. ([#493](https://github.com/sfirke/meutch/pull/493)).
+- Emails about a loan extension request now say what they are in the subject line: "Extension Request", "Extension Approved" or "Extension Denied", instead of "Loan Request Approved". Due date reminder emails now mention that you can request an extension from the loan page ([#508](https://github.com/sfirke/meutch/pull/508)).
 
 ### Security
 - **Spam protection**: The sign-up form now limits how many times it can be submitted from one connection in an hour. This slows down scripts creating fake accounts, which also sent confirmation emails to people who never signed up ([#495](https://github.com/sfirke/meutch/pull/495)).
