@@ -108,7 +108,7 @@ def geocode_address(
     state: Optional[str] = None,
     zip_code: Optional[str] = None,
     country: Optional[str] = None,
-    max_retries: int = 3,
+    max_retries: int = 2,
     delay: float = 1.0,
 ) -> Optional[Tuple[float, float]]:
     """
@@ -151,7 +151,7 @@ def geocode_address(
                     NOMINATIM_URL,
                     params={**NOMINATIM_BASE_PARAMS, **query_params},
                     headers=NOMINATIM_HEADERS,
-                    timeout=10,
+                    timeout=5,
                 )
                 response.raise_for_status()
 

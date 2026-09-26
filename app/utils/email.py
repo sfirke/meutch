@@ -15,6 +15,9 @@ from markupsafe import escape
 from app.template_filters import linkify
 from app.utils.digest_tokens import generate_digest_manage_token
 
+# (connect, read) seconds; emails are sent inside requests, so a stalled Mailgun must not stall them.
+MAILGUN_TIMEOUT_SECONDS = (5, 10)
+
 
 def send_email(to_email, subject, text_content, html_content=None, reply_to=None):
     """Send email using Mailgun API"""
@@ -46,7 +49,10 @@ def send_email(to_email, subject, text_content, html_content=None, reply_to=None
             data["h:Reply-To"] = reply_to
 
         response = requests.post(
-            f"https://api.mailgun.net/v3/{domain}/messages", auth=("api", api_key), data=data
+            f"https://api.mailgun.net/v3/{domain}/messages",
+            auth=("api", api_key),
+            data=data,
+            timeout=MAILGUN_TIMEOUT_SECONDS,
         )
 
         if response.status_code == 200:

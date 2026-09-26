@@ -4,9 +4,11 @@ import uuid
 from unittest.mock import patch
 
 import pytest
+import requests
 
 from app import db
 from app.utils.email import (
+    MAILGUN_TIMEOUT_SECONDS,
     build_digest_email_content,
     send_account_deletion_email,
     send_digest_email,
@@ -44,6 +46,18 @@ class TestEmailUtils:
                 assert mock_post.call_args.kwargs["data"]["h:Reply-To"] == (
                     "Meutch Replies <reply+123@reply.example.com>"
                 )
+
+    def test_send_email_returns_false_when_mailgun_times_out(self, app):
+        with app.app_context():
+            app.config["MAILGUN_DOMAIN"] = "mg.example.com"
+            app.config["MAILGUN_API_KEY"] = "key-12345"
+            app.config["EMAIL_ALLOWLIST"] = None
+
+            with patch("app.utils.email.requests.post", side_effect=requests.Timeout) as mock_post:
+                result = send_email("recipient@example.com", "Test Subject", "Test body")
+
+            assert result is False
+            assert mock_post.call_args.kwargs["timeout"] == MAILGUN_TIMEOUT_SECONDS
 
     def test_send_account_deletion_email_content(self):
         """Test that account deletion email contains correct content."""
