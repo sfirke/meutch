@@ -34,7 +34,7 @@ def inject_unread_messages_count():
         # This includes both regular messages and loan request messages (approvals, denials, etc.)
         unread_messages = Message.query.filter(
             Message.recipient_id == current_user.id,
-            Message.is_read == False,
+            Message.is_read.is_(False),
             Message.sender_id != current_user.id,  # Exclude self-sent messages
         ).count()
 
@@ -59,7 +59,7 @@ def inject_total_pending():
                 Circle.id == CircleJoinRequest.circle_id, CircleJoinRequest.status == "pending"
             ),
         )
-        .filter(circle_members.c.user_id == current_user.id, circle_members.c.is_admin == True)
+        .filter(circle_members.c.user_id == current_user.id, circle_members.c.is_admin.is_(True))
         .group_by(Circle.id)
         .all()
     )

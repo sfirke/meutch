@@ -126,7 +126,7 @@ class TestAdminDashboardShowcaseUI:
     def test_dashboard_shows_showcase_badge(self, client, db_session):
         """Test that showcase users have a 'Showcase' badge"""
         admin = UserFactory(is_admin=True)
-        showcase_user = UserFactory(is_public_showcase=True)
+        UserFactory(is_public_showcase=True)
         db_session.commit()
 
         login_user(client, admin.email)
@@ -138,7 +138,7 @@ class TestAdminDashboardShowcaseUI:
     def test_dashboard_shows_enable_showcase_button(self, client, db_session):
         """Test that non-showcase users have 'Enable Showcase' button"""
         admin = UserFactory(is_admin=True)
-        user = UserFactory(is_public_showcase=False)
+        UserFactory(is_public_showcase=False)
         db_session.commit()
 
         login_user(client, admin.email)
@@ -150,7 +150,7 @@ class TestAdminDashboardShowcaseUI:
     def test_dashboard_shows_disable_showcase_button(self, client, db_session):
         """Test that showcase users have 'Disable Showcase' button"""
         admin = UserFactory(is_admin=True)
-        user = UserFactory(is_public_showcase=True)
+        UserFactory(is_public_showcase=True)
         db_session.commit()
 
         login_user(client, admin.email)

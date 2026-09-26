@@ -23,7 +23,7 @@ class TestProfileItemsVisibility:
         """Test that users can see their own items when viewing their own profile."""
         user = UserFactory(first_name="Owner", last_name="User")
         category = CategoryFactory()
-        item = ItemFactory(owner=user, category=category, name="My Test Item")
+        ItemFactory(owner=user, category=category, name="My Test Item")
         db.session.commit()
 
         login_user(client, user.email)
@@ -37,7 +37,7 @@ class TestProfileItemsVisibility:
         owner = UserFactory(first_name="Item", last_name="Owner")
         viewer = UserFactory(first_name="Circle", last_name="Member")
         category = CategoryFactory()
-        item = ItemFactory(owner=owner, category=category, name="Private Item")
+        ItemFactory(owner=owner, category=category, name="Private Item")
         db.session.commit()
 
         # Put both users in the same circle
@@ -60,7 +60,7 @@ class TestProfileItemsVisibility:
         admin = UserFactory(is_admin=True, first_name="Admin", last_name="User")
         owner = UserFactory(first_name="Regular", last_name="User")
         category = CategoryFactory()
-        item = ItemFactory(owner=owner, category=category, name="Viewable By Admin Item")
+        ItemFactory(owner=owner, category=category, name="Viewable By Admin Item")
         db.session.commit()
 
         # Admin doesn't need to be in same circle
@@ -78,9 +78,9 @@ class TestProfileItemsVisibility:
         """Test that users can see all their items on their profile."""
         user = UserFactory(first_name="Multi", last_name="Item User")
         category = CategoryFactory()
-        item1 = ItemFactory(owner=user, category=category, name="First Item")
-        item2 = ItemFactory(owner=user, category=category, name="Second Item")
-        item3 = ItemFactory(owner=user, category=category, name="Third Item")
+        ItemFactory(owner=user, category=category, name="First Item")
+        ItemFactory(owner=user, category=category, name="Second Item")
+        ItemFactory(owner=user, category=category, name="Third Item")
         db.session.commit()
 
         login_user(client, user.email)

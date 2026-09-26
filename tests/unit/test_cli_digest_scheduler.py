@@ -111,11 +111,11 @@ class TestCliDigestScheduler:
         with app.app_context():
             sunday_utc = datetime(2026, 3, 15, 14, 0, tzinfo=UTC)
 
-            daily_user = UserFactory(
+            UserFactory(
                 digest_frequency=User.DIGEST_FREQUENCY_DAILY,
                 digest_last_sent_at=sunday_utc - timedelta(hours=1),
             )
-            weekly_user = UserFactory(
+            UserFactory(
                 digest_frequency=User.DIGEST_FREQUENCY_WEEKLY,
                 digest_last_sent_at=sunday_utc - timedelta(hours=2),
             )
