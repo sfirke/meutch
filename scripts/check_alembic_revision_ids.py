@@ -5,10 +5,8 @@ Alembic stores revision IDs in alembic_version.version_num, which is VARCHAR(32)
 by default. This script prevents introducing revision IDs longer than 32 chars.
 """
 
-from pathlib import Path
 import re
-import sys
-
+from pathlib import Path
 
 MAX_REVISION_LENGTH = 32
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations" / "versions"

@@ -667,10 +667,10 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     # Python sort is stable, so within each subgroup the existing order
     # (created_at descending from build_digest_payload) is preserved.
     claimed_giveaways.sort(
-        key=lambda e: (0 if e.get("digest_variant") == "new-resolved-in-window" else 1)
+        key=lambda e: 0 if e.get("digest_variant") == "new-resolved-in-window" else 1
     )
     fulfilled_requests.sort(
-        key=lambda e: (0 if e.get("digest_variant") == "new-resolved-in-window" else 1)
+        key=lambda e: 0 if e.get("digest_variant") == "new-resolved-in-window" else 1
     )
 
     events = digest_payload.get("events")

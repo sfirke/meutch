@@ -38,7 +38,7 @@ from .helpers import (
 def _ensure_item_creation_token(form):
     try:
         creation_token = uuid.UUID(str(form.creation_token.data))
-    except (AttributeError, TypeError, ValueError):
+    except AttributeError, TypeError, ValueError:
         creation_token = uuid.uuid4()
 
     form.creation_token.data = str(creation_token)
@@ -58,7 +58,7 @@ def _respond_flow_request_id():
     raw_request_id = request.args.get("request_id") or request.form.get("request_id")
     try:
         return str(uuid.UUID(str(raw_request_id)))
-    except (AttributeError, TypeError, ValueError):
+    except AttributeError, TypeError, ValueError:
         return None
 
 

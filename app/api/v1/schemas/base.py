@@ -162,7 +162,7 @@ class ApiSchema(Schema):
     def _load_json_value(self, value, expected_type):
         try:
             parsed_value = json.loads(value)
-        except (TypeError, json.JSONDecodeError):
+        except TypeError, json.JSONDecodeError:
             return _JSON_NOT_PARSED
 
         if not isinstance(parsed_value, expected_type):
