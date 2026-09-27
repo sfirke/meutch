@@ -1,6 +1,5 @@
 [tool.ruff]
-# ruff 0.6.9 predates py314; bump alongside ruff.
-target-version = "py313"
+target-version = "py314"
 line-length = 100
 extend-exclude = ["migrations"]
 
