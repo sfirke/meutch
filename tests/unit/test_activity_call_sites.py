@@ -1,11 +1,12 @@
 """Static checks on every log_event call in the application.
 
-Both conventions this enforces are the kind a reviewer notices four times out of
-five, which is not good enough for a table that holds email addresses and IP
-addresses. Turning them into a red build costs about fifty lines.
+Enforces two conventions: every call site names a registered event constant, and
+any literal context keys it passes are ones that event's allowlist covers. Both
+are easy to get wrong and easy to miss in review, and the table holds email and
+IP addresses.
 
-This reads the source rather than the running app on purpose: a call site on a path
-no test happens to exercise is exactly the one that will get it wrong.
+This reads the source rather than the running app so it also covers call sites
+no test happens to exercise.
 """
 
 import ast
