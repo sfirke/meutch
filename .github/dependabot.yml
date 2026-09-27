@@ -6,6 +6,10 @@ updates:
     target-branch: staging
     schedule:
       interval: weekly
+    # Wait a week after a release so bad or hijacked versions get pulled first.
+    # Security updates ignore this.
+    cooldown:
+      default-days: 7
     groups:
       # One PR for routine bumps; majors still arrive individually for review.
       pip-minor-and-patch:
@@ -15,6 +19,9 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
-    target-branch: staging
+    # Actions only run in CI, which PRs already exercise, so skip staging.
+    target-branch: main
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
