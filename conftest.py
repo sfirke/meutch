@@ -163,9 +163,6 @@ class TestConfig(Config):
     DO_SPACES_KEY = None
     DO_SPACES_SECRET = None
 
-    # Email testing
-    MAIL_SUPPRESS_SEND = True
-
     # Logging
     LOG_LEVEL = "ERROR"
 
