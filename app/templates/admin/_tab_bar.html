@@ -5,9 +5,8 @@
    instead -- a <button data-bs-target="#admin-users"> there would point at a pane
    that is not on the page. Activity is always a link, because it has its own route.
 
-   The dashboard's tab script selects `#adminTabs button[data-bs-toggle="tab"]`, so
-   the links below are simply not enrolled in it, and Bootstrap styles <a> and
-   <button> identically inside .nav-tabs. #}
+   On the dashboard, Bootstrap still enrolls the Activity link in the tab bar's
+   arrow-key handling; the dashboard script turns that into following the link. #}
 {% set on_dashboard = active_tab in ['users', 'analytics'] %}
 {% set dashboard_tabs = [('users', 'fa-users-cog', 'Users'), ('analytics', 'fa-chart-line', 'Analytics')] %}
     <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">

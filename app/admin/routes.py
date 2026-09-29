@@ -304,6 +304,10 @@ def activity():
         .paginate(page=page, per_page=ACTIVITY_PER_PAGE, error_out=False)
     )
 
+    # A page past the end, e.g. after a prune shortened the log.
+    if not entries.items and entries.total:
+        return redirect(url_for("admin.activity", page=entries.pages))
+
     retention_days = current_app.config["ACTIVITY_LOG_RETENTION_DAYS"]
     oldest_occurred_at = oldest_entry_at()
 

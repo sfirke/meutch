@@ -181,6 +181,17 @@ class TestActivityPagePagination:
 
         assert _rendered_attempt_counts(client.get("/admin/activity")) == [2, 1, 0]
 
+    def test_a_page_past_the_end_redirects_to_the_last_page(self, client, db_session):
+        admin = UserFactory(is_admin=True)
+        ActivityLogFactory(actor=admin, subject=admin)
+        db_session.commit()
+
+        login_user(client, admin.email)
+        response = client.get("/admin/activity?page=99")
+
+        assert response.status_code == 302
+        assert response.location.endswith("/admin/activity?page=1")
+
 
 class TestPruneOverdueWarning:
     def test_no_warning_when_the_oldest_entry_is_inside_the_window(self, client, db_session, app):

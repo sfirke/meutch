@@ -525,6 +525,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Bootstrap's arrow-key handling treats every .nav-link in the tab bar as a tab.
+    // Follow the link instead of letting it hide the open pane.
+    document.querySelectorAll('#adminTabs a.nav-link').forEach(function(tabLink) {
+        tabLink.addEventListener('show.bs.tab', function(event) {
+            event.preventDefault();
+            window.location.href = tabLink.href;
+        });
+    });
+
     if (document.getElementById('admin-analytics-tab').classList.contains('active')) {
         initializeMauChart();
     }
