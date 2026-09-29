@@ -244,6 +244,8 @@ class TestBlockedWebRegistration:
             "reason": "implausible_name",
             "name_check": implausible_name_reason(GENERATED_FIRST_NAME),
             "attempted_email": "Signup@Example.com",
+            "attempted_first_name": GENERATED_FIRST_NAME,
+            "attempted_last_name": GENERATED_LAST_NAME,
         }
 
     def test_an_ordinary_validation_error_records_nothing(self, app, client, db_session):
@@ -285,6 +287,8 @@ class TestBlockedApiRegistration:
             "reason": "implausible_name",
             "name_check": implausible_name_reason(GENERATED_FIRST_NAME),
             "attempted_email": "apisignup@example.com",
+            "attempted_first_name": GENERATED_FIRST_NAME,
+            "attempted_last_name": GENERATED_LAST_NAME,
         }
 
     def test_a_generated_last_name_alone_is_recorded(self, client, db_session):
@@ -292,6 +296,8 @@ class TestBlockedApiRegistration:
 
         entry = _entries(activity_events.AUTH_REGISTER_BLOCKED)[0]
         assert entry.context["name_check"] == implausible_name_reason(GENERATED_LAST_NAME)
+        assert entry.context["attempted_first_name"] == "Api"
+        assert entry.context["attempted_last_name"] == GENERATED_LAST_NAME
 
     def test_an_ordinary_validation_error_records_nothing(self, client, db_session):
         response = self._register(client, password="short")

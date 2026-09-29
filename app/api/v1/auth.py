@@ -110,6 +110,8 @@ def _log_implausible_name_registration(error):
                     "reason": "implausible_name",
                     "name_check": implausible_name_reason(error.data[field_name]),
                     "attempted_email": error.data.get("email"),
+                    "attempted_first_name": error.data.get("first_name"),
+                    "attempted_last_name": error.data.get("last_name"),
                 },
             )
             return

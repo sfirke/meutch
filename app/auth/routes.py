@@ -207,6 +207,8 @@ def register():
                 "reason": "implausible_name",
                 "name_check": form.implausible_name_check,
                 "attempted_email": form.email.data,
+                "attempted_first_name": form.first_name.data,
+                "attempted_last_name": form.last_name.data,
             },
         )
 

@@ -51,8 +51,16 @@ EVENT_CONTEXT_KEYS = {
     AUTH_LOGIN_BLOCKED: frozenset({"retry_after_minutes"}),
     AUTH_ACCOUNT_LOCKED: frozenset({"lockout_count"}),
     AUTH_REGISTER_SUCCEEDED: frozenset({"location_method"}),
-    # The address lets support find a real person the bot checks turned away. The
-    # submitted names are not kept; `name_check` says which heuristic they tripped.
-    AUTH_REGISTER_BLOCKED: frozenset({"reason", "name_check", "attempted_email"}),
+    # The address lets support find a real person the bot checks turned away, and the
+    # names as typed show whether the name check caught a real one.
+    AUTH_REGISTER_BLOCKED: frozenset(
+        {
+            "reason",
+            "name_check",
+            "attempted_email",
+            "attempted_first_name",
+            "attempted_last_name",
+        }
+    ),
     AUTH_TOKEN_REUSE_DETECTED: frozenset({"reason"}),
 }
