@@ -129,3 +129,40 @@ class TestApiSignIn:
         entries = _entries(activity_events.AUTH_TOKEN_REUSE_DETECTED)
         assert len(entries) == 1
         assert entries[0].subject_user_id == user_id
+
+    def test_retrying_a_replayed_token_is_recorded_once(self, client, db_session):
+        UserFactory(email="replay-twice@example.com")
+        db_session.commit()
+
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": "replay-twice@example.com", "password": TEST_PASSWORD},
+        )
+        original_refresh_token = login_response.get_json()["refresh_token"]
+        client.post("/api/v1/auth/refresh", headers=auth_headers(original_refresh_token))
+
+        for _ in range(2):
+            replay_response = client.post(
+                "/api/v1/auth/refresh", headers=auth_headers(original_refresh_token)
+            )
+            assert replay_response.status_code == 401
+
+        assert len(_entries(activity_events.AUTH_TOKEN_REUSE_DETECTED)) == 1
+
+    def test_a_stale_refresh_after_logout_is_not_a_replay(self, client, db_session):
+        UserFactory(email="stale@example.com")
+        db_session.commit()
+
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": "stale@example.com", "password": TEST_PASSWORD},
+        )
+        refresh_token = login_response.get_json()["refresh_token"]
+
+        logout_response = client.post("/api/v1/auth/logout", headers=auth_headers(refresh_token))
+        assert logout_response.status_code == 200
+
+        retry_response = client.post("/api/v1/auth/refresh", headers=auth_headers(refresh_token))
+        assert retry_response.status_code == 401
+
+        assert _entries(activity_events.AUTH_TOKEN_REUSE_DETECTED) == []

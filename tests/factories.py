@@ -32,7 +32,7 @@ from app.utils import activity_events
 
 fake = Faker()
 
-# Pre-compute password hash once to avoid slow bcrypt on every user creation
+# Hash once and reuse; password hashing is deliberately slow.
 # This matches TEST_PASSWORD in conftest.py
 TEST_PASSWORD_HASH = generate_password_hash("testpassword123")
 

@@ -1,8 +1,6 @@
 """Test circle location functionality."""
 
-import pytest
-from tests.factories import UserFactory, CircleFactory
-from app.models import db
+from tests.factories import CircleFactory, UserFactory
 
 
 class TestCircleLocationModel:
@@ -25,7 +23,7 @@ class TestCircleLocationModel:
         with app.app_context():
             circle_lat_only = CircleFactory(latitude=42.3601, longitude=None)
             circle_lon_only = CircleFactory(latitude=None, longitude=-71.0589)
-            
+
             assert circle_lat_only.is_geocoded is False
             assert circle_lon_only.is_geocoded is False
 
@@ -34,12 +32,12 @@ class TestCircleLocationModel:
         with app.app_context():
             # Boston: 42.3601° N, 71.0589° W
             circle = CircleFactory(latitude=42.3601, longitude=-71.0589)
-            
+
             # New York: 40.7128° N, 74.0060° W
             user = UserFactory(latitude=40.7128, longitude=-74.0060)
-            
+
             distance = circle.distance_to_user(user)
-            
+
             # Distance between Boston and NYC is approximately 190 miles
             # Allow some tolerance for the Haversine calculation
             assert distance is not None
@@ -50,9 +48,9 @@ class TestCircleLocationModel:
         with app.app_context():
             circle = CircleFactory(latitude=42.3601, longitude=-71.0589)
             user = UserFactory(latitude=42.3601, longitude=-71.0589)
-            
+
             distance = circle.distance_to_user(user)
-            
+
             # Distance should be effectively zero (allowing for float precision)
             assert distance is not None
             assert distance < 0.1
@@ -62,9 +60,9 @@ class TestCircleLocationModel:
         with app.app_context():
             circle = CircleFactory(latitude=None, longitude=None)
             user = UserFactory(latitude=40.7128, longitude=-74.0060)
-            
+
             distance = circle.distance_to_user(user)
-            
+
             assert distance is None
 
     def test_distance_to_user_user_not_geocoded(self, app):
@@ -72,9 +70,9 @@ class TestCircleLocationModel:
         with app.app_context():
             circle = CircleFactory(latitude=42.3601, longitude=-71.0589)
             user = UserFactory(latitude=None, longitude=None)
-            
+
             distance = circle.distance_to_user(user)
-            
+
             assert distance is None
 
     def test_distance_to_user_neither_geocoded(self, app):
@@ -82,7 +80,7 @@ class TestCircleLocationModel:
         with app.app_context():
             circle = CircleFactory(latitude=None, longitude=None)
             user = UserFactory(latitude=None, longitude=None)
-            
+
             distance = circle.distance_to_user(user)
-            
+
             assert distance is None

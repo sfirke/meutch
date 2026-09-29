@@ -528,17 +528,17 @@ class TestEmailUtils:
             new_req_pos = content["text"].find("New Request")
             old_req_pos = content["text"].find("Old Request")
             assert new_req_pos != -1 and old_req_pos != -1
-            assert (
-                new_req_pos < old_req_pos
-            ), "new-resolved-in-window request should appear before resolved-in-window"
+            assert new_req_pos < old_req_pos, (
+                "new-resolved-in-window request should appear before resolved-in-window"
+            )
 
             # Same ordering check for giveaways in claimed section.
             new_gw_pos = content["text"].find("New Giveaway")
             old_gw_pos = content["text"].find("Old Giveaway")
             assert new_gw_pos != -1 and old_gw_pos != -1
-            assert (
-                new_gw_pos < old_gw_pos
-            ), "new-resolved-in-window giveaway should appear before resolved-in-window"
+            assert new_gw_pos < old_gw_pos, (
+                "new-resolved-in-window giveaway should appear before resolved-in-window"
+            )
 
     def test_send_digest_email_sends_when_payload_has_only_resolution_events(self, app):
         with app.app_context():

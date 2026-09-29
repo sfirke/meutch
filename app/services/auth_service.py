@@ -222,6 +222,7 @@ def authenticate_user(email, password):
             retry_after_minutes = math.ceil(remaining.total_seconds() / 60)
             log_event(
                 activity_events.AUTH_LOGIN_BLOCKED,
+                actor=None,
                 subject=user,
                 context={"retry_after_minutes": retry_after_minutes},
             )
@@ -236,7 +237,7 @@ def authenticate_user(email, password):
         db.session.commit()
 
     if not user or not user.check_password(password):
-        locked_out_count = None
+        locked_out = False
         if user is not None:
             user.failed_login_attempts += 1
 
@@ -246,9 +247,7 @@ def authenticate_user(email, password):
                     minutes=_lockout_minutes(user.lockout_count)
                 )
                 user.failed_login_attempts = 0
-                # Read it now: the commit below expires the instance, so afterwards
-                # this attribute costs a fresh query.
-                locked_out_count = user.lockout_count
+                locked_out = True
 
             db.session.commit()
 
@@ -256,22 +255,26 @@ def authenticate_user(email, password):
         # is the diagnostic value -- and whether or not it matches an account, so that
         # one search by address turns up every attempt. That is why it is listed in
         # activity_events.EVENT_CONTEXT_KEYS, and the privacy policy says so.
+        # actor=None on purpose: a signed-in member can submit the login form for
+        # someone else's address.
         log_event(
             activity_events.AUTH_LOGIN_FAILED,
+            actor=None,
             subject=user,
             context={"attempted_email": email, "account_exists": user is not None},
         )
-        if locked_out_count is not None:
+        if locked_out:
             log_event(
                 activity_events.AUTH_ACCOUNT_LOCKED,
+                actor=None,
                 subject=user,
-                context={"lockout_count": locked_out_count},
+                context={"lockout_count": user.lockout_count},
             )
 
         return AuthenticationResult(status=LOGIN_STATUS_INVALID_CREDENTIALS)
 
     if not user.is_confirmed():
-        log_event(activity_events.AUTH_LOGIN_REJECTED_UNCONFIRMED, subject=user)
+        log_event(activity_events.AUTH_LOGIN_REJECTED_UNCONFIRMED, actor=None, subject=user)
         return AuthenticationResult(status=LOGIN_STATUS_UNCONFIRMED, user=user)
 
     user.last_login = datetime.now(UTC)

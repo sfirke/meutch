@@ -119,7 +119,7 @@ def _parse_homepage_feed_filters(user):
     if distance_value_raw and distance_value_raw != "none":
         try:
             parsed_distance = int(distance_value_raw)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             parsed_distance = None
         if parsed_distance in HOMEPAGE_DISTANCE_OPTIONS:
             selected_distance = parsed_distance

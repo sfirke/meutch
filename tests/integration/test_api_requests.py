@@ -18,30 +18,7 @@ from .api_test_helpers import auth_headers, login_api_user
 
 
 class TestApiRequests:
-    """Exercise request list, detail, and mutation behavior."""
-
-    def test_requests_list_ignores_distance_filter_for_non_geocoded_viewer(self, client, app):
-        with app.app_context():
-            viewer = UserFactory(email_confirmed=True, latitude=None, longitude=None)
-            near_owner = UserFactory(latitude=40.7400, longitude=-74.0100)
-            far_owner = UserFactory(latitude=42.3601, longitude=-71.0589)
-
-            ItemRequestFactory(user=near_owner, title="Near request", visibility="public")
-            ItemRequestFactory(user=far_owner, title="Far request", visibility="public")
-            db.session.commit()
-            access_token = login_api_user(client, viewer.email)
-
-        response = client.get(
-            "/api/v1/requests?distance=5",
-            headers=auth_headers(access_token),
-        )
-
-        assert response.status_code == 200
-        payload = response.get_json()
-        request_titles = {item_request["title"] for item_request in payload["requests"]}
-
-        assert payload["pagination"]["total"] == 2
-        assert request_titles == {"Near request", "Far request"}
+    """Exercise request detail and mutation behavior."""
 
     def test_request_detail_includes_owner_conversations(self, client, app):
         with app.app_context():
@@ -87,11 +64,6 @@ class TestApiRequests:
 
         assert response.status_code == 403
         assert response.get_json()["error"]["code"] == "FORBIDDEN"
-
-    def test_requests_list_requires_authentication(self, client, app):
-        response = client.get("/api/v1/requests")
-
-        assert response.status_code == 401
 
     def test_request_create_returns_request_payload_for_geocoded_user(self, client, app):
         with app.app_context():

@@ -570,9 +570,9 @@ class TestAuthenticationRoutes:
                 )
 
                 assert response.status_code == 200, f"Failed for email: {email}"
-                assert (
-                    b"This email is already registered" in response.data
-                ), f"Failed for email: {email}"
+                assert b"This email is already registered" in response.data, (
+                    f"Failed for email: {email}"
+                )
 
     def test_case_insensitive_resend_confirmation(self, client, app):
         """Test that resend confirmation is case-insensitive for email addresses."""
@@ -594,9 +594,9 @@ class TestAuthenticationRoutes:
                 )
 
                 assert response.status_code == 200, f"Failed for email: {email}"
-                assert (
-                    b"We sent a new confirmation email" in response.data
-                ), f"Failed for email: {email}"
+                assert b"We sent a new confirmation email" in response.data, (
+                    f"Failed for email: {email}"
+                )
 
     def test_registration_stores_lowercase_email(self, client, app):
         """Test that registration stores emails in lowercase format."""

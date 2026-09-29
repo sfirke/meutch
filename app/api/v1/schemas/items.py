@@ -7,6 +7,16 @@ from app.api.v1.schemas.reference import CategorySchema, TagSchema
 from app.api.v1.schemas.users import UserSummarySchema
 
 _tag_schema = TagSchema(many=True)
+_user_schema = UserSummarySchema()
+
+
+def _viewer_is_owner_or(item, other_user_id):
+    """Whether the viewer set by the API layer is the item owner or ``other_user_id``.
+
+    A missing viewer matches nobody, so the data stays redacted.
+    """
+    viewer_id = getattr(item, "api_viewer_id", None)
+    return viewer_id is not None and viewer_id in {item.owner_id, other_user_id}
 
 
 class ItemSummarySchema(ApiSchema):
@@ -57,14 +67,30 @@ class LoanSummarySchema(ApiSchema):
     borrower = fields.Nested(UserSummarySchema(), allow_none=True)
 
 
+_loan_schema = LoanSummarySchema()
+
+
 class ItemDetailSchema(ItemSummarySchema):
     """Expanded item representation for detail reads."""
 
     images = fields.Nested(ItemImageSchema(), many=True, required=True)
-    claimed_by = fields.Nested(UserSummarySchema(), allow_none=True)
-    current_loan = fields.Nested(LoanSummarySchema(), allow_none=True)
+    claimed_by = fields.Method("get_claimed_by", allow_none=True)
+    current_loan = fields.Method("get_current_loan", allow_none=True)
     viewer_interest_status = fields.Method("get_viewer_interest_status", allow_none=True)
     interested_count = fields.Method("get_interested_count", allow_none=True)
+
+    def get_claimed_by(self, item):
+        """Return the giveaway recipient only to the owner and the recipient."""
+        if item.claimed_by is None or not _viewer_is_owner_or(item, item.claimed_by_id):
+            return None
+        return _user_schema.dump(item.claimed_by)
+
+    def get_current_loan(self, item):
+        """Return the active loan only to the owner and the borrower."""
+        loan = item.current_loan
+        if loan is None or not _viewer_is_owner_or(item, loan.borrower_id):
+            return None
+        return _loan_schema.dump(loan)
 
     def get_viewer_interest_status(self, item):
         """Return the viewer's current giveaway-interest state when relevant."""

@@ -1,21 +1,18 @@
 """Request read and write endpoints for API v1."""
 
-from flask import abort, request
+from flask import abort
 from flask_jwt_extended import jwt_required
 
 from app import db
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
-from app.api.v1.parsing import load_query_data, load_request_data
-from app.api.v1.responses import build_collection_response
+from app.api.v1.parsing import load_request_data
 from app.api.v1.schemas.messaging import MessageResponseSchema
-from app.api.v1.schemas.query import RequestListQuerySchema
 from app.api.v1.schemas.requests import (
     ItemRequestDetailResponseSchema,
     ItemRequestResponseSchema,
     ItemRequestStatusResponseSchema,
-    ItemRequestSummarySchema,
     RequestRespondDraftResponseSchema,
     RequestRespondSchema,
     RequestWritePayloadSchema,
@@ -24,14 +21,8 @@ from app.models import Item, ItemRequest
 from app.services import message_service, request_service
 from app.services.exceptions import AuthorizationError
 from app.utils.messaging_queries import build_request_conversation_summaries
-from app.utils.request_queries import (
-    build_visible_requests_pagination,
-    can_view_request,
-    describe_seeking_mismatch,
-)
+from app.utils.request_queries import can_view_request, describe_seeking_mismatch
 
-REQUEST_LIST_QUERY_SCHEMA = RequestListQuerySchema()
-ITEM_REQUEST_SUMMARY_SCHEMA = ItemRequestSummarySchema(many=True)
 ITEM_REQUEST_DETAIL_RESPONSE_SCHEMA = ItemRequestDetailResponseSchema()
 ITEM_REQUEST_RESPONSE_SCHEMA = ItemRequestResponseSchema()
 ITEM_REQUEST_STATUS_RESPONSE_SCHEMA = ItemRequestStatusResponseSchema()
@@ -39,35 +30,6 @@ REQUEST_WRITE_PAYLOAD_SCHEMA = RequestWritePayloadSchema()
 REQUEST_RESPOND_SCHEMA = RequestRespondSchema()
 REQUEST_RESPOND_DRAFT_RESPONSE_SCHEMA = RequestRespondDraftResponseSchema()
 MESSAGE_RESPONSE_SCHEMA = MessageResponseSchema()
-DEFAULT_GEOLOCATED_REQUEST_DISTANCE = 20
-
-
-@bp.get("/requests")
-@jwt_required()
-@read_limit()
-def list_requests():
-    """Return paginated visible requests for the authenticated user."""
-    query_data = load_query_data(REQUEST_LIST_QUERY_SCHEMA)
-    distance_explicit = "distance" in request.args
-    selected_distance = query_data["distance"]
-    if not distance_explicit and current_user.is_geocoded:
-        selected_distance = DEFAULT_GEOLOCATED_REQUEST_DISTANCE
-
-    pagination = build_visible_requests_pagination(
-        current_user,
-        selected_circle_ids=query_data["circles"],
-        scope=query_data["scope"],
-        distance=selected_distance,
-        distance_explicit=distance_explicit,
-        page=query_data["page"],
-        per_page=query_data["per_page"],
-    )
-
-    return build_collection_response(
-        "requests",
-        ITEM_REQUEST_SUMMARY_SCHEMA.dump(pagination.items),
-        pagination=pagination,
-    )
 
 
 def _get_live_request_or_404(request_id):

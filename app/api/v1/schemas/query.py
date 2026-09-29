@@ -92,30 +92,6 @@ class CircleListQuerySchema(PaginationQuerySchema):
     )
 
 
-class RequestListQuerySchema(PaginationQuerySchema):
-    """Query parameters for visible request reads."""
-
-    scope = fields.String(load_default="all", validate=validate.OneOf(["all", "circles"]))
-    circles = fields.List(fields.UUID(), load_default=list)
-    distance = fields.Integer(
-        load_default=None,
-        allow_none=True,
-        validate=validate.OneOf(FEED_DISTANCE_CHOICES),
-    )
-
-    @pre_load
-    def normalize_distance(self, data, **kwargs):
-        if hasattr(data, "copy"):
-            mutable_data = data.copy()
-        else:
-            mutable_data = dict(data)
-
-        if mutable_data.get("distance") == "none":
-            mutable_data["distance"] = None
-
-        return mutable_data
-
-
 class ConversationListQuerySchema(PaginationQuerySchema):
     """Query parameters for paginated inbox summaries."""
 

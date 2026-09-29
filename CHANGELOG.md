@@ -16,6 +16,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - **Spam protection**: The link in the confirmation email now opens a page with a "Confirm my email" button, and your address is confirmed when you click it. Before, just opening the link confirmed the account, so the link scanners many workplace email systems run could confirm an account nobody actually signed up for ([#497](https://github.com/sfirke/meutch/pull/497)).
 - **Spam protection**: Sign-ups now turn away names that look machine-generated, like "ZspMSWgBftjwEHvOnFjWgHCn". The check only looks for patterns real names never have, such as a jumble of capital letters in the middle of a word. It was tested against about 51,000 real names from around the world and blocked none of them ([#502](https://github.com/sfirke/meutch/pull/502)).
 - **Spam protection**: The "forgot password" and "resend confirmation email" forms now limit how many times they can be submitted from one connection in an hour, the same as the sign-up form. Both forms send an email to whatever address you type, so without a limit either one could be used to send somebody the same email over and over. The "forgot password" form also now says the same thing whether or not that address has an account, so it can no longer be used to find out who has one ([#500](https://github.com/sfirke/meutch/pull/500)).
+- Bumped Python version and the software libraries it's built on, closing a batch of publicly known security flaws. New and changed passwords are now stored with a stronger scrambling method, and existing passwords keep working as they are. Photo uploads now only accept the image types the site advertises (JPEG, PNG, GIF, BMP and WebP), so an unusual file type renamed to `.jpg` is turned away before it is ever opened ([#518](https://github.com/sfirke/meutch/pull/518)).
 
 ### Bug fixes
 - When an owner changed the dates on a loan that was still pending (not yet approved), the borrower got an email titled "New Loan Request" about their own request, instead of one saying the dates had changed ([#509](https://github.com/sfirke/meutch/pull/509)).
@@ -28,10 +29,12 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### API development (continued)
 - Cut the query cost of circle, request, and feed reads across the app and the API ([#480](https://github.com/sfirke/meutch/pull/480)).
+- Removed the `GET /api/v1/requests` list endpoint, the API counterpart of the old requests browse page. `GET /api/v1/feed?types=requests` returns the same requests ([#515](https://github.com/sfirke/meutch/pull/515)).
 
 ### Developer Experience
 - Application logs now actually reach the logs. Production runs at INFO instead of WARNING and `LOG_LEVEL` can be changed by an environment variable so increasing the detail during an incident doesn't require a code deploy ([#482](https://github.com/sfirke/meutch/pull/482)).
 - The site now runs two web workers instead of one, so a single slow request no longer holds up everyone else. Previously one stuck request could make the whole site unreachable until it restarted itself. Each worker's database connections are now capped so that two workers can't use up everything the database allows ([#494](https://github.com/sfirke/meutch/pull/494)).
+- Bumped the `ruff` linter to a version that understands Python 3.14, and reformatted the whole codebase with it in one commit that `git blame` skips ([#527](https://github.com/sfirke/meutch/pull/527)).
 
 ## August 2026
 

@@ -170,15 +170,20 @@ def revoke_token_family(token_payload, *, reason=REVOKE_REASON_LOGOUT):
     db.session.commit()
 
 
-def _log_refresh_token_replay(token_family, *, reason):
-    """Record a replayed refresh token.
+def _revoke_family_for_reuse(token_family, *, reason):
+    """Kill a live family whose superseded refresh token was presented, and log it.
 
-    A refresh token presented after it has been rotated or revoked is the
-    highest-signal security event this app can already detect on its own, and until
-    now it was recorded nowhere. The actor is passed explicitly because this runs
-    inside the JWT blocklist callback, before flask_jwt_extended has an authenticated
-    user to resolve.
+    A family that is already revoked (logout, account deletion, an earlier reuse)
+    is left alone and nothing is logged: a stale token after that point is a client
+    retrying, not evidence that a token was stolen. The actor is passed explicitly
+    because this runs inside the JWT blocklist callback, before flask_jwt_extended
+    has an authenticated user to resolve.
     """
+    if token_family.revoked_at is not None:
+        return
+
+    token_family.revoke(REVOKE_REASON_REUSED)
+    db.session.commit()
     log_event(
         activity_events.AUTH_TOKEN_REUSE_DETECTED,
         actor=token_family.user_id,
@@ -194,9 +199,7 @@ def is_token_revoked(token_payload):
 
     if blocked_token is not None:
         if token_payload["type"] == TOKEN_TYPE_REFRESH and token_family is not None:
-            token_family.revoke(REVOKE_REASON_REUSED)
-            db.session.commit()
-            _log_refresh_token_replay(token_family, reason="already_revoked")
+            _revoke_family_for_reuse(token_family, reason=blocked_token.reason)
         return True
 
     if token_family is None:
@@ -209,9 +212,7 @@ def is_token_revoked(token_payload):
         token_payload["type"] == TOKEN_TYPE_REFRESH
         and token_payload["jti"] != token_family.current_refresh_jti
     ):
-        token_family.revoke(REVOKE_REASON_REUSED)
-        db.session.commit()
-        _log_refresh_token_replay(token_family, reason="superseded")
+        _revoke_family_for_reuse(token_family, reason="superseded")
         return True
 
     return False
