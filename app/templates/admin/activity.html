@@ -100,10 +100,13 @@
                                             <span class="text-muted">&mdash;</span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-end small text-muted text-nowrap">
-                                        {% if entry.ip_address %}{{ entry.ip_address }}{% endif %}
+                                    <td class="text-end small text-muted">
+                                        {% if entry.ip_address %}<span class="text-nowrap">{{ entry.ip_address }}</span>{% endif %}
                                         {% if entry.user_agent %}
-                                            <br><span title="{{ entry.user_agent }}">{{ entry.user_agent|user_agent_family }}</span>
+                                            <details>
+                                                <summary class="text-nowrap">{{ entry.user_agent|user_agent_family }}</summary>
+                                                <div class="text-break text-start ms-auto mt-1" style="width: 16rem;">{{ entry.user_agent }}</div>
+                                            </details>
                                         {% endif %}
                                     </td>
                                 </tr>
