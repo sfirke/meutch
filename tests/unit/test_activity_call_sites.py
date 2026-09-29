@@ -77,10 +77,10 @@ def test_every_call_site_names_an_event_constant():
 
 
 def test_every_declared_event_constant_is_registered():
-    for name in dir(activity_events):
-        if not name.startswith("AUTH_"):
+    for name, value in vars(activity_events).items():
+        if not (name.isupper() and isinstance(value, str)):
             continue
-        assert getattr(activity_events, name) in EVENT_TYPES, f"{name} is missing from EVENT_TYPES"
+        assert value in EVENT_TYPES, f"{name} is missing from EVENT_TYPES"
 
 
 def test_literal_context_keys_are_listed_for_their_event():
