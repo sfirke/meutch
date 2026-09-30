@@ -103,15 +103,18 @@ def register():
 def _log_implausible_name_registration(error):
     for field_name in ("first_name", "last_name"):
         if IMPLAUSIBLE_NAME_MESSAGE in error.messages.get(field_name, []):
+            # error.data is the raw body; normalize it as the schema did so the
+            # values are the ones the validator saw, not a one-item list.
+            attempted = REGISTER_REQUEST_SCHEMA.normalize_multidict(error.data)
             log_event(
                 activity_events.AUTH_REGISTER_BLOCKED,
                 actor=None,
                 context={
                     "reason": "implausible_name",
-                    "name_check": implausible_name_reason(error.data[field_name]),
-                    "attempted_email": error.data.get("email"),
-                    "attempted_first_name": error.data.get("first_name"),
-                    "attempted_last_name": error.data.get("last_name"),
+                    "name_check": implausible_name_reason(attempted[field_name]),
+                    "attempted_email": attempted.get("email"),
+                    "attempted_first_name": attempted.get("first_name"),
+                    "attempted_last_name": attempted.get("last_name"),
                 },
             )
             return
