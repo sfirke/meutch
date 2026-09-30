@@ -1,6 +1,7 @@
 """Authentication endpoints for the versioned API surface."""
 
 from flask_jwt_extended import get_jwt, jwt_required
+from marshmallow import ValidationError
 
 from app.api.v1 import bp
 from app.api.v1.errors import build_error_response
@@ -20,6 +21,7 @@ from app.api.v1.schemas.auth import (
 from app.services import api_token_service, auth_service
 from app.utils import activity_events
 from app.utils.activity_log import log_event
+from app.utils.name_plausibility import IMPLAUSIBLE_NAME_MESSAGE, implausible_name_reason
 
 LOGIN_REQUEST_SCHEMA = LoginRequestSchema()
 REGISTER_REQUEST_SCHEMA = RegisterRequestSchema()
@@ -79,7 +81,11 @@ def me():
 @auth_limit("API_V1_AUTH_REGISTER_RATE_LIMIT")
 def register():
     """Create a new account while preserving the existing email-confirmation flow."""
-    registration_data = load_request_data(REGISTER_REQUEST_SCHEMA)
+    try:
+        registration_data = load_request_data(REGISTER_REQUEST_SCHEMA)
+    except ValidationError as error:
+        _log_implausible_name_registration(error)
+        raise
     registration_result = api_token_service.register_api_user(**registration_data)
     return (
         REGISTRATION_RESPONSE_SCHEMA.dump(
@@ -92,6 +98,26 @@ def register():
         ),
         201,
     )
+
+
+def _log_implausible_name_registration(error):
+    for field_name in ("first_name", "last_name"):
+        if IMPLAUSIBLE_NAME_MESSAGE in error.messages.get(field_name, []):
+            # error.data is the raw body; normalize it as the schema did so the
+            # values are the ones the validator saw, not a one-item list.
+            attempted = REGISTER_REQUEST_SCHEMA.normalize_multidict(error.data)
+            log_event(
+                activity_events.AUTH_REGISTER_BLOCKED,
+                actor=None,
+                context={
+                    "reason": "implausible_name",
+                    "name_check": implausible_name_reason(attempted[field_name]),
+                    "attempted_email": attempted.get("email"),
+                    "attempted_first_name": attempted.get("first_name"),
+                    "attempted_last_name": attempted.get("last_name"),
+                },
+            )
+            return
 
 
 @bp.post("/auth/resend-confirmation")

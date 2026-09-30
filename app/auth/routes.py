@@ -139,6 +139,11 @@ def register():
                 form.email.data,
                 request.remote_addr,
             )
+            log_event(
+                activity_events.AUTH_REGISTER_BLOCKED,
+                actor=None,
+                context={"reason": bot_trap, "attempted_email": form.email.data},
+            )
             flash("Sorry, we couldn't process that sign-up. Please try again.", "warning")
             return _render_registration_form(form)
 
@@ -193,6 +198,19 @@ def register():
             )
 
         return redirect(url_for("auth.resend_confirmation"))
+
+    if form.implausible_name_check:
+        log_event(
+            activity_events.AUTH_REGISTER_BLOCKED,
+            actor=None,
+            context={
+                "reason": "implausible_name",
+                "name_check": form.implausible_name_check,
+                "attempted_email": form.email.data,
+                "attempted_first_name": form.first_name.data,
+                "attempted_last_name": form.last_name.data,
+            },
+        )
 
     return _render_registration_form(form)
 
