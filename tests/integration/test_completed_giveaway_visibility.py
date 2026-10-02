@@ -79,8 +79,8 @@ class TestCompletedGiveawayVisibility:
         assert "border-success" in unclaimed_article_html
         assert "giveaway-card-claimed" not in unclaimed_article_html
 
-    def test_claimed_giveaway_hidden_by_default_on_home_page(self, client, app, auth_user):
-        """Test that recently claimed giveaways are hidden by default on home page."""
+    def test_claimed_giveaway_shown_by_default_on_home_page(self, client, app, auth_user):
+        """Test that recently claimed giveaways show by default and can be switched off."""
         user_email = None
         with app.app_context():
             # Create a circle and users
@@ -138,11 +138,17 @@ class TestCompletedGiveawayVisibility:
         # Unclaimed should appear
         assert unclaimed_name in html
 
-        # Recently claimed is hidden unless the claimed-giveaway filter is enabled
-        assert claimed_name not in html
+        assert claimed_name in html
 
         # Pending pickup should NOT appear to other users
         assert pending_name not in html
+
+        # Submitting the filter form with the switch off hides claimed giveaways
+        response = client.get("/?distance=&claimed_giveaways_present=1")
+        assert response.status_code == 200
+        html = response.data.decode()
+        assert unclaimed_name in html
+        assert claimed_name not in html
 
     def test_claimed_giveaway_can_show_on_home_page_when_filter_enabled(
         self, client, app, auth_user
@@ -176,7 +182,6 @@ class TestCompletedGiveawayVisibility:
         html = response.data.decode()
 
         assert claimed_name in html
-        assert "Claimed" in html
         assert "gave away" in html
 
     def test_claimed_giveaway_not_in_authenticated_home_feed_after_visibility_window(

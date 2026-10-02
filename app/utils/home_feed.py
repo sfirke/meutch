@@ -327,7 +327,7 @@ def build_visible_giveaway_events(
     max_distance=None,
     distance_explicit=False,
     include_own_activity=True,
-    include_claimed_giveaways=False,
+    include_claimed_giveaways=True,
     since=None,
     until=None,
 ):
@@ -873,7 +873,7 @@ def _assemble_feed_events(
     giveaway_distance_explicit=False,
     included_event_types=None,
     include_own_activity=True,
-    include_claimed_giveaways=False,
+    include_claimed_giveaways=True,
     since=None,
     until=None,
     max_events=100,
@@ -946,7 +946,7 @@ def build_homepage_feed_events(
     giveaway_distance_explicit=False,
     included_event_types=None,
     include_own_activity=True,
-    include_claimed_giveaways=False,
+    include_claimed_giveaways=True,
     max_events=100,
 ):
     return _assemble_feed_events(
