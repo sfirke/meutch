@@ -81,6 +81,7 @@
                 <div class="col-12">
                     <input type="hidden" name="types_present" value="1">
                     <input type="hidden" name="own_activity_present" value="1">
+                    <input type="hidden" name="claimed_giveaways_present" value="1">
                     <span class="form-label d-block fw-semibold mb-2">Show activity types</span>
                     <div class="d-flex flex-wrap gap-2">
                         <input class="btn-check" type="checkbox" id="feed-type-requests" name="types" value="requests" autocomplete="off" {% if 'requests' in selected_feed_types %}checked{% endif %}>
@@ -101,7 +102,7 @@
                     </div>
                     <div class="form-check form-switch mt-2">
                         <input class="form-check-input" type="checkbox" role="switch" id="feed-show-claimed-giveaways" name="show_claimed_giveaways" value="1" {% if selected_show_claimed_giveaways %}checked{% endif %}>
-                        <label class="form-check-label" for="feed-show-claimed-giveaways">Show claimed giveaways</label>
+                        <label class="form-check-label" for="feed-show-claimed-giveaways">Show given-away giveaways</label>
                     </div>
                 </div>
             </form>
@@ -131,8 +132,8 @@
                     {% set border_class = 'border-start border-4 border-info' %}
                 {% endif %}
                 <article class="card shadow-sm border-0 activity-feed-card{% if is_claimed_giveaway %} giveaway-card-claimed{% endif %} {{ border_class }}">
-                    <div class="card-body py-3">
-                        <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
+                    <div class="card-body {{ 'py-2' if is_claimed_giveaway else 'py-3' }}">
+                        <div class="d-flex gap-2 text-muted {{ 'align-items-start' if is_claimed_giveaway else 'align-items-center mb-2' }}" style="font-size: 0.9rem;">
                             {% set actor_profile_url = url_for('main.user_profile', user_id=event.actor_id) if event.actor_id in linkable_actor_ids|default([]) else None %}
                             {% if event.actor_avatar_url %}
                                 {% if actor_profile_url %}
@@ -149,6 +150,21 @@
                                     <span class="activity-feed-avatar-fallback flex-shrink-0" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true">{{ actor_initials or '?' }}</span>
                                 {% endif %}
                             {% endif %}
+                            {% if is_claimed_giveaway %}
+                            {# Compact row: wraps to three lines, with the name capped so the title always shows #}
+                            <div class="flex-grow-1 text-break feed-line-clamp-3" style="min-width: 0;" title="{{ event.actor_name }} {{ event.action }} {{ event.title }}">
+                                {% if actor_profile_url %}
+                                    <a href="{{ actor_profile_url }}" class="text-body text-decoration-none activity-feed-actor-link d-inline-block text-truncate feed-compact-actor"><strong>{{ event.actor_name }}</strong></a>
+                                {% else %}
+                                    <strong class="text-body d-inline-block text-truncate feed-compact-actor">{{ event.actor_name }}</strong>
+                                {% endif %}
+                                {{ event.action }}
+                                <span class="text-body fw-semibold">{{ event.title }}</span>
+                            </div>
+                            {% if event.image_url %}
+                                <img src="{{ event.image_url }}" alt="" class="rounded border flex-shrink-0" style="width: 32px; height: 32px; object-fit: cover;">
+                            {% endif %}
+                            {% else %}
                             <div class="text-truncate">
                                 {% if actor_profile_url %}
                                     <a href="{{ actor_profile_url }}" class="text-body text-decoration-none activity-feed-actor-link"><strong>{{ event.actor_name }}</strong></a>
@@ -157,11 +173,13 @@
                                 {% endif %}
                                 {{ event.action }}
                             </div>
-                            <div class="ms-auto text-nowrap" style="font-size: 0.8rem;">
+                            {% endif %}
+                            <div class="ms-auto flex-shrink-0 text-nowrap" style="font-size: 0.8rem;">
                                 {{ event.created_at|utc_timestamp('timeago') }}
                             </div>
                         </div>
 
+                        {% if not is_claimed_giveaway %}
                         <div class="d-flex w-100">
                             <div class="flex-grow-1" style="min-width: 0;">
                                 <div class="d-block mb-1">
@@ -173,9 +191,6 @@
                                         {% endif %}
                                     {% elif event.event_type == 'giveaway' %}
                                         <span class="badge rounded-pill text-bg-light border text-success ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-gift me-1"></i>Giveaway</span>
-                                        {% if event.claim_status == 'claimed' %}
-                                            <span class="badge bg-success ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-check-circle me-1"></i>Claimed</span>
-                                        {% endif %}
                                     {% elif event.event_type == 'lent' %}
                                         <span class="badge rounded-pill text-bg-light border text-secondary ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-handshake me-1"></i>Lent</span>
                                     {% elif event.event_type == 'circle_join' %}
@@ -187,7 +202,7 @@
                                 </div>
 
                                 {% if event.description %}
-                                    <p class="text-muted small mb-2 text-break" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                    <p class="text-muted small mb-2 text-break feed-line-clamp-2">
                                         {{ event.description|linkify(br=False, shorten=40) }}
                                     </p>
                                 {% endif %}
@@ -195,7 +210,7 @@
                                 <div class="mt-2">
                                     {% if event.event_type == 'request' and event.request_id %}
                                         <a href="{{ url_for('requests.detail', request_id=event.request_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Request <i class="fas fa-chevron-right small ms-1"></i></a>
-                                    {% elif event.event_type == 'giveaway' and event.item_id and event.claim_status != 'claimed' %}
+                                    {% elif event.event_type == 'giveaway' and event.item_id %}
                                         <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
                                     {% elif event.event_type == 'lent' and event.item_id %}
                                         <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
@@ -210,6 +225,7 @@
                             </div>
                             {% endif %}
                         </div>
+                        {% endif %}
                     </div>
                 </article>
             {% endfor %}

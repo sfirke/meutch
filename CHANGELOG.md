@@ -2,6 +2,12 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
+## October 2026
+
+### Features
+**Minor**:
+- Community Activity shows giveaways that have been given away again, for 7 days after the handoff, so the feed better reflects how much is happening. They appear as a small one-line entry ("Jane gave away Kids bike") rather than a full card, and the "Show given-away giveaways" filter still turns them off.
+
 ## September 2026
 
 ### Features
