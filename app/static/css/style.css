@@ -1923,6 +1923,23 @@ footer h6 {
     background: #f8f9fa;
 }
 
+.feed-line-clamp-2,
+.feed-line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.feed-line-clamp-3 {
+    -webkit-line-clamp: 3;
+}
+
+.feed-compact-actor {
+    max-width: 50%;
+    vertical-align: bottom;
+}
+
 .activity-feed-page .activity-feed-actor-chip {
     display: inline-flex;
     align-items: center;

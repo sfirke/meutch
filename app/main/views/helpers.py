@@ -131,7 +131,9 @@ def _parse_homepage_feed_filters(user):
     show_own_activity = True
     if "own_activity_present" in request.args:
         show_own_activity = request.args.get("show_own_activity") == "1"
-    show_claimed_giveaways = request.args.get("show_claimed_giveaways") == "1"
+    show_claimed_giveaways = True
+    if "claimed_giveaways_present" in request.args:
+        show_claimed_giveaways = request.args.get("show_claimed_giveaways") == "1"
 
     return {
         "scope": scope,
