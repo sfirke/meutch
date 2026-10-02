@@ -50,6 +50,8 @@ def profile():
             links=links,
             profile_image=form.profile_image.data,
             delete_image=form.delete_image.data,
+            first_name=form.first_name.data,
+            last_name=form.last_name.data,
         )
         if profile_result.image_upload_failed:
             flash(
@@ -60,6 +62,8 @@ def profile():
         flash("Your profile has been updated.", "success")
         return redirect(url_for("main.profile", tab="about-me"))
     elif request.method == "GET":
+        form.first_name.data = current_user.first_name
+        form.last_name.data = current_user.last_name
         form.about_me.data = current_user.about_me
 
         existing_links = (

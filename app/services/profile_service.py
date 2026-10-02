@@ -10,8 +10,23 @@ class ProfileUpdateResult:
     image_upload_failed: bool
 
 
-def update_profile(user, *, about_me, links, profile_image=None, delete_image=False):
+def update_profile(
+    user,
+    *,
+    about_me,
+    links,
+    profile_image=None,
+    delete_image=False,
+    first_name=None,
+    last_name=None,
+):
+    """Save profile edits. A name left as None is not changed."""
     image_upload_failed = False
+
+    if first_name is not None:
+        user.first_name = first_name.strip()
+    if last_name is not None:
+        user.last_name = last_name.strip()
 
     if delete_image and user.profile_image_url:
         delete_file(user.profile_image_url)
