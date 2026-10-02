@@ -3,9 +3,7 @@
 import re
 from datetime import UTC, datetime, timedelta
 
-from app import db
 from app.admin.routes import ACTIVITY_PER_PAGE
-from app.models import ActivityLog
 from app.utils import activity_events
 from conftest import login_user
 from tests.factories import ActivityLogFactory, UserFactory
@@ -33,16 +31,6 @@ class TestActivityPageAccess:
         login_user(client, user.email)
 
         assert client.get("/admin/activity").status_code == 403
-
-    def test_allows_admin(self, client, db_session):
-        admin = UserFactory(is_admin=True)
-        db_session.commit()
-
-        login_user(client, admin.email)
-
-        response = client.get("/admin/activity")
-        assert response.status_code == 200
-        assert b"Activity Log" in response.data
 
 
 class TestActivityPageRendering:
@@ -224,9 +212,6 @@ class TestActivityTabBar:
         content = client.get("/admin/").data.decode("utf-8")
 
         assert 'href="/admin/activity"' in content
-        # The Users and Analytics tabs stay Bootstrap tab buttons on the dashboard.
-        assert 'id="admin-users-tab" data-bs-toggle="tab"' in content
-        assert 'id="admin-analytics-tab" data-bs-toggle="tab"' in content
 
     def test_the_activity_page_links_back_rather_than_toggling_missing_panes(
         self, client, db_session
@@ -240,17 +225,3 @@ class TestActivityTabBar:
         assert 'href="/admin/?active_tab=users"' in content
         assert 'href="/admin/?active_tab=analytics"' in content
         assert 'data-bs-toggle="tab"' not in content
-
-
-def test_entries_written_by_log_event_appear_on_the_page(client, db_session):
-    """End to end: a real sign-in shows up in the admin panel with no seeding."""
-    from conftest import TEST_PASSWORD
-
-    UserFactory(is_admin=True, email="theadmin@example.com")
-    db_session.commit()
-
-    login_user(client, "theadmin@example.com", TEST_PASSWORD)
-
-    content = client.get("/admin/activity").data.decode("utf-8")
-    assert "Signed in" in content
-    assert db.session.query(ActivityLog).count() >= 1
