@@ -15,6 +15,7 @@ AUTH_LOGIN_REJECTED_UNCONFIRMED = "auth.login.rejected_unconfirmed"
 AUTH_LOGOUT = "auth.logout"
 AUTH_ACCOUNT_LOCKED = "auth.account.locked"
 AUTH_REGISTER_SUCCEEDED = "auth.register.succeeded"
+AUTH_REGISTER_BLOCKED = "auth.register.blocked"
 AUTH_EMAIL_CONFIRMED = "auth.email.confirmed"
 AUTH_PASSWORD_RESET_REQUESTED = "auth.password_reset.requested"
 AUTH_PASSWORD_RESET_COMPLETED = "auth.password_reset.completed"
@@ -29,6 +30,7 @@ EVENT_TYPES = frozenset(
         AUTH_LOGOUT,
         AUTH_ACCOUNT_LOCKED,
         AUTH_REGISTER_SUCCEEDED,
+        AUTH_REGISTER_BLOCKED,
         AUTH_EMAIL_CONFIRMED,
         AUTH_PASSWORD_RESET_REQUESTED,
         AUTH_PASSWORD_RESET_COMPLETED,
@@ -66,5 +68,16 @@ EVENT_CONTEXT_KEYS = {
     AUTH_LOGIN_BLOCKED: frozenset({"retry_after_minutes"}),
     AUTH_ACCOUNT_LOCKED: frozenset({"lockout_count"}),
     AUTH_REGISTER_SUCCEEDED: frozenset({"location_method"}),
+    # The address lets support find a real person the bot checks turned away, and the
+    # names as typed show whether the name check caught a real one.
+    AUTH_REGISTER_BLOCKED: frozenset(
+        {
+            "reason",
+            "name_check",
+            "attempted_email",
+            "attempted_first_name",
+            "attempted_last_name",
+        }
+    ),
     AUTH_TOKEN_REUSE_DETECTED: frozenset({"reason"}),
 }
