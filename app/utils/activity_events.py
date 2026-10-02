@@ -49,6 +49,7 @@ EVENT_LABELS = {
     AUTH_LOGOUT: "Signed out",
     AUTH_ACCOUNT_LOCKED: "Account locked",
     AUTH_REGISTER_SUCCEEDED: "Registered",
+    AUTH_REGISTER_BLOCKED: "Registration blocked (bot check)",
     AUTH_EMAIL_CONFIRMED: "Email confirmed",
     AUTH_PASSWORD_RESET_REQUESTED: "Password reset requested",
     AUTH_PASSWORD_RESET_COMPLETED: "Password reset completed",
