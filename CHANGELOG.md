@@ -7,6 +7,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Features
 **Minor**:
 - Community Activity shows giveaways that have been given away again, for 7 days after the handoff, so the feed better reflects how much is happening. They appear as a small one-line entry ("Jane gave away Kids bike") rather than a full card, and the "Show given-away giveaways" filter still turns them off ([#537](https://github.com/sfirke/meutch/pull/537)).
+- You can now change your first and last name: go to your profile, open the About Me tab and click "Edit Profile". The sign-up form also now says that other users will see your name and that you can change it later ([#539](https://github.com/sfirke/meutch/pull/539)).
 
 ## September 2026
 
