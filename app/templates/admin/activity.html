@@ -17,8 +17,7 @@
             <strong>Entries are not being pruned.</strong>
             The oldest entry here is from {{ oldest_occurred_at|utc_timestamp('date') }}, which is
             well past the {{ retention_days }}-day retention window. Check that the scheduled prune
-            job is running &mdash; until it is, this table is keeping personal data it should have
-            deleted.
+            job is running; until it is, this table will grow and retain user actions indefinitely.
         </div>
     {% endif %}
 
