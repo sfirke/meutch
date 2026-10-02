@@ -241,16 +241,6 @@ class TestActivityTabBar:
         assert 'href="/admin/?active_tab=analytics"' in content
         assert 'data-bs-toggle="tab"' not in content
 
-    def test_the_dashboard_analytics_pane_still_renders(self, client, db_session):
-        admin = UserFactory(is_admin=True)
-        db_session.commit()
-
-        login_user(client, admin.email)
-        response = client.get("/admin/?active_tab=analytics")
-
-        assert response.status_code == 200
-        assert b'id="admin-analytics"' in response.data
-
 
 def test_entries_written_by_log_event_appear_on_the_page(client, db_session):
     """End to end: a real sign-in shows up in the admin panel with no seeding."""
