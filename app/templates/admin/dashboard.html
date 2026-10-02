@@ -13,7 +13,7 @@
         <div class="tab-pane fade {% if active_tab == 'users' %}show active{% endif %}" id="admin-users" role="tabpanel" aria-labelledby="admin-users-tab">
             <div class="card">
                 <div class="card-header bg-dark text-white">
-                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>User Management</h5>
+                    <h5 class="mb-0 text-white"><i class="fas fa-list me-2"></i>User Management</h5>
                 </div>
                 <div class="card-body">
                     {% if users_pagination.items %}
@@ -522,6 +522,15 @@ document.addEventListener('DOMContentLoaded', function() {
             if (tabName == 'analytics') {
                 initializeMauChart();
             }
+        });
+    });
+
+    // Bootstrap's arrow-key handling treats every .nav-link in the tab bar as a tab.
+    // Follow the link instead of letting it hide the open pane.
+    document.querySelectorAll('#adminTabs a.nav-link').forEach(function(tabLink) {
+        tabLink.addEventListener('show.bs.tab', function(event) {
+            event.preventDefault();
+            window.location.href = tabLink.href;
         });
     });
 
