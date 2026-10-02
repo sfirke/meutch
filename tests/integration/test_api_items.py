@@ -122,6 +122,53 @@ class TestApiItems:
             "is_active_borrower": False,
         }
 
+    def test_item_detail_marks_owner_profile_viewable_by_shared_circle(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            owner = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, owner])
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, name="Shared circle item")
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            item_id = item.id
+
+        response = client.get(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["item"]["owner"]["profile_viewable"] is True
+
+    def test_item_detail_hides_owner_profile_for_unrelated_public_giveaway(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            owner = UserFactory()
+            owner_circle = CircleFactory()
+            owner_circle.members.append(owner)
+            category = CategoryFactory()
+            item = ItemFactory(
+                owner=owner,
+                category=category,
+                name="Public giveaway",
+                is_giveaway=True,
+                giveaway_visibility="public",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            item_id = item.id
+
+        response = client.get(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["item"]["owner"]["profile_viewable"] is False
+
     def test_item_detail_forbids_unrelated_user_for_loan_item(self, client, app):
         with app.app_context():
             viewer = UserFactory(email_confirmed=True)
@@ -225,6 +272,37 @@ class TestApiItems:
         )
 
         assert response.status_code == 404
+
+    def test_items_list_marks_owner_profile_viewable_by_shared_circle(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            circle_mate = UserFactory()
+            stranger = UserFactory()
+            category = CategoryFactory()
+
+            shared_circle = CircleFactory()
+            stranger_circle = CircleFactory()
+            shared_circle.members.extend([viewer, circle_mate])
+            stranger_circle.members.append(stranger)
+
+            ItemFactory(owner=circle_mate, category=category, name="Circle mate item")
+            ItemFactory(
+                owner=stranger,
+                category=category,
+                name="Stranger public giveaway",
+                is_giveaway=True,
+                giveaway_visibility="public",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+
+        response = client.get("/api/v1/items", headers=auth_headers(access_token))
+
+        assert response.status_code == 200
+        items_by_name = {item["name"]: item for item in response.get_json()["items"]}
+        assert items_by_name["Circle mate item"]["owner"]["profile_viewable"] is True
+        assert items_by_name["Stranger public giveaway"]["owner"]["profile_viewable"] is False
 
     def test_items_list_requires_authentication(self, client, app):
         response = client.get("/api/v1/items")

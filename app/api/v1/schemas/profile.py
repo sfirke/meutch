@@ -29,6 +29,12 @@ class UserWebLinkSchema(ApiSchema):
 _USER_WEB_LINKS_SCHEMA = UserWebLinkSchema(many=True)
 
 
+def dump_web_links(user):
+    """Dump a user's external links in display order."""
+    ordered_links = sorted(user.web_links, key=lambda link: link.display_order)
+    return _USER_WEB_LINKS_SCHEMA.dump(ordered_links)
+
+
 class UserProfileSchema(UserIdentitySchema):
     """Expanded authenticated-user profile data."""
 
@@ -44,8 +50,7 @@ class UserProfileSchema(UserIdentitySchema):
 
     def get_web_links(self, user):
         """Return ordered external links for the profile."""
-        ordered_links = sorted(user.web_links, key=lambda link: link.display_order)
-        return _USER_WEB_LINKS_SCHEMA.dump(ordered_links)
+        return dump_web_links(user)
 
 
 class CurrentUserProfileResponseSchema(ApiSchema):

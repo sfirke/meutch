@@ -87,6 +87,31 @@ class TestApiCircles:
         assert response.get_json()["circle"]["can_view_members"] is False
         assert response.get_json()["circle"]["members"] == []
 
+    def test_circle_detail_marks_other_member_profile_viewable(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            other_member = UserFactory()
+            circle = CircleFactory(circle_type="open")
+            circle.members.append(viewer)
+            circle.members.append(other_member)
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            circle_id = circle.id
+            viewer_id = viewer.id
+            other_member_id = other_member.id
+
+        response = client.get(
+            f"/api/v1/circles/{circle_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        members_by_id = {
+            member["user"]["id"]: member for member in response.get_json()["circle"]["members"]
+        }
+        assert members_by_id[str(other_member_id)]["user"]["profile_viewable"] is True
+        assert members_by_id[str(viewer_id)]["user"]["profile_viewable"] is False
+
     def test_circle_detail_returns_404_for_secret_circle_non_member(self, client, app):
         with app.app_context():
             viewer = UserFactory(email_confirmed=True)

@@ -47,6 +47,44 @@ class TestApiRequests:
         assert payload["request"]["title"] == "Need a drill"
         assert len(payload["conversations"]) == 1
         assert payload["conversations"][0]["latest_message"]["body"] == "I can lend one."
+        assert payload["request"]["user"]["profile_viewable"] is False
+        assert payload["conversations"][0]["other_user"]["profile_viewable"] is True
+
+    def test_request_detail_marks_circle_mate_owner_profile_viewable(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            owner = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, owner])
+            item_request = ItemRequestFactory(user=owner, visibility="circles")
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            request_id = item_request.id
+
+        response = client.get(
+            f"/api/v1/requests/{request_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["request"]["user"]["profile_viewable"] is True
+
+    def test_request_detail_hides_profile_for_stranger_viewing_public_request(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            owner = UserFactory()
+            item_request = ItemRequestFactory(user=owner, visibility="public")
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            request_id = item_request.id
+
+        response = client.get(
+            f"/api/v1/requests/{request_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["request"]["user"]["profile_viewable"] is False
 
     def test_request_detail_forbids_unrelated_viewer_for_circles_only_request(self, client, app):
         with app.app_context():
