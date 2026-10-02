@@ -20,6 +20,7 @@ AUTH_EMAIL_CONFIRMED = "auth.email.confirmed"
 AUTH_PASSWORD_RESET_REQUESTED = "auth.password_reset.requested"
 AUTH_PASSWORD_RESET_COMPLETED = "auth.password_reset.completed"
 AUTH_TOKEN_REUSE_DETECTED = "auth.token.reuse_detected"
+PROFILE_NAME_CHANGED = "profile.name.changed"
 
 EVENT_TYPES = frozenset(
     {
@@ -35,6 +36,7 @@ EVENT_TYPES = frozenset(
         AUTH_PASSWORD_RESET_REQUESTED,
         AUTH_PASSWORD_RESET_COMPLETED,
         AUTH_TOKEN_REUSE_DETECTED,
+        PROFILE_NAME_CHANGED,
     }
 )
 
@@ -54,6 +56,7 @@ EVENT_LABELS = {
     AUTH_PASSWORD_RESET_REQUESTED: "Password reset requested",
     AUTH_PASSWORD_RESET_COMPLETED: "Password reset completed",
     AUTH_TOKEN_REUSE_DETECTED: "API refresh token replayed",
+    PROFILE_NAME_CHANGED: "Name changed",
 }
 
 # The only context keys each event may store; anything else is dropped. Each key is a
@@ -81,4 +84,9 @@ EVENT_CONTEXT_KEYS = {
         }
     ),
     AUTH_TOKEN_REUSE_DETECTED: frozenset({"reason"}),
+    # The old name exists nowhere else once it is changed, and it is what shows who a
+    # renamed account used to be.
+    PROFILE_NAME_CHANGED: frozenset(
+        {"old_first_name", "old_last_name", "new_first_name", "new_last_name"}
+    ),
 }

@@ -2,6 +2,8 @@ from dataclasses import dataclass
 
 from app import db
 from app.models import User, UserWebLink
+from app.utils import activity_events
+from app.utils.activity_log import log_event
 from app.utils.storage import delete_file, upload_profile_image
 
 
@@ -22,6 +24,7 @@ def update_profile(
 ):
     """Save profile edits. A name left as None is not changed."""
     image_upload_failed = False
+    old_name = (user.first_name, user.last_name)
 
     if first_name is not None:
         user.first_name = first_name.strip()
@@ -61,6 +64,20 @@ def update_profile(
         db.session.add(web_link)
 
     db.session.commit()
+
+    if (user.first_name, user.last_name) != old_name:
+        log_event(
+            activity_events.PROFILE_NAME_CHANGED,
+            actor=user,
+            subject=user,
+            context={
+                "old_first_name": old_name[0],
+                "old_last_name": old_name[1],
+                "new_first_name": user.first_name,
+                "new_last_name": user.last_name,
+            },
+        )
+
     return ProfileUpdateResult(image_upload_failed=image_upload_failed)
 
 
