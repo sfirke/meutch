@@ -48,7 +48,12 @@ class TestActivityPageAccess:
 class TestActivityPageRendering:
     def test_renders_an_entry_with_its_label_actor_and_client(self, client, db_session):
         admin = UserFactory(is_admin=True, first_name="Ada", last_name="Admin")
-        ActivityLogFactory(actor=admin, subject=admin, ip_address="203.0.113.99")
+        ActivityLogFactory(
+            actor=admin,
+            subject=admin,
+            ip_address="203.0.113.99",
+            user_agent="Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/120.0 Safari/537.36 Edg/120.0",
+        )
         db_session.commit()
 
         login_user(client, admin.email)
@@ -57,7 +62,7 @@ class TestActivityPageRendering:
         assert "Signed in" in content
         assert "Ada Admin" in content
         assert "203.0.113.99" in content
-        assert "Chrome" in content
+        assert "Edge" in content
 
     def test_renders_an_anonymous_failed_sign_in_with_the_typed_address(self, client, db_session):
         admin = UserFactory(is_admin=True)

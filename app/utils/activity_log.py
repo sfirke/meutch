@@ -242,7 +242,7 @@ def log_event(
 # Substring ladder from a User-Agent string to a browser family, most specific first
 # (every Chromium browser also says "Chrome", and Chrome and Safari both say
 # "Safari"). This is deliberately crude: the full string is kept in the column and
-# shown on hover, and this is only the scannable summary. Werkzeug's own UA parsing
+# shown in a disclosure, and this is only the scannable summary. Werkzeug's own UA parsing
 # was removed in 2.x, so request.user_agent.browser is always None here.
 _USER_AGENT_FAMILIES = (
     ("Edg/", "Edge"),
