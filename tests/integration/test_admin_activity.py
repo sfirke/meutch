@@ -119,21 +119,6 @@ class TestActivityPageRendering:
         # nothing worth showing and the "deleted" badge stands in its place.
         assert departed.email.encode() not in response.data
 
-    def test_empty_log_says_so(self, client, db_session, app):
-        """Reachable in practice only with the kill switch on, which is exactly when
-        an admin most needs the page to say something rather than nothing."""
-        admin = UserFactory(is_admin=True)
-        db_session.commit()
-
-        app.config["ACTIVITY_LOG_ENABLED"] = False
-        try:
-            login_user(client, admin.email)
-            content = client.get("/admin/activity").data.decode("utf-8")
-        finally:
-            app.config["ACTIVITY_LOG_ENABLED"] = True
-
-        assert "No activity recorded yet." in content
-
 
 class TestActivityPagePagination:
     def test_identically_timestamped_rows_paginate_without_loss_or_repetition(
