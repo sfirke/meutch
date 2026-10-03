@@ -3,6 +3,8 @@
 from app.forms import EditProfileForm
 from app.models import UserWebLink
 
+NAME = {"first_name": "Ana", "last_name": "Silva"}
+
 
 class TestUserWebLink:
     """Test UserWebLink model."""
@@ -70,7 +72,7 @@ class TestWebLinksForm:
     def test_form_validation_url_without_platform(self, app):
         """Test form validation fails when URL is provided without platform."""
         with app.app_context():
-            form_data = {"link_1_url": "https://example.com", "link_1_platform": ""}
+            form_data = {**NAME, "link_1_url": "https://example.com", "link_1_platform": ""}
             form = EditProfileForm(data=form_data)
             assert form.validate() is False
             assert "Please select a platform when providing a URL." in form.link_1_platform.errors
@@ -79,6 +81,7 @@ class TestWebLinksForm:
         """Test form validation fails when 'other' is selected without custom name."""
         with app.app_context():
             form_data = {
+                **NAME,
                 "link_1_platform": "other",
                 "link_1_url": "https://example.com",
                 "link_1_custom_name": "",
@@ -94,6 +97,7 @@ class TestWebLinksForm:
         """Test form validation passes with valid web link data."""
         with app.app_context():
             form_data = {
+                **NAME,
                 "link_1_platform": "instagram",
                 "link_1_url": "https://instagram.com/test_user",
                 "about_me": "Test bio",

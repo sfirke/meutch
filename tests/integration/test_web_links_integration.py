@@ -40,6 +40,8 @@ class TestWebLinksIntegration:
             response = client.post(
                 "/profile",
                 data={
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
                     "about_me": "Test bio",
                     "link_1_platform": "instagram",
                     "link_1_url": "https://instagram.com/test",
@@ -127,6 +129,8 @@ class TestWebLinksIntegration:
             response = client.post(
                 "/profile",
                 data={
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
                     "about_me": "Updated bio",
                     "link_1_platform": "instagram",
                     "link_1_url": "https://instagram.com/test",
@@ -154,6 +158,8 @@ class TestWebLinksIntegration:
             response = client.post(
                 "/profile",
                 data={
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
                     "about_me": "Test bio",
                     "link_1_url": "https://example.com",
                     "link_1_platform": "",  # Missing platform
@@ -169,6 +175,8 @@ class TestWebLinksIntegration:
             response = client.post(
                 "/profile",
                 data={
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
                     "about_me": "Test bio",
                     "link_1_platform": "other",
                     "link_1_url": "https://example.com",

@@ -47,7 +47,8 @@
             questions like "why can't I sign in?" and so that we can tell whether someone is
             trying to break into an account. Log entries record what happened, when, which
             account it involved, the IP address the request came from, and the browser or app
-            that made it.
+            that made it. An entry can also include details about the event itself, such as
+            what was typed into a form or what a setting was before you changed it.
         </p>
         <p>
             Activity log entries are deleted after {{ config.ACTIVITY_LOG_RETENTION_DAYS }} days. They are never shared with anyone

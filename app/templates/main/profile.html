@@ -471,7 +471,8 @@
                         <img src="{{ current_user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
                     </div>
                     <div class="col-md-8">
-                        <h5 class="mb-3">About Me</h5>
+                        <h3 class="fw-bold mb-3">{{ current_user.full_name }}</h3>
+                        <h6 class="text-uppercase text-muted small fw-semibold mb-2">About Me</h6>
                         {% if current_user.about_me %}
                             <p>{{ current_user.about_me|linkify }}</p>
                         {% else %}
@@ -515,6 +516,23 @@
                         <div class="col-md-6">
                             <div class="text-center mb-4">
                                 <img src="{{ current_user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
+                            </div>
+
+                            <div class="row">
+                                <div class="col-sm-6 mb-3">
+                                    {{ form.first_name.label(class="form-label") }}
+                                    {{ form.first_name(class="form-control") }}
+                                    {% for error in form.first_name.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-sm-6 mb-3">
+                                    {{ form.last_name.label(class="form-label") }}
+                                    {{ form.last_name(class="form-control") }}
+                                    {% for error in form.last_name.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
                             </div>
 
                             <div class="mb-3">
