@@ -76,6 +76,8 @@ class TestProfileRoutes:
             response = client.post(
                 "/profile",
                 data={
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
                     "about_me": "Test bio",
                     "link_1_url": "https://example.com",
                     "link_1_platform": "",
@@ -172,7 +174,13 @@ class TestProfileRoutes:
             login_user(client, user.email)
 
             response = client.post(
-                "/profile", data={"about_me": "Updated bio information"}, follow_redirects=True
+                "/profile",
+                data={
+                    "first_name": "  Renamed ",
+                    "last_name": "Person",
+                    "about_me": "Updated bio information",
+                },
+                follow_redirects=True,
             )
 
             assert response.status_code == 200
@@ -181,6 +189,23 @@ class TestProfileRoutes:
             # Verify profile was updated
             updated_user = db.session.get(User, user.id)
             assert updated_user.about_me == "Updated bio information"
+            assert updated_user.full_name == "Renamed Person"
+
+    def test_update_profile_rejects_blank_or_junk_name(self, client, app, auth_user):
+        with app.app_context():
+            user = auth_user()
+            original_name = user.full_name
+            login_user(client, user.email)
+
+            for first_name in ("   ", "ZspMSWgBftjwEHvOnFjWgHCn"):
+                response = client.post(
+                    "/profile",
+                    data={"first_name": first_name, "last_name": "Person", "about_me": ""},
+                )
+                assert b"Your profile has been updated." not in response.data
+
+            db.session.expire_all()
+            assert db.session.get(User, user.id).full_name == original_name
 
     def test_profile_digest_settings_load_current_values(self, client, app, auth_user):
         """Test profile settings shows current digest values."""
