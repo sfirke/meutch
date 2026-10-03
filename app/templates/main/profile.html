@@ -509,7 +509,7 @@
 
             <!-- Edit profile form (hidden by default) -->
             <div id="profile-edit" {% if not show_edit %}class="d-none"{% endif %}>
-                <form method="post" enctype="multipart/form-data" novalidate>
+                <form method="post" enctype="multipart/form-data">
                     {{ form.csrf_token }}
                     <div class="row">
                         <!-- Left Column -->
