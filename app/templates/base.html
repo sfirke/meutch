@@ -1,3 +1,34 @@
+{% macro account_avatar() -%}
+    {% if current_user.profile_image -%}
+        <img src="{{ current_user.profile_image }}" alt="" class="rounded-circle me-2" width="30" height="30">
+    {%- else -%}
+        <i class="fas fa-user-circle me-2"></i>
+    {%- endif %}
+{%- endmacro -%}
+
+{% macro account_links(mobile=false) -%}
+    {% set links = [
+        ('My items', url_for('main.profile', tab='my-items'), 'fa-box-open'),
+        ('My loans & requests', url_for('main.profile', tab='my-activity'), 'fa-handshake'),
+        ('Profile', url_for('main.profile', tab='about-me'), 'fa-user'),
+        ('Settings', url_for('main.profile', tab='settings'), 'fa-cog'),
+        None,
+        ('How it works', url_for('main.how_it_works'), 'fa-question-circle'),
+    ] %}
+    {% if current_user.is_admin %}
+        {% set links = links + [('Admin', url_for('admin.dashboard'), 'fa-user-shield')] %}
+    {% endif %}
+    {% set links = links + [None, ('Log out', url_for('auth.logout'), 'fa-sign-out-alt')] %}
+    {% for link in links %}
+        {% if link is none %}
+            <li{% if mobile %} class="nav-item d-lg-none"{% endif %}><hr class="{{ 'account-divider' if mobile else 'dropdown-divider' }}"></li>
+        {% else %}
+            <li{% if mobile %} class="nav-item d-lg-none"{% endif %}>
+                <a class="{{ 'nav-link' if mobile else 'dropdown-item' }}" href="{{ link[1] }}"><i class="fas {{ link[2] }} fa-fw me-1"></i>{{ link[0] }}</a>
+            </li>
+        {% endif %}
+    {% endfor %}
+{%- endmacro -%}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -50,60 +81,30 @@
             </a>
             {% endif %}
 
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler position-relative" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
+                {% if current_user.is_authenticated and (unread_messages_count > 0 or total_pending > 0) %}
+                    <span class="navbar-toggler-dot"><span class="visually-hidden">New notifications</span></span>
+                {% endif %}
             </button>
 
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.index') }}">
-                            {% if current_user.is_authenticated %}
-                                <i class="fas fa-home me-1"></i>Home
-                            {% else %}
-                                <i class="fas fa-home me-1"></i>Home
-                            {% endif %}
+                            <i class="fas fa-home fa-fw me-1"></i>Home
                         </a>
                     </li>
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('main.find') }}">
-                                <i class="fas fa-search me-1"></i>Find
-                            </a>
-                        </li>
-                    {% endif %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.how_it_works') }}">
-                            <i class="fas fa-question-circle me-1"></i>How it Works
-                        </a>
-                    </li>
-                    {% if current_user.is_authenticated and current_user.is_admin %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
-                                <i class="fas fa-user-shield me-1"></i>Admin Panel
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
-
-                <ul class="navbar-nav">
-                    {% if current_user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link d-flex align-items-center gap-2" href="{{ url_for('main.messages') }}">
-                                <span class="d-flex align-items-center">
-                                    <i class="fas fa-envelope me-1"></i>Messages
-                                </span>
-                                {% if unread_messages_count > 0 %}
-                                    <span class="badge rounded-pill bg-danger">
-                                        {{ unread_messages_count }}
-                                    </span>
-                                {% endif %}
+                                <i class="fas fa-search fa-fw me-1"></i>Find
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2" href="{{ url_for('circles.manage_circles') }}">
                                 <span class="d-flex align-items-center">
-                                    <i class="fas fa-users me-1"></i>Circles
+                                    <i class="fas fa-users fa-fw me-1"></i>Circles
                                 </span>
                                 {% if total_pending > 0 %}
                                     <span class="badge rounded-pill bg-warning text-dark">
@@ -112,34 +113,53 @@
                                 {% endif %}
                             </a>
                         </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                {% if current_user.profile_image %}
-                                    <img src="{{ current_user.profile_image }}" alt="Profile" class="rounded-circle me-2" width="30" height="30">
-                                {% else %}
-                                    <i class="fas fa-user-circle me-2"></i>
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2" href="{{ url_for('main.messages') }}">
+                                <span class="d-flex align-items-center">
+                                    <i class="fas fa-envelope fa-fw me-1"></i>Messages
+                                </span>
+                                {% if unread_messages_count > 0 %}
+                                    <span class="badge rounded-pill bg-danger">
+                                        {{ unread_messages_count }}
+                                    </span>
                                 {% endif %}
-                                Profile
                             </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ url_for('main.profile') }}">
-                                    <i class="fas fa-user me-2"></i>My Profile
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
-                                </a></li>
-                            </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('main.how_it_works') }}">
+                                <i class="fas fa-question-circle fa-fw me-1"></i>How it Works
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item dropdown d-none d-lg-block">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center account-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                {{ account_avatar() }}
+                                <span class="account-name">{{ current_user.first_name }}</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                {{ account_links() }}
+                            </ul>
+                        </li>
+                        <li class="nav-item d-lg-none"><hr class="account-divider"></li>
+                        <li class="nav-item d-lg-none account-heading">
+                            {{ account_avatar() }}
+                            <span class="account-name">{{ current_user.first_name }}</span>
+                        </li>
+                        {{ account_links(mobile=true) }}
+                    {% else %}
+                        <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('auth.login') }}">
-                                <i class="fas fa-sign-in-alt me-1"></i>Login
+                                <i class="fas fa-sign-in-alt fa-fw me-1"></i>Login
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link nav-register" href="{{ url_for('auth.register') }}">
-                                <i class="fas fa-user-plus me-1"></i>Register
+                                <i class="fas fa-user-plus fa-fw me-1"></i>Register
                             </a>
                         </li>
                     {% endif %}
