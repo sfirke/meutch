@@ -125,6 +125,43 @@ body {
     color: var(--primary-color) !important;
 }
 
+/* Account menu */
+.account-name {
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-toggle img,
+.account-toggle .fa-user-circle {
+    flex-shrink: 0;
+}
+
+.account-divider {
+    margin: 0.25rem 0;
+    opacity: 0.15;
+}
+
+.navbar-toggler-dot {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--bs-danger);
+    border: 2px solid #fff;
+    box-sizing: content-box;
+}
+
+@media (max-width: 991.98px) {
+    .navbar-collapse {
+        max-height: calc(100dvh - 60px);
+        overflow-y: auto;
+    }
+}
+
 /* Main Content */
 .main-content {
     padding: 1rem 0;

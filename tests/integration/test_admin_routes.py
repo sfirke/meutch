@@ -504,7 +504,7 @@ class TestAdminNavbarLink:
 
         response = client.get("/")
         assert response.status_code == 200
-        assert b"Admin Panel" in response.data
+        assert b'href="/admin/"' in response.data
 
     def test_admin_link_hidden_from_regular_users(self, client, db_session):
         """Test that admin link does not appear for regular users"""
@@ -515,7 +515,7 @@ class TestAdminNavbarLink:
 
         response = client.get("/")
         assert response.status_code == 200
-        assert b"Admin Panel" not in response.data
+        assert b'href="/admin/"' not in response.data
 
 
 class TestAdminFlashMessages:
