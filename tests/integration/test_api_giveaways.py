@@ -102,6 +102,9 @@ class TestApiGiveawayInterestReads:
         assert payload["interests"][1]["conversation_message_id"] is None
         assert payload["interests"][1]["message_count"] == 0
         assert payload["interests"][1]["unread_count"] == 0
+        # The owner has a conversation with active_user and nothing with selected_user.
+        assert payload["interests"][0]["user"]["profile_viewable"] is True
+        assert payload["interests"][1]["user"]["profile_viewable"] is False
 
     def test_non_owner_cannot_read_interest_management_state(self, client, app):
         with app.app_context():

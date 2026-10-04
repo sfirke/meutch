@@ -87,12 +87,14 @@ def _enrich_giveaway_interests(item, owner_id):
 def _serialize_giveaway_interest_collection(item):
     interests = _enrich_giveaway_interests(item, current_user.id)
     item.api_interest_pool_count = len(interests)
-    return GIVEAWAY_INTEREST_COLLECTION_RESPONSE_SCHEMA.dump(
+    return dump_with_viewable_profiles(
+        GIVEAWAY_INTEREST_COLLECTION_RESPONSE_SCHEMA,
         {
             "item": item,
             "actions": _build_giveaway_interest_actions(item, interests),
             "interests": interests,
-        }
+        },
+        [interest.user_id for interest in interests],
     )
 
 
@@ -317,11 +319,13 @@ def select_giveaway_recipient(item_id):
         data["selection_method"],
         data["user_id"],
     )
-    return GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA.dump(
+    return dump_with_viewable_profiles(
+        GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA,
         {
             "item": _prepare_item_resource(item),
             "selected_interest": selected_interest,
-        }
+        },
+        [selected_interest.user_id],
     )
 
 
@@ -338,11 +342,13 @@ def change_giveaway_recipient(item_id):
         data["selection_method"],
         data["user_id"],
     )
-    return GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA.dump(
+    return dump_with_viewable_profiles(
+        GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA,
         {
             "item": _prepare_item_resource(item),
             "selected_interest": selected_interest,
-        }
+        },
+        [selected_interest.user_id],
     )
 
 
