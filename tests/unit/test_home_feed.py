@@ -1,5 +1,7 @@
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
+
 from app import db
 from app.models import LoanRequest
 from app.utils.home_feed import (
@@ -377,6 +379,36 @@ def test_build_visible_giveaway_events_include_public_giveaway_from_no_circle_ow
         events = build_visible_giveaway_events(viewer, scoped_circle_ids={circle.id}, scope="all")
 
         assert public_item.id in {event["item_id"] for event in events}
+
+
+@pytest.mark.parametrize(
+    "status, expected_count",
+    [("approved", 1), ("completed", 1), ("pending", 0), ("denied", 0), ("canceled", 0)],
+)
+def test_build_recent_lent_events_by_loan_status(app, status, expected_count):
+    with app.app_context():
+        viewer = UserFactory()
+        owner = UserFactory()
+        borrower = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner, borrower])
+
+        item = ItemFactory(owner=owner, category=category)
+        db.session.add(
+            LoanRequest(
+                item_id=item.id,
+                borrower_id=borrower.id,
+                start_date=date.today(),
+                end_date=date.today(),
+                status=status,
+            )
+        )
+        db.session.commit()
+
+        events = build_recent_lent_events(viewer, scoped_circle_ids={circle.id})
+
+        assert len(events) == expected_count
 
 
 def test_build_recent_lent_events_hides_borrower_identity(app):
