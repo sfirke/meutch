@@ -34,6 +34,15 @@
         {% endif %}
     {% endfor %}
 {%- endmacro -%}
+{% macro create_menu(mobile=false) -%}
+    <button class="btn btn-primary {{ 'nav-create-mobile rounded-circle d-inline-flex align-items-center justify-content-center' if mobile else 'btn-sm rounded-pill px-3 dropdown-toggle' }}" type="button" data-bs-toggle="dropdown" aria-expanded="false"{% if mobile %} aria-label="Create"{% endif %}>
+        <i class="fas fa-plus{% if not mobile %} me-1{% endif %}"></i>{% if not mobile %}Create{% endif %}
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item{% if mobile %} py-2{% endif %}" href="{{ url_for('main.list_item') }}"><i class="fas fa-plus fa-fw me-1"></i>List an item</a></li>
+        <li><a class="dropdown-item{% if mobile %} py-2{% endif %}" href="{{ url_for('requests.new') }}"><i class="fas fa-hand-holding-heart fa-fw me-1"></i>Create a request</a></li>
+    </ul>
+{%- endmacro -%}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -80,7 +89,12 @@
                 <span class="fw-bold">Meutch</span>
             </a>
 
-            {% if not current_user.is_authenticated %}
+            {% set show_create = current_user.is_authenticated and request.endpoint not in ('main.list_item', 'requests.new') %}
+            {% if show_create %}
+            <div class="dropdown d-lg-none ms-auto me-2">
+                {{ create_menu(mobile=true) }}
+            </div>
+            {% elif not current_user.is_authenticated %}
             <a class="nav-link navbar-mobile-login d-flex d-lg-none align-items-center me-1 px-2" href="{{ url_for('auth.login') }}">
                 <i class="fas fa-sign-in-alt me-1"></i><span class="small fw-semibold">Login</span>
             </a>
@@ -141,6 +155,11 @@
 
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
+                        {% if show_create %}
+                            <li class="nav-item dropdown d-none d-lg-flex align-items-center me-2">
+                                {{ create_menu() }}
+                            </li>
+                        {% endif %}
                         <li class="nav-item dropdown d-none d-lg-block">
                             <a class="nav-link dropdown-toggle d-flex align-items-center account-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 {{ account_avatar() }}
