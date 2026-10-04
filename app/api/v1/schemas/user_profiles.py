@@ -1,17 +1,10 @@
 """Schemas for viewing another member's profile."""
 
-from marshmallow import fields, validate
+from marshmallow import fields
 
 from app.api.v1.schemas.base import ApiSchema
 from app.api.v1.schemas.messaging import CircleConversationContextSchema
 from app.api.v1.schemas.profile import dump_web_links
-from app.utils.profile_visibility import (
-    PROFILE_ACCESS_ADMIN,
-    PROFILE_ACCESS_CIRCLE,
-    PROFILE_ACCESS_CONVERSATION,
-    PROFILE_ACCESS_JOIN_REQUEST,
-    PROFILE_ACCESS_SELF,
-)
 
 
 class PublicUserProfileSchema(ApiSchema):
@@ -34,15 +27,4 @@ class PublicUserProfileResponseSchema(ApiSchema):
 
     user = fields.Nested(PublicUserProfileSchema(), required=True)
     shared_circles = fields.Nested(CircleConversationContextSchema(), many=True, required=True)
-    access_reason = fields.String(
-        required=True,
-        validate=validate.OneOf(
-            [
-                PROFILE_ACCESS_SELF,
-                PROFILE_ACCESS_ADMIN,
-                PROFILE_ACCESS_CIRCLE,
-                PROFILE_ACCESS_CONVERSATION,
-                PROFILE_ACCESS_JOIN_REQUEST,
-            ]
-        ),
-    )
+    access_reason = fields.String(required=True)
