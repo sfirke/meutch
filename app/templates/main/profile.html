@@ -15,10 +15,7 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link {% if active_tab == 'my-activity' %}active{% endif %}" id="my-activity-tab" data-bs-toggle="tab" data-bs-target="#my-activity" type="button" role="tab" aria-controls="my-activity" aria-selected="{{ 'true' if active_tab == 'my-activity' else 'false' }}">
-                <i class="fas fa-exchange-alt me-2"></i>My Activity
-                {% if borrowing or lending %}
-                    <span class="badge bg-secondary ms-1">{{ (borrowing|length) + (lending|length) }}</span>
-                {% endif %}
+                <i class="fas fa-exchange-alt me-2"></i>Loans &amp; Requests
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -115,10 +112,75 @@
                 </div>
             {% endif %}
 
+            <!-- Regular Items Section -->
+            {% if items %}
+                {% if active_giveaways or past_giveaways %}
+                    <h4 class="mb-3 mt-4"><i class="fas fa-handshake me-2"></i>Items for Lending</h4>
+                {% endif %}
+                <div class="items-grid">
+                    {% for item in items %}
+                        {% set show_owner_controls = true %}
+                        {% include 'main/_item_card.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                {% if not active_giveaways and not past_giveaways %}
+                    {% if not search_query %}
+                        <p>You haven't listed anything yet. Add something your neighbors could borrow or keep.</p>
+                        <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>List an item
+                        </a>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+
+            <!-- Pagination for regular items -->
+            {% if pagination and pagination.pages > 1 %}
+                <nav aria-label="Items pages" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.profile', page=pagination.prev_num, tab='my-items', search=search_query) }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&laquo;</span>
+                            </li>
+                        {% endif %}
+
+                        {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+                            {% if p %}
+                                {% if p == pagination.page %}
+                                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', page=p, tab='my-items', search=search_query) }}">{{ p }}</a></li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.profile', page=pagination.next_num, tab='my-items', search=search_query) }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&raquo;</span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+
             <!-- My Past Giveaways Section -->
             {% if past_giveaways %}
-                <div class="mb-4">
-                    <h4 class="mb-3"><i class="fas fa-history me-2"></i>My Past Giveaways</h4>
+                <details class="my-4"{% if past_giveaways_expanded %} open{% endif %}>
+                    <summary class="h4 mb-3"><h4 class="d-inline"><i class="fas fa-history me-2"></i>My Past Giveaways ({{ past_giveaways_pagination.total }})</h4></summary>
                     <p class="text-muted small">Items claimed within the last 90 days</p>
                     <div class="items-grid">
                         {% for item in past_giveaways %}
@@ -169,69 +231,7 @@
                             </ul>
                         </nav>
                     {% endif %}
-                </div>
-            {% endif %}
-
-            <!-- Regular Items Section -->
-            {% if items %}
-                {% if active_giveaways or past_giveaways %}
-                    <h4 class="mb-3 mt-4"><i class="fas fa-handshake me-2"></i>Items for Lending</h4>
-                {% endif %}
-                <div class="items-grid">
-                    {% for item in items %}
-                        {% set show_owner_controls = true %}
-                        {% include 'main/_item_card.html' %}
-                    {% endfor %}
-                </div>
-            {% else %}
-                {% if not active_giveaways and not past_giveaways %}
-                    {% if not search_query %}
-                        <p>No items found.</p>
-                    {% endif %}
-                {% endif %}
-            {% endif %}
-
-            <!-- Pagination for regular items -->
-            {% if pagination and pagination.pages > 1 %}
-                <nav aria-label="Items pages" class="mt-4">
-                    <ul class="pagination justify-content-center">
-                        {% if pagination.has_prev %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('main.profile', page=pagination.prev_num, tab='my-items', search=search_query) }}" aria-label="Previous">
-                                    <span aria-hidden="true">&laquo;</span>
-                                </a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link" aria-hidden="true">&laquo;</span>
-                            </li>
-                        {% endif %}
-
-                        {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
-                            {% if p %}
-                                {% if p == pagination.page %}
-                                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
-                                {% else %}
-                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.profile', page=p, tab='my-items', search=search_query) }}">{{ p }}</a></li>
-                                {% endif %}
-                            {% else %}
-                                <li class="page-item disabled"><span class="page-link">…</span></li>
-                            {% endif %}
-                        {% endfor %}
-
-                        {% if pagination.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('main.profile', page=pagination.next_num, tab='my-items', search=search_query) }}" aria-label="Next">
-                                    <span aria-hidden="true">&raquo;</span>
-                                </a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link" aria-hidden="true">&raquo;</span>
-                            </li>
-                        {% endif %}
-                    </ul>
-                </nav>
+                </details>
             {% endif %}
 
             {% if search_query and not active_giveaways and not past_giveaways and not items %}
@@ -239,7 +239,7 @@
             {% endif %}
         </div>
 
-        <!-- ======================== MY ACTIVITY TAB ======================== -->
+        <!-- ======================== LOANS & REQUESTS TAB ======================== -->
         <div class="tab-pane fade {% if active_tab == 'my-activity' %}show active{% endif %}" id="my-activity" role="tabpanel" aria-labelledby="my-activity-tab">
 
             {% if current_user == user %}
@@ -455,6 +455,9 @@
                         {% endif %}
                     {% else %}
                         <p>You have no active or recently fulfilled requests.</p>
+                        <a href="{{ url_for('requests.new') }}" class="btn btn-sm btn-meutch-orange">
+                            <i class="fas fa-hand-holding-heart me-1"></i>Create Request
+                        </a>
                     {% endif %}
                 </div>
 

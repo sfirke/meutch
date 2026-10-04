@@ -113,7 +113,7 @@ class TestItemDetailLoanLink:
 
 
 class TestMyActivityConversationLinks:
-    """Test that My Activity tab links item names to conversations."""
+    """Test that Loans & Requests tab links item names to conversations."""
 
     def test_borrowing_table_item_name_links_to_conversation(self, client, app, auth_user):
         """In borrowing table, item name and thumbnail link to item; View Loan button links to conversation."""

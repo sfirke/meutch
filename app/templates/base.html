@@ -9,7 +9,7 @@
 {% macro account_links(mobile=false) -%}
     {% set links = [
         ('My items', url_for('main.profile', tab='my-items'), 'fa-box-open'),
-        ('My loans & requests', url_for('main.profile', tab='my-activity'), 'fa-handshake'),
+        ('Loans & requests', url_for('main.profile', tab='my-activity'), 'fa-handshake'),
     ] %}
     {# On mobile the name row above these links is the profile link. #}
     {% if not mobile %}
