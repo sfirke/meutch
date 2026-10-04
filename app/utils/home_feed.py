@@ -709,7 +709,7 @@ def build_recent_lent_events(
         LoanRequest.query.join(Item, LoanRequest.item_id == Item.id)
         .join(User, Item.owner_id == User.id)
         .filter(
-            LoanRequest.status == "approved",
+            LoanRequest.status.in_(("approved", "completed")),
             LoanRequest.borrower_id.isnot(None),
             LoanRequest.created_at >= recent_cutoff,
             User.vacation_mode.is_(False),
