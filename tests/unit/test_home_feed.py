@@ -235,7 +235,7 @@ def test_build_visible_giveaway_events_defaults_to_20_miles(app):
         assert far_item.id in explicit_item_ids
 
 
-def test_build_visible_giveaway_events_hides_claimed_items_by_default(app):
+def test_build_visible_giveaway_events_can_hide_claimed_items(app):
     with app.app_context():
         viewer = UserFactory()
         owner = UserFactory()
@@ -268,6 +268,7 @@ def test_build_visible_giveaway_events_hides_claimed_items_by_default(app):
         events = build_visible_giveaway_events(
             viewer,
             scoped_circle_ids={circle.id},
+            include_claimed_giveaways=False,
         )
 
         item_ids = {event["item_id"] for event in events}
@@ -275,7 +276,7 @@ def test_build_visible_giveaway_events_hides_claimed_items_by_default(app):
         assert unclaimed_item.id in item_ids
 
 
-def test_build_visible_giveaway_events_can_include_recently_claimed_items(app):
+def test_build_visible_giveaway_events_includes_recently_claimed_items_by_default(app):
     with app.app_context():
         viewer = UserFactory()
         owner = UserFactory()
@@ -310,7 +311,6 @@ def test_build_visible_giveaway_events_can_include_recently_claimed_items(app):
         events = build_visible_giveaway_events(
             viewer,
             scoped_circle_ids={circle.id},
-            include_claimed_giveaways=True,
         )
 
         item_ids = {event["item_id"] for event in events}

@@ -17,7 +17,7 @@ def register_jwt_callbacks(jwt):
     def load_jwt_user(_jwt_header, jwt_data):
         try:
             user_id = UUID(jwt_data["sub"])
-        except (KeyError, ValueError):
+        except KeyError, ValueError:
             return None
 
         return db.session.get(User, user_id)

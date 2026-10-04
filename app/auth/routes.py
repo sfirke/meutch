@@ -18,6 +18,8 @@ from app.forms import (
 from app.forms_auth import issue_registration_started_token
 from app.services import auth_service
 from app.services.exceptions import ConflictError
+from app.utils import activity_events
+from app.utils.activity_log import log_event
 
 logger = logging.getLogger(__name__)
 logger.debug("Loading app.auth.routes")
@@ -137,6 +139,11 @@ def register():
                 form.email.data,
                 request.remote_addr,
             )
+            log_event(
+                activity_events.AUTH_REGISTER_BLOCKED,
+                actor=None,
+                context={"reason": bot_trap, "attempted_email": form.email.data},
+            )
             flash("Sorry, we couldn't process that sign-up. Please try again.", "warning")
             return _render_registration_form(form)
 
@@ -192,6 +199,19 @@ def register():
 
         return redirect(url_for("auth.resend_confirmation"))
 
+    if form.implausible_name_check:
+        log_event(
+            activity_events.AUTH_REGISTER_BLOCKED,
+            actor=None,
+            context={
+                "reason": "implausible_name",
+                "name_check": form.implausible_name_check,
+                "attempted_email": form.email.data,
+                "attempted_first_name": form.first_name.data,
+                "attempted_last_name": form.last_name.data,
+            },
+        )
+
     return _render_registration_form(form)
 
 
@@ -234,7 +254,16 @@ def login():
 @auth_bp.route("/logout")
 def logout():
     _clear_confirmation_page_state()
+    # Capture the actor before logout_user() clears the session: after it runs there
+    # is no current_user for the activity log to resolve.
+    signed_out_user_id = current_user.id if current_user.is_authenticated else None
     logout_user()
+    if signed_out_user_id is not None:
+        log_event(
+            activity_events.AUTH_LOGOUT,
+            actor=signed_out_user_id,
+            subject=signed_out_user_id,
+        )
     return redirect(url_for("main.index"))
 
 

@@ -20,6 +20,7 @@ from app.forms_shared import (
     OptionalFileAllowed,
     OptionalURL,
 )
+from app.utils.name_plausibility import IMPLAUSIBLE_NAME_MESSAGE, implausible_name_reason
 
 
 class UpdateLocationForm(FlaskForm):
@@ -120,6 +121,20 @@ class UpdateLocationForm(FlaskForm):
 
 
 class EditProfileForm(FlaskForm):
+    first_name = StringField(
+        "First Name",
+        validators=[
+            DataRequired(message="First name is required."),
+            Length(max=50, message="First name must be under 50 characters."),
+        ],
+    )
+    last_name = StringField(
+        "Last Name",
+        validators=[
+            DataRequired(message="Last name is required."),
+            Length(max=50, message="Last name must be under 50 characters."),
+        ],
+    )
     about_me = TextAreaField("About Me", validators=[Length(max=500)])
     profile_image = FileField(
         "Profile Picture",
@@ -179,6 +194,14 @@ class EditProfileForm(FlaskForm):
         self.link_3_platform.choices = platform_choices
         self.link_4_platform.choices = platform_choices
         self.link_5_platform.choices = platform_choices
+
+    def validate_first_name(self, first_name):
+        if implausible_name_reason(first_name.data):
+            raise ValidationError(IMPLAUSIBLE_NAME_MESSAGE)
+
+    def validate_last_name(self, last_name):
+        if implausible_name_reason(last_name.data):
+            raise ValidationError(IMPLAUSIBLE_NAME_MESSAGE)
 
     def validate(self, **kwargs):
         rv = FlaskForm.validate(self, **kwargs)

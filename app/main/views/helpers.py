@@ -119,7 +119,7 @@ def _parse_homepage_feed_filters(user):
     if distance_value_raw and distance_value_raw != "none":
         try:
             parsed_distance = int(distance_value_raw)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             parsed_distance = None
         if parsed_distance in HOMEPAGE_DISTANCE_OPTIONS:
             selected_distance = parsed_distance
@@ -131,7 +131,9 @@ def _parse_homepage_feed_filters(user):
     show_own_activity = True
     if "own_activity_present" in request.args:
         show_own_activity = request.args.get("show_own_activity") == "1"
-    show_claimed_giveaways = request.args.get("show_claimed_giveaways") == "1"
+    show_claimed_giveaways = True
+    if "claimed_giveaways_present" in request.args:
+        show_claimed_giveaways = request.args.get("show_claimed_giveaways") == "1"
 
     return {
         "scope": scope,

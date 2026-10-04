@@ -179,14 +179,17 @@ ACTIVITY_LOG_RETENTION_DAYS=90
 ```
 
 Our own record of things that happen on the site, kept in the `activity_log` table.
-Entries are written on their own database connection, so a logging failure cannot break
-the request that triggered it; failures are logged at `WARNING`.
+Admins browse it at `/admin/activity`. Entries are written on their own database
+connection, so a logging failure cannot break the request that triggered it; failures
+are logged at `WARNING`.
 
-`ACTIVITY_LOG_ENABLED=false` stops all writes. Nothing else changes.
+`ACTIVITY_LOG_ENABLED=false` stops all writes. The page keeps working and shows
+whatever is already there.
 
 `ACTIVITY_LOG_RETENTION_DAYS` **does not delete anything by itself** — a scheduled prune
 job enforces it. The table holds IP addresses, so that job is not optional in the long
-run.
+run. Until it exists the Activity page shows a warning once the oldest entry is more than
+ten days past the window.
 
 ### Optional: API Maintenance
 
