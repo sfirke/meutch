@@ -206,10 +206,13 @@ class TestApiCircles:
                 name="Repair Neighbors",
                 image_url="https://cdn.example.com/original.png",
             )
+            member = UserFactory()
             _add_circle_membership(circle, admin, is_admin=True)
+            circle.members.append(member)
             db.session.commit()
             access_token = login_api_user(client, admin.email)
             circle_id = circle.id
+            member_id = str(member.id)
 
         with (
             patch("app.services.circle_service.geocode_address", return_value=None),
@@ -238,6 +241,10 @@ class TestApiCircles:
         assert payload["geocoding_failed"] is True
         assert payload["image_removed"] is True
         assert payload["image_updated"] is False
+        viewable = {
+            m["user"]["id"]: m["user"]["profile_viewable"] for m in payload["circle"]["members"]
+        }
+        assert viewable[member_id] is True
         assert payload["circle"]["name"] == "Repair Neighbors Updated"
         assert payload["circle"]["circle_type"] == "closed"
         mock_delete_file.assert_called_once_with("https://cdn.example.com/original.png")

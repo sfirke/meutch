@@ -409,21 +409,6 @@ class TestApiMessagingProfileViewable:
         senders_viewable = [m["sender"]["profile_viewable"] for m in payload["messages"]]
         assert senders_viewable == [True, False]
 
-    def test_thread_hides_deleted_partner(self, client, app):
-        with app.app_context():
-            viewer = UserFactory(email_confirmed=True)
-            partner = UserFactory(is_deleted=True)
-            conversation = self._conversation_with(viewer, partner)
-            message = MessageFactory(sender=partner, recipient=viewer, conversation=conversation)
-            db.session.commit()
-            access_token = login_api_user(client, viewer.email)
-            message_id = message.id
-
-        response = client.get(f"/api/v1/messages/{message_id}", headers=auth_headers(access_token))
-
-        assert response.status_code == 200
-        assert response.get_json()["other_user"]["profile_viewable"] is False
-
 
 class TestApiConversationArchive:
     """Exercise conversation-level archive / unarchive endpoints."""

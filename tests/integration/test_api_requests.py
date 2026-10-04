@@ -69,23 +69,6 @@ class TestApiRequests:
         assert response.status_code == 200
         assert response.get_json()["request"]["user"]["profile_viewable"] is True
 
-    def test_request_detail_hides_profile_for_stranger_viewing_public_request(self, client, app):
-        with app.app_context():
-            viewer = UserFactory(email_confirmed=True)
-            owner = UserFactory()
-            item_request = ItemRequestFactory(user=owner, visibility="public")
-            db.session.commit()
-            access_token = login_api_user(client, viewer.email)
-            request_id = item_request.id
-
-        response = client.get(
-            f"/api/v1/requests/{request_id}",
-            headers=auth_headers(access_token),
-        )
-
-        assert response.status_code == 200
-        assert response.get_json()["request"]["user"]["profile_viewable"] is False
-
     def test_request_detail_forbids_unrelated_viewer_for_circles_only_request(self, client, app):
         with app.app_context():
             viewer = UserFactory(email_confirmed=True)

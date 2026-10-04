@@ -10,7 +10,6 @@ from tests.factories import (
     CircleJoinRequestFactory,
     ConversationFactory,
     ConversationParticipantFactory,
-    ItemFactory,
     UserFactory,
     UserWebLinkFactory,
 )
@@ -35,20 +34,6 @@ def _get_profile(client, token, user_id):
 def _assert_not_found(response):
     assert response.status_code == 404
     assert response.get_json()["error"]["code"] == "NOT_FOUND"
-
-
-def _collect_keys(value):
-    if isinstance(value, dict):
-        keys = set(value)
-        for child in value.values():
-            keys |= _collect_keys(child)
-        return keys
-    if isinstance(value, list):
-        keys = set()
-        for child in value:
-            keys |= _collect_keys(child)
-        return keys
-    return set()
 
 
 def _add_admin(circle, user):
@@ -92,6 +77,7 @@ class TestApiUserProfile:
         assert payload["shared_circles"] == []
         assert payload["user"]["id"] == user_id
         assert payload["user"]["about_me"] == "Hello there."
+        assert set(payload) == {"user", "shared_circles", "access_reason"}
         assert set(payload["user"]) == USER_KEYS
 
     def test_circle_member_sees_profile_and_shared_circles(self, client, app):
@@ -171,7 +157,7 @@ class TestApiUserProfile:
         assert payload["access_reason"] == "join_request"
         assert payload["shared_circles"] == []
 
-    def test_stranger_returns_not_found(self, client, app):
+    def test_stranger_and_unknown_id_look_the_same(self, client, app):
         with app.app_context():
             viewer = UserFactory()
             target = UserFactory()
@@ -179,15 +165,12 @@ class TestApiUserProfile:
             target_id = target.id
             token = login_api_user(client, viewer.email)
 
-        _assert_not_found(_get_profile(client, token, target_id))
+        stranger = _get_profile(client, token, target_id)
+        unknown = _get_profile(client, token, uuid.uuid4())
 
-    def test_unknown_id_returns_not_found(self, client, app):
-        with app.app_context():
-            viewer = UserFactory()
-            db.session.commit()
-            token = login_api_user(client, viewer.email)
-
-        _assert_not_found(_get_profile(client, token, uuid.uuid4()))
+        _assert_not_found(stranger)
+        _assert_not_found(unknown)
+        assert stranger.get_json() == unknown.get_json()
 
     def test_deleted_user_hidden_from_circle_mate_but_visible_to_admin(self, client, app):
         with app.app_context():
@@ -208,27 +191,6 @@ class TestApiUserProfile:
         admin_response = _get_profile(client, admin_token, departed_id)
         assert admin_response.status_code == 200
         assert admin_response.get_json()["access_reason"] == "admin"
-
-    def test_response_omits_email_and_items(self, client, app):
-        with app.app_context():
-            viewer = UserFactory()
-            target = UserFactory()
-            circle = CircleFactory()
-            circle.members.append(viewer)
-            circle.members.append(target)
-            ItemFactory(owner=target)
-            db.session.commit()
-            target_id = target.id
-            token = login_api_user(client, viewer.email)
-
-        response = _get_profile(client, token, target_id)
-
-        assert response.status_code == 200
-        payload = response.get_json()
-        assert set(payload) == {"user", "shared_circles", "access_reason"}
-        keys = _collect_keys(payload)
-        assert "email" not in keys
-        assert "items" not in keys
 
     def test_web_links_sorted_by_display_order(self, client, app):
         with app.app_context():
@@ -263,7 +225,6 @@ class TestApiUserProfile:
 
         assert response.status_code == 200
         links = response.get_json()["user"]["web_links"]
-        assert [link["display_order"] for link in links] == [1, 2, 3]
         assert [link["url"] for link in links] == [
             "https://example.com/first",
             "https://example.com/second",

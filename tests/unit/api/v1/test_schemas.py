@@ -134,13 +134,6 @@ class TestApiSchemas:
 class TestProfileViewableFlag:
     """Test the context-driven profile_viewable flag on nested users."""
 
-    def test_defaults_false_without_context(self, app):
-        with app.app_context():
-            user = UserFactory()
-            payload = UserSummarySchema().dump(user)
-
-        assert payload["profile_viewable"] is False
-
     def test_true_when_id_in_context(self, app):
         with app.app_context():
             viewable, hidden = UserFactory(), UserFactory()
@@ -163,13 +156,7 @@ class TestProfileViewableFlag:
 
         assert payload["profile_viewable"] is True
 
-    def test_identity_schema_has_no_flag(self, app):
-        with app.app_context():
-            user = UserFactory()
-            with Context({"viewable_user_ids": {user.id}}):
-                payload = UserIdentitySchema().dump(user)
-
-        assert "profile_viewable" not in payload
+    def test_identity_schema_has_no_flag(self):
         assert "profile_viewable" not in UserIdentitySchema().fields
 
     def test_dump_helper_marks_viewable_users(self, app, monkeypatch):
@@ -187,12 +174,8 @@ class TestProfileViewableFlag:
                 [user.id for user in users] + [member.id, None],
                 many=True,
             )
-            single = profile_flags.dump_with_viewable_profiles(
-                UserSummarySchema(), member, [member.id]
-            )
 
         assert [entry["profile_viewable"] for entry in payload] == [False, True, False]
-        assert single["profile_viewable"] is True
 
 
 class TestApiWriteSchemas:

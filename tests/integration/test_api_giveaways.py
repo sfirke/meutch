@@ -8,6 +8,7 @@ from app.models import GiveawayInterest
 from tests.factories import (
     CircleFactory,
     ConversationFactory,
+    ConversationParticipantFactory,
     GiveawayInterestFactory,
     ItemFactory,
     MessageFactory,
@@ -183,6 +184,9 @@ class TestApiGiveawayRecipientMutations:
             )
             GiveawayInterestFactory(item=item, user=first_user, status="active")
             GiveawayInterestFactory(item=item, user=second_user, status="active")
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            ConversationParticipantFactory(conversation=conversation, user=owner)
+            ConversationParticipantFactory(conversation=conversation, user=second_user)
             db.session.commit()
             access_token = login_api_user(client, owner.email)
             item_id = item.id
@@ -199,7 +203,9 @@ class TestApiGiveawayRecipientMutations:
             )
 
         assert response.status_code == 200
-        assert response.get_json()["selected_interest"]["user"]["id"] == second_user_id
+        selected_user = response.get_json()["selected_interest"]["user"]
+        assert selected_user["id"] == second_user_id
+        assert selected_user["profile_viewable"] is True
 
     def test_select_recipient_manual_selects_requested_user(self, client, app):
         with app.app_context():
@@ -247,6 +253,9 @@ class TestApiGiveawayRecipientMutations:
                 status="selected",
             )
             next_interest = GiveawayInterestFactory(item=item, user=next_user, status="active")
+            conversation = ConversationFactory(context_type="item", context_id=item.id)
+            ConversationParticipantFactory(conversation=conversation, user=owner)
+            ConversationParticipantFactory(conversation=conversation, user=next_user)
             db.session.commit()
             access_token = login_api_user(client, owner.email)
             item_id = item.id
@@ -263,6 +272,7 @@ class TestApiGiveawayRecipientMutations:
         assert response.status_code == 200
         payload = response.get_json()
         assert payload["selected_interest"]["user"]["id"] == next_user_id
+        assert payload["selected_interest"]["user"]["profile_viewable"] is True
         assert payload["item"]["claimed_by"]["id"] == next_user_id
 
         with app.app_context():

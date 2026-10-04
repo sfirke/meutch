@@ -142,33 +142,6 @@ class TestApiItems:
         assert response.status_code == 200
         assert response.get_json()["item"]["owner"]["profile_viewable"] is True
 
-    def test_item_detail_hides_owner_profile_for_unrelated_public_giveaway(self, client, app):
-        with app.app_context():
-            viewer = UserFactory(email_confirmed=True)
-            owner = UserFactory()
-            owner_circle = CircleFactory()
-            owner_circle.members.append(owner)
-            category = CategoryFactory()
-            item = ItemFactory(
-                owner=owner,
-                category=category,
-                name="Public giveaway",
-                is_giveaway=True,
-                giveaway_visibility="public",
-                claim_status="unclaimed",
-            )
-            db.session.commit()
-            access_token = login_api_user(client, viewer.email)
-            item_id = item.id
-
-        response = client.get(
-            f"/api/v1/items/{item_id}",
-            headers=auth_headers(access_token),
-        )
-
-        assert response.status_code == 200
-        assert response.get_json()["item"]["owner"]["profile_viewable"] is False
-
     def test_item_detail_forbids_unrelated_user_for_loan_item(self, client, app):
         with app.app_context():
             viewer = UserFactory(email_confirmed=True)

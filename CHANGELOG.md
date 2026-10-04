@@ -9,6 +9,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Community Activity shows giveaways that have been given away again, for 7 days after the handoff, so the feed better reflects how much is happening. They appear as a small one-line entry ("Jane gave away Kids bike") rather than a full card, and the "Show given-away giveaways" filter still turns them off ([#537](https://github.com/sfirke/meutch/pull/537)).
 - You can now change your first and last name: go to your profile, open the About Me tab and click "Edit Profile". The sign-up form also now says that other users will see your name and that you can change it later. Name changes are recorded in the activity log, including the old name, and the privacy policy now says that log entries can hold details like this ([#539](https://github.com/sfirke/meutch/pull/539)).
 
+### API development
+- Added `GET /api/v1/users/<id>` endpoint to retrieve a member's public profile, shared circles, and why access was granted; denied and unknown ids return 404. Nested users in item, message, circle, and request responses now include a `profile_viewable` flag so the mobile app knows which names to make tappable ([#517](https://github.com/sfirke/meutch/pull/517)).
+
 ## September 2026
 
 ### Features
@@ -37,7 +40,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### API development (continued)
 - Cut the query cost of circle, request, and feed reads across the app and the API ([#480](https://github.com/sfirke/meutch/pull/480)).
 - Removed the `GET /api/v1/requests` list endpoint, the API counterpart of the old requests browse page. `GET /api/v1/feed?types=requests` returns the same requests ([#515](https://github.com/sfirke/meutch/pull/515)).
-- Added `GET /api/v1/users/<id>` endpoint to retrieve a member's public profile, shared circles, and why access was granted; denied and unknown ids return 404. Nested users in item, message, circle, and request responses now include a `profile_viewable` flag so the mobile app knows which names to make tappable ([#517](https://github.com/sfirke/meutch/pull/517)).
 
 ### Developer Experience
 - Application logs now actually reach the logs. Production runs at INFO instead of WARNING and `LOG_LEVEL` can be changed by an environment variable so increasing the detail during an incident doesn't require a code deploy ([#482](https://github.com/sfirke/meutch/pull/482)).
