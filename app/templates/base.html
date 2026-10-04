@@ -10,7 +10,12 @@
     {% set links = [
         ('My items', url_for('main.profile', tab='my-items'), 'fa-box-open'),
         ('My loans & requests', url_for('main.profile', tab='my-activity'), 'fa-handshake'),
-        ('Profile', url_for('main.profile', tab='about-me'), 'fa-user'),
+    ] %}
+    {# On mobile the name row above these links is the profile link. #}
+    {% if not mobile %}
+        {% set links = links + [('Profile', url_for('main.profile', tab='about-me'), 'fa-user')] %}
+    {% endif %}
+    {% set links = links + [
         ('Settings', url_for('main.profile', tab='settings'), 'fa-cog'),
         None,
         ('How it works', url_for('main.how_it_works'), 'fa-question-circle'),
@@ -146,9 +151,11 @@
                             </ul>
                         </li>
                         <li class="nav-item d-lg-none"><hr class="account-divider"></li>
-                        <li class="nav-item d-lg-none account-heading">
-                            {{ account_avatar() }}
-                            <span class="account-name">{{ current_user.first_name }}</span>
+                        <li class="nav-item d-lg-none">
+                            <a class="nav-link d-flex align-items-center fw-semibold" href="{{ url_for('main.profile', tab='about-me') }}" aria-label="Your profile">
+                                {{ account_avatar() }}
+                                <span class="account-name">{{ current_user.first_name }}</span>
+                            </a>
                         </li>
                         {{ account_links(mobile=true) }}
                     {% else %}

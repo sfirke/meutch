@@ -138,14 +138,6 @@ body {
     flex-shrink: 0;
 }
 
-.account-heading {
-    display: flex;
-    align-items: center;
-    padding: var(--bs-nav-link-padding-y) 0;
-    font-weight: 600;
-    color: var(--muted-text);
-}
-
 .account-divider {
     margin: 0.25rem 0;
     opacity: 0.15;
