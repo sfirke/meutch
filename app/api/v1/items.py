@@ -8,6 +8,7 @@ from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
+from app.api.v1.profile_flags import dump_with_viewable_profiles
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.items import (
     GiveawayInterestCollectionResponseSchema,
@@ -86,12 +87,14 @@ def _enrich_giveaway_interests(item, owner_id):
 def _serialize_giveaway_interest_collection(item):
     interests = _enrich_giveaway_interests(item, current_user.id)
     item.api_interest_pool_count = len(interests)
-    return GIVEAWAY_INTEREST_COLLECTION_RESPONSE_SCHEMA.dump(
+    return dump_with_viewable_profiles(
+        GIVEAWAY_INTEREST_COLLECTION_RESPONSE_SCHEMA,
         {
             "item": item,
             "actions": _build_giveaway_interest_actions(item, interests),
             "interests": interests,
-        }
+        },
+        [interest.user_id for interest in interests],
     )
 
 
@@ -115,7 +118,8 @@ def _build_item_response_payload(item, access_state=None):
 
 
 def _serialize_item_response(item):
-    return ITEM_DETAIL_RESPONSE_SCHEMA.dump(_build_item_response_payload(item))
+    payload = _build_item_response_payload(item)
+    return dump_with_viewable_profiles(ITEM_DETAIL_RESPONSE_SCHEMA, payload, [item.owner_id])
 
 
 def _prepare_item_resource(item, access_state=None):
@@ -158,7 +162,12 @@ def list_items():
 
     return build_collection_response(
         "items",
-        ITEM_SUMMARY_SCHEMA.dump(pagination.items),
+        dump_with_viewable_profiles(
+            ITEM_SUMMARY_SCHEMA,
+            pagination.items,
+            [item.owner_id for item in pagination.items],
+            many=True,
+        ),
         pagination=pagination,
     )
 
@@ -310,11 +319,13 @@ def select_giveaway_recipient(item_id):
         data["selection_method"],
         data["user_id"],
     )
-    return GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA.dump(
+    return dump_with_viewable_profiles(
+        GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA,
         {
             "item": _prepare_item_resource(item),
             "selected_interest": selected_interest,
-        }
+        },
+        [selected_interest.user_id],
     )
 
 
@@ -331,11 +342,13 @@ def change_giveaway_recipient(item_id):
         data["selection_method"],
         data["user_id"],
     )
-    return GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA.dump(
+    return dump_with_viewable_profiles(
+        GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA,
         {
             "item": _prepare_item_resource(item),
             "selected_interest": selected_interest,
-        }
+        },
+        [selected_interest.user_id],
     )
 
 

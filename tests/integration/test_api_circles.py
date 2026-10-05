@@ -87,6 +87,31 @@ class TestApiCircles:
         assert response.get_json()["circle"]["can_view_members"] is False
         assert response.get_json()["circle"]["members"] == []
 
+    def test_circle_detail_marks_other_member_profile_viewable(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            other_member = UserFactory()
+            circle = CircleFactory(circle_type="open")
+            circle.members.append(viewer)
+            circle.members.append(other_member)
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            circle_id = circle.id
+            viewer_id = viewer.id
+            other_member_id = other_member.id
+
+        response = client.get(
+            f"/api/v1/circles/{circle_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        members_by_id = {
+            member["user"]["id"]: member for member in response.get_json()["circle"]["members"]
+        }
+        assert members_by_id[str(other_member_id)]["user"]["profile_viewable"] is True
+        assert members_by_id[str(viewer_id)]["user"]["profile_viewable"] is False
+
     def test_circle_detail_returns_404_for_secret_circle_non_member(self, client, app):
         with app.app_context():
             viewer = UserFactory(email_confirmed=True)
@@ -181,10 +206,13 @@ class TestApiCircles:
                 name="Repair Neighbors",
                 image_url="https://cdn.example.com/original.png",
             )
+            member = UserFactory()
             _add_circle_membership(circle, admin, is_admin=True)
+            circle.members.append(member)
             db.session.commit()
             access_token = login_api_user(client, admin.email)
             circle_id = circle.id
+            member_id = str(member.id)
 
         with (
             patch("app.services.circle_service.geocode_address", return_value=None),
@@ -213,6 +241,10 @@ class TestApiCircles:
         assert payload["geocoding_failed"] is True
         assert payload["image_removed"] is True
         assert payload["image_updated"] is False
+        viewable = {
+            m["user"]["id"]: m["user"]["profile_viewable"] for m in payload["circle"]["members"]
+        }
+        assert viewable[member_id] is True
         assert payload["circle"]["name"] == "Repair Neighbors Updated"
         assert payload["circle"]["circle_type"] == "closed"
         mock_delete_file.assert_called_once_with("https://cdn.example.com/original.png")
