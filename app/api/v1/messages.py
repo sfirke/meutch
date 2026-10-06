@@ -218,6 +218,32 @@ def bulk_mark_read():
     return {"status": "ok", "marked": len(conversation_ids)}, 200
 
 
+@bp.post("/conversations/bulk-mark-unread")
+@jwt_required()
+@mutation_limit()
+def bulk_mark_unread():
+    """Mark the latest received message unread in the given conversations."""
+    data = request.get_json(silent=True) or {}
+    conversation_ids = data.get("conversation_ids", [])
+    if not conversation_ids:
+        return {"error": "conversation_ids is required"}, 400
+    marked = message_service.bulk_mark_unread(current_user.id, conversation_ids)
+    return {"status": "ok", "marked": marked}, 200
+
+
+@bp.post("/conversations/bulk-unarchive")
+@jwt_required()
+@mutation_limit()
+def bulk_unarchive():
+    """Unarchive multiple conversations for the authenticated user."""
+    data = request.get_json(silent=True) or {}
+    conversation_ids = data.get("conversation_ids", [])
+    if not conversation_ids:
+        return {"error": "conversation_ids is required"}, 400
+    message_service.bulk_unarchive(current_user.id, conversation_ids)
+    return {"status": "ok", "unarchived": len(conversation_ids)}, 200
+
+
 @bp.post("/conversations/mark-all-read")
 @jwt_required()
 @mutation_limit()
