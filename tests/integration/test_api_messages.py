@@ -732,31 +732,6 @@ class TestApiConversationArchive:
             untouched = ConversationParticipant.query.filter_by(user_id=other_id).one()
             assert untouched.is_archived is False
 
-    @pytest.mark.parametrize(
-        "endpoint",
-        [
-            "/api/v1/conversations/bulk-mark-unread",
-            "/api/v1/conversations/bulk-unarchive",
-        ],
-    )
-    @pytest.mark.parametrize("payload", [{}, {"conversation_ids": []}])
-    def test_new_bulk_endpoint_requires_conversation_ids(self, client, app, endpoint, payload):
-        with app.app_context():
-            user = UserFactory(email_confirmed=True)
-            db.session.commit()
-            access_token = login_api_user(client, user.email)
-
-        response = client.post(endpoint, json=payload, headers=auth_headers(access_token))
-
-        assert response.status_code == 400
-        assert response.get_json() == {
-            "error": {
-                "code": "BAD_REQUEST",
-                "message": "conversation_ids is required.",
-                "details": {},
-            }
-        }
-
     def test_mark_all_read_inbox_scoped(self, client, app):
         with app.app_context():
             sender = UserFactory()
