@@ -1,4 +1,4 @@
-boto3==1.43.102
+boto3==1.43.106
 email_validator==2.3.0
 Flask==3.1.3
 Flask-JWT-Extended==4.7.4
@@ -14,7 +14,7 @@ psycopg2-binary==2.9.13
 pycountry==26.2.16
 python-dotenv==1.2.3
 requests==2.34.2
-SQLAlchemy==2.0.54
+SQLAlchemy==2.1.1
 Werkzeug==3.1.9
 
 # Testing dependencies
@@ -22,4 +22,4 @@ pytest==9.1.1
 pytest-flask==1.3.0
 pytest-cov==7.1.0
 factory-boy==3.3.3
-Faker==40.39.0
+Faker==40.40.0
