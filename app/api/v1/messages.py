@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required
 
 from app import db
 from app.api.v1 import bp
+from app.api.v1.errors import build_error_response
 from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
@@ -247,6 +248,32 @@ def bulk_unarchive():
     return CONVERSATIONS_UNARCHIVED_RESPONSE_SCHEMA.dump({"unarchived": unarchived})
 
 
+@bp.post("/conversations/bulk-mark-unread")
+@jwt_required()
+@mutation_limit()
+def bulk_mark_unread():
+    """Mark the latest received message unread in the given conversations."""
+    data = request.get_json(silent=True) or {}
+    conversation_ids = data.get("conversation_ids", [])
+    if not conversation_ids:
+        return _conversation_ids_required()
+    marked = message_service.bulk_mark_unread(current_user.id, conversation_ids)
+    return {"status": "ok", "marked": marked}, 200
+
+
+@bp.post("/conversations/bulk-unarchive")
+@jwt_required()
+@mutation_limit()
+def bulk_unarchive():
+    """Unarchive multiple conversations for the authenticated user."""
+    data = request.get_json(silent=True) or {}
+    conversation_ids = data.get("conversation_ids", [])
+    if not conversation_ids:
+        return _conversation_ids_required()
+    message_service.bulk_unarchive(current_user.id, conversation_ids)
+    return {"status": "ok", "unarchived": len(conversation_ids)}, 200
+
+
 @bp.post("/conversations/mark-all-read")
 @jwt_required()
 @mutation_limit()
@@ -255,6 +282,10 @@ def mark_all_read():
     status = request.args.get("status", "inbox")
     marked = message_service.mark_all_read_in_view(current_user.id, status=status)
     return CONVERSATIONS_MARKED_RESPONSE_SCHEMA.dump({"marked": marked})
+
+
+def _conversation_ids_required():
+    return build_error_response("BAD_REQUEST", "conversation_ids is required.", status_code=400)
 
 
 def _api_require_participant(conversation, user_id):
