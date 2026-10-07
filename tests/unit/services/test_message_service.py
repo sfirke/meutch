@@ -321,6 +321,18 @@ class TestArchiveService:
             ConversationParticipantFactory(conversation=conv2, user=user)
             db.session.commit()
 
+            other_conv = ConversationFactory()
+            ConversationParticipantFactory(conversation=other_conv, user=UserFactory())
+            db.session.commit()
+            ids = [conv1.id, conv2.id, other_conv.id]
+
+            # Counts the user's conversations, and the same on a repeat.
+            assert message_service.bulk_archive(user.id, ids) == 2
+            assert message_service.bulk_archive(user.id, ids) == 2
+            assert message_service.bulk_unarchive(user.id, ids) == 2
+            assert message_service.bulk_archive(user.id, []) == 0
+            assert message_service.bulk_unarchive(user.id, []) == 0
+
             message_service.bulk_archive(user.id, [conv1.id, conv2.id])
 
             p1 = ConversationParticipant.query.filter_by(
@@ -348,7 +360,17 @@ class TestArchiveService:
             )
             db.session.commit()
 
-            message_service.bulk_mark_read(recipient.id, [conv1.id, conv2.id])
+            unrelated = ConversationFactory()
+            db.session.commit()
+
+            marked = message_service.bulk_mark_read(
+                recipient.id, [conv1.id, conv2.id, unrelated.id]
+            )
+
+            assert marked == 2
+            # Already read, still counted.
+            assert message_service.bulk_mark_read(recipient.id, [conv1.id]) == 1
+            assert message_service.bulk_mark_read(recipient.id, []) == 0
 
             db.session.expire_all()
             assert db.session.get(Message, msg1.id).is_read is True
@@ -391,7 +413,9 @@ class TestArchiveService:
             )
             db.session.commit()
 
-            message_service.mark_all_read_in_view(recipient.id, status="inbox")
+            marked = message_service.mark_all_read_in_view(recipient.id, status="inbox")
+
+            assert marked == 1
 
             db.session.expire_all()
             assert db.session.get(Message, inbox_msg.id).is_read is True

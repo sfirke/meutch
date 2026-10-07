@@ -89,6 +89,36 @@ class MessageMarkReadResponseSchema(ApiSchema):
     has_unread_messages = fields.Boolean(required=True)
 
 
+class ConversationBulkActionSchema(ApiSchema):
+    """Write payload for the bulk conversation actions."""
+
+    conversation_ids = fields.List(fields.UUID(), required=True, validate=validate.Length(min=1))
+
+
+class ConversationArchiveStateResponseSchema(ApiSchema):
+    """Response after archiving or unarchiving one conversation."""
+
+    is_archived = fields.Boolean(required=True)
+
+
+class ConversationsArchivedResponseSchema(ApiSchema):
+    """Response after a bulk archive: how many conversations it applied to."""
+
+    archived = fields.Integer(required=True)
+
+
+class ConversationsUnarchivedResponseSchema(ApiSchema):
+    """Response after a bulk unarchive: how many conversations it applied to."""
+
+    unarchived = fields.Integer(required=True)
+
+
+class ConversationsMarkedResponseSchema(ApiSchema):
+    """Response after a read-state action: how many conversations it applied to."""
+
+    marked = fields.Integer(required=True)
+
+
 class MessageStartSchema(ApiSchema):
     """Write payload for starting an item or request conversation."""
 
