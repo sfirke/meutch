@@ -354,6 +354,25 @@ class TestArchiveService:
             assert db.session.get(Message, msg1.id).is_read is True
             assert db.session.get(Message, msg2.id).is_read is True
 
+    def test_bulk_mark_unread_returns_count(self, app):
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory()
+            conv1 = ConversationFactory()
+            conv2 = ConversationFactory()
+            sent_only = ConversationFactory()
+            MessageFactory(sender=sender, recipient=recipient, conversation=conv1, is_read=True)
+            MessageFactory(sender=sender, recipient=recipient, conversation=conv2, is_read=True)
+            MessageFactory(sender=recipient, recipient=sender, conversation=sent_only, is_read=True)
+            db.session.commit()
+
+            marked = message_service.bulk_mark_unread(
+                recipient.id, [conv1.id, conv2.id, sent_only.id]
+            )
+
+            assert marked == 2
+            assert message_service.bulk_mark_unread(recipient.id, []) == 0
+
     def test_mark_all_read_in_view_scoped_to_inbox(self, app):
         with app.app_context():
             sender = UserFactory()

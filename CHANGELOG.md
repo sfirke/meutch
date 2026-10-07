@@ -13,6 +13,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### API development
 - Added `GET /api/v1/users/<id>` endpoint to retrieve a member's public profile, shared circles, and why access was granted; denied and unknown ids return 404. Nested users in item, message, circle, and request responses now include a `profile_viewable` flag so the mobile app knows which names to make tappable ([#517](https://github.com/sfirke/meutch/pull/517)).
+- Added `POST /api/v1/conversations/bulk-mark-unread` and `POST /api/v1/conversations/bulk-unarchive` endpoints so the mobile app can mark conversations unread and move them out of the archive, matching the web inbox's bulk actions. Mark-unread flips only the latest message you received in each conversation and returns how many were marked ([#549](https://github.com/sfirke/meutch/pull/549)).
 
 ## September 2026
 

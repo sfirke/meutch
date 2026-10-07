@@ -385,10 +385,11 @@ def bulk_mark_unread(user_id, conversation_ids):
 
     Only the single most-recent message (by timestamp) per conversation is
     flipped back to unread.  That is enough to surface the conversation in
-    the inbox while avoiding an explosion of unread counts.
+    the inbox while avoiding an explosion of unread counts.  Returns the
+    number of messages updated.
     """
     if not conversation_ids:
-        return
+        return 0
 
     # Window-function subquery: row_number = 1 picks the latest message
     # per conversation where the user is the recipient.
@@ -412,10 +413,11 @@ def bulk_mark_unread(user_id, conversation_ids):
 
     latest_ids = db.session.query(ranked.c.id).filter(ranked.c.rn == 1).scalar_subquery()
 
-    Message.query.filter(Message.id.in_(latest_ids)).update(
+    updated = Message.query.filter(Message.id.in_(latest_ids)).update(
         {"is_read": False}, synchronize_session=False
     )
     db.session.commit()
+    return updated
 
 
 def mark_all_read_in_view(user_id, status="inbox"):
