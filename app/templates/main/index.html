@@ -5,27 +5,7 @@
 {% block content %}
     <div class="activity-feed-page position-relative">
     <section class="activity-feed-header mb-3">
-        <!-- Desktop layout: single-row toolbar with Filters left of action buttons -->
-        <div class="d-none d-md-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="h3 mb-0">Community Activity</h1>
-                <p class="text-muted mb-0 small">Recent requests, giveaways, and lending activity.</p>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
-                    <i class="fas fa-filter"></i> Filters
-                </button>
-                <a href="{{ url_for('requests.new') }}" class="btn btn-sm btn-meutch-orange">
-                    <i class="fas fa-hand-holding-heart me-1"></i>Create Request
-                </a>
-                <a href="{{ url_for('main.list_item') }}" class="btn btn-sm btn-primary">
-                    <i class="fas fa-plus me-1"></i>List Item
-                </a>
-            </div>
-        </div>
-
-        <!-- Mobile layout: Filters aligned with title, subtitle below -->
-        <div class="d-md-none d-flex flex-column gap-2">
+        <div class="d-flex flex-column gap-2">
             <div class="d-flex justify-content-between align-items-center">
                 <h1 class="h3 mb-0">Community Activity</h1>
                 <button class="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
@@ -35,22 +15,6 @@
             <p class="text-muted mb-0 small">Recent requests, giveaways, and lending activity.</p>
         </div>
     </section>
-
-    <!-- Mobile speed-dial FAB -->
-    <div class="d-md-none fab-speed-dial" id="feedFab" aria-label="Create" role="group">
-        <div class="fab-actions" id="fabActions">
-            <a href="{{ url_for('main.list_item') }}" class="fab-action btn rounded-pill px-3 py-2">
-                <i class="fas fa-plus me-2"></i>Item
-            </a>
-            <a href="{{ url_for('requests.new') }}" class="fab-action btn rounded-pill px-3 py-2">
-                <i class="fas fa-hand-holding-heart me-2"></i>Request
-            </a>
-        </div>
-        <button class="fab-main btn" id="fabToggle" type="button" aria-label="Create options" aria-expanded="false" aria-controls="fabActions">
-            <i class="fas fa-plus fab-icon"></i>
-        </button>
-        <span class="fab-label" aria-hidden="true">Create</span>
-    </div>
 
     <section class="collapse mb-3" id="feedFiltersCollapse">
         <div class="activity-feed-filters card shadow-sm">
@@ -245,40 +209,4 @@
         </div>
     {% endif %}
     </div>
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<script>
-(function () {
-    'use strict';
-    var fab = document.getElementById('feedFab');
-    if (!fab) return;
-    var toggle = document.getElementById('fabToggle');
-    var actions = document.getElementById('fabActions');
-
-    toggle.addEventListener('click', function (e) {
-        e.stopPropagation();
-        var isOpen = actions.classList.toggle('is-open');
-        toggle.classList.toggle('is-open', isOpen);
-        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    });
-
-    document.addEventListener('click', function (e) {
-        if (!fab.contains(e.target)) {
-            actions.classList.remove('is-open');
-            toggle.classList.remove('is-open');
-            toggle.setAttribute('aria-expanded', 'false');
-        }
-    });
-
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') {
-            actions.classList.remove('is-open');
-            toggle.classList.remove('is-open');
-            toggle.setAttribute('aria-expanded', 'false');
-        }
-    });
-}());
-</script>
 {% endblock %}
