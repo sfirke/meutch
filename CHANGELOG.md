@@ -14,6 +14,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### API development
 - Added `GET /api/v1/users/<id>` endpoint to retrieve a member's public profile, shared circles, and why access was granted; denied and unknown ids return 404. Nested users in item, message, circle, and request responses now include a `profile_viewable` flag so the mobile app knows which names to make tappable ([#517](https://github.com/sfirke/meutch/pull/517)).
 - Added `POST /api/v1/conversations/bulk-mark-unread` and `POST /api/v1/conversations/bulk-unarchive` endpoints so the mobile app can mark conversations unread and move them out of the archive, matching the web inbox's bulk actions. Mark-unread flips only the latest message you received in each conversation and returns how many were marked ([#549](https://github.com/sfirke/meutch/pull/549)).
+- The conversation archive, unarchive, bulk and mark-all-read endpoints under `/api/v1/conversations` no longer include `"status": "ok"` in their responses; the HTTP status already says so. The single archive and unarchive routes return `is_archived`, and every bulk route returns a count of the conversations the action applied to, which stays the same if the request is repeated. A missing, empty or malformed `conversation_ids` now gets the standard 422 validation error instead of a 400 or a server error ([#551](https://github.com/sfirke/meutch/pull/551)).
 
 ## September 2026
 

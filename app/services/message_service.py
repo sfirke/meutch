@@ -328,6 +328,10 @@ def mark_message_thread_read(message, viewer_id):
 
 
 # ── Archive & bulk-action helpers ──────────────────────────────────────────
+#
+# The bulk helpers return the number of conversations the action applied to.
+# A conversation already in the requested state counts, so a repeated call
+# returns the same number. Ids the user has no part in are skipped.
 
 
 def archive_conversation(user_id, conversation_id):
@@ -349,35 +353,42 @@ def unarchive_conversation(user_id, conversation_id):
 def bulk_archive(user_id, conversation_ids):
     """Archive multiple conversations in a single UPDATE."""
     if not conversation_ids:
-        return
-    ConversationParticipant.query.filter(
+        return 0
+    archived = ConversationParticipant.query.filter(
         ConversationParticipant.conversation_id.in_(conversation_ids),
         ConversationParticipant.user_id == user_id,
     ).update({"is_archived": True, "archived_at": datetime.now(UTC)}, synchronize_session=False)
     db.session.commit()
+    return archived
 
 
 def bulk_unarchive(user_id, conversation_ids):
     """Unarchive multiple conversations in a single UPDATE."""
     if not conversation_ids:
-        return
-    ConversationParticipant.query.filter(
+        return 0
+    unarchived = ConversationParticipant.query.filter(
         ConversationParticipant.conversation_id.in_(conversation_ids),
         ConversationParticipant.user_id == user_id,
     ).update({"is_archived": False, "archived_at": None}, synchronize_session=False)
     db.session.commit()
+    return unarchived
 
 
 def bulk_mark_read(user_id, conversation_ids):
     """Mark all unread messages as read in the given conversations."""
     if not conversation_ids:
-        return
+        return 0
     Message.query.filter(
         Message.conversation_id.in_(conversation_ids),
         Message.recipient_id == user_id,
         Message.is_read.is_(False),
     ).update({"is_read": True}, synchronize_session=False)
+    marked = ConversationParticipant.query.filter(
+        ConversationParticipant.conversation_id.in_(conversation_ids),
+        ConversationParticipant.user_id == user_id,
+    ).count()
     db.session.commit()
+    return marked
 
 
 def bulk_mark_unread(user_id, conversation_ids):
@@ -385,8 +396,8 @@ def bulk_mark_unread(user_id, conversation_ids):
 
     Only the single most-recent message (by timestamp) per conversation is
     flipped back to unread.  That is enough to surface the conversation in
-    the inbox while avoiding an explosion of unread counts.  Returns the
-    number of messages updated.
+    the inbox while avoiding an explosion of unread counts.  A conversation
+    where the user has received nothing is skipped and not counted.
     """
     if not conversation_ids:
         return 0
@@ -424,6 +435,7 @@ def mark_all_read_in_view(user_id, status="inbox"):
     """Mark all unread messages as read for conversations in the active view.
 
     ``status`` is ``"inbox"`` (non-archived conversations) or ``"archived"``.
+    Returns the number of conversations in that view.
     """
     is_archived_flag = status == "archived"
     if is_archived_flag:
@@ -433,18 +445,16 @@ def mark_all_read_in_view(user_id, status="inbox"):
         # (where is_archived was never set) are also treated as "not archived".
         archive_filter = ConversationParticipant.is_archived.isnot(True)
 
-    view_conversation_ids = (
-        db.session.query(ConversationParticipant.conversation_id)
-        .filter(
-            ConversationParticipant.user_id == user_id,
-            archive_filter,
-        )
-        .scalar_subquery()
+    view_conversations = db.session.query(ConversationParticipant.conversation_id).filter(
+        ConversationParticipant.user_id == user_id,
+        archive_filter,
     )
 
     Message.query.filter(
-        Message.conversation_id.in_(view_conversation_ids),
+        Message.conversation_id.in_(view_conversations.scalar_subquery()),
         Message.recipient_id == user_id,
         Message.is_read.is_(False),
     ).update({"is_read": True}, synchronize_session=False)
+    marked = view_conversations.count()
     db.session.commit()
+    return marked

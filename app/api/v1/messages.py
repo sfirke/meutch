@@ -5,14 +5,18 @@ from flask_jwt_extended import jwt_required
 
 from app import db
 from app.api.v1 import bp
-from app.api.v1.errors import build_error_response
 from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.profile_flags import dump_with_viewable_profiles
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.messaging import (
+    ConversationArchiveStateResponseSchema,
+    ConversationBulkActionSchema,
+    ConversationsArchivedResponseSchema,
+    ConversationsMarkedResponseSchema,
     ConversationSummarySchema,
+    ConversationsUnarchivedResponseSchema,
     MessageMarkReadResponseSchema,
     MessageReplySchema,
     MessageResponseSchema,
@@ -37,6 +41,11 @@ MESSAGE_START_REQUEST_SCHEMA = MessageStartSchema()
 MESSAGE_REPLY_REQUEST_SCHEMA = MessageReplySchema()
 MESSAGE_RESPONSE_SCHEMA = MessageResponseSchema()
 MESSAGE_MARK_READ_RESPONSE_SCHEMA = MessageMarkReadResponseSchema()
+CONVERSATION_BULK_ACTION_REQUEST_SCHEMA = ConversationBulkActionSchema()
+CONVERSATION_ARCHIVE_STATE_RESPONSE_SCHEMA = ConversationArchiveStateResponseSchema()
+CONVERSATIONS_ARCHIVED_RESPONSE_SCHEMA = ConversationsArchivedResponseSchema()
+CONVERSATIONS_UNARCHIVED_RESPONSE_SCHEMA = ConversationsUnarchivedResponseSchema()
+CONVERSATIONS_MARKED_RESPONSE_SCHEMA = ConversationsMarkedResponseSchema()
 
 
 @bp.get("/messages")
@@ -176,7 +185,7 @@ def archive_conversation(conversation_id):
     conversation = db.get_or_404(Conversation, conversation_id)
     _api_require_participant(conversation, current_user.id)
     message_service.archive_conversation(current_user.id, conversation_id)
-    return {"status": "ok"}, 200
+    return CONVERSATION_ARCHIVE_STATE_RESPONSE_SCHEMA.dump({"is_archived": True})
 
 
 @bp.post("/conversations/<uuid:conversation_id>/unarchive")
@@ -187,10 +196,19 @@ def unarchive_conversation(conversation_id):
     conversation = db.get_or_404(Conversation, conversation_id)
     _api_require_participant(conversation, current_user.id)
     message_service.unarchive_conversation(current_user.id, conversation_id)
-    return {"status": "ok"}, 200
+    return CONVERSATION_ARCHIVE_STATE_RESPONSE_SCHEMA.dump({"is_archived": False})
 
 
 # ── Bulk actions ────────────────────────────────────────────────────────
+#
+# Each count is the number of conversations the action applied to. One that was
+# already in the requested state counts, so a retry returns the same number.
+# Ids the user has no part in are skipped and not counted.
+
+
+def _load_conversation_ids():
+    data = load_request_data(CONVERSATION_BULK_ACTION_REQUEST_SCHEMA)
+    return data["conversation_ids"]
 
 
 @bp.post("/conversations/bulk-archive")
@@ -198,12 +216,8 @@ def unarchive_conversation(conversation_id):
 @mutation_limit()
 def bulk_archive():
     """Archive multiple conversations for the authenticated user."""
-    data = request.get_json(silent=True) or {}
-    conversation_ids = data.get("conversation_ids", [])
-    if not conversation_ids:
-        return {"error": "conversation_ids is required"}, 400
-    message_service.bulk_archive(current_user.id, conversation_ids)
-    return {"status": "ok", "archived": len(conversation_ids)}, 200
+    archived = message_service.bulk_archive(current_user.id, _load_conversation_ids())
+    return CONVERSATIONS_ARCHIVED_RESPONSE_SCHEMA.dump({"archived": archived})
 
 
 @bp.post("/conversations/bulk-mark-read")
@@ -211,12 +225,8 @@ def bulk_archive():
 @mutation_limit()
 def bulk_mark_read():
     """Mark all unread messages as read in the given conversations."""
-    data = request.get_json(silent=True) or {}
-    conversation_ids = data.get("conversation_ids", [])
-    if not conversation_ids:
-        return {"error": "conversation_ids is required"}, 400
-    message_service.bulk_mark_read(current_user.id, conversation_ids)
-    return {"status": "ok", "marked": len(conversation_ids)}, 200
+    marked = message_service.bulk_mark_read(current_user.id, _load_conversation_ids())
+    return CONVERSATIONS_MARKED_RESPONSE_SCHEMA.dump({"marked": marked})
 
 
 @bp.post("/conversations/bulk-mark-unread")
@@ -224,12 +234,8 @@ def bulk_mark_read():
 @mutation_limit()
 def bulk_mark_unread():
     """Mark the latest received message unread in the given conversations."""
-    data = request.get_json(silent=True) or {}
-    conversation_ids = data.get("conversation_ids", [])
-    if not conversation_ids:
-        return _conversation_ids_required()
-    marked = message_service.bulk_mark_unread(current_user.id, conversation_ids)
-    return {"status": "ok", "marked": marked}, 200
+    marked = message_service.bulk_mark_unread(current_user.id, _load_conversation_ids())
+    return CONVERSATIONS_MARKED_RESPONSE_SCHEMA.dump({"marked": marked})
 
 
 @bp.post("/conversations/bulk-unarchive")
@@ -237,12 +243,8 @@ def bulk_mark_unread():
 @mutation_limit()
 def bulk_unarchive():
     """Unarchive multiple conversations for the authenticated user."""
-    data = request.get_json(silent=True) or {}
-    conversation_ids = data.get("conversation_ids", [])
-    if not conversation_ids:
-        return _conversation_ids_required()
-    message_service.bulk_unarchive(current_user.id, conversation_ids)
-    return {"status": "ok", "unarchived": len(conversation_ids)}, 200
+    unarchived = message_service.bulk_unarchive(current_user.id, _load_conversation_ids())
+    return CONVERSATIONS_UNARCHIVED_RESPONSE_SCHEMA.dump({"unarchived": unarchived})
 
 
 @bp.post("/conversations/mark-all-read")
@@ -251,12 +253,8 @@ def bulk_unarchive():
 def mark_all_read():
     """Mark all unread messages as read in the current view."""
     status = request.args.get("status", "inbox")
-    message_service.mark_all_read_in_view(current_user.id, status=status)
-    return {"status": "ok"}, 200
-
-
-def _conversation_ids_required():
-    return build_error_response("BAD_REQUEST", "conversation_ids is required.", status_code=400)
+    marked = message_service.mark_all_read_in_view(current_user.id, status=status)
+    return CONVERSATIONS_MARKED_RESPONSE_SCHEMA.dump({"marked": marked})
 
 
 def _api_require_participant(conversation, user_id):
