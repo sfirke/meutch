@@ -5,15 +5,11 @@
 {% block content %}
     <div class="activity-feed-page position-relative">
     <section class="activity-feed-header mb-3">
-        <div class="d-flex flex-column gap-2">
-            <div class="d-flex justify-content-between align-items-center">
-                <h1 class="h3 mb-0">Community Activity</h1>
-                <button class="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
-                    <i class="fas fa-filter"></i> Filters
-                </button>
-            </div>
-            <p class="text-muted mb-0 small">Recent requests, giveaways, and lending activity.</p>
-        </div>
+        <h1 class="h3 mb-0">Community Activity</h1>
+        <button class="btn btn-link btn-sm text-decoration-none activity-feed-filters-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
+            <i class="fas fa-filter me-1"></i>Filters
+        </button>
+        <p class="text-muted mb-0 small">Recent requests, giveaways, and lending activity.</p>
     </section>
 
     <section class="collapse mb-3" id="feedFiltersCollapse">

@@ -1925,6 +1925,39 @@ footer h6 {
     padding: 1.25rem 1.5rem;
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.5rem 1rem;
+}
+
+.activity-feed-header p {
+    grid-column: 1 / -1;
+}
+
+@media (min-width: 768px) {
+    .activity-feed-header {
+        row-gap: 0.125rem;
+    }
+
+    .activity-feed-header p {
+        grid-column: 1;
+    }
+
+    .activity-feed-filters-toggle {
+        grid-area: 1 / 2 / span 2;
+        border: 2px solid var(--secondary-color);
+        border-radius: 9999px;
+        padding: 0.3rem 1rem;
+        color: var(--secondary-color);
+    }
+
+    .activity-feed-filters-toggle:hover,
+    .activity-feed-filters-toggle[aria-expanded="true"] {
+        background: var(--secondary-color);
+        border-color: var(--secondary-color);
+        color: white;
+    }
 }
 
 .activity-feed-cta {
