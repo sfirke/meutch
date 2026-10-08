@@ -200,6 +200,11 @@ class TestListUserRequests:
 
             assert [r.id for r in pagination.items] == [recent.id, older.id]
 
+    def test_unknown_status_raises(self, app):
+        with app.app_context():
+            with pytest.raises(ValueError, match="Unknown request status: bogus"):
+                request_service.list_user_requests(UserFactory(), status="bogus")
+
     def test_paginates(self, app):
         with app.app_context():
             user = UserFactory()

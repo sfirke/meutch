@@ -748,6 +748,67 @@ class TestApiLoans:
         assert flags.pop(circle_owner_id) is True
         assert list(flags.values()) == [False]
 
+    def test_me_loans_lending_marks_borrower_profile_viewable_only_with_shared_circle(
+        self, client, app
+    ):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            circle_borrower = UserFactory()
+            stranger_borrower = UserFactory()
+            _share_circle(owner, circle_borrower)
+            for borrower in (circle_borrower, stranger_borrower):
+                LoanRequestFactory(
+                    item=ItemFactory(owner=owner, available=False),
+                    borrower=borrower,
+                    status="approved",
+                )
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            circle_borrower_id = str(circle_borrower.id)
+
+        response = client.get(
+            "/api/v1/me/loans?role=lending&status=all",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        flags = {
+            loan["borrower"]["id"]: loan["borrower"]["profile_viewable"]
+            for loan in response.get_json()["loans"]
+        }
+        assert len(flags) == 2
+        assert flags.pop(circle_borrower_id) is True
+        assert list(flags.values()) == [False]
+
+    def test_me_loans_lending_all_lists_pending_before_approved(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            approved_loan = LoanRequestFactory(
+                item=ItemFactory(owner=owner, available=False),
+                borrower=UserFactory(),
+                status="approved",
+                start_date=date.today() - timedelta(days=3),
+                end_date=date.today() + timedelta(days=1),
+            )
+            pending_loan = LoanRequestFactory(
+                item=ItemFactory(owner=owner),
+                borrower=UserFactory(),
+                status="pending",
+                start_date=date.today() + timedelta(days=5),
+                end_date=date.today() + timedelta(days=20),
+            )
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            expected_ids = [str(pending_loan.id), str(approved_loan.id)]
+
+        response = client.get(
+            "/api/v1/me/loans?role=lending&status=all",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert [loan["id"] for loan in response.get_json()["loans"]] == expected_ids
+
     def test_loan_detail_marks_counterpart_profile_viewable_with_shared_circle(self, client, app):
         with app.app_context():
             owner = UserFactory(email_confirmed=True)

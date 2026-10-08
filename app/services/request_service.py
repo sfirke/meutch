@@ -6,6 +6,8 @@ from app import db
 from app.models import ItemRequest
 from app.services.exceptions import AuthorizationError, ConflictError, InformationalError
 
+FULFILLED_REQUEST_WINDOW_DAYS = 90
+
 PUBLIC_REQUEST_LOCATION_MESSAGE = (
     "You must set your location before making a request public. "
     "Public requests are visible to everyone on Meutch and users will have no idea where you "
@@ -89,17 +91,34 @@ def fulfill_request(item_request, acting_user, fulfilled_at=None):
 
 
 def list_user_requests(user, status="active", page=1, per_page=12):
-    """Paginate the user's open unexpired requests, or those fulfilled in the last 90 days."""
+    """Return a paginated list of requests posted by *user*.
+
+    Args:
+        user: The requester whose requests should be listed.
+        status: ``"active"`` (open and unexpired, newest first) or
+            ``"fulfilled"`` (fulfilled within the last 90 days, ordered by
+            ``fulfilled_at``).
+        page: 1-based page number (default 1).
+        per_page: Requests per page (default 12).
+
+    Returns:
+        A Flask-SQLAlchemy Pagination object.
+
+    Raises:
+        ValueError: If *status* is not ``"active"`` or ``"fulfilled"``.
+    """
     now = datetime.now(UTC)
     query = ItemRequest.query.filter(ItemRequest.user_id == user.id)
-    if status == "fulfilled":
-        query = query.filter(
-            ItemRequest.status == "fulfilled",
-            ItemRequest.fulfilled_at >= now - timedelta(days=90),
-        ).order_by(ItemRequest.fulfilled_at.desc())
-    else:
+    if status == "active":
         query = query.filter(
             ItemRequest.status == "open",
             ItemRequest.expires_at > now,
         ).order_by(ItemRequest.created_at.desc())
+    elif status == "fulfilled":
+        query = query.filter(
+            ItemRequest.status == "fulfilled",
+            ItemRequest.fulfilled_at >= now - timedelta(days=FULFILLED_REQUEST_WINDOW_DAYS),
+        ).order_by(ItemRequest.fulfilled_at.desc())
+    else:
+        raise ValueError(f"Unknown request status: {status}")
     return query.paginate(page=page, per_page=per_page, error_out=False)
