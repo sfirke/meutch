@@ -1,6 +1,6 @@
 """Integration tests for API request reads and writes."""
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
 
 from app import db
@@ -465,3 +465,151 @@ class TestApiRespondToRequest:
 
         assert response.status_code == 200
         assert "asking for a giveaway" in response.get_json()["seeking_mismatch"]
+
+
+class TestApiMyRequests:
+    """Exercise the authenticated user's own request listing."""
+
+    def _get(self, client, token, query=""):
+        return client.get(f"/api/v1/me/requests{query}", headers=auth_headers(token))
+
+    def test_lists_own_active_request_by_default(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            ItemRequestFactory(user=user, title="Need a tent")
+            db.session.commit()
+            token = login_api_user(client, user.email)
+
+        response = self._get(client, token)
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert [r["title"] for r in payload["requests"]] == ["Need a tent"]
+        assert payload["requests"][0]["user"]["profile_viewable"] is False
+
+    def test_active_hides_expired_fulfilled_and_deleted(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            now = datetime.now(UTC)
+            ItemRequestFactory(user=user, title="Live")
+            ItemRequestFactory(user=user, title="Expired", expires_at=now - timedelta(days=10))
+            ItemRequestFactory(user=user, title="Fulfilled", status="fulfilled", fulfilled_at=now)
+            ItemRequestFactory(user=user, title="Deleted", status="deleted")
+            db.session.commit()
+            token = login_api_user(client, user.email)
+
+        response = self._get(client, token, "?status=active")
+
+        assert [r["title"] for r in response.get_json()["requests"]] == ["Live"]
+
+    def test_fulfilled_uses_90_day_window(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            now = datetime.now(UTC)
+            for title, age in [
+                ("89 days", timedelta(days=89)),
+                ("Just under 90 days", timedelta(days=90) - timedelta(minutes=1)),
+                ("91 days", timedelta(days=91)),
+            ]:
+                ItemRequestFactory(
+                    user=user,
+                    title=title,
+                    status="fulfilled",
+                    fulfilled_at=now - age,
+                    expires_at=now - timedelta(days=1),
+                )
+            ItemRequestFactory(user=user, title="Open")
+            ItemRequestFactory(user=user, title="Deleted", status="deleted", fulfilled_at=now)
+            db.session.commit()
+            token = login_api_user(client, user.email)
+
+        response = self._get(client, token, "?status=fulfilled")
+
+        assert response.status_code == 200
+        titles = [r["title"] for r in response.get_json()["requests"]]
+        assert titles == ["89 days", "Just under 90 days"]
+
+    def test_hides_other_users_requests(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            other = UserFactory()
+            ItemRequestFactory(user=other, title="Not mine")
+            ItemRequestFactory(
+                user=other,
+                title="Not mine either",
+                status="fulfilled",
+                fulfilled_at=datetime.now(UTC),
+            )
+            db.session.commit()
+            token = login_api_user(client, user.email)
+
+        assert self._get(client, token, "?status=active").get_json()["requests"] == []
+        assert self._get(client, token, "?status=fulfilled").get_json()["requests"] == []
+
+    def test_active_orders_by_created_at_desc(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            now = datetime.now(UTC)
+            ItemRequestFactory(user=user, title="Older", created_at=now - timedelta(days=2))
+            ItemRequestFactory(user=user, title="Newer", created_at=now)
+            db.session.commit()
+            token = login_api_user(client, user.email)
+
+        titles = [r["title"] for r in self._get(client, token).get_json()["requests"]]
+
+        assert titles == ["Newer", "Older"]
+
+    def test_fulfilled_orders_by_fulfilled_at_desc(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            now = datetime.now(UTC)
+            ItemRequestFactory(
+                user=user,
+                title="Fulfilled earlier",
+                status="fulfilled",
+                created_at=now,
+                fulfilled_at=now - timedelta(days=5),
+            )
+            ItemRequestFactory(
+                user=user,
+                title="Fulfilled later",
+                status="fulfilled",
+                created_at=now - timedelta(days=10),
+                fulfilled_at=now - timedelta(days=1),
+            )
+            db.session.commit()
+            token = login_api_user(client, user.email)
+
+        response = self._get(client, token, "?status=fulfilled")
+        titles = [r["title"] for r in response.get_json()["requests"]]
+
+        assert titles == ["Fulfilled later", "Fulfilled earlier"]
+
+    def test_pagination_metadata(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            ItemRequestFactory.create_batch(5, user=user)
+            db.session.commit()
+            token = login_api_user(client, user.email)
+
+        response = self._get(client, token, "?per_page=2&page=1")
+
+        payload = response.get_json()
+        assert len(payload["requests"]) == 2
+        assert payload["pagination"]["total"] == 5
+        assert payload["pagination"]["pages"] == 3
+        assert payload["pagination"]["has_next"] is True
+
+    def test_requires_authentication(self, client, app):
+        response = client.get("/api/v1/me/requests")
+        assert response.status_code == 401
+
+    def test_rejects_unknown_status(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            db.session.commit()
+            token = login_api_user(client, user.email)
+
+        response = self._get(client, token, "?status=bogus")
+
+        assert response.status_code == 422

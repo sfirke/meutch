@@ -1,6 +1,6 @@
 """Request workflow service helpers."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from app import db
 from app.models import ItemRequest
@@ -86,3 +86,20 @@ def fulfill_request(item_request, acting_user, fulfilled_at=None):
     item_request.fulfilled_at = fulfilled_at or datetime.now(UTC)
     db.session.commit()
     return item_request
+
+
+def list_user_requests(user, status="active", page=1, per_page=12):
+    """Paginate the user's open unexpired requests, or those fulfilled in the last 90 days."""
+    now = datetime.now(UTC)
+    query = ItemRequest.query.filter(ItemRequest.user_id == user.id)
+    if status == "fulfilled":
+        query = query.filter(
+            ItemRequest.status == "fulfilled",
+            ItemRequest.fulfilled_at >= now - timedelta(days=90),
+        ).order_by(ItemRequest.fulfilled_at.desc())
+    else:
+        query = query.filter(
+            ItemRequest.status == "open",
+            ItemRequest.expires_at > now,
+        ).order_by(ItemRequest.created_at.desc())
+    return query.paginate(page=page, per_page=per_page, error_out=False)

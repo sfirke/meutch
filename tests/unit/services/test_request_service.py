@@ -165,3 +165,47 @@ class TestRequestService:
 
             with pytest.raises(ConflictError, match="already been fulfilled"):
                 request_service.fulfill_request(item_request, owner)
+
+
+class TestListUserRequests:
+    def test_active_returns_open_unexpired_own_requests(self, app):
+        with app.app_context():
+            user = UserFactory()
+            now = datetime.now(UTC)
+            live = ItemRequestFactory(user=user)
+            ItemRequestFactory(user=user, expires_at=now - timedelta(days=1))
+            ItemRequestFactory(user=user, status="fulfilled", fulfilled_at=now)
+            ItemRequestFactory(user=user, status="deleted")
+            ItemRequestFactory(user=UserFactory())
+
+            pagination = request_service.list_user_requests(user, status="active")
+
+            assert [r.id for r in pagination.items] == [live.id]
+
+    def test_fulfilled_returns_own_requests_within_90_days(self, app):
+        with app.app_context():
+            user = UserFactory()
+            now = datetime.now(UTC)
+            recent = ItemRequestFactory(
+                user=user, status="fulfilled", fulfilled_at=now - timedelta(days=1)
+            )
+            older = ItemRequestFactory(
+                user=user, status="fulfilled", fulfilled_at=now - timedelta(days=89)
+            )
+            ItemRequestFactory(user=user, status="fulfilled", fulfilled_at=now - timedelta(days=91))
+            ItemRequestFactory(user=user)
+            ItemRequestFactory(user=UserFactory(), status="fulfilled", fulfilled_at=now)
+
+            pagination = request_service.list_user_requests(user, status="fulfilled")
+
+            assert [r.id for r in pagination.items] == [recent.id, older.id]
+
+    def test_paginates(self, app):
+        with app.app_context():
+            user = UserFactory()
+            ItemRequestFactory.create_batch(3, user=user)
+
+            pagination = request_service.list_user_requests(user, page=2, per_page=2)
+
+            assert pagination.total == 3
+            assert len(pagination.items) == 1

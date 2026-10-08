@@ -183,6 +183,7 @@ def list_my_items():
         search_query=query_data["q"] or None,
         page=query_data["page"],
         per_page=query_data["per_page"],
+        kind=query_data["kind"],
     )
     return build_collection_response(
         "items",

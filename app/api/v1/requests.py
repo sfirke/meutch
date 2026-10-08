@@ -7,13 +7,16 @@ from app import db
 from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
-from app.api.v1.parsing import load_request_data
+from app.api.v1.parsing import load_query_data, load_request_data
 from app.api.v1.profile_flags import dump_with_viewable_profiles
+from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.messaging import MessageResponseSchema
+from app.api.v1.schemas.query import MyRequestsQuerySchema
 from app.api.v1.schemas.requests import (
     ItemRequestDetailResponseSchema,
     ItemRequestResponseSchema,
     ItemRequestStatusResponseSchema,
+    ItemRequestSummarySchema,
     RequestRespondDraftResponseSchema,
     RequestRespondSchema,
     RequestWritePayloadSchema,
@@ -31,6 +34,8 @@ REQUEST_WRITE_PAYLOAD_SCHEMA = RequestWritePayloadSchema()
 REQUEST_RESPOND_SCHEMA = RequestRespondSchema()
 REQUEST_RESPOND_DRAFT_RESPONSE_SCHEMA = RequestRespondDraftResponseSchema()
 MESSAGE_RESPONSE_SCHEMA = MessageResponseSchema()
+MY_REQUESTS_QUERY_SCHEMA = MyRequestsQuerySchema()
+ITEM_REQUEST_SUMMARY_SCHEMA = ItemRequestSummarySchema(many=True)
 
 
 def _request_candidate_ids(item_request, conversations=()):
@@ -50,6 +55,25 @@ def _get_live_request_or_404(request_id):
     if not item_request or item_request.status == "deleted":
         abort(404)
     return item_request
+
+
+@bp.get("/me/requests")
+@jwt_required()
+@read_limit()
+def list_my_requests():
+    """Return the authenticated user's active or recently fulfilled requests."""
+    query_data = load_query_data(MY_REQUESTS_QUERY_SCHEMA)
+    pagination = request_service.list_user_requests(
+        current_user,
+        status=query_data["status"],
+        page=query_data["page"],
+        per_page=query_data["per_page"],
+    )
+    return build_collection_response(
+        "requests",
+        ITEM_REQUEST_SUMMARY_SCHEMA.dump(pagination.items),
+        pagination=pagination,
+    )
 
 
 @bp.get("/requests/<uuid:request_id>")
