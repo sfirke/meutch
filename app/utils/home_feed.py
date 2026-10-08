@@ -235,7 +235,7 @@ def build_visible_requests_query(
         or_(
             and_(
                 ItemRequest.status == "open",
-                ItemRequest.expires_at > now,
+                ItemRequest.not_expired_clause(),
             ),
             and_(
                 ItemRequest.status == "fulfilled",
@@ -461,7 +461,6 @@ def build_digest_request_events(
     since=None,
     until=None,
 ):
-    now = datetime.now(UTC)
     since_utc = _utc(since)
     until_utc = _utc(until)
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
@@ -474,7 +473,7 @@ def build_digest_request_events(
         or_(
             and_(
                 ItemRequest.status == "open",
-                ItemRequest.expires_at > now,
+                ItemRequest.not_expired_clause(),
             ),
             and_(
                 ItemRequest.status == "fulfilled",

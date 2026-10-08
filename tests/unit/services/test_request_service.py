@@ -182,6 +182,21 @@ class TestListUserRequests:
 
             assert [r.id for r in pagination.items] == [live.id]
 
+    def test_active_includes_request_expiring_today_and_matches_is_expired(self, app):
+        with app.app_context():
+            user = UserFactory()
+            today = datetime.now(UTC).replace(
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+            )
+            expires_today = ItemRequestFactory(user=user, expires_at=today)
+            expired_yesterday = ItemRequestFactory(user=user, expires_at=today - timedelta(days=1))
+
+            pagination = request_service.list_user_requests(user, status="active")
+
+            assert [r.id for r in pagination.items] == [expires_today.id]
+            assert expires_today.is_expired is False
+            assert expired_yesterday.is_expired is True
+
     def test_fulfilled_returns_own_requests_within_90_days(self, app):
         with app.app_context():
             user = UserFactory()

@@ -7,6 +7,7 @@ from app.models import LoanRequest
 from app.utils.home_feed import (
     build_circle_join_events,
     build_digest_payload,
+    build_digest_request_events,
     build_recent_lent_events,
     build_visible_giveaway_events,
     build_visible_requests_events,
@@ -1015,3 +1016,50 @@ def test_giveaway_feed_applies_the_distance_cap_but_keeps_owners_without_coordin
         assert near_item.id in item_ids
         assert ungeocoded_item.id in item_ids
         assert far_item.id not in item_ids
+
+
+def test_requests_feed_shows_request_through_expiration_day(app):
+    with app.app_context():
+        viewer = UserFactory()
+        requester = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, requester])
+        today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+        expires_today = ItemRequestFactory(user=requester, expires_at=today)
+        expired_yesterday = ItemRequestFactory(user=requester, expires_at=today - timedelta(days=1))
+        db.session.commit()
+
+        events = build_visible_requests_events(
+            viewer,
+            scoped_circle_ids={circle.id},
+            scope="all",
+            max_distance=None,
+            distance_explicit=True,
+        )
+        request_ids = {event["request_id"] for event in events}
+
+        assert expires_today.id in request_ids
+        assert expired_yesterday.id not in request_ids
+
+
+def test_digest_request_events_show_request_through_expiration_day(app):
+    with app.app_context():
+        viewer = UserFactory()
+        requester = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, requester])
+        today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+        expires_today = ItemRequestFactory(user=requester, expires_at=today)
+        expired_yesterday = ItemRequestFactory(user=requester, expires_at=today - timedelta(days=1))
+        db.session.commit()
+
+        events = build_digest_request_events(
+            viewer,
+            scoped_circle_ids={circle.id},
+            since=datetime.now(UTC) - timedelta(days=1),
+            until=datetime.now(UTC) + timedelta(days=1),
+        )
+        request_ids = {event["request_id"] for event in events}
+
+        assert expires_today.id in request_ids
+        assert expired_yesterday.id not in request_ids
