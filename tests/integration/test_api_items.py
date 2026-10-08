@@ -877,3 +877,128 @@ class TestApiMyItems:
     def test_requires_authentication(self, client, app):
         response = client.get("/api/v1/me/items")
         assert response.status_code == 401
+
+    def _create_mixed_items(self, owner):
+        now = datetime.now(UTC)
+        recipient = UserFactory()
+        ItemFactory(owner=owner, name="Old Drill", created_at=now - timedelta(days=3))
+        ItemFactory(owner=owner, name="New Ladder", created_at=now - timedelta(days=1))
+        ItemFactory(
+            owner=owner,
+            name="Unclaimed Couch",
+            is_giveaway=True,
+            claim_status="unclaimed",
+            created_at=now - timedelta(days=4),
+        )
+        ItemFactory(
+            owner=owner,
+            name="Pending Lamp",
+            is_giveaway=True,
+            claim_status="pending_pickup",
+            claimed_by=recipient,
+            created_at=now - timedelta(days=2),
+        )
+        ItemFactory(
+            owner=owner,
+            name="Recent Claimed Rug",
+            is_giveaway=True,
+            claim_status="claimed",
+            claimed_by=recipient,
+            claimed_at=now - timedelta(days=89),
+            created_at=now - timedelta(days=95),
+        )
+        ItemFactory(
+            owner=owner,
+            name="Earlier Claimed Desk",
+            is_giveaway=True,
+            claim_status="claimed",
+            claimed_by=recipient,
+            claimed_at=now - timedelta(days=30),
+            created_at=now - timedelta(days=100),
+        )
+        ItemFactory(
+            owner=owner,
+            name="Stale Claimed Chair",
+            is_giveaway=True,
+            claim_status="claimed",
+            claimed_by=recipient,
+            claimed_at=now - timedelta(days=91),
+        )
+
+    def _get_names(self, client, access_token, query):
+        response = client.get(f"/api/v1/me/items?{query}", headers=auth_headers(access_token))
+        assert response.status_code == 200
+        return [item["name"] for item in response.get_json()["items"]]
+
+    def test_kind_lending_returns_only_non_giveaways(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            self._create_mixed_items(owner)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        assert self._get_names(client, access_token, "kind=lending") == [
+            "New Ladder",
+            "Old Drill",
+        ]
+
+    def test_kind_active_giveaways_returns_unclaimed_and_pending(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            self._create_mixed_items(owner)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        assert self._get_names(client, access_token, "kind=active_giveaways") == [
+            "Pending Lamp",
+            "Unclaimed Couch",
+        ]
+
+    def test_kind_past_giveaways_applies_cutoff_and_orders_by_claimed_at(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            self._create_mixed_items(owner)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        # Claimed 89 days ago is shown, 91 days ago is not. The rug was created
+        # after the desk but claimed earlier, so it sorts second.
+        assert self._get_names(client, access_token, "kind=past_giveaways") == [
+            "Earlier Claimed Desk",
+            "Recent Claimed Rug",
+        ]
+
+    def test_omitted_kind_returns_all_items(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            self._create_mixed_items(owner)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        assert len(self._get_names(client, access_token, "")) == 7
+
+    def test_kind_combines_with_search(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            ItemFactory(owner=owner, name="Extension Ladder")
+            ItemFactory(owner=owner, name="Cordless Drill")
+            ItemFactory(owner=owner, name="Step Ladder", is_giveaway=True, claim_status="unclaimed")
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        assert self._get_names(client, access_token, "kind=lending&q=ladder") == [
+            "Extension Ladder"
+        ]
+        assert self._get_names(client, access_token, "kind=active_giveaways&q=ladder") == [
+            "Step Ladder"
+        ]
+
+    def test_unknown_kind_returns_422(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        response = client.get("/api/v1/me/items?kind=bogus", headers=auth_headers(access_token))
+
+        assert response.status_code == 422

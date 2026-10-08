@@ -8,6 +8,7 @@ DEFAULT_COLLECTION_PER_PAGE = 12
 DEFAULT_FEED_PER_PAGE = 20
 MAX_COLLECTION_PER_PAGE = 50
 FEED_TYPE_CHOICES = ["requests", "giveaways", "circle_joins", "loans"]
+MY_ITEMS_KIND_CHOICES = ["lending", "active_giveaways", "past_giveaways"]
 FEED_DISTANCE_CHOICES = [5, 10, 20, 25, 50]
 
 
@@ -75,6 +76,20 @@ class MyItemsQuerySchema(PaginationQuerySchema):
     """Query parameters for listing the authenticated user's own items."""
 
     q = fields.String(load_default="")
+    kind = fields.String(
+        load_default=None,
+        allow_none=True,
+        validate=validate.OneOf(MY_ITEMS_KIND_CHOICES),
+    )
+
+
+class MyRequestsQuerySchema(PaginationQuerySchema):
+    """Query parameters for listing the authenticated user's own requests."""
+
+    status = fields.String(
+        load_default="active",
+        validate=validate.OneOf(["active", "fulfilled"]),
+    )
 
 
 class CircleListQuerySchema(PaginationQuerySchema):

@@ -1,8 +1,5 @@
-from datetime import UTC, datetime, timedelta
-
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, logout_user
-from sqlalchemy import or_
 
 from app import db
 from app.forms import (
@@ -16,10 +13,15 @@ from app.forms import (
     VacationModeForm,
 )
 from app.main import bp as main_bp
-from app.models import Item, ItemRequest, User, UserWebLink
-from app.services import account_service, location_service, profile_service
+from app.models import Item, User, UserWebLink
+from app.services import (
+    account_service,
+    item_service,
+    location_service,
+    profile_service,
+    request_service,
+)
 from app.utils.digest_tokens import verify_digest_manage_token
-from app.utils.item_queries import build_own_item_search_filter
 from app.utils.profile_visibility import (
     PROFILE_ACCESS_CONVERSATION,
     PROFILE_ACCESS_JOIN_REQUEST,
@@ -88,45 +90,27 @@ def profile():
     past_giveaways_expanded = bool(search_query) or "past_giveaway_page" in request.args
     per_page = 12
 
-    my_items_search_filter = build_own_item_search_filter(search_query)
-
-    active_giveaways_query = Item.query.filter_by(
-        owner_id=current_user.id, is_giveaway=True
-    ).filter(
-        or_(
-            Item.claim_status == "unclaimed",
-            Item.claim_status == "pending_pickup",
-            Item.claim_status.is_(None),
-        )
-    )
-    if my_items_search_filter is not None:
-        active_giveaways_query = active_giveaways_query.filter(my_items_search_filter)
-    active_giveaways_pagination = active_giveaways_query.order_by(Item.created_at.desc()).paginate(
+    my_items_search_query = search_query or None
+    active_giveaways_pagination = item_service.list_user_items(
+        current_user,
+        search_query=my_items_search_query,
         page=giveaway_page,
         per_page=per_page,
-        error_out=False,
+        kind="active_giveaways",
     )
-
-    ninety_days_ago = datetime.now(UTC) - timedelta(days=90)
-    past_giveaways_query = Item.query.filter_by(owner_id=current_user.id, is_giveaway=True).filter(
-        Item.claim_status == "claimed",
-        Item.claimed_at >= ninety_days_ago,
-    )
-    if my_items_search_filter is not None:
-        past_giveaways_query = past_giveaways_query.filter(my_items_search_filter)
-    past_giveaways_pagination = past_giveaways_query.order_by(Item.claimed_at.desc()).paginate(
+    past_giveaways_pagination = item_service.list_user_items(
+        current_user,
+        search_query=my_items_search_query,
         page=past_giveaway_page,
         per_page=per_page,
-        error_out=False,
+        kind="past_giveaways",
     )
-
-    items_query = Item.query.filter_by(owner_id=current_user.id, is_giveaway=False)
-    if my_items_search_filter is not None:
-        items_query = items_query.filter(my_items_search_filter)
-    items_pagination = items_query.order_by(Item.created_at.desc()).paginate(
+    items_pagination = item_service.list_user_items(
+        current_user,
+        search_query=my_items_search_query,
         page=page,
         per_page=per_page,
-        error_out=False,
+        kind="lending",
     )
     user_items = items_pagination.items
 
@@ -143,26 +127,13 @@ def profile():
     lending = current_user.get_active_loans_as_owner()
 
     active_requests_page = request.args.get("active_requests_page", 1, type=int)
-    active_requests = (
-        ItemRequest.query.filter(
-            ItemRequest.user_id == current_user.id,
-            ItemRequest.status == "open",
-            ItemRequest.expires_at > datetime.now(UTC),
-        )
-        .order_by(ItemRequest.created_at.desc())
-        .paginate(page=active_requests_page, per_page=12, error_out=False)
+    active_requests = request_service.list_user_requests(
+        current_user, status="active", page=active_requests_page, per_page=12
     )
 
     past_requests_page = request.args.get("past_requests_page", 1, type=int)
-    ninety_days_ago_requests = datetime.now(UTC) - timedelta(days=90)
-    past_requests = (
-        ItemRequest.query.filter(
-            ItemRequest.user_id == current_user.id,
-            ItemRequest.status == "fulfilled",
-            ItemRequest.fulfilled_at >= ninety_days_ago_requests,
-        )
-        .order_by(ItemRequest.fulfilled_at.desc())
-        .paginate(page=past_requests_page, per_page=12, error_out=False)
+    past_requests = request_service.list_user_requests(
+        current_user, status="fulfilled", page=past_requests_page, per_page=12
     )
 
     vacation_form = VacationModeForm()

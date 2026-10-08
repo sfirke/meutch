@@ -1,6 +1,7 @@
 """Loan read and write endpoints for API v1."""
 
 from flask_jwt_extended import jwt_required
+from sqlalchemy import case
 from sqlalchemy.orm import selectinload
 
 from app import db
@@ -8,6 +9,7 @@ from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
+from app.api.v1.profile_flags import dump_with_viewable_profiles
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.loans import (
     LoanActivitySummarySchema,
@@ -51,8 +53,10 @@ def _annotate_latest_conversation_message_id(loan):
 
 
 def _serialize_loan_detail(loan):
-    return LOAN_DETAIL_RESPONSE_SCHEMA.dump(
-        {"loan": _annotate_latest_conversation_message_id(loan)}
+    return dump_with_viewable_profiles(
+        LOAN_DETAIL_RESPONSE_SCHEMA,
+        {"loan": _annotate_latest_conversation_message_id(loan)},
+        [loan.item.owner_id, loan.borrower_id],
     )
 
 
@@ -93,7 +97,12 @@ def list_my_loans():
     else:
         loans_query = loans_query.filter(Item.owner_id == current_user.id)
 
-    pagination = loans_query.order_by(LoanRequest.end_date.asc()).paginate(
+    # Pending requests first so clients can group "Requests" above "On loan".
+    pagination = loans_query.order_by(
+        case((LoanRequest.status == "pending", 0), else_=1),
+        LoanRequest.end_date.asc(),
+        LoanRequest.id,
+    ).paginate(
         page=query_data["page"],
         per_page=query_data["per_page"],
         error_out=False,
@@ -104,7 +113,16 @@ def list_my_loans():
 
     return build_collection_response(
         "loans",
-        LOAN_ACTIVITY_SUMMARY_SCHEMA.dump(pagination.items),
+        dump_with_viewable_profiles(
+            LOAN_ACTIVITY_SUMMARY_SCHEMA,
+            pagination.items,
+            [
+                user_id
+                for loan in pagination.items
+                for user_id in (loan.item.owner_id, loan.borrower_id)
+            ],
+            many=True,
+        ),
         pagination=pagination,
     )
 
