@@ -714,11 +714,11 @@ class TestApiLoans:
         assert response.status_code == 200
         assert [loan["id"] for loan in response.get_json()["loans"]] == expected_ids
 
-    def test_me_loans_marks_owner_profile_viewable_only_with_shared_circle(self, client, app):
+    def test_me_loans_reports_owner_profile_viewable_per_user(self, client, app):
         with app.app_context():
             borrower = UserFactory(email_confirmed=True)
             circle_owner = UserFactory()
-            stranger_owner = UserFactory()
+            unviewable_owner = UserFactory()
             _share_circle(borrower, circle_owner)
             LoanRequestFactory(
                 item=ItemFactory(owner=circle_owner, available=False),
@@ -726,7 +726,7 @@ class TestApiLoans:
                 status="approved",
             )
             LoanRequestFactory(
-                item=ItemFactory(owner=stranger_owner, available=False),
+                item=ItemFactory(owner=unviewable_owner, available=False),
                 borrower=borrower,
                 status="approved",
             )
@@ -748,15 +748,13 @@ class TestApiLoans:
         assert flags.pop(circle_owner_id) is True
         assert list(flags.values()) == [False]
 
-    def test_me_loans_lending_marks_borrower_profile_viewable_only_with_shared_circle(
-        self, client, app
-    ):
+    def test_me_loans_lending_reports_borrower_profile_viewable_per_user(self, client, app):
         with app.app_context():
             owner = UserFactory(email_confirmed=True)
             circle_borrower = UserFactory()
-            stranger_borrower = UserFactory()
+            unviewable_borrower = UserFactory()
             _share_circle(owner, circle_borrower)
-            for borrower in (circle_borrower, stranger_borrower):
+            for borrower in (circle_borrower, unviewable_borrower):
                 LoanRequestFactory(
                     item=ItemFactory(owner=owner, available=False),
                     borrower=borrower,
