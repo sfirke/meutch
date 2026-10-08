@@ -9,10 +9,10 @@ from tests.factories import ItemRequestFactory, UserFactory
 
 
 class TestProfileMyRequests:
-    """Test that the profile My Activity tab shows the user's own requests."""
+    """Test that the profile Loans & Requests tab shows the user's own requests."""
 
     def test_profile_shows_own_active_request(self, client, app, auth_user):
-        """Active (open, not expired) request appears in the My Activity tab."""
+        """Active (open, not expired) request appears in the Loans & Requests tab."""
         with app.app_context():
             user = auth_user()
             title = f"My active request {uuid.uuid4().hex[:8]}"

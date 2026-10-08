@@ -85,6 +85,7 @@ def profile():
     giveaway_page = request.args.get("giveaway_page", 1, type=int)
     past_giveaway_page = request.args.get("past_giveaway_page", 1, type=int)
     search_query = request.args.get("search", "").strip()
+    past_giveaways_expanded = bool(search_query) or "past_giveaway_page" in request.args
     per_page = 12
 
     my_items_search_filter = build_own_item_search_filter(search_query)
@@ -197,6 +198,7 @@ def profile():
         pagination=items_pagination,
         active_giveaways_pagination=active_giveaways_pagination,
         past_giveaways_pagination=past_giveaways_pagination,
+        past_giveaways_expanded=past_giveaways_expanded,
         vacation_form=vacation_form,
         digest_form=digest_form,
         active_tab=active_tab,
