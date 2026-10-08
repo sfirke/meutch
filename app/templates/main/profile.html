@@ -411,7 +411,7 @@
                                     {% for p in active_requests.iter_pages() %}
                                         {% if p %}
                                             <li class="page-item {% if p == active_requests.page %}active{% endif %}">
-                                                <a class="page-link" href="?active_tab=my-activity&active_requests_page={{ p }}">{{ p }}</a>
+                                                <a class="page-link" href="{{ url_for('main.profile', tab='my-activity', active_requests_page=p) }}">{{ p }}</a>
                                             </li>
                                         {% else %}
                                             <li class="page-item disabled"><span class="page-link">&hellip;</span></li>

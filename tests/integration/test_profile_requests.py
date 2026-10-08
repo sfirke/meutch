@@ -1,7 +1,12 @@
 """Integration tests for My Requests section on the profile page."""
 
+import re
 import uuid
 from datetime import UTC, datetime, timedelta
+from html import unescape
+from urllib.parse import urljoin
+
+from flask import template_rendered
 
 from app import db
 from conftest import login_user
@@ -88,6 +93,33 @@ class TestProfileMyRequests:
 
             assert response.status_code == 200
             assert title.encode() not in response.data
+
+    def test_active_requests_page_link_stays_on_activity_tab(self, client, app, auth_user):
+        """Following the page-2 link for active requests keeps the My Activity tab open."""
+        with app.app_context():
+            user = auth_user()
+            ItemRequestFactory.create_batch(13, user=user)
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get("/profile?tab=my-activity")
+            match = re.search(
+                r'href="([^"]*active_requests_page=2[^"]*)"', response.get_data(as_text=True)
+            )
+            assert match
+            page_2_url = urljoin("/profile", unescape(match.group(1)))
+
+            contexts = []
+
+            def record(sender, template, context, **extra):
+                contexts.append(context)
+
+            with template_rendered.connected_to(record, app):
+                response = client.get(page_2_url)
+
+            assert response.status_code == 200
+            assert contexts[-1]["active_tab"] == "my-activity"
+            assert contexts[-1]["active_requests"].page == 2
 
     def test_profile_does_not_show_other_users_requests(self, client, app, auth_user):
         """Another user's open request does NOT appear on the current user's profile."""

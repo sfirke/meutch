@@ -13,6 +13,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - The menu at the top is tidier. Home, Find, Circles and Messages sit together, and everything about your account is under your name: your items, your loans and requests, your profile, settings, How it works and Log out. On a phone these all show as one list when you open the menu, and the menu button has a red dot when you have unread messages or pending circle requests ([#543](https://github.com/sfirke/meutch/pull/543)).
 - There's now a "Create" button at the top of every page for listing an item or creating a request, so you no longer have to go back to the home page to add something. On a phone it's the round "+" next to the menu button. The home page's own create buttons are gone since this replaces them ([#546](https://github.com/sfirke/meutch/pull/546)).
 
+### Bug fixes
+- On your profile, clicking to the next page of your active requests now shows that page. Before, it jumped back to the My Items tab ([#553](https://github.com/sfirke/meutch/pull/553)).
+
 ### API development
 - Added `GET /api/v1/users/<id>` endpoint to retrieve a member's public profile, shared circles, and why access was granted; denied and unknown ids return 404. Nested users in item, message, circle, and request responses now include a `profile_viewable` flag so the mobile app knows which names to make tappable ([#517](https://github.com/sfirke/meutch/pull/517)).
 - Added `POST /api/v1/conversations/bulk-mark-unread` and `POST /api/v1/conversations/bulk-unarchive` endpoints so the mobile app can mark conversations unread and move them out of the archive, matching the web inbox's bulk actions. Mark-unread flips only the latest message you received in each conversation and returns how many were marked ([#549](https://github.com/sfirke/meutch/pull/549)).
