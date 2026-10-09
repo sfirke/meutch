@@ -215,21 +215,39 @@ class TestApiWriteSchemas:
             "request_id": ["Provide exactly one of item_id or request_id."],
         }
 
-    def test_item_write_schema_requires_giveaway_visibility_for_giveaways(self):
+    def test_item_write_schema_requires_giveaway_visibility_for_giveaways(self, app):
         schema = ItemWritePayloadSchema()
 
-        with pytest.raises(ValidationError) as excinfo:
-            schema.load(
-                {
-                    "name": "Leaf blower",
-                    "category_id": str(uuid4()),
-                    "is_giveaway": True,
-                }
-            )
+        with app.app_context():
+            category = CategoryFactory()
+            category_id = str(category.id)
+
+            with pytest.raises(ValidationError) as excinfo:
+                schema.load(
+                    {
+                        "name": "Leaf blower",
+                        "category_id": category_id,
+                        "is_giveaway": True,
+                    }
+                )
 
         assert excinfo.value.messages == {
             "giveaway_visibility": ["This field is required when is_giveaway is true."]
         }
+
+    def test_item_write_schema_rejects_unknown_category(self, app):
+        schema = ItemWritePayloadSchema()
+
+        with app.app_context(), pytest.raises(ValidationError) as excinfo:
+            schema.load(
+                {
+                    "name": "Leaf blower",
+                    "category_id": str(uuid4()),
+                    "is_giveaway": False,
+                }
+            )
+
+        assert excinfo.value.messages == {"category_id": ["Choose a category."]}
 
     def test_location_update_schema_requires_coordinates_for_coordinate_mode(self):
         schema = LocationUpdateSchema()
