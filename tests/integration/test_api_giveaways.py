@@ -2,9 +2,12 @@
 
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
+from uuid import uuid4
+
+import pytest
 
 from app import db
-from app.models import GiveawayInterest
+from app.models import Conversation, GiveawayInterest, Message
 from tests.factories import (
     CircleFactory,
     ConversationFactory,
@@ -233,6 +236,99 @@ class TestApiGiveawayRecipientMutations:
 
         assert response.status_code == 200
         assert response.get_json()["selected_interest"]["user"]["id"] == second_user_id
+
+    @pytest.mark.parametrize("case", ["unrelated", "unknown", "owner", "deleted"])
+    def test_select_recipient_manual_rejects_user_who_has_not_asked(self, client, app, case):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            interested_user = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            GiveawayInterestFactory(item=item, user=interested_user, status="active")
+            user_id = {
+                "unrelated": lambda: UserFactory().id,
+                "unknown": uuid4,
+                "owner": lambda: owner.id,
+                "deleted": lambda: UserFactory(is_deleted=True).id,
+            }[case]()
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+
+        response = client.post(
+            f"/api/v1/items/{item_id}/recipient/select",
+            headers=auth_headers(access_token),
+            json={"selection_method": "manual", "user_id": str(user_id)},
+        )
+
+        assert response.status_code == 400
+        error = response.get_json()["error"]
+        assert error["code"] == "INVALID_ACTION"
+        assert error["message"] == "You can only select someone who has asked about this giveaway."
+
+        with app.app_context():
+            item = db.session.get(type(item), item_id)
+            assert item.claim_status == "unclaimed"
+            assert item.claimed_by_id is None
+            assert GiveawayInterest.query.count() == 1
+            assert Conversation.query.filter_by(context_id=item_id).count() == 0
+            assert Message.query.count() == 0
+
+    def test_select_recipient_manual_rejects_malformed_user_id(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            item = ItemFactory(owner=owner, is_giveaway=True, claim_status="unclaimed")
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+
+        response = client.post(
+            f"/api/v1/items/{item_id}/recipient/select",
+            headers=auth_headers(access_token),
+            json={"selection_method": "manual", "user_id": "not-a-uuid"},
+        )
+
+        assert response.status_code == 422
+        with app.app_context():
+            assert GiveawayInterest.query.count() == 0
+            assert Message.query.count() == 0
+
+    def test_select_recipient_manual_accepts_conversation_partner_without_interest(
+        self, client, app
+    ):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            requester = UserFactory()
+            item = ItemFactory(
+                owner=owner,
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            MessageFactory(
+                sender=requester,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+            )
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            requester_id = str(requester.id)
+
+        response = client.post(
+            f"/api/v1/items/{item_id}/recipient/select",
+            headers=auth_headers(access_token),
+            json={"selection_method": "manual", "user_id": requester_id},
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["selected_interest"]["user"]["id"] == requester_id
+        with app.app_context():
+            assert Conversation.query.filter_by(context_id=item_id).count() == 1
 
     def test_change_recipient_reactivates_previous_interest_and_selects_new_user(self, client, app):
         with app.app_context():

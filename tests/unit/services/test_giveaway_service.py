@@ -1,8 +1,10 @@
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 
-from app.models import GiveawayInterest, Message
+from app import db
+from app.models import Conversation, GiveawayInterest, Message
 from app.services import giveaway_service
 from app.services.exceptions import AuthorizationError, ConflictError, InvalidActionError
 from tests.factories import (
@@ -227,6 +229,94 @@ class TestGiveawayService:
 
             with pytest.raises(ConflictError, match="No interested users"):
                 giveaway_service.select_recipient(item, owner.id, "first")
+
+    def test_select_recipient_manual_accepts_user_with_active_interest(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=True, claim_status="unclaimed")
+            interest = GiveawayInterestFactory(item=item, user=requester, status="active")
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                # The web form passes the id as a string.
+                selected = giveaway_service.select_recipient(
+                    item, owner.id, "manual", str(requester.id)
+                )
+
+            assert selected.id == interest.id
+            assert selected.status == "selected"
+            assert item.claimed_by_id == requester.id
+
+    def test_select_recipient_manual_accepts_conversation_partner_without_interest(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            requester = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=True, claim_status="unclaimed")
+            MessageFactory(
+                sender=requester,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=item.id),
+            )
+
+            with patch("app.services.message_service.send_message_notification_email"):
+                selected = giveaway_service.select_recipient(item, owner.id, "manual", requester.id)
+
+            assert selected.user_id == requester.id
+            assert selected.status == "selected"
+            assert item.claim_status == "pending_pickup"
+
+    def test_select_recipient_manual_ignores_conversation_about_another_item(self, app):
+        with app.app_context():
+            owner = UserFactory()
+            other_user = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=True, claim_status="unclaimed")
+            other_item = ItemFactory(owner=owner)
+            MessageFactory(
+                sender=other_user,
+                recipient=owner,
+                conversation=ConversationFactory(context_type="item", context_id=other_item.id),
+            )
+
+            with pytest.raises(InvalidActionError) as exc_info:
+                giveaway_service.select_recipient(item, owner.id, "manual", other_user.id)
+
+            assert str(exc_info.value) == giveaway_service.NOT_A_CANDIDATE_MESSAGE
+            assert GiveawayInterest.query.filter_by(item_id=item.id).count() == 0
+            assert item.claim_status == "unclaimed"
+
+    @pytest.mark.parametrize(
+        "case", ["unrelated", "deleted_with_interest", "owner", "owner_str", "unknown", "malformed"]
+    )
+    def test_select_recipient_manual_rejects_non_candidates(self, app, case):
+        with app.app_context():
+            owner = UserFactory()
+            item = ItemFactory(owner=owner, is_giveaway=True, claim_status="unclaimed")
+            if case == "unrelated":
+                selected_user_id = UserFactory().id
+            elif case == "deleted_with_interest":
+                deleted_user = UserFactory(is_deleted=True)
+                GiveawayInterestFactory(item=item, user=deleted_user, status="active")
+                selected_user_id = deleted_user.id
+            elif case == "owner":
+                selected_user_id = owner.id
+            elif case == "owner_str":
+                selected_user_id = str(owner.id)
+            elif case == "unknown":
+                selected_user_id = uuid4()
+            else:
+                selected_user_id = "not-a-uuid"
+            db.session.commit()
+            interest_count = GiveawayInterest.query.count()
+
+            with pytest.raises(InvalidActionError) as exc_info:
+                giveaway_service.select_recipient(item, owner.id, "manual", selected_user_id)
+
+            assert str(exc_info.value) == giveaway_service.NOT_A_CANDIDATE_MESSAGE
+            assert item.claim_status == "unclaimed"
+            assert item.claimed_by_id is None
+            assert GiveawayInterest.query.count() == interest_count
+            assert Conversation.query.filter_by(context_id=item.id).count() == 0
+            assert Message.query.count() == 0
 
     def test_change_recipient_raises_auth_error_for_non_owner(self, app):
         with app.app_context():

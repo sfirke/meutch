@@ -1,7 +1,9 @@
 """Integration tests for giveaway routes and functionality."""
 
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
+import pytest
 from sqlalchemy import text
 
 from app import db
@@ -937,6 +939,81 @@ class TestRecipientSelection:
             db.session.refresh(interest1)
             assert interest1.status == "active"
 
+    def test_manual_selection_rejects_member_who_has_not_asked(self, client, app, auth_user):
+        """Manual selection only accepts someone who has asked about the giveaway."""
+        with app.app_context():
+            owner = auth_user()
+            interested = UserFactory()
+            bystander = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                category=CategoryFactory(),
+                is_giveaway=True,
+                claim_status="unclaimed",
+            )
+            GiveawayInterestFactory(item=giveaway, user=interested, status="active")
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(
+                f"/item/{giveaway.id}/select-recipient",
+                data={"selection_method": "manual", "user_id": str(bystander.id)},
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert (
+                b"You can only select someone who has asked about this giveaway." in response.data
+            )
+            assert b"has been selected" not in response.data
+
+            db.session.refresh(giveaway)
+            assert giveaway.claim_status == "unclaimed"
+            assert giveaway.claimed_by_id is None
+            assert GiveawayInterest.query.filter_by(user_id=bystander.id).count() == 0
+            assert Conversation.query.filter_by(context_id=giveaway.id).count() == 0
+            assert Message.query.count() == 0
+
+    @pytest.mark.parametrize("case", ["malformed", "unknown", "owner", "deleted"])
+    def test_manual_selection_rejects_invalid_user_ids(self, client, app, auth_user, case):
+        """Ids that are not a candidate all get the same message, without an error page."""
+        with app.app_context():
+            owner = auth_user()
+            interested = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                category=CategoryFactory(),
+                is_giveaway=True,
+                claim_status="unclaimed",
+            )
+            GiveawayInterestFactory(item=giveaway, user=interested, status="active")
+            user_id = {
+                "malformed": "not-a-uuid",
+                "unknown": str(uuid4()),
+                "owner": str(owner.id),
+                "deleted": str(UserFactory(is_deleted=True).id),
+            }[case]
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(
+                f"/item/{giveaway.id}/select-recipient",
+                data={"selection_method": "manual", "user_id": user_id},
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert (
+                b"You can only select someone who has asked about this giveaway." in response.data
+            )
+
+            db.session.refresh(giveaway)
+            assert giveaway.claim_status == "unclaimed"
+            assert giveaway.claimed_by_id is None
+            assert GiveawayInterest.query.count() == 1
+            assert Conversation.query.filter_by(context_id=giveaway.id).count() == 0
+            assert Message.query.count() == 0
+
     def test_first_requester_selection(self, client, app, auth_user):
         """Test owner can select first (earliest) requester."""
         with app.app_context():
@@ -1249,6 +1326,12 @@ class TestConversationGiveawaySelection:
             # Interest should be created on-the-fly and recipient selected
             assert giveaway.claim_status == "pending_pickup"
             assert giveaway.claimed_by_id == requester.id
+            interest = GiveawayInterest.query.filter_by(
+                item_id=giveaway.id, user_id=requester.id
+            ).one()
+            assert interest.status == "selected"
+            # The selection message lands in the existing conversation.
+            assert Conversation.query.filter_by(context_id=giveaway.id).count() == 1
 
     def test_cannot_select_from_conversation_once_pickup_is_pending(self, client, app, auth_user):
         """Quick-select route should refuse giveaways that already moved past selection."""
