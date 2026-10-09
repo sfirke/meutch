@@ -12,7 +12,12 @@ from flask import url_for
 
 from app import db
 from app.models import User
-from app.utils.geocoding import GeocodingError, format_distance, geocode_address
+from app.utils.geocoding import (
+    GeocodingError,
+    distance_bucket_floor,
+    format_distance,
+    geocode_address,
+)
 from tests.factories import ItemFactory, UserFactory
 
 
@@ -111,6 +116,26 @@ class TestGeocodingEssentials:
         assert format_distance(0.05) == "< 1 mi"
         assert format_distance(1.23) == "1-2 mi"
         assert format_distance(25.8) == "25+ mi"
+
+    def test_distance_buckets_agree_between_label_and_floor(self):
+        """The numeric floor and the label describe the same ranges."""
+        cases = [
+            (0, 0, "< 1 mi"),
+            (0.99, 0, "< 1 mi"),
+            (1, 1, "1-2 mi"),
+            (1.99, 1, "1-2 mi"),
+            (2, 2, "2-5 mi"),
+            (4.99, 2, "2-5 mi"),
+            (5, 5, "5-10 mi"),
+            (9.99, 5, "5-10 mi"),
+            (10, 10, "10-25 mi"),
+            (24.99, 10, "10-25 mi"),
+            (25, 25, "25+ mi"),
+            (4000, 25, "25+ mi"),
+        ]
+        for distance, floor, label in cases:
+            assert distance_bucket_floor(distance) == floor
+            assert format_distance(distance) == label
 
 
 class TestDistanceUtilsEssentials:
