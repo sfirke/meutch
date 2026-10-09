@@ -160,7 +160,7 @@ def get_circle_member_activity_counts(circle):
             or_(
                 and_(
                     ItemRequest.status == "open",
-                    ItemRequest.expires_at > now,
+                    ItemRequest.not_expired_clause(),
                 ),
                 and_(
                     ItemRequest.status == "fulfilled",

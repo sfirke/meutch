@@ -1055,6 +1055,14 @@ class ItemRequest(db.Model):
         today = datetime.now(UTC).date()
         return today > expires_at_utc.date()
 
+    @classmethod
+    def not_expired_clause(cls):
+        """SQL filter matching `not is_expired`: open through the whole expiration day (UTC)."""
+        start_of_today = datetime.now(UTC).replace(
+            hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+        )
+        return cls.expires_at >= start_of_today
+
     @property
     def is_active(self):
         """Returns True if the request is open and not expired."""

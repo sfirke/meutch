@@ -112,7 +112,7 @@ def list_user_requests(user, status="active", page=1, per_page=12):
     if status == "active":
         query = query.filter(
             ItemRequest.status == "open",
-            ItemRequest.expires_at > now,
+            ItemRequest.not_expired_clause(),
         ).order_by(ItemRequest.created_at.desc())
     elif status == "fulfilled":
         query = query.filter(

@@ -35,6 +35,28 @@ class TestProfileMyRequests:
             assert response.status_code == 200
             assert title.encode() in response.data
 
+    def test_profile_shows_request_expiring_today_but_not_yesterday(self, client, app, auth_user):
+        with app.app_context():
+            user = auth_user()
+            suffix = uuid.uuid4().hex[:8]
+            today_title = f"Expires today {suffix}"
+            yesterday_title = f"Expired yesterday {suffix}"
+            today = datetime.now(UTC).replace(
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+            )
+            ItemRequestFactory(user=user, title=today_title, expires_at=today)
+            ItemRequestFactory(
+                user=user, title=yesterday_title, expires_at=today - timedelta(days=1)
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get("/profile?tab=my-activity")
+
+            assert response.status_code == 200
+            assert today_title.encode() in response.data
+            assert yesterday_title.encode() not in response.data
+
     def test_profile_shows_own_recently_fulfilled_request(self, client, app, auth_user):
         """Fulfilled request within 90 days appears under Recently Fulfilled."""
         with app.app_context():

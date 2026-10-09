@@ -487,6 +487,24 @@ class TestApiMyRequests:
         assert [r["title"] for r in payload["requests"]] == ["Need a tent"]
         assert payload["requests"][0]["user"]["profile_viewable"] is False
 
+    def test_active_includes_request_expiring_today_and_hides_yesterday(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            today = datetime.now(UTC).replace(
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+            )
+            ItemRequestFactory(user=user, title="Expires today", expires_at=today)
+            ItemRequestFactory(
+                user=user, title="Expired yesterday", expires_at=today - timedelta(days=1)
+            )
+            db.session.commit()
+            token = login_api_user(client, user.email)
+
+        response = self._get(client, token)
+
+        assert response.status_code == 200
+        assert [r["title"] for r in response.get_json()["requests"]] == ["Expires today"]
+
     def test_active_hides_expired_fulfilled_and_deleted(self, client, app):
         with app.app_context():
             user = UserFactory(email_confirmed=True)
