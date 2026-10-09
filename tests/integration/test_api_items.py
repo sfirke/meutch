@@ -277,6 +277,47 @@ class TestApiItems:
         assert items_by_name["Circle mate item"]["owner"]["profile_viewable"] is True
         assert items_by_name["Stranger public giveaway"]["owner"]["profile_viewable"] is False
 
+    def test_items_list_circles_filter_is_limited_to_the_viewers_circles(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            circle_mate = UserFactory()
+            stranger = UserFactory()
+            category = CategoryFactory()
+
+            shared_circle = CircleFactory()
+            stranger_circle = CircleFactory(circle_type="closed")
+            shared_circle.members.extend([viewer, circle_mate])
+            stranger_circle.members.append(stranger)
+
+            ItemFactory(owner=circle_mate, category=category, name="Circle mate item")
+            ItemFactory(owner=stranger, category=category, name="Stranger loan item")
+            ItemFactory(
+                owner=stranger,
+                category=category,
+                name="Stranger circles-only giveaway",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            shared_circle_id = shared_circle.id
+            stranger_circle_id = stranger_circle.id
+
+        stranger_only = client.get(
+            f"/api/v1/items?circles={stranger_circle_id}",
+            headers=auth_headers(access_token),
+        )
+        mixed = client.get(
+            f"/api/v1/items?circles={shared_circle_id}&circles={stranger_circle_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert stranger_only.status_code == 200
+        assert stranger_only.get_json()["items"] == []
+        assert mixed.status_code == 200
+        assert [item["name"] for item in mixed.get_json()["items"]] == ["Circle mate item"]
+
     def test_items_list_requires_authentication(self, client, app):
         response = client.get("/api/v1/items")
 
