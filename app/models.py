@@ -87,6 +87,11 @@ class User(UserMixin, db.Model):
         return f"{self.first_name} {self.last_name}"
 
     @property
+    def is_active(self):
+        """Flask-Login's account-enabled flag: a deleted account cannot be signed in."""
+        return not self.is_deleted
+
+    @property
     def is_geocoded(self):
         """Returns True if user has valid latitude and longitude"""
         return self.latitude is not None and self.longitude is not None

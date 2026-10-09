@@ -14,6 +14,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - There's now a "Create" button at the top of every page for listing an item or creating a request, so you no longer have to go back to the home page to add something. On a phone it's the round "+" next to the menu button. The home page's own create buttons are gone since this replaces them ([#546](https://github.com/sfirke/meutch/pull/546)).
 
 ### Bug fixes
+- Deleting an account now signs it out everywhere. Before, a deleted account could stay signed in on the website or in the mobile app, and could still be logged into afterwards. Deletion now ends every session on every device, the old password and any password-reset or confirmation links stop working, and a deleted admin loses admin access.
 - A request now stays in your profile, the Community Activity feed and the circle counts through its whole expiration date. Before, it disappeared from those lists at the start of that day even though it could still be opened and answered ([#555](https://github.com/sfirke/meutch/pull/555)).
 - On your profile, clicking to the next page of your active requests now shows that page. Before, it jumped back to the My Items tab ([#553](https://github.com/sfirke/meutch/pull/553)).
 
