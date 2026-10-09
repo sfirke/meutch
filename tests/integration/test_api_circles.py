@@ -221,6 +221,20 @@ class TestApiCircles:
         assert no_viewer_location == (missing, missing)
         assert no_circle_location == (missing, missing)
 
+    def test_circles_list_radius_accepts_only_the_website_choices(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True, latitude=40.7128, longitude=-74.0060)
+            CircleFactory(name="Nearby Circle", latitude=40.7528, longitude=-74.0060)
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+
+        allowed = client.get("/api/v1/circles?radius=5", headers=auth_headers(access_token))
+        rejected = client.get("/api/v1/circles?radius=3", headers=auth_headers(access_token))
+
+        assert allowed.status_code == 200
+        assert [circle["name"] for circle in allowed.get_json()["circles"]] == ["Nearby Circle"]
+        assert rejected.status_code == 422
+
     def test_circles_list_requires_authentication(self, client, app):
         response = client.get("/api/v1/circles")
 

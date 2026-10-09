@@ -10,6 +10,8 @@ MAX_COLLECTION_PER_PAGE = 50
 FEED_TYPE_CHOICES = ["requests", "giveaways", "circle_joins", "loans"]
 MY_ITEMS_KIND_CHOICES = ["lending", "active_giveaways", "past_giveaways"]
 FEED_DISTANCE_CHOICES = [5, 10, 20, 25, 50]
+# Same choices as the website's circle search, so the filter is no finer than it.
+CIRCLE_RADIUS_CHOICES = [5, 10, 25, 50, 100]
 
 
 class PaginationQuerySchema(ApiSchema):
@@ -103,7 +105,7 @@ class CircleListQuerySchema(PaginationQuerySchema):
     radius = fields.Integer(
         load_default=None,
         allow_none=True,
-        validate=validate.Range(min=1),
+        validate=validate.OneOf(CIRCLE_RADIUS_CHOICES),
     )
 
 
