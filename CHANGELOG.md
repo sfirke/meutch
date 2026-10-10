@@ -15,6 +15,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Bug fixes
 - A giveaway can now only be handed to someone who has asked about it: a member who is on its list of interested people, or who already has a conversation with you about that item. Before, the manual selection step did not check this ([#563](https://github.com/sfirke/meutch/pull/563)).
+- After you log in or confirm your email, Meutch now only sends you on to one of its own pages. Before, a specially made link to the login or sign-up page could send you to a different website afterwards ([#560](https://github.com/sfirke/meutch/pull/560)).
 - The circle filter on Find, and the matching `circles` filter on `GET /api/v1/items`, now only applies to circles you belong to. Before, a hand-edited link naming another circle could list that circle's items; opening those items was already blocked. A malformed circle value in a Find link no longer causes an error page.
 - A request now stays in your profile, the Community Activity feed and the circle counts through its whole expiration date. Before, it disappeared from those lists at the start of that day even though it could still be opened and answered ([#555](https://github.com/sfirke/meutch/pull/555)).
 - On your profile, clicking to the next page of your active requests now shows that page. Before, it jumped back to the My Items tab ([#553](https://github.com/sfirke/meutch/pull/553)).
