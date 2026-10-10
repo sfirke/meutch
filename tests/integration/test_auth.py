@@ -2,7 +2,7 @@
 
 import re
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -11,7 +11,7 @@ from app import db, limiter
 from app.forms_auth import issue_registration_started_token
 from app.models import User
 from conftest import TEST_PASSWORD, login_user
-from tests.factories import CircleFactory, ItemFactory, UserFactory
+from tests.factories import CircleFactory, ItemFactory, LoanRequestFactory, UserFactory
 
 # Values a browser would follow to another site; none is a plain path on this one.
 OFF_SITE_NEXT_VALUES = [
@@ -1229,6 +1229,38 @@ class TestAccountDeletion:
         """Test that delete account page requires login."""
         response = client.get("/delete_account")
         assert response.status_code == 302  # Redirect to login
+
+    def test_delete_account_notice_counts_overdue_approved_loans(self, client, app, auth_user):
+        """Approved loans past their end date still appear in the outstanding loans notice."""
+        with app.app_context():
+            user = auth_user()
+            past_start = date.today() - timedelta(days=20)
+            past_end = date.today() - timedelta(days=5)
+            LoanRequestFactory(
+                item=ItemFactory(),
+                borrower=user,
+                start_date=past_start,
+                end_date=past_end,
+                status="approved",
+            )
+            LoanRequestFactory(
+                item=ItemFactory(owner=user),
+                borrower=UserFactory(),
+                start_date=past_start,
+                end_date=past_end,
+                status="approved",
+            )
+            db.session.commit()
+
+            summary = user.get_outstanding_loans_summary()
+            assert summary["active_borrowing"] == 1
+            assert summary["active_lending"] == 1
+            assert summary["has_outstanding"] is True
+
+            login_user(client, user.email)
+            response = client.get("/delete_account")
+            assert response.status_code == 200
+            assert b"Outstanding Loans Notice" in response.data
 
     def test_delete_account_soft_delete_preserves_user_data(self, client, app, auth_user):
         """Test that account deletion uses soft delete to preserve user data for history."""

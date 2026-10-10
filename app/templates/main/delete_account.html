@@ -32,7 +32,7 @@
                             <li>You are currently borrowing {{ loans_summary.active_borrowing }} item(s) - please return them first</li>
                             {% endif %}
                             {% if loans_summary.active_lending > 0 %}
-                            <li>You are currently lending {{ loans_summary.active_lending }} item(s) - these loans will continue until their end date</li>
+                            <li>You are currently lending {{ loans_summary.active_lending }} item(s) - these loans will continue until they are returned</li>
                             {% endif %}
                             {% if loans_summary.pending_borrowing > 0 %}
                             <li>You have {{ loans_summary.pending_borrowing }} pending request(s) to borrow items - these will be automatically canceled</li>
@@ -47,7 +47,7 @@
 
                     <form method="post">
                         {{ form.hidden_tag() }}
-                        
+
                         <div class="mb-4">
                             {{ form.confirmation.label(class="form-label fw-bold") }}
                             {{ form.confirmation(class="form-control", placeholder="Type exactly: DELETE MY ACCOUNT") }}
