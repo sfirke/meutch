@@ -1,3 +1,4 @@
+import bisect
 import logging
 import math
 from time import sleep
@@ -259,6 +260,16 @@ def bounding_box(latitude: float, longitude: float, radius_miles: float):
     return (min_lat, max_lat, min_lon, max_lon)
 
 
+# Lower bounds, in miles, of the ranges distances are reported in.
+DISTANCE_BUCKET_FLOORS = (0, 1, 2, 5, 10, 25)
+
+
+def distance_bucket_floor(distance_miles: float) -> int:
+    """Return the lower bound, in miles, of the bucket a distance falls in."""
+    index = bisect.bisect_right(DISTANCE_BUCKET_FLOORS, distance_miles) - 1
+    return DISTANCE_BUCKET_FLOORS[max(index, 0)]
+
+
 def format_distance(distance_miles: float) -> str:
     """
     Format distance as a bucketed range for display.
@@ -272,17 +283,14 @@ def format_distance(distance_miles: float) -> str:
     Returns:
         Bucketed distance string (e.g., "< 1 mi", "2-5 mi")
     """
-    if distance_miles < 1:
-        return "< 1 mi"
-    if distance_miles < 2:
-        return "1-2 mi"
-    if distance_miles < 5:
-        return "2-5 mi"
-    if distance_miles < 10:
-        return "5-10 mi"
-    if distance_miles < 25:
-        return "10-25 mi"
-    return "25+ mi"
+    floor = distance_bucket_floor(distance_miles)
+    index = DISTANCE_BUCKET_FLOORS.index(floor)
+    if index == len(DISTANCE_BUCKET_FLOORS) - 1:
+        return f"{floor}+ mi"
+    ceiling = DISTANCE_BUCKET_FLOORS[index + 1]
+    if index == 0:
+        return f"< {ceiling} mi"
+    return f"{floor}-{ceiling} mi"
 
 
 def sort_by_distance(items, reference_user, distance_fn, radius=None):
