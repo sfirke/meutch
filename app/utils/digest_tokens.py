@@ -52,7 +52,7 @@ def verify_digest_manage_token(token, max_age_seconds=DIGEST_MANAGE_TOKEN_MAX_AG
         return None, "invalid"
 
     user = db.session.get(User, user_id)
-    if not user:
+    if not user or user.is_deleted:
         return None, "invalid"
 
     if user.email != email:

@@ -102,6 +102,14 @@ def _get_user_by_email(email):
     return User.query.filter(db.func.lower(User.email) == db.func.lower(email)).first()
 
 
+def _get_active_user_by_email(email):
+    """Look up an account that can still act; a deleted one reads as no account."""
+    user = _get_user_by_email(email)
+    if user is None or user.is_deleted:
+        return None
+    return user
+
+
 def _normalize_utc(timestamp):
     if timestamp is None:
         return None
@@ -209,7 +217,7 @@ def _clear_lockout_state(user):
 
 
 def authenticate_user(email, password):
-    user = _get_user_by_email(email)
+    user = _get_active_user_by_email(email)
 
     if user is not None and user.locked_until is not None:
         # `locked_until` comes back from the database without a timezone, so it has
@@ -288,7 +296,7 @@ def authenticate_user(email, password):
 
 def get_confirmation_token_status(token):
     """Check a confirmation link without using it up."""
-    user = User.query.filter_by(email_confirmation_token=token).first()
+    user = User.query.filter_by(email_confirmation_token=token, is_deleted=False).first()
     if not user:
         return AuthWorkflowResult(status=CONFIRM_EMAIL_STATUS_INVALID_LINK)
 
@@ -313,7 +321,7 @@ def confirm_email_token(token):
 
 
 def resend_confirmation_email_for_user(email):
-    user = _get_user_by_email(email)
+    user = _get_active_user_by_email(email)
     if not user:
         return AuthWorkflowResult(status=RESEND_CONFIRMATION_STATUS_NOT_FOUND)
 
@@ -331,7 +339,7 @@ def resend_confirmation_email_for_user(email):
 
 
 def request_password_reset(email):
-    user = _get_user_by_email(email)
+    user = _get_active_user_by_email(email)
     if not user:
         # The same support case as a failed sign-in, one step removed: "I asked for a
         # reset and never got the email" cannot be answered without the typed address.
@@ -364,7 +372,7 @@ def request_password_reset(email):
 
 
 def get_password_reset_token_status(token):
-    user = User.query.filter_by(password_reset_token=token).first()
+    user = User.query.filter_by(password_reset_token=token, is_deleted=False).first()
     if not user:
         return AuthWorkflowResult(status=PASSWORD_RESET_TOKEN_STATUS_INVALID)
 

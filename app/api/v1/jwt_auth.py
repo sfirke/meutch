@@ -20,7 +20,11 @@ def register_jwt_callbacks(jwt):
         except KeyError, ValueError:
             return None
 
-        return db.session.get(User, user_id)
+        user = db.session.get(User, user_id)
+        # Tokens issued before an account was deleted stop resolving to a user.
+        if user is None or user.is_deleted:
+            return None
+        return user
 
     @jwt.user_lookup_error_loader
     def handle_missing_user(_jwt_header, _jwt_data):
