@@ -1,5 +1,5 @@
 import logging
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlsplit
 
 from flask import current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_user, logout_user
@@ -41,12 +41,17 @@ CONFIRMATION_SOURCES = {
 
 def _is_safe_url(target):
     """
-    Check if a URL is safe for redirects (prevents open redirect vulnerabilities).
-    A URL is safe if it's relative or points to the same host as the application.
+    Check if a redirect target is a path on this site (prevents open redirects).
+    Only local paths are accepted: every ``next`` the app generates is one, and
+    browsers read backslashes, extra slashes and stripped whitespace as another host.
     """
-    ref_url = urlparse(request.host_url)
-    test_url = urlparse(urljoin(request.host_url, target))
-    return test_url.scheme in ("http", "https") and ref_url.netloc == test_url.netloc
+    if not isinstance(target, str) or not target.startswith("/") or target.startswith("//"):
+        return False
+    # isprintable() rejects control characters and every whitespace except a plain space.
+    if "\\" in target or " " in target or not target.isprintable():
+        return False
+    parsed = urlsplit(target)
+    return not parsed.scheme and not parsed.netloc
 
 
 def _clear_confirmation_page_state():
