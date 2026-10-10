@@ -1,10 +1,15 @@
 """Item-focused API schemas."""
 
+import re
+import uuid
+
 from marshmallow import ValidationError, fields, validate, validates_schema
 
+from app import db
 from app.api.v1.schemas.base import ApiBoolean, ApiDateTime, ApiSchema, ApiUploadedFile
 from app.api.v1.schemas.reference import CategorySchema, TagSchema
 from app.api.v1.schemas.users import UserSummarySchema
+from app.models import Category
 
 _tag_schema = TagSchema(many=True)
 _user_schema = UserSummarySchema()
@@ -116,6 +121,11 @@ class ItemDetailResponseSchema(ApiSchema):
     viewer = fields.Nested(ItemViewerStateSchema(), required=True)
 
 
+def _validate_category_exists(category_id):
+    if db.session.get(Category, category_id) is None:
+        raise ValidationError("Choose a category.")
+
+
 class ItemWriteBaseSchema(ApiSchema):
     """Shared fields for item create and update payloads."""
 
@@ -125,7 +135,7 @@ class ItemWriteBaseSchema(ApiSchema):
         allow_none=True,
         validate=validate.Length(max=500),
     )
-    category_id = fields.UUID(required=True)
+    category_id = fields.UUID(required=True, validate=_validate_category_exists)
     tags = fields.List(fields.String(validate=validate.Length(min=1, max=50)), load_default=list)
     is_giveaway = ApiBoolean(required=True)
     giveaway_visibility = fields.String(
@@ -146,10 +156,31 @@ class ItemWritePayloadSchema(ItemWriteBaseSchema):
     """Write payload for item create endpoints."""
 
     images = fields.List(ApiUploadedFile(), load_default=list)
+    creation_token = fields.UUID(load_default=None, allow_none=True)
+
+
+_NEW_IMAGE_ORDER_ENTRY = re.compile(r"new-\d+")
+
+
+class ImageOrderEntry(fields.String):
+    """An existing image id (normalized) or a ``new-N`` placeholder for an upload."""
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        entry = super()._deserialize(value, attr, data, **kwargs)
+        if _NEW_IMAGE_ORDER_ENTRY.fullmatch(entry):
+            return entry
+        try:
+            return str(uuid.UUID(entry))
+        except ValueError as error:
+            raise ValidationError("Must be an image id or 'new-N'.") from error
 
 
 class ItemUpdatePayloadSchema(ItemWriteBaseSchema):
     """Write payload for item update endpoints."""
+
+    images = fields.List(ApiUploadedFile(), load_default=list)
+    delete_image_ids = fields.List(fields.UUID(), load_default=list)
+    image_order = fields.List(ImageOrderEntry(), load_default=list)
 
 
 class ItemImagesUploadSchema(ApiSchema):

@@ -217,11 +217,13 @@ def create_item():
             data["giveaway_visibility"],
             data["tags"],
             data["images"],
+            creation_token=data["creation_token"],
         )
     except ValueError as error:
         _raise_item_upload_error(error)
 
-    return _serialize_item_response(creation_result.item), 201
+    status_code = 201 if creation_result.was_created else 200
+    return _serialize_item_response(creation_result.item), status_code
 
 
 @bp.patch("/items/<uuid:item_id>")
@@ -232,18 +234,21 @@ def update_item(item_id):
     item = db.get_or_404(Item, item_id)
     _ensure_current_user_owns_item(item)
     data = load_request_data(ITEM_UPDATE_PAYLOAD_SCHEMA)
-    item_service.update_item(
-        item,
-        data["name"],
-        data["description"],
-        data["category_id"],
-        data["is_giveaway"],
-        data["giveaway_visibility"],
-        data["tags"],
-        [],
-        [],
-        [],
-    )
+    try:
+        item_service.update_item(
+            item,
+            data["name"],
+            data["description"],
+            data["category_id"],
+            data["is_giveaway"],
+            data["giveaway_visibility"],
+            data["tags"],
+            data["images"],
+            [str(image_id) for image_id in data["delete_image_ids"]],
+            data["image_order"],
+        )
+    except ValueError as error:
+        _raise_item_upload_error(error)
     return _serialize_item_response(item)
 
 
