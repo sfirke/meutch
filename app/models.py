@@ -303,20 +303,13 @@ class User(UserMixin, db.Model):
 
     def get_outstanding_loans_summary(self):
         """Get summary of outstanding loans for account deletion warning"""
-        from datetime import date
-
-        # Active loans as borrower
-        borrowing = (
-            LoanRequest.query.filter_by(borrower_id=self.id, status="approved")
-            .filter(LoanRequest.end_date >= date.today())
-            .count()
-        )
+        # Active loans as borrower (overdue approved loans count too)
+        borrowing = LoanRequest.query.filter_by(borrower_id=self.id, status="approved").count()
 
         # Active loans as owner
         lending = (
             LoanRequest.query.join(Item)
             .filter(Item.owner_id == self.id, LoanRequest.status == "approved")
-            .filter(LoanRequest.end_date >= date.today())
             .count()
         )
 
