@@ -1,6 +1,7 @@
 """Unit tests for API Marshmallow schemas."""
 
 from datetime import UTC, date, datetime, timedelta
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -10,7 +11,7 @@ from marshmallow.experimental.context import Context
 from app import db
 from app.api.v1 import profile_flags
 from app.api.v1.schemas import ItemSummarySchema, UserSummarySchema
-from app.api.v1.schemas.circles import CircleWritePayloadSchema
+from app.api.v1.schemas.circles import CircleSummarySchema, CircleWritePayloadSchema
 from app.api.v1.schemas.items import ItemWritePayloadSchema
 from app.api.v1.schemas.loans import LoanRequestCreateSchema
 from app.api.v1.schemas.messaging import MessageStartSchema
@@ -176,6 +177,28 @@ class TestProfileViewableFlag:
             )
 
         assert [entry["profile_viewable"] for entry in payload] == [False, True, False]
+
+
+class TestCircleDistanceSerialization:
+    """Circle distance is reported as a range, never as an exact figure."""
+
+    @staticmethod
+    def _dump(distance):
+        circle = SimpleNamespace(api_distance_miles=distance)
+        schema = CircleSummarySchema(only=("distance_miles", "distance"))
+        return schema.dump(circle)
+
+    def test_distance_is_reported_as_bucket_floor_and_label(self):
+        assert self._dump(3.14159) == {"distance_miles": 2, "distance": "2-5 mi"}
+        assert self._dump(0.37) == {"distance_miles": 0, "distance": "< 1 mi"}
+        assert self._dump(61.8) == {"distance_miles": 25, "distance": "25+ mi"}
+
+    def test_distances_in_the_same_bucket_serialize_identically(self):
+        assert self._dump(2.01) == self._dump(4.99)
+        assert self._dump(0.0) == self._dump(0.99)
+
+    def test_missing_distance_serializes_as_null(self):
+        assert self._dump(None) == {"distance_miles": None, "distance": None}
 
 
 class TestApiWriteSchemas:
