@@ -13,6 +13,17 @@ from app.models import User
 from conftest import TEST_PASSWORD, login_user
 from tests.factories import CircleFactory, ItemFactory, UserFactory
 
+# Values a browser would follow to another site; none is a plain path on this one.
+OFF_SITE_NEXT_VALUES = [
+    "https://evil.com",
+    "//evil.com",
+    "/\\evil.com",
+    "\\\\evil.com",
+    "////evil.com",
+    "https:evil.com",
+    "/\t/evil.com",
+]
+
 
 class TestAuthenticationRoutes:
     """Test authentication routes."""
@@ -348,6 +359,47 @@ class TestAuthenticationRoutes:
         assert response.status_code == 302
         assert "next=" in response.location
         assert "abc123" in response.location
+
+    @pytest.mark.parametrize("next_value", OFF_SITE_NEXT_VALUES)
+    def test_register_drops_off_site_next(self, app, client, next_value):
+        """A next value that is not a path on this site never reaches the confirmation link."""
+        with patch("app.services.auth_service.send_confirmation_email") as mock_send:
+            mock_send.return_value = True
+            response = client.post(
+                "/register",
+                query_string={"next": next_value},
+                data={
+                    "email": "offsitenext@example.com",
+                    "first_name": "Next",
+                    "last_name": "User",
+                    "location_method": "skip",
+                    "age_confirm": True,
+                    "password": "nextpassword123",
+                    "confirm_password": "nextpassword123",
+                },
+                follow_redirects=False,
+            )
+
+        assert response.status_code == 302
+        mock_send.assert_called_once()
+        _, kwargs = mock_send.call_args
+        assert kwargs.get("next_url") is None
+
+    @pytest.mark.parametrize("next_value", OFF_SITE_NEXT_VALUES)
+    def test_confirm_email_drops_off_site_next(self, client, app, next_value):
+        """Confirming with a next value that is not a path on this site goes to the plain login."""
+        with app.app_context():
+            user = UserFactory(email_confirmed=False)
+            user.generate_confirmation_token()
+            db.session.commit()
+            token_value = user.email_confirmation_token
+
+        response = client.post(
+            f"/confirm/{token_value}", query_string={"next": next_value}, follow_redirects=False
+        )
+
+        assert response.status_code == 302
+        assert response.location == "/login"
 
     def test_confirm_email_without_next_redirects_to_plain_login(self, client, app):
         """After email confirmation with no next param, redirect is the plain
@@ -1100,6 +1152,45 @@ class TestRedirectAfterLogin:
                 b'action="/login?next=' in response.data
                 or b'action="/login?next=%2Fprofile' in response.data
             )
+
+    @pytest.mark.parametrize("next_value", OFF_SITE_NEXT_VALUES)
+    def test_login_with_off_site_next_goes_to_default_page(
+        self, client, app, auth_user, next_value
+    ):
+        """A next value that is not a path on this site is ignored."""
+        with app.app_context():
+            user = auth_user()
+            circle = CircleFactory()
+            circle.members.append(user)
+            db.session.commit()
+
+            response = client.post(
+                "/login",
+                query_string={"next": next_value},
+                data={"email": user.email, "password": TEST_PASSWORD},
+                follow_redirects=False,
+            )
+
+            assert response.status_code == 302
+            assert response.location == "/"
+
+    @pytest.mark.parametrize(
+        "next_value",
+        ["/profile", "/find?q=drill&page=2", "/profile?tab=settings#digest"],
+    )
+    def test_login_with_local_next_redirects_to_that_path(self, client, app, auth_user, next_value):
+        """A path on this site is followed as given, query string and fragment included."""
+        with app.app_context():
+            user = auth_user()
+            response = client.post(
+                "/login",
+                query_string={"next": next_value},
+                data={"email": user.email, "password": TEST_PASSWORD},
+                follow_redirects=False,
+            )
+
+            assert response.status_code == 302
+            assert response.location == next_value
 
 
 class TestCSRFErrorHandler:
