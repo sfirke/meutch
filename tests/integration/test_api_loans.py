@@ -104,6 +104,7 @@ class TestApiLoans:
             "due_state": "due_soon",
             "days_until_due": 2,
             "days_overdue": 0,
+            "pending_extension_request": None,
         }
         assert payload["loans"][0]["owner"]["id"] == owner_id
         assert payload["loans"][0]["borrower"]["id"] == borrower_id

@@ -4,6 +4,7 @@ from marshmallow import ValidationError, fields, validate, validates_schema
 
 from app.api.v1.schemas.base import ApiDateTime, ApiSchema
 from app.api.v1.schemas.items import LoanSummarySchema
+from app.api.v1.schemas.loan_extensions import LoanExtensionRequestSchema
 from app.api.v1.schemas.users import UserSummarySchema
 
 
@@ -16,6 +17,13 @@ class MessageSummarySchema(ApiSchema):
     is_read = fields.Boolean(required=True)
     sender = fields.Nested(UserSummarySchema(), required=True)
     recipient = fields.Nested(UserSummarySchema(), required=True)
+    loan_extension_request = fields.Nested(LoanExtensionRequestSchema(), allow_none=True)
+
+
+class ThreadActiveLoanSchema(LoanSummarySchema):
+    """Active loan in a thread both participants may see, with any pending extension."""
+
+    pending_extension_request = fields.Nested(LoanExtensionRequestSchema(), allow_none=True)
 
 
 class ItemConversationContextSchema(ApiSchema):
@@ -72,7 +80,7 @@ class MessageThreadResponseSchema(ApiSchema):
     item = fields.Nested(ItemConversationContextSchema(), allow_none=True)
     item_request = fields.Nested(ItemRequestConversationContextSchema(), allow_none=True)
     circle = fields.Nested(CircleConversationContextSchema(), allow_none=True)
-    active_loan = fields.Nested(LoanSummarySchema(), allow_none=True)
+    active_loan = fields.Nested(ThreadActiveLoanSchema(), allow_none=True)
     has_unread_messages = fields.Boolean(required=True)
     messages = fields.Nested(MessageSummarySchema(), many=True, required=True)
 
