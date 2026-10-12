@@ -1019,7 +1019,9 @@ class TestApiLoanExtensionRequests:
         )
 
         assert response.status_code == 422
-        assert list(response.get_json()["error"]["details"]) == ["message"]
+        assert response.get_json()["error"]["details"] == {
+            "message": ["Length must be between 10 and 1000."]
+        }
 
     def test_owner_approves_extension_request(self, client, app):
         with app.app_context():
