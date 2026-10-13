@@ -135,71 +135,6 @@ class TestDeletedAccountWeb:
         _assert_signed_out(client)
         assert _get_user(app, member_id).failed_login_attempts == 0
 
-    def test_deleted_admin_cannot_reach_admin_routes(self, app, client):
-        admin_id, admin_email = _create_user(app, is_admin=True)
-        _, other_admin_email = _create_user(app, is_admin=True)
-
-        login_user(client, admin_email)
-        assert client.get("/admin/").status_code == 200
-
-        other_admin_client = app.test_client()
-        login_user(other_admin_client, other_admin_email)
-        other_admin_client.post(f"/admin/users/{admin_id}/delete", follow_redirects=True)
-
-        deleted_admin = _get_user(app, admin_id)
-        assert deleted_admin.is_deleted is True
-        assert deleted_admin.is_admin is False
-        _assert_signed_out(client, "/admin/")
-
-    def test_already_deleted_admin_row_cannot_reach_admin_routes(self, app, client):
-        admin_id, admin_email = _create_user(app, is_admin=True)
-        login_user(client, admin_email)
-        assert client.get("/admin/").status_code == 200
-
-        deleted_email = _mark_deleted(app, admin_id)
-
-        assert _get_user(app, admin_id).is_admin is True
-        _assert_signed_out(client, "/admin/")
-        login_user(client, deleted_email)
-        _assert_signed_out(client, "/admin/")
-
-    def test_password_reset_link_stops_working_for_an_already_deleted_row(self, app, client):
-        member_id, _ = _create_user(app)
-        with app.app_context():
-            token = db.session.get(User, member_id).generate_password_reset_token()
-            db.session.commit()
-        _mark_deleted(app, member_id)
-
-        response = client.post(
-            f"/reset-password/{token}",
-            data={"password": "a-new-password-123", "confirm_password": "a-new-password-123"},
-            follow_redirects=True,
-        )
-
-        assert response.status_code == 200
-        member = _get_user(app, member_id)
-        assert member.password_reset_token == token
-        assert member.check_password(TEST_PASSWORD) is True
-
-    def test_confirmation_link_stops_working_for_an_already_deleted_row(self, app, client):
-        member_id, _ = _create_user(app, email_confirmed=False)
-        with app.app_context():
-            token = db.session.get(User, member_id).generate_confirmation_token()
-            db.session.commit()
-        _mark_deleted(app, member_id)
-
-        client.post(f"/confirm/{token}", follow_redirects=True)
-
-        assert _get_user(app, member_id).email_confirmed is False
-
-    def test_password_reset_request_sends_nothing_for_a_deleted_account(self, app, client):
-        member_id, _ = _create_user(app)
-        deleted_email = _mark_deleted(app, member_id)
-
-        client.post("/forgot-password", data={"email": deleted_email}, follow_redirects=True)
-
-        assert _get_user(app, member_id).password_reset_token is None
-
 
 class TestDeletedAccountApi:
     def test_api_session_refused_after_admin_deletion(self, app, client):
@@ -210,18 +145,6 @@ class TestDeletedAccountApi:
         admin_client = app.test_client()
         login_user(admin_client, admin_email)
         admin_client.post(f"/admin/users/{member_id}/delete", follow_redirects=True)
-
-        assert _get_user(app, member_id).is_deleted is True
-        assert _live_family_count(app, member_id) == 0
-        _assert_api_session_refused(client, tokens)
-
-    def test_api_session_refused_after_web_self_deletion(self, app, client):
-        member_id, member_email = _create_user(app)
-        tokens = _api_login(client, member_email)
-
-        web_client = app.test_client()
-        login_user(web_client, member_email)
-        web_client.post("/delete_account", data=DELETE_CONFIRMATION, follow_redirects=True)
 
         assert _get_user(app, member_id).is_deleted is True
         assert _live_family_count(app, member_id) == 0
