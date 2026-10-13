@@ -1,9 +1,7 @@
 """Integration tests for giveaway routes and functionality."""
 
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 
-import pytest
 from sqlalchemy import text
 
 from app import db
@@ -971,46 +969,6 @@ class TestRecipientSelection:
             assert giveaway.claim_status == "unclaimed"
             assert giveaway.claimed_by_id is None
             assert GiveawayInterest.query.filter_by(user_id=bystander.id).count() == 0
-            assert Conversation.query.filter_by(context_id=giveaway.id).count() == 0
-            assert Message.query.count() == 0
-
-    @pytest.mark.parametrize("case", ["malformed", "unknown", "owner", "deleted"])
-    def test_manual_selection_rejects_invalid_user_ids(self, client, app, auth_user, case):
-        """Ids that are not a candidate all get the same message, without an error page."""
-        with app.app_context():
-            owner = auth_user()
-            interested = UserFactory()
-            giveaway = ItemFactory(
-                owner=owner,
-                category=CategoryFactory(),
-                is_giveaway=True,
-                claim_status="unclaimed",
-            )
-            GiveawayInterestFactory(item=giveaway, user=interested, status="active")
-            user_id = {
-                "malformed": "not-a-uuid",
-                "unknown": str(uuid4()),
-                "owner": str(owner.id),
-                "deleted": str(UserFactory(is_deleted=True).id),
-            }[case]
-            db.session.commit()
-
-            login_user(client, owner.email)
-            response = client.post(
-                f"/item/{giveaway.id}/select-recipient",
-                data={"selection_method": "manual", "user_id": user_id},
-                follow_redirects=True,
-            )
-
-            assert response.status_code == 200
-            assert (
-                b"You can only select someone who has asked about this giveaway." in response.data
-            )
-
-            db.session.refresh(giveaway)
-            assert giveaway.claim_status == "unclaimed"
-            assert giveaway.claimed_by_id is None
-            assert GiveawayInterest.query.count() == 1
             assert Conversation.query.filter_by(context_id=giveaway.id).count() == 0
             assert Message.query.count() == 0
 

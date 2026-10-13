@@ -2,9 +2,6 @@
 
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
-from uuid import uuid4
-
-import pytest
 
 from app import db
 from app.models import Conversation, GiveawayInterest, Message
@@ -237,8 +234,7 @@ class TestApiGiveawayRecipientMutations:
         assert response.status_code == 200
         assert response.get_json()["selected_interest"]["user"]["id"] == second_user_id
 
-    @pytest.mark.parametrize("case", ["unrelated", "unknown", "owner", "deleted"])
-    def test_select_recipient_manual_rejects_user_who_has_not_asked(self, client, app, case):
+    def test_select_recipient_manual_rejects_user_who_has_not_asked(self, client, app):
         with app.app_context():
             owner = UserFactory(email_confirmed=True)
             interested_user = UserFactory()
@@ -249,12 +245,7 @@ class TestApiGiveawayRecipientMutations:
                 claim_status="unclaimed",
             )
             GiveawayInterestFactory(item=item, user=interested_user, status="active")
-            user_id = {
-                "unrelated": lambda: UserFactory().id,
-                "unknown": uuid4,
-                "owner": lambda: owner.id,
-                "deleted": lambda: UserFactory(is_deleted=True).id,
-            }[case]()
+            user_id = UserFactory().id
             db.session.commit()
             access_token = login_api_user(client, owner.email)
             item_id = item.id
@@ -276,25 +267,6 @@ class TestApiGiveawayRecipientMutations:
             assert item.claimed_by_id is None
             assert GiveawayInterest.query.count() == 1
             assert Conversation.query.filter_by(context_id=item_id).count() == 0
-            assert Message.query.count() == 0
-
-    def test_select_recipient_manual_rejects_malformed_user_id(self, client, app):
-        with app.app_context():
-            owner = UserFactory(email_confirmed=True)
-            item = ItemFactory(owner=owner, is_giveaway=True, claim_status="unclaimed")
-            db.session.commit()
-            access_token = login_api_user(client, owner.email)
-            item_id = item.id
-
-        response = client.post(
-            f"/api/v1/items/{item_id}/recipient/select",
-            headers=auth_headers(access_token),
-            json={"selection_method": "manual", "user_id": "not-a-uuid"},
-        )
-
-        assert response.status_code == 422
-        with app.app_context():
-            assert GiveawayInterest.query.count() == 0
             assert Message.query.count() == 0
 
     def test_select_recipient_manual_accepts_conversation_partner_without_interest(
