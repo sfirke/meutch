@@ -135,7 +135,11 @@ def create_app(config_class=None):
             uuid_obj = UUID(user_id, version=4)
         except ValueError:
             return None
-        return db.session.get(User, uuid_obj)
+        user = db.session.get(User, uuid_obj)
+        # A deleted account ends every session it had.
+        if user is None or user.is_deleted:
+            return None
+        return user
 
     # Register the context processor
     app.context_processor(inject_unread_messages_count)

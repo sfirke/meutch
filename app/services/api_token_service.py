@@ -140,7 +140,7 @@ def issue_login_tokens(email, password):
 def rotate_refresh_token(user, refresh_token_payload):
     """Rotate a refresh token and issue a fresh access/refresh pair."""
     token_family = _get_token_family(refresh_token_payload)
-    if token_family is None or token_family.revoked_at is not None:
+    if user.is_deleted or token_family is None or token_family.revoked_at is not None:
         raise AuthenticationError("The supplied token is invalid.")
 
     _add_blocklist_entry(refresh_token_payload, reason=REVOKE_REASON_ROTATED)
@@ -168,6 +168,12 @@ def revoke_token_family(token_payload, *, reason=REVOKE_REASON_LOGOUT):
 
     _add_blocklist_entry(token_payload, reason=reason)
     db.session.commit()
+
+
+def revoke_all_token_families(user, *, reason):
+    """Revoke every live API session a user has. The caller commits."""
+    for token_family in ApiTokenFamily.query.filter_by(user_id=user.id, revoked_at=None):
+        token_family.revoke(reason)
 
 
 def _revoke_family_for_reuse(token_family, *, reason):

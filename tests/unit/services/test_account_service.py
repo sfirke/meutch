@@ -2,8 +2,9 @@ from datetime import UTC, date, datetime
 from unittest.mock import patch
 
 from app import db
-from app.models import LoanRequest, User, circle_members
-from app.services import account_service
+from app.models import ApiTokenFamily, LoanRequest, User, circle_members
+from app.services import account_service, api_token_service
+from conftest import TEST_PASSWORD
 from tests.factories import CircleFactory, ItemFactory, LoanRequestFactory, UserFactory
 
 
@@ -39,6 +40,38 @@ class TestAccountService:
             assert user.deleted_at is not None
             assert user.email.startswith("deleted_")
             mock_email.assert_called_once()
+
+    def test_delete_user_account_leaves_nothing_to_sign_in_with(self, app):
+        with app.app_context():
+            user = UserFactory(is_admin=True)
+            other_user = UserFactory()
+            user.generate_password_reset_token()
+            user.generate_confirmation_token()
+            db.session.commit()
+            api_token_service.issue_token_bundle(user)
+            api_token_service.issue_token_bundle(user)
+            api_token_service.issue_token_bundle(other_user)
+
+            with patch("app.services.account_service.send_account_deletion_email"):
+                account_service.delete_user_account(user)
+
+            db.session.refresh(user)
+            assert user.is_active is False
+            assert user.check_password(TEST_PASSWORD) is False
+            assert user.is_admin is False
+            assert user.password_reset_token is None
+            assert user.password_reset_sent_at is None
+            assert user.email_confirmation_token is None
+            assert user.email_confirmation_sent_at is None
+
+            families = ApiTokenFamily.query.filter_by(user_id=user.id).all()
+            assert len(families) == 2
+            assert all(family.revoked_at is not None for family in families)
+            assert {family.revoke_reason for family in families} == {
+                api_token_service.REVOKE_REASON_ACCOUNT_DELETED
+            }
+            other_family = ApiTokenFamily.query.filter_by(user_id=other_user.id).one()
+            assert other_family.revoked_at is None
 
     def test_delete_user_account_promotes_next_circle_admin(self, app):
         with app.app_context():
