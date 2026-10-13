@@ -7,6 +7,7 @@ from tests.factories import (
     CircleFactory,
     ConversationFactory,
     ItemFactory,
+    LoanExtensionRequestFactory,
     LoanRequestFactory,
     MessageFactory,
     UserFactory,
@@ -27,6 +28,23 @@ def _share_circle(*users):
     circle = CircleFactory()
     circle.members.extend(users)
     return circle
+
+
+def _approved_loan(owner, borrower, *, end_offset=3):
+    return LoanRequestFactory(
+        item=ItemFactory(owner=owner, available=False),
+        borrower=borrower,
+        status="approved",
+        start_date=date.today() - timedelta(days=2),
+        end_date=date.today() + timedelta(days=end_offset),
+    )
+
+
+def _extension_payload(*, proposed_offset=10, message="Could I keep it a bit longer?"):
+    return {
+        "proposed_end_date": (date.today() + timedelta(days=proposed_offset)).isoformat(),
+        "message": message,
+    }
 
 
 class TestApiLoans:
@@ -104,6 +122,7 @@ class TestApiLoans:
             "due_state": "due_soon",
             "days_until_due": 2,
             "days_overdue": 0,
+            "pending_extension_request": None,
         }
         assert payload["loans"][0]["owner"]["id"] == owner_id
         assert payload["loans"][0]["borrower"]["id"] == borrower_id
@@ -825,3 +844,379 @@ class TestApiLoans:
 
         assert response.status_code == 200
         assert response.get_json()["loan"]["borrower"]["profile_viewable"] is True
+
+    def test_create_loan_request_rejects_past_start_date(self, client, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory(email_confirmed=True)
+            _share_circle(owner, borrower)
+            item = ItemFactory(owner=owner, available=True)
+            db.session.commit()
+            access_token = login_api_user(client, borrower.email)
+            item_id = item.id
+
+        response = client.post(
+            f"/api/v1/items/{item_id}/loan-requests",
+            json=_loan_request_payload(start_offset=-1),
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 422
+        assert response.get_json()["error"]["details"] == {
+            "start_date": ["Start date cannot be in the past."]
+        }
+
+
+class TestApiLoanExtensionRequests:
+    """Exercise borrower extension requests and the owner's decision."""
+
+    def test_borrower_creates_extension_request(self, client, app):
+        with app.app_context():
+            owner = UserFactory()
+            borrower = UserFactory(email_confirmed=True)
+            _share_circle(owner, borrower)
+            loan = _approved_loan(owner, borrower)
+            db.session.commit()
+            access_token = login_api_user(client, borrower.email)
+            loan_id = loan.id
+            current_end_date = loan.end_date.isoformat()
+            borrower_id = str(borrower.id)
+
+        payload_in = _extension_payload()
+        response = client.post(
+            f"/api/v1/loans/{loan_id}/extension-requests",
+            json=payload_in,
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 201
+        payload = response.get_json()
+        pending = payload["loan"]["pending_extension_request"]
+        assert payload["loan"]["id"] == str(loan_id)
+        assert payload["loan"]["end_date"] == current_end_date
+        assert pending["status"] == "pending"
+        assert pending["previous_end_date"] == current_end_date
+        assert pending["proposed_end_date"] == payload_in["proposed_end_date"]
+        assert pending["message"] == payload_in["message"]
+        assert pending["responded_at"] is None
+        assert payload["message"]["sender"]["id"] == borrower_id
+        assert payload["message"]["loan_extension_request"]["id"] == pending["id"]
+        assert payload["loan"]["latest_conversation_message_id"] == payload["message"]["id"]
+        assert payload["loan"]["owner"]["profile_viewable"] is True
+
+    def test_owner_cannot_create_extension_request(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            loan = _approved_loan(owner, UserFactory())
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            loan_id = loan.id
+
+        response = client.post(
+            f"/api/v1/loans/{loan_id}/extension-requests",
+            json=_extension_payload(),
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 403
+        assert response.get_json()["error"]["code"] == "FORBIDDEN"
+
+    def test_extension_request_requires_approved_loan(self, client, app):
+        with app.app_context():
+            borrower = UserFactory(email_confirmed=True)
+            loan = LoanRequestFactory(
+                item=ItemFactory(owner=UserFactory()),
+                borrower=borrower,
+                status="pending",
+                start_date=date.today() + timedelta(days=1),
+                end_date=date.today() + timedelta(days=5),
+            )
+            db.session.commit()
+            access_token = login_api_user(client, borrower.email)
+            loan_id = loan.id
+
+        response = client.post(
+            f"/api/v1/loans/{loan_id}/extension-requests",
+            json=_extension_payload(),
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 409
+        assert response.get_json()["error"]["code"] == "CONFLICT"
+
+    def test_duplicate_pending_extension_request_is_rejected(self, client, app):
+        with app.app_context():
+            borrower = UserFactory(email_confirmed=True)
+            loan = _approved_loan(UserFactory(), borrower)
+            LoanExtensionRequestFactory(loan_request=loan)
+            db.session.commit()
+            access_token = login_api_user(client, borrower.email)
+            loan_id = loan.id
+
+        response = client.post(
+            f"/api/v1/loans/{loan_id}/extension-requests",
+            json=_extension_payload(),
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 409
+        assert (
+            response.get_json()["error"]["message"]
+            == "You already have a pending extension request for this loan."
+        )
+
+    def test_extension_request_must_move_due_date_later(self, client, app):
+        with app.app_context():
+            borrower = UserFactory(email_confirmed=True)
+            loan = _approved_loan(UserFactory(), borrower, end_offset=5)
+            db.session.commit()
+            access_token = login_api_user(client, borrower.email)
+            loan_id = loan.id
+
+        response = client.post(
+            f"/api/v1/loans/{loan_id}/extension-requests",
+            json=_extension_payload(proposed_offset=5),
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 409
+        assert (
+            response.get_json()["error"]["message"]
+            == "Proposed due date must be after the current due date."
+        )
+
+    def test_extension_request_rejects_past_proposed_date(self, client, app):
+        with app.app_context():
+            borrower = UserFactory(email_confirmed=True)
+            loan = _approved_loan(UserFactory(), borrower)
+            db.session.commit()
+            access_token = login_api_user(client, borrower.email)
+            loan_id = loan.id
+
+        response = client.post(
+            f"/api/v1/loans/{loan_id}/extension-requests",
+            json=_extension_payload(proposed_offset=-1),
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 422
+        assert response.get_json()["error"]["details"] == {
+            "proposed_end_date": ["Proposed due date cannot be in the past."]
+        }
+
+    def test_extension_request_rejects_short_message(self, client, app):
+        with app.app_context():
+            borrower = UserFactory(email_confirmed=True)
+            loan = _approved_loan(UserFactory(), borrower)
+            db.session.commit()
+            access_token = login_api_user(client, borrower.email)
+            loan_id = loan.id
+
+        response = client.post(
+            f"/api/v1/loans/{loan_id}/extension-requests",
+            json=_extension_payload(message="Too short"),
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 422
+        assert response.get_json()["error"]["details"] == {
+            "message": ["Length must be between 10 and 1000."]
+        }
+
+    def test_owner_approves_extension_request(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            loan = _approved_loan(owner, UserFactory())
+            extension = LoanExtensionRequestFactory(loan_request=loan)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            extension_id = extension.id
+            proposed_end_date = extension.proposed_end_date.isoformat()
+
+        response = client.post(
+            f"/api/v1/loan-extension-requests/{extension_id}/approve",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["loan"]["end_date"] == proposed_end_date
+        assert payload["loan"]["pending_extension_request"] is None
+        assert payload["message"]["loan_extension_request"] is None
+
+        with app.app_context():
+            refreshed = db.session.get(type(extension), extension_id)
+            assert refreshed.status == "approved"
+            assert refreshed.responded_at is not None
+
+    def test_borrower_cannot_approve_extension_request(self, client, app):
+        with app.app_context():
+            borrower = UserFactory(email_confirmed=True)
+            loan = _approved_loan(UserFactory(), borrower)
+            extension = LoanExtensionRequestFactory(loan_request=loan)
+            db.session.commit()
+            access_token = login_api_user(client, borrower.email)
+            extension_id = extension.id
+
+        response = client.post(
+            f"/api/v1/loan-extension-requests/{extension_id}/approve",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 403
+        assert response.get_json()["error"]["code"] == "FORBIDDEN"
+
+    def test_answered_extension_request_cannot_be_approved(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            loan = _approved_loan(owner, UserFactory())
+            extension = LoanExtensionRequestFactory(
+                loan_request=loan,
+                status="denied",
+                responded_at=datetime.now(UTC),
+            )
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            extension_id = extension.id
+
+        response = client.post(
+            f"/api/v1/loan-extension-requests/{extension_id}/approve",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 409
+        assert response.get_json()["error"]["code"] == "CONFLICT"
+
+    def test_approve_after_owner_extends_past_proposed_date_conflicts(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            loan = _approved_loan(owner, UserFactory(), end_offset=3)
+            extension = LoanExtensionRequestFactory(
+                loan_request=loan,
+                proposed_end_date=date.today() + timedelta(days=10),
+            )
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            loan_id = loan.id
+            extension_id = extension.id
+            owner_end_date = (date.today() + timedelta(days=14)).isoformat()
+
+        extend_response = client.post(
+            f"/api/v1/loans/{loan_id}/extend",
+            json={"new_end_date": owner_end_date, "message": "Keep it two weeks."},
+            headers=auth_headers(access_token),
+        )
+        approve_response = client.post(
+            f"/api/v1/loan-extension-requests/{extension_id}/approve",
+            headers=auth_headers(access_token),
+        )
+
+        assert extend_response.status_code == 200
+        assert approve_response.status_code == 409
+        with app.app_context():
+            refreshed_loan = db.session.get(type(loan), loan_id)
+            assert refreshed_loan.end_date.isoformat() == owner_end_date
+
+    def test_approving_stale_extension_request_conflicts(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            loan = _approved_loan(owner, UserFactory(), end_offset=10)
+            extension = LoanExtensionRequestFactory(
+                loan_request=loan,
+                previous_end_date=date.today() + timedelta(days=3),
+                proposed_end_date=date.today() + timedelta(days=7),
+            )
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            loan_id = loan.id
+            extension_id = extension.id
+
+        response = client.post(
+            f"/api/v1/loan-extension-requests/{extension_id}/approve",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 409
+        assert response.get_json()["error"]["message"].startswith(
+            "The proposed due date is no longer later than the current due date."
+        )
+        with app.app_context():
+            refreshed_loan = db.session.get(type(loan), loan_id)
+            assert refreshed_loan.end_date == date.today() + timedelta(days=10)
+            assert db.session.get(type(extension), extension_id).status == "pending"
+
+    def test_owner_denies_extension_request(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            loan = _approved_loan(owner, UserFactory())
+            extension = LoanExtensionRequestFactory(loan_request=loan)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            extension_id = extension.id
+            current_end_date = loan.end_date.isoformat()
+
+        response = client.post(
+            f"/api/v1/loan-extension-requests/{extension_id}/deny",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["loan"]["end_date"] == current_end_date
+        assert payload["loan"]["pending_extension_request"] is None
+        with app.app_context():
+            assert db.session.get(type(extension), extension_id).status == "denied"
+
+    def test_pending_extension_request_appears_on_loan_reads_but_not_item_detail(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            borrower = UserFactory(email_confirmed=True)
+            _share_circle(owner, borrower)
+            loan = _approved_loan(owner, borrower)
+            db.session.commit()
+            owner_token = login_api_user(client, owner.email)
+            borrower_token = login_api_user(client, borrower.email)
+            loan_id = loan.id
+            item_id = loan.item_id
+
+        create_response = client.post(
+            f"/api/v1/loans/{loan_id}/extension-requests",
+            json=_extension_payload(),
+            headers=auth_headers(borrower_token),
+        )
+        assert create_response.status_code == 201
+        created = create_response.get_json()
+        extension_id = created["loan"]["pending_extension_request"]["id"]
+        request_message_id = created["message"]["id"]
+
+        list_response = client.get(
+            "/api/v1/me/loans?role=lending&status=active",
+            headers=auth_headers(owner_token),
+        )
+        detail_response = client.get(f"/api/v1/loans/{loan_id}", headers=auth_headers(owner_token))
+        thread_response = client.get(
+            f"/api/v1/messages/{request_message_id}",
+            headers=auth_headers(owner_token),
+        )
+        item_response = client.get(f"/api/v1/items/{item_id}", headers=auth_headers(owner_token))
+
+        assert list_response.status_code == 200
+        [listed] = list_response.get_json()["loans"]
+        assert listed["pending_extension_request"]["id"] == extension_id
+
+        assert detail_response.status_code == 200
+        assert detail_response.get_json()["loan"]["pending_extension_request"]["id"] == (
+            extension_id
+        )
+
+        assert thread_response.status_code == 200
+        thread = thread_response.get_json()
+        assert thread["active_loan"]["id"] == str(loan_id)
+        assert thread["active_loan"]["pending_extension_request"]["id"] == extension_id
+        request_messages = [m for m in thread["messages"] if m["id"] == request_message_id]
+        assert request_messages[0]["loan_extension_request"]["id"] == extension_id
+
+        assert item_response.status_code == 200
+        current_loan = item_response.get_json()["item"]["current_loan"]
+        assert current_loan["id"] == str(loan_id)
+        assert "pending_extension_request" not in current_loan

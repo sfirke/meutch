@@ -13,7 +13,7 @@ from app.api.v1 import profile_flags
 from app.api.v1.schemas import ItemSummarySchema, UserSummarySchema
 from app.api.v1.schemas.circles import CircleSummarySchema, CircleWritePayloadSchema
 from app.api.v1.schemas.items import ItemWritePayloadSchema
-from app.api.v1.schemas.loans import LoanRequestCreateSchema
+from app.api.v1.schemas.loans import LoanExtensionRequestCreateSchema, LoanRequestCreateSchema
 from app.api.v1.schemas.messaging import MessageStartSchema
 from app.api.v1.schemas.profile import LocationUpdateSchema, ProfileUpdateSchema
 from app.api.v1.schemas.requests import RequestWritePayloadSchema
@@ -336,6 +336,38 @@ class TestApiWriteSchemas:
 
         assert excinfo.value.messages == {
             "end_date": ["End date must be on or after the start date."]
+        }
+
+    def test_loan_request_create_schema_rejects_past_start_date(self):
+        schema = LoanRequestCreateSchema()
+
+        with pytest.raises(ValidationError) as excinfo:
+            schema.load(
+                {
+                    "start_date": date.today() - timedelta(days=1),
+                    "end_date": date.today() + timedelta(days=5),
+                    "message": "Could I borrow this next week?",
+                }
+            )
+
+        assert excinfo.value.messages == {"start_date": ["Start date cannot be in the past."]}
+
+    def test_loan_extension_request_create_schema_validates_date_and_message(self):
+        schema = LoanExtensionRequestCreateSchema()
+        message = "Could I keep it a bit longer?"
+
+        with pytest.raises(ValidationError) as past_excinfo:
+            schema.load({"proposed_end_date": date.today() - timedelta(days=1), "message": message})
+        with pytest.raises(ValidationError) as short_excinfo:
+            schema.load({"proposed_end_date": date.today(), "message": "Too short"})
+
+        assert past_excinfo.value.messages == {
+            "proposed_end_date": ["Proposed due date cannot be in the past."]
+        }
+        assert list(short_excinfo.value.messages) == ["message"]
+        assert schema.load({"proposed_end_date": date.today(), "message": message}) == {
+            "proposed_end_date": date.today(),
+            "message": message,
         }
 
     def test_item_write_schema_rejects_blank_name(self):
