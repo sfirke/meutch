@@ -693,6 +693,98 @@ class TestCircleSharePreview:
             assert b"share-member-avatar" in response.data
 
 
+class TestRegularUrlsForLoggedOutVisitors:
+    """Regular detail URLs send logged-out visitors to the share preview when public."""
+
+    @staticmethod
+    def _assert_login_redirect(response):
+        assert response.status_code == 302
+        assert "/login" in response.headers["Location"]
+
+    def test_public_giveaway_redirects_to_preview(self, client, app):
+        with app.app_context():
+            item = ItemFactory(
+                is_giveaway=True, giveaway_visibility="public", claim_status="unclaimed"
+            )
+            db.session.commit()
+
+            response = client.get(f"/item/{item.id}")
+            assert response.status_code == 302
+            assert urlparse(response.headers["Location"]).path == f"/share/giveaway/{item.id}"
+
+            response = client.get(f"/item/{item.id}", follow_redirects=True)
+            assert response.status_code == 200
+            assert item.name.encode() in response.data
+
+    def test_circles_only_giveaway_requires_login(self, client, app):
+        with app.app_context():
+            item = ItemFactory(
+                is_giveaway=True, giveaway_visibility="default", claim_status="unclaimed"
+            )
+            db.session.commit()
+
+            self._assert_login_redirect(client.get(f"/item/{item.id}"))
+
+    def test_loan_item_requires_login(self, client, app):
+        with app.app_context():
+            item = ItemFactory(is_giveaway=False)
+            db.session.commit()
+
+            self._assert_login_redirect(client.get(f"/item/{item.id}"))
+
+    def test_nonexistent_item_requires_login(self, client):
+        self._assert_login_redirect(client.get(f"/item/{uuid.uuid4()}"))
+
+    def test_public_request_redirects_to_preview(self, client, app):
+        with app.app_context():
+            req = ItemRequestFactory(visibility="public")
+            db.session.commit()
+
+            response = client.get(f"/requests/{req.id}/detail")
+            assert response.status_code == 302
+            assert urlparse(response.headers["Location"]).path == f"/share/request/{req.id}"
+
+            response = client.get(f"/requests/{req.id}/detail", follow_redirects=True)
+            assert response.status_code == 200
+            assert req.title.encode() in response.data
+
+    def test_circles_only_request_requires_login(self, client, app):
+        with app.app_context():
+            req = ItemRequestFactory(visibility="circles")
+            db.session.commit()
+
+            self._assert_login_redirect(client.get(f"/requests/{req.id}/detail"))
+
+    def test_deleted_request_requires_login(self, client, app):
+        with app.app_context():
+            req = ItemRequestFactory(visibility="public", status="deleted")
+            db.session.commit()
+
+            self._assert_login_redirect(client.get(f"/requests/{req.id}/detail"))
+
+    def test_open_and_closed_circles_redirect_to_preview(self, client, app):
+        with app.app_context():
+            open_circle = CircleFactory(circle_type="open")
+            closed_circle = CircleFactory(circle_type="closed")
+            db.session.commit()
+
+            for circle in (open_circle, closed_circle):
+                response = client.get(f"/circles/{circle.id}")
+                assert response.status_code == 302
+                assert urlparse(response.headers["Location"]).path == f"/share/circle/{circle.id}"
+
+                response = client.get(f"/circles/{circle.id}", follow_redirects=True)
+                assert response.status_code == 200
+                assert circle.name.encode() in response.data
+
+    def test_secret_circle_requires_login(self, client, app):
+        with app.app_context():
+            circle = CircleFactory(circle_type="secret")
+            db.session.commit()
+
+            self._assert_login_redirect(client.get(f"/circles/{circle.id}"))
+
+
 class TestShareButtonVisibility:
     """Tests for share button visibility on detail pages."""
 

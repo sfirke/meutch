@@ -4,6 +4,7 @@ from flask import abort, current_app, flash, redirect, render_template, request,
 from flask_login import current_user, login_required
 
 from app import db
+from app.auth.decorators import login_required_or_public_preview
 from app.forms import (
     ConfirmHandoffForm,
     DeleteItemForm,
@@ -25,6 +26,7 @@ from app.utils.giveaway_visibility import get_unavailable_giveaway_suggestions
 from app.utils.item_share import ITEM_SHARE_TOKEN_MAX_AGE_DAYS
 from app.utils.item_visibility import build_item_access_state
 from app.utils.profile_visibility import can_view_profile
+from app.utils.public_preview import is_public_giveaway
 from app.utils.storage import MAX_ITEM_IMAGE_COUNT
 
 from .helpers import (
@@ -166,7 +168,7 @@ def list_item():
 
 
 @main_bp.route("/item/<uuid:item_id>", methods=["GET", "POST"])
-@login_required
+@login_required_or_public_preview(Item, is_public_giveaway, "share.giveaway_preview")
 def item_detail(item_id):
     item = db.get_or_404(Item, item_id)
     share_token = request.values.get("share_token", "").strip() or None

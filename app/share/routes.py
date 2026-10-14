@@ -19,6 +19,11 @@ from app.utils.item_share import (
     build_item_share_url,
     verify_item_share_token,
 )
+from app.utils.public_preview import (
+    is_public_giveaway,
+    is_public_request,
+    is_searchable_circle,
+)
 
 
 def _absolute_image_url(image_url):
@@ -38,7 +43,7 @@ def _item_share_session_key(item_id):
 def giveaway_preview(item_id):
     """Public preview page for a public giveaway."""
     item = db.session.get(Item, item_id)
-    if not item or not item.is_giveaway or item.giveaway_visibility != "public":
+    if not item or not is_public_giveaway(item):
         abort(404)
 
     if item.claim_status == "claimed" and not can_view_claimed_giveaway(item, current_user):
@@ -69,7 +74,7 @@ def giveaway_preview(item_id):
 def request_preview(request_id):
     """Public preview page for a public item request."""
     item_request = db.session.get(ItemRequest, request_id)
-    if not item_request or item_request.visibility != "public" or item_request.status == "deleted":
+    if not item_request or not is_public_request(item_request):
         abort(404)
 
     show_fulfilled_fallback = item_request.is_fulfilled and not item_request.show_in_feed
@@ -99,7 +104,7 @@ def request_preview(request_id):
 def circle_preview(circle_id):
     """Public preview page for a searchable circle (open or closed, not secret)."""
     circle = db.session.get(Circle, circle_id)
-    if not circle or circle.circle_type == "secret":
+    if not circle or not is_searchable_circle(circle):
         abort(404)
 
     if current_user.is_authenticated:
