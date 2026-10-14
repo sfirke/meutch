@@ -1,6 +1,7 @@
 import logging
 import random
 from datetime import UTC, datetime
+from uuid import UUID
 
 from app import db
 from app.models import Conversation, GiveawayInterest, Message, User
@@ -10,9 +11,11 @@ from app.services.exceptions import (
     ConflictError,
     InvalidActionError,
 )
-from app.utils.messaging_queries import get_or_create_conversation
+from app.utils.messaging_queries import find_context_conversation, get_or_create_conversation
 
 logger = logging.getLogger(__name__)
+
+NOT_A_CANDIDATE_MESSAGE = "You can only select someone who has asked about this giveaway."
 
 
 def get_giveaway_interest_messaging_info(item_id, owner_id):
@@ -206,6 +209,42 @@ def express_interest(item, user_id, message_text, send_notification=True):
     return interest
 
 
+def _manual_selection_interest(item, owner_id, selected_user_id):
+    """Return the interest record for a recipient the owner picked by hand.
+
+    Only someone who has asked about the giveaway can be picked: they have an
+    active interest, or already share a conversation about it with the owner.
+    Every other id gets the same error, whether or not it belongs to a member.
+    """
+    try:
+        user_id = (
+            selected_user_id
+            if isinstance(selected_user_id, UUID)
+            else UUID(str(selected_user_id).strip())
+        )
+    except ValueError:
+        raise InvalidActionError(NOT_A_CANDIDATE_MESSAGE) from None
+
+    candidate = db.session.get(User, user_id)
+    if candidate is None or candidate.is_deleted or candidate.id == owner_id:
+        raise InvalidActionError(NOT_A_CANDIDATE_MESSAGE)
+
+    selected_interest = GiveawayInterest.query.filter_by(
+        item_id=item.id,
+        user_id=user_id,
+        status="active",
+    ).first()
+    if selected_interest:
+        return selected_interest
+
+    if find_context_conversation("item", item.id, owner_id, user_id) is None:
+        raise InvalidActionError(NOT_A_CANDIDATE_MESSAGE)
+
+    # Conversations that predate automatic interest records have no interest
+    # row, so create one for the person the owner is already talking to.
+    return express_interest(item, user_id, None, send_notification=False)
+
+
 def select_recipient(item, owner_id, selection_method, selected_user_id=None):
     if item.owner_id != owner_id:
         raise AuthorizationError("You do not have permission to manage this giveaway.")
@@ -238,19 +277,9 @@ def select_recipient(item, owner_id, selection_method, selected_user_id=None):
             raise ConflictError("No interested users found.")
         selected_interest = random.choice(active_interests)
     elif selection_method == "manual":
-        if selected_user_id is None:
+        if not selected_user_id:
             raise InvalidActionError("A user must be specified for manual selection.")
-        selected_interest = GiveawayInterest.query.filter_by(
-            item_id=item.id,
-            user_id=selected_user_id,
-            status="active",
-        ).first()
-        if not selected_interest:
-            # Create interest on-the-fly for direct selections from conversations.
-            # The owner explicitly chose this person — no prior formal interest needed.
-            selected_interest = express_interest(
-                item, selected_user_id, None, send_notification=False
-            )
+        selected_interest = _manual_selection_interest(item, owner_id, selected_user_id)
     else:
         raise InvalidActionError("Invalid selection. Please try again.")
 
