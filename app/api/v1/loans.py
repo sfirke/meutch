@@ -16,11 +16,12 @@ from app.api.v1.schemas.loans import (
     LoanDetailResponseSchema,
     LoanExtendResponseSchema,
     LoanExtendSchema,
+    LoanExtensionRequestCreateSchema,
     LoanMutationResponseSchema,
     LoanRequestCreateSchema,
 )
 from app.api.v1.schemas.query import LoanListQuerySchema
-from app.models import Item, LoanRequest
+from app.models import Item, LoanExtensionRequest, LoanRequest
 from app.services import loan_service
 from app.services.exceptions import AuthorizationError
 from app.utils.item_visibility import build_item_access_state
@@ -32,6 +33,7 @@ LOAN_MUTATION_RESPONSE_SCHEMA = LoanMutationResponseSchema()
 LOAN_EXTEND_RESPONSE_SCHEMA = LoanExtendResponseSchema()
 LOAN_REQUEST_CREATE_SCHEMA = LoanRequestCreateSchema()
 LOAN_EXTEND_SCHEMA = LoanExtendSchema()
+LOAN_EXTENSION_REQUEST_CREATE_SCHEMA = LoanExtensionRequestCreateSchema()
 
 
 def _base_loan_query():
@@ -40,6 +42,7 @@ def _base_loan_query():
         selectinload(LoanRequest.item).selectinload(Item.owner),
         selectinload(LoanRequest.item).selectinload(Item.images),
         selectinload(LoanRequest.messages),
+        selectinload(LoanRequest.extension_requests),
     )
 
 
@@ -60,9 +63,13 @@ def _serialize_loan_detail(loan):
     )
 
 
-def _serialize_loan_mutation(loan, message):
+def _serialize_loan_mutation(loan, message, schema=LOAN_MUTATION_RESPONSE_SCHEMA, **extra):
     loan.api_latest_conversation_message_id = message.id
-    return LOAN_MUTATION_RESPONSE_SCHEMA.dump({"loan": loan, "message": message})
+    return dump_with_viewable_profiles(
+        schema,
+        {"loan": loan, "message": message, **extra},
+        [loan.item.owner_id, loan.borrower_id],
+    )
 
 
 def _ensure_loan_participant(loan):
@@ -218,11 +225,45 @@ def extend_loan(loan_id):
         data["new_end_date"],
         data["message"],
     )
-    loan.api_latest_conversation_message_id = extend_result.message.id
-    return LOAN_EXTEND_RESPONSE_SCHEMA.dump(
-        {
-            "loan": loan,
-            "message": extend_result.message,
-            "is_extension": extend_result.is_extension,
-        }
+    return _serialize_loan_mutation(
+        loan,
+        extend_result.message,
+        LOAN_EXTEND_RESPONSE_SCHEMA,
+        is_extension=extend_result.is_extension,
     )
+
+
+@bp.post("/loans/<uuid:loan_id>/extension-requests")
+@jwt_required()
+@mutation_limit()
+def create_loan_extension_request(loan_id):
+    """Ask the owner to move an approved loan's due date as the borrower."""
+    loan = db.get_or_404(LoanRequest, loan_id)
+    data = load_request_data(LOAN_EXTENSION_REQUEST_CREATE_SCHEMA)
+    message = loan_service.request_extension(
+        loan,
+        current_user.id,
+        data["proposed_end_date"],
+        data["message"],
+    )
+    return _serialize_loan_mutation(loan, message), 201
+
+
+@bp.post("/loan-extension-requests/<uuid:extension_id>/approve")
+@jwt_required()
+@mutation_limit()
+def approve_loan_extension_request(extension_id):
+    """Approve a pending extension request as the item owner."""
+    extension_request = db.get_or_404(LoanExtensionRequest, extension_id)
+    result = loan_service.process_extension_request(extension_request, current_user.id, "approve")
+    return _serialize_loan_mutation(extension_request.loan_request, result.message)
+
+
+@bp.post("/loan-extension-requests/<uuid:extension_id>/deny")
+@jwt_required()
+@mutation_limit()
+def deny_loan_extension_request(extension_id):
+    """Deny a pending extension request as the item owner."""
+    extension_request = db.get_or_404(LoanExtensionRequest, extension_id)
+    result = loan_service.process_extension_request(extension_request, current_user.id, "deny")
+    return _serialize_loan_mutation(extension_request.loan_request, result.message)

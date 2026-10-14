@@ -87,6 +87,11 @@ class User(UserMixin, db.Model):
         return f"{self.first_name} {self.last_name}"
 
     @property
+    def is_active(self):
+        """Flask-Login's account-enabled flag: a deleted account cannot be signed in."""
+        return not self.is_deleted
+
+    @property
     def is_geocoded(self):
         """Returns True if user has valid latitude and longitude"""
         return self.latitude is not None and self.longitude is not None
@@ -303,20 +308,13 @@ class User(UserMixin, db.Model):
 
     def get_outstanding_loans_summary(self):
         """Get summary of outstanding loans for account deletion warning"""
-        from datetime import date
-
-        # Active loans as borrower
-        borrowing = (
-            LoanRequest.query.filter_by(borrower_id=self.id, status="approved")
-            .filter(LoanRequest.end_date >= date.today())
-            .count()
-        )
+        # Active loans as borrower (overdue approved loans count too)
+        borrowing = LoanRequest.query.filter_by(borrower_id=self.id, status="approved").count()
 
         # Active loans as owner
         lending = (
             LoanRequest.query.join(Item)
             .filter(Item.owner_id == self.id, LoanRequest.status == "approved")
-            .filter(LoanRequest.end_date >= date.today())
             .count()
         )
 

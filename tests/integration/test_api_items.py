@@ -1,5 +1,6 @@
 """Integration tests for API item endpoints."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from unittest.mock import patch
@@ -7,6 +8,7 @@ from unittest.mock import patch
 from werkzeug.datastructures import MultiDict
 
 from app import db
+from app.models import Item
 from tests.factories import (
     CategoryFactory,
     CircleFactory,
@@ -371,6 +373,72 @@ class TestApiItemMutations:
             "https://example.com/items/one.jpg",
             "https://example.com/items/two.jpg",
         ]
+
+    def test_create_item_with_creation_token_is_idempotent(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            access_token = login_api_user(client, owner.email)
+            category_id = category.id
+            owner_id = owner.id
+        body = _item_payload(category_id, creation_token=str(uuid.uuid4()))
+
+        first = client.post("/api/v1/items", headers=auth_headers(access_token), json=body)
+        replay = client.post("/api/v1/items", headers=auth_headers(access_token), json=body)
+
+        assert first.status_code == 201
+        assert replay.status_code == 200
+        assert replay.get_json()["item"]["id"] == first.get_json()["item"]["id"]
+        assert set(replay.get_json()) == {"item", "viewer"}
+        with app.app_context():
+            assert Item.query.filter_by(owner_id=owner_id).count() == 1
+
+    def test_create_item_rejects_unknown_category(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            access_token = login_api_user(client, owner.email)
+
+        response = client.post(
+            "/api/v1/items",
+            headers=auth_headers(access_token),
+            json=_item_payload(uuid.uuid4()),
+        )
+
+        assert response.status_code == 422
+        assert response.get_json()["error"]["details"] == {"category_id": ["Choose a category."]}
+
+    def test_update_item_rejects_unknown_category(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            item = ItemFactory(owner=owner, category=CategoryFactory())
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            json=_item_payload(uuid.uuid4()),
+        )
+
+        assert response.status_code == 422
+        assert response.get_json()["error"]["details"] == {"category_id": ["Choose a category."]}
+
+    def test_update_item_rejects_creation_token(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = category.id
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            json=_item_payload(category_id, creation_token=str(uuid.uuid4())),
+        )
+
+        assert response.status_code == 422
 
     def test_create_item_rejects_public_giveaway_for_non_geocoded_owner(self, client, app):
         with app.app_context():
@@ -871,6 +939,246 @@ class TestApiItemMutations:
 
         assert response.status_code == 403
         assert response.get_json()["error"]["code"] == "FORBIDDEN"
+
+    @patch("app.services.item_service.delete_item_images")
+    @patch(
+        "app.services.item_service.upload_item_images",
+        return_value=[
+            "https://example.com/items/new-zero.jpg",
+            "https://example.com/items/new-one.jpg",
+        ],
+    )
+    def test_update_item_multipart_deletes_uploads_and_reorders_images(
+        self, mock_upload, mock_delete_images, client, app
+    ):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, name="Old name")
+            image_a = ItemImageFactory(item=item, position=0)
+            image_b = ItemImageFactory(item=item, position=1)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = str(category.id)
+            image_a_id = str(image_a.id)
+            image_a_url = image_a.url
+            image_b_id = str(image_b.id)
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            data=MultiDict(
+                [
+                    ("name", "New name"),
+                    ("description", "New description"),
+                    ("category_id", category_id),
+                    ("tags", "garden"),
+                    ("is_giveaway", "false"),
+                    ("delete_image_ids", image_a_id),
+                    ("image_order", image_b_id),
+                    ("image_order", "new-1"),
+                    ("image_order", "new-0"),
+                    ("images", (BytesIO(b"file-zero"), "zero.jpg")),
+                    ("images", (BytesIO(b"file-one"), "one.jpg")),
+                ]
+            ),
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert set(payload) == {"item", "viewer"}
+        assert payload["item"]["name"] == "New name"
+        assert payload["item"]["description"] == "New description"
+        assert [tag["name"] for tag in payload["item"]["tags"]] == ["garden"]
+        images = payload["item"]["images"]
+        assert images[0]["id"] == image_b_id
+        # Each "new-N" consumes the next upload, so new images keep upload order.
+        assert [image["url"] for image in images[1:]] == [
+            "https://example.com/items/new-zero.jpg",
+            "https://example.com/items/new-one.jpg",
+        ]
+        assert [image["position"] for image in images] == [0, 1, 2]
+        assert image_a_id not in {image["id"] for image in images}
+        assert len(mock_upload.call_args.args[0]) == 2
+        mock_delete_images.assert_called_once_with([image_a_url])
+
+    @patch("app.services.item_service.upload_item_images")
+    def test_update_item_rejects_images_over_capacity(self, mock_upload, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, name="Old name")
+            image_ids = [ItemImageFactory(item=item, position=pos).id for pos in range(7)]
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = str(category.id)
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            data=MultiDict(
+                [
+                    ("name", "New name"),
+                    ("category_id", category_id),
+                    ("is_giveaway", "false"),
+                    ("images", (BytesIO(b"file-eight"), "eight.jpg")),
+                    ("images", (BytesIO(b"file-nine"), "nine.jpg")),
+                ]
+            ),
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 400
+        error = response.get_json()["error"]
+        assert error["code"] == "BAD_REQUEST"
+        assert error["message"].startswith("Maximum 8 images per item.")
+        mock_upload.assert_not_called()
+
+        with app.app_context():
+            refreshed_item = db.session.get(type(item), item_id)
+            assert refreshed_item.name == "Old name"
+            assert [image.id for image in refreshed_item.images] == image_ids
+
+    @patch("app.services.item_service.upload_item_images", side_effect=ValueError("upload failed"))
+    def test_update_item_upload_failure_leaves_item_unchanged(self, _mock_upload, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, name="Old name")
+            existing_image = ItemImageFactory(item=item, position=0)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = str(category.id)
+            existing_image_id = str(existing_image.id)
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            data=MultiDict(
+                [
+                    ("name", "New name"),
+                    ("category_id", category_id),
+                    ("is_giveaway", "false"),
+                    ("delete_image_ids", existing_image_id),
+                    ("images", (BytesIO(b"file"), "photo.jpg")),
+                ]
+            ),
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 400
+        error = response.get_json()["error"]
+        assert error["code"] == "BAD_REQUEST"
+        assert error["message"] == "One or more image uploads failed."
+
+        detail = client.get(f"/api/v1/items/{item_id}", headers=auth_headers(access_token))
+        detail_item = detail.get_json()["item"]
+        assert detail_item["name"] == "Old name"
+        assert [image["id"] for image in detail_item["images"]] == [existing_image_id]
+
+    @patch("app.services.item_service.upload_item_images")
+    def test_update_item_json_without_image_fields_keeps_images(self, mock_upload, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category)
+            first_image = ItemImageFactory(item=item, position=0)
+            second_image = ItemImageFactory(item=item, position=1)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = category.id
+            image_ids = [str(first_image.id), str(second_image.id)]
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            json=_item_payload(category_id, name="Renamed", tags=["garden"]),
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["item"]["name"] == "Renamed"
+        assert [tag["name"] for tag in payload["item"]["tags"]] == ["garden"]
+        assert [image["id"] for image in payload["item"]["images"]] == image_ids
+        mock_upload.assert_not_called()
+
+    def test_update_item_json_accepts_image_order_array(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category)
+            first_image = ItemImageFactory(item=item, position=0)
+            second_image = ItemImageFactory(item=item, position=1)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = category.id
+            first_image_id = str(first_image.id)
+            second_image_id = str(second_image.id)
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            json=_item_payload(
+                category_id,
+                image_order=[second_image_id.upper(), first_image_id],
+            ),
+        )
+
+        assert response.status_code == 200
+        assert [image["id"] for image in response.get_json()["item"]["images"]] == [
+            second_image_id,
+            first_image_id,
+        ]
+
+    def test_update_item_rejects_invalid_image_order_entry(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = category.id
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            json=_item_payload(category_id, image_order=["new-0", "first"]),
+        )
+
+        assert response.status_code == 422
+        error = response.get_json()["error"]
+        assert error["code"] == "VALIDATION_ERROR"
+        assert "image_order" in error["details"]
+
+    @patch("app.services.item_service.upload_item_images")
+    def test_non_owner_cannot_update_item_with_images(self, mock_upload, client, app):
+        with app.app_context():
+            owner = UserFactory()
+            non_owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category)
+            access_token = login_api_user(client, non_owner.email)
+            item_id = item.id
+            category_id = str(category.id)
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            data=MultiDict(
+                [
+                    ("name", "Taken over"),
+                    ("category_id", category_id),
+                    ("is_giveaway", "false"),
+                    ("images", (BytesIO(b"file"), "photo.jpg")),
+                ]
+            ),
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 403
+        assert response.get_json()["error"]["code"] == "FORBIDDEN"
+        mock_upload.assert_not_called()
 
 
 class TestApiMyItems:
