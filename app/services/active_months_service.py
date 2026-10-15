@@ -22,7 +22,7 @@ from app.models import (
 )
 
 ACTIVE_MONTHS_START = datetime(2026, 4, 1, tzinfo=UTC)
-MEET_MEUTCH_POST_URL = "https://samfirke.com/2026/05/12/meet-meutch/"
+MEET_MEUTCH_POST_URL = "https://samfirke.com/2026/05/12/meet-meutch/#charity"
 
 
 @dataclass
