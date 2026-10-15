@@ -6,6 +6,7 @@ from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db
+from app.auth.decorators import login_required_or_public_preview
 from app.forms import EmptyForm, ItemRequestForm, MessageForm
 from app.models import Item, ItemRequest
 from app.requests import bp as requests_bp
@@ -21,6 +22,7 @@ from app.utils.messaging_queries import (
     find_context_conversation,
 )
 from app.utils.profile_visibility import can_view_profile
+from app.utils.public_preview import is_public_request
 from app.utils.request_queries import can_view_request, describe_seeking_mismatch
 
 
@@ -106,7 +108,7 @@ def edit(request_id):
 
 
 @requests_bp.route("/<uuid:request_id>/detail")
-@login_required
+@login_required_or_public_preview(ItemRequest, is_public_request, "share.request_preview")
 def detail(request_id):
     """View a single request in detail."""
     item_request = db.session.get(ItemRequest, request_id)

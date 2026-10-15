@@ -1,6 +1,7 @@
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
+from app.auth.decorators import login_required_or_public_preview
 from app.circles import bp as circles_bp
 from app.forms import (
     CircleCreateForm,
@@ -24,6 +25,7 @@ from app.utils.circle_queries import (
     should_show_circle_members,
 )
 from app.utils.pagination import ListPagination
+from app.utils.public_preview import is_searchable_circle
 
 # Circles -----------------------------------------------------
 
@@ -173,7 +175,7 @@ def manage_circles():
 
 
 @circles_bp.route("/<uuid:circle_id>", methods=["GET"])
-@login_required
+@login_required_or_public_preview(Circle, is_searchable_circle, "share.circle_preview")
 def view_circle(circle_id):
     circle = db.get_or_404(Circle, circle_id)
     is_member = circle.has_member(current_user)
