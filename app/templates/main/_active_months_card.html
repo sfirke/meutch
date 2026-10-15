@@ -1,7 +1,6 @@
 {# Expects active_months and is_self. #}
 {% if is_self or active_months.months_counted %}
 <p class="small mb-3">
-    <i class="fas fa-hand-holding-heart text-success me-1" aria-hidden="true"></i>
     {% if active_months.months_counted %}
         Helped raise <strong class="text-success">${{ active_months.months_counted }}</strong> for Washtenaw County charities
     {% else %}
