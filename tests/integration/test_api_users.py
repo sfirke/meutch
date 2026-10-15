@@ -10,6 +10,7 @@ from tests.factories import (
     CircleJoinRequestFactory,
     ConversationFactory,
     ConversationParticipantFactory,
+    ItemFactory,
     UserFactory,
     UserWebLinkFactory,
 )
@@ -24,6 +25,7 @@ USER_KEYS = {
     "profile_image_url",
     "about_me",
     "web_links",
+    "member_since",
 }
 
 
@@ -77,7 +79,7 @@ class TestApiUserProfile:
         assert payload["shared_circles"] == []
         assert payload["user"]["id"] == user_id
         assert payload["user"]["about_me"] == "Hello there."
-        assert set(payload) == {"user", "shared_circles", "access_reason"}
+        assert set(payload) == {"user", "shared_circles", "access_reason", "active_months"}
         assert set(payload["user"]) == USER_KEYS
 
     def test_circle_member_sees_profile_and_shared_circles(self, client, app):
@@ -230,3 +232,25 @@ class TestApiUserProfile:
             "https://example.com/second",
             "https://example.com/third",
         ]
+
+    def test_includes_member_since_and_active_months(self, client, app):
+        with app.app_context():
+            viewer = UserFactory()
+            target = UserFactory(created_at=datetime(2026, 5, 4, tzinfo=UTC))
+            circle = CircleFactory()
+            circle.members.append(viewer)
+            circle.members.append(target)
+            ItemFactory(owner=target, created_at=datetime.now(UTC))
+            db.session.commit()
+            target_id = str(target.id)
+            token = login_api_user(client, viewer.email)
+
+        payload = _get_profile(client, token, target_id).get_json()
+
+        assert payload["user"]["member_since"].startswith("2026-05-04")
+        assert payload["active_months"] == {
+            "months_counted": 0,
+            "active_this_month": True,
+            "current_month": datetime.now(UTC).strftime("%Y-%m-01"),
+            "in_shared_circle": True,
+        }

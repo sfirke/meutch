@@ -5,148 +5,27 @@ from datetime import UTC, datetime, timedelta
 
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
-from sqlalchemy import and_, false, func, select, true, union_all
+from sqlalchemy import false, func
 from sqlalchemy.orm import joinedload
 
 from app import db
 from app.admin import bp
 from app.auth.decorators import admin_required
 from app.forms import EmptyForm
-from app.models import (
-    ActivityLog,
-    AdminAction,
-    Conversation,
-    GiveawayInterest,
-    Item,
-    ItemRequest,
-    LoanRequest,
-    Message,
-    User,
-    circle_members,
-)
-from app.services import account_service
+from app.models import ActivityLog, AdminAction, Item, User
+from app.services import account_service, active_months_service
 from app.utils.activity_log import oldest_entry_at
 
 logger = logging.getLogger(__name__)
 
 
-def _next_month(month_start):
-    """Return the first day of the next month."""
-    if month_start.month == 12:
-        return month_start.replace(year=month_start.year + 1, month=1)
-    return month_start.replace(month=month_start.month + 1)
-
-
 def _monthly_active_users_series():
     """Build monthly active user counts beginning January 2026."""
-    # Pylint does not understand SQLAlchemy's dynamic func.* helpers and
-    # incorrectly flags calls like func.count(...) as not-callable.
-    # pylint: disable=not-callable
     first_month = datetime(2026, 1, 1, tzinfo=UTC)
-    current_month = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    end_month = _next_month(current_month)
-
-    eligible_circle_ids = (
-        select(circle_members.c.circle_id.label("circle_id"))
-        .group_by(circle_members.c.circle_id)
-        .having(func.count(circle_members.c.user_id) >= 2)
-        .subquery()
+    current_month = active_months_service.month_start(datetime.now(UTC))
+    counts_by_month = active_months_service.monthly_active_user_counts(
+        first_month, active_months_service.next_month(current_month)
     )
-
-    eligible_users = (
-        select(
-            circle_members.c.user_id.label("user_id"),
-            func.min(circle_members.c.joined_at).label("eligible_from"),
-        )
-        .join(
-            eligible_circle_ids,
-            eligible_circle_ids.c.circle_id == circle_members.c.circle_id,
-        )
-        .group_by(circle_members.c.user_id)
-        .subquery()
-    )
-
-    activity = union_all(
-        select(
-            ItemRequest.user_id.label("user_id"),
-            ItemRequest.created_at.label("event_at"),
-        ),
-        select(
-            Item.owner_id.label("user_id"),
-            Item.created_at.label("event_at"),
-        ),
-        select(
-            LoanRequest.borrower_id.label("user_id"),
-            LoanRequest.created_at.label("event_at"),
-        ),
-        select(
-            Message.sender_id.label("user_id"),
-            Message.timestamp.label("event_at"),
-        )
-        .join(LoanRequest, Message.loan_request_id == LoanRequest.id)
-        .join(Item, LoanRequest.item_id == Item.id)
-        .where(Message.sender_id == Item.owner_id),
-        select(
-            Message.sender_id.label("user_id"),
-            Message.timestamp.label("event_at"),
-        )
-        .join(Conversation, Message.conversation_id == Conversation.id)
-        .join(
-            ItemRequest,
-            and_(
-                Conversation.context_type == "request",
-                Conversation.context_id == ItemRequest.id,
-            ),
-        )
-        .where(Message.sender_id != ItemRequest.user_id),
-        select(
-            Message.sender_id.label("user_id"),
-            Message.timestamp.label("event_at"),
-        )
-        .join(Conversation, Message.conversation_id == Conversation.id)
-        .join(
-            Item,
-            and_(
-                Conversation.context_type == "item",
-                Conversation.context_id == Item.id,
-            ),
-        )
-        .where(
-            Item.is_giveaway.is_(true()),
-            Message.sender_id != Item.owner_id,
-        ),
-        select(
-            GiveawayInterest.user_id.label("user_id"),
-            GiveawayInterest.created_at.label("event_at"),
-        )
-        .join(Item, GiveawayInterest.item_id == Item.id)
-        .where(
-            Item.is_giveaway.is_(true()),
-            GiveawayInterest.user_id != Item.owner_id,
-        ),
-    ).subquery()
-
-    month_start = func.date_trunc("month", activity.c.event_at)
-    monthly_rows = db.session.execute(
-        select(
-            month_start.label("month_start"),
-            func.count(func.distinct(activity.c.user_id)).label("active_users"),
-        )
-        .join(eligible_users, eligible_users.c.user_id == activity.c.user_id)
-        .join(User, User.id == activity.c.user_id)
-        .where(
-            User.is_deleted.is_(false()),
-            activity.c.event_at >= first_month,
-            activity.c.event_at < end_month,
-            activity.c.event_at >= eligible_users.c.eligible_from,
-        )
-        .group_by(month_start)
-        .order_by(month_start)
-    ).all()
-
-    counts_by_month = {
-        (row.month_start.year, row.month_start.month): row.active_users for row in monthly_rows
-    }
 
     series = []
     month_cursor = first_month
@@ -158,7 +37,7 @@ def _monthly_active_users_series():
                 "count": counts_by_month.get((month_cursor.year, month_cursor.month), 0),
             }
         )
-        month_cursor = _next_month(month_cursor)
+        month_cursor = active_months_service.next_month(month_cursor)
 
     return series
 

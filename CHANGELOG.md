@@ -5,6 +5,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ## October 2026
 
 ### Features
+**Major**:
+- Profiles now show how much you've helped raise for charity. Sam gives $1 to a local charity for every person active on Meutch each month, and your profile shows your running total, whether you've been counted yet this month, and what it takes to be counted. If you're not in a circle with anyone else, your profile reminds you that joining one is what gets you counted. Profiles also show the month and year each person joined Meutch ([#TBD](https://github.com/sfirke/meutch/pull/TBD)).
+
 **Minor**:
 - Community Activity keeps showing a "lent out" entry after the item has been returned, for 30 days from when the loan was requested. Before, it disappeared as soon as the loan was marked returned ([#544](https://github.com/sfirke/meutch/pull/544)).
 - The profile page is easier to get around. The "My Activity" tab is now called "Loans & Requests", matching the menu, and its count badge is gone. On My Items, your lending items come before past giveaways, which are tucked into one line you can click to open. Empty lists now have a button to list an item or create a request ([#547](https://github.com/sfirke/meutch/pull/547)).

@@ -9,6 +9,7 @@ from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import read_limit
 from app.api.v1.schemas.user_profiles import PublicUserProfileResponseSchema
 from app.models import User
+from app.services import active_months_service
 from app.utils.profile_visibility import PROFILE_ACCESS_SELF, profile_access_reason
 
 PUBLIC_USER_PROFILE_RESPONSE_SCHEMA = PublicUserProfileResponseSchema()
@@ -28,5 +29,10 @@ def get_user_profile(user_id):
         [] if access_reason == PROFILE_ACCESS_SELF else current_user.shared_circles_with(user)
     )
     return PUBLIC_USER_PROFILE_RESPONSE_SCHEMA.dump(
-        {"user": user, "shared_circles": shared_circles, "access_reason": access_reason}
+        {
+            "user": user,
+            "shared_circles": shared_circles,
+            "access_reason": access_reason,
+            "active_months": active_months_service.user_active_months(user),
+        }
     )
