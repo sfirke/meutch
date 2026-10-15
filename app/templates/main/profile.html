@@ -475,8 +475,8 @@
                     </div>
                     <div class="col-md-8">
                         <h3 class="fw-bold mb-1">{{ current_user.full_name }}</h3>
-                        <p class="text-muted small mb-3">Member since {{ current_user.created_at.strftime('%B %Y') }}</p>
-                        {% with profile_user=current_user, is_self=true %}
+                        <p class="text-muted small mb-1">Member since {{ current_user.created_at.strftime('%B %Y') }}</p>
+                        {% with is_self=true %}
                             {% include 'main/_active_months_card.html' %}
                         {% endwith %}
                         <h6 class="text-uppercase text-muted small fw-semibold mb-2">About Me</h6>

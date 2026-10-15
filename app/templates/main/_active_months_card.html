@@ -1,42 +1,32 @@
-{# Expects profile_user, active_months, and is_self. #}
-<div class="card border-success mb-3">
-    <div class="card-body">
-        <div class="d-flex align-items-center mb-2">
-            <i class="fas fa-hand-holding-heart fa-2x text-success me-3" aria-hidden="true"></i>
-            <div>
-                {% if active_months.months_counted %}
-                    <div class="small text-muted">{% if is_self %}You've{% else %}{{ profile_user.first_name }} has{% endif %} helped raise</div>
-                    <div class="fs-4 fw-bold text-success lh-sm">${{ active_months.months_counted }} for Washtenaw County charities</div>
-                {% else %}
-                    <div class="fs-5 fw-bold lh-sm">Not counted in any month yet</div>
-                {% endif %}
-            </div>
+{# Expects active_months and is_self. #}
+{% if is_self or active_months.months_counted %}
+<p class="small mb-3">
+    <i class="fas fa-hand-holding-heart text-success me-1" aria-hidden="true"></i>
+    {% if active_months.months_counted %}
+        Helped raise <strong class="text-success">${{ active_months.months_counted }}</strong> for Washtenaw County charities
+    {% else %}
+        Not counted in any month yet
+    {% endif %}
+    {% if active_months.active_this_month %}
+        &middot;
+        <span class="text-success"><i class="fas fa-check" aria-hidden="true"></i> Counted for {{ active_months.current_month.strftime('%B') }}</span>
+    {% elif is_self and not active_months.in_shared_circle %}
+        &middot; <a href="{{ url_for('circles.manage_circles') }}">Join a circle</a> to count
+    {% elif active_months.months_counted %}
+        &middot; <span class="text-muted">Not counted yet for {{ active_months.current_month.strftime('%B') }}</span>
+    {% endif %}
+    <button type="button" class="btn btn-link btn-sm p-0 ms-1 align-baseline text-muted" data-info-popover="active-months-info" aria-label="How this works">
+        <i class="fas fa-info-circle" aria-hidden="true"></i>
+    </button>
+</p>
+<template id="active-months-info">
+    Sam (Meutch's creator) donates $1 to a local charity for every person who's active on Meutch each month, up to $500 a month.
+    To be counted in a month, be in a circle and list or borrow an item, post a request, or respond to a request or giveaway.
+    <a href="{{ meet_meutch_post_url }}" target="_blank" rel="noopener noreferrer">Read more</a>
+    {% if is_self and active_months.in_shared_circle and not active_months.active_this_month %}
+        <div class="mt-2">
+            <a href="{{ url_for('main.list_item') }}">List an item</a> or <a href="{{ url_for('requests.new') }}">post a request</a> to count for {{ active_months.current_month.strftime('%B') }}.
         </div>
-
-        {% if is_self and not active_months.in_shared_circle %}
-            <div class="alert alert-warning small py-2 mb-2">
-                You aren't being counted because you're not in a circle with anyone else.
-                <a href="{{ url_for('circles.manage_circles') }}" class="alert-link">Join or start a circle</a> to count.
-            </div>
-        {% endif %}
-
-        <p class="mb-2">
-            {% if active_months.active_this_month %}
-                <span class="badge text-bg-success"><i class="fas fa-check me-1"></i>Counted for {{ active_months.current_month.strftime('%B') }}</span>
-            {% else %}
-                <span class="badge text-bg-light border">Not counted yet for {{ active_months.current_month.strftime('%B') }}</span>
-                {% if is_self and active_months.in_shared_circle %}
-                    <span class="small ms-1">
-                        <a href="{{ url_for('main.list_item') }}">List an item</a> or <a href="{{ url_for('requests.new') }}">post a request</a> to count.
-                    </span>
-                {% endif %}
-            {% endif %}
-        </p>
-
-        <p class="small text-muted mb-0">
-            Sam, who made Meutch, gives $1 to a local charity for every person who's active on Meutch each month, up to $500 a month.
-            To be counted in a month, be in a circle with at least one other person, and do one of these: list an item, post a request, ask to borrow something, or reply to someone's request or giveaway.
-            <a href="{{ meet_meutch_post_url }}" target="_blank" rel="noopener noreferrer">Read more</a>
-        </p>
-    </div>
-</div>
+    {% endif %}
+</template>
+{% endif %}

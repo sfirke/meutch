@@ -182,7 +182,7 @@ def user_active_months(user):
     ).scalar()
 
     return ActiveMonthsSummary(
-        months_counted=len(months - {current_key}),
+        months_counted=len(months),
         active_this_month=current_key in months,
         current_month=current_month.date(),
         in_shared_circle=in_shared_circle,

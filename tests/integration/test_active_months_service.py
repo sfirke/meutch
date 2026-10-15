@@ -24,7 +24,7 @@ def _user_in_shared_circle(joined_at=datetime(2026, 1, 1, tzinfo=UTC)):
     return user
 
 
-def test_counts_finished_months_and_flags_current_month(db_session):
+def test_counts_months_including_current_one(db_session):
     user = _user_in_shared_circle()
     ItemFactory(owner=user, created_at=datetime(2026, 4, 3, tzinfo=UTC))
     ItemFactory(owner=user, created_at=datetime(2026, 4, 20, tzinfo=UTC))
@@ -34,7 +34,7 @@ def test_counts_finished_months_and_flags_current_month(db_session):
 
     summary = user_active_months(user)
 
-    assert summary.months_counted == 2
+    assert summary.months_counted == 3
     assert summary.active_this_month is True
     assert summary.current_month == month_start(datetime.now(UTC)).date()
     assert summary.in_shared_circle is True

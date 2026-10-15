@@ -249,7 +249,7 @@ class TestApiUserProfile:
 
         assert payload["user"]["member_since"].startswith("2026-05-04")
         assert payload["active_months"] == {
-            "months_counted": 0,
+            "months_counted": 1,
             "active_this_month": True,
             "current_month": datetime.now(UTC).strftime("%Y-%m-01"),
             "in_shared_circle": True,
