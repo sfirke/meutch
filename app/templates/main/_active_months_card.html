@@ -1,0 +1,31 @@
+{# Expects active_months and is_self. #}
+{% if is_self or active_months.months_counted %}
+<p class="small mb-3">
+    {% if active_months.months_counted %}
+        <strong class="text-success">${{ active_months.months_counted }}</strong> raised for Washtenaw County charities
+    {% else %}
+        Not counted in any month yet
+    {% endif %}
+    {% if active_months.active_this_month %}
+        &middot;
+        <span class="text-success"><i class="fas fa-check" aria-hidden="true"></i> Counted for {{ active_months.current_month.strftime('%B') }}</span>
+    {% elif is_self and not active_months.in_shared_circle %}
+        &middot; <a href="{{ url_for('circles.manage_circles') }}">Join a circle</a> to count
+    {% elif active_months.months_counted %}
+        &middot; <span class="text-muted">Not counted yet for {{ active_months.current_month.strftime('%B') }}</span>
+    {% endif %}
+    <button type="button" class="btn btn-link btn-sm p-0 ms-1 align-baseline text-muted" data-info-popover="active-months-info" aria-label="How this works">
+        <i class="fas fa-info-circle" aria-hidden="true"></i>
+    </button>
+</p>
+<template id="active-months-info">
+    Sam (Meutch's creator) donates $1 to a local charity for every person who's active on Meutch each month, up to $500 a month.
+    To be counted in a month, be in a circle and list or borrow an item, post a request, or respond to a request or giveaway.
+    <a href="{{ meet_meutch_post_url }}" target="_blank" rel="noopener noreferrer">Read more</a>
+    {% if is_self and active_months.in_shared_circle and not active_months.active_this_month %}
+        <div class="mt-2">
+            <a href="{{ url_for('main.list_item') }}">List an item</a> or <a href="{{ url_for('requests.new') }}">post a request</a> to count for {{ active_months.current_month.strftime('%B') }}.
+        </div>
+    {% endif %}
+</template>
+{% endif %}

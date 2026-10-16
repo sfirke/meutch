@@ -16,6 +16,7 @@ from app.main import bp as main_bp
 from app.models import Item, User, UserWebLink
 from app.services import (
     account_service,
+    active_months_service,
     item_service,
     location_service,
     profile_service,
@@ -179,6 +180,8 @@ def profile():
         past_requests=past_requests,
         fulfill_form=fulfill_form,
         delete_form=delete_form,
+        active_months=active_months_service.user_active_months(current_user),
+        meet_meutch_post_url=active_months_service.MEET_MEUTCH_POST_URL,
     )
 
 
@@ -432,6 +435,8 @@ def user_profile(user_id):
         access_via_conversation=access_reason == PROFILE_ACCESS_CONVERSATION,
         access_via_join_request=access_reason == PROFILE_ACCESS_JOIN_REQUEST,
         shared_circles=shared_circles,
+        active_months=active_months_service.user_active_months(user),
+        meet_meutch_post_url=active_months_service.MEET_MEUTCH_POST_URL,
     )
 
 

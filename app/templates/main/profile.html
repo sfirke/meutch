@@ -474,7 +474,11 @@
                         <img src="{{ current_user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
                     </div>
                     <div class="col-md-8">
-                        <h3 class="fw-bold mb-3">{{ current_user.full_name }}</h3>
+                        <h3 class="fw-bold mb-1">{{ current_user.full_name }}</h3>
+                        <p class="text-muted small mb-1">Member since {{ current_user.created_at.strftime('%B %Y') }}</p>
+                        {% with is_self=true %}
+                            {% include 'main/_active_months_card.html' %}
+                        {% endwith %}
                         <h6 class="text-uppercase text-muted small fw-semibold mb-2">About Me</h6>
                         {% if current_user.about_me %}
                             <p>{{ current_user.about_me|linkify }}</p>
