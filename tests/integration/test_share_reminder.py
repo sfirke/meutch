@@ -62,7 +62,7 @@ class TestShareReminderAfterCreation:
             assert FLASH_MARKER in response.data
             expected_url = _external_url(app, "share.giveaway_preview", item_id=item.id)
             assert f'data-share-url="{expected_url}"'.encode() in response.data
-            assert b"Because Meutch is still growing" in response.data
+            assert b"so it finds a new home faster" in response.data
 
             # Shown only once
             followup = client.get("/")
@@ -168,6 +168,7 @@ class TestShareReminderAfterCreation:
             assert b"Your request has been posted!" in response.data
             req = ItemRequest.query.filter_by(title="Need a ladder").one()
             assert FLASH_MARKER in response.data
+            assert b"so you find what you need sooner" in response.data
             expected_url = _external_url(app, "share.request_preview", request_id=req.id)
             assert f'data-share-url="{expected_url}"'.encode() in response.data
 
