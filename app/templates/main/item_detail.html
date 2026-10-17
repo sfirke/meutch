@@ -77,12 +77,16 @@
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <h1 class="card-title h2 mb-0">{{ item.name }}</h1>
                             {% if item.is_giveaway and item.giveaway_visibility == 'public' %}
-                                {% set share_url = url_for('share.giveaway_preview', item_id=item.id, _external=True) %}
-                                {% set share_title = item.name + ' (Free Giveaway)' %}
-                                {% set share_text = 'Free giveaway on Meutch: ' + item.name %}
+                                {% set share_url, share_title, share_text = giveaway_share_fields(item) %}
                                 {% include 'share/_share_button.html' %}
                             {% endif %}
                         </div>
+                        {% if item.is_giveaway and item.giveaway_visibility == 'public' and item.claim_status == 'unclaimed'
+                              and current_user.is_authenticated and current_user.id == item.owner_id %}
+                            {% set activity_noun = 'giveaway' %}
+                            {% set share_reminder_hint = true %}
+                            {% include 'share/_share_reminder.html' %}
+                        {% endif %}
 
                         {% if item.description %}
                             <p class="card-text lead text-muted mb-4">{{ item.description|linkify }}</p>

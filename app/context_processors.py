@@ -7,6 +7,7 @@ from flask import current_app, url_for
 from flask_login import current_user
 
 from app.utils.geocoding import format_distance
+from app.utils.share_reminder import giveaway_share_fields, request_share_fields
 from app.utils.storage import (
     ITEM_IMAGE_MAX_HEIGHT,
     ITEM_IMAGE_MAX_WIDTH,
@@ -169,3 +170,10 @@ def inject_item_upload_limits():
             "compression_quality": ITEM_IMAGE_QUALITY / 100,
         }
     }
+
+
+def inject_share_fields():
+    return dict(
+        giveaway_share_fields=giveaway_share_fields,
+        request_share_fields=request_share_fields,
+    )
