@@ -307,3 +307,48 @@ class TestShareReminderDetailHint:
                 response = client.get(f"/requests/{req.id}/detail")
                 assert response.status_code == 200
                 assert HINT_MARKER not in response.data
+
+
+class TestShareFieldsConsistency:
+    """The flash reminder and the detail page share the same title and text."""
+
+    def test_giveaway_flash_and_detail_share_fields_match(self, client, app, auth_user):
+        with app.app_context():
+            user = auth_user()
+            category = CategoryFactory()
+            login_user(client, user.email)
+
+            flash_response = client.post(
+                "/list-item",
+                data=_giveaway_data(category, "Matching Lamp", "public"),
+                follow_redirects=True,
+            )
+            item = Item.query.filter_by(name="Matching Lamp").one()
+            detail_response = client.get(f"/item/{item.id}")
+
+            for attr in (
+                b'data-share-title="Matching Lamp (Free Giveaway)"',
+                b'data-share-text="Free giveaway on Meutch: Matching Lamp"',
+            ):
+                assert attr in flash_response.data
+                assert attr in detail_response.data
+
+    def test_request_flash_and_detail_share_fields_match(self, client, app, auth_user):
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+
+            flash_response = client.post(
+                "/requests/new",
+                data=_request_data("Matching ladder", "public"),
+                follow_redirects=True,
+            )
+            req = ItemRequest.query.filter_by(title="Matching ladder").one()
+            detail_response = client.get(f"/requests/{req.id}/detail")
+
+            for attr in (
+                b'data-share-title="Matching ladder (Request)"',
+                b'data-share-text="Request on Meutch: Matching ladder"',
+            ):
+                assert attr in flash_response.data
+                assert attr in detail_response.data

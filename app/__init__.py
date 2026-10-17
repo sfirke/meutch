@@ -17,6 +17,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from app.context_processors import (
     inject_distance_utils,
     inject_item_upload_limits,
+    inject_share_fields,
     inject_static_url_for,
     inject_total_pending,
     inject_unread_messages_count,
@@ -147,6 +148,7 @@ def create_app(config_class=None):
     app.context_processor(inject_distance_utils)
     app.context_processor(inject_static_url_for)
     app.context_processor(inject_item_upload_limits)
+    app.context_processor(inject_share_fields)
 
     # Register custom Jinja filters
     from app.template_filters import register_filters
