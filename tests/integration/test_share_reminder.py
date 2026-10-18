@@ -61,7 +61,7 @@ class TestShareReminderAfterCreation:
             expected_url = _external_url(app, "share.giveaway_preview", item_id=item.id)
             assert f'data-share-url="{expected_url}"'.encode() in response.data
             assert b"so it finds a new home faster" in response.data
-            assert b"posted! Want more people to see it?" in response.data
+            assert b"posted! Consider posting the share link" in response.data
             assert b"has been listed successfully!" not in response.data
 
             # Shown only once
@@ -165,7 +165,7 @@ class TestShareReminderAfterCreation:
             )
 
             assert response.status_code == 200
-            assert b"Request posted! Want more people to see it?" in response.data
+            assert b"Request posted! Consider posting the share link" in response.data
             assert b"Your request has been posted!" not in response.data
             req = ItemRequest.query.filter_by(title="Need a ladder").one()
             assert FLASH_MARKER in response.data
