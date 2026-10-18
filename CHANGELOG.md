@@ -6,7 +6,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Minor**:
-- When users create a public giveaway or request, they are prompted to share it outside of Meutch. While the giveaway or request remains open, its page also shows a short reminder to use the share link ([#571](https://github.com/sfirke/meutch/pull/571)).
+- When users create a public giveaway or request, they are prompted to share it outside of Meutch ([#571](https://github.com/sfirke/meutch/pull/571)).
 - Community Activity keeps showing a "lent out" entry after the item has been returned, for 30 days from when the loan was requested. Before, it disappeared as soon as the loan was marked returned ([#544](https://github.com/sfirke/meutch/pull/544)).
 - The profile page is easier to get around. The "My Activity" tab is now called "Loans & Requests", matching the menu, and its count badge is gone. On My Items, your lending items come before past giveaways, which are tucked into one line you can click to open. Empty lists now have a button to list an item or create a request ([#547](https://github.com/sfirke/meutch/pull/547)).
 - Community Activity shows giveaways that have been given away again, for 7 days after the handoff, so the feed better reflects how much is happening. They appear as a small one-line entry ("Jane gave away Kids bike") rather than a full card, and the "Show given-away giveaways" filter still turns them off ([#537](https://github.com/sfirke/meutch/pull/537)).

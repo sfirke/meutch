@@ -81,12 +81,6 @@
                                 {% include 'share/_share_button.html' %}
                             {% endif %}
                         </div>
-                        {% if item.is_giveaway and item.giveaway_visibility == 'public' and item.claim_status == 'unclaimed'
-                              and current_user.is_authenticated and current_user.id == item.owner_id %}
-                            {% set activity_noun = 'giveaway' %}
-                            {% set share_reminder_hint = true %}
-                            {% include 'share/_share_reminder.html' %}
-                        {% endif %}
 
                         {% if item.description %}
                             <p class="card-text lead text-muted mb-4">{{ item.description|linkify }}</p>

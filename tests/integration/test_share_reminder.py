@@ -1,17 +1,15 @@
 """Integration tests for the reminder to share public giveaways and requests outside Meutch."""
 
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 
 from flask import url_for
 
-from app import db
 from app.models import Item, ItemRequest
 from conftest import login_user
-from tests.factories import CategoryFactory, CircleFactory, ItemFactory, ItemRequestFactory
+from tests.factories import CategoryFactory
 
 FLASH_MARKER = b'class="share-reminder '
-HINT_MARKER = b"share-reminder-hint"
 
 
 def _external_url(app, endpoint, **values):
@@ -63,6 +61,8 @@ class TestShareReminderAfterCreation:
             expected_url = _external_url(app, "share.giveaway_preview", item_id=item.id)
             assert f'data-share-url="{expected_url}"'.encode() in response.data
             assert b"so it finds a new home faster" in response.data
+            assert b"posted! Want more people to see it?" in response.data
+            assert b"has been listed successfully!" not in response.data
 
             # Shown only once
             followup = client.get("/")
@@ -165,7 +165,8 @@ class TestShareReminderAfterCreation:
             )
 
             assert response.status_code == 200
-            assert b"Your request has been posted!" in response.data
+            assert b"Request posted! Want more people to see it?" in response.data
+            assert b"Your request has been posted!" not in response.data
             req = ItemRequest.query.filter_by(title="Need a ladder").one()
             assert FLASH_MARKER in response.data
             assert b"so you find what you need sooner" in response.data
@@ -185,129 +186,6 @@ class TestShareReminderAfterCreation:
 
             assert b"Your request has been posted!" in response.data
             assert FLASH_MARKER not in response.data
-
-
-class TestShareReminderDetailHint:
-    """The owner-only hint on detail pages for open public listings."""
-
-    def test_hint_shown_to_owner_of_open_public_giveaway(self, client, app, auth_user):
-        with app.app_context():
-            user = auth_user()
-            item = ItemFactory(
-                owner=user, is_giveaway=True, giveaway_visibility="public", claim_status="unclaimed"
-            )
-            db.session.commit()
-            login_user(client, user.email)
-
-            response = client.get(f"/item/{item.id}")
-            assert response.status_code == 200
-            assert HINT_MARKER in response.data
-
-    def test_hint_not_shown_to_other_viewer_of_public_giveaway(self, client, app, auth_user):
-        with app.app_context():
-            user = auth_user()
-            owner = ItemFactory().owner
-            circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(owner)
-            item = ItemFactory(
-                owner=owner,
-                is_giveaway=True,
-                giveaway_visibility="public",
-                claim_status="unclaimed",
-            )
-            db.session.commit()
-            login_user(client, user.email)
-
-            response = client.get(f"/item/{item.id}")
-            assert response.status_code == 200
-            assert b"share-btn" in response.data
-            assert HINT_MARKER not in response.data
-
-    def test_hint_not_shown_for_claimed_or_pending_giveaway(self, client, app, auth_user):
-        with app.app_context():
-            user = auth_user()
-            for status in ("pending_pickup", "claimed"):
-                item = ItemFactory(
-                    owner=user,
-                    is_giveaway=True,
-                    giveaway_visibility="public",
-                    claim_status=status,
-                    available=False,
-                )
-                db.session.commit()
-                login_user(client, user.email)
-
-                response = client.get(f"/item/{item.id}")
-                assert response.status_code == 200
-                assert HINT_MARKER not in response.data
-
-    def test_hint_not_shown_for_circle_only_giveaway(self, client, app, auth_user):
-        with app.app_context():
-            user = auth_user()
-            item = ItemFactory(
-                owner=user,
-                is_giveaway=True,
-                giveaway_visibility="default",
-                claim_status="unclaimed",
-            )
-            db.session.commit()
-            login_user(client, user.email)
-
-            response = client.get(f"/item/{item.id}")
-            assert response.status_code == 200
-            assert HINT_MARKER not in response.data
-
-    def test_hint_shown_to_author_of_open_public_request(self, client, app, auth_user):
-        with app.app_context():
-            user = auth_user()
-            req = ItemRequestFactory(user=user, visibility="public")
-            db.session.commit()
-            login_user(client, user.email)
-
-            response = client.get(f"/requests/{req.id}/detail")
-            assert response.status_code == 200
-            assert HINT_MARKER in response.data
-
-    def test_hint_not_shown_to_other_viewer_of_public_request(self, client, app, auth_user):
-        with app.app_context():
-            user = auth_user()
-            other_req = ItemRequestFactory(visibility="public")
-            circle = CircleFactory()
-            circle.members.append(user)
-            circle.members.append(other_req.user)
-            db.session.commit()
-            login_user(client, user.email)
-
-            response = client.get(f"/requests/{other_req.id}/detail")
-            assert response.status_code == 200
-            assert b"share-btn" in response.data
-            assert HINT_MARKER not in response.data
-
-    def test_hint_not_shown_for_fulfilled_expired_or_circle_request(self, client, app, auth_user):
-        with app.app_context():
-            user = auth_user()
-            requests = [
-                ItemRequestFactory(
-                    user=user,
-                    visibility="public",
-                    status="fulfilled",
-                    fulfilled_at=datetime.now(UTC),
-                ),
-                ItemRequestFactory(
-                    user=user,
-                    visibility="public",
-                    expires_at=datetime.now(UTC) - timedelta(days=2),
-                ),
-                ItemRequestFactory(user=user, visibility="circles"),
-            ]
-            db.session.commit()
-            login_user(client, user.email)
-
-            for req in requests:
-                response = client.get(f"/requests/{req.id}/detail")
-                assert response.status_code == 200
-                assert HINT_MARKER not in response.data
 
 
 class TestShareFieldsConsistency:

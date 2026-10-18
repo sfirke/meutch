@@ -1,15 +1,9 @@
-{# Reminder to share a public giveaway or request outside Meutch. #}
-{# Required variables: share_url, share_title, activity_noun ('giveaway' or 'request') #}
-{# Optional variables: share_text, share_reminder_hint (true for the short owner hint on detail pages) #}
-{% if share_reminder_hint %}
-<p class="small text-muted mb-3 share-reminder-hint">
-    <i class="fas fa-bullhorn me-1"></i>Share this on your neighborhood email list or social media to reach more neighbors.
-</p>
-{% else %}
+{# Flashed after creating a public giveaway or request, nudging the user to share it outside Meutch. #}
+{# Required variables: share_url, share_title, share_headline, activity_noun ('giveaway' or 'request') #}
+{# Optional variable: share_text #}
 {% set share_payoff = 'so it finds a new home faster' if activity_noun == 'giveaway' else 'so you find what you need sooner' %}
 <div class="share-reminder d-flex flex-wrap align-items-center gap-2 mt-1">
-    <span>Want more neighbors to see it? Share it on your neighborhood email list or social media {{ share_payoff }}. It's also the best way to help Meutch grow.</span>
+    <span>{{ share_headline }} Want more people to see it? Consider posting the share link to a local chat or social media {{ share_payoff }}. That also helps spread the word about Meutch.</span>
     {% set share_btn_size = 'sm' %}
     {% include 'share/_share_button.html' %}
 </div>
-{% endif %}
