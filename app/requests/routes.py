@@ -22,6 +22,7 @@ from app.utils.messaging_queries import (
 )
 from app.utils.profile_visibility import can_view_profile
 from app.utils.request_queries import can_view_request, describe_seeking_mismatch
+from app.utils.share_reminder import flash_request_created
 
 
 @requests_bp.route("/new", methods=["GET", "POST"])
@@ -36,7 +37,7 @@ def new():
 
     if form.validate_on_submit():
         try:
-            request_service.create_request(
+            item_request = request_service.create_request(
                 current_user,
                 form.title.data,
                 form.description.data,
@@ -48,7 +49,7 @@ def new():
             form.visibility.errors.append(str(exc))
             return render_template("requests/new.html", form=form)
 
-        flash("Your request has been posted!", "success")
+        flash_request_created(item_request)
         return redirect(url_for("main.index"))
 
     return render_template("requests/new.html", form=form)

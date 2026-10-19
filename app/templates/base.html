@@ -218,7 +218,9 @@
                             </div>
                         {% else %}
                             <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                {% if 'share-reminder' not in message %}
                                 <i class="fas fa-{{ 'exclamation-triangle' if category == 'warning' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
+                                {% endif %}
                                 {{ message }}
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
