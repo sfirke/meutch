@@ -5,6 +5,7 @@ from datetime import date
 from marshmallow import ValidationError, fields, validate, validates_schema
 
 from app.api.v1.schemas.base import ApiDateTime, ApiSchema
+from app.api.v1.schemas.loan_extensions import LoanExtensionRequestSchema
 from app.api.v1.schemas.messaging import MessageSummarySchema
 from app.api.v1.schemas.users import UserSummarySchema
 
@@ -43,6 +44,7 @@ class LoanActivitySummarySchema(ApiSchema):
     due_state = fields.Method("get_due_state")
     days_until_due = fields.Method("get_days_until_due")
     days_overdue = fields.Method("get_days_overdue")
+    pending_extension_request = fields.Nested(LoanExtensionRequestSchema(), allow_none=True)
 
     def get_latest_conversation_message_id(self, loan):
         return loan.api_latest_conversation_message_id
@@ -98,9 +100,14 @@ class LoanRequestCreateSchema(ApiSchema):
     message = fields.String(required=True, validate=validate.Length(min=10, max=1000))
 
     @validates_schema
-    def validate_date_order(self, data, **kwargs):
+    def validate_dates(self, data, **kwargs):
+        errors = {}
+        if data["start_date"] < date.today():
+            errors["start_date"] = ["Start date cannot be in the past."]
         if data["end_date"] < data["start_date"]:
-            raise ValidationError({"end_date": ["End date must be on or after the start date."]})
+            errors["end_date"] = ["End date must be on or after the start date."]
+        if errors:
+            raise ValidationError(errors)
 
 
 class LoanExtendSchema(ApiSchema):
@@ -117,3 +124,17 @@ class LoanExtendSchema(ApiSchema):
     def validate_new_end_date(self, data, **kwargs):
         if "new_end_date" in data and data["new_end_date"] < date.today():
             raise ValidationError({"new_end_date": ["New end date cannot be in the past."]})
+
+
+class LoanExtensionRequestCreateSchema(ApiSchema):
+    """Write payload for a borrower asking to move an approved loan's due date."""
+
+    proposed_end_date = fields.Date(required=True)
+    message = fields.String(required=True, validate=validate.Length(min=10, max=1000))
+
+    @validates_schema
+    def validate_proposed_end_date(self, data, **kwargs):
+        if "proposed_end_date" in data and data["proposed_end_date"] < date.today():
+            raise ValidationError(
+                {"proposed_end_date": ["Proposed due date cannot be in the past."]}
+            )

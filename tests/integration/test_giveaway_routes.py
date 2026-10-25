@@ -581,9 +581,9 @@ class TestGiveawaysFeed:
             new_pos = response.data.find(b"New Giveaway")
             old_pos = response.data.find(b"Old Giveaway")
             assert new_pos != -1 and old_pos != -1, "Both giveaways should be found in response"
-            assert (
-                new_pos < old_pos
-            ), "New Giveaway should appear before Old Giveaway when sorting by date"
+            assert new_pos < old_pos, (
+                "New Giveaway should appear before Old Giveaway when sorting by date"
+            )
 
     def test_public_giveaway_visible_without_shared_circles(self, client, app, auth_user):
         """Test that public giveaways are visible to users who don't share circles with owner."""
@@ -628,12 +628,12 @@ class TestGiveawaysFeed:
             response = client.get("/?distance=")
 
             assert response.status_code == 200
-            assert (
-                b"Public Free Item" in response.data
-            ), "Public giveaway should be visible to all circle members"
-            assert (
-                b"Circles Only Free Item" not in response.data
-            ), "Default visibility giveaway should not be visible without shared circles"
+            assert b"Public Free Item" in response.data, (
+                "Public giveaway should be visible to all circle members"
+            )
+            assert b"Circles Only Free Item" not in response.data, (
+                "Default visibility giveaway should not be visible without shared circles"
+            )
 
     def test_public_giveaway_visible_in_search_without_shared_circles(self, client, app, auth_user):
         """Test that public giveaways appear in search for users who don't share circles with owner."""
@@ -681,12 +681,12 @@ class TestGiveawaysFeed:
             response = client.get("/find?q=Searchable&item_type=giveaways")
 
             assert response.status_code == 200
-            assert (
-                b"Searchable Public Giveaway" in response.data
-            ), "Public giveaway should appear in search for all circle members"
-            assert (
-                b"Searchable Default Giveaway" not in response.data
-            ), "Default visibility giveaway should not appear in search without shared circles"
+            assert b"Searchable Public Giveaway" in response.data, (
+                "Public giveaway should appear in search for all circle members"
+            )
+            assert b"Searchable Default Giveaway" not in response.data, (
+                "Default visibility giveaway should not appear in search without shared circles"
+            )
 
 
 class TestSearchFiltering:
@@ -936,6 +936,41 @@ class TestRecipientSelection:
             # Verify non-selected user remains in pool
             db.session.refresh(interest1)
             assert interest1.status == "active"
+
+    def test_manual_selection_rejects_member_who_has_not_asked(self, client, app, auth_user):
+        """Manual selection only accepts someone who has asked about the giveaway."""
+        with app.app_context():
+            owner = auth_user()
+            interested = UserFactory()
+            bystander = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                category=CategoryFactory(),
+                is_giveaway=True,
+                claim_status="unclaimed",
+            )
+            GiveawayInterestFactory(item=giveaway, user=interested, status="active")
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(
+                f"/item/{giveaway.id}/select-recipient",
+                data={"selection_method": "manual", "user_id": str(bystander.id)},
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert (
+                b"You can only select someone who has asked about this giveaway." in response.data
+            )
+            assert b"has been selected" not in response.data
+
+            db.session.refresh(giveaway)
+            assert giveaway.claim_status == "unclaimed"
+            assert giveaway.claimed_by_id is None
+            assert GiveawayInterest.query.filter_by(user_id=bystander.id).count() == 0
+            assert Conversation.query.filter_by(context_id=giveaway.id).count() == 0
+            assert Message.query.count() == 0
 
     def test_first_requester_selection(self, client, app, auth_user):
         """Test owner can select first (earliest) requester."""
@@ -1249,6 +1284,12 @@ class TestConversationGiveawaySelection:
             # Interest should be created on-the-fly and recipient selected
             assert giveaway.claim_status == "pending_pickup"
             assert giveaway.claimed_by_id == requester.id
+            interest = GiveawayInterest.query.filter_by(
+                item_id=giveaway.id, user_id=requester.id
+            ).one()
+            assert interest.status == "selected"
+            # The selection message lands in the existing conversation.
+            assert Conversation.query.filter_by(context_id=giveaway.id).count() == 1
 
     def test_cannot_select_from_conversation_once_pickup_is_pending(self, client, app, auth_user):
         """Quick-select route should refuse giveaways that already moved past selection."""
@@ -2201,12 +2242,12 @@ class TestConfirmHandoff:
             response = client.get("/?distance=")
 
             assert response.status_code == 200
-            assert (
-                b"Available Public Item" in response.data
-            ), "Unclaimed public giveaway should appear"
-            assert (
-                b"Pending Public Item" not in response.data
-            ), "Pending pickup giveaway should NOT appear to other users"
+            assert b"Available Public Item" in response.data, (
+                "Unclaimed public giveaway should appear"
+            )
+            assert b"Pending Public Item" not in response.data, (
+                "Pending pickup giveaway should NOT appear to other users"
+            )
 
 
 class TestItemDetailPageForGiveaways:

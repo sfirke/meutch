@@ -213,6 +213,9 @@ class RegistrationForm(FlaskForm):
     website = StringField("Website")
     started = HiddenField()
 
+    # Set by the name validators so the route can record one activity-log entry.
+    implausible_name_check = None
+
     def bot_trap_reason(self):
         """Return why this submission looks automated, or None if it passes."""
         if self.website.data:
@@ -239,6 +242,7 @@ class RegistrationForm(FlaskForm):
                 self.email.data,
                 request.remote_addr,
             )
+            self.implausible_name_check = self.implausible_name_check or reason
             raise ValidationError(IMPLAUSIBLE_NAME_MESSAGE)
 
     def validate_first_name(self, first_name):

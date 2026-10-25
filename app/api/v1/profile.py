@@ -66,6 +66,8 @@ def update_current_user_profile():
         links=data.get("links", _serialize_existing_links(current_user)),
         profile_image=data.get("profile_image"),
         delete_image=data["delete_image"],
+        first_name=data.get("first_name"),
+        last_name=data.get("last_name"),
     )
     return PROFILE_UPDATE_RESPONSE_SCHEMA.dump(
         {

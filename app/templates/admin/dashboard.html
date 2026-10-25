@@ -5,6 +5,14 @@
     <div class="mb-4">
         <h1><i class="fas fa-user-shield me-2"></i>Admin Panel</h1>
         <p class="text-muted">Platform administration and user management</p>
+        <p class="text-muted small mb-0">
+            {% if config.GIT_COMMIT_SHA %}
+                Deployed commit: <code title="{{ config.GIT_COMMIT_SHA }}">{{ config.GIT_COMMIT_SHA[:7] }}</code>
+            {% else %}
+                Deployed commit unknown
+            {% endif %}
+            &middot; Server started {{ config.SERVER_STARTED_AT|utc_timestamp('short-datetime') }}
+        </p>
     </div>
 
     {% include "admin/_tab_bar.html" %}
@@ -13,7 +21,7 @@
         <div class="tab-pane fade {% if active_tab == 'users' %}show active{% endif %}" id="admin-users" role="tabpanel" aria-labelledby="admin-users-tab">
             <div class="card">
                 <div class="card-header bg-dark text-white">
-                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>User Management</h5>
+                    <h5 class="mb-0 text-white"><i class="fas fa-list me-2"></i>User Management</h5>
                 </div>
                 <div class="card-body">
                     {% if users_pagination.items %}
@@ -522,6 +530,15 @@ document.addEventListener('DOMContentLoaded', function() {
             if (tabName == 'analytics') {
                 initializeMauChart();
             }
+        });
+    });
+
+    // Bootstrap's arrow-key handling treats every .nav-link in the tab bar as a tab.
+    // Follow the link instead of letting it hide the open pane.
+    document.querySelectorAll('#adminTabs a.nav-link').forEach(function(tabLink) {
+        tabLink.addEventListener('show.bs.tab', function(event) {
+            event.preventDefault();
+            window.location.href = tabLink.href;
         });
     });
 

@@ -286,6 +286,56 @@ class TestSearchCircleFiltering:
         assert b"Circle A Wrench" in response.data
         assert b"Circle B Wrench" in response.data
 
+    def test_circle_filter_ignores_circles_the_user_is_not_in(self, client):
+        """Selecting a circle only narrows results to circles the user belongs to."""
+        category = CategoryFactory()
+        user = UserFactory()
+        circle_mate = UserFactory()
+        stranger = UserFactory()
+        db.session.commit()
+
+        own_circle = CircleFactory(name="Own Circle")
+        other_circle = CircleFactory(name="Other Circle", circle_type="closed")
+        own_circle.members.append(user)
+        own_circle.members.append(circle_mate)
+        other_circle.members.append(stranger)
+        db.session.commit()
+
+        ItemFactory(owner=circle_mate, category=category, name="Own Circle Saw")
+        ItemFactory(owner=stranger, category=category, name="Other Circle Saw")
+        db.session.commit()
+
+        login_user(client, user.email)
+        other_only = client.get(url_for("main.find", circles=str(other_circle.id)))
+        mixed = client.get(url_for("main.find", circles=[str(own_circle.id), str(other_circle.id)]))
+
+        assert other_only.status_code == 200
+        assert b"Other Circle Saw" not in other_only.data
+        assert mixed.status_code == 200
+        assert b"Own Circle Saw" in mixed.data
+        assert b"Other Circle Saw" not in mixed.data
+
+    def test_circle_filter_tolerates_malformed_circle_id(self, client):
+        """A circle value that is not an id matches nothing instead of erroring."""
+        category = CategoryFactory()
+        user = UserFactory()
+        circle_mate = UserFactory()
+        db.session.commit()
+
+        circle = CircleFactory()
+        circle.members.append(user)
+        circle.members.append(circle_mate)
+        db.session.commit()
+
+        ItemFactory(owner=circle_mate, category=category, name="Circle Mate Rake")
+        db.session.commit()
+
+        login_user(client, user.email)
+        response = client.get(url_for("main.find", circles="not-a-uuid"))
+
+        assert response.status_code == 200
+        assert b"Circle Mate Rake" not in response.data
+
 
 @pytest.mark.usefixtures("app")
 class TestSearchDistanceSorting:

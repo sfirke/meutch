@@ -1,5 +1,6 @@
 """Integration tests for API item endpoints."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from unittest.mock import patch
@@ -7,6 +8,7 @@ from unittest.mock import patch
 from werkzeug.datastructures import MultiDict
 
 from app import db
+from app.models import Item
 from tests.factories import (
     CategoryFactory,
     CircleFactory,
@@ -122,6 +124,26 @@ class TestApiItems:
             "is_active_borrower": False,
         }
 
+    def test_item_detail_marks_owner_profile_viewable_by_shared_circle(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            owner = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, owner])
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, name="Shared circle item")
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            item_id = item.id
+
+        response = client.get(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["item"]["owner"]["profile_viewable"] is True
+
     def test_item_detail_forbids_unrelated_user_for_loan_item(self, client, app):
         with app.app_context():
             viewer = UserFactory(email_confirmed=True)
@@ -159,6 +181,47 @@ class TestApiItems:
         assert response.status_code == 200
         assert response.get_json()["viewer"]["is_active_borrower"] is True
 
+    def test_item_detail_shows_active_loan_only_to_owner_and_borrower(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            borrower = UserFactory(email_confirmed=True)
+            circle_mate = UserFactory(email_confirmed=True)
+            circle = CircleFactory()
+            circle.members.extend([owner, borrower, circle_mate])
+            item = ItemFactory(owner=owner, category=CategoryFactory(), name="Loaned ladder")
+            loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
+            db.session.commit()
+            item_id = item.id
+            borrower_id = str(borrower.id)
+            borrower_name = borrower.full_name
+            loan_id = str(loan.id)
+            loan_dates = (loan.start_date.isoformat(), loan.end_date.isoformat())
+            tokens = {
+                "owner": login_api_user(client, owner.email),
+                "borrower": login_api_user(client, borrower.email),
+                "circle_mate": login_api_user(client, circle_mate.email),
+            }
+
+        def fetch(role):
+            return client.get(f"/api/v1/items/{item_id}", headers=auth_headers(tokens[role]))
+
+        for role in ("owner", "borrower"):
+            response = fetch(role)
+            assert response.status_code == 200
+            loan_payload = response.get_json()["item"]["current_loan"]
+            assert loan_payload["id"] == loan_id
+            assert loan_payload["borrower"]["id"] == borrower_id
+            assert (loan_payload["start_date"], loan_payload["end_date"]) == loan_dates
+
+        response = fetch("circle_mate")
+        assert response.status_code == 200
+        assert response.get_json()["item"]["current_loan"] is None
+        body = response.get_data(as_text=True)
+        assert borrower_id not in body
+        assert borrower_name not in body
+        assert loan_dates[0] not in body
+        assert loan_dates[1] not in body
+
     def test_item_detail_returns_404_for_claimed_giveaway_past_visibility_window(self, client, app):
         with app.app_context():
             owner = UserFactory(email_confirmed=True)
@@ -184,6 +247,78 @@ class TestApiItems:
         )
 
         assert response.status_code == 404
+
+    def test_items_list_marks_owner_profile_viewable_by_shared_circle(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            circle_mate = UserFactory()
+            stranger = UserFactory()
+            category = CategoryFactory()
+
+            shared_circle = CircleFactory()
+            stranger_circle = CircleFactory()
+            shared_circle.members.extend([viewer, circle_mate])
+            stranger_circle.members.append(stranger)
+
+            ItemFactory(owner=circle_mate, category=category, name="Circle mate item")
+            ItemFactory(
+                owner=stranger,
+                category=category,
+                name="Stranger public giveaway",
+                is_giveaway=True,
+                giveaway_visibility="public",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+
+        response = client.get("/api/v1/items", headers=auth_headers(access_token))
+
+        assert response.status_code == 200
+        items_by_name = {item["name"]: item for item in response.get_json()["items"]}
+        assert items_by_name["Circle mate item"]["owner"]["profile_viewable"] is True
+        assert items_by_name["Stranger public giveaway"]["owner"]["profile_viewable"] is False
+
+    def test_items_list_circles_filter_is_limited_to_the_viewers_circles(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            circle_mate = UserFactory()
+            stranger = UserFactory()
+            category = CategoryFactory()
+
+            shared_circle = CircleFactory()
+            stranger_circle = CircleFactory(circle_type="closed")
+            shared_circle.members.extend([viewer, circle_mate])
+            stranger_circle.members.append(stranger)
+
+            ItemFactory(owner=circle_mate, category=category, name="Circle mate item")
+            ItemFactory(owner=stranger, category=category, name="Stranger loan item")
+            ItemFactory(
+                owner=stranger,
+                category=category,
+                name="Stranger circles-only giveaway",
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+            )
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            shared_circle_id = shared_circle.id
+            stranger_circle_id = stranger_circle.id
+
+        stranger_only = client.get(
+            f"/api/v1/items?circles={stranger_circle_id}",
+            headers=auth_headers(access_token),
+        )
+        mixed = client.get(
+            f"/api/v1/items?circles={shared_circle_id}&circles={stranger_circle_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert stranger_only.status_code == 200
+        assert stranger_only.get_json()["items"] == []
+        assert mixed.status_code == 200
+        assert [item["name"] for item in mixed.get_json()["items"]] == ["Circle mate item"]
 
     def test_items_list_requires_authentication(self, client, app):
         response = client.get("/api/v1/items")
@@ -238,6 +373,72 @@ class TestApiItemMutations:
             "https://example.com/items/one.jpg",
             "https://example.com/items/two.jpg",
         ]
+
+    def test_create_item_with_creation_token_is_idempotent(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            access_token = login_api_user(client, owner.email)
+            category_id = category.id
+            owner_id = owner.id
+        body = _item_payload(category_id, creation_token=str(uuid.uuid4()))
+
+        first = client.post("/api/v1/items", headers=auth_headers(access_token), json=body)
+        replay = client.post("/api/v1/items", headers=auth_headers(access_token), json=body)
+
+        assert first.status_code == 201
+        assert replay.status_code == 200
+        assert replay.get_json()["item"]["id"] == first.get_json()["item"]["id"]
+        assert set(replay.get_json()) == {"item", "viewer"}
+        with app.app_context():
+            assert Item.query.filter_by(owner_id=owner_id).count() == 1
+
+    def test_create_item_rejects_unknown_category(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            access_token = login_api_user(client, owner.email)
+
+        response = client.post(
+            "/api/v1/items",
+            headers=auth_headers(access_token),
+            json=_item_payload(uuid.uuid4()),
+        )
+
+        assert response.status_code == 422
+        assert response.get_json()["error"]["details"] == {"category_id": ["Choose a category."]}
+
+    def test_update_item_rejects_unknown_category(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            item = ItemFactory(owner=owner, category=CategoryFactory())
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            json=_item_payload(uuid.uuid4()),
+        )
+
+        assert response.status_code == 422
+        assert response.get_json()["error"]["details"] == {"category_id": ["Choose a category."]}
+
+    def test_update_item_rejects_creation_token(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = category.id
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            json=_item_payload(category_id, creation_token=str(uuid.uuid4())),
+        )
+
+        assert response.status_code == 422
 
     def test_create_item_rejects_public_giveaway_for_non_geocoded_owner(self, client, app):
         with app.app_context():
@@ -739,6 +940,246 @@ class TestApiItemMutations:
         assert response.status_code == 403
         assert response.get_json()["error"]["code"] == "FORBIDDEN"
 
+    @patch("app.services.item_service.delete_item_images")
+    @patch(
+        "app.services.item_service.upload_item_images",
+        return_value=[
+            "https://example.com/items/new-zero.jpg",
+            "https://example.com/items/new-one.jpg",
+        ],
+    )
+    def test_update_item_multipart_deletes_uploads_and_reorders_images(
+        self, mock_upload, mock_delete_images, client, app
+    ):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, name="Old name")
+            image_a = ItemImageFactory(item=item, position=0)
+            image_b = ItemImageFactory(item=item, position=1)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = str(category.id)
+            image_a_id = str(image_a.id)
+            image_a_url = image_a.url
+            image_b_id = str(image_b.id)
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            data=MultiDict(
+                [
+                    ("name", "New name"),
+                    ("description", "New description"),
+                    ("category_id", category_id),
+                    ("tags", "garden"),
+                    ("is_giveaway", "false"),
+                    ("delete_image_ids", image_a_id),
+                    ("image_order", image_b_id),
+                    ("image_order", "new-1"),
+                    ("image_order", "new-0"),
+                    ("images", (BytesIO(b"file-zero"), "zero.jpg")),
+                    ("images", (BytesIO(b"file-one"), "one.jpg")),
+                ]
+            ),
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert set(payload) == {"item", "viewer"}
+        assert payload["item"]["name"] == "New name"
+        assert payload["item"]["description"] == "New description"
+        assert [tag["name"] for tag in payload["item"]["tags"]] == ["garden"]
+        images = payload["item"]["images"]
+        assert images[0]["id"] == image_b_id
+        # Each "new-N" consumes the next upload, so new images keep upload order.
+        assert [image["url"] for image in images[1:]] == [
+            "https://example.com/items/new-zero.jpg",
+            "https://example.com/items/new-one.jpg",
+        ]
+        assert [image["position"] for image in images] == [0, 1, 2]
+        assert image_a_id not in {image["id"] for image in images}
+        assert len(mock_upload.call_args.args[0]) == 2
+        mock_delete_images.assert_called_once_with([image_a_url])
+
+    @patch("app.services.item_service.upload_item_images")
+    def test_update_item_rejects_images_over_capacity(self, mock_upload, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, name="Old name")
+            image_ids = [ItemImageFactory(item=item, position=pos).id for pos in range(7)]
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = str(category.id)
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            data=MultiDict(
+                [
+                    ("name", "New name"),
+                    ("category_id", category_id),
+                    ("is_giveaway", "false"),
+                    ("images", (BytesIO(b"file-eight"), "eight.jpg")),
+                    ("images", (BytesIO(b"file-nine"), "nine.jpg")),
+                ]
+            ),
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 400
+        error = response.get_json()["error"]
+        assert error["code"] == "BAD_REQUEST"
+        assert error["message"].startswith("Maximum 8 images per item.")
+        mock_upload.assert_not_called()
+
+        with app.app_context():
+            refreshed_item = db.session.get(type(item), item_id)
+            assert refreshed_item.name == "Old name"
+            assert [image.id for image in refreshed_item.images] == image_ids
+
+    @patch("app.services.item_service.upload_item_images", side_effect=ValueError("upload failed"))
+    def test_update_item_upload_failure_leaves_item_unchanged(self, _mock_upload, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category, name="Old name")
+            existing_image = ItemImageFactory(item=item, position=0)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = str(category.id)
+            existing_image_id = str(existing_image.id)
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            data=MultiDict(
+                [
+                    ("name", "New name"),
+                    ("category_id", category_id),
+                    ("is_giveaway", "false"),
+                    ("delete_image_ids", existing_image_id),
+                    ("images", (BytesIO(b"file"), "photo.jpg")),
+                ]
+            ),
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 400
+        error = response.get_json()["error"]
+        assert error["code"] == "BAD_REQUEST"
+        assert error["message"] == "One or more image uploads failed."
+
+        detail = client.get(f"/api/v1/items/{item_id}", headers=auth_headers(access_token))
+        detail_item = detail.get_json()["item"]
+        assert detail_item["name"] == "Old name"
+        assert [image["id"] for image in detail_item["images"]] == [existing_image_id]
+
+    @patch("app.services.item_service.upload_item_images")
+    def test_update_item_json_without_image_fields_keeps_images(self, mock_upload, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category)
+            first_image = ItemImageFactory(item=item, position=0)
+            second_image = ItemImageFactory(item=item, position=1)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = category.id
+            image_ids = [str(first_image.id), str(second_image.id)]
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            json=_item_payload(category_id, name="Renamed", tags=["garden"]),
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["item"]["name"] == "Renamed"
+        assert [tag["name"] for tag in payload["item"]["tags"]] == ["garden"]
+        assert [image["id"] for image in payload["item"]["images"]] == image_ids
+        mock_upload.assert_not_called()
+
+    def test_update_item_json_accepts_image_order_array(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category)
+            first_image = ItemImageFactory(item=item, position=0)
+            second_image = ItemImageFactory(item=item, position=1)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = category.id
+            first_image_id = str(first_image.id)
+            second_image_id = str(second_image.id)
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            json=_item_payload(
+                category_id,
+                image_order=[second_image_id.upper(), first_image_id],
+            ),
+        )
+
+        assert response.status_code == 200
+        assert [image["id"] for image in response.get_json()["item"]["images"]] == [
+            second_image_id,
+            first_image_id,
+        ]
+
+    def test_update_item_rejects_invalid_image_order_entry(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category)
+            access_token = login_api_user(client, owner.email)
+            item_id = item.id
+            category_id = category.id
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            json=_item_payload(category_id, image_order=["new-0", "first"]),
+        )
+
+        assert response.status_code == 422
+        error = response.get_json()["error"]
+        assert error["code"] == "VALIDATION_ERROR"
+        assert "image_order" in error["details"]
+
+    @patch("app.services.item_service.upload_item_images")
+    def test_non_owner_cannot_update_item_with_images(self, mock_upload, client, app):
+        with app.app_context():
+            owner = UserFactory()
+            non_owner = UserFactory(email_confirmed=True)
+            category = CategoryFactory()
+            item = ItemFactory(owner=owner, category=category)
+            access_token = login_api_user(client, non_owner.email)
+            item_id = item.id
+            category_id = str(category.id)
+
+        response = client.patch(
+            f"/api/v1/items/{item_id}",
+            headers=auth_headers(access_token),
+            data=MultiDict(
+                [
+                    ("name", "Taken over"),
+                    ("category_id", category_id),
+                    ("is_giveaway", "false"),
+                    ("images", (BytesIO(b"file"), "photo.jpg")),
+                ]
+            ),
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 403
+        assert response.get_json()["error"]["code"] == "FORBIDDEN"
+        mock_upload.assert_not_called()
+
 
 class TestApiMyItems:
     """Exercise the authenticated user's own-items listing."""
@@ -785,3 +1226,128 @@ class TestApiMyItems:
     def test_requires_authentication(self, client, app):
         response = client.get("/api/v1/me/items")
         assert response.status_code == 401
+
+    def _create_mixed_items(self, owner):
+        now = datetime.now(UTC)
+        recipient = UserFactory()
+        ItemFactory(owner=owner, name="Old Drill", created_at=now - timedelta(days=3))
+        ItemFactory(owner=owner, name="New Ladder", created_at=now - timedelta(days=1))
+        ItemFactory(
+            owner=owner,
+            name="Unclaimed Couch",
+            is_giveaway=True,
+            claim_status="unclaimed",
+            created_at=now - timedelta(days=4),
+        )
+        ItemFactory(
+            owner=owner,
+            name="Pending Lamp",
+            is_giveaway=True,
+            claim_status="pending_pickup",
+            claimed_by=recipient,
+            created_at=now - timedelta(days=2),
+        )
+        ItemFactory(
+            owner=owner,
+            name="Recent Claimed Rug",
+            is_giveaway=True,
+            claim_status="claimed",
+            claimed_by=recipient,
+            claimed_at=now - timedelta(days=89),
+            created_at=now - timedelta(days=95),
+        )
+        ItemFactory(
+            owner=owner,
+            name="Earlier Claimed Desk",
+            is_giveaway=True,
+            claim_status="claimed",
+            claimed_by=recipient,
+            claimed_at=now - timedelta(days=30),
+            created_at=now - timedelta(days=100),
+        )
+        ItemFactory(
+            owner=owner,
+            name="Stale Claimed Chair",
+            is_giveaway=True,
+            claim_status="claimed",
+            claimed_by=recipient,
+            claimed_at=now - timedelta(days=91),
+        )
+
+    def _get_names(self, client, access_token, query):
+        response = client.get(f"/api/v1/me/items?{query}", headers=auth_headers(access_token))
+        assert response.status_code == 200
+        return [item["name"] for item in response.get_json()["items"]]
+
+    def test_kind_lending_returns_only_non_giveaways(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            self._create_mixed_items(owner)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        assert self._get_names(client, access_token, "kind=lending") == [
+            "New Ladder",
+            "Old Drill",
+        ]
+
+    def test_kind_active_giveaways_returns_unclaimed_and_pending(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            self._create_mixed_items(owner)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        assert self._get_names(client, access_token, "kind=active_giveaways") == [
+            "Pending Lamp",
+            "Unclaimed Couch",
+        ]
+
+    def test_kind_past_giveaways_applies_cutoff_and_orders_by_claimed_at(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            self._create_mixed_items(owner)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        # Claimed 89 days ago is shown, 91 days ago is not. The rug was created
+        # after the desk but claimed earlier, so it sorts second.
+        assert self._get_names(client, access_token, "kind=past_giveaways") == [
+            "Earlier Claimed Desk",
+            "Recent Claimed Rug",
+        ]
+
+    def test_omitted_kind_returns_all_items(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            self._create_mixed_items(owner)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        assert len(self._get_names(client, access_token, "")) == 7
+
+    def test_kind_combines_with_search(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            ItemFactory(owner=owner, name="Extension Ladder")
+            ItemFactory(owner=owner, name="Cordless Drill")
+            ItemFactory(owner=owner, name="Step Ladder", is_giveaway=True, claim_status="unclaimed")
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        assert self._get_names(client, access_token, "kind=lending&q=ladder") == [
+            "Extension Ladder"
+        ]
+        assert self._get_names(client, access_token, "kind=active_giveaways&q=ladder") == [
+            "Step Ladder"
+        ]
+
+    def test_unknown_kind_returns_422(self, client, app):
+        with app.app_context():
+            owner = UserFactory(email_confirmed=True)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+
+        response = client.get("/api/v1/me/items?kind=bogus", headers=auth_headers(access_token))
+
+        assert response.status_code == 422

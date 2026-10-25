@@ -419,9 +419,9 @@ class TestItemRoutes:
             response_text = response.data.decode("utf-8")
 
             # Verify the category is present and pre-selected in the form
-            assert (
-                str(category.id) in response_text
-            ), f"Category ID {category.id} should be present in the edit form"
+            assert str(category.id) in response_text, (
+                f"Category ID {category.id} should be present in the edit form"
+            )
             # Check that the category option has the "selected" attribute
             assert (
                 f'<option selected value="{category.id}">{category.name}</option>' in response_text
@@ -430,9 +430,9 @@ class TestItemRoutes:
             ), "Category should be pre-selected in the edit form"
 
             # Verify tags are also populated (as reference)
-            assert (
-                "tag1, tag2" in response_text or "tag2, tag1" in response_text
-            ), "Tags should be pre-populated in the edit form"
+            assert "tag1, tag2" in response_text or "tag2, tag1" in response_text, (
+                "Tags should be pre-populated in the edit form"
+            )
 
     def test_delete_item_own_item(self, client, app, auth_user):
         """Test deleting own item."""

@@ -600,6 +600,11 @@ def _digest_event_url(event):
     return url_for("main.index", _external=True)
 
 
+def _digest_event_has_link(event):
+    # Claimed giveaways are only viewable by the giver and recipient.
+    return not (event.get("event_type") == "giveaway" and event.get("claim_status") == "claimed")
+
+
 def _digest_event_title(event):
     return event["title"]
 
@@ -667,10 +672,10 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
     # Python sort is stable, so within each subgroup the existing order
     # (created_at descending from build_digest_payload) is preserved.
     claimed_giveaways.sort(
-        key=lambda e: (0 if e.get("digest_variant") == "new-resolved-in-window" else 1)
+        key=lambda e: 0 if e.get("digest_variant") == "new-resolved-in-window" else 1
     )
     fulfilled_requests.sort(
-        key=lambda e: (0 if e.get("digest_variant") == "new-resolved-in-window" else 1)
+        key=lambda e: 0 if e.get("digest_variant") == "new-resolved-in-window" else 1
     )
 
     events = digest_payload.get("events")
@@ -734,7 +739,8 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
                 text_lines.append(f"  {event['description']}")
             if include_image and event.get("image_url"):
                 text_lines.append(f"  Image: {event['image_url']}")
-            text_lines.append(f"  {_digest_event_url(event)}")
+            if _digest_event_has_link(event):
+                text_lines.append(f"  {_digest_event_url(event)}")
         text_lines.append("")
 
     append_text_section("Giveaways \u2014 Posted", posted_giveaways, include_description=True)
@@ -775,7 +781,11 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         items_html = []
         for event in events:
             actor = event["actor_name"]
-            link = _digest_event_url(event)
+            link_html = (
+                f'<a href="{_digest_event_url(event)}" style="color: #007bff; text-decoration: none;">View activity</a>'
+                if _digest_event_has_link(event)
+                else ""
+            )
             is_resolution_only = event.get("digest_variant") in (
                 "resolved-in-window",
                 "new-resolved-in-window",
@@ -819,7 +829,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
                     {activity_html}
                     {description_html}
                     {image_html}
-                    <a href=\"{link}\" style=\"color: #007bff; text-decoration: none;\">View activity</a>
+                    {link_html}
                 </li>
                 """
             )

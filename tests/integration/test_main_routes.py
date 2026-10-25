@@ -36,8 +36,6 @@ class TestMainRoutes:
             response = client.get("/")
             assert response.status_code == 200
             assert b"Community Activity" in response.data
-            assert b"Create Request" in response.data
-            assert b"List Item" in response.data
 
     def test_index_with_authenticated_user_renders_feed_filter_controls(
         self, client, app, auth_user

@@ -1,0 +1,9 @@
+{# Flashed after creating a public giveaway or request, nudging the user to share it outside Meutch. #}
+{# Required variables: share_url, share_title, share_headline, activity_noun ('giveaway' or 'request') #}
+{# Optional variable: share_text #}
+{% set share_payoff = 'so it finds a new home faster' if activity_noun == 'giveaway' else 'so you find what you need sooner' %}
+<div class="share-reminder d-flex flex-wrap align-items-center gap-2 mt-1">
+    <span>{{ share_headline }} Consider posting the share link to a local chat or social media {{ share_payoff }}. That also helps spread the word about Meutch.</span>
+    {% set share_btn_size = 'sm' %}
+    {% include 'share/_share_button.html' %}
+</div>

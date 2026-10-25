@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
@@ -24,6 +25,7 @@ PUBLIC_GIVEAWAY_LOCATION_MESSAGE = (
     "Public giveaways are visible to everyone on Meutch and users will have no idea where the "
     "item is located. Please update your location in your profile settings."
 )
+PAST_GIVEAWAY_WINDOW_DAYS = 90
 ITEM_IMAGE_LIMIT_MESSAGE = (
     f"Maximum {MAX_ITEM_IMAGE_COUNT} images per item. Please remove some images first."
 )
@@ -171,8 +173,15 @@ def _ensure_public_giveaway_owner_is_geocoded(owner, is_giveaway, giveaway_visib
         raise InformationalError(PUBLIC_GIVEAWAY_LOCATION_MESSAGE)
 
 
-def list_user_items(user, search_query=None, page=1, per_page=12, exclude_claimed_giveaways=False):
-    """Return a paginated list of items owned by *user*, newest first.
+def list_user_items(
+    user,
+    search_query=None,
+    page=1,
+    per_page=12,
+    exclude_claimed_giveaways=False,
+    kind=None,
+):
+    """Return a paginated list of items owned by *user*.
 
     Args:
         user: The owner whose items should be listed.
@@ -182,11 +191,38 @@ def list_user_items(user, search_query=None, page=1, per_page=12, exclude_claime
         exclude_claimed_giveaways: When True, omit giveaways that have already
             been handed off.  Callers offering an item to someone else want
             this, since a claimed giveaway is no longer viewable by others.
+        kind: Optional subset: ``"lending"`` (non-giveaways),
+            ``"active_giveaways"`` (unclaimed or pending pickup), or
+            ``"past_giveaways"`` (claimed within the last 90 days, ordered by
+            ``claimed_at``).  ``None`` returns all items, newest first.
 
     Returns:
         A Flask-SQLAlchemy Pagination object.
     """
     query = Item.query.filter_by(owner_id=user.id)
+    order_by = Item.created_at.desc()
+
+    if kind == "lending":
+        query = query.filter(Item.is_giveaway.is_(False))
+    elif kind == "active_giveaways":
+        query = query.filter(
+            Item.is_giveaway.is_(True),
+            or_(
+                Item.claim_status == "unclaimed",
+                Item.claim_status == "pending_pickup",
+                Item.claim_status.is_(None),
+            ),
+        )
+    elif kind == "past_giveaways":
+        cutoff = datetime.now(UTC) - timedelta(days=PAST_GIVEAWAY_WINDOW_DAYS)
+        query = query.filter(
+            Item.is_giveaway.is_(True),
+            Item.claim_status == "claimed",
+            Item.claimed_at >= cutoff,
+        )
+        order_by = Item.claimed_at.desc()
+    elif kind is not None:
+        raise ValueError(f"Unknown item kind: {kind}")
 
     if exclude_claimed_giveaways:
         query = query.filter(
@@ -199,7 +235,7 @@ def list_user_items(user, search_query=None, page=1, per_page=12, exclude_claime
 
     return (
         query.options(selectinload(Item.images))
-        .order_by(Item.created_at.desc())
+        .order_by(order_by)
         .paginate(page=page, per_page=per_page, error_out=False)
     )
 

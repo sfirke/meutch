@@ -125,6 +125,49 @@ body {
     color: var(--primary-color) !important;
 }
 
+/* Account menu */
+.account-name {
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-toggle img,
+.account-toggle .fa-user-circle {
+    flex-shrink: 0;
+}
+
+.account-divider {
+    margin: 0.25rem 0;
+    opacity: 0.15;
+}
+
+.nav-create-mobile {
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+}
+
+.navbar-toggler-dot {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--bs-danger);
+    border: 2px solid #fff;
+    box-sizing: content-box;
+}
+
+@media (max-width: 991.98px) {
+    .navbar-collapse {
+        max-height: calc(100dvh - 60px);
+        overflow-y: auto;
+    }
+}
+
 /* Main Content */
 .main-content {
     padding: 1rem 0;
@@ -1882,6 +1925,39 @@ footer h6 {
     padding: 1.25rem 1.5rem;
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.5rem 1rem;
+}
+
+.activity-feed-header p {
+    grid-column: 1 / -1;
+}
+
+@media (min-width: 768px) {
+    .activity-feed-header {
+        row-gap: 0.125rem;
+    }
+
+    .activity-feed-header p {
+        grid-column: 1;
+    }
+
+    .activity-feed-filters-toggle {
+        grid-area: 1 / 2 / span 2;
+        border: 2px solid var(--secondary-color);
+        border-radius: 9999px;
+        padding: 0.3rem 1rem;
+        color: var(--secondary-color);
+    }
+
+    .activity-feed-filters-toggle:hover,
+    .activity-feed-filters-toggle[aria-expanded="true"] {
+        background: var(--secondary-color);
+        border-color: var(--secondary-color);
+        color: white;
+    }
 }
 
 .activity-feed-cta {
@@ -1921,6 +1997,23 @@ footer h6 {
 .giveaway-card-claimed {
     opacity: 0.65;
     background: #f8f9fa;
+}
+
+.feed-line-clamp-2,
+.feed-line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.feed-line-clamp-3 {
+    -webkit-line-clamp: 3;
+}
+
+.feed-compact-actor {
+    max-width: 50%;
+    vertical-align: bottom;
 }
 
 .activity-feed-page .activity-feed-actor-chip {
@@ -2001,115 +2094,6 @@ footer h6 {
     background-color: #e09333 !important;
     border-color: #e09333 !important;
     color: white !important;
-}
-
-/* Mobile speed-dial FAB */
-.fab-speed-dial {
-    position: fixed;
-    bottom: calc(1.5rem + env(safe-area-inset-bottom));
-    right: 1.25rem;
-    z-index: 1030;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.65rem;
-}
-
-.fab-main {
-    width: 3.75rem;
-    height: 3.75rem;
-    border-radius: 9999px;
-    background-color: var(--warning-color) !important;
-    border-color: var(--warning-color) !important;
-    color: white !important;
-    font-size: 1.3rem;
-    box-shadow: 0 8px 18px rgb(0 0 0 / 0.28);
-    transition: transform 0.2s ease, background-color 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    animation: fab-attention 1.2s ease-in-out 0.5s 2;
-}
-
-.fab-main:hover,
-.fab-main:focus {
-    background-color: #e09333 !important;
-    border-color: #e09333 !important;
-    color: white !important;
-    transform: scale(1.07);
-}
-
-.fab-main .fab-icon {
-    transition: transform 0.25s ease;
-}
-
-.fab-main.is-open .fab-icon {
-    transform: rotate(45deg);
-}
-
-.fab-actions {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.4rem;
-    overflow: hidden;
-    max-height: 0;
-    opacity: 0;
-    pointer-events: none;
-    transition: max-height 0.25s ease, opacity 0.2s ease;
-}
-
-.fab-actions.is-open {
-    max-height: 12rem;
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.fab-label {
-    background-color: #0f172a;
-    color: white;
-    font-size: 0.75rem;
-    font-weight: 700;
-    line-height: 1;
-    padding: 0.35rem 0.6rem;
-    border-radius: 9999px;
-    box-shadow: 0 2px 8px rgb(0 0 0 / 0.22);
-    pointer-events: none;
-}
-
-.fab-action {
-    background-color: var(--warning-color) !important;
-    border-color: var(--warning-color) !important;
-    color: white !important;
-    font-size: 0.85rem;
-    font-weight: 600;
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
-}
-
-.fab-action:hover,
-.fab-action:focus {
-    background-color: #e09333 !important;
-    border-color: #e09333 !important;
-    color: white !important;
-}
-
-@keyframes fab-attention {
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.08);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .fab-main {
-        animation: none;
-    }
 }
 
 /* Feed-type filter pills — completely self-contained to avoid btn-outline-primary conflicts */

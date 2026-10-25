@@ -1,0 +1,5 @@
+# Commits listed here are skipped by `git blame` on GitHub. Locally, run:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Repo-wide ruff format after bumping ruff to 0.16.9
+9937a40a68323bbf525cc402b179c9163974c244

@@ -165,3 +165,67 @@ class TestRequestService:
 
             with pytest.raises(ConflictError, match="already been fulfilled"):
                 request_service.fulfill_request(item_request, owner)
+
+
+class TestListUserRequests:
+    def test_active_returns_open_unexpired_own_requests(self, app):
+        with app.app_context():
+            user = UserFactory()
+            now = datetime.now(UTC)
+            live = ItemRequestFactory(user=user)
+            ItemRequestFactory(user=user, expires_at=now - timedelta(days=1))
+            ItemRequestFactory(user=user, status="fulfilled", fulfilled_at=now)
+            ItemRequestFactory(user=user, status="deleted")
+            ItemRequestFactory(user=UserFactory())
+
+            pagination = request_service.list_user_requests(user, status="active")
+
+            assert [r.id for r in pagination.items] == [live.id]
+
+    def test_active_includes_request_expiring_today_and_matches_is_expired(self, app):
+        with app.app_context():
+            user = UserFactory()
+            today = datetime.now(UTC).replace(
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+            )
+            expires_today = ItemRequestFactory(user=user, expires_at=today)
+            expired_yesterday = ItemRequestFactory(user=user, expires_at=today - timedelta(days=1))
+
+            pagination = request_service.list_user_requests(user, status="active")
+
+            assert [r.id for r in pagination.items] == [expires_today.id]
+            assert expires_today.is_expired is False
+            assert expired_yesterday.is_expired is True
+
+    def test_fulfilled_returns_own_requests_within_90_days(self, app):
+        with app.app_context():
+            user = UserFactory()
+            now = datetime.now(UTC)
+            recent = ItemRequestFactory(
+                user=user, status="fulfilled", fulfilled_at=now - timedelta(days=1)
+            )
+            older = ItemRequestFactory(
+                user=user, status="fulfilled", fulfilled_at=now - timedelta(days=89)
+            )
+            ItemRequestFactory(user=user, status="fulfilled", fulfilled_at=now - timedelta(days=91))
+            ItemRequestFactory(user=user)
+            ItemRequestFactory(user=UserFactory(), status="fulfilled", fulfilled_at=now)
+
+            pagination = request_service.list_user_requests(user, status="fulfilled")
+
+            assert [r.id for r in pagination.items] == [recent.id, older.id]
+
+    def test_unknown_status_raises(self, app):
+        with app.app_context():
+            with pytest.raises(ValueError, match="Unknown request status: bogus"):
+                request_service.list_user_requests(UserFactory(), status="bogus")
+
+    def test_paginates(self, app):
+        with app.app_context():
+            user = UserFactory()
+            ItemRequestFactory.create_batch(3, user=user)
+
+            pagination = request_service.list_user_requests(user, page=2, per_page=2)
+
+            assert pagination.total == 3
+            assert len(pagination.items) == 1

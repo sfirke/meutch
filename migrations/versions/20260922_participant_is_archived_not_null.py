@@ -1,7 +1,7 @@
 """make conversation_participants.is_archived non-nullable
 
 Revision ID: 20260922_is_archived_not_null
-Revises: 20260908_activity_log
+Revises: 20260925_widen_password_hash
 Create Date: 2026-09-22 10:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "20260922_is_archived_not_null"
-down_revision = "20260908_activity_log"
+down_revision = "20260925_widen_password_hash"
 branch_labels = None
 depends_on = None
 

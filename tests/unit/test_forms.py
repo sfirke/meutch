@@ -380,7 +380,7 @@ class TestEditProfileForm:
     def test_valid_edit_profile_form(self, app):
         """Test valid edit profile form."""
         with app.app_context():
-            form_data = {"about_me": "This is my bio"}
+            form_data = {"first_name": "Ana", "last_name": "Silva", "about_me": "This is my bio"}
             form = EditProfileForm(data=form_data)
             assert form.validate() is True
 

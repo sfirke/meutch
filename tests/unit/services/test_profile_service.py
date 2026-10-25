@@ -1,8 +1,9 @@
 from unittest.mock import patch
 
 from app import db
-from app.models import User, UserWebLink
+from app.models import ActivityLog, User, UserWebLink
 from app.services import profile_service
+from app.utils import activity_events
 from tests.factories import UserFactory, UserWebLinkFactory
 
 
@@ -43,6 +44,41 @@ class TestProfileService:
             assert links[0].display_order == 1
             assert links[1].platform_type == "linkedin"
             assert links[1].display_order == 2
+
+    def test_update_profile_logs_a_name_change_with_the_old_name(self, app):
+        with app.app_context():
+            user = UserFactory(first_name="Ana", last_name="Silva")
+            db.session.commit()
+
+            profile_service.update_profile(
+                user, about_me="", links=[], first_name="Ana", last_name="Costa"
+            )
+
+            entry = ActivityLog.query.filter_by(
+                event_type=activity_events.PROFILE_NAME_CHANGED
+            ).one()
+            assert entry.actor_user_id == user.id
+            assert entry.subject_user_id == user.id
+            assert entry.context == {
+                "old_first_name": "Ana",
+                "old_last_name": "Silva",
+                "new_first_name": "Ana",
+                "new_last_name": "Costa",
+            }
+
+    def test_update_profile_logs_nothing_when_the_name_is_unchanged(self, app):
+        with app.app_context():
+            user = UserFactory(first_name="Ana", last_name="Silva")
+            db.session.commit()
+
+            profile_service.update_profile(
+                user, about_me="New bio", links=[], first_name="Ana", last_name="Silva"
+            )
+
+            assert (
+                ActivityLog.query.filter_by(event_type=activity_events.PROFILE_NAME_CHANGED).count()
+                == 0
+            )
 
     def test_update_profile_skips_blank_link_slots(self, app):
         with app.app_context():

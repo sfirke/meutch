@@ -2,7 +2,7 @@
 
 import re
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -11,7 +11,18 @@ from app import db, limiter
 from app.forms_auth import issue_registration_started_token
 from app.models import User
 from conftest import TEST_PASSWORD, login_user
-from tests.factories import CircleFactory, ItemFactory, UserFactory
+from tests.factories import CircleFactory, ItemFactory, LoanRequestFactory, UserFactory
+
+# Values a browser would follow to another site; none is a plain path on this one.
+OFF_SITE_NEXT_VALUES = [
+    "https://evil.com",
+    "//evil.com",
+    "/\\evil.com",
+    "\\\\evil.com",
+    "////evil.com",
+    "https:evil.com",
+    "/\t/evil.com",
+]
 
 
 class TestAuthenticationRoutes:
@@ -349,6 +360,47 @@ class TestAuthenticationRoutes:
         assert "next=" in response.location
         assert "abc123" in response.location
 
+    @pytest.mark.parametrize("next_value", OFF_SITE_NEXT_VALUES)
+    def test_register_drops_off_site_next(self, app, client, next_value):
+        """A next value that is not a path on this site never reaches the confirmation link."""
+        with patch("app.services.auth_service.send_confirmation_email") as mock_send:
+            mock_send.return_value = True
+            response = client.post(
+                "/register",
+                query_string={"next": next_value},
+                data={
+                    "email": "offsitenext@example.com",
+                    "first_name": "Next",
+                    "last_name": "User",
+                    "location_method": "skip",
+                    "age_confirm": True,
+                    "password": "nextpassword123",
+                    "confirm_password": "nextpassword123",
+                },
+                follow_redirects=False,
+            )
+
+        assert response.status_code == 302
+        mock_send.assert_called_once()
+        _, kwargs = mock_send.call_args
+        assert kwargs.get("next_url") is None
+
+    @pytest.mark.parametrize("next_value", OFF_SITE_NEXT_VALUES)
+    def test_confirm_email_drops_off_site_next(self, client, app, next_value):
+        """Confirming with a next value that is not a path on this site goes to the plain login."""
+        with app.app_context():
+            user = UserFactory(email_confirmed=False)
+            user.generate_confirmation_token()
+            db.session.commit()
+            token_value = user.email_confirmation_token
+
+        response = client.post(
+            f"/confirm/{token_value}", query_string={"next": next_value}, follow_redirects=False
+        )
+
+        assert response.status_code == 302
+        assert response.location == "/login"
+
     def test_confirm_email_without_next_redirects_to_plain_login(self, client, app):
         """After email confirmation with no next param, redirect is the plain
         /login without a next param."""
@@ -570,9 +622,9 @@ class TestAuthenticationRoutes:
                 )
 
                 assert response.status_code == 200, f"Failed for email: {email}"
-                assert (
-                    b"This email is already registered" in response.data
-                ), f"Failed for email: {email}"
+                assert b"This email is already registered" in response.data, (
+                    f"Failed for email: {email}"
+                )
 
     def test_case_insensitive_resend_confirmation(self, client, app):
         """Test that resend confirmation is case-insensitive for email addresses."""
@@ -594,9 +646,9 @@ class TestAuthenticationRoutes:
                 )
 
                 assert response.status_code == 200, f"Failed for email: {email}"
-                assert (
-                    b"We sent a new confirmation email" in response.data
-                ), f"Failed for email: {email}"
+                assert b"We sent a new confirmation email" in response.data, (
+                    f"Failed for email: {email}"
+                )
 
     def test_registration_stores_lowercase_email(self, client, app):
         """Test that registration stores emails in lowercase format."""
@@ -1101,6 +1153,45 @@ class TestRedirectAfterLogin:
                 or b'action="/login?next=%2Fprofile' in response.data
             )
 
+    @pytest.mark.parametrize("next_value", OFF_SITE_NEXT_VALUES)
+    def test_login_with_off_site_next_goes_to_default_page(
+        self, client, app, auth_user, next_value
+    ):
+        """A next value that is not a path on this site is ignored."""
+        with app.app_context():
+            user = auth_user()
+            circle = CircleFactory()
+            circle.members.append(user)
+            db.session.commit()
+
+            response = client.post(
+                "/login",
+                query_string={"next": next_value},
+                data={"email": user.email, "password": TEST_PASSWORD},
+                follow_redirects=False,
+            )
+
+            assert response.status_code == 302
+            assert response.location == "/"
+
+    @pytest.mark.parametrize(
+        "next_value",
+        ["/profile", "/find?q=drill&page=2", "/profile?tab=settings#digest"],
+    )
+    def test_login_with_local_next_redirects_to_that_path(self, client, app, auth_user, next_value):
+        """A path on this site is followed as given, query string and fragment included."""
+        with app.app_context():
+            user = auth_user()
+            response = client.post(
+                "/login",
+                query_string={"next": next_value},
+                data={"email": user.email, "password": TEST_PASSWORD},
+                follow_redirects=False,
+            )
+
+            assert response.status_code == 302
+            assert response.location == next_value
+
 
 class TestCSRFErrorHandler:
     """Test that CSRF errors are handled gracefully."""
@@ -1138,6 +1229,38 @@ class TestAccountDeletion:
         """Test that delete account page requires login."""
         response = client.get("/delete_account")
         assert response.status_code == 302  # Redirect to login
+
+    def test_delete_account_notice_counts_overdue_approved_loans(self, client, app, auth_user):
+        """Approved loans past their end date still appear in the outstanding loans notice."""
+        with app.app_context():
+            user = auth_user()
+            past_start = date.today() - timedelta(days=20)
+            past_end = date.today() - timedelta(days=5)
+            LoanRequestFactory(
+                item=ItemFactory(),
+                borrower=user,
+                start_date=past_start,
+                end_date=past_end,
+                status="approved",
+            )
+            LoanRequestFactory(
+                item=ItemFactory(owner=user),
+                borrower=UserFactory(),
+                start_date=past_start,
+                end_date=past_end,
+                status="approved",
+            )
+            db.session.commit()
+
+            summary = user.get_outstanding_loans_summary()
+            assert summary["active_borrowing"] == 1
+            assert summary["active_lending"] == 1
+            assert summary["has_outstanding"] is True
+
+            login_user(client, user.email)
+            response = client.get("/delete_account")
+            assert response.status_code == 200
+            assert b"Outstanding Loans Notice" in response.data
 
     def test_delete_account_soft_delete_preserves_user_data(self, client, app, auth_user):
         """Test that account deletion uses soft delete to preserve user data for history."""

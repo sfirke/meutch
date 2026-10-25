@@ -1,12 +1,27 @@
 """Item-focused API schemas."""
 
+import re
+import uuid
+
 from marshmallow import ValidationError, fields, validate, validates_schema
 
+from app import db
 from app.api.v1.schemas.base import ApiBoolean, ApiDateTime, ApiSchema, ApiUploadedFile
 from app.api.v1.schemas.reference import CategorySchema, TagSchema
 from app.api.v1.schemas.users import UserSummarySchema
+from app.models import Category
 
 _tag_schema = TagSchema(many=True)
+_user_schema = UserSummarySchema()
+
+
+def _viewer_is_owner_or(item, other_user_id):
+    """Whether the viewer set by the API layer is the item owner or ``other_user_id``.
+
+    A missing viewer matches nobody, so the data stays redacted.
+    """
+    viewer_id = getattr(item, "api_viewer_id", None)
+    return viewer_id is not None and viewer_id in {item.owner_id, other_user_id}
 
 
 class ItemSummarySchema(ApiSchema):
@@ -57,14 +72,30 @@ class LoanSummarySchema(ApiSchema):
     borrower = fields.Nested(UserSummarySchema(), allow_none=True)
 
 
+_loan_schema = LoanSummarySchema()
+
+
 class ItemDetailSchema(ItemSummarySchema):
     """Expanded item representation for detail reads."""
 
     images = fields.Nested(ItemImageSchema(), many=True, required=True)
-    claimed_by = fields.Nested(UserSummarySchema(), allow_none=True)
-    current_loan = fields.Nested(LoanSummarySchema(), allow_none=True)
+    claimed_by = fields.Method("get_claimed_by", allow_none=True)
+    current_loan = fields.Method("get_current_loan", allow_none=True)
     viewer_interest_status = fields.Method("get_viewer_interest_status", allow_none=True)
     interested_count = fields.Method("get_interested_count", allow_none=True)
+
+    def get_claimed_by(self, item):
+        """Return the giveaway recipient only to the owner and the recipient."""
+        if item.claimed_by is None or not _viewer_is_owner_or(item, item.claimed_by_id):
+            return None
+        return _user_schema.dump(item.claimed_by)
+
+    def get_current_loan(self, item):
+        """Return the active loan only to the owner and the borrower."""
+        loan = item.current_loan
+        if loan is None or not _viewer_is_owner_or(item, loan.borrower_id):
+            return None
+        return _loan_schema.dump(loan)
 
     def get_viewer_interest_status(self, item):
         """Return the viewer's current giveaway-interest state when relevant."""
@@ -90,6 +121,11 @@ class ItemDetailResponseSchema(ApiSchema):
     viewer = fields.Nested(ItemViewerStateSchema(), required=True)
 
 
+def _validate_category_exists(category_id):
+    if db.session.get(Category, category_id) is None:
+        raise ValidationError("Choose a category.")
+
+
 class ItemWriteBaseSchema(ApiSchema):
     """Shared fields for item create and update payloads."""
 
@@ -99,7 +135,7 @@ class ItemWriteBaseSchema(ApiSchema):
         allow_none=True,
         validate=validate.Length(max=500),
     )
-    category_id = fields.UUID(required=True)
+    category_id = fields.UUID(required=True, validate=_validate_category_exists)
     tags = fields.List(fields.String(validate=validate.Length(min=1, max=50)), load_default=list)
     is_giveaway = ApiBoolean(required=True)
     giveaway_visibility = fields.String(
@@ -120,10 +156,31 @@ class ItemWritePayloadSchema(ItemWriteBaseSchema):
     """Write payload for item create endpoints."""
 
     images = fields.List(ApiUploadedFile(), load_default=list)
+    creation_token = fields.UUID(load_default=None, allow_none=True)
+
+
+_NEW_IMAGE_ORDER_ENTRY = re.compile(r"new-\d+")
+
+
+class ImageOrderEntry(fields.String):
+    """An existing image id (normalized) or a ``new-N`` placeholder for an upload."""
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        entry = super()._deserialize(value, attr, data, **kwargs)
+        if _NEW_IMAGE_ORDER_ENTRY.fullmatch(entry):
+            return entry
+        try:
+            return str(uuid.UUID(entry))
+        except ValueError as error:
+            raise ValidationError("Must be an image id or 'new-N'.") from error
 
 
 class ItemUpdatePayloadSchema(ItemWriteBaseSchema):
     """Write payload for item update endpoints."""
+
+    images = fields.List(ApiUploadedFile(), load_default=list)
+    delete_image_ids = fields.List(fields.UUID(), load_default=list)
+    image_order = fields.List(ImageOrderEntry(), load_default=list)
 
 
 class ItemImagesUploadSchema(ApiSchema):

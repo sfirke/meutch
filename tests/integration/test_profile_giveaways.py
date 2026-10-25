@@ -64,12 +64,12 @@ class TestProfileGiveawaysSeparation:
             assert b"My Past Giveaways" in response.data
 
             # Verify no edit or delete buttons are present on page
-            assert (
-                b"btn-warning" not in response.data
-            ), "Edit button should not appear for past giveaways"
-            assert (
-                b"btn-danger" not in response.data
-            ), "Delete button should not appear for past giveaways"
+            assert b"btn-warning" not in response.data, (
+                "Edit button should not appear for past giveaways"
+            )
+            assert b"btn-danger" not in response.data, (
+                "Delete button should not appear for past giveaways"
+            )
 
             # Try to delete the claimed giveaway via POST
             response = client.post(f"/item/{item_id}/delete", follow_redirects=True)

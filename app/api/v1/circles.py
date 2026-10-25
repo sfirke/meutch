@@ -8,6 +8,7 @@ from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
+from app.api.v1.profile_flags import dump_with_viewable_profiles
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.circles import (
     CircleAdminToggleResponseSchema,
@@ -107,6 +108,11 @@ def _annotate_circle_detail(circle, members_page=1, members_per_page=20):
     return circle
 
 
+def _circle_member_ids(circle):
+    """User ids of an annotated circle's members, for profile-viewable candidates."""
+    return [member["user"].id for member in getattr(circle, "api_members", [])]
+
+
 @bp.get("/circles")
 @jwt_required()
 @read_limit()
@@ -157,12 +163,11 @@ def get_circle(circle_id):
         abort(404)
     members_page = request.args.get("members_page", 1, type=int)
     members_per_page = request.args.get("members_per_page", 20, type=int)
-    return CIRCLE_DETAIL_RESPONSE_SCHEMA.dump(
-        {
-            "circle": _annotate_circle_detail(
-                circle, members_page=members_page, members_per_page=members_per_page
-            )
-        }
+    circle = _annotate_circle_detail(
+        circle, members_page=members_page, members_per_page=members_per_page
+    )
+    return dump_with_viewable_profiles(
+        CIRCLE_DETAIL_RESPONSE_SCHEMA, {"circle": circle}, _circle_member_ids(circle)
     )
 
 
@@ -188,7 +193,12 @@ def create_circle():
         country=data.get("country"),
     )
     result["circle"] = _annotate_circle_detail(result["circle"])
-    return CIRCLE_MUTATION_RESPONSE_SCHEMA.dump(result), 201
+    return (
+        dump_with_viewable_profiles(
+            CIRCLE_MUTATION_RESPONSE_SCHEMA, result, _circle_member_ids(result["circle"])
+        ),
+        201,
+    )
 
 
 @bp.patch("/circles/<uuid:circle_id>")
@@ -216,7 +226,9 @@ def update_circle(circle_id):
         country=data.get("country"),
     )
     result["circle"] = _annotate_circle_detail(result["circle"])
-    return CIRCLE_MUTATION_RESPONSE_SCHEMA.dump(result)
+    return dump_with_viewable_profiles(
+        CIRCLE_MUTATION_RESPONSE_SCHEMA, result, _circle_member_ids(result["circle"])
+    )
 
 
 @bp.post("/circles/<uuid:circle_id>/join")

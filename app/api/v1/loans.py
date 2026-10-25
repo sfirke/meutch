@@ -1,6 +1,7 @@
 """Loan read and write endpoints for API v1."""
 
 from flask_jwt_extended import jwt_required
+from sqlalchemy import case
 from sqlalchemy.orm import selectinload
 
 from app import db
@@ -8,17 +9,19 @@ from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
+from app.api.v1.profile_flags import dump_with_viewable_profiles
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.loans import (
     LoanActivitySummarySchema,
     LoanDetailResponseSchema,
     LoanExtendResponseSchema,
     LoanExtendSchema,
+    LoanExtensionRequestCreateSchema,
     LoanMutationResponseSchema,
     LoanRequestCreateSchema,
 )
 from app.api.v1.schemas.query import LoanListQuerySchema
-from app.models import Item, LoanRequest
+from app.models import Item, LoanExtensionRequest, LoanRequest
 from app.services import loan_service
 from app.services.exceptions import AuthorizationError
 from app.utils.item_visibility import build_item_access_state
@@ -30,6 +33,7 @@ LOAN_MUTATION_RESPONSE_SCHEMA = LoanMutationResponseSchema()
 LOAN_EXTEND_RESPONSE_SCHEMA = LoanExtendResponseSchema()
 LOAN_REQUEST_CREATE_SCHEMA = LoanRequestCreateSchema()
 LOAN_EXTEND_SCHEMA = LoanExtendSchema()
+LOAN_EXTENSION_REQUEST_CREATE_SCHEMA = LoanExtensionRequestCreateSchema()
 
 
 def _base_loan_query():
@@ -38,6 +42,7 @@ def _base_loan_query():
         selectinload(LoanRequest.item).selectinload(Item.owner),
         selectinload(LoanRequest.item).selectinload(Item.images),
         selectinload(LoanRequest.messages),
+        selectinload(LoanRequest.extension_requests),
     )
 
 
@@ -51,14 +56,20 @@ def _annotate_latest_conversation_message_id(loan):
 
 
 def _serialize_loan_detail(loan):
-    return LOAN_DETAIL_RESPONSE_SCHEMA.dump(
-        {"loan": _annotate_latest_conversation_message_id(loan)}
+    return dump_with_viewable_profiles(
+        LOAN_DETAIL_RESPONSE_SCHEMA,
+        {"loan": _annotate_latest_conversation_message_id(loan)},
+        [loan.item.owner_id, loan.borrower_id],
     )
 
 
-def _serialize_loan_mutation(loan, message):
+def _serialize_loan_mutation(loan, message, schema=LOAN_MUTATION_RESPONSE_SCHEMA, **extra):
     loan.api_latest_conversation_message_id = message.id
-    return LOAN_MUTATION_RESPONSE_SCHEMA.dump({"loan": loan, "message": message})
+    return dump_with_viewable_profiles(
+        schema,
+        {"loan": loan, "message": message, **extra},
+        [loan.item.owner_id, loan.borrower_id],
+    )
 
 
 def _ensure_loan_participant(loan):
@@ -93,7 +104,12 @@ def list_my_loans():
     else:
         loans_query = loans_query.filter(Item.owner_id == current_user.id)
 
-    pagination = loans_query.order_by(LoanRequest.end_date.asc()).paginate(
+    # Pending requests first so clients can group "Requests" above "On loan".
+    pagination = loans_query.order_by(
+        case((LoanRequest.status == "pending", 0), else_=1),
+        LoanRequest.end_date.asc(),
+        LoanRequest.id,
+    ).paginate(
         page=query_data["page"],
         per_page=query_data["per_page"],
         error_out=False,
@@ -104,7 +120,16 @@ def list_my_loans():
 
     return build_collection_response(
         "loans",
-        LOAN_ACTIVITY_SUMMARY_SCHEMA.dump(pagination.items),
+        dump_with_viewable_profiles(
+            LOAN_ACTIVITY_SUMMARY_SCHEMA,
+            pagination.items,
+            [
+                user_id
+                for loan in pagination.items
+                for user_id in (loan.item.owner_id, loan.borrower_id)
+            ],
+            many=True,
+        ),
         pagination=pagination,
     )
 
@@ -200,11 +225,45 @@ def extend_loan(loan_id):
         data["new_end_date"],
         data["message"],
     )
-    loan.api_latest_conversation_message_id = extend_result.message.id
-    return LOAN_EXTEND_RESPONSE_SCHEMA.dump(
-        {
-            "loan": loan,
-            "message": extend_result.message,
-            "is_extension": extend_result.is_extension,
-        }
+    return _serialize_loan_mutation(
+        loan,
+        extend_result.message,
+        LOAN_EXTEND_RESPONSE_SCHEMA,
+        is_extension=extend_result.is_extension,
     )
+
+
+@bp.post("/loans/<uuid:loan_id>/extension-requests")
+@jwt_required()
+@mutation_limit()
+def create_loan_extension_request(loan_id):
+    """Ask the owner to move an approved loan's due date as the borrower."""
+    loan = db.get_or_404(LoanRequest, loan_id)
+    data = load_request_data(LOAN_EXTENSION_REQUEST_CREATE_SCHEMA)
+    message = loan_service.request_extension(
+        loan,
+        current_user.id,
+        data["proposed_end_date"],
+        data["message"],
+    )
+    return _serialize_loan_mutation(loan, message), 201
+
+
+@bp.post("/loan-extension-requests/<uuid:extension_id>/approve")
+@jwt_required()
+@mutation_limit()
+def approve_loan_extension_request(extension_id):
+    """Approve a pending extension request as the item owner."""
+    extension_request = db.get_or_404(LoanExtensionRequest, extension_id)
+    result = loan_service.process_extension_request(extension_request, current_user.id, "approve")
+    return _serialize_loan_mutation(extension_request.loan_request, result.message)
+
+
+@bp.post("/loan-extension-requests/<uuid:extension_id>/deny")
+@jwt_required()
+@mutation_limit()
+def deny_loan_extension_request(extension_id):
+    """Deny a pending extension request as the item owner."""
+    extension_request = db.get_or_404(LoanExtensionRequest, extension_id)
+    result = loan_service.process_extension_request(extension_request, current_user.id, "deny")
+    return _serialize_loan_mutation(extension_request.loan_request, result.message)

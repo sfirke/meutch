@@ -105,6 +105,48 @@ class TestApiProfile:
             updated_user = db.session.get(type(user), user_id)
             assert updated_user.about_me == "Updated bio"
 
+    def test_patch_me_profile_changes_name(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True, about_me="Bio")
+            user_id = user.id
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+
+        response = client.patch(
+            "/api/v1/me/profile",
+            headers=auth_headers(access_token),
+            json={"first_name": "Renamed", "last_name": "Person"},
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["user"]["first_name"] == "Renamed"
+        assert payload["user"]["last_name"] == "Person"
+
+        with app.app_context():
+            updated_user = db.session.get(type(user), user_id)
+            assert updated_user.full_name == "Renamed Person"
+            assert updated_user.about_me == "Bio"
+
+    def test_patch_me_profile_rejects_blank_or_junk_name(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            user_id = user.id
+            original_name = user.full_name
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+
+        for first_name in ("   ", "ZspMSWgBftjwEHvOnFjWgHCn"):
+            response = client.patch(
+                "/api/v1/me/profile",
+                headers=auth_headers(access_token),
+                json={"first_name": first_name},
+            )
+            assert response.status_code in (400, 422)
+
+        with app.app_context():
+            assert db.session.get(type(user), user_id).full_name == original_name
+
     def test_patch_me_profile_saves_links_in_array_order(self, client, app):
         with app.app_context():
             user = UserFactory(email_confirmed=True)

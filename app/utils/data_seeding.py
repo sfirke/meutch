@@ -2,15 +2,16 @@
 
 from app.models import User
 
+
 def check_and_seed_if_empty():
     """Check if the database is empty and seed it if needed."""
     user_count = User.query.count()
     if user_count == 0:
         print("Database appears empty, seeding with development data...")
         # Import here to avoid circular imports
-        from app.cli import _seed_development_data
         from app import db
-        
+        from app.cli import _seed_development_data
+
         _seed_development_data()
         db.session.commit()
         print("✅ Auto-seeding completed!")

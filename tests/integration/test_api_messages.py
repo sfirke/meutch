@@ -364,6 +364,64 @@ class TestApiMessaging:
         assert response.status_code == 401
 
 
+class TestApiMessagingProfileViewable:
+    """Exercise the profile_viewable flag on nested users in messaging reads."""
+
+    def _conversation_with(self, viewer, partner):
+        conversation = ConversationFactory()
+        ConversationParticipantFactory(conversation=conversation, user=viewer)
+        ConversationParticipantFactory(conversation=conversation, user=partner)
+        return conversation
+
+    def test_inbox_marks_conversation_partner_viewable(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            partner = UserFactory()
+            conversation = self._conversation_with(viewer, partner)
+            MessageFactory(sender=viewer, recipient=partner, conversation=conversation)
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+
+        response = client.get("/api/v1/messages", headers=auth_headers(access_token))
+
+        assert response.status_code == 200
+        summary = response.get_json()["conversations"][0]
+        assert summary["other_user"]["profile_viewable"] is True
+        assert summary["latest_message"]["sender"]["profile_viewable"] is False
+        assert summary["latest_message"]["recipient"]["profile_viewable"] is True
+
+    def test_thread_marks_partner_and_senders_viewable(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            partner = UserFactory()
+            conversation = self._conversation_with(viewer, partner)
+            first_message = MessageFactory(
+                sender=partner, recipient=viewer, conversation=conversation, is_read=True
+            )
+            MessageFactory(
+                sender=viewer, recipient=partner, conversation=conversation, is_read=True
+            )
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            message_id = first_message.id
+
+        response = client.get(f"/api/v1/messages/{message_id}", headers=auth_headers(access_token))
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["other_user"]["profile_viewable"] is True
+        senders_viewable = [m["sender"]["profile_viewable"] for m in payload["messages"]]
+        assert senders_viewable == [True, False]
+
+
+BULK_ENDPOINTS = [
+    "/api/v1/conversations/bulk-archive",
+    "/api/v1/conversations/bulk-mark-read",
+    "/api/v1/conversations/bulk-mark-unread",
+    "/api/v1/conversations/bulk-unarchive",
+]
+
+
 class TestApiConversationArchive:
     """Exercise conversation-level archive / unarchive endpoints."""
 
@@ -382,7 +440,7 @@ class TestApiConversationArchive:
         )
 
         assert response.status_code == 200
-        assert response.get_json() == {"status": "ok"}
+        assert response.get_json() == {"is_archived": True}
 
         with app.app_context():
             participant = ConversationParticipant.query.filter_by(
@@ -405,7 +463,7 @@ class TestApiConversationArchive:
         )
 
         assert response.status_code == 200
-        assert response.get_json() == {"status": "ok"}
+        assert response.get_json() == {"is_archived": False}
 
         with app.app_context():
             participant = ConversationParticipant.query.filter_by(
@@ -447,7 +505,7 @@ class TestApiConversationArchive:
         )
 
         assert response.status_code == 200
-        assert response.get_json() == {"status": "ok", "archived": 2}
+        assert response.get_json() == {"archived": 2}
 
     def test_bulk_mark_read_marks_unread(self, client, app):
         with app.app_context():
@@ -477,36 +535,206 @@ class TestApiConversationArchive:
         )
 
         assert response.status_code == 200
-        assert response.get_json() == {"status": "ok", "marked": 2}
+        assert response.get_json() == {"marked": 2}
 
         with app.app_context():
             assert db.session.get(Message, m1_id).is_read is True
             assert db.session.get(Message, m2_id).is_read is True
 
+    def test_bulk_mark_unread_marks_latest_received_message(self, client, app):
+        with app.app_context():
+            sender = UserFactory()
+            recipient = UserFactory(email_confirmed=True)
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=sender)
+            ConversationParticipantFactory(conversation=conversation, user=recipient)
+            older = MessageFactory(
+                sender=sender, recipient=recipient, conversation=conversation, is_read=True
+            )
+            newer = MessageFactory(
+                sender=sender, recipient=recipient, conversation=conversation, is_read=True
+            )
+            older.timestamp = datetime.now(UTC) - timedelta(minutes=2)
+            newer.timestamp = datetime.now(UTC) - timedelta(minutes=1)
+            db.session.commit()
+            access_token = login_api_user(client, recipient.email)
+            conv_id = str(conversation.id)
+            older_id = older.id
+            newer_id = newer.id
+
+        response = client.post(
+            "/api/v1/conversations/bulk-mark-unread",
+            json={"conversation_ids": [conv_id]},
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json() == {"marked": 1}
+
+        with app.app_context():
+            assert db.session.get(Message, newer_id).is_read is False
+            assert db.session.get(Message, older_id).is_read is True
+
+    def test_bulk_mark_unread_returns_zero_when_only_sent(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            other = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=user)
+            ConversationParticipantFactory(conversation=conversation, user=other)
+            sent = MessageFactory(
+                sender=user, recipient=other, conversation=conversation, is_read=True
+            )
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+            conv_id = str(conversation.id)
+            sent_id = sent.id
+
+        response = client.post(
+            "/api/v1/conversations/bulk-mark-unread",
+            json={"conversation_ids": [conv_id]},
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json() == {"marked": 0}
+
+        with app.app_context():
+            assert db.session.get(Message, sent_id).is_read is True
+
+    def test_bulk_mark_unread_ignores_other_users_conversations(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            sender = UserFactory()
+            stranger = UserFactory()
+            own_conv = ConversationFactory()
+            other_conv = ConversationFactory()
+            ConversationParticipantFactory(conversation=own_conv, user=user)
+            ConversationParticipantFactory(conversation=own_conv, user=sender)
+            ConversationParticipantFactory(conversation=other_conv, user=sender)
+            ConversationParticipantFactory(conversation=other_conv, user=stranger)
+            own_msg = MessageFactory(
+                sender=sender, recipient=user, conversation=own_conv, is_read=True
+            )
+            other_msg = MessageFactory(
+                sender=sender, recipient=stranger, conversation=other_conv, is_read=True
+            )
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+            own_id = str(own_conv.id)
+            other_id = str(other_conv.id)
+            own_msg_id = own_msg.id
+            other_msg_id = other_msg.id
+
+        response = client.post(
+            "/api/v1/conversations/bulk-mark-unread",
+            json={"conversation_ids": [own_id, other_id]},
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json() == {"marked": 1}
+
+        with app.app_context():
+            assert db.session.get(Message, own_msg_id).is_read is False
+            assert db.session.get(Message, other_msg_id).is_read is True
+
+    def test_bulk_unarchive_unarchives_multiple(self, client, app):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            conv1 = ConversationFactory()
+            conv2 = ConversationFactory()
+            ConversationParticipantFactory(conversation=conv1, user=user, is_archived=True)
+            ConversationParticipantFactory(conversation=conv2, user=user, is_archived=True)
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+            user_id = user.id
+            c1_id = str(conv1.id)
+            c2_id = str(conv2.id)
+
+        response = client.post(
+            "/api/v1/conversations/bulk-unarchive",
+            json={"conversation_ids": [c1_id, c2_id]},
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        assert response.get_json() == {"unarchived": 2}
+
+        with app.app_context():
+            participants = ConversationParticipant.query.filter(
+                ConversationParticipant.conversation_id.in_([c1_id, c2_id]),
+                ConversationParticipant.user_id == user_id,
+            ).all()
+            assert len(participants) == 2
+            assert all(p.is_archived is False for p in participants)
+
+    @pytest.mark.parametrize("endpoint", BULK_ENDPOINTS)
+    def test_bulk_endpoint_requires_authentication(self, client, app, endpoint):
+        response = client.post(endpoint, json={"conversation_ids": []})
+
+        assert response.status_code == 401
+
+    @pytest.mark.parametrize("endpoint", BULK_ENDPOINTS)
     @pytest.mark.parametrize(
-        "endpoint",
+        "payload",
         [
-            "/api/v1/conversations/bulk-archive",
-            "/api/v1/conversations/bulk-mark-read",
+            {},
+            {"conversation_ids": []},
+            {"conversation_ids": "not-a-list"},
+            {"conversation_ids": ["not-a-uuid"]},
         ],
     )
-    def test_bulk_endpoint_requires_conversation_ids(self, client, app, endpoint):
+    def test_bulk_endpoint_rejects_invalid_conversation_ids(self, client, app, endpoint, payload):
         with app.app_context():
             user = UserFactory(email_confirmed=True)
             db.session.commit()
             access_token = login_api_user(client, user.email)
 
-        # Missing conversation_ids
-        response = client.post(endpoint, json={}, headers=auth_headers(access_token))
-        assert response.status_code == 400
-        assert response.get_json()["error"] == "conversation_ids is required"
+        response = client.post(endpoint, json=payload, headers=auth_headers(access_token))
 
-        # Empty list
-        response = client.post(
-            endpoint, json={"conversation_ids": []}, headers=auth_headers(access_token)
-        )
-        assert response.status_code == 400
-        assert response.get_json()["error"] == "conversation_ids is required"
+        assert response.status_code == 422
+        error = response.get_json()["error"]
+        assert error["code"] == "VALIDATION_ERROR"
+        assert "conversation_ids" in error["details"]
+
+    @pytest.mark.parametrize(
+        ("action", "count_key"),
+        [
+            ("bulk-archive", "archived"),
+            ("bulk-unarchive", "unarchived"),
+            ("bulk-mark-read", "marked"),
+        ],
+    )
+    def test_bulk_count_is_conversations_applied_to(self, client, app, action, count_key):
+        with app.app_context():
+            user = UserFactory(email_confirmed=True)
+            other = UserFactory()
+            own = ConversationFactory()
+            own_archived = ConversationFactory()
+            not_mine = ConversationFactory()
+            ConversationParticipantFactory(conversation=own, user=user)
+            ConversationParticipantFactory(conversation=own_archived, user=user, is_archived=True)
+            ConversationParticipantFactory(conversation=not_mine, user=other)
+            db.session.commit()
+            access_token = login_api_user(client, user.email)
+            ids = [str(own.id), str(own_archived.id), str(not_mine.id), str(own.id)]
+            other_id = other.id
+
+        # Sent twice: a conversation already in the requested state still counts.
+        for _ in range(2):
+            response = client.post(
+                f"/api/v1/conversations/{action}",
+                json={"conversation_ids": ids},
+                headers=auth_headers(access_token),
+            )
+
+            assert response.status_code == 200
+            assert response.get_json() == {count_key: 2}
+
+        with app.app_context():
+            untouched = ConversationParticipant.query.filter_by(user_id=other_id).one()
+            assert untouched.is_archived is False
 
     def test_mark_all_read_inbox_scoped(self, client, app):
         with app.app_context():
@@ -535,6 +763,7 @@ class TestApiConversationArchive:
         )
 
         assert response.status_code == 200
+        assert response.get_json() == {"marked": 1}
 
         with app.app_context():
             # Inbox message should be marked read

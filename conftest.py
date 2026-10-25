@@ -23,7 +23,7 @@ def is_port_open(host, port):
     try:
         with socket.create_connection((host, port), timeout=1):
             return True
-    except (socket.error, OSError):
+    except socket.error, OSError:
         return False
 
 
@@ -163,9 +163,6 @@ class TestConfig(Config):
     DO_SPACES_KEY = None
     DO_SPACES_SECRET = None
 
-    # Email testing
-    MAIL_SUPPRESS_SEND = True
-
     # Logging
     LOG_LEVEL = "ERROR"
 
@@ -277,6 +274,9 @@ def clean_db(app):
         # Exclude 'category' table since it's seeded at session start
         # Use actual PostgreSQL table names (not model names)
         tables_to_truncate = [
+            # Written on their own connection, outside the test's session, so nothing
+            # else here clears them and they leak into the next test's counts.
+            "activity_log",
             "giveaway_interest",
             "messages",
             "loan_request",

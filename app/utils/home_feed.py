@@ -235,7 +235,7 @@ def build_visible_requests_query(
         or_(
             and_(
                 ItemRequest.status == "open",
-                ItemRequest.expires_at > now,
+                ItemRequest.not_expired_clause(),
             ),
             and_(
                 ItemRequest.status == "fulfilled",
@@ -327,7 +327,7 @@ def build_visible_giveaway_events(
     max_distance=None,
     distance_explicit=False,
     include_own_activity=True,
-    include_claimed_giveaways=False,
+    include_claimed_giveaways=True,
     since=None,
     until=None,
 ):
@@ -461,7 +461,6 @@ def build_digest_request_events(
     since=None,
     until=None,
 ):
-    now = datetime.now(UTC)
     since_utc = _utc(since)
     until_utc = _utc(until)
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
@@ -474,7 +473,7 @@ def build_digest_request_events(
         or_(
             and_(
                 ItemRequest.status == "open",
-                ItemRequest.expires_at > now,
+                ItemRequest.not_expired_clause(),
             ),
             and_(
                 ItemRequest.status == "fulfilled",
@@ -709,7 +708,7 @@ def build_recent_lent_events(
         LoanRequest.query.join(Item, LoanRequest.item_id == Item.id)
         .join(User, Item.owner_id == User.id)
         .filter(
-            LoanRequest.status == "approved",
+            LoanRequest.status.in_(("approved", "completed")),
             LoanRequest.borrower_id.isnot(None),
             LoanRequest.created_at >= recent_cutoff,
             User.vacation_mode.is_(False),
@@ -873,7 +872,7 @@ def _assemble_feed_events(
     giveaway_distance_explicit=False,
     included_event_types=None,
     include_own_activity=True,
-    include_claimed_giveaways=False,
+    include_claimed_giveaways=True,
     since=None,
     until=None,
     max_events=100,
@@ -946,7 +945,7 @@ def build_homepage_feed_events(
     giveaway_distance_explicit=False,
     included_event_types=None,
     include_own_activity=True,
-    include_claimed_giveaways=False,
+    include_claimed_giveaways=True,
     max_events=100,
 ):
     return _assemble_feed_events(

@@ -3,6 +3,7 @@
 from flask import url_for
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from app import db
 from app.models import (
@@ -216,6 +217,10 @@ def build_conversation_thread_state(message, viewer_id):
 
     thread_messages = (
         Message.query.filter_by(conversation_id=message.conversation_id)
+        .options(
+            selectinload(Message.loan_request).selectinload(LoanRequest.extension_requests),
+            selectinload(Message.loan_extension_request),
+        )
         .order_by(Message.timestamp)
         .all()
     )

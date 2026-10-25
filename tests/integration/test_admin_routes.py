@@ -68,6 +68,33 @@ class TestAdminDashboardAccess:
         assert response.status_code == 200
         assert b"Admin Panel" in response.data
 
+    def test_dashboard_shows_deployed_commit(self, app, client, db_session, monkeypatch):
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+        login_user(client, admin.email)
+
+        monkeypatch.setitem(app.config, "GIT_COMMIT_SHA", None)
+        assert b"Deployed commit unknown" in client.get("/admin/").data
+
+        monkeypatch.setitem(
+            app.config, "GIT_COMMIT_SHA", "0204d3c6a1b2c3d4e5f60718293a4b5c6d7e8f90"
+        )
+        content = client.get("/admin/").data
+        assert b">0204d3c</code>" in content
+        assert b"Deployed commit unknown" not in content
+
+    def test_dashboard_shows_server_start_time(self, app, client, db_session, monkeypatch):
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+        login_user(client, admin.email)
+
+        monkeypatch.setitem(
+            app.config, "SERVER_STARTED_AT", datetime(2026, 10, 25, 19, 12, tzinfo=UTC)
+        )
+        content = client.get("/admin/").data
+        assert b"Server started" in content
+        assert b'data-utc-timestamp="2026-10-25T19:12:00+00:00"' in content
+
 
 class TestAdminDashboardMetrics:
     """Tests for admin dashboard metrics display"""
@@ -504,7 +531,7 @@ class TestAdminNavbarLink:
 
         response = client.get("/")
         assert response.status_code == 200
-        assert b"Admin Panel" in response.data
+        assert b'href="/admin/"' in response.data
 
     def test_admin_link_hidden_from_regular_users(self, client, db_session):
         """Test that admin link does not appear for regular users"""
@@ -515,7 +542,7 @@ class TestAdminNavbarLink:
 
         response = client.get("/")
         assert response.status_code == 200
-        assert b"Admin Panel" not in response.data
+        assert b'href="/admin/"' not in response.data
 
 
 class TestAdminFlashMessages:

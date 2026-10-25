@@ -1,51 +1,78 @@
 """Integration tests for My Requests section on the profile page."""
+
+import re
 import uuid
-import pytest
-from datetime import datetime, UTC, timedelta
+from datetime import UTC, datetime, timedelta
+from html import unescape
+from urllib.parse import urljoin
+
+from flask import template_rendered
+
 from app import db
-from app.models import ItemRequest
-from tests.factories import UserFactory, ItemRequestFactory
 from conftest import login_user
+from tests.factories import ItemRequestFactory, UserFactory
 
 
 class TestProfileMyRequests:
-    """Test that the profile My Activity tab shows the user's own requests."""
+    """Test that the profile Loans & Requests tab shows the user's own requests."""
 
     def test_profile_shows_own_active_request(self, client, app, auth_user):
-        """Active (open, not expired) request appears in the My Activity tab."""
+        """Active (open, not expired) request appears in the Loans & Requests tab."""
         with app.app_context():
             user = auth_user()
-            title = f'My active request {uuid.uuid4().hex[:8]}'
+            title = f"My active request {uuid.uuid4().hex[:8]}"
             ItemRequestFactory(
                 user=user,
                 title=title,
-                status='open',
+                status="open",
                 expires_at=datetime.now(UTC) + timedelta(days=30),
             )
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/profile?tab=my-activity')
+            response = client.get("/profile?tab=my-activity")
 
             assert response.status_code == 200
             assert title.encode() in response.data
+
+    def test_profile_shows_request_expiring_today_but_not_yesterday(self, client, app, auth_user):
+        with app.app_context():
+            user = auth_user()
+            suffix = uuid.uuid4().hex[:8]
+            today_title = f"Expires today {suffix}"
+            yesterday_title = f"Expired yesterday {suffix}"
+            today = datetime.now(UTC).replace(
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+            )
+            ItemRequestFactory(user=user, title=today_title, expires_at=today)
+            ItemRequestFactory(
+                user=user, title=yesterday_title, expires_at=today - timedelta(days=1)
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get("/profile?tab=my-activity")
+
+            assert response.status_code == 200
+            assert today_title.encode() in response.data
+            assert yesterday_title.encode() not in response.data
 
     def test_profile_shows_own_recently_fulfilled_request(self, client, app, auth_user):
         """Fulfilled request within 90 days appears under Recently Fulfilled."""
         with app.app_context():
             user = auth_user()
-            title = f'My fulfilled request {uuid.uuid4().hex[:8]}'
+            title = f"My fulfilled request {uuid.uuid4().hex[:8]}"
             ItemRequestFactory(
                 user=user,
                 title=title,
-                status='fulfilled',
+                status="fulfilled",
                 fulfilled_at=datetime.now(UTC) - timedelta(days=30),
                 expires_at=datetime.now(UTC) - timedelta(days=1),
             )
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/profile?tab=my-activity')
+            response = client.get("/profile?tab=my-activity")
 
             assert response.status_code == 200
             assert title.encode() in response.data
@@ -54,18 +81,18 @@ class TestProfileMyRequests:
         """Fulfilled request older than 90 days is NOT shown on the profile."""
         with app.app_context():
             user = auth_user()
-            title = f'Old fulfilled request {uuid.uuid4().hex[:8]}'
+            title = f"Old fulfilled request {uuid.uuid4().hex[:8]}"
             ItemRequestFactory(
                 user=user,
                 title=title,
-                status='fulfilled',
+                status="fulfilled",
                 fulfilled_at=datetime.now(UTC) - timedelta(days=91),
                 expires_at=datetime.now(UTC) - timedelta(days=60),
             )
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/profile?tab=my-activity')
+            response = client.get("/profile?tab=my-activity")
 
             assert response.status_code == 200
             assert title.encode() not in response.data
@@ -74,37 +101,64 @@ class TestProfileMyRequests:
         """Expired open request (expires_at in the past) is NOT shown as active."""
         with app.app_context():
             user = auth_user()
-            title = f'Expired open request {uuid.uuid4().hex[:8]}'
+            title = f"Expired open request {uuid.uuid4().hex[:8]}"
             ItemRequestFactory(
                 user=user,
                 title=title,
-                status='open',
+                status="open",
                 expires_at=datetime.now(UTC) - timedelta(days=10),
             )
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/profile?tab=my-activity')
+            response = client.get("/profile?tab=my-activity")
 
             assert response.status_code == 200
             assert title.encode() not in response.data
+
+    def test_active_requests_page_link_stays_on_activity_tab(self, client, app, auth_user):
+        """Following the page-2 link for active requests keeps the My Activity tab open."""
+        with app.app_context():
+            user = auth_user()
+            ItemRequestFactory.create_batch(13, user=user)
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get("/profile?tab=my-activity")
+            match = re.search(
+                r'href="([^"]*active_requests_page=2[^"]*)"', response.get_data(as_text=True)
+            )
+            assert match
+            page_2_url = urljoin("/profile", unescape(match.group(1)))
+
+            contexts = []
+
+            def record(sender, template, context, **extra):
+                contexts.append(context)
+
+            with template_rendered.connected_to(record, app):
+                response = client.get(page_2_url)
+
+            assert response.status_code == 200
+            assert contexts[-1]["active_tab"] == "my-activity"
+            assert contexts[-1]["active_requests"].page == 2
 
     def test_profile_does_not_show_other_users_requests(self, client, app, auth_user):
         """Another user's open request does NOT appear on the current user's profile."""
         with app.app_context():
             user = auth_user()
             other_user = UserFactory()
-            title = f'Other user request {uuid.uuid4().hex[:8]}'
+            title = f"Other user request {uuid.uuid4().hex[:8]}"
             ItemRequestFactory(
                 user=other_user,
                 title=title,
-                status='open',
+                status="open",
                 expires_at=datetime.now(UTC) + timedelta(days=30),
             )
             db.session.commit()
 
             login_user(client, user.email)
-            response = client.get('/profile?tab=my-activity')
+            response = client.get("/profile?tab=my-activity")
 
             assert response.status_code == 200
             assert title.encode() not in response.data

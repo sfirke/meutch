@@ -362,3 +362,16 @@ def test_build_circle_recommendations_respects_selected_radius_when_pinning_regi
         assert [recommendation["circle"].name for recommendation in recommendations] == [
             "Nearby Regular Circle",
         ]
+
+
+def test_get_circle_member_activity_counts_requests_through_expiration_day(app):
+    with app.app_context():
+        owner = UserFactory()
+        circle = CircleFactory()
+        circle.members.append(owner)
+        today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+        ItemRequestFactory(user=owner, expires_at=today)
+        ItemRequestFactory(user=owner, expires_at=today - timedelta(days=1))
+        db.session.commit()
+
+        assert get_circle_member_activity_counts(circle)["requests"] == 1

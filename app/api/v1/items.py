@@ -8,6 +8,7 @@ from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
+from app.api.v1.profile_flags import dump_with_viewable_profiles
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.items import (
     GiveawayInterestCollectionResponseSchema,
@@ -86,12 +87,14 @@ def _enrich_giveaway_interests(item, owner_id):
 def _serialize_giveaway_interest_collection(item):
     interests = _enrich_giveaway_interests(item, current_user.id)
     item.api_interest_pool_count = len(interests)
-    return GIVEAWAY_INTEREST_COLLECTION_RESPONSE_SCHEMA.dump(
+    return dump_with_viewable_profiles(
+        GIVEAWAY_INTEREST_COLLECTION_RESPONSE_SCHEMA,
         {
             "item": item,
             "actions": _build_giveaway_interest_actions(item, interests),
             "interests": interests,
-        }
+        },
+        [interest.user_id for interest in interests],
     )
 
 
@@ -100,6 +103,7 @@ def _build_item_response_payload(item, access_state=None):
         access_state = _build_item_access_state_or_raise(item)
 
     interest_state = giveaway_service.get_giveaway_interest_state(item, current_user.id)
+    item.api_viewer_id = current_user.id
     item.api_viewer_interest_status = interest_state["viewer_interest_status"]
     item.api_interested_count = interest_state["interested_count"]
 
@@ -114,7 +118,8 @@ def _build_item_response_payload(item, access_state=None):
 
 
 def _serialize_item_response(item):
-    return ITEM_DETAIL_RESPONSE_SCHEMA.dump(_build_item_response_payload(item))
+    payload = _build_item_response_payload(item)
+    return dump_with_viewable_profiles(ITEM_DETAIL_RESPONSE_SCHEMA, payload, [item.owner_id])
 
 
 def _prepare_item_resource(item, access_state=None):
@@ -157,7 +162,12 @@ def list_items():
 
     return build_collection_response(
         "items",
-        ITEM_SUMMARY_SCHEMA.dump(pagination.items),
+        dump_with_viewable_profiles(
+            ITEM_SUMMARY_SCHEMA,
+            pagination.items,
+            [item.owner_id for item in pagination.items],
+            many=True,
+        ),
         pagination=pagination,
     )
 
@@ -173,6 +183,7 @@ def list_my_items():
         search_query=query_data["q"] or None,
         page=query_data["page"],
         per_page=query_data["per_page"],
+        kind=query_data["kind"],
     )
     return build_collection_response(
         "items",
@@ -206,11 +217,13 @@ def create_item():
             data["giveaway_visibility"],
             data["tags"],
             data["images"],
+            creation_token=data["creation_token"],
         )
     except ValueError as error:
         _raise_item_upload_error(error)
 
-    return _serialize_item_response(creation_result.item), 201
+    status_code = 201 if creation_result.was_created else 200
+    return _serialize_item_response(creation_result.item), status_code
 
 
 @bp.patch("/items/<uuid:item_id>")
@@ -221,18 +234,21 @@ def update_item(item_id):
     item = db.get_or_404(Item, item_id)
     _ensure_current_user_owns_item(item)
     data = load_request_data(ITEM_UPDATE_PAYLOAD_SCHEMA)
-    item_service.update_item(
-        item,
-        data["name"],
-        data["description"],
-        data["category_id"],
-        data["is_giveaway"],
-        data["giveaway_visibility"],
-        data["tags"],
-        [],
-        [],
-        [],
-    )
+    try:
+        item_service.update_item(
+            item,
+            data["name"],
+            data["description"],
+            data["category_id"],
+            data["is_giveaway"],
+            data["giveaway_visibility"],
+            data["tags"],
+            data["images"],
+            [str(image_id) for image_id in data["delete_image_ids"]],
+            data["image_order"],
+        )
+    except ValueError as error:
+        _raise_item_upload_error(error)
     return _serialize_item_response(item)
 
 
@@ -309,11 +325,13 @@ def select_giveaway_recipient(item_id):
         data["selection_method"],
         data["user_id"],
     )
-    return GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA.dump(
+    return dump_with_viewable_profiles(
+        GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA,
         {
             "item": _prepare_item_resource(item),
             "selected_interest": selected_interest,
-        }
+        },
+        [selected_interest.user_id],
     )
 
 
@@ -330,11 +348,13 @@ def change_giveaway_recipient(item_id):
         data["selection_method"],
         data["user_id"],
     )
-    return GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA.dump(
+    return dump_with_viewable_profiles(
+        GIVEAWAY_RECIPIENT_MUTATION_RESPONSE_SCHEMA,
         {
             "item": _prepare_item_resource(item),
             "selected_interest": selected_interest,
-        }
+        },
+        [selected_interest.user_id],
     )
 
 

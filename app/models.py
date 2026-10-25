@@ -43,7 +43,7 @@ class User(UserMixin, db.Model):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False
     )
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
 
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
@@ -85,6 +85,11 @@ class User(UserMixin, db.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+
+    @property
+    def is_active(self):
+        """Flask-Login's account-enabled flag: a deleted account cannot be signed in."""
+        return not self.is_deleted
 
     @property
     def is_geocoded(self):
@@ -303,20 +308,13 @@ class User(UserMixin, db.Model):
 
     def get_outstanding_loans_summary(self):
         """Get summary of outstanding loans for account deletion warning"""
-        from datetime import date
-
-        # Active loans as borrower
-        borrowing = (
-            LoanRequest.query.filter_by(borrower_id=self.id, status="approved")
-            .filter(LoanRequest.end_date >= date.today())
-            .count()
-        )
+        # Active loans as borrower (overdue approved loans count too)
+        borrowing = LoanRequest.query.filter_by(borrower_id=self.id, status="approved").count()
 
         # Active loans as owner
         lending = (
             LoanRequest.query.join(Item)
             .filter(Item.owner_id == self.id, LoanRequest.status == "approved")
-            .filter(LoanRequest.end_date >= date.today())
             .count()
         )
 
@@ -1054,6 +1052,14 @@ class ItemRequest(db.Model):
         # Compare dates (not datetimes) so items are available through the entire expiration day
         today = datetime.now(UTC).date()
         return today > expires_at_utc.date()
+
+    @classmethod
+    def not_expired_clause(cls):
+        """SQL filter matching `not is_expired`: open through the whole expiration day (UTC)."""
+        start_of_today = datetime.now(UTC).replace(
+            hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+        )
+        return cls.expires_at >= start_of_today
 
     @property
     def is_active(self):

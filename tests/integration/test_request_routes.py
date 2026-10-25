@@ -1315,6 +1315,23 @@ class TestRequestNavigation:
             assert b'href="/requests/"' not in response.data
             assert b'class="nav-link" href="/list-item"' not in response.data
 
+    def test_create_links_for_authenticated_user(self, client, app, auth_user):
+        """Test the nav offers both create links away from the home page."""
+        with app.app_context():
+            user = auth_user()
+            login_user(client, user.email)
+            response = client.get("/about")
+            assert response.status_code == 200
+            assert b'href="/list-item"' in response.data
+            assert b'href="/requests/new"' in response.data
+
+    def test_create_links_not_for_anonymous(self, client, app):
+        """Test the nav offers no create links to anonymous users."""
+        response = client.get("/about")
+        assert response.status_code == 200
+        assert b'href="/list-item"' not in response.data
+        assert b'href="/requests/new"' not in response.data
+
     def test_nav_link_not_for_anonymous(self, client, app):
         """Test that Requests nav link is not shown to anonymous users."""
         response = client.get("/")

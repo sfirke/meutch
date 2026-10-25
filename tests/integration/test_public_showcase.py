@@ -1,163 +1,160 @@
 """Integration tests for public showcase feature — admin panel routes."""
-import pytest
-from flask import url_for
-from tests.factories import UserFactory, ItemFactory, CategoryFactory, CircleFactory
+
 from app.models import AdminAction
 from conftest import login_user
+from tests.factories import UserFactory
 
 
 class TestAdminShowcaseRoutes:
     """Tests for admin panel showcase enable/disable routes"""
-    
+
     def test_enable_showcase_success(self, client, db_session):
         """Test successfully enabling showcase for a user"""
         admin = UserFactory(is_admin=True)
         user = UserFactory(is_public_showcase=False)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{user.id}/enable-showcase', follow_redirects=True)
+
+        response = client.post(f"/admin/users/{user.id}/enable-showcase", follow_redirects=True)
         assert response.status_code == 200
-        
+
         # Check user was updated
         db_session.refresh(user)
         assert user.is_public_showcase is True
-        
+
         # Check admin action was logged
         action = AdminAction.query.filter_by(
-            action_type='enable_showcase',
-            target_user_id=user.id,
-            admin_user_id=admin.id
+            action_type="enable_showcase", target_user_id=user.id, admin_user_id=admin.id
         ).first()
         assert action is not None
-        assert action.details['target_email'] == user.email
-    
+        assert action.details["target_email"] == user.email
+
     def test_disable_showcase_success(self, client, db_session):
         """Test successfully disabling showcase for a user"""
         admin = UserFactory(is_admin=True)
         user = UserFactory(is_public_showcase=True)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{user.id}/disable-showcase', follow_redirects=True)
+
+        response = client.post(f"/admin/users/{user.id}/disable-showcase", follow_redirects=True)
         assert response.status_code == 200
-        
+
         # Check user was updated
         db_session.refresh(user)
         assert user.is_public_showcase is False
-        
+
         # Check admin action was logged
         action = AdminAction.query.filter_by(
-            action_type='disable_showcase',
-            target_user_id=user.id,
-            admin_user_id=admin.id
+            action_type="disable_showcase", target_user_id=user.id, admin_user_id=admin.id
         ).first()
         assert action is not None
-    
+
     def test_enable_showcase_requires_admin(self, client, db_session):
         """Test that only admins can enable showcase"""
         non_admin = UserFactory(is_admin=False)
         target = UserFactory(is_public_showcase=False)
         db_session.commit()
-        
+
         login_user(client, non_admin.email)
-        
-        response = client.post(f'/admin/users/{target.id}/enable-showcase')
+
+        response = client.post(f"/admin/users/{target.id}/enable-showcase")
         assert response.status_code == 403
-        
+
         # User should not be changed
         db_session.refresh(target)
         assert target.is_public_showcase is False
-    
+
     def test_disable_showcase_requires_admin(self, client, db_session):
         """Test that only admins can disable showcase"""
         non_admin = UserFactory(is_admin=False)
         target = UserFactory(is_public_showcase=True)
         db_session.commit()
-        
+
         login_user(client, non_admin.email)
-        
-        response = client.post(f'/admin/users/{target.id}/disable-showcase')
+
+        response = client.post(f"/admin/users/{target.id}/disable-showcase")
         assert response.status_code == 403
-        
+
         # User should not be changed
         db_session.refresh(target)
         assert target.is_public_showcase is True
-    
+
     def test_enable_showcase_already_enabled(self, client, db_session):
         """Test enabling showcase for user who already has it"""
         admin = UserFactory(is_admin=True)
         user = UserFactory(is_public_showcase=True)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{user.id}/enable-showcase', follow_redirects=True)
+
+        response = client.post(f"/admin/users/{user.id}/enable-showcase", follow_redirects=True)
         assert response.status_code == 200
-        assert b'already has public showcase enabled' in response.data
-    
+        assert b"already has public showcase enabled" in response.data
+
     def test_disable_showcase_not_enabled(self, client, db_session):
         """Test disabling showcase for user who doesn't have it"""
         admin = UserFactory(is_admin=True)
         user = UserFactory(is_public_showcase=False)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{user.id}/disable-showcase', follow_redirects=True)
+
+        response = client.post(f"/admin/users/{user.id}/disable-showcase", follow_redirects=True)
         assert response.status_code == 200
-        assert b'does not have public showcase enabled' in response.data
-    
+        assert b"does not have public showcase enabled" in response.data
+
     def test_enable_showcase_deleted_user(self, client, db_session):
         """Test cannot enable showcase for deleted user"""
         admin = UserFactory(is_admin=True)
         deleted_user = UserFactory(is_public_showcase=False, is_deleted=True)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.post(f'/admin/users/{deleted_user.id}/enable-showcase', follow_redirects=True)
+
+        response = client.post(
+            f"/admin/users/{deleted_user.id}/enable-showcase", follow_redirects=True
+        )
         assert response.status_code == 200
-        assert b'Cannot enable showcase for a deleted user' in response.data
+        assert b"Cannot enable showcase for a deleted user" in response.data
 
 
 class TestAdminDashboardShowcaseUI:
     """Tests for showcase display in admin dashboard"""
-    
+
     def test_dashboard_shows_showcase_badge(self, client, db_session):
         """Test that showcase users have a 'Showcase' badge"""
         admin = UserFactory(is_admin=True)
-        showcase_user = UserFactory(is_public_showcase=True)
+        UserFactory(is_public_showcase=True)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.get('/admin/')
+
+        response = client.get("/admin/")
         assert response.status_code == 200
-        assert b'Showcase' in response.data
-    
+        assert b"Showcase" in response.data
+
     def test_dashboard_shows_enable_showcase_button(self, client, db_session):
         """Test that non-showcase users have 'Enable Showcase' button"""
         admin = UserFactory(is_admin=True)
-        user = UserFactory(is_public_showcase=False)
+        UserFactory(is_public_showcase=False)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.get('/admin/')
+
+        response = client.get("/admin/")
         assert response.status_code == 200
-        assert b'Enable Showcase' in response.data
-    
+        assert b"Enable Showcase" in response.data
+
     def test_dashboard_shows_disable_showcase_button(self, client, db_session):
         """Test that showcase users have 'Disable Showcase' button"""
         admin = UserFactory(is_admin=True)
-        user = UserFactory(is_public_showcase=True)
+        UserFactory(is_public_showcase=True)
         db_session.commit()
-        
+
         login_user(client, admin.email)
-        
-        response = client.get('/admin/')
+
+        response = client.get("/admin/")
         assert response.status_code == 200
-        assert b'Disable Showcase' in response.data
+        assert b"Disable Showcase" in response.data
