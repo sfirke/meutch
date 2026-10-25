@@ -168,6 +168,21 @@ Set this to `2` if another proxy (Cloudflare, an nginx front end) is added ahead
 
 Before changing it, confirm the real hop count rather than guessing: log the raw `X-Forwarded-For` header on staging for a day and count the addresses.
 
+### Optional: Deployed Commit
+
+```bash
+# Shown under the heading on the admin panel.
+GIT_COMMIT_SHA=${_self.COMMIT_HASH}
+```
+
+On DigitalOcean App Platform, add this to the web service component's environment
+variables (Settings, then the component, then Environment Variables) with run-time scope.
+`_self` means "this component", so it is rejected as an app-level variable. If it is
+unset, the admin panel says the deployed commit is unknown.
+
+The admin panel also shows when the server process started, which is usually the last
+deploy but also changes when the platform restarts the container.
+
 ### Optional: Activity Log
 
 ```bash

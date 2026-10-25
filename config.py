@@ -264,6 +264,10 @@ class Config:
     # setting; the admin Activity page warns when the oldest row is well past it.
     ACTIVITY_LOG_RETENTION_DAYS = parse_int_env(os.environ.get("ACTIVITY_LOG_RETENTION_DAYS"), 90)
 
+    # Shown on the admin panel. On DigitalOcean, set on the web service component to
+    # ${_self.COMMIT_HASH}.
+    GIT_COMMIT_SHA = os.environ.get("GIT_COMMIT_SHA")
+
     API_V1_ENABLED = parse_bool_env(os.environ.get("API_V1_ENABLED"), True)
     API_V1_WRITE_ENABLED = parse_bool_env(os.environ.get("API_V1_WRITE_ENABLED"), True)
     API_V1_RATE_LIMITS_ENABLED = parse_bool_env(os.environ.get("API_V1_RATE_LIMITS_ENABLED"), True)
