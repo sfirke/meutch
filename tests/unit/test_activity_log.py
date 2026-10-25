@@ -126,7 +126,7 @@ class TestActorResolution:
             entry = _rows(activity_events.AUTH_LOGIN_SUCCEEDED)[-1]
             assert entry.actor_user_id == user_id
             assert entry.source == ActivityLog.SOURCE_WEB
-            assert entry.ip_address == "203.0.113.7"
+            assert str(entry.ip_address) == "203.0.113.7"
             assert entry.user_agent == "curl/8.4.0"
 
     def test_an_explicit_none_actor_beats_the_signed_in_user(self, app):
