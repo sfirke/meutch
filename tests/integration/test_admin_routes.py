@@ -68,6 +68,21 @@ class TestAdminDashboardAccess:
         assert response.status_code == 200
         assert b"Admin Panel" in response.data
 
+    def test_dashboard_shows_deployed_commit(self, app, client, db_session, monkeypatch):
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+        login_user(client, admin.email)
+
+        monkeypatch.setitem(app.config, "GIT_COMMIT_SHA", None)
+        assert b"Deployed commit unknown" in client.get("/admin/").data
+
+        monkeypatch.setitem(
+            app.config, "GIT_COMMIT_SHA", "0204d3c6a1b2c3d4e5f60718293a4b5c6d7e8f90"
+        )
+        content = client.get("/admin/").data
+        assert b">0204d3c</code>" in content
+        assert b"Deployed commit unknown" not in content
+
 
 class TestAdminDashboardMetrics:
     """Tests for admin dashboard metrics display"""
