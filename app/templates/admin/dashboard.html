@@ -11,6 +11,7 @@
             {% else %}
                 Deployed commit unknown
             {% endif %}
+            &middot; Server started {{ config.SERVER_STARTED_AT|utc_timestamp('short-datetime') }}
         </p>
     </div>
 

@@ -83,6 +83,18 @@ class TestAdminDashboardAccess:
         assert b">0204d3c</code>" in content
         assert b"Deployed commit unknown" not in content
 
+    def test_dashboard_shows_server_start_time(self, app, client, db_session, monkeypatch):
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+        login_user(client, admin.email)
+
+        monkeypatch.setitem(
+            app.config, "SERVER_STARTED_AT", datetime(2026, 10, 25, 19, 12, tzinfo=UTC)
+        )
+        content = client.get("/admin/").data
+        assert b"Server started" in content
+        assert b'data-utc-timestamp="2026-10-25T19:12:00+00:00"' in content
+
 
 class TestAdminDashboardMetrics:
     """Tests for admin dashboard metrics display"""

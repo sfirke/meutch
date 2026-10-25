@@ -171,12 +171,17 @@ Before changing it, confirm the real hop count rather than guessing: log the raw
 ### Optional: Deployed Commit
 
 ```bash
-# Shown under the heading on the admin panel. On DigitalOcean App Platform, set the
-# value to the bindable variable ${_self.COMMIT_HASH} with run-time scope.
+# Shown under the heading on the admin panel.
 GIT_COMMIT_SHA=${_self.COMMIT_HASH}
 ```
 
-If it is unset, the admin panel says the deployed commit is unknown.
+On DigitalOcean App Platform, add this to the web service component's environment
+variables (Settings, then the component, then Environment Variables) with run-time scope.
+`_self` means "this component", so it is rejected as an app-level variable. If it is
+unset, the admin panel says the deployed commit is unknown.
+
+The admin panel also shows when the server process started, which is usually the last
+deploy but also changes when the platform restarts the container.
 
 ### Optional: Activity Log
 

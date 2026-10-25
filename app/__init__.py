@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from datetime import UTC, datetime
 from uuid import UUID
 
 from flask import Flask, flash, redirect, render_template, request, url_for
@@ -41,6 +42,7 @@ def create_app(config_class=None):
         config_class = config.get(flask_env, config["default"])
 
     app.config.from_object(config_class)
+    app.config["SERVER_STARTED_AT"] = datetime.now(UTC)
 
     # Trust the platform's reverse proxy so request.remote_addr is the client rather
     # than the load balancer. Everything that keys on the caller's address depends on
