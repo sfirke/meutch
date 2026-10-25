@@ -43,7 +43,7 @@ class TestWebSignIn:
 
         entry = _entries(activity_events.AUTH_LOGIN_SUCCEEDED)[0]
         assert entry.source == ActivityLog.SOURCE_WEB
-        assert entry.ip_address == "203.0.113.42"
+        assert str(entry.ip_address) == "203.0.113.42"
         assert entry.user_agent is not None
 
     def test_signing_out_records_who_signed_out(self, client, db_session):
