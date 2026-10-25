@@ -31,6 +31,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - `GET /api/v1/circles` and `GET /api/v1/circles/<id>` now report how far away a circle is in the same ranges the website shows, instead of a figure to the hundredth of a mile. `distance_miles` is still a number but is now the lower end of the range (0, 1, 2, 5, 10 or 25), and a new `distance` field carries the label, such as "2-5 mi", in the same form the feed uses. The `radius` filter on `GET /api/v1/circles` now accepts only the distances the website's circle search offers (5, 10, 25, 50 or 100) ([#561](https://github.com/sfirke/meutch/pull/561)).
 - Borrowers can now ask for more time on a loan through `POST /api/v1/loans/<id>/extension-requests`, and owners answer with `POST /api/v1/loan-extension-requests/<id>/approve` or `/deny`, the same as on the website. Loan lists, loan details and a conversation's active loan now include any pending extension request so the mobile app can show it; item details do not, since others can see that loan and the borrower's note is private. A loan request with a start date in the past is now rejected, as it is on the website ([#565](https://github.com/sfirke/meutch/pull/565)).
 
+### Developer Experience
+- The migration check that runs before pushing and in CI now also fails when the database migrations have more than one latest version, which happens when two branches each add a migration. Before, this only surfaced after merging ([#584](https://github.com/sfirke/meutch/pull/584)).
+
 ## September 2026
 
 ### Features
