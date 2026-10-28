@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Announcements{% endblock %}
+
+{% macro field_with_errors(field, css_class="form-control") %}
+    {{ field.label(class="form-label") }}
+    {{ field(class=css_class + (" is-invalid" if field.errors else ""), **kwargs) }}
+    {% for error in field.errors %}
+        <div class="invalid-feedback">{{ error }}</div>
+    {% endfor %}
+{% endmacro %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="mb-4">
+        <h1><i class="fas fa-user-shield me-2"></i>Admin Panel</h1>
+        <p class="text-muted">Platform administration and user management</p>
+    </div>
+
+    {% include "admin/_tab_bar.html" %}
+
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0 text-white"><i class="fas fa-bullhorn me-2"></i>New announcement</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small">
+                Shows as a banner at the top of every page for logged-in members. Only the newest
+                active one a member hasn't dismissed is shown. Announcements can't be edited: to
+                change one, end it and post a new one. Dates are in UTC.
+            </p>
+            <form method="post" action="{{ url_for('admin.create_announcement') }}" novalidate>
+                {{ form.hidden_tag() }}
+                <div class="mb-3">
+                    {{ field_with_errors(form.message, rows="2", maxlength="280") }}
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-8">
+                        {{ field_with_errors(form.link_url, placeholder="https://github.com/...", maxlength="500") }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ field_with_errors(form.link_text, placeholder="Learn more", maxlength="60") }}
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        {{ field_with_errors(form.level, css_class="form-select") }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ field_with_errors(form.starts_at) }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ field_with_errors(form.ends_at) }}
+                    </div>
+                </div>
+                <div class="form-check mb-3">
+                    {{ form.dismissible(class="form-check-input") }}
+                    {{ form.dismissible.label(class="form-check-label") }}
+                </div>
+                {{ form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0 text-white"><i class="fas fa-list me-2"></i>All announcements</h5>
+        </div>
+        <div class="card-body">
+            {% if rows %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th style="min-width: 16rem">Message</th>
+                                <th>Link</th>
+                                <th>Level</th>
+                                <th>Starts</th>
+                                <th>Ends</th>
+                                <th>Status</th>
+                                <th>Dismissible</th>
+                                <th>Dismissals</th>
+                                <th>Created by</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for announcement, dismissal_count in rows %}
+                                {% set status = announcement.status %}
+                                <tr>
+                                    <td title="{{ announcement.message }}">{{ announcement.message|truncate(80) }}</td>
+                                    <td>
+                                        {% if announcement.link_url %}
+                                            <a href="{{ announcement.link_url }}" target="_blank" rel="noopener">{{ announcement.link_text or "Learn more" }}</a>
+                                        {% else %}
+                                            <span class="text-muted">&mdash;</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ announcement.level }}</td>
+                                    <td class="text-nowrap">{{ announcement.starts_at|utc_timestamp('compact') }}</td>
+                                    <td class="text-nowrap">
+                                        {% if announcement.ends_at %}
+                                            {{ announcement.ends_at|utc_timestamp('compact') }}
+                                        {% else %}
+                                            <span class="text-muted">Until ended</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ {'active': 'bg-success', 'scheduled': 'bg-info text-dark', 'ended': 'bg-secondary'}[status] }}" data-announcement-status>{{ status }}</span>
+                                    </td>
+                                    <td>{{ "Yes" if announcement.dismissible else "No" }}</td>
+                                    <td data-dismissal-count>{{ dismissal_count }}</td>
+                                    <td>
+                                        {% if announcement.created_by %}
+                                            {{ announcement.created_by.full_name }}
+                                        {% else %}
+                                            <span class="text-muted">&mdash;</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if status != 'ended' %}
+                                            <form method="post" action="{{ url_for('admin.end_announcement', announcement_id=announcement.id) }}" class="d-inline">
+                                                {{ end_form.hidden_tag() }}
+                                                <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap">End now</button>
+                                            </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted mb-0">No announcements yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

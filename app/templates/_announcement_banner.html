@@ -1,0 +1,18 @@
+{% if current_announcement %}
+{% set announcement = current_announcement %}
+<div class="container mt-3">
+    <div class="alert alert-{{ announcement.level }}{% if announcement.dismissible %} alert-dismissible pe-5{% endif %} mb-0" role="status" data-announcement-banner>
+        <i class="fas fa-bullhorn me-2" aria-hidden="true"></i>
+        {{ announcement.message }}
+        {% if announcement.link_url %}
+            <a class="alert-link" href="{{ announcement.link_url }}" target="_blank" rel="noopener">{{ announcement.link_text or "Learn more" }}</a>
+        {% endif %}
+        {% if announcement.dismissible %}
+            <form method="post" action="{{ url_for('main.dismiss_announcement', announcement_id=announcement.id) }}" class="d-inline" data-announcement-dismiss>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-close" aria-label="Dismiss announcement"></button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

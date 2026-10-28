@@ -277,6 +277,8 @@ def clean_db(app):
             # Written on their own connection, outside the test's session, so nothing
             # else here clears them and they leak into the next test's counts.
             "activity_log",
+            "announcement_dismissal",
+            "announcement",
             "giveaway_interest",
             "messages",
             "loan_request",

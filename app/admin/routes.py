@@ -12,9 +12,12 @@ from app import db
 from app.admin import bp
 from app.auth.decorators import admin_required
 from app.forms import EmptyForm
+from app.forms_admin import AnnouncementForm
 from app.models import (
     ActivityLog,
     AdminAction,
+    Announcement,
+    AnnouncementDismissal,
     Conversation,
     GiveawayInterest,
     Item,
@@ -319,6 +322,88 @@ def activity():
         oldest_occurred_at=oldest_occurred_at,
         prune_overdue=_prune_is_overdue(oldest_occurred_at, retention_days),
     )
+
+
+def _start_of_utc_day(day):
+    return datetime(day.year, day.month, day.day)
+
+
+def _render_announcements(form):
+    # pylint: disable=not-callable
+    dismissal_counts = (
+        db.select(
+            AnnouncementDismissal.announcement_id,
+            func.count().label("dismissal_count"),
+        )
+        .group_by(AnnouncementDismissal.announcement_id)
+        .subquery()
+    )
+    rows = db.session.execute(
+        db.select(Announcement, func.coalesce(dismissal_counts.c.dismissal_count, 0))
+        .outerjoin(dismissal_counts, dismissal_counts.c.announcement_id == Announcement.id)
+        .options(joinedload(Announcement.created_by))
+        .order_by(Announcement.created_at.desc(), Announcement.id.desc())
+    ).all()
+
+    return render_template(
+        "admin/announcements.html",
+        active_tab="announcements",
+        form=form,
+        end_form=EmptyForm(),
+        rows=rows,
+    )
+
+
+@bp.route("/announcements")
+@admin_required
+def announcements():
+    return _render_announcements(AnnouncementForm())
+
+
+@bp.route("/announcements", methods=["POST"])
+@admin_required
+def create_announcement():
+    form = AnnouncementForm()
+    if not form.validate_on_submit():
+        flash("Announcement not posted. Fix the errors below.", "admin-error")
+        return _render_announcements(form), 400
+
+    announcement = Announcement(
+        message=form.message.data,
+        link_url=form.link_url.data or None,
+        link_text=form.link_text.data or None,
+        level=form.level.data,
+        dismissible=form.dismissible.data,
+        created_by_id=current_user.id,
+    )
+    if form.starts_at.data:
+        announcement.starts_at = _start_of_utc_day(form.starts_at.data)
+    if form.ends_at.data:
+        # Runs through the whole end date (UTC), like ItemRequest.expires_at.
+        announcement.ends_at = _start_of_utc_day(form.ends_at.data) + timedelta(days=1)
+    db.session.add(announcement)
+    db.session.commit()
+
+    flash("Announcement posted", "admin-success")
+    return redirect(url_for("admin.announcements"))
+
+
+@bp.route("/announcements/<uuid:announcement_id>/end", methods=["POST"])
+@admin_required
+def end_announcement(announcement_id):
+    announcement = db.get_or_404(Announcement, announcement_id)
+    if not EmptyForm().validate_on_submit():
+        flash("Invalid request", "admin-error")
+        return redirect(url_for("admin.announcements"))
+    if announcement.status == Announcement.STATUS_ENDED:
+        flash("That announcement has already ended", "admin-error")
+        return redirect(url_for("admin.announcements"))
+
+    announcement.ends_at = datetime.now(UTC).replace(tzinfo=None)
+    db.session.commit()
+
+    flash("Announcement ended", "admin-success")
+    return redirect(url_for("admin.announcements"))
 
 
 @bp.route("/users/<uuid:user_id>/promote", methods=["POST"])

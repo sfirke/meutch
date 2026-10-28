@@ -1223,3 +1223,85 @@ class ActivityLog(db.Model):
 
     def __repr__(self):
         return f"<ActivityLog {self.event_type} at {self.occurred_at}>"
+
+
+def _utc_now_naive():
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
+class Announcement(db.Model):
+    """A site-wide banner an admin posts for logged-in members.
+
+    Datetimes are naive UTC. Announcements are never deleted or edited; ending one
+    sets ends_at.
+    """
+
+    __tablename__ = "announcement"
+
+    LEVEL_INFO = "info"
+    LEVEL_WARNING = "warning"
+    LEVEL_CHOICES = [(LEVEL_INFO, "Info"), (LEVEL_WARNING, "Warning")]
+
+    STATUS_SCHEDULED = "scheduled"
+    STATUS_ACTIVE = "active"
+    STATUS_ENDED = "ended"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    message = db.Column(db.String(280), nullable=False)
+    link_url = db.Column(db.String(500), nullable=True)
+    link_text = db.Column(db.String(60), nullable=True)
+    level = db.Column(db.String(16), nullable=False, default=LEVEL_INFO)
+    starts_at = db.Column(db.DateTime, nullable=False, default=_utc_now_naive)
+    ends_at = db.Column(db.DateTime, nullable=True)
+    dismissible = db.Column(db.Boolean, nullable=False, default=True)
+    created_by_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = db.Column(
+        db.DateTime, default=func.now(), server_default=func.now(), nullable=False
+    )
+
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
+
+    @classmethod
+    def active_clause(cls, now):
+        return db.and_(cls.starts_at <= now, db.or_(cls.ends_at.is_(None), cls.ends_at > now))
+
+    @property
+    def status(self):
+        now = _utc_now_naive()
+        # Ended wins: "End now" on a scheduled announcement leaves ends_at before starts_at.
+        if self.ends_at is not None and self.ends_at <= now:
+            return self.STATUS_ENDED
+        if self.starts_at > now:
+            return self.STATUS_SCHEDULED
+        return self.STATUS_ACTIVE
+
+    @property
+    def is_active(self):
+        return self.status == self.STATUS_ACTIVE
+
+    def __repr__(self):
+        return f"<Announcement {self.id} {self.status}>"
+
+
+class AnnouncementDismissal(db.Model):
+    __tablename__ = "announcement_dismissal"
+
+    user_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    announcement_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("announcement.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    dismissed_at = db.Column(
+        db.DateTime, default=func.now(), server_default=func.now(), nullable=False
+    )
+
+    user = db.relationship("User")
+    announcement = db.relationship("Announcement")
+
+    def __repr__(self):
+        return f"<AnnouncementDismissal {self.user_id} {self.announcement_id}>"
