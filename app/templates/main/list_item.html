@@ -7,7 +7,7 @@
 {% block content %}
 <div class="container mt-5">
     <h2>List a New Item</h2>
-    <form method="post" enctype="multipart/form-data" data-single-submit="true">
+    <form method="post" enctype="multipart/form-data">
         {{ form.csrf_token }}
         {{ form.creation_token() }}
         {% if return_request_id %}
