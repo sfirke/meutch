@@ -58,6 +58,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### API development (continued)
 - Cut the query cost of circle, request, and feed reads across the app and the API ([#480](https://github.com/sfirke/meutch/pull/480)).
+- The conversation list in the API now always says whether a conversation is archived. Before, conversations started before the messaging overhaul returned an empty value there instead of "not archived" ([#513](https://github.com/sfirke/meutch/pull/513)).
 - Removed the `GET /api/v1/requests` list endpoint, the API counterpart of the old requests browse page. `GET /api/v1/feed?types=requests` returns the same requests ([#515](https://github.com/sfirke/meutch/pull/515)).
 
 ### Developer Experience
