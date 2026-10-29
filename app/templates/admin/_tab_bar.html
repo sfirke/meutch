@@ -3,9 +3,9 @@
    Users and Analytics are panes of the dashboard, so on that page they are Bootstrap
    tab buttons. On any other admin page they render as links back to the dashboard
    instead -- a <button data-bs-target="#admin-users"> there would point at a pane
-   that is not on the page. Activity is always a link, because it has its own route.
+   that is not on the page. Activity and Announcements are always links, because they have their own routes.
 
-   On the dashboard, Bootstrap still enrolls the Activity link in the tab bar's
+   On the dashboard, Bootstrap still enrolls those links in the tab bar's
    arrow-key handling; the dashboard script turns that into following the link. #}
 {% set on_dashboard = active_tab in ['users', 'analytics'] %}
 {% set dashboard_tabs = [('users', 'fa-users-cog', 'Users'), ('analytics', 'fa-chart-line', 'Analytics')] %}
@@ -26,6 +26,11 @@
         <li class="nav-item" role="presentation">
             <a class="nav-link {% if active_tab == 'activity' %}active{% endif %}" href="{{ url_for('admin.activity') }}" {% if active_tab == 'activity' %}aria-current="page"{% endif %}>
                 <i class="fas fa-clipboard-list me-2"></i>Activity
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if active_tab == 'announcements' %}active{% endif %}" href="{{ url_for('admin.announcements') }}" {% if active_tab == 'announcements' %}aria-current="page"{% endif %}>
+                <i class="fas fa-bullhorn me-2"></i>Announcements
             </a>
         </li>
     </ul>

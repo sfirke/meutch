@@ -6,6 +6,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Minor**:
+- Admins can post a short announcement that shows as a banner at the top of every page for logged-in members, who can close it once they've seen it. Closing it on one device hides it on your others too ([#586](https://github.com/sfirke/meutch/pull/586)).
 - When users create a public giveaway or request, they are prompted to share it outside of Meutch ([#571](https://github.com/sfirke/meutch/pull/571)).
 - Community Activity keeps showing a "lent out" entry after the item has been returned, for 30 days from when the loan was requested. Before, it disappeared as soon as the loan was marked returned ([#544](https://github.com/sfirke/meutch/pull/544)).
 - The profile page is easier to get around. The "My Activity" tab is now called "Loans & Requests", matching the menu, and its count badge is gone. On My Items, your lending items come before past giveaways, which are tucked into one line you can click to open. Empty lists now have a button to list an item or create a request ([#547](https://github.com/sfirke/meutch/pull/547)).
