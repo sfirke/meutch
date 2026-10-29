@@ -28,7 +28,7 @@
                 Shows as a banner at the top of every page for logged-in members. Only the active
                 one with the latest start date that a member hasn't dismissed is shown.
                 Announcements can't be edited: to change one, end it and post a new one. Dates are
-                in UTC.
+                in US Eastern time.
             </p>
             <form method="post" action="{{ url_for('admin.create_announcement') }}" novalidate>
                 {{ form.hidden_tag() }}

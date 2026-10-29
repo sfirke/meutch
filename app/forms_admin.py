@@ -1,10 +1,14 @@
-from datetime import UTC, datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from flask_wtf import FlaskForm
 from wtforms import BooleanField, DateField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import URL, DataRequired, Length, Optional, ValidationError
 
 from app.models import Announcement
+
+# Announcement start and end dates are in US Eastern time.
+ANNOUNCEMENT_TIMEZONE = ZoneInfo("America/New_York")
 
 
 def _strip(value):
@@ -49,6 +53,6 @@ class AnnouncementForm(FlaskForm):
             raise ValidationError("Link text needs a link URL.")
 
     def validate_ends_at(self, field):
-        start_date = self.starts_at.data or datetime.now(UTC).date()
+        start_date = self.starts_at.data or datetime.now(ANNOUNCEMENT_TIMEZONE).date()
         if field.data < start_date:
             raise ValidationError("The end date can't be before the start date.")

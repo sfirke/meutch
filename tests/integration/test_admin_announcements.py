@@ -2,6 +2,8 @@
 
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
+
 from app.models import Announcement
 from conftest import login_user
 from tests.factories import AnnouncementDismissalFactory, AnnouncementFactory, UserFactory
@@ -63,17 +65,28 @@ class TestCreate:
         assert announcement.ends_at is None
         assert announcement.is_active
 
-    def test_end_date_runs_through_that_day(self, client, db_session):
+    @pytest.mark.parametrize(
+        "ends_at, expected_utc",
+        [
+            ("2030-12-04", datetime(2030, 12, 5, 5, 0)),
+            ("2030-07-04", datetime(2030, 7, 5, 4, 0)),
+        ],
+    )
+    def test_end_date_runs_through_that_day_eastern(
+        self, client, db_session, ends_at, expected_utc
+    ):
         _login_admin(client, db_session)
-        today = datetime.now(UTC).date()
 
-        client.post(PAGE_URL, data=_form_data(ends_at=today.isoformat()))
+        client.post(PAGE_URL, data=_form_data(ends_at=ends_at))
 
-        announcement = Announcement.query.one()
-        assert announcement.ends_at == datetime.combine(
-            today + timedelta(days=1), datetime.min.time()
-        )
-        assert announcement.is_active
+        assert Announcement.query.one().ends_at == expected_utc
+
+    def test_start_date_begins_at_eastern_midnight(self, client, db_session):
+        _login_admin(client, db_session)
+
+        client.post(PAGE_URL, data=_form_data(starts_at="2030-12-04"))
+
+        assert Announcement.query.one().starts_at == datetime(2030, 12, 4, 5, 0)
 
     def test_future_start_is_scheduled(self, client, db_session):
         _login_admin(client, db_session)
