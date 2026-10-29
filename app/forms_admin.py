@@ -11,10 +11,15 @@ def _strip(value):
     return value.strip() if isinstance(value, str) else value
 
 
+def _single_line(value):
+    # The banner renders on one line, so line breaks would silently collapse.
+    return " ".join(value.split()) if isinstance(value, str) else value
+
+
 class AnnouncementForm(FlaskForm):
     message = TextAreaField(
         "Message",
-        filters=[_strip],
+        filters=[_single_line],
         validators=[DataRequired(), Length(max=280)],
     )
     link_url = StringField(
@@ -44,8 +49,6 @@ class AnnouncementForm(FlaskForm):
             raise ValidationError("Link text needs a link URL.")
 
     def validate_ends_at(self, field):
-        if field.data is None:
-            return
         start_date = self.starts_at.data or datetime.now(UTC).date()
         if field.data < start_date:
             raise ValidationError("The end date can't be before the start date.")

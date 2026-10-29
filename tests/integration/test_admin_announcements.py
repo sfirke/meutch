@@ -160,3 +160,14 @@ class TestListAndEnd:
         assert "Never dismissed" in content
         assert "data-dismissal-count>2</td>" in content
         assert "data-dismissal-count>0</td>" in content
+
+    def test_lists_latest_start_first(self, client, db_session):
+        _login_admin(client, db_session)
+        now = datetime.now(UTC).replace(tzinfo=None)
+        AnnouncementFactory(message="Started yesterday", starts_at=now - timedelta(days=1))
+        AnnouncementFactory(message="Started today", starts_at=now - timedelta(minutes=1))
+        db_session.commit()
+
+        content = client.get(PAGE_URL).data.decode("utf-8")
+
+        assert content.index("Started today") < content.index("Started yesterday")

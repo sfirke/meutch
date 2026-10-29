@@ -26,6 +26,7 @@ from app.models import (
     Message,
     User,
     circle_members,
+    utc_now_naive,
 )
 from app.services import account_service
 from app.utils.activity_log import oldest_entry_at
@@ -324,10 +325,6 @@ def activity():
     )
 
 
-def _start_of_utc_day(day):
-    return datetime(day.year, day.month, day.day)
-
-
 def _render_announcements(form):
     # pylint: disable=not-callable
     dismissal_counts = (
@@ -342,7 +339,7 @@ def _render_announcements(form):
         db.select(Announcement, func.coalesce(dismissal_counts.c.dismissal_count, 0))
         .outerjoin(dismissal_counts, dismissal_counts.c.announcement_id == Announcement.id)
         .options(joinedload(Announcement.created_by))
-        .order_by(Announcement.created_at.desc(), Announcement.id.desc())
+        .order_by(Announcement.starts_at.desc(), Announcement.id.desc())
     ).all()
 
     return render_template(
@@ -377,10 +374,12 @@ def create_announcement():
         created_by_id=current_user.id,
     )
     if form.starts_at.data:
-        announcement.starts_at = _start_of_utc_day(form.starts_at.data)
+        announcement.starts_at = datetime.combine(form.starts_at.data, datetime.min.time())
     if form.ends_at.data:
-        # Runs through the whole end date (UTC), like ItemRequest.expires_at.
-        announcement.ends_at = _start_of_utc_day(form.ends_at.data) + timedelta(days=1)
+        # Stored as the next midnight (UTC) so the banner runs through the whole end date.
+        announcement.ends_at = datetime.combine(
+            form.ends_at.data + timedelta(days=1), datetime.min.time()
+        )
     db.session.add(announcement)
     db.session.commit()
 
@@ -399,7 +398,7 @@ def end_announcement(announcement_id):
         flash("That announcement has already ended", "admin-error")
         return redirect(url_for("admin.announcements"))
 
-    announcement.ends_at = datetime.now(UTC).replace(tzinfo=None)
+    announcement.ends_at = utc_now_naive()
     db.session.commit()
 
     flash("Announcement ended", "admin-success")

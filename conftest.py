@@ -148,6 +148,11 @@ class TestConfig(Config):
     )
     SECRET_KEY = "test-secret-key"
 
+    # Pin the test client's host and scheme so tests don't depend on the SERVER_NAME in a
+    # developer's .env (CI has none, which makes the host "localhost" with no port).
+    SERVER_NAME = "localhost:5000"
+    PREFERRED_URL_SCHEME = "https"
+
     # pool_pre_ping detects and replaces stale connections that may
     # have been left in a broken state by an aborted test.
     SQLALCHEMY_ENGINE_OPTIONS = {

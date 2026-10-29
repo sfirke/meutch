@@ -10,7 +10,8 @@ document.addEventListener('submit', function(event) {
         body: new FormData(form),
     })
     .then(function(r) {
-        if (!r.ok) throw new Error('Request failed');
+        // A redirect means the session expired and we got the login page back.
+        if (!r.ok || r.redirected) throw new Error('Request failed');
         form.closest('[data-announcement-banner]').parentElement.remove();
     })
     .catch(function() {

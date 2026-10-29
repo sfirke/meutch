@@ -1225,7 +1225,7 @@ class ActivityLog(db.Model):
         return f"<ActivityLog {self.event_type} at {self.occurred_at}>"
 
 
-def _utc_now_naive():
+def utc_now_naive():
     return datetime.now(UTC).replace(tzinfo=None)
 
 
@@ -1251,7 +1251,7 @@ class Announcement(db.Model):
     link_url = db.Column(db.String(500), nullable=True)
     link_text = db.Column(db.String(60), nullable=True)
     level = db.Column(db.String(16), nullable=False, default=LEVEL_INFO)
-    starts_at = db.Column(db.DateTime, nullable=False, default=_utc_now_naive)
+    starts_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive)
     ends_at = db.Column(db.DateTime, nullable=True)
     dismissible = db.Column(db.Boolean, nullable=False, default=True)
     created_by_id = db.Column(
@@ -1269,7 +1269,7 @@ class Announcement(db.Model):
 
     @property
     def status(self):
-        now = _utc_now_naive()
+        now = utc_now_naive()
         # Ended wins: "End now" on a scheduled announcement leaves ends_at before starts_at.
         if self.ends_at is not None and self.ends_at <= now:
             return self.STATUS_ENDED

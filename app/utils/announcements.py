@@ -1,7 +1,5 @@
-from datetime import UTC, datetime
-
 from app import db
-from app.models import Announcement, AnnouncementDismissal
+from app.models import Announcement, AnnouncementDismissal, utc_now_naive
 
 
 def current_announcement_for(user):
@@ -9,7 +7,7 @@ def current_announcement_for(user):
     if not user.is_authenticated:
         return None
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = utc_now_naive()
     dismissed = (
         db.select(AnnouncementDismissal.announcement_id)
         .where(
