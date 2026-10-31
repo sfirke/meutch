@@ -2255,6 +2255,11 @@ html {
     pointer-events: none;
 }
 
+.landing-hero > .container {
+    position: relative;
+    z-index: 1;
+}
+
 .landing-hero-logo {
     width: 260px;
     height: 260px;
