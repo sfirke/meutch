@@ -245,7 +245,7 @@
                                             </form>
                                             <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='reject') }}" method="POST">
                                                 {{ form.csrf_token }}
-                                                <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-times me-1"></i>Reject</button>
+                                                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="fas fa-times me-1"></i>Reject</button>
                                             </form>
                                         </div>
                                     </div>

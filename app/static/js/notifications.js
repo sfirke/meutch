@@ -25,31 +25,32 @@
 
         // Default to 'info' type if not specified
         type = type || 'info';
-        
+
         // Try to use Bootstrap toasts if available
         const toastContainer = document.querySelector('.toast-container');
-        
+
         if (toastContainer && typeof bootstrap !== 'undefined' && bootstrap.Toast) {
             const toastEl = document.createElement('div');
-            toastEl.className = 'toast align-items-center text-white bg-' + type + ' border-0';
+            const isLightFill = type === 'warning';
+            toastEl.className = 'toast align-items-center ' + (isLightFill ? 'text-dark' : 'text-white') + ' bg-' + type + ' border-0';
             toastEl.setAttribute('role', 'alert');
             toastEl.setAttribute('aria-live', 'assertive');
             toastEl.setAttribute('aria-atomic', 'true');
-            
+
             toastEl.innerHTML = `
                 <div class="d-flex">
                     <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    <button type="button" class="btn-close ${isLightFill ? '' : 'btn-close-white'} me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
             `;
-            
+
             toastContainer.appendChild(toastEl);
-            const toast = new bootstrap.Toast(toastEl, { 
-                autohide: config.autohide, 
-                delay: config.delay 
+            const toast = new bootstrap.Toast(toastEl, {
+                autohide: config.autohide,
+                delay: config.delay
             });
             toast.show();
-            
+
             // Remove toast element after it's hidden to prevent DOM buildup
             toastEl.addEventListener('hidden.bs.toast', function() {
                 toastEl.remove();
