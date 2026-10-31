@@ -14,22 +14,22 @@
             <!-- Left: text + CTAs -->
             <div class="col-lg-7 text-center text-lg-start">
                 <h1 class="landing-headline mb-3">
-                    What if borrowing from a neighbor was as easy as buying from Amazon?
+                    What if <span class="paper-strip">borrowing</span> from a neighbor was as easy as buying from Amazon?
                 </h1>
                 <p class="landing-subheadline mb-4">
                     Meutch supports the <i>actual</i> sharing economy. Tech for good: no cost, no ads, no catch.
                 </p>
                 <div class="d-flex gap-3 justify-content-center justify-content-lg-start flex-wrap">
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-lg landing-btn-primary">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-lg btn-primary">
                         <i class="fas fa-user-plus me-2"></i>Get Started
                     </a>
-                    <a href="#how-it-works" class="btn btn-lg landing-btn-outline">
+                    <a href="#how-it-works" class="btn btn-lg btn-outline-secondary">
                         See How It Works
                     </a>
                 </div>
             </div>
             <!-- Right: large logo -->
-            <div class="col-lg-5 d-none d-lg-flex justify-content-center align-items-center">
+            <div class="col-lg-5 d-flex justify-content-center align-items-center">
                 <img src="{{ url_for('static', filename='img/logo_handshake.png') }}"
                      alt="Meutch handshake logo" class="landing-hero-logo">
             </div>
@@ -52,7 +52,7 @@
             <div class="col-lg-7">
                 <div class="landing-mock-feed">
                     <!-- Lent -->
-                    <div class="card shadow-sm border-0 border-start border-4 border-secondary mb-3">
+                    <div class="card border-0 border-start border-4 border-secondary mb-3">
                         <div class="card-body py-3">
                             <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
                                 <span class="activity-feed-avatar-fallback flex-shrink-0" style="background-color: #e0f2f1; color: #0d6e6e; width: 28px; height: 28px; font-size: 0.72rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center;">NS</span>
@@ -84,7 +84,7 @@
                     </div>
 
                     <!-- Giveaway -->
-                    <div class="card shadow-sm border-0 border-start border-4 border-success mb-3">
+                    <div class="card border-0 border-start border-4 border-success mb-3">
                         <div class="card-body py-3">
                             <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
                                 <span class="activity-feed-avatar-fallback flex-shrink-0" style="background-color: #d1fae5; color: #065f46; width: 28px; height: 28px; font-size: 0.72rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center;">GH</span>
@@ -119,7 +119,7 @@
                     </div>
 
                     <!-- Circle join -->
-                    <div class="card shadow-sm border-0 border-start border-4 border-info mb-3">
+                    <div class="card border-0 border-start border-4 border-info mb-3">
                         <div class="card-body py-3">
                             <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
                                 <img src="{{ url_for('static', filename='img/sam_avatar.jpg') }}" alt="Sam F. avatar" class="rounded-circle flex-shrink-0" style="width: 28px; height: 28px; object-fit: cover;">
@@ -151,7 +151,7 @@
                     </div>
 
                     <!-- Request -->
-                    <div class="card shadow-sm border-0 border-start border-4 border-primary">
+                    <div class="card border-0 border-start border-4 border-primary">
                         <div class="card-body py-3">
                             <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
                                 <span class="activity-feed-avatar-fallback flex-shrink-0" style="background-color: #e9d5ff; color: #6b21a8; width: 28px; height: 28px; font-size: 0.72rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center;">CW</span>
@@ -196,7 +196,7 @@
             <div class="col-md-6">
                 <img src="{{ url_for('static', filename='img/sashiko_hands_share.jpg') }}"
                      alt="One person's hand giving a spool of sashiko thread to another outstretched hand"
-                     class="img-fluid rounded shadow-sm">
+                     class="img-fluid rounded">
             </div>
             <div class="col-md-6">
                 <blockquote class="landing-quote">
@@ -221,7 +221,7 @@
         <div class="row justify-content-center">
             <div class="col-lg-8">
                 <div class="accordion" id="landingFaq">
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded overflow-hidden">
+                    <div class="accordion-item border-0 mb-3 rounded overflow-hidden">
                         <h3 class="accordion-header">
                             <button class="accordion-button collapsed" type="button"
                                     data-bs-toggle="collapse" data-bs-target="#faq1">
@@ -230,12 +230,12 @@
                         </h3>
                         <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#landingFaq">
                             <div class="accordion-body">
-                                It's short for "mutual aid", so it's pronounced "mewch." Peter Kropotkin popularized the term in his essay arguing that humans (and other animals) helping each other has been key to their evolutionary success. 
+                                It's short for "mutual aid", so it's pronounced "mewch." Peter Kropotkin popularized the term in his essay arguing that humans (and other animals) helping each other has been key to their evolutionary success.
                             </div>
                         </div>
                     </div>
 
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded overflow-hidden">
+                    <div class="accordion-item border-0 mb-3 rounded overflow-hidden">
                         <h3 class="accordion-header">
                             <button class="accordion-button collapsed" type="button"
                                     data-bs-toggle="collapse" data-bs-target="#faq2">
@@ -249,7 +249,7 @@
                         </div>
                     </div>
 
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded overflow-hidden">
+                    <div class="accordion-item border-0 mb-3 rounded overflow-hidden">
                         <h3 class="accordion-header">
                             <button class="accordion-button collapsed" type="button"
                                     data-bs-toggle="collapse" data-bs-target="#faq3">
@@ -263,7 +263,7 @@
                         </div>
                     </div>
 
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded overflow-hidden">
+                    <div class="accordion-item border-0 mb-3 rounded overflow-hidden">
                         <h3 class="accordion-header">
                             <button class="accordion-button collapsed" type="button"
                                     data-bs-toggle="collapse" data-bs-target="#faq4">
@@ -277,7 +277,7 @@
                         </div>
                     </div>
 
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded overflow-hidden">
+                    <div class="accordion-item border-0 mb-3 rounded overflow-hidden">
                         <h3 class="accordion-header">
                             <button class="accordion-button collapsed" type="button"
                                     data-bs-toggle="collapse" data-bs-target="#faq5">
@@ -301,32 +301,11 @@
      ============================================ -->
 <section class="landing-cta">
     <div class="container text-center">
-        <h2 class="text-white mb-3">Ready to start sharing?</h2>
-        <p class="text-white-50 mb-4">Join your friends and neighbors in building caring, resilient communities.</p>
-        <a href="{{ url_for('auth.register') }}" class="btn btn-lg landing-btn-cta">
+        <h2 class="mb-3">Ready to start sharing?</h2>
+        <p class="mb-4">Join your friends and neighbors in building caring, resilient communities.</p>
+        <a href="{{ url_for('auth.register') }}" class="btn btn-lg btn-meutch-orange">
             <i class="fas fa-user-plus me-2"></i>Create Your Account
         </a>
     </div>
 </section>
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<script>
-(function () {
-    'use strict';
-    var navbar = document.querySelector('.navbar');
-    if (!document.body.classList.contains('landing-page') || !navbar) return;
-
-    function onScroll() {
-        if (window.scrollY > 50) {
-            navbar.classList.add('scrolled');
-        } else {
-            navbar.classList.remove('scrolled');
-        }
-    }
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-})();
-</script>
 {% endblock %}
