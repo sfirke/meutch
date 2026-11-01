@@ -77,12 +77,9 @@ def sync_staging_db():
     try:
         # Use PostgreSQL tools directly (both DBs are PostgreSQL 17)
         click.echo("📦 Creating production dump...")
-        # Use --clean to drop objects before recreating them
         dump_cmd = [
             "pg_dump",
             prod_db_url,
-            "--clean",
-            "--if-exists",
             "--no-owner",
             "--no-privileges",
             "--file",
@@ -98,9 +95,20 @@ def sync_staging_db():
         dump_size = os.path.getsize(dump_file)
         click.echo(f"📊 Created dump: {dump_size / 1024:.1f} KB")
 
-        # Restore to staging - dump includes DROP statements with CASCADE
-        click.echo("📥 Restoring to staging (will drop existing objects)...")
-        restore_cmd = ["psql", staging_db_url, "--file", dump_file, "--single-transaction"]
+        # Wiping the schema also removes tables from branches that never reached production.
+        # It's one transaction, so a failed restore leaves staging as it was.
+        click.echo("📥 Replacing everything in staging with the dump...")
+        restore_cmd = [
+            "psql",
+            staging_db_url,
+            "-v",
+            "ON_ERROR_STOP=1",
+            "--single-transaction",
+            "--command",
+            "DROP SCHEMA public CASCADE; CREATE SCHEMA public;",
+            "--file",
+            dump_file,
+        ]
 
         result = subprocess.run(restore_cmd, capture_output=True, text=True)
 
