@@ -1,0 +1,26 @@
+{% set ITEM_TAG_LABELS = {
+    "giveaway": "Up for grabs",
+    "pending": "Pending pickup",
+    "rehomed": "Rehomed",
+    "on_loan": "Out on loan",
+    "wanted": "Wanted",
+    "found": "Found!",
+    "circle": "Circle",
+} %}
+
+{% macro item_tag(kind, on_photo=false) -%}
+    <span class="item-tag item-tag--{{ kind }}{% if on_photo %} item-tag--on-photo{% endif %}">{{ ITEM_TAG_LABELS[kind] }}</span>
+{%- endmacro %}
+
+{# The one tag that describes where an item stands, shown over its photo. #}
+{% macro item_status_tag(item) -%}
+    {%- if item.is_giveaway and item.claim_status == "claimed" -%}
+        {{ item_tag("rehomed", on_photo=true) }}
+    {%- elif item.is_giveaway and not item.available -%}
+        {{ item_tag("pending", on_photo=true) }}
+    {%- elif item.is_giveaway -%}
+        {{ item_tag("giveaway", on_photo=true) }}
+    {%- elif not item.available -%}
+        {{ item_tag("on_loan", on_photo=true) }}
+    {%- endif -%}
+{%- endmacro %}

@@ -577,7 +577,7 @@ class TestAuthenticationRoutes:
                 )
 
                 assert response.status_code == 200, f"Failed for email: {email}"
-                assert b"Community Activity" in response.data, f"Failed for email: {email}"
+                assert b"What's happening nearby" in response.data, f"Failed for email: {email}"
 
                 # Logout after each test
                 client.get("/logout")
@@ -1033,7 +1033,7 @@ class TestRedirectAfterLogin:
             )
 
             assert response.status_code == 200
-            assert b"Community Activity" in response.data
+            assert b"What's happening nearby" in response.data
 
     def test_login_with_valid_next_redirects_correctly(self, client, app, auth_user):
         """Test login with valid 'next' parameter redirects to intended page."""
@@ -1065,7 +1065,7 @@ class TestRedirectAfterLogin:
 
             assert response.status_code == 200
             # Should redirect to home page instead of external URL
-            assert b"Community Activity" in response.data
+            assert b"What's happening nearby" in response.data
 
     def test_login_with_protocol_relative_url_ignores_next(self, client, app, auth_user):
         """Test that protocol-relative URLs are ignored for security."""
@@ -1083,7 +1083,7 @@ class TestRedirectAfterLogin:
 
             assert response.status_code == 200
             # Should redirect to home page instead
-            assert b"Community Activity" in response.data
+            assert b"What's happening nearby" in response.data
 
     def test_full_redirect_flow_after_unauthorized_access(self, client, app, auth_user):
         """Test complete flow: unauthorized access -> login -> redirect back.

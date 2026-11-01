@@ -1,0 +1,37 @@
+{% from "components/people.html" import avatar %}
+{% from "components/tags.html" import item_tag %}
+
+{% macro feed_card(actor_name, action, when, title, url=none, actor_url=none, avatar_url=none, description=none, tag=none, distance=none, image_url=none, heading="h2") %}
+<article class="card activity-feed-card{% if url %} card-clickable{% endif %}">
+    <div class="card-body feed-card-body">
+        <div class="feed-card-main">
+            <div class="feed-card-actor">
+                {{ avatar(actor_name, avatar_url, href=actor_url) }}
+                <div class="feed-card-actor-text">
+                    {% if actor_url %}
+                        <a href="{{ actor_url }}" class="activity-feed-actor-link"><strong>{{ actor_name }}</strong></a>
+                    {% else %}
+                        <strong>{{ actor_name }}</strong>
+                    {% endif %}
+                    {{ action }} &middot; {{ when }}
+                </div>
+            </div>
+            <{{ heading }} class="feed-card-title">
+                {% if url %}<a href="{{ url }}" class="stretched-link">{{ title }}</a>{% else %}{{ title }}{% endif %}
+            </{{ heading }}>
+            {% if description %}
+                <p class="feed-card-description text-break feed-line-clamp-2">{{ description }}</p>
+            {% endif %}
+            {% if tag or distance %}
+                <div class="feed-card-tags">
+                    {% if tag %}{{ item_tag(tag) }}{% endif %}
+                    {% if distance %}<span class="distance-note">{{ distance }} away</span>{% endif %}
+                </div>
+            {% endif %}
+        </div>
+        {% if image_url %}
+            <img src="{{ image_url }}" alt="" class="feed-card-thumb">
+        {% endif %}
+    </div>
+</article>
+{% endmacro %}
