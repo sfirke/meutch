@@ -1,5 +1,6 @@
 {# app/templates/share/giveaway_preview.html #}
 {% extends "base.html" %}
+{% from "components/tags.html" import item_status_tag %}
 
 {% block title %}{{ item.name }} - Free Giveaway{% endblock %}
 
@@ -31,26 +32,10 @@
                             <span class="text-muted">Free Giveaway</span>
                         </div>
                     {% endif %}
-                    <!-- Giveaway ribbon -->
-                    <span class="giveaway-ribbon">GIVEAWAY</span>
+                    {{ item_status_tag(item) }}
                 </div>
 
                 <div class="card-body">
-                    <!-- Status badges -->
-                    {% if item.claim_status == 'claimed' or item.claim_status == 'pending_pickup' %}
-                    <div class="mb-3">
-                        {% if item.claim_status == 'claimed' %}
-                            <span class="badge bg-success">
-                                <i class="fas fa-heart me-1"></i>Rehomed
-                            </span>
-                        {% elif item.claim_status == 'pending_pickup' %}
-                            <span class="badge bg-warning text-dark">
-                                <i class="fas fa-clock me-1"></i>Pending Pickup
-                            </span>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-
                     <!-- Title -->
                     <h1 class="card-title h2 mb-3">{{ item.name }}</h1>
 

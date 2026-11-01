@@ -1,0 +1,16 @@
+{% macro avatar(name, image_url=none, size="md", href=none, extra_class="") %}
+    {%- set letters = (name or "").split()|map("first")|list -%}
+    {%- set initials = ((letters[0] ~ letters[-1]) if letters|length > 1 else letters|join)|upper -%}
+    {%- set picture -%}
+        {%- if image_url -%}
+            <img src="{{ image_url }}" alt="{{ '' if href else name }}" class="avatar avatar--{{ size }} {{ extra_class }}">
+        {%- else -%}
+            <span class="avatar avatar--{{ size }} avatar--tone-{{ (name or '')|length % 3 }} {{ extra_class }}" aria-hidden="true">{{ initials or "?" }}</span>
+        {%- endif -%}
+    {%- endset -%}
+    {%- if href -%}
+        <a href="{{ href }}" class="avatar-link" aria-hidden="true" tabindex="-1">{{ picture }}</a>
+    {%- else -%}
+        {{ picture }}
+    {%- endif -%}
+{% endmacro %}
