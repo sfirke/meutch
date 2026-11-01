@@ -235,6 +235,22 @@ class TestPaginatedCircleMembers:
                 f"Members heading (at {members_heading_pos})"
             )
 
+    def test_non_member_of_closed_circle_sees_real_member_count(self, client, app):
+        """Closed circles hide their member list, but not how many members they have."""
+        with app.app_context():
+            circle = CircleFactory(circle_type="closed")
+            circle.members.extend([UserFactory(), UserFactory()])
+            outsider = UserFactory()
+            db.session.commit()
+
+            login_user(client, outsider.email)
+
+            response = client.get(url_for("circles.view_circle", circle_id=circle.id))
+            html = response.data.decode()
+
+            assert "2 members" in html
+            assert "Members (" not in html
+
     def test_non_member_sees_join_button_above_closed_message(self, client, app):
         """A non-member of a closed circle sees Join button above the closed message."""
         with app.app_context():

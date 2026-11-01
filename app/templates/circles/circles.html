@@ -1,6 +1,8 @@
 <!-- app/templates/circles/circles.html -->
 
 {% extends "base.html" %}
+{% from "components/circles.html" import circle_row %}
+{% from "components/tags.html" import item_tag %}
 
 {% block title %}Circles{% endblock %}
 
@@ -9,17 +11,16 @@
     <h1 class="mb-4">Circles</h1>
 
     {% if show_circle_onboarding %}
-    <section class="card border-info mb-4">
+    <section class="card mb-4">
         <div class="card-body p-4">
             <div class="row g-4 align-items-start">
                 <div class="col-lg-6">
-                    <span class="badge bg-info mb-2">Best next step</span>
+                    <div class="kicker mb-2">Best next step</div>
                     <h2 class="h4 mb-2">Join a circle before you browse Meutch</h2>
                     <p class="text-muted mb-3">Most sharing happens inside circles. Right now you're only seeing public giveaways and requests, no borrowable items.</p>
                     <p class="text-muted mb-3">Here are some suggested circles near you. Scroll down for the full list.</p>
                     {% if needs_location_hint %}
                     <p class="small text-muted mb-0">
-                        <i class="fas fa-map-marker-alt me-1"></i>
                         <a href="{{ url_for('main.update_location') }}">Set your location</a> to rank circles by distance. For now we're featuring larger circles first.
                     </p>
                     {% endif %}
@@ -28,47 +29,30 @@
                     {% if featured_circle_recommendation %}
                         {% set featured_circle = featured_circle_recommendation.circle %}
                         {% set featured_distance = get_distance_to_circle(featured_circle) %}
-                        <div class="border rounded-3 h-100 p-3 {% if featured_circle_recommendation.is_regional %}border-regional border-2 bg-light{% else %}bg-light{% endif %}">
-                            <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
-                                <div>
-                                    {% if featured_circle_recommendation.is_regional %}
-                                    <div class="mb-2">
-                                        <span class="badge bg-regional"><i class="fas fa-map-pin me-1"></i>Regional circle</span>
-                                        {% if current_user.is_admin %}<span class="small text-success ms-2">{{ featured_circle_recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
-                                    </div>
-                                    {% endif %}
-                                    <h3 class="h5 mb-1">
-                                        <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="text-decoration-none">
-                                            {{ featured_circle.name }}
-                                        </a>
-                                    </h3>
-                                    <p class="text-muted small mb-0">
-                                        {{ featured_circle.member_count }} members
-                                        {% if featured_distance %}
-                                            <span class="ms-2"><i class="fas fa-map-marker-alt me-1"></i>{{ featured_distance }}</span>
-                                        {% endif %}
-                                    </p>
-                                </div>
-                                <span class="badge {% if featured_circle_recommendation.is_open %}bg-success{% else %}bg-secondary{% endif %}">
-                                    {% if featured_circle_recommendation.is_open %}Open circle{% else %}Approval required{% endif %}
-                                </span>
+                        <div class="circle-suggestion">
+                            <div class="circle-suggestion-tags">
+                                {{ item_tag("open-circle" if featured_circle_recommendation.is_open else "approval") }}
+                                {% if featured_circle_recommendation.is_regional %}
+                                    {{ item_tag("regional") }}
+                                    {% if current_user.is_admin %}<span class="small text-muted">{{ featured_circle_recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
+                                {% endif %}
                             </div>
-                            <p class="mb-3">{{ featured_circle.description|linkify }}</p>
+                            <h3 class="h5 mb-1">
+                                <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="text-decoration-none">{{ featured_circle.name }}</a>
+                            </h3>
+                            <p class="text-muted small mb-2">
+                                {{ featured_circle.member_count }} members{% if featured_distance %} &middot; {{ featured_distance }} away{% endif %}
+                            </p>
+                            <p class="mb-2">{{ featured_circle.description|linkify }}</p>
                             {% if featured_circle_recommendation.visible_display_counts %}
-                            <div class="d-flex flex-wrap gap-2 mb-3">
-                                {% for count in featured_circle_recommendation.visible_display_counts %}
-                                <span class="badge text-bg-light border">{{ count.text }}</span>
-                                {% endfor %}
-                            </div>
+                            <p class="small text-muted mb-3">{{ featured_circle_recommendation.visible_display_text }}</p>
                             {% else %}
                             <p class="small text-muted mb-3">This circle already has {{ featured_circle.member_count }} members and is a strong place to start building local sharing.</p>
                             {% endif %}
-                            <div class="d-flex flex-wrap gap-2">
-                                <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="btn btn-primary">View Circle</a>
-                            </div>
+                            <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="btn btn-primary">View Circle</a>
                         </div>
                     {% else %}
-                        <div class="border rounded-3 h-100 p-3 bg-light">
+                        <div class="circle-suggestion">
                             <h3 class="h5 mb-2">No listed circles yet</h3>
                             <p class="text-muted mb-3">If there isn't a public circle to join yet, you can create one and invite people nearby.</p>
                             <button class="btn btn-primary" type="button" data-bs-toggle="tab" data-bs-target="#create-circle">Create a Circle</button>
@@ -91,38 +75,26 @@
                         {% set secondary_card_class = 'col-12 col-md-6 col-xl-4' %}
                     {% endif %}
                 <div class="{{ secondary_card_class }}">
-                    <div class="border rounded-3 h-100 p-3 {% if recommendation.is_regional %}border-regional border-2 bg-light{% endif %}">
-                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-                            <div>
+                    <div class="card card-clickable h-100">
+                        <div class="card-body">
+                            <div class="circle-suggestion-tags">
+                                {{ item_tag("open-circle" if recommendation.is_open else "approval") }}
                                 {% if recommendation.is_regional %}
-                                <div class="mb-2">
-                                    <span class="badge bg-regional"><i class="fas fa-map-pin me-1"></i>Regional circle</span>
-                                    {% if current_user.is_admin %}<span class="small text-success ms-2">{{ recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
-                                </div>
+                                    {{ item_tag("regional") }}
+                                    {% if current_user.is_admin %}<span class="small text-muted">{{ recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
                                 {% endif %}
-                                <h3 class="h6 mb-1">
-                                    <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="text-decoration-none">
-                                        {{ recommended_circle.name }}
-                                    </a>
-                                </h3>
-                                <p class="text-muted small mb-0">
-                                    {{ recommended_circle.member_count }} members
-                                    {% if recommended_distance %}
-                                        <span class="ms-1">| {{ recommended_distance }}</span>
-                                    {% endif %}
-                                </p>
                             </div>
-                            <span class="badge {% if recommendation.is_open %}bg-success{% else %}bg-secondary{% endif %}">
-                                {% if recommendation.is_open %}Open{% else %}Approval Required{% endif %}
-                            </span>
-                        </div>
-                        {% if recommendation.visible_display_counts %}
-                        <p class="small text-muted mb-3">{{ recommendation.visible_display_text }}</p>
-                        {% else %}
-                        <p class="small text-muted mb-3">Meet members who are already active in this circle.</p>
-                        {% endif %}
-                        <div class="d-flex flex-wrap gap-2">
-                            <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="btn btn-outline-primary btn-sm">View Circle</a>
+                            <h3 class="h6 mb-1">
+                                <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="stretched-link text-decoration-none">{{ recommended_circle.name }}</a>
+                            </h3>
+                            <p class="text-muted small mb-2">
+                                {{ recommended_circle.member_count }} members{% if recommended_distance %} &middot; {{ recommended_distance }} away{% endif %}
+                            </p>
+                            {% if recommendation.visible_display_counts %}
+                            <p class="small text-muted mb-0">{{ recommendation.visible_display_text }}</p>
+                            {% else %}
+                            <p class="small text-muted mb-0">Meet members who are already active in this circle.</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -134,21 +106,17 @@
     {% endif %}
 
     {% if total_pending > 0 %}
-    <section id="pending-requests" class="card border-warning mb-4">
-        <div class="card-header bg-warning text-dark fw-semibold">
-            <i class="fas fa-bell me-2"></i>Needs Attention
-        </div>
-        <ul class="list-group list-group-flush">
+    <section id="pending-requests" class="attention-panel mb-4">
+        <h2 class="h5">Needs attention</h2>
+        <ul class="list-unstyled mb-0">
             {% for circle in user_circles %}
                 {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}
-                <li class="list-group-item d-flex align-items-center justify-content-between">
+                <li class="attention-row">
                     <div>
                         <strong>{{ circle.name }}</strong>
-                        <span class="badge bg-warning text-dark ms-2">
-                            {{ user_admin_circles[circle.id|string] }} pending request{{ 's' if user_admin_circles[circle.id|string] > 1 }}
-                        </span>
+                        <span class="text-muted">{{ user_admin_circles[circle.id|string] }} pending request{{ 's' if user_admin_circles[circle.id|string] > 1 }}</span>
                     </div>
-                    <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-warning btn-sm">Review Requests &rarr;</a>
+                    <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-primary btn-sm">Review Requests</a>
                 </li>
                 {% endif %}
             {% endfor %}
@@ -160,22 +128,20 @@
     <ul class="nav nav-tabs mb-4" id="circlesTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="your-circles-tab" data-bs-toggle="tab" data-bs-target="#your-circles" type="button" role="tab" aria-controls="your-circles" aria-selected="true">
-                <i class="fas fa-users me-2"></i>Your Circles
+                Your Circles
                 {% if total_pending > 0 %}
-                    <span class="badge bg-warning text-dark ms-1">{{ total_pending }}</span>
-                {% elif user_circles|length > 0 %}
-                    <span class="badge bg-secondary ms-1">{{ user_circles|length }}</span>
+                    <span class="badge rounded-pill bg-purple ms-1">{{ total_pending }}</span>
                 {% endif %}
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="find-circles-tab" data-bs-toggle="tab" data-bs-target="#find-circles" type="button" role="tab" aria-controls="find-circles" aria-selected="false">
-                <i class="fas fa-search me-2"></i>Find Circles
+                Find Circles
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="create-circle-tab" data-bs-toggle="tab" data-bs-target="#create-circle" type="button" role="tab" aria-controls="create-circle" aria-selected="false">
-                <i class="fas fa-plus-circle me-2"></i>Create Circle
+                Create Circle
             </button>
         </li>
     </ul>
@@ -185,265 +151,87 @@
         <!-- Your Circles Tab -->
         <div class="tab-pane fade show active" id="your-circles" role="tabpanel" aria-labelledby="your-circles-tab">
             {% if user_circles %}
-                <ul class="list-group mb-4">
+                <ul class="circle-list">
                     {% for circle in user_circles %}
-                <li class="list-group-item{% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %} bg-light border-warning{% endif %}">
-                    <div class="circle-result-row d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3">
-                        <div class="circle-result-main d-flex align-items-start gap-3 flex-grow-1">
-                            <div class="circle-result-rail">
-                                {% if circle.image_url %}
-                                    <img src="{{ circle.image_url }}" alt="{{ circle.name }}" class="circle-result-thumbnail rounded" loading="lazy">
-                                {% else %}
-                                    <div class="circle-result-thumbnail-placeholder" aria-hidden="true">
-                                        <i class="fas fa-users"></i>
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="circle-result-content">
-                                <h5 class="circle-result-title">
-                                    {% if circle.circle_type == 'closed' %}
-                                        <i class="fas fa-lock text-muted me-2" title="Closed Circle"></i>
-                                    {% elif circle.circle_type == 'secret' %}
-                                        <i class="fas fa-eye-slash text-muted me-2" title="Secret Circle"></i>
-                                    {% endif %}
-                                    <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}text-dark{% endif %}">
-                                        {{ circle.name }}
-                                    </a>
-                                    {% if circle.is_regional %}
-                                        <span class="badge bg-regional ms-2"><i class="fas fa-map-pin me-1"></i>Regional</span>
-                                    {% endif %}
-                                    {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}
-                                        <span class="badge bg-warning text-dark ms-2">
-                                            <i class="fas fa-bell me-1"></i>
-                                            {{ user_admin_circles[circle.id|string] }} pending request{{ 's' if user_admin_circles[circle.id|string] > 1 }}
-                                        </span>
-                                    {% endif %}
-                                </h5>
-                                <p class="mb-1">{{ circle.description|linkify }}</p>
-                                <small>Members: {{ circle.member_count }}
-                                {% set distance = get_distance_to_circle(circle) %}
-                                {% if distance %}
-                                    | <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
-                                {% endif %}
-                                </small>
-                            </div>
-                        </div>
-                        <div class="circle-result-actions">
-                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn {% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %}btn-warning{% else %}btn-info{% endif %} btn-sm">
-                                View{% if circle.id|string in user_admin_circles and user_admin_circles[circle.id|string] > 0 %} Requests{% endif %}
-                            </a>
-                            <form action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" method="post" class="d-inline">
-                                {{ search_form.csrf_token }}
-                                <button type="submit" class="btn btn-danger btn-sm">Leave</button>
-                            </form>
-                        </div>
-                    </div>
-                </li>
+                        {{ circle_row(circle, distance=get_distance_to_circle(circle), pending_count=user_admin_circles.get(circle.id|string, 0)) }}
                     {% endfor %}
                 </ul>
             {% else %}
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i>You are not part of any circles yet. Try the <strong>Find Circles</strong> tab to discover communities!
-                </div>
+                <p>You are not part of any circles yet. Try the <strong>Find Circles</strong> tab to discover communities!</p>
             {% endif %}
         </div>
 
         <!-- Find Circles Tab -->
         <div class="tab-pane fade" id="find-circles" role="tabpanel" aria-labelledby="find-circles-tab">
-            <!-- Search/Browse Circles -->
-            <h3 class="mb-3"><i class="fas fa-search me-2"></i>Search Circles</h3>
             <form method="post" class="mb-4">
-        {{ search_form.csrf_token }}
-        <div class="row g-2">
-            <div class="col-md-6">
-                {{ search_form.search_query(class="form-control", placeholder="Enter circle name (optional - leave blank to browse all listed circles)") }}
-                {% for error in search_form.search_query.errors %}
-                    <div class="text-danger">{{ error }}</div>
-                {% endfor %}
-            </div>
-            <div class="col-md-4">
-                {{ search_form.radius(class="form-select") }}
-                {% for error in search_form.radius.errors %}
-                    <div class="text-danger">{{ error }}</div>
-                {% endfor %}
-            </div>
-            <div class="col-md-2">
-                <button class="btn btn-primary w-100" type="submit" name="search_circles">{{ search_form.submit.label.text }}</button>
-            </div>
-        </div>
-        {% if not current_user.is_geocoded %}
-            <small class="form-text text-muted">
-                <i class="fas fa-info-circle me-1"></i>
-                <a href="{{ url_for('main.update_location') }}">Set your location</a> to find circles and items near you.
-            </small>
-        {% endif %}
+                {{ search_form.csrf_token }}
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label for="{{ search_form.search_query.id }}" class="visually-hidden">Circle name</label>
+                        {{ search_form.search_query(class="form-control", placeholder="Circle name") }}
+                        {% for error in search_form.search_query.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ search_form.radius.id }}" class="visually-hidden">Distance</label>
+                        {{ search_form.radius(class="form-select") }}
+                        {% for error in search_form.radius.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-primary w-100" type="submit" name="search_circles">{{ search_form.submit.label.text }}</button>
+                    </div>
+                </div>
+                <small class="form-text text-muted">
+                    Leave the name blank to browse all listed circles.
+                    {% if not current_user.is_geocoded %}
+                        <a href="{{ url_for('main.update_location') }}">Set your location</a> to find circles and items near you.
+                    {% endif %}
+                </small>
             </form>
 
             <!-- Display Search Results or Browse Results -->
             {% if searched_circles %}
-            <h3>Search Results</h3>
-            <ul class="list-group mb-4">
-                {% for circle in searched_circles %}
-                <li class="list-group-item{% if circle.id in user_circle_ids %} bg-light border-success{% endif %}">
-                    <div class="circle-result-row d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3">
-                        <div class="circle-result-main d-flex align-items-start gap-3 flex-grow-1">
-                            <div class="circle-result-rail">
-                            {% if circle.image_url %}
-                                <img src="{{ circle.image_url }}" alt="{{ circle.name }}" class="circle-result-thumbnail rounded" loading="lazy">
-                            {% else %}
-                                <div class="circle-result-thumbnail-placeholder" aria-hidden="true">
-                                    <i class="fas fa-users"></i>
-                                </div>
-                            {% endif %}
-                            </div>
-                            <div class="circle-result-content">
-                            <h5 class="circle-result-title">
-                                {% if circle.circle_type == 'closed' %}
-                                    <i class="fas fa-lock text-muted me-2" title="Closed Circle"></i>
-                                {% elif circle.circle_type == 'secret' %}
-                                    <i class="fas fa-eye-slash text-muted me-2" title="Secret Circle"></i>
-                                {% endif %}
-                                <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
-                                    {{ circle.name }}
-                                </a>
-                                {% if circle.is_regional %}
-                                    <span class="badge bg-regional ms-2"><i class="fas fa-map-pin me-1"></i>Regional</span>
-                                {% endif %}
-                                {% if circle.id in user_circle_ids %}
-                                    <span class="badge bg-success ms-2">
-                                        <i class="fas fa-check-circle me-1"></i>Member
-                                    </span>
-                                {% endif %}
-                            </h5>
-                            <p class="mb-1">{{ circle.description|linkify }}</p>
-                            <small>{{ circle.member_count }} members
-                            {% set distance = get_distance_to_circle(circle) %}
-                            {% if distance %}
-                                | <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
-                            {% endif %}
-                            </small>
-                            {% set sample_members = searched_circle_samples.get(circle.id, []) %}
-                            {% if sample_members %}
-                            <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
-                                {% for member in sample_members %}
-                                    <div class="share-member-avatar" title="{{ member.first_name }}">
-                                        <img src="{{ member.profile_image }}"
-                                             alt="{{ member.first_name }}"
-                                             class="rounded-circle"
-                                             width="32" height="32">
-                                    </div>
-                                {% endfor %}
-                                {% if circle.member_count > sample_members|length %}
-                                    <span class="text-muted small ms-1">
-                                        +{{ circle.member_count - sample_members|length }} more
-                                    </span>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        </div>
-                        </div>
-                        <div class="circle-result-actions">
-                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-info btn-sm">View</a>
-                        </div>
-                    </div>
-                </li>
-                {% endfor %}
-            </ul>
-        {% elif show_browse and browse_circles %}
-            <h3>Available Circles</h3>
-            <ul class="list-group mb-4">
-                {% for circle in browse_circles %}
-                <li class="list-group-item{% if circle.id in user_circle_ids %} bg-light border-success{% endif %}">
-                    <div class="circle-result-row d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3">
-                        <div class="circle-result-main d-flex align-items-start gap-3 flex-grow-1">
-                            <div class="circle-result-rail">
-                            {% if circle.image_url %}
-                                <img src="{{ circle.image_url }}" alt="{{ circle.name }}" class="circle-result-thumbnail rounded" loading="lazy">
-                            {% else %}
-                                <div class="circle-result-thumbnail-placeholder" aria-hidden="true">
-                                    <i class="fas fa-users"></i>
-                                </div>
-                            {% endif %}
-                            </div>
-                            <div class="circle-result-content">
-                            <h5 class="circle-result-title">
-                                {% if circle.circle_type == 'closed' %}
-                                    <i class="fas fa-lock text-muted me-2" title="Closed Circle"></i>
-                                {% elif circle.circle_type == 'secret' %}
-                                    <i class="fas fa-eye-slash text-muted me-2" title="Secret Circle"></i>
-                                {% endif %}
-                                <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="text-decoration-none">
-                                    {{ circle.name }}
-                                </a>
-                                {% if circle.is_regional %}
-                                    <span class="badge bg-regional ms-2"><i class="fas fa-map-pin me-1"></i>Regional</span>
-                                {% endif %}
-                                {% if circle.id in user_circle_ids %}
-                                    <span class="badge bg-success ms-2">
-                                        <i class="fas fa-check-circle me-1"></i>Member
-                                    </span>
-                                {% endif %}
-                            </h5>
-                            <p class="mb-1">{{ circle.description|linkify }}</p>
-                            <small>{{ circle.member_count }} members
-                            {% set distance = get_distance_to_circle(circle) %}
-                            {% if distance %}
-                                | <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
-                            {% endif %}
-                            </small>
-                            {% set sample_members = browse_circle_samples.get(circle.id, []) %}
-                            {% if sample_members %}
-                            <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
-                                {% for member in sample_members %}
-                                    <div class="share-member-avatar" title="{{ member.first_name }}">
-                                        <img src="{{ member.profile_image }}"
-                                             alt="{{ member.first_name }}"
-                                             class="rounded-circle"
-                                             width="32" height="32">
-                                    </div>
-                                {% endfor %}
-                                {% if circle.member_count > sample_members|length %}
-                                    <span class="text-muted small ms-1">
-                                        +{{ circle.member_count - sample_members|length }} more
-                                    </span>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        </div>
-                        </div>
-                        <div class="circle-result-actions">
-                            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-info btn-sm">View</a>
-                        </div>
-                    </div>
-                </li>
-                {% endfor %}
-            </ul>
+                <h2 class="h5">Search Results</h2>
+                <ul class="circle-list">
+                    {% for circle in searched_circles %}
+                        {{ circle_row(circle, distance=get_distance_to_circle(circle), is_member=circle.id in user_circle_ids, sample_members=searched_circle_samples.get(circle.id, [])) }}
+                    {% endfor %}
+                </ul>
+            {% elif show_browse and browse_circles %}
+                <h2 class="h5">Available Circles</h2>
+                <ul class="circle-list">
+                    {% for circle in browse_circles %}
+                        {{ circle_row(circle, distance=get_distance_to_circle(circle), is_member=circle.id in user_circle_ids, sample_members=browse_circle_samples.get(circle.id, [])) }}
+                    {% endfor %}
+                </ul>
             {% elif show_browse %}
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i>No circles available. Create one using the <strong>Create Circle</strong> tab!
-                </div>
+                <p>No circles available. Create one using the <strong>Create Circle</strong> tab!</p>
             {% endif %}
 
             <!-- Find Secret Circle by UUID -->
-            <h3 class="mb-3 mt-4"><i class="fas fa-key me-2"></i>Find Secret Circle</h3>
-            <form method="post" class="mb-4">
-        {{ uuid_search_form.csrf_token }}
-        <div class="input-group">
-            {{ uuid_search_form.circle_uuid(class="form-control", placeholder="Enter circle UUID (e.g., a6549a7e-f9b4-47b7-98fb-483f21b04a55)") }}
-            <button class="btn btn-outline-info" type="submit" name="find_by_uuid">{{ uuid_search_form.submit.label.text }}</button>
-        </div>
-        {% for error in uuid_search_form.circle_uuid.errors %}
-            <div class="text-danger">{{ error }}</div>
-        {% endfor %}
-        <small class="form-text text-muted">
-            To find a secret circle, you need its exact UUID. Ask a circle member for this information.
-            </small>
-            </form>
+            <details class="secret-circle-search"{% if uuid_search_form.errors %} open{% endif %}>
+                <summary>Looking for a secret circle?</summary>
+                <p class="text-muted mt-2 mb-2">Secret circles don't show up in search. Ask a member for the circle's ID and paste it here.</p>
+                <form method="post">
+                    {{ uuid_search_form.csrf_token }}
+                    <label for="{{ uuid_search_form.circle_uuid.id }}" class="visually-hidden">Circle ID</label>
+                    <div class="input-group">
+                        {{ uuid_search_form.circle_uuid(class="form-control", placeholder="Circle ID") }}
+                        <button class="btn btn-outline-secondary" type="submit" name="find_by_uuid">{{ uuid_search_form.submit.label.text }}</button>
+                    </div>
+                    {% for error in uuid_search_form.circle_uuid.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </form>
+            </details>
         </div>
 
         <!-- Create Circle Tab -->
         <div class="tab-pane fade" id="create-circle" role="tabpanel" aria-labelledby="create-circle-tab">
-            <h3 class="mb-3"><i class="fas fa-plus-circle me-2"></i>Start a New Circle</h3>
+            <h2 class="h4">Start a New Circle</h2>
             <p class="text-muted mb-4">Create a community for sharing items with friends, neighbors, or colleagues.</p>
             <form method="post">
         {{ circle_form.csrf_token }}
@@ -477,7 +265,7 @@
 
         <!-- Location Section -->
         <div class="mb-4">
-            <h5 class="mb-3"><i class="fas fa-map-marker-alt me-2"></i>Circle Location (Optional)</h5>
+            <h3 class="h5 mb-3">Circle Location (Optional)</h3>
             <p class="text-muted small mb-3">Setting a location helps members find circles near them. This is optional and can be added or updated later.</p>
 
             <!-- Location Method Choice -->
@@ -572,7 +360,7 @@
 
                 <!-- Submit Button -->
                 <div class="mb-3">
-                    <button type="submit" class="btn btn-primary" name="create_circle"><i class="fas fa-check me-2"></i>{{ circle_form.submit.label.text }}</button>
+                    <button type="submit" class="btn btn-primary" name="create_circle">{{ circle_form.submit.label.text }}</button>
                 </div>
             </form>
         </div>
@@ -587,6 +375,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if we should show a specific tab based on form submissions or search results
     {% if searched_circles or show_browse %}
         // If there are search results, show the Find Circles tab
+        activeTab = 'find-circles-tab';
+    {% elif uuid_search_form.errors %}
         activeTab = 'find-circles-tab';
     {% elif circle_form.errors %}
         // If there are form errors in circle creation, show Create Circle tab
@@ -604,6 +394,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (tabTrigger) {
         const tab = new bootstrap.Tab(tabTrigger);
         tab.show();
+        // The tab strip scrolls sideways on a phone, so bring the open tab into view.
+        tabTrigger.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 
     // Save the active tab to localStorage when user clicks a tab

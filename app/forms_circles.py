@@ -32,7 +32,10 @@ class CircleCreateForm(FlaskForm):
         choices=[
             ("open", "Open - Anyone can find and join"),
             ("closed", "Closed - Anyone can find it, but requires approval to join."),
-            ("secret", "Secret - Cannot be found by search, requires UUID and approval to join."),
+            (
+                "secret",
+                "Secret - Cannot be found by search, requires the circle ID and approval to join.",
+            ),
         ],
         default="open",
         validators=[DataRequired()],
@@ -170,10 +173,10 @@ class CircleSearchForm(FlaskForm):
 
 class CircleUuidSearchForm(FlaskForm):
     circle_uuid = StringField(
-        "Circle UUID",
+        "Circle ID",
         validators=[
-            DataRequired(message="Please enter a circle UUID."),
-            Length(min=36, max=36, message="UUID must be exactly 36 characters."),
+            DataRequired(message="Please enter a circle ID."),
+            Length(min=36, max=36, message="A circle ID is exactly 36 characters."),
         ],
     )
     submit = SubmitField("Find Circle")
