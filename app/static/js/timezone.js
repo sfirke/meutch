@@ -7,26 +7,27 @@
     'use strict';
 
     /**
-     * Get user-friendly timezone abbreviation
+     * Get user-friendly timezone abbreviation in effect on the given date
+     * (e.g. EST in winter, EDT in summer).
      * Falls back to offset if abbreviation isn't available
      */
-    function getTimezoneAbbreviation() {
+    function getTimezoneAbbreviation(date = new Date()) {
         try {
             const options = { timeZoneName: 'short' };
             const formatter = new Intl.DateTimeFormat('en-US', options);
-            const parts = formatter.formatToParts(new Date());
+            const parts = formatter.formatToParts(date);
             const tzPart = parts.find(part => part.type === 'timeZoneName');
-            return tzPart ? tzPart.value : getTimezoneOffset();
+            return tzPart ? tzPart.value : getTimezoneOffset(date);
         } catch (e) {
-            return getTimezoneOffset();
+            return getTimezoneOffset(date);
         }
     }
 
     /**
      * Get timezone offset as string (e.g., "UTC-5")
      */
-    function getTimezoneOffset() {
-        const offset = new Date().getTimezoneOffset();
+    function getTimezoneOffset(date) {
+        const offset = date.getTimezoneOffset();
         const hours = Math.abs(Math.floor(offset / 60));
         const sign = offset <= 0 ? '+' : '-';
         return `UTC${sign}${hours}`;
@@ -38,8 +39,8 @@
      * @param {string} format - 'full' (date and time), 'date' (date only), 'time' (time only), 'relative' (relative time)
      */
     function formatDate(date, format) {
-        const tz = getTimezoneAbbreviation();
-        
+        const tz = getTimezoneAbbreviation(date);
+
         switch (format) {
             case 'date':
                 // Format: January 24, 2026
@@ -48,7 +49,7 @@
                     month: 'long',
                     day: 'numeric'
                 });
-            
+
             case 'short-date':
                 // Format: Jan 24, 2026
                 return date.toLocaleDateString('en-US', {
@@ -56,7 +57,7 @@
                     month: 'short',
                     day: 'numeric'
                 });
-            
+
             case 'time':
                 // Format: 09:05 PM EST
                 return date.toLocaleTimeString('en-US', {
@@ -64,7 +65,7 @@
                     minute: '2-digit',
                     hour12: true
                 }) + ' ' + tz;
-            
+
             case 'datetime':
                 // Format: January 24, 2026 at 09:05 PM EST
                 return date.toLocaleDateString('en-US', {
@@ -76,7 +77,7 @@
                     minute: '2-digit',
                     hour12: true
                 }) + ' ' + tz;
-            
+
             case 'short-datetime':
                 // Format: Jan 24, 09:05 PM EST
                 return date.toLocaleDateString('en-US', {
@@ -87,16 +88,16 @@
                     minute: '2-digit',
                     hour12: true
                 }) + ' ' + tz;
-            
+
             case 'compact':
                 // Format: 2026-01-24 21:05 EST
-                return date.toLocaleDateString('en-CA') + ' ' + 
+                return date.toLocaleDateString('en-CA') + ' ' +
                     date.toLocaleTimeString('en-US', {
                         hour: '2-digit',
                         minute: '2-digit',
                         hour12: false
                     }) + ' ' + tz;
-            
+
             case 'message':
                 // Format for message timestamps: Jan 24, 21:05
                 return date.toLocaleDateString('en-US', {
@@ -107,11 +108,11 @@
                     minute: '2-digit',
                     hour12: false
                 });
-            
+
             case 'timeago':
                 const now = new Date();
                 const seconds = Math.floor((now - date) / 1000);
-                
+
                 if (seconds < 60) return 'just now';
                 const minutes = Math.floor(seconds / 60);
                 if (minutes < 60) return minutes + ' minute' + (minutes > 1 ? 's' : '') + ' ago';
@@ -119,12 +120,12 @@
                 if (hours < 24) return hours + ' hour' + (hours > 1 ? 's' : '') + ' ago';
                 const days = Math.floor(hours / 24);
                 if (days < 7) return days + ' day' + (days > 1 ? 's' : '') + ' ago';
-                
+
                 return date.toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric'
                 });
-            
+
             default:
                 // Default to full datetime format
                 return formatDate(date, 'datetime');
@@ -138,11 +139,11 @@
      */
     function convertTimestamps() {
         const elements = document.querySelectorAll('[data-utc-timestamp]:not([data-tz-converted])');
-        
+
         elements.forEach(function(el) {
             const timestamp = el.getAttribute('data-utc-timestamp');
             const format = el.getAttribute('data-format') || 'datetime';
-            
+
             if (timestamp) {
                 try {
                     // Parse the ISO timestamp (assumes UTC if no timezone specified)
@@ -154,7 +155,7 @@
                         // Assume UTC
                         date = new Date(timestamp + 'Z');
                     }
-                    
+
                     if (!isNaN(date.getTime())) {
                         el.textContent = formatDate(date, format);
                         // Add title attribute with full datetime for accessibility
@@ -174,7 +175,7 @@
                     console.warn('Failed to parse timestamp:', timestamp, e);
                 }
             }
-            
+
             // Mark as converted so it won't be processed again
             el.setAttribute('data-tz-converted', '');
         });
@@ -196,7 +197,7 @@
                 }
             });
         });
-        
+
         // Start observing when DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
