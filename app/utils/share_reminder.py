@@ -15,8 +15,8 @@ class ShareFields(NamedTuple):
 def giveaway_share_fields(item):
     return ShareFields(
         url_for("share.giveaway_preview", item_id=item.id, _external=True),
-        f"{item.name} (Free Giveaway)",
-        f"Free giveaway on Meutch: {item.name}",
+        f"{item.name} (Giveaway)",
+        f"Giveaway on Meutch: {item.name}",
     )
 
 

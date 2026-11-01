@@ -1,0 +1,10 @@
+{% macro share_cta(prompt, auth_next_url) %}
+    <div class="share-cta">
+        <p class="share-cta-prompt">{{ prompt }}</p>
+        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
+            <a href="{{ url_for('auth.register', next=auth_next_url) }}" class="btn btn-primary btn-lg">Sign Up</a>
+            <a href="{{ url_for('auth.login', next=auth_next_url) }}" class="btn btn-outline-secondary btn-lg">Log In</a>
+        </div>
+        <p class="text-muted small mt-3 mb-0">Meutch is a free, nonprofit platform for community sharing.</p>
+    </div>
+{% endmacro %}

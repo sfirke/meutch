@@ -711,7 +711,8 @@ h1 {
     background: var(--tangerine-wash);
 }
 
-.item-tag--circle {
+.item-tag--circle,
+.item-tag--open-circle {
     background: var(--teal);
 }
 
@@ -2043,54 +2044,53 @@ footer::before {
    Share Preview Pages & Share Button
    =========================================== */
 
-/* Dark hero background for the share card area — mirrors the landing page hero */
-.share-preview-hero {
-    background: linear-gradient(150deg, #155e5c 0%, #1e7874 45%, #2a9490 100%);
-    padding: 120px 0 80px;
-    position: relative;
-    overflow: hidden;
-}
-
-.share-preview-hero::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0, 0, 0, 0.25);
-    pointer-events: none;
-}
-
-@media (max-width: 768px) {
-    .share-preview-hero {
-        padding: 100px 0 60px;
-        background: linear-gradient(160deg, #1e8480 0%, #2aadaa 100%);
-    }
-}
-
 .share-preview-card {
-    border: none;
-    border-radius: 12px;
+    border: 2px solid var(--ink);
+    box-shadow: 6px 6px 0 var(--ink);
     overflow: hidden;
+}
+
+.share-preview-media {
+    position: relative;
+    border-bottom: 2px solid var(--ink);
+    background: var(--tangerine-wash);
 }
 
 .share-preview-image {
+    display: block;
     width: 100%;
     max-height: 400px;
     object-fit: contain;
-    background-color: var(--paper);
-    padding: 12px;
-    box-sizing: border-box;
 }
 
 .share-preview-image-placeholder {
-    height: 250px;
-    border-bottom: 1px solid var(--line);
-    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 220px;
+    font-weight: 600;
 }
 
-.share-member-avatar img {
-    object-fit: cover;
-    border: 2px solid #fff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+.share-preview-image-placeholder i {
+    font-size: 4rem;
+}
+
+.share-member-avatar {
+    display: flex;
+}
+
+.share-cta {
+    padding-top: 0.5rem;
+    text-align: center;
+}
+
+.share-cta-prompt {
+    margin-bottom: 1rem;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 650;
 }
 
 .share-btn {
@@ -2436,7 +2436,8 @@ html {
 }
 
 /* --------- */
-.landing-hero {
+.landing-hero,
+.share-preview-hero {
     position: relative;
     padding: 104px 0 72px;
     background: var(--tangerine);
@@ -2444,7 +2445,9 @@ html {
     overflow: hidden;
 }
 
-.landing-hero::after {
+.landing-hero::after,
+.share-preview-hero::after,
+.landing-cta::after {
     content: '';
     position: absolute;
     left: 0;
@@ -2467,10 +2470,9 @@ html {
 }
 
 .landing-headline {
-    font-size: clamp(2.4rem, 5.4vw, 4rem);
+    font-size: clamp(2.25rem, 4.4vw, 3.25rem);
     font-weight: 800;
-    line-height: 1.12;
-    max-width: 640px;
+    line-height: 1.14;
 }
 
 /* The teal paper strip: emphasis for a word in a heading. */
@@ -2495,6 +2497,7 @@ html {
 /* --- Sections --- */
 .landing-section {
     padding: 5rem 0;
+    scroll-margin-top: 3rem;
 }
 
 .landing-section-alt {
@@ -2508,8 +2511,22 @@ html {
 }
 
 /* --- How-It-Works steps --- */
-/* --- How-It-Works steps --- */
+.landing-steps {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+.landing-step {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1rem;
+    align-content: start;
+}
+
 .landing-step-number {
+    position: relative;
     width: 48px;
     height: 48px;
     border: 2px solid var(--ink);
@@ -2522,36 +2539,112 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 1rem;
     transform: rotate(-4deg);
 }
 
-/* --- Why Meutch icon circles --- */
+@media (min-width: 768px) {
+    .landing-steps {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* On one row, a running stitch joins the four numbers. */
+@media (min-width: 992px) {
+    .landing-steps {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .landing-steps::before {
+        content: '';
+        position: absolute;
+        top: 23px;
+        left: 12.5%;
+        right: 12.5%;
+        height: 3px;
+        background-image: var(--stitch);
+    }
+
+    .landing-step {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .landing-step-number {
+        margin: 0 auto;
+    }
+}
+
+/* --- Why Meutch cards --- */
+.landing-why-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+}
+
 .landing-icon-circle {
-    width: 64px;
-    height: 64px;
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
     border: 2px solid var(--ink);
     border-radius: 50%;
     background: var(--tangerine-wash);
     color: var(--ink);
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto;
 }
 
 /* --- Quote / image section --- */
+.landing-photo {
+    display: block;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius-card);
+    box-shadow: 6px 6px 0 var(--ink);
+    transform: rotate(-1.5deg);
+}
+
 .landing-quote p.h4 {
     color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 650;
+    line-height: 1.25;
+}
+
+/* --- FAQ --- */
+.landing-faq .accordion-item {
+    overflow: hidden;
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius-card);
+}
+
+.landing-faq .accordion-button {
     font-weight: 600;
-    line-height: 1.4;
 }
 
 /* --- Final CTA --- */
 .landing-cta {
+    position: relative;
     background: var(--teal);
     padding: 5rem 0;
+}
+
+.landing-cta::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 12px;
+    background: var(--paper);
+    -webkit-mask: var(--pinked-down) repeat-x;
+    mask: var(--pinked-down) repeat-x;
+}
+
+/* On share previews the band above is tangerine wash, not paper. */
+.landing-section-alt + .landing-cta::before {
+    background: var(--tangerine-wash);
 }
 
 .landing-cta p {
@@ -2568,7 +2661,8 @@ html {
 }
 
 @media (max-width: 768px) {
-    .landing-hero {
+    .landing-hero,
+    .share-preview-hero {
         padding: 96px 0 56px;
     }
 

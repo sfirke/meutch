@@ -93,7 +93,7 @@ class TestGiveawaySharePreview:
 
             response = client.get(f"/share/giveaway/{item.id}")
             assert response.status_code == 200
-            assert b"Free Ladder - Free Giveaway on Meutch" in response.data
+            assert b"Free Ladder - Giveaway on Meutch" in response.data
 
     def test_public_giveaway_preview_uses_item_image_for_meta(self, client, app):
         """Test that preview metadata uses giveaway image when present."""
