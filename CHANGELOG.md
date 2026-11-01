@@ -2,6 +2,12 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
+## November 2026
+
+### Features
+**Minor**:
+- The rest of the home page for logged-out visitors has its new look, and so do the pages people see when they open a shared giveaway, item, request or circle link. Giveaways no longer say "free" in their titles, link previews or share text, because everything on Meutch is free ([#597](https://github.com/sfirke/meutch/pull/597)).
+
 ## October 2026
 
 ### Features
