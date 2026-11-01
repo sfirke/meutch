@@ -592,9 +592,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // If there are form errors in circle creation, show Create Circle tab
         activeTab = 'create-circle-tab';
     {% else %}
-        // Otherwise, check localStorage for the last active tab
+        // A link like /circles#find-circles-tab wins over the remembered tab
+        const hashTab = window.location.hash.slice(1);
         const savedTab = localStorage.getItem('activeCirclesTab');
-        if (savedTab) {
+        if (hashTab && document.querySelector('#circlesTabs button[id="' + hashTab + '"]')) {
+            activeTab = hashTab;
+        } else if (savedTab) {
             activeTab = savedTab;
         }
     {% endif %}
