@@ -98,8 +98,9 @@ consistent.
 ## The pinked edge
 
 Where a full-width colored band meets paper, cut the edge with a zigzag, like fabric
-trimmed with pinking shears. Use it for big moments such as the landing hero, not on
-cards or inside everyday app pages. Draw it with an SVG mask (`--pinked-down`,
+trimmed with pinking shears. Use it for big moments such as the landing hero, the
+share previews and the final call to action, not on cards, soft wash sections or
+inside everyday app pages. Draw it with an SVG mask (`--pinked-down`,
 `--pinked-up`) so the teeth are true triangles: 24px wide and 12px tall.
 
 ## Whimsy

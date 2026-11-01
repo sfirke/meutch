@@ -1,15 +1,17 @@
 {# app/templates/share/giveaway_preview.html #}
 {% extends "base.html" %}
+{% from "components/people.html" import avatar %}
+{% from "components/share.html" import share_cta %}
 {% from "components/tags.html" import item_status_tag %}
 
-{% block title %}{{ item.name }} - Free Giveaway{% endblock %}
+{% block title %}{{ item.name }} - Giveaway{% endblock %}
 
-{% block og_title %}{{ item.name }} - Free Giveaway on Meutch{% endblock %}
-{% block og_description %}{{ item.description|truncate(200) if item.description else 'Someone is giving away ' + item.name + ' for free! Join Meutch to claim it.' }}{% endblock %}
+{% block og_title %}{{ item.name }} - Giveaway on Meutch{% endblock %}
+{% block og_description %}{{ item.description|truncate(200) if item.description else 'Someone is giving away ' + item.name + '. Join Meutch to claim it.' }}{% endblock %}
 {% block og_image %}{{ preview_image_url }}{% endblock %}
 
-{% block twitter_title %}{{ item.name }} - Free Giveaway on Meutch{% endblock %}
-{% block twitter_description %}{{ item.description|truncate(200) if item.description else 'Someone is giving away ' + item.name + ' for free! Join Meutch to claim it.' }}{% endblock %}
+{% block twitter_title %}{{ item.name }} - Giveaway on Meutch{% endblock %}
+{% block twitter_description %}{{ item.description|truncate(200) if item.description else 'Someone is giving away ' + item.name + '. Join Meutch to claim it.' }}{% endblock %}
 {% block twitter_card %}{{ 'summary_large_image' if item.images else 'summary' }}{% endblock %}
 {% block twitter_image %}{{ preview_image_url }}{% endblock %}
 
@@ -20,71 +22,39 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-8">
-            <!-- Preview Card -->
             <div class="card share-preview-card">
-                <!-- Image -->
-                <div class="position-relative">
+                <div class="share-preview-media">
                     {% if item.images %}
-                        <img src="{{ item.image }}" alt="{{ item.name }}" class="card-img-top share-preview-image">
+                        <img src="{{ item.image }}" alt="{{ item.name }}" class="share-preview-image">
                     {% else %}
-                        <div class="share-preview-image-placeholder d-flex flex-column align-items-center justify-content-center bg-light">
-                            <i class="fas fa-gift text-success mb-2" style="font-size: 4rem;"></i>
-                            <span class="text-muted">Free Giveaway</span>
+                        <div class="share-preview-image-placeholder">
+                            <i class="fas fa-gift"></i>
+                            <span>Giveaway</span>
                         </div>
                     {% endif %}
                     {{ item_status_tag(item) }}
                 </div>
 
                 <div class="card-body">
-                    <!-- Title -->
-                    <h1 class="card-title h2 mb-3">{{ item.name }}</h1>
+                    <h1 class="h2 mb-3">{{ item.name }}</h1>
 
-                    <!-- Description -->
                     {% if item.description %}
-                        <p class="card-text fs-5 text-muted mb-4">{{ item.description|linkify }}</p>
+                        <p class="fs-5 mb-4">{{ item.description|linkify }}</p>
                     {% endif %}
 
-                    <!-- Details -->
-                    <div class="row mb-4">
-                        <div class="col-sm-6 mb-2">
-                            <div class="d-flex align-items-center">
-                                <img src="{{ item.owner.profile_image }}" alt="{{ item.owner.first_name }}" class="rounded-circle me-2" width="32" height="32">
-                                <span class="text-muted">Listed by <strong>{{ item.owner.first_name }}</strong></span>
-                            </div>
-                        </div>
-                        <div class="col-sm-6 mb-2">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-folder me-2 text-muted"></i>
-                                <span class="text-muted">{{ item.category.name }}</span>
-                            </div>
+                    <div class="item-owner-row">
+                        {{ avatar(item.owner.first_name, item.owner.profile_image_url, size="lg") }}
+                        <div>
+                            Listed by <span class="item-owner-name">{{ item.owner.first_name }}</span>
+                            <div class="small text-muted">{{ item.category.name }}</div>
                         </div>
                     </div>
 
-                    <hr>
-
-                    <!-- CTA Section -->
-                    <div class="text-center py-3">
-                        <p class="fs-5 mb-3">
-                            {% if item.claim_status in [None, 'unclaimed'] %}
-                                <i class="fas fa-hand-pointer me-2 text-success"></i>Want this item? Join Meutch to claim it!
-                            {% else %}
-                                <i class="fas fa-search me-2 text-primary"></i>Discover more free items and community sharing on Meutch!
-                            {% endif %}
-                        </p>
-                        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
-                            <a href="{{ url_for('auth.register', next=auth_next_url) }}"
-                               class="btn btn-primary btn-lg">
-                                <i class="fas fa-user-plus me-2"></i>Sign Up
-                            </a>
-                            <a href="{{ url_for('auth.login', next=auth_next_url) }}"
-                               class="btn btn-outline-secondary btn-lg">
-                                <i class="fas fa-sign-in-alt me-2"></i>Log In
-                            </a>
-                        </div>
-                        <p class="text-muted small mt-3 mb-0">
-                            Meutch is a free, nonprofit platform for community sharing.
-                        </p>
-                    </div>
+                    {% if item.claim_status in [None, 'unclaimed'] %}
+                        {{ share_cta("Want this item? Join Meutch to claim it!", auth_next_url) }}
+                    {% else %}
+                        {{ share_cta("Discover more giveaways and things to borrow on Meutch!", auth_next_url) }}
+                    {% endif %}
                 </div>
             </div>
             </div>
