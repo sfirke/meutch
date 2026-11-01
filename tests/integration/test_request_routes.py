@@ -1014,7 +1014,7 @@ class TestRequestConversations:
             response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
-            assert b"Pending Pickup" in response.data
+            assert b"Pending pickup" in response.data
             assert b"Borrowed" not in response.data
             assert b"You are the selected recipient for this giveaway." in response.data
             assert b"Mark Handoff Complete" not in response.data

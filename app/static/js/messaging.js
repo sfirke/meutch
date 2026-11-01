@@ -2,6 +2,7 @@
  * Messaging inbox — checkbox selection &amp; bulk action bar.
  *
  * Behaviour:
+ *  - The "Select" button shows the checkboxes. Leaving select mode clears them.
  *  - "Select All" toggles every conversation checkbox on the page.
  *  - Changing any individual checkbox updates the bulk-action bar.
  *  - Clicking a conversation row navigates to that conversation, but
@@ -119,6 +120,22 @@
                 bulkBar.classList.remove('bulk-action-bar--visible');
                 syncHiddenInputs([]);
             }
+        }
+
+        // Select mode: the checkboxes stay hidden until asked for.
+        var inbox = document.getElementById('inbox');
+        var selectToggle = document.getElementById('select-mode-toggle');
+        if (inbox && selectToggle) {
+            selectToggle.addEventListener('click', function () {
+                var selecting = inbox.classList.toggle('inbox-selecting');
+                selectToggle.textContent = selecting ? 'Cancel' : 'Select';
+                selectToggle.setAttribute('aria-pressed', selecting ? 'true' : 'false');
+                if (!selecting) {
+                    checkboxes.forEach(function (cb) { cb.checked = false; });
+                    if (selectAll) selectAll.checked = false;
+                    updateBulkBar();
+                }
+            });
         }
 
         // "Select All" checkbox

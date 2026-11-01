@@ -1,160 +1,119 @@
 <!-- FILE: circle_details.html -->
 
 {% extends "base.html" %}
+{% from "components/circles.html" import circle_type_tags %}
+{% from "components/people.html" import avatar %}
+{% from "components/tags.html" import item_tag %}
 
 {% block title %}{{ circle.name }}{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-start">
-        <h2>
-            {% if circle.circle_type == 'closed' %}
-                <i class="fas fa-lock text-muted me-2" title="Closed Circle"></i>
-            {% elif circle.circle_type == 'secret' %}
-                <i class="fas fa-eye-slash text-muted me-2" title="Secret Circle"></i>
-            {% endif %}
-            {{ circle.name }}
-        </h2>
-        {% if circle.circle_type != 'secret' %}
-            {% set share_url = url_for('share.circle_preview', circle_id=circle.id, _external=True) %}
-            {% set share_title = circle.name + ' Circle' %}
-            {% set share_text = 'Join the ' + circle.name + ' circle on Meutch' %}
-            {% include 'share/_share_button.html' %}
+    <header class="circle-header">
+        {% if circle.image_url %}
+            <img src="{{ circle.image_url }}" alt="Circle Image" class="circle-header-photo">
         {% endif %}
-    </div>
-    <p>{{ circle.description|linkify }}</p>
-    <p><strong>Members:</strong> {{ total_members }}</p>
-
-    {% set distance = get_distance_to_circle(circle) %}
-    {% if distance %}
-        <p><strong>Distance:</strong> {{ distance }} from you</p>
-    {% elif circle.is_geocoded %}
-        <p><strong>Location:</strong> Set (distance not available - please <a href="{{ url_for('main.update_location') }}">update your location</a> in your profile)</p>
-    {% else %}
-        <p><strong>Location:</strong> Not set</p>
-    {% endif %}
-
-    <p><strong>Circle Type:</strong>
-        {% if circle.circle_type == 'open' %}
-            Open
-        {% elif circle.circle_type == 'closed' %}
-            Closed (requires approval)
-        {% elif circle.circle_type == 'secret' %}
-            Secret (requires approval)
-        {% endif %}
-    </p>
-
-    <!-- Join/Leave Controls -->
-    {% if is_member %}
-        <form method="post" action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" id="leave-circle-form" class="mb-3">
-            {{ form.hidden_tag() }}
-            <button type="submit" class="btn btn-danger" id="leave-circle-btn">Leave Circle</button>
-        </form>
-
-        {% if is_last_member %}
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('leave-circle-form');
-            const btn = document.getElementById('leave-circle-btn');
-
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-
-                if (confirm('⚠️ Warning: You are the last member of this circle. If you leave, the circle will be permanently deleted. Do you want to continue?')) {
-                    // User confirmed, submit the form
-                    form.submit();
-                }
-            });
-        });
-        </script>
-        {% endif %}
-    {% else %}
-        {% if pending_request %}
-            <div class="alert alert-info mb-3">
-                <i class="fas fa-clock me-2"></i>
-                Your request to join this circle is pending approval.
-            </div>
-            <form method="post" action="{{ url_for('circles.cancel_join_request', circle_id=circle.id) }}" class="mb-3">
-                {{ form.hidden_tag() }}  <!-- Using the base form for CSRF -->
-                <button type="submit" class="btn btn-warning">Cancel Join Request</button>
-            </form>
-        {% else %}
-            <form method="post" action="{{ url_for('circles.join_circle', circle_id=circle.id) }}" class="mb-3">
-                {{ join_form.hidden_tag() if join_form else form.hidden_tag() }}
-                {% if circle.requires_join_approval %}
-                    <div class="form-group">
-                        {{ join_form.message.label }} {{ join_form.message(class="form-control") }}
-                    </div>
+        <div class="circle-header-main">
+            <div class="circle-header-title">
+                <h1>{{ circle.name }}</h1>
+                {% if circle.circle_type != 'secret' %}
+                    {% set share_url = url_for('share.circle_preview', circle_id=circle.id, _external=True) %}
+                    {% set share_title = circle.name + ' Circle' %}
+                    {% set share_text = 'Join the ' + circle.name + ' circle on Meutch' %}
+                    {% include 'share/_share_button.html' %}
                 {% endif %}
-                <button type="submit" class="btn btn-primary">
-                    {% if circle.requires_join_approval %}
-                        Send Join Request
+            </div>
+            {% if circle.description %}
+                <p class="mb-2">{{ circle.description|linkify }}</p>
+            {% endif %}
+            {% set distance = get_distance_to_circle(circle) %}
+            <div class="circle-result-meta mb-3">
+                <span>
+                    {{ circle.member_count }} member{{ 's' if circle.member_count != 1 }} &middot;
+                    {% if distance %}
+                        {{ distance }} away
+                    {% elif circle.is_geocoded %}
+                        <a href="{{ url_for('main.update_location') }}">Update your location</a> to see the distance
                     {% else %}
-                        Join Circle
+                        No location set
                     {% endif %}
-                </button>
-            </form>
-        {% endif %}
-    {% endif %}
+                </span>
+                {{ item_tag("open-circle") if circle.circle_type == "open" }}
+                {{ circle_type_tags(circle) }}
+            </div>
+
+            {% if is_member %}
+                <div class="circle-actions">
+                    {% if circle.is_admin(current_user) %}
+                        <a href="{{ url_for('circles.edit_circle', circle_id=circle.id) }}" class="btn btn-outline-secondary">Edit Circle</a>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" id="leave-circle-form">
+                        {{ form.hidden_tag() }}
+                        <button type="submit" class="btn btn-outline-secondary" id="leave-circle-btn">Leave Circle</button>
+                    </form>
+                </div>
+
+                {% if is_last_member %}
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const form = document.getElementById('leave-circle-form');
+                    const btn = document.getElementById('leave-circle-btn');
+
+                    form.addEventListener('submit', function(e) {
+                        e.preventDefault();
+
+                        if (confirm('⚠️ Warning: You are the last member of this circle. If you leave, the circle will be permanently deleted. Do you want to continue?')) {
+                            // User confirmed, submit the form
+                            form.submit();
+                        }
+                    });
+                });
+                </script>
+                {% endif %}
+            {% elif pending_request %}
+                <p class="mb-2">Your request to join this circle is pending approval.</p>
+                <form method="post" action="{{ url_for('circles.cancel_join_request', circle_id=circle.id) }}">
+                    {{ form.hidden_tag() }}  <!-- Using the base form for CSRF -->
+                    <button type="submit" class="btn btn-outline-secondary">Cancel Join Request</button>
+                </form>
+            {% else %}
+                <form method="post" action="{{ url_for('circles.join_circle', circle_id=circle.id) }}" class="circle-join-form">
+                    {{ join_form.hidden_tag() if join_form else form.hidden_tag() }}
+                    {% if circle.requires_join_approval %}
+                        <div class="mb-3">
+                            {{ join_form.message.label(class="form-label") }} {{ join_form.message(class="form-control") }}
+                        </div>
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary">
+                        {% if circle.requires_join_approval %}
+                            Send Join Request
+                        {% else %}
+                            Join Circle
+                        {% endif %}
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </header>
 
     {% if circle.is_regional %}
-        <div class="alert alert-success py-2">
-            <i class="fas fa-map-pin me-2"></i>
-            Regional circle: this is the designated large circle for this area, like a Buy Nothing group or a Craigslist region.
-        </div>
-    {% endif %}
-
-    {% if current_user.is_admin and regional_form %}
-        {% set regional_disabled = (circle.circle_type != 'open' or not circle.is_geocoded) and not circle.is_regional %}
-        <div class="card border-success mb-4">
-            <div class="card-header bg-success-subtle">
-                <strong><i class="fas fa-map-pin me-2"></i>Regional Circle Settings</strong>
-            </div>
-            <div class="card-body">
-                <form method="post" action="{{ url_for('circles.update_regional_circle_settings', circle_id=circle.id) }}">
-                    {{ regional_form.hidden_tag() }}
-                    <div class="form-check form-switch mb-3">
-                        {{ regional_form.is_regional(class="form-check-input", id="regionalCircleToggle", disabled=regional_disabled) }}
-                        {{ regional_form.is_regional.label(class="form-check-label", for_="regionalCircleToggle") }}
-                    </div>
-
-                    <div id="regional-radius-fields" class="mb-3"{% if not circle.is_regional %} style="display: none;"{% endif %}>
-                        {{ regional_form.regional_radius_miles.label(class="form-label") }}
-                        {{ regional_form.regional_radius_miles(class="form-control", id="regionalRadiusInput", min="1", max="100") }}
-                        {% for error in regional_form.regional_radius_miles.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                        <div class="form-text">Enter a whole number between 1 and 100.</div>
-                    </div>
-
-                    {% if regional_disabled %}
-                        <p class="small text-muted mb-3">
-                            Regional status is only available for public circles with a saved location.
-                        </p>
-                    {% endif %}
-
-                    <p class="small text-muted mb-3">
-                        Regional circles must stay public and cannot be deleted until regional status is removed.
-                    </p>
-
-                    {{ regional_form.submit(class="btn btn-success btn-sm") }}
-                </form>
-            </div>
-        </div>
+        <p class="small text-muted">Regional circle: this is the designated large circle for this area, like a Buy Nothing group or a Craigslist region.</p>
     {% endif %}
 
     {% if circle.circle_type == 'secret' and is_member %}
-        <div class="alert alert-info">
-            <h5><i class="fas fa-info-circle me-2"></i>Share this circle</h5>
-            <p class="mb-2">This is a secret circle. To invite others, share this UUID with them:</p>
-            <div class="input-group">
-                <input type="text" class="form-control" value="{{ circle.id }}" readonly id="circle-uuid">
-                <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard()">
-                    <i class="fas fa-copy"></i> Copy
-                </button>
+        <section class="card mb-4">
+            <div class="card-body">
+                <h2 class="h5">Share this circle</h2>
+                <p class="mb-2">This is a secret circle. To invite others, share this ID with them:</p>
+                <div class="input-group mb-2">
+                    <input type="text" class="form-control" value="{{ circle.id }}" readonly id="circle-uuid" aria-label="Circle ID">
+                    <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard()">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <small class="text-muted">They can use this ID on the circles page to find and request to join this circle.</small>
             </div>
-            <small class="text-muted">They can use this UUID on the circles page to find and request to join this circle.</small>
-        </div>
+        </section>
 
         <script>
         function copyToClipboard() {
@@ -179,125 +138,70 @@
         </script>
     {% endif %}
 
-    {% if circle.image_url %}
-        <div class="mb-3">
-            <img src="{{ circle.image_url }}" alt="Circle Image" class="img-fluid mb-3" style="max-width: 300px;">
-        </div>
-    {% endif %}
-
-    {% if circle.is_admin(current_user) %}
-        <div class="mb-3">
-            <a href="{{ url_for('circles.edit_circle', circle_id=circle.id) }}" class="btn btn-outline-primary btn-sm">
-                <i class="fas fa-edit me-1"></i>Edit Circle
-            </a>
-        </div>
-    {% endif %}
-
-    {% if current_user.is_admin and regional_form %}
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const regionalToggle = document.getElementById('regionalCircleToggle');
-            const radiusFields = document.getElementById('regional-radius-fields');
-
-            if (!regionalToggle || !radiusFields) {
-                return;
-            }
-
-            function toggleRegionalRadius() {
-                radiusFields.style.display = regionalToggle.checked ? 'block' : 'none';
-            }
-
-            toggleRegionalRadius();
-            regionalToggle.addEventListener('change', toggleRegionalRadius);
-        });
-        </script>
-    {% endif %}
-
-    {% if circle.is_admin(current_user) %}
-        <!-- Pending Join Requests -->
-        {% if circle.join_requests %}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h4>Pending Join Requests</h4>
-                </div>
-                <div class="card-body">
-                    <ul class="list-group">
-                        {% for request in circle.join_requests %}
-                            {% if request.status == 'pending' %}
-                                <li class="list-group-item join-request-item">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div class="d-flex align-items-center" style="min-width: 0;">
-                                            <img src="{{ request.user.profile_image }}" alt="{{ request.user.first_name }} {{ request.user.last_name }}"
-                                                 class="rounded-circle me-3 flex-shrink-0" style="width: 40px; height: 40px; object-fit: cover;">
-                                            <div style="min-width: 0;">
-                                                <a href="{{ url_for('main.user_profile', user_id=request.user.id) }}" class="text-decoration-none">
-                                                    <strong class="d-block member-list-name">{{ request.user.first_name }} {{ request.user.last_name }}</strong>
-                                                </a>
-                                                {% if request.message %}
-                                                    <p class="mb-0 text-muted small member-list-name">{{ request.message }}</p>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                        <div class="button-group">
-                                            <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='approve') }}" method="POST">
-                                                {{ form.csrf_token }}
-                                                <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check me-1"></i>Approve</button>
-                                            </form>
-                                            <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='reject') }}" method="POST">
-                                                {{ form.csrf_token }}
-                                                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="fas fa-times me-1"></i>Reject</button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </li>
-                            {% endif %}
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
+    {% if circle.is_admin(current_user) and circle.join_requests %}
+        {% set pending_join_requests = circle.join_requests|selectattr("status", "equalto", "pending")|list %}
+        {% if pending_join_requests %}
+            <h2 class="h4">Pending Join Requests</h2>
+            <ul class="list-group mb-4">
+                {% for request in pending_join_requests %}
+                    <li class="list-group-item person-row">
+                        <div class="person-row-main">
+                            {{ avatar(request.user.first_name ~ ' ' ~ request.user.last_name, request.user.profile_image_url, size="lg") }}
+                            <div class="person-row-text">
+                                <a href="{{ url_for('main.user_profile', user_id=request.user.id) }}" class="member-list-name fw-semibold">{{ request.user.first_name }} {{ request.user.last_name }}</a>
+                                {% if request.message %}
+                                    <p class="mb-0 text-muted small text-break">{{ request.message }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="button-group">
+                            <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='approve') }}" method="POST">
+                                {{ form.csrf_token }}
+                                <button type="submit" class="btn btn-primary btn-sm">Approve</button>
+                            </form>
+                            <form action="{{ url_for('circles.handle_join_request', circle_id=circle.id, request_id=request.id, action='reject') }}" method="POST">
+                                {{ form.csrf_token }}
+                                <button type="submit" class="btn btn-outline-secondary btn-sm">Reject</button>
+                            </form>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
         {% endif %}
     {% endif %}
 
     {% if not circle.requires_join_approval or is_member %}
         <!-- Members section with Admin Controls -->
-        <h3>Members ({{ members_pagination.total }})</h3>
+        <h2 class="h4">Members ({{ members_pagination.total }})</h2>
         {% if members_pagination.items %}
             <ul class="list-group mb-4">
                 {% for member, joined_at, is_admin in members_pagination.items %}
-
-                <li class="list-group-item circle-member-item d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center" style="min-width: 0;">
-                        {% if is_admin %}
-                            <span class="badge bg-primary me-2 flex-shrink-0" title="Circle Admin">
-                                <i class="fas fa-shield-alt"></i>
-                            </span>
-                        {% endif %}
-                        <img src="{{ member.profile_image }}" alt="{{ member.first_name }} {{ member.last_name }}"
-                             class="rounded-circle me-3 flex-shrink-0" style="width: 40px; height: 40px; object-fit: cover;">
-                        <div style="min-width: 0;">
-                            <a href="{{ url_for('main.user_profile', user_id=member.id) }}" class="text-decoration-none">
-                                <span class="d-block member-list-name">{{ member.first_name }} {{ member.last_name }}</span>
-                            </a>
+                <li class="list-group-item person-row">
+                    <div class="person-row-main">
+                        {{ avatar(member.first_name ~ ' ' ~ member.last_name, member.profile_image_url, size="lg") }}
+                        <div class="person-row-text">
+                            <a href="{{ url_for('main.user_profile', user_id=member.id) }}" class="member-list-name">{{ member.first_name }} {{ member.last_name }}</a>
                         </div>
+                        {% if is_admin %}{{ item_tag("admin") }}{% endif %}
                     </div>
                     {% if circle.is_admin(current_user) and member != current_user %}
                         <div class="button-group">
                             {% if is_admin %}
                                 <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='remove') }}" method="POST">
                                     {{ form.csrf_token }}
-                                    <button type="submit" class="btn btn-warning btn-sm"><i class="fas fa-user-minus me-1"></i>Remove Admin</button>
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">Remove Admin</button>
                                 </form>
                             {% else %}
                                 <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='add') }}" method="POST">
                                     {{ form.csrf_token }}
-                                    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-user-shield me-1"></i>Make Admin</button>
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">Make Admin</button>
                                 </form>
                             {% endif %}
                             <form action="{{ url_for('circles.remove_member', circle_id=circle.id, user_id=member.id) }}" method="POST">
                                 {{ form.csrf_token }}
-                                <button type="submit" class="btn btn-danger btn-sm"
+                                <button type="submit" class="btn btn-outline-danger btn-sm"
                                         onclick="return confirm('Are you sure you want to remove this member from the circle?');">
-                                    <i class="fas fa-user-xmark me-1"></i>Remove
+                                    Remove
                                 </button>
                             </form>
                         </div>
@@ -351,10 +255,62 @@
             <p class="text-muted mb-4">No members yet.</p>
         {% endif %}
     {% else %}
-        <div class="alert alert-info">
-            <i class="fas fa-lock me-2"></i>
-            This is a closed circle. Join to see its members.
-        </div>
+        <p class="text-muted">This is a closed circle. Join to see its members.</p>
+    {% endif %}
+
+    {% if current_user.is_admin and regional_form %}
+        {% set regional_disabled = (circle.circle_type != 'open' or not circle.is_geocoded) and not circle.is_regional %}
+        <section class="card mb-4">
+            <div class="card-body">
+                <h2 class="h5">Regional Circle Settings</h2>
+                <form method="post" action="{{ url_for('circles.update_regional_circle_settings', circle_id=circle.id) }}">
+                    {{ regional_form.hidden_tag() }}
+                    <div class="form-check form-switch mb-3">
+                        {{ regional_form.is_regional(class="form-check-input", id="regionalCircleToggle", disabled=regional_disabled) }}
+                        {{ regional_form.is_regional.label(class="form-check-label", for_="regionalCircleToggle") }}
+                    </div>
+
+                    <div id="regional-radius-fields" class="mb-3"{% if not circle.is_regional %} style="display: none;"{% endif %}>
+                        {{ regional_form.regional_radius_miles.label(class="form-label") }}
+                        {{ regional_form.regional_radius_miles(class="form-control", id="regionalRadiusInput", min="1", max="100") }}
+                        {% for error in regional_form.regional_radius_miles.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">Enter a whole number between 1 and 100.</div>
+                    </div>
+
+                    {% if regional_disabled %}
+                        <p class="small text-muted mb-3">
+                            Regional status is only available for public circles with a saved location.
+                        </p>
+                    {% endif %}
+
+                    <p class="small text-muted mb-3">
+                        Regional circles must stay public and cannot be deleted until regional status is removed.
+                    </p>
+
+                    <div>{{ regional_form.submit(class="btn btn-outline-secondary btn-sm") }}</div>
+                </form>
+            </div>
+        </section>
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const regionalToggle = document.getElementById('regionalCircleToggle');
+            const radiusFields = document.getElementById('regional-radius-fields');
+
+            if (!regionalToggle || !radiusFields) {
+                return;
+            }
+
+            function toggleRegionalRadius() {
+                radiusFields.style.display = regionalToggle.checked ? 'block' : 'none';
+            }
+
+            toggleRegionalRadius();
+            regionalToggle.addEventListener('change', toggleRegionalRadius);
+        });
+        </script>
     {% endif %}
 </div>
 {% endblock %}
