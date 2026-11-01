@@ -3,30 +3,26 @@
 {% block title %}Find{% endblock %}
 
 {% block content %}
-    <div class="text-center mb-4">
-        <img src="{{ url_for('static', filename='img/logo_handshake.png') }}" alt="Meutch" class="mb-2" style="height: 48px; width: auto;">
-        <h1 class="h4 mb-1">Find Items</h1>
-        <p class="text-muted mb-0">Browse and search items from your circles.</p>
-    </div>
+    <h1 class="mb-3">What do you need to borrow?</h1>
 
     <section class="mb-4" id="search-section">
         {% if has_circles %}
         <form method="get" action="{{ url_for('main.find') }}" id="find-form">
             <input type="hidden" name="sort" value="{{ sort_by }}">
-            <div class="input-group mb-2">
+            <div class="input-group input-group-lg find-search mb-2">
                 <input type="text" name="q" class="form-control" placeholder="Search items by name, description, or tag..." value="{{ query }}" aria-label="Search items">
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-search me-1"></i>Search
+                    Search
                 </button>
             </div>
 
             <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
                 <div class="dropdown">
                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
-                        <i class="fas fa-th-large me-1"></i>Categories
+                        Categories
                         <span id="categories-badge" class="badge bg-primary ms-1 {% if not selected_categories %}d-none{% endif %}">{{ selected_categories|length }}</span>
                     </button>
-                    <div class="dropdown-menu p-3" style="min-width: 220px; max-height: 300px; overflow-y: auto;">
+                    <div class="dropdown-menu find-filter-menu p-3">
                         <div class="form-check border-bottom pb-2 mb-2">
                             <input class="form-check-input" type="checkbox" id="categories-all" {% if not selected_categories %}checked{% endif %}>
                             <label class="form-check-label" for="categories-all">All categories</label>
@@ -45,10 +41,10 @@
 
                 <div class="dropdown">
                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
-                        <i class="fas fa-users me-1"></i>Circles
+                        Circles
                         <span id="circles-badge" class="badge bg-primary ms-1 {% if not selected_circles %}d-none{% endif %}">{{ selected_circles|length }}</span>
                     </button>
-                    <div class="dropdown-menu p-3" style="min-width: 220px; max-height: 300px; overflow-y: auto;">
+                    <div class="dropdown-menu find-filter-menu p-3">
                         <div class="form-check border-bottom pb-2 mb-2">
                             <input class="form-check-input" type="checkbox" id="circles-all" {% if not selected_circles %}checked{% endif %}>
                             <label class="form-check-label" for="circles-all">All circles</label>
@@ -62,7 +58,7 @@
                     </div>
                 </div>
 
-                <select name="item_type" class="form-select form-select-sm" style="width: auto;" aria-label="Item type">
+                <select name="item_type" class="form-select form-select-sm w-auto" aria-label="Item type">
                     <option value="both" {% if item_type == 'both' %}selected{% endif %}>All Items</option>
                     <option value="loans" {% if item_type == 'loans' %}selected{% endif %}>Loans Only</option>
                     <option value="giveaways" {% if item_type == 'giveaways' %}selected{% endif %}>Giveaways Only</option>
@@ -70,7 +66,7 @@
 
                 <div class="dropdown">
                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-sort me-1"></i>{% if sort_by == 'distance' %}Closest first{% else %}Newest first{% endif %}
+                        {% if sort_by == 'distance' %}Closest first{% else %}Newest first{% endif %}
                     </button>
                     <ul class="dropdown-menu">
                         <li>
