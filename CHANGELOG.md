@@ -22,6 +22,8 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - The circle filter on Find, and the matching `circles` filter on `GET /api/v1/items`, now only applies to circles you belong to. Before, a hand-edited link naming another circle could list that circle's items; opening those items was already blocked. A malformed circle value in a Find link no longer causes an error page.
 - A request now stays in your profile, the Community Activity feed and the circle counts through its whole expiration date. Before, it disappeared from those lists at the start of that day even though it could still be opened and answered ([#555](https://github.com/sfirke/meutch/pull/555)).
 - On your profile, clicking to the next page of your active requests now shows that page. Before, it jumped back to the My Items tab ([#553](https://github.com/sfirke/meutch/pull/553)).
+- The headline, text and buttons at the top of the landing page are no longer dimmed. A dark overlay meant for the background was painting over them ([#590](https://github.com/sfirke/meutch/pull/590)).
+- Community Activity now shows the right initials for people without a profile photo: Maya Chen shows "MC". Before, it used the first two letters of the name, "MA" ([#590](https://github.com/sfirke/meutch/pull/590)).
 
 ### API development
 - Added `GET /api/v1/users/<id>` endpoint to retrieve a member's public profile, shared circles, and why access was granted; denied and unknown ids return 404. Nested users in item, message, circle, and request responses now include a `profile_viewable` flag so the mobile app knows which names to make tappable ([#517](https://github.com/sfirke/meutch/pull/517)).
@@ -31,6 +33,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - `POST /api/v1/items` accepts an optional `creation_token`, so a retried create after a timeout returns the item already made instead of posting a duplicate, and `PATCH /api/v1/items/<id>` can change images in the same atomic multipart request as the item fields, so the mobile app's item edits either fully save or not at all. An unknown `category_id` now returns a clear "Choose a category." validation error instead of a server error ([#557](https://github.com/sfirke/meutch/pull/557)).
 - `GET /api/v1/circles` and `GET /api/v1/circles/<id>` now report how far away a circle is in the same ranges the website shows, instead of a figure to the hundredth of a mile. `distance_miles` is still a number but is now the lower end of the range (0, 1, 2, 5, 10 or 25), and a new `distance` field carries the label, such as "2-5 mi", in the same form the feed uses. The `radius` filter on `GET /api/v1/circles` now accepts only the distances the website's circle search offers (5, 10, 25, 50 or 100) ([#561](https://github.com/sfirke/meutch/pull/561)).
 - Borrowers can now ask for more time on a loan through `POST /api/v1/loans/<id>/extension-requests`, and owners answer with `POST /api/v1/loan-extension-requests/<id>/approve` or `/deny`, the same as on the website. Loan lists, loan details and a conversation's active loan now include any pending extension request so the mobile app can show it; item details do not, since others can see that loan and the borrower's note is private. A loan request with a start date in the past is now rejected, as it is on the website ([#565](https://github.com/sfirke/meutch/pull/565)).
+
+### Developer Experience
+- Added `STYLE_GUIDE.md`, which describes the look the site is moving to and should be followed for any UI change ([#590](https://github.com/sfirke/meutch/pull/590)).
 
 ## September 2026
 

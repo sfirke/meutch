@@ -77,7 +77,8 @@
     {% if feed_events %}
         <div class="d-grid gap-3 mb-4 activity-feed-list">
             {% for event in feed_events %}
-                {% set actor_initials = (event.actor_name|replace(' ', ''))[:2]|upper %}
+                {% set name_letters = event.actor_name.split()|map('first')|list %}
+                {% set actor_initials = ((name_letters[0] ~ name_letters[-1]) if name_letters|length > 1 else name_letters|join)|upper %}
                 {% set is_claimed_giveaway = event.event_type == 'giveaway' and event.claim_status == 'claimed' %}
                 {% set border_class = '' %}
                 {% if event.event_type == 'request' %}

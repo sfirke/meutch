@@ -4,6 +4,8 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
 
+import pytest
+
 from app import db
 from app.models import Circle
 from app.services import loan_service
@@ -418,6 +420,44 @@ class TestMainRoutes:
             card_end = content.index("</article>", card_start)
             card_html = content[card_start:card_end]
             assert 'href="/user/' not in card_html
+
+    @pytest.mark.parametrize(
+        "actor_name, expected_initials",
+        [
+            ("Maya Chen", "MC"),
+            ("Mary Ann van der Berg", "MB"),
+            ("Cher", "C"),
+            ("Deleted User", "DU"),
+        ],
+    )
+    def test_feed_avatar_initials_use_first_and_last_words(
+        self, client, app, auth_user, actor_name, expected_initials
+    ):
+        """An actor without a photo shows the first letters of their first and last names."""
+        with app.app_context():
+            viewer = auth_user()
+            login_user(client, viewer.email)
+
+            event = {
+                "event_type": "request",
+                "created_at": datetime.now(UTC),
+                "request_id": uuid.uuid4(),
+                "title": "Initials Request",
+                "description": None,
+                "status": "open",
+                "actor_name": actor_name,
+                "actor_avatar_url": None,
+                "actor_id": None,
+                "image_url": None,
+                "action": "requested",
+                "visibility": "public",
+                "distance": None,
+            }
+            with patch("app.main.views.browse.build_homepage_feed_events", return_value=[event]):
+                response = client.get("/")
+
+            assert response.status_code == 200
+            assert f">{expected_initials}<" in response.data.decode("utf-8")
 
     def test_feed_actor_name_not_linked_for_current_user(self, client, app, auth_user):
         """Current user's own feed activity is not linked to their own profile."""
