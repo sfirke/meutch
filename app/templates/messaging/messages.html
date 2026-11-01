@@ -1,6 +1,7 @@
 <!-- templates/messaging/messages.html -->
 
 {% extends "base.html" %}
+{% from "components/people.html" import avatar %}
 
 {% block content %}
 <div class="container mt-5 mb-5">
@@ -80,17 +81,7 @@
                     </label>
 
                     {# Avatar #}
-                    <div class="conv-avatar">
-                        {% if convo.other_user %}
-                            {% if convo.other_user.profile_image_url %}
-                                <img src="{{ convo.other_user.profile_image_url }}" alt="{{ convo.other_user.first_name }} {{ convo.other_user.last_name }}" class="conv-avatar-img">
-                            {% else %}
-                                {{ convo.other_user.first_name[0]|upper }}{{ convo.other_user.last_name[0]|upper }}
-                            {% endif %}
-                        {% else %}
-                            <i class="fas fa-user"></i>
-                        {% endif %}
-                    </div>
+                    {{ avatar(convo.other_user.full_name if convo.other_user else none, convo.other_user.profile_image_url if convo.other_user else none, size="lg", extra_class="conv-avatar") }}
 
                     {# Body: vertically stacked name → context tag → preview #}
                     <div class="conv-body">

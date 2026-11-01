@@ -1,8 +1,11 @@
 """Integration tests for main routes."""
 
+import html
+import re
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
@@ -21,6 +24,19 @@ from tests.factories import (
 )
 
 
+def _feed_chip_urls(content):
+    return {
+        label: html.unescape(url)
+        for url, label in re.findall(
+            r'<a class="feed-chip[^"]*" href="([^"]*)"[^>]*>([^<]+)</a>', content
+        )
+    }
+
+
+def _selected_feed_chips(content):
+    return re.findall(r'<a class="feed-chip is-selected"[^>]*>([^<]+)</a>', content)
+
+
 class TestMainRoutes:
     """Test main application routes."""
 
@@ -37,7 +53,7 @@ class TestMainRoutes:
             login_user(client, user.email)
             response = client.get("/")
             assert response.status_code == 200
-            assert b"Community Activity" in response.data
+            assert b"What's happening nearby" in response.data
 
     @pytest.mark.parametrize("path", ["/", "/find", "/circles/", "/messages"])
     def test_nav_marks_the_current_page(self, client, app, auth_user, path):
@@ -314,6 +330,185 @@ class TestMainRoutes:
             assert "Type Filter Lent Item" not in content
             assert f"{joiner.full_name} joined {circle.name}" not in content
 
+    def test_feed_chips_select_one_then_toggle_and_return_to_everything(
+        self, client, app, auth_user
+    ):
+        """Following the chip links narrows the feed and turning the last one off resets it."""
+        with app.app_context():
+            viewer = auth_user()
+            owner = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, owner])
+            ItemRequestFactory(user=owner, title="Chip Request", visibility="public")
+            ItemFactory(
+                owner=owner,
+                category=CategoryFactory(),
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="unclaimed",
+                name="Chip Giveaway",
+            )
+            db.session.commit()
+            login_user(client, viewer.email)
+
+            content = client.get("/").data.decode("utf-8")
+            assert _selected_feed_chips(content) == ["Everything"]
+            assert "Chip Request" in content and "Chip Giveaway" in content
+
+            content = client.get(_feed_chip_urls(content)["Requests"]).data.decode("utf-8")
+            assert _selected_feed_chips(content) == ["Requests"]
+            assert "Chip Request" in content and "Chip Giveaway" not in content
+
+            content = client.get(_feed_chip_urls(content)["Giveaways"]).data.decode("utf-8")
+            assert _selected_feed_chips(content) == ["Requests", "Giveaways"]
+            assert "Chip Request" in content and "Chip Giveaway" in content
+
+            content = client.get(_feed_chip_urls(content)["Requests"]).data.decode("utf-8")
+            assert _selected_feed_chips(content) == ["Giveaways"]
+            assert "Chip Request" not in content and "Chip Giveaway" in content
+
+            content = client.get(_feed_chip_urls(content)["Giveaways"]).data.decode("utf-8")
+            assert _selected_feed_chips(content) == ["Everything"]
+            assert "Chip Request" in content and "Chip Giveaway" in content
+
+    def test_feed_chips_turning_on_all_four_returns_to_everything(self, client, app, auth_user):
+        with app.app_context():
+            login_user(client, auth_user().email)
+
+            content = client.get("/?types_present=1&types=requests&types=giveaways&types=loans")
+            content = content.data.decode("utf-8")
+            assert _selected_feed_chips(content) == ["Requests", "Giveaways", "Lending"]
+
+            content = client.get(_feed_chip_urls(content)["Circles"]).data.decode("utf-8")
+            assert _selected_feed_chips(content) == ["Everything"]
+
+    def test_feed_with_no_types_selected_shows_everything(self, client, app, auth_user):
+        with app.app_context():
+            viewer = auth_user()
+            owner = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, owner])
+            ItemRequestFactory(user=owner, title="Still Shown Request", visibility="public")
+            db.session.commit()
+            login_user(client, viewer.email)
+
+            content = client.get("/?types_present=1").data.decode("utf-8")
+
+            assert "Still Shown Request" in content
+            assert _selected_feed_chips(content) == ["Everything"]
+
+    def test_feed_chips_keep_the_filters_panel_settings(self, client, app, auth_user):
+        """Chips carry scope, distance and both toggles, whichever way each toggle is set."""
+        with app.app_context():
+            login_user(client, auth_user().email)
+
+            content = client.get(
+                "/?scope=circles&distance=50&own_activity_present=1"
+                "&claimed_giveaways_present=1&show_claimed_giveaways=1"
+            ).data.decode("utf-8")
+
+            for url in _feed_chip_urls(content).values():
+                content_after = client.get(url).data.decode("utf-8")
+                assert 'value="circles" selected' in content_after
+                assert 'value="50" selected' in content_after
+                assert (
+                    'id="feed-show-own-activity" name="show_own_activity" value="1" >'
+                    in content_after
+                )
+                assert (
+                    'id="feed-show-claimed-giveaways" name="show_claimed_giveaways" value="1" checked'
+                    in content_after
+                )
+
+    def test_feed_chips_leave_distance_unset_when_it_was_never_chosen(self, client, app, auth_user):
+        """An explicit distance is treated differently from the default, so chips can't add one."""
+        with app.app_context():
+            login_user(client, auth_user().email)
+
+            content = client.get("/").data.decode("utf-8")
+
+            for url in _feed_chip_urls(content).values():
+                assert "distance" not in parse_qs(urlparse(url).query)
+
+    def test_feed_filters_form_keeps_the_selected_types(self, client, app, auth_user):
+        with app.app_context():
+            login_user(client, auth_user().email)
+
+            content = client.get("/?types_present=1&types=requests&types=loans").data.decode(
+                "utf-8"
+            )
+
+            assert re.findall(r'<input type="hidden" name="types" value="([^"]+)">', content) == [
+                "requests",
+                "loans",
+            ]
+
+    def test_feed_card_description_links_stay_links(self, client, app, auth_user):
+        with app.app_context():
+            viewer = auth_user()
+            owner = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, owner])
+            ItemRequestFactory(
+                user=owner,
+                title="Linked Request",
+                description="Like this one https://example.com/ladder",
+                visibility="public",
+            )
+            db.session.commit()
+            login_user(client, viewer.email)
+
+            content = client.get("/").data.decode("utf-8")
+
+            assert 'href="https://example.com/ladder"' in content
+
+    def test_feed_card_without_a_destination_has_no_link(self, client, app, auth_user):
+        with app.app_context():
+            login_user(client, auth_user().email)
+            event = {
+                "event_type": "circle_join",
+                "created_at": datetime.now(UTC),
+                "circle_id": None,
+                "title": "Nowhere To Go",
+                "description": None,
+                "actor_name": "Some Person",
+                "actor_avatar_url": None,
+                "actor_id": None,
+                "image_url": None,
+                "action": "joined a circle",
+                "distance": None,
+            }
+            with patch("app.main.views.browse.build_homepage_feed_events", return_value=[event]):
+                content = client.get("/").data.decode("utf-8")
+
+            card_start = content.index("<article")
+            card_html = content[card_start : content.index("</article>", card_start)]
+            assert "Nowhere To Go" in card_html
+            assert "<a " not in card_html
+
+    def test_feed_fulfilled_request_is_tagged_found_instead_of_wanted(self, client, app, auth_user):
+        with app.app_context():
+            login_user(client, auth_user().email)
+            event = {
+                "event_type": "request",
+                "created_at": datetime.now(UTC),
+                "request_id": uuid.uuid4(),
+                "title": "Fulfilled Request",
+                "description": None,
+                "status": "fulfilled",
+                "actor_name": "Some Person",
+                "actor_avatar_url": None,
+                "actor_id": None,
+                "image_url": None,
+                "action": "requested",
+                "distance": None,
+            }
+            with patch("app.main.views.browse.build_homepage_feed_events", return_value=[event]):
+                content = client.get("/").data.decode("utf-8")
+
+            assert "Found!" in content
+            assert "Wanted" not in content
+
     def test_home_feed_circle_join_links_to_specific_circle_and_hides_combined_metadata_row(
         self, client, app, auth_user
     ):
@@ -334,8 +529,6 @@ class TestMainRoutes:
 
             assert response.status_code == 200
             assert f'href="/circles/{circle.id}"' in content
-            assert "View Circle" in content
-            assert "View Circles" not in content
             assert "activity-feed-meta" not in content
 
     def test_feed_actor_name_is_link_when_actor_id_present(self, client, app, auth_user):
@@ -434,10 +627,10 @@ class TestMainRoutes:
 
             assert response.status_code == 200
             assert "Deleted User" in content
-            assert '<strong class="text-body">Deleted User</strong>' in content
+            assert "<strong>Deleted User</strong>" in content
             # Scope the negative assertion to the event card so a profile link elsewhere
             # on the page (e.g. a future addition) doesn't false-positive this test
-            card_start = content.index('<article class="card border-0 activity-feed-card')
+            card_start = content.index('<article class="card activity-feed-card')
             card_end = content.index("</article>", card_start)
             card_html = content[card_start:card_end]
             assert 'href="/user/' not in card_html

@@ -1,5 +1,6 @@
 <!-- app/templates/main/item_detail.html -->
 {% extends "base.html" %}
+{% from "components/tags.html" import item_status_tag %}
 {% block title %}{{ item.name }}{% if has_token_access %} (Direct Link){% endif %}{% endblock %}
 {% block content %}
 <div class="container mt-4">
@@ -47,23 +48,7 @@
                         </div>
                     {% endif %}
 
-                    <!-- Giveaway ribbon -->
-                    {% if item.is_giveaway %}
-                        <span class="giveaway-ribbon">GIVEAWAY</span>
-                    {% endif %}
-
-                    <!-- Status indicator -->
-                    {% if not item.available %}
-                        {% if item.is_giveaway and item.claim_status == 'claimed' %}
-                            <span class="position-absolute top-0 end-0 m-3 badge bg-success">
-                                <i class="fas fa-heart me-1"></i>Rehomed
-                            </span>
-                        {% else %}
-                            <span class="position-absolute top-0 end-0 m-3 badge bg-warning">
-                                <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Pending Pickup{% else %}Borrowed{% endif %}
-                            </span>
-                        {% endif %}
-                    {% endif %}
+                    {{ item_status_tag(item) }}
                 </div>
             </div>
         </div>

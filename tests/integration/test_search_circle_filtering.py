@@ -374,7 +374,5 @@ class TestSearchDistanceDisplay:
             html = response.data.decode("utf-8")
             assert "Distance Test Item" in html
 
-            # Verify distance badge appears with bucketed range
-            assert "badge bg-info" in html
             # Distance between Boston and ~190 mi away falls in 25+ mi bucket
-            assert "25+ mi" in html
+            assert "25+ mi away" in html

@@ -6,6 +6,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Minor**:
+- The home page and item cards have a new layout. You can tap anywhere on a card to open it, and filter the home page with chips for requests, giveaways, lending and circles, choosing more than one at a time. Item cards are simpler, with bigger photos, and tags now only show on the item page. Giveaways are now tagged "Up for grabs" and requests "Wanted" ([#595](https://github.com/sfirke/meutch/pull/595)).
 - Meutch has started to get a new look, inspired by cut paper and visible mending. Fonts, colors, buttons, cards, the menu at the top and the top of the home page have all changed, and more pages will follow. Red now only means something is wrong, so unread counts are purple ([#591](https://github.com/sfirke/meutch/pull/591)).
 - When users create a public giveaway or request, they are prompted to share it outside of Meutch ([#571](https://github.com/sfirke/meutch/pull/571)).
 - Community Activity keeps showing a "lent out" entry after the item has been returned, for 30 days from when the loan was requested. Before, it disappeared as soon as the loan was marked returned ([#544](https://github.com/sfirke/meutch/pull/544)).

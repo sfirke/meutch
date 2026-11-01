@@ -214,7 +214,7 @@ class TestRequestsFeedFiltering:
             response = client.get("/")
             assert response.status_code == 200
             assert b"Got my screwdriver" in response.data
-            assert b"Fulfilled" in response.data
+            assert b"Found!" in response.data
             assert b"marked a request fulfilled" in response.data
 
     def test_feed_hides_old_fulfilled_requests(self, client, app, auth_user):
