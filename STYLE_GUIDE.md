@@ -153,6 +153,8 @@ Leave it out of nav links, footer links and buttons whose label is already clear
 - Use the variables and shared classes in `app/static/css/style.css`. Avoid inline
   `style` attributes and new `!important` rules.
 - Restyle Bootstrap through its `--bs-*` variables where it has one.
+- Red buttons are for deleting or removing something. Leaving a circle, denying a
+  request and canceling a loan are plain outline buttons.
 - Unread counts use `.bg-purple`. Don't add Bootstrap's `shadow` classes, which draw
   soft shadows.
 - A card with one destination should be clickable as a whole, using a stretched

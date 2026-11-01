@@ -31,17 +31,17 @@
             <!-- Owner controls: Loan (if active), Edit, Delete -->
             <div class="item-card-controls d-flex gap-2 justify-content-end">
                 {% if item.current_loan %}
-                    <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}" class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" title="View active loan">
-                        <i class="fas fa-exchange-alt me-1"></i>Loan
+                    <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}" class="btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" title="View active loan">
+                        Loan
                     </a>
                 {% endif %}
                 {% if item.id in delete_forms %}
                     <a href="{{ url_for('main.edit_item', item_id=item.id) }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-edit me-1"></i>Edit
+                        Edit
                     </a>
                     {% set delete_modal_id = 'deleteItemModal-' ~ item.id %}
                     <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#{{ delete_modal_id }}" title="Delete item">
-                        <i class="fas fa-trash me-1"></i>Delete
+                        Delete
                     </button>
                 {% endif %}
             </div>

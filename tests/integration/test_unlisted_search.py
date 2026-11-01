@@ -187,8 +187,8 @@ def test_browse_results_render_circle_thumbnail_and_precomputed_facepile(client,
         assert "Thumbnail Circle" in html
         assert "circle-result-thumbnail" in html
         assert "https://cdn.example.com/circle-thumb.jpg" in html
-        assert html.count("share-member-avatar") >= 2
-        assert "+2 more" in html
+        assert "https://cdn.example.com/two.jpg" in html
+        assert "4 members" in html
         mock_sampler.assert_called_once()
 
 
@@ -211,9 +211,18 @@ def test_closed_circle_facepile_hidden_for_non_members(client, app):
 
         # Add members to the circle (browser_user is NOT a member)
         members = [
-            UserFactory(first_name="Secret Member One"),
-            UserFactory(first_name="Secret Member Two"),
-            UserFactory(first_name="Secret Member Three"),
+            UserFactory(
+                first_name="Secret Member One",
+                profile_image_url="https://cdn.example.com/secret-one.jpg",
+            ),
+            UserFactory(
+                first_name="Secret Member Two",
+                profile_image_url="https://cdn.example.com/secret-two.jpg",
+            ),
+            UserFactory(
+                first_name="Secret Member Three",
+                profile_image_url="https://cdn.example.com/secret-three.jpg",
+            ),
         ]
         for member in members:
             closed_circle.members.append(member)
@@ -232,6 +241,7 @@ def test_closed_circle_facepile_hidden_for_non_members(client, app):
         assert "Secret Member One" not in html
         assert "Secret Member Two" not in html
         assert "Secret Member Three" not in html
+        assert "https://cdn.example.com/secret-" not in html
         assert html.count("share-member-avatar") == 0
 
 
@@ -254,8 +264,12 @@ def test_closed_circle_facepile_shown_for_members(client, app):
 
         # Add members including the browser user
         other_members = [
-            UserFactory(first_name="John Doe Member"),
-            UserFactory(first_name="Jane Doe Member"),
+            UserFactory(
+                first_name="John Doe Member", profile_image_url="https://cdn.example.com/john.jpg"
+            ),
+            UserFactory(
+                first_name="Jane Doe Member", profile_image_url="https://cdn.example.com/jane.jpg"
+            ),
         ]
         closed_circle.members.append(member_user)  # Add the browsing user
         for member in other_members:
@@ -272,7 +286,8 @@ def test_closed_circle_facepile_shown_for_members(client, app):
         assert "John Doe" in html  # Badge showing user is member
 
         # SHOULD see member facepiles for this closed circle since user is a member
-        assert html.count("share-member-avatar") >= 2
+        assert "https://cdn.example.com/john.jpg" in html
+        assert "https://cdn.example.com/jane.jpg" in html
 
 
 def test_open_circle_facepile_always_shown(client, app):
@@ -294,8 +309,12 @@ def test_open_circle_facepile_always_shown(client, app):
 
         # Add members to the circle (browser_user is NOT a member)
         members = [
-            UserFactory(first_name="Public Member One"),
-            UserFactory(first_name="Public Member Two"),
+            UserFactory(
+                first_name="Public Member One", profile_image_url="https://cdn.example.com/one.jpg"
+            ),
+            UserFactory(
+                first_name="Public Member Two", profile_image_url="https://cdn.example.com/two.jpg"
+            ),
         ]
         for member in members:
             open_circle.members.append(member)
@@ -310,4 +329,5 @@ def test_open_circle_facepile_always_shown(client, app):
         assert "Open Public Circle" in html
 
         # Should see member facepiles for open circles even when not a member
-        assert html.count("share-member-avatar") >= 2
+        assert "https://cdn.example.com/one.jpg" in html
+        assert "https://cdn.example.com/two.jpg" in html

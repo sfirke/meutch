@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from "components/loans.html" import loan_row %}
+{% from "components/people.html" import avatar, web_link %}
 
 {% block title %}Profile{% endblock %}
 
@@ -10,22 +12,22 @@
     <ul class="nav nav-tabs mb-4" id="profileTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link {% if active_tab == 'my-items' %}active{% endif %}" id="my-items-tab" data-bs-toggle="tab" data-bs-target="#my-items" type="button" role="tab" aria-controls="my-items" aria-selected="{{ 'true' if active_tab == 'my-items' else 'false' }}">
-                <i class="fas fa-boxes me-2"></i>My Items
+                My Items
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link {% if active_tab == 'my-activity' %}active{% endif %}" id="my-activity-tab" data-bs-toggle="tab" data-bs-target="#my-activity" type="button" role="tab" aria-controls="my-activity" aria-selected="{{ 'true' if active_tab == 'my-activity' else 'false' }}">
-                <i class="fas fa-exchange-alt me-2"></i>Loans &amp; Requests
+                Loans &amp; Requests
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link {% if active_tab == 'about-me' %}active{% endif %}" id="about-me-tab" data-bs-toggle="tab" data-bs-target="#about-me" type="button" role="tab" aria-controls="about-me" aria-selected="{{ 'true' if active_tab == 'about-me' else 'false' }}">
-                <i class="fas fa-user me-2"></i>About Me
+                About Me
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link {% if active_tab == 'settings' %}active{% endif %}" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab" aria-controls="settings" aria-selected="{{ 'true' if active_tab == 'settings' else 'false' }}">
-                <i class="fas fa-cog me-2"></i>Settings
+                Settings
             </button>
         </li>
     </ul>
@@ -58,7 +60,7 @@
             <!-- My Active Giveaways Section -->
             {% if active_giveaways %}
                 <div class="mb-4">
-                    <h4 class="mb-3"><i class="fas fa-gift me-2"></i>My Active Giveaways</h4>
+                    <h2 class="h4 mb-2">My Active Giveaways</h2>
                     <p class="text-muted small">Items available for claiming or pending pickup</p>
                     <div class="items-grid">
                         {% for item in active_giveaways %}
@@ -115,7 +117,7 @@
             <!-- Regular Items Section -->
             {% if items %}
                 {% if active_giveaways or past_giveaways %}
-                    <h4 class="mb-3 mt-4"><i class="fas fa-handshake me-2"></i>Items for Lending</h4>
+                    <h2 class="h4 mb-3 mt-4">Items for Lending</h2>
                 {% endif %}
                 <div class="items-grid">
                     {% for item in items %}
@@ -128,7 +130,7 @@
                     {% if not search_query %}
                         <p>You haven't listed anything yet. Add something your neighbors could borrow or keep.</p>
                         <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
-                            <i class="fas fa-plus me-1"></i>List an item
+                            List an item
                         </a>
                     {% endif %}
                 {% endif %}
@@ -180,7 +182,7 @@
             <!-- My Past Giveaways Section -->
             {% if past_giveaways %}
                 <details class="my-4"{% if past_giveaways_expanded %} open{% endif %}>
-                    <summary class="h4 mb-3"><h4 class="d-inline"><i class="fas fa-history me-2"></i>My Past Giveaways ({{ past_giveaways_pagination.total }})</h4></summary>
+                    <summary class="h4 mb-3">My Past Giveaways ({{ past_giveaways_pagination.total }})</summary>
                     <p class="text-muted small">Items claimed within the last 90 days</p>
                     <div class="items-grid">
                         {% for item in past_giveaways %}
@@ -245,52 +247,13 @@
             {% if current_user == user %}
                 <!-- Currently Borrowing -->
                 <div class="mb-5">
-                    <h4><i class="fas fa-arrow-down me-2"></i>Items I'm Borrowing</h4>
+                    <h2 class="h4">Items I'm Borrowing</h2>
                     {% if borrowing %}
-                        <div class="table-responsive">
-                            <table class="table align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>Item</th>
-                                        <th>Owner</th>
-                                        <th>Due Date</th>
-                                        <th>Active Loan</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for item in borrowing %}
-                                        <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center gap-2">
-                                                    {% if item.images %}
-                                                        <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="flex-shrink-0">
-                                                            <img src="{{ item.image }}" alt="{{ item.name }}" class="thumbnail">
-                                                        </a>
-                                                    {% endif %}
-                                                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="fw-semibold text-decoration-none text-reset">{{ item.name }}</a>
-                                                </div>
-                                            </td>
-                                            <td><a href="{{ url_for('main.user_profile', user_id=item.owner.id) }}">{{ item.owner.full_name }}</a></td>
-                                            <td class="text-nowrap">
-                                                {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
-                                                {% if item.current_loan.due_state == 'overdue' %}
-                                                    <span class="badge bg-danger ms-1">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
-                                                {% elif item.current_loan.due_state == 'due_today' %}
-                                                    <span class="badge bg-warning text-dark ms-1">Due today</span>
-                                                {% elif item.current_loan.due_state == 'due_soon' %}
-                                                    <span class="badge bg-warning text-dark ms-1">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}" class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-exchange-alt me-1"></i>View Loan
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+                        <ul class="activity-list">
+                            {% for item in borrowing %}
+                                {{ loan_row(item, "From", item.owner) }}
+                            {% endfor %}
+                        </ul>
                     {% else %}
                         <p>You are not currently borrowing any items.</p>
                     {% endif %}
@@ -298,52 +261,13 @@
 
                 <!-- Currently Lending -->
                 <div class="mb-5">
-                    <h4><i class="fas fa-arrow-up me-2"></i>Items I'm Lending</h4>
+                    <h2 class="h4">Items I'm Lending</h2>
                     {% if lending %}
-                        <div class="table-responsive">
-                            <table class="table align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>Item</th>
-                                        <th>Borrower</th>
-                                        <th>Due Date</th>
-                                        <th>Active Loan</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for item in lending %}
-                                        <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center gap-2">
-                                                    {% if item.images %}
-                                                        <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="flex-shrink-0">
-                                                            <img src="{{ item.image }}" alt="{{ item.name }}" class="thumbnail">
-                                                        </a>
-                                                    {% endif %}
-                                                    <a href="{{ url_for('main.item_detail', item_id=item.id) }}" class="fw-semibold text-decoration-none text-reset">{{ item.name }}</a>
-                                                </div>
-                                            </td>
-                                            <td><a href="{{ url_for('main.user_profile', user_id=item.current_loan.borrower.id) }}">{{ item.current_loan.borrower.full_name }}</a></td>
-                                            <td class="text-nowrap">
-                                                {{ item.current_loan.end_date.strftime('%Y-%m-%d') }}
-                                                {% if item.current_loan.due_state == 'overdue' %}
-                                                    <span class="badge bg-danger ms-1">Overdue by {{ item.current_loan.days_overdue() }} day{{ 's' if item.current_loan.days_overdue() != 1 else '' }}</span>
-                                                {% elif item.current_loan.due_state == 'due_today' %}
-                                                    <span class="badge bg-warning text-dark ms-1">Due today</span>
-                                                {% elif item.current_loan.due_state == 'due_soon' %}
-                                                    <span class="badge bg-warning text-dark ms-1">Due in {{ item.current_loan.days_until_due() }} day{{ 's' if item.current_loan.days_until_due() != 1 else '' }}</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}" class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-exchange-alt me-1"></i>View Loan
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+                        <ul class="activity-list">
+                            {% for item in lending %}
+                                {{ loan_row(item, "To", item.current_loan.borrower) }}
+                            {% endfor %}
+                        </ul>
                     {% else %}
                         <p>You are not currently lending any items.</p>
                     {% endif %}
@@ -351,60 +275,37 @@
 
                 <!-- My Requests -->
                 <div class="mb-5">
-                    <h4><i class="fas fa-clipboard-list me-2"></i>My Requests</h4>
+                    <h2 class="h4">My Requests</h2>
                     {% if active_requests.items or past_requests.items %}
                         {% if active_requests.items %}
-                            <h6 class="text-muted mb-3">Active</h6>
-                            <div class="table-responsive">
-                                <table class="table">
-                                    <colgroup>
-                                        <col style="width:55%">
-                                        <col style="width:15%">
-                                        <col style="width:15%">
-                                        <col style="width:15%">
-                                    </colgroup>
-                                    <thead>
-                                        <tr>
-                                            <th>Request</th>
-                                            <th>Visibility</th>
-                                            <th>Expires</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for req in active_requests.items %}
-                                            <tr>
-                                                <td><a href="{{ url_for('requests.detail', request_id=req.id) }}">{{ req.title }}</a></td>
-                                                <td>{{ 'My Circles' if req.visibility == 'circles' else 'Public' }}</td>
-                                                <td>{{ req.expires_at.strftime('%Y-%m-%d') }}</td>
-                                                <td>
-                                                    <div class="d-flex flex-wrap gap-1">
-                                                        <a href="{{ url_for('requests.edit', request_id=req.id) }}" class="btn btn-sm btn-outline-primary">
-                                                            <i class="fas fa-edit me-1"></i>Edit
-                                                        </a>
-                                                        {% if req.status == 'open' and not req.is_expired %}
-                                                            <form method="POST" action="{{ url_for('requests.fulfill', request_id=req.id) }}" class="d-inline">
-                                                                {{ fulfill_form.hidden_tag() }}
-                                                                <button type="submit" class="btn btn-sm btn-success">
-                                                                    <i class="fas fa-check-circle me-1"></i>Fulfilled
-                                                                </button>
-                                                            </form>
-                                                        {% endif %}
-                                                        <button type="button" class="btn btn-sm btn-outline-danger"
-                                                                data-bs-toggle="modal"
-                                                                data-bs-target="#deleteRequestModal"
-                                                                data-request-title="{{ req.title }}"
-                                                                data-fulfill-url="{{ url_for('requests.fulfill', request_id=req.id) }}"
-                                                                data-delete-url="{{ url_for('requests.delete', request_id=req.id) }}">
-                                                            <i class="fas fa-trash me-1"></i>Delete
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <h3 class="h6 text-muted mb-2">Active</h3>
+                            <ul class="activity-list">
+                                {% for req in active_requests.items %}
+                                    <li class="activity-row">
+                                        <div class="activity-row-main">
+                                            <a href="{{ url_for('requests.detail', request_id=req.id) }}" class="activity-row-title">{{ req.title }}</a>
+                                            <div class="activity-row-meta">{{ 'My Circles' if req.visibility == 'circles' else 'Public' }} &middot; Expires {{ req.expires_at.strftime('%B %d, %Y') }}</div>
+                                        </div>
+                                        <div class="activity-row-actions">
+                                            <a href="{{ url_for('requests.edit', request_id=req.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                            {% if req.status == 'open' and not req.is_expired %}
+                                                <form method="POST" action="{{ url_for('requests.fulfill', request_id=req.id) }}">
+                                                    {{ fulfill_form.hidden_tag() }}
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Fulfilled</button>
+                                                </form>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#deleteRequestModal"
+                                                    data-request-title="{{ req.title }}"
+                                                    data-fulfill-url="{{ url_for('requests.fulfill', request_id=req.id) }}"
+                                                    data-delete-url="{{ url_for('requests.delete', request_id=req.id) }}">
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
                             {% if active_requests.pages > 1 %}
                             <nav>
                                 <ul class="pagination pagination-sm">
@@ -423,41 +324,21 @@
                         {% endif %}
 
                         {% if past_requests.items %}
-                            <h6 class="text-muted mb-3 {% if active_requests.items %}mt-4{% endif %}">Recently Fulfilled</h6>
-                            <div class="table-responsive">
-                                <table class="table">
-                                    <colgroup>
-                                        <col style="width:55%">
-                                        <col style="width:15%">
-                                        <col style="width:15%">
-                                        <col style="width:15%">
-                                    </colgroup>
-                                    <thead>
-                                        <tr>
-                                            <th>Request</th>
-                                            <th>Visibility</th>
-                                            <th>Fulfilled</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for req in past_requests.items %}
-                                            <tr>
-                                                <td><a href="{{ url_for('requests.detail', request_id=req.id) }}">{{ req.title }}</a></td>
-                                                <td>{{ 'My Circles' if req.visibility == 'circles' else 'Public' }}</td>
-                                                <td>{{ req.fulfilled_at.strftime('%Y-%m-%d') }}</td>
-                                                <td></td>
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <h3 class="h6 text-muted mb-2 {% if active_requests.items %}mt-4{% endif %}">Recently Fulfilled</h3>
+                            <ul class="activity-list">
+                                {% for req in past_requests.items %}
+                                    <li class="activity-row">
+                                        <div class="activity-row-main">
+                                            <a href="{{ url_for('requests.detail', request_id=req.id) }}" class="activity-row-title">{{ req.title }}</a>
+                                            <div class="activity-row-meta">{{ 'My Circles' if req.visibility == 'circles' else 'Public' }} &middot; Fulfilled {{ req.fulfilled_at.strftime('%B %d, %Y') }}</div>
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
                         {% endif %}
                     {% else %}
                         <p>You have no active or recently fulfilled requests.</p>
-                        <a href="{{ url_for('requests.new') }}" class="btn btn-sm btn-meutch-orange">
-                            <i class="fas fa-hand-holding-heart me-1"></i>Create Request
-                        </a>
+                        <a href="{{ url_for('requests.new') }}" class="btn btn-sm btn-meutch-orange">Create Request</a>
                     {% endif %}
                 </div>
 
@@ -469,13 +350,10 @@
 
             <!-- Read-only profile view -->
             <div id="profile-view" {% if show_edit %}class="d-none"{% endif %}>
-                <div class="row">
-                    <div class="col-md-4 text-center">
-                        <img src="{{ current_user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
-                    </div>
-                    <div class="col-md-8">
-                        <h3 class="fw-bold mb-3">{{ current_user.full_name }}</h3>
-                        <h6 class="text-uppercase text-muted small fw-semibold mb-2">About Me</h6>
+                <div class="profile-summary">
+                    {{ avatar(current_user.full_name, current_user.profile_image_url, size="xl") }}
+                    <div class="profile-summary-body">
+                        <h2 class="h3">{{ current_user.full_name }}</h2>
                         {% if current_user.about_me %}
                             <p>{{ current_user.about_me|linkify }}</p>
                         {% else %}
@@ -483,30 +361,14 @@
                         {% endif %}
 
                         {% if current_user.web_links %}
-                            <h6 class="mt-4 mb-2"><i class="fas fa-external-link-alt me-2"></i>Where to find me on the web</h6>
-                            <div class="row">
-                                {% for link in current_user.web_links %}
-                                    <div class="col-md-6 mb-2">
-                                        <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
-                                            <div class="d-flex align-items-center p-2 bg-light rounded">
-                                                <i class="{{ link.icon_class }} me-2 text-primary" style="width: 20px;"></i>
-                                                <div class="small">
-                                                    <div class="fw-semibold">{{ link.display_name }}</div>
-                                                    <div class="text-muted">{{ link.url|replace('https://', '')|replace('http://', '')|replace('www.', '') }}</div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                {% endfor %}
+                            <h3 class="h6 mt-4 mb-2">Where to find me on the web</h3>
+                            <div class="web-links">
+                                {% for link in current_user.web_links %}{{ web_link(link) }}{% endfor %}
                             </div>
                         {% endif %}
-                    </div>
-                </div>
 
-                <div class="text-center mt-4">
-                    <button type="button" class="btn btn-outline-primary" id="edit-profile-btn">
-                        <i class="fas fa-pencil-alt me-2"></i>Edit Profile
-                    </button>
+                        <button type="button" class="btn btn-outline-secondary mt-4" id="edit-profile-btn">Edit Profile</button>
+                    </div>
                 </div>
             </div>
 
@@ -518,7 +380,7 @@
                         <!-- Left Column -->
                         <div class="col-md-6">
                             <div class="text-center mb-4">
-                                <img src="{{ current_user.profile_image }}" class="profile-image mb-3" alt="Profile picture">
+                                {{ avatar(current_user.full_name, current_user.profile_image_url, size="xl", extra_class="mb-3") }}
                             </div>
 
                             <div class="row">
@@ -621,7 +483,7 @@
                 <div class="col-12 mb-4">
                     <div class="card">
                         <div class="card-body">
-                            <h6 class="card-title"><i class="fas fa-envelope-open-text me-2"></i>Email Digest Settings</h6>
+                            <h2 class="h6 card-title">Email Digest Settings</h2>
                             <small class="text-muted d-block mb-3">Choose what activity appears in your digest emails.</small>
 
                             <form method="POST" action="{{ url_for('main.update_digest_settings') }}">
@@ -690,39 +552,30 @@
                 </div>
             </div>
 
-            <div class="row">
+            <div class="row g-4">
                 <div class="col-md-4">
                     <!-- Address Information -->
-                    <div class="card">
+                    <div class="card h-100">
                         <div class="card-body">
-                            <h6 class="card-title"><i class="fas fa-map-marker-alt me-2"></i>Location Status</h6>
+                            <h2 class="h6 card-title">Location Status</h2>
                             {% if current_user.is_geocoded %}
-                                <div class="alert alert-success alert-sm">
-                                    <i class="fas fa-check-circle me-1"></i>
-                                    <small>Your location is set and distances will be shown to other users.</small>
-                                </div>
+                                <p class="small mb-3">Your location is set and distances will be shown to other users.</p>
                             {% elif current_user.geocoding_failed %}
-                                <div class="alert alert-warning alert-sm">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>
-                                    <small>We couldn't determine your location. <a href="{{ url_for('main.update_location') }}">Update your address</a> to see distances.</small>
-                                </div>
+                                <p class="small mb-3">We couldn't determine your location. <a href="{{ url_for('main.update_location') }}">Update your address</a> to see distances.</p>
                             {% else %}
-                                <div class="alert alert-info alert-sm">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    <small>Your location hasn't been processed yet. You won't be able to see which circles and items are near you until this is resolved.</small>
-                                </div>
+                                <p class="small mb-3">Your location hasn't been processed yet. You won't be able to see which circles and items are near you until this is resolved.</p>
                             {% endif %}
 
                             {% if current_user.can_update_location() %}
-                                <a href="{{ url_for('main.update_location') }}" class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-edit me-1"></i>Update Location
+                                <a href="{{ url_for('main.update_location') }}" class="btn btn-outline-secondary btn-sm align-self-start">
+                                    Update Location
                                 </a>
                             {% else %}
                                 <div class="text-muted small mb-2">
-                                    <i class="fas fa-clock me-1"></i>You can update your location once per successful update per day.
+                                    You can update your location once per successful update per day.
                                 </div>
                                 <button class="btn btn-outline-secondary btn-sm" disabled>
-                                    <i class="fas fa-edit me-1"></i>Update Location (Available Tomorrow)
+                                    Update Location (Available Tomorrow)
                                 </button>
                             {% endif %}
                         </div>
@@ -731,9 +584,9 @@
 
                 <div class="col-md-4">
                     <!-- Vacation Mode -->
-                    <div class="card">
+                    <div class="card h-100">
                         <div class="card-body">
-                            <h6 class="card-title"><i class="fas fa-umbrella-beach me-2"></i>Vacation Mode</h6>
+                            <h2 class="h6 card-title">Vacation Mode</h2>
                             <small class="text-muted d-block mb-2">
                                 When enabled, your items will be hidden from other users. Active loans and borrows will continue.
                             </small>
@@ -758,11 +611,11 @@
 
                 <div class="col-md-4">
                     <!-- Account Deletion -->
-                    <div class="card">
+                    <div class="card h-100">
                         <div class="card-body">
-                            <h6 class="card-title text-danger">Danger Zone</h6>
-                            <a href="{{ url_for('main.delete_account') }}" class="btn btn-outline-danger btn-sm">
-                                <i class="fas fa-trash"></i> Delete Account
+                            <h2 class="h6 card-title text-danger">Danger Zone</h2>
+                            <a href="{{ url_for('main.delete_account') }}" class="btn btn-outline-danger btn-sm align-self-start">
+                                Delete Account
                             </a>
                         </div>
                     </div>
@@ -814,6 +667,10 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // The tab strip scrolls sideways on a phone, so bring the open tab into view.
+    var activeProfileTab = document.querySelector('#profileTabs .nav-link.active');
+    if (activeProfileTab) activeProfileTab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
     // Dynamic delete request modal - update form actions from data attributes
     var deleteModal = document.getElementById('deleteRequestModal');
     if (deleteModal) {
@@ -885,7 +742,7 @@ document.addEventListener('DOMContentLoaded', function() {
             function updatePlatform() {
                 // Update icon
                 if (iconElement) {
-                    iconElement.className = 'platform-icon me-1 text-primary ' + (platformIcons[platformSelect.value] || '');
+                    iconElement.className = 'platform-icon me-1 ' + (platformIcons[platformSelect.value] || '');
                 }
 
                 // Toggle custom name field for "other"

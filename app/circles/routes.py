@@ -123,9 +123,9 @@ def manage_circles():
                         searched_circles, limit=5, user_circle_ids=user_circle_ids
                     )
                 else:
-                    flash("No circle found with that UUID.", "warning")
+                    flash("No circle found with that ID.", "warning")
             except Exception:
-                flash("Invalid UUID format.", "danger")
+                flash("That doesn't look like a circle ID.", "danger")
 
     # Fetch user's circles and sort by member count (descending)
     user_circles = get_sorted_user_circles(current_user)
