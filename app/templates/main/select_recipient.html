@@ -23,7 +23,7 @@
 
             <!-- Quick Selection Buttons -->
             <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header bg-primary text-dark">
                     <h5 class="mb-0"><i class="fas fa-magic me-2"></i>Quick Selection</h5>
                 </div>
                 <div class="card-body">
@@ -125,7 +125,7 @@
                                                                     <i class="fas fa-comments me-1"></i>
                                                                     Conversation ({{ msg_info.message_count }} message{% if msg_info.message_count != 1 %}s{% endif %})
                                                                     {% if msg_info.unread_count > 0 %}
-                                                                        <span class="badge bg-danger ms-1">{{ msg_info.unread_count }} new</span>
+                                                                        <span class="badge bg-purple ms-1">{{ msg_info.unread_count }} new</span>
                                                                     {% endif %}
                                                                 </strong>
                                                             </p>
@@ -142,7 +142,7 @@
                                                            onclick="event.stopPropagation();">
                                                             <i class="fas fa-comments me-1"></i>
                                                             {% if msg_info.unread_count > 0 %}
-                                                                <span class="badge bg-danger rounded-pill">{{ msg_info.unread_count }}</span>
+                                                                <span class="badge bg-purple rounded-pill">{{ msg_info.unread_count }}</span>
                                                             {% endif %}
                                                             View Chat
                                                         </a>

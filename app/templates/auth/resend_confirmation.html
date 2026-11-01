@@ -27,7 +27,7 @@
             </div>
 
             {% if email_address %}
-                <div class="alert {% if email_delivery_status == false %}alert-warning{% else %}alert-info{% endif %} shadow-sm" role="alert">
+                <div class="alert {% if email_delivery_status == false %}alert-warning{% else %}alert-info{% endif %}" role="alert">
                     {% if email_delivery_status == false %}
                         We will send the next confirmation email to <strong>{{ email_address }}</strong>.
                     {% else %}
@@ -36,7 +36,7 @@
                 </div>
             {% endif %}
 
-            <div class="card shadow-sm border-0 mb-4">
+            <div class="card mb-4">
                 <div class="card-body p-4">
                     <h2 class="h5 mb-3">What to do next</h2>
                     <ol class="mb-0 ps-3">
@@ -50,7 +50,7 @@
 
             <div class="row g-3 mb-4">
                 <div class="col-md-6">
-                    <div class="card h-100 shadow-sm border-0">
+                    <div class="card h-100">
                         <div class="card-body p-4">
                             <h2 class="h6 mb-3">If you do not see the email</h2>
                             <ul class="mb-0 ps-3">
@@ -62,7 +62,7 @@
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="card h-100 shadow-sm border-0">
+                    <div class="card h-100">
                         <div class="card-body p-4">
                             <h2 class="h6 mb-3">Good to know</h2>
                             <ul class="mb-0 ps-3">
@@ -91,7 +91,7 @@
             {% endif %}
 
             <div class="collapse{% if show_resend %} show{% endif %}" id="resend-confirmation-panel">
-                <div class="card shadow-sm border-0 mb-4">
+                <div class="card mb-4">
                     <div class="card-body p-4">
                         <h2 class="h5 mb-3">Send another confirmation email</h2>
                         <p class="text-muted mb-3">Enter the same email address you used when you registered.</p>
@@ -112,7 +112,7 @@
                 </div>
             </div>
 
-            <div class="card border-warning shadow-sm mb-4">
+            <div class="card border-warning mb-4">
                 <div class="card-body p-4">
                     <h2 class="h5 mb-2">Wrong email address?</h2>
                     <p class="mb-3">If you signed up with a typo or the wrong email address, Meutch cannot change the email on an unconfirmed account. Create a new account with the correct email address instead.</p>

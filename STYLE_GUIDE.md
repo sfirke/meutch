@@ -10,8 +10,7 @@ childish or careless, because people are trusting Meutch to connect them with
 each other.
 
 This guide describes where the site is headed, and the site is being moved to it
-over several pull requests, so most pages don't match it yet and the CSS variables
-below aren't all in `style.css` yet. New work should follow the guide as far as it
+over several pull requests, so some pages don't match it yet. New work should follow the guide as far as it
 can without making a page look out of place next to its neighbors.
 
 ## Colors
@@ -27,7 +26,7 @@ here first.
 | `--line` | `#e7dcc5` | Quiet borders on cards and lists |
 | `--muted` | `#5b6a6e` | Secondary text |
 | `--teal` | `#4fd1c7` | Primary actions, "do something" |
-| `--teal-deep` | `#0f5f5c` | Links and teal text on light backgrounds |
+| `--teal-deep` | `#0f5f5c` | Links and teal text on light backgrounds, small info badges |
 | `--teal-wash` | `#dcf5f1` | Hover, unread and selected backgrounds |
 | `--tangerine` | `#f6ad55` | Requests, stitches, landing hero |
 | `--tangerine-wash` | `#fdeeda` | Soft orange sections |
@@ -47,7 +46,7 @@ That's what `--danger` is for.
 
 - **Text on teal or tangerine is always `--ink`, never white.** White on teal is
   1.9:1. Ink on teal is about 8:1.
-- **Text on `--purple`, `--emerald`, `--danger` and `--ink` fills is white.** Ink on
+- **Text on `--purple`, `--emerald`, `--danger`, `--teal-deep` and `--ink` fills is white.** Ink on
   purple is only 2.4:1, while white is 6.1:1.
 - Don't put purple text on teal or tangerine. It's only about 3.2:1. Purple text is
   fine on white or paper.
@@ -65,7 +64,8 @@ That's what `--danger` is for.
 
 ## Shape
 
-- Buttons, inputs and menus use a 10px corner radius. Cards use 14px. Tags use 6px.
+- Buttons, inputs and menus use a 10px corner radius (`--radius`). Cards use 14px
+  (`--radius-card`). Tags use 6px (`--radius-tag`).
 - Pills are only for filter chips and small counts. Filter chips are multi-select,
   and a selected chip is filled with `--ink`.
 - No gradients and no soft drop shadows. Where something needs lift, use a hard
@@ -85,21 +85,22 @@ apart, like a tag or a framed photo.
 ## The stitch
 
 A running stitch is the everyday decoration. It's a dashed line, 14px on and 9px
-off, 3px tall, drawn with a repeating gradient so the spacing stays consistent.
+off, 3px tall, drawn with the `--stitch` repeating gradient so the spacing stays
+consistent.
 
 - Use it between blocks of content: under the nav, above the footer, around the
   owner row on an item page.
 - **Never put a stitch under words in running text or a wrapping heading.** It
   runs into the line below. To emphasize a word in a heading, use the teal paper
-  strip: a teal background on an inline-block, tilted 1 degree.
+  strip (`.paper-strip`): a teal background on an inline-block, tilted 1 degree.
 - Use no more than one or two stitches on a screen.
 
 ## The pinked edge
 
 Where a full-width colored band meets paper, cut the edge with a zigzag, like fabric
 trimmed with pinking shears. Use it for big moments such as the landing hero, not on
-cards or inside everyday app pages. Draw it with an SVG mask so the teeth are true
-triangles: 24px wide and 12px tall.
+cards or inside everyday app pages. Draw it with an SVG mask (`--pinked-down`,
+`--pinked-up`) so the teeth are true triangles: 24px wide and 12px tall.
 
 ## Whimsy
 
@@ -147,6 +148,8 @@ Leave it out of nav links, footer links and buttons whose label is already clear
 - Use the variables and shared classes in `app/static/css/style.css`. Avoid inline
   `style` attributes and new `!important` rules.
 - Restyle Bootstrap through its `--bs-*` variables where it has one.
+- Unread counts use `.bg-purple`. Don't add Bootstrap's `shadow` classes, which draw
+  soft shadows.
 - A card with one destination should be clickable as a whole, using a stretched
   link. Other links inside it, such as a person's name or a link in a description,
   must sit above the stretched link so they still work.
