@@ -10,7 +10,7 @@
         <form method="get" action="{{ url_for('main.find') }}" id="find-form">
             <input type="hidden" name="sort" value="{{ sort_by }}">
             <div class="input-group input-group-lg find-search mb-2">
-                <input type="text" name="q" class="form-control" placeholder="Search items by name, description, or tag..." value="{{ query }}" aria-label="Search items">
+                <input type="text" name="q" class="form-control" placeholder="Search items..." value="{{ query }}" aria-label="Search items">
                 <button type="submit" class="btn btn-primary">
                     Search
                 </button>
