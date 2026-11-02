@@ -961,7 +961,7 @@ class TestItemSharePreview:
             response = client.get(f"/items/{item.id}/request?share_token={token}")
 
             assert response.status_code == 200
-            assert b"Request to Borrow" in response.data
+            assert b"Ask to borrow this" in response.data
 
     def test_request_item_submit_with_valid_share_token(self, client, app):
         with app.app_context():

@@ -86,7 +86,7 @@ class TestShareReminderAfterCreation:
             )
 
             assert response.status_code == 200
-            assert b"List a New Item" in response.data
+            assert b"What can you share?" in response.data
             item = Item.query.filter_by(name="Public Rake").one()
             expected_url = _external_url(app, "share.giveaway_preview", item_id=item.id)
             assert f'data-share-url="{expected_url}"'.encode() in response.data
