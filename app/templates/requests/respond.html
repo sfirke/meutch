@@ -49,13 +49,7 @@
                     {% for item in pagination.items %}
                         <div class="col">
                             <div class="card h-100">
-                                {% if item.image %}
-                                    <img src="{{ item.image }}" class="card-img-top" alt="{{ item.name }}" style="height: 160px; object-fit: cover;">
-                                {% else %}
-                                    <div class="card-img-top d-flex align-items-center justify-content-center bg-light" style="height: 160px;">
-                                        <i class="fas fa-image text-muted" style="font-size: 2.5rem;"></i>
-                                    </div>
-                                {% endif %}
+                                <img src="{{ item.image }}" class="card-img-top item-card-photo" alt="{{ item.name }}" style="height: 160px;">
                                 <div class="card-body d-flex flex-column">
                                     <h6 class="card-title">{{ item.name }}</h6>
                                     {% if item.description %}

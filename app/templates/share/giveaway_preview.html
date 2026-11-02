@@ -24,14 +24,8 @@
             <div class="col-lg-8">
             <div class="card share-preview-card">
                 <div class="share-preview-media">
-                    {% if item.images %}
-                        <img src="{{ item.image }}" alt="{{ item.name }}" class="share-preview-image">
-                    {% else %}
-                        <div class="share-preview-image-placeholder">
-                            <i class="fas fa-gift"></i>
-                            <span>Giveaway</span>
-                        </div>
-                    {% endif %}
+                    <img src="{{ item.image }}" alt="{{ item.name }}" class="share-preview-image">
+
                     {{ item_status_tag(item) }}
                 </div>
 
