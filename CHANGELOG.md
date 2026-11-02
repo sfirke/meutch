@@ -6,6 +6,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Minor**:
+- Items without a photo now show a cut-paper parcel instead of a stock picture of mountains, including when you share a link to one ([#602](https://github.com/sfirke/meutch/pull/602)).
 - Logging in, registering and the forms for items, requests, circles, borrowing and your location have their new look. Register now fits on a phone, and every field shows its own error when something needs fixing. The giveaway form no longer says "free", because everything on Meutch is free ([#600](https://github.com/sfirke/meutch/pull/600)).
 - Messages, conversations, circles and your profile have their new look. Checkboxes in your inbox stay hidden until you tap Select, and message previews have more room on a phone. A conversation starts with who it's with and what it's about, and loan actions sit together in one place. You can tap anywhere on a circle in a list to open it, and the Leave button is now only on the circle's own page. Your loans and requests are easier to read on a phone ([#598](https://github.com/sfirke/meutch/pull/598)).
 - The rest of the home page for logged-out visitors has its new look, and so do the pages people see when they open a shared giveaway, item, request or circle link. Giveaways no longer say "free" in their titles, link previews or share text, because everything on Meutch is free ([#597](https://github.com/sfirke/meutch/pull/597)).
