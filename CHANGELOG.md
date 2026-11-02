@@ -2,6 +2,11 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
+## November 2026
+
+### Developer Experience
+- Removed the old standalone Create Circle page at `/circles/create-circle`. Nothing had linked to it since March 2026, when circles were already being created from the Create tab on the Circles page ([#601](https://github.com/sfirke/meutch/pull/601)).
+
 ## October 2026
 
 ### Features
