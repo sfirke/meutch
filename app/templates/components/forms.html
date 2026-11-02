@@ -1,0 +1,91 @@
+{#- Extra keyword arguments go to the input: form_field(form.name, placeholder="..."). -#}
+
+{% macro _errors(field) %}
+    {%- if field.errors %}
+        <div class="invalid-feedback d-block" id="{{ field.id }}-error">
+            {%- for error in field.errors %}<div>{{ error }}</div>{% endfor -%}
+        </div>
+    {%- endif %}
+{% endmacro %}
+
+{% macro form_field(field, help=none, label=none, input_class="", wrapper_class="mb-3") %}
+    {%- set base_class = "form-select" if field.type == "SelectField" else "form-control" -%}
+    {%- set attrs = dict(kwargs) -%}
+    {%- set described_by = [attrs.pop("aria_describedby")] if "aria_describedby" in attrs else [] -%}
+    {%- if help -%}
+        {%- set _ = described_by.append(field.id ~ "-help") -%}
+    {%- endif -%}
+    {%- if field.errors -%}
+        {%- set _ = described_by.append(field.id ~ "-error") -%}
+        {%- set _ = attrs.update(aria_invalid="true") -%}
+    {%- endif -%}
+    {%- if described_by -%}
+        {%- set _ = attrs.update(aria_describedby=described_by|join(" ")) -%}
+    {%- endif %}
+    <div class="{{ wrapper_class }}">
+        {{ field.label(text=label, class="form-label") }}
+        {{ field(class=(base_class ~ " " ~ input_class ~ (" is-invalid" if field.errors else ""))|trim, **attrs) }}
+        {%- if help %}
+            <div class="form-text" id="{{ field.id }}-help">{{ help }}</div>
+        {%- endif %}
+        {{ _errors(field) }}
+        {%- if caller %}{{ caller() }}{% endif %}
+    </div>
+{% endmacro %}
+
+{% macro check_field(field, help=none, id=none, wrapper_class="mb-3") %}
+    {%- set input_id = id or field.id %}
+    <div class="{{ wrapper_class }}">
+        <div class="form-check">
+            {{ field(class="form-check-input" ~ (" is-invalid" if field.errors else ""), id=input_id, **kwargs) }}
+            {{ field.label(class="form-check-label", for_=input_id) }}
+        </div>
+        {%- if help %}
+            <div class="form-text">{{ help }}</div>
+        {%- endif %}
+        {{ _errors(field) }}
+    </div>
+{% endmacro %}
+
+{% macro radio_field(field, label=none, input_class="", wrapper_class="mb-3") %}
+    <fieldset class="{{ wrapper_class }}">
+        <legend class="form-label">{{ label or field.label.text }}</legend>
+        {%- for subfield in field %}
+            <div class="form-check">
+                {{ subfield(class=("form-check-input " ~ input_class)|trim, id=subfield.id) }}
+                {{ subfield.label(class="form-check-label", for_=subfield.id) }}
+            </div>
+        {%- endfor %}
+        {{ _errors(field) }}
+    </fieldset>
+{% endmacro %}
+
+{# The page's own script shows the block that matches the chosen location method. #}
+{% macro location_fields(form, id_prefix="") %}
+    {%- set method = form.location_method.data %}
+    <div id="{{ id_prefix }}address-fields" class="mb-3"{% if method != "address" %} style="display: none;"{% endif %}>
+        <p class="form-text mt-0">Geocoding has been tested with addresses in USA and Canada.</p>
+        {{ form_field(form.street, placeholder="123 N Main Street") }}
+        <div class="row gx-3">
+            {{ form_field(form.city, placeholder="Ann Arbor", wrapper_class="col-md-6 mb-3") }}
+            {{ form_field(form.state, placeholder="MI", wrapper_class="col-6 col-md-3 mb-3") }}
+            {{ form_field(form.zip_code, placeholder="48104", wrapper_class="col-6 col-md-3 mb-3") }}
+        </div>
+        {{ form_field(form.country) }}
+    </div>
+    <div id="{{ id_prefix }}coordinate-fields" class="mb-3"{% if method != "coordinates" %} style="display: none;"{% endif %}>
+        <p class="form-text mt-0">You can find coordinates in Google Maps (right-click a spot and copy them) or your phone's maps app.</p>
+        <div class="row gx-3">
+            {{ form_field(form.latitude, help="Between -90 and 90", step="any", placeholder="e.g., 42.2808", wrapper_class="col-md-6 mb-3") }}
+            {{ form_field(form.longitude, help="Between -180 and 180", step="any", placeholder="e.g., -83.7430", wrapper_class="col-md-6 mb-3") }}
+        </div>
+    </div>
+{% endmacro %}
+
+{% macro auth_card(title, wide=false) %}
+    <div class="auth-card{% if wide %} auth-card--wide{% endif %}">
+        <img class="auth-logo" src="{{ url_for('static', filename='img/logo_m.png') }}" alt="" width="72" height="72">
+        <h1 class="auth-title">{{ title }}</h1>
+        {{ caller() }}
+    </div>
+{% endmacro %}

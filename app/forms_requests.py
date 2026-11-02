@@ -30,7 +30,7 @@ class ItemRequestForm(FlaskForm):
         validators=[DataRequired(message="Please select an expiration date.")],
     )
     seeking = SelectField(
-        "What are you looking for?",
+        "Do you want to borrow it or keep it?",
         choices=ItemRequest.SEEKING_CHOICES,
         default="either",
         validators=[DataRequired()],

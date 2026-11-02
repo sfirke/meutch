@@ -150,6 +150,10 @@ Leave it out of nav links, footer links and buttons whose label is already clear
   markup. Don't wrap buttons, badges, alerts or cards in macros, because their
   shared CSS classes already do that job. Anything used only once stays where it
   is until a second use appears.
+- Build forms from the macros in `components/forms.html`, so labels, help text and
+  errors look the same everywhere. A form gets its own page in `.form-page`. Log in,
+  register and the password pages use `auth_card`. Upload areas have a dashed
+  `--tangerine` edge.
 - Use the variables and shared classes in `app/static/css/style.css`. Avoid inline
   `style` attributes and new `!important` rules.
 - Restyle Bootstrap through its `--bs-*` variables where it has one.
