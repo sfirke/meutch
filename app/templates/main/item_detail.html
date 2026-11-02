@@ -28,13 +28,8 @@
                                 <span class="visually-hidden">Next</span>
                             </button>
                         </div>
-                    {% elif item.images %}
-                        <img src="{{ item.image }}" alt="{{ item.name }}" class="item-detail-image">
                     {% else %}
-                        <div class="item-detail-image-placeholder d-flex flex-column align-items-center justify-content-center">
-                            <i class="fas fa-image text-muted mb-3"></i>
-                            <p class="text-muted mb-0">No image available</p>
-                        </div>
+                        <img src="{{ item.image }}" alt="{{ item.name }}" class="item-detail-image">
                     {% endif %}
 
                     {{ item_status_tag(item) }}
