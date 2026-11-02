@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/forms.html" import check_field, form_field %}
 {% from "components/loans.html" import loan_row %}
 {% from "components/people.html" import avatar, web_link %}
 
@@ -383,95 +384,42 @@
                                 {{ avatar(current_user.full_name, current_user.profile_image_url, size="xl", extra_class="mb-3") }}
                             </div>
 
-                            <div class="row">
-                                <div class="col-sm-6 mb-3">
-                                    {{ form.first_name.label(class="form-label") }}
-                                    {{ form.first_name(class="form-control") }}
-                                    {% for error in form.first_name.errors %}
-                                        <div class="text-danger small">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                                <div class="col-sm-6 mb-3">
-                                    {{ form.last_name.label(class="form-label") }}
-                                    {{ form.last_name(class="form-control") }}
-                                    {% for error in form.last_name.errors %}
-                                        <div class="text-danger small">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
+                            <div class="row gx-3">
+                                {{ form_field(form.first_name, wrapper_class="col-sm-6 mb-3") }}
+                                {{ form_field(form.last_name, wrapper_class="col-sm-6 mb-3") }}
                             </div>
 
-                            <div class="mb-3">
-                                {{ form.about_me.label(class="form-label") }}
-                                <small class="text-muted d-block mb-2">A bio with specifics will help others in the community connect with you.</small>
-                                {{ form.about_me(class="form-control", rows="5") }}
-                            </div>
-
-                            <div class="mb-3">
-                                {{ form.profile_image.label(class="form-label") }}
-                                {{ form.profile_image(class="form-control", accept="image/*") }}
-                            </div>
+                            {{ form_field(form.about_me, help="A bio with specifics will help others in the community connect with you.", rows="5") }}
+                            {{ form_field(form.profile_image, accept="image/*") }}
 
                             {% if current_user.profile_image_url %}
-                                <div class="mb-3 form-check">
-                                    {{ form.delete_image(class="form-check-input", id="deleteProfileImage") }}
-                                    {{ form.delete_image.label(class="form-check-label", for_="deleteProfileImage") }}
-                                </div>
+                                {{ check_field(form.delete_image, id="deleteProfileImage") }}
                             {% endif %}
                         </div>
 
                         <!-- Right Column - Web Links -->
                         <div class="col-md-6">
-                            <h5 class="mb-3">Where else can you be found on the web?</h5>
-                            <small class="text-muted mb-3 d-block">Add up to 5 links to help establish your identity.</small>
+                            <h2 class="form-section-title mt-0">Where else can you be found on the web?</h2>
+                            <p class="text-muted small">Add up to 5 links to help establish your identity.</p>
 
                             {% for i in range(1, 6) %}
-                            <div class="web-link-group mb-3 p-3 border rounded" data-link-index="{{ i }}">
-                                <div class="row g-2">
-                                    <div class="col-5">
-                                        {% set platform_field = form['link_' + i|string + '_platform'] %}
-                                        <label class="form-label small">
-                                            <i class="platform-icon me-1" id="icon_{{ i }}"></i>Platform {{ i }}
-                                        </label>
-                                        {{ platform_field(class="form-select form-select-sm") }}
-                                        {% if platform_field.errors %}
-                                            <div class="text-danger small">
-                                                {% for error in platform_field.errors %}{{ error }}{% endfor %}
-                                            </div>
-                                        {% endif %}
+                                <div class="web-link-group" data-link-index="{{ i }}">
+                                    <div class="row g-2">
+                                        {% set platform_label %}<i class="platform-icon me-1" id="icon_{{ i }}"></i>Platform {{ i }}{% endset %}
+                                        {{ form_field(form['link_' ~ i ~ '_platform'], label=platform_label, input_class="form-select-sm", wrapper_class="col-sm-5") }}
+                                        {{ form_field(form['link_' ~ i ~ '_url'], label="URL " ~ i, input_class="form-control-sm", placeholder="https://", wrapper_class="col-sm-7") }}
                                     </div>
-                                    <div class="col-7">
-                                        {% set url_field = form['link_' + i|string + '_url'] %}
-                                        <label class="form-label small">URL {{ i }}</label>
-                                        {{ url_field(class="form-control form-control-sm", placeholder="https://") }}
-                                        {% if url_field.errors %}
-                                            <div class="text-danger small">
-                                                {% for error in url_field.errors %}{{ error }}{% endfor %}
-                                            </div>
-                                        {% endif %}
+                                    <div class="custom-name-row mt-2" style="display: none;">
+                                        {{ form_field(form['link_' ~ i ~ '_custom_name'], label="Name of other site", input_class="form-control-sm", placeholder="e.g., My Portfolio, Company Website", wrapper_class="") }}
                                     </div>
                                 </div>
-
-                                <!-- Custom name field for "other" platform -->
-                                <div class="custom-name-row mt-2" style="display: none;">
-                                    <div class="col-12">
-                                        {% set custom_name_field = form['link_' + i|string + '_custom_name'] %}
-                                        <label class="form-label small">Name of other site</label>
-                                        {{ custom_name_field(class="form-control form-control-sm", placeholder="e.g., My Portfolio, Company Website") }}
-                                        {% if custom_name_field.errors %}
-                                            <div class="text-danger small">
-                                                {% for error in custom_name_field.errors %}{{ error }}{% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
                             {% endfor %}
                         </div>
                     </div>
 
-                    <div class="text-center mt-4 mb-3">
+                    <div class="form-actions">
                         {{ form.submit(class="btn btn-primary") }}
-                        <button type="button" class="btn btn-outline-secondary ms-2" id="cancel-edit-btn">Cancel</button>
+                        <button type="button" class="btn btn-outline-secondary" id="cancel-edit-btn">Cancel</button>
                     </div>
                 </form>
             </div>

@@ -854,20 +854,27 @@ h1 {
     box-shadow: 0 0 0 3px var(--teal);
 }
 
-/* Mobile-friendly file input */
+legend.form-label {
+    float: none;
+    font-size: 1rem;
+}
+
+.form-text {
+    color: var(--muted);
+}
+
+/* File inputs share the dashed tangerine edge of the photo upload area. */
 input[type="file"] {
     padding: 0.75rem;
     background: var(--card-paper);
-    border: 2px dashed var(--line);
+    border: 2px dashed var(--tangerine);
     border-radius: var(--radius);
     cursor: pointer;
     transition: border-color 0.2s ease, background-color 0.2s ease;
-    position: relative;
 }
 
 input[type="file"]:hover {
     border-color: var(--ink);
-    background: var(--teal-wash);
 }
 
 input[type="file"]:focus {
@@ -876,32 +883,138 @@ input[type="file"]:focus {
     box-shadow: 0 0 0 3px var(--teal);
 }
 
-/* Mobile specific improvements */
-@media (max-width: 768px) {
-    input[type="file"] {
-        padding: 1rem;
-        font-size: 1rem;
-        min-height: 60px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-    }
+input[type="file"]::file-selector-button {
+    margin: 0 0.75rem 0 0;
+    padding: 0.35rem 0.85rem;
+    background: var(--card-paper);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    font-weight: 600;
+    cursor: pointer;
+}
 
-    input[type="file"]::file-selector-button {
-        background: var(--teal);
-        color: var(--ink);
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: var(--radius);
-        font-weight: 500;
-        margin-right: 1rem;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
+input[type="file"]:hover::file-selector-button,
+input[type="file"]::file-selector-button:hover {
+    background: var(--teal-wash);
+    color: var(--ink);
+}
 
-    input[type="file"]::file-selector-button:hover {
-        background: var(--teal-deep);
+/* A single form on its own page */
+.form-page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* Inside a tab, which lines up with the tabs rather than the middle of the page. */
+.form-page--start {
+    margin-left: 0;
+    padding: 0;
+}
+
+.form-section-title {
+    margin: 2rem 0 0.75rem;
+    font-size: 1.25rem;
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+}
+
+.form-note {
+    padding: 0.75rem 1rem;
+    background: var(--tangerine-wash);
+    border-radius: var(--radius);
+    font-size: 0.925rem;
+}
+
+.form-note--action {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.form-current-image {
+    display: block;
+    max-width: 300px;
+    width: 100%;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+}
+
+.web-link-group {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.web-link-group .form-label {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+}
+
+@media (max-width: 575.98px) {
+    .form-actions .btn {
+        flex: 1 1 100%;
+    }
+}
+
+/* Log in, register and the password pages */
+.auth-card {
+    max-width: 440px;
+    margin: 3rem auto 1rem;
+    padding: 2rem;
+    background: var(--card-paper);
+    border: 2px solid var(--ink);
+    border-radius: var(--radius-card);
+    box-shadow: 4px 4px 0 var(--ink);
+}
+
+.auth-card--wide {
+    max-width: 600px;
+}
+
+.auth-logo {
+    display: block;
+    width: 72px;
+    height: 72px;
+    margin: -4.25rem auto 0.75rem;
+    background: var(--card-paper);
+    border: 2px solid var(--ink);
+    border-radius: var(--radius-card);
+}
+
+.main-content .auth-title {
+    margin-bottom: 1.25rem;
+    font-size: 1.75rem;
+    text-align: center;
+}
+
+.auth-links {
+    margin-top: 1.25rem;
+    font-size: 0.95rem;
+}
+
+.auth-links p {
+    margin-bottom: 0.4rem;
+}
+
+.auth-links p:last-child {
+    margin-bottom: 0;
+}
+
+@media (max-width: 575.98px) {
+    .auth-card {
+        margin-left: 0.75rem;
+        margin-right: 0.75rem;
+        padding: 1.5rem 1.25rem;
     }
 }
 
@@ -1582,7 +1695,7 @@ footer::before {
     min-width: 0;
 }
 
-a.conversation-context-title {
+.conversation-context-title {
     display: block;
     color: var(--ink);
     font-family: var(--font-display);
@@ -2070,19 +2183,6 @@ a.conversation-context-title {
     }
 }
 
-/* Smaller Form Control for Datepickers */
-.form-control-small {
-    width: 150px;
-}
-
-/* Flex Layout for Form Rows */
-.form-row {
-    display: flex;
-    gap: 20px; /* Space between the columns */
-    align-items: flex-start; /* Align items to the top */
-    margin-bottom: 15px; /* Space below the row */
-}
-
 /* Table styling */
 .table {
     --bs-table-color: var(--ink);
@@ -2112,7 +2212,7 @@ a.conversation-context-title {
 
 /* Drag and Drop Upload Zones */
 .drag-drop-zone {
-    border: 2px dashed var(--line);
+    border: 2px dashed var(--tangerine);
     border-radius: var(--radius);
     padding: 2rem;
     text-align: center;
@@ -2123,15 +2223,14 @@ a.conversation-context-title {
 }
 
 .drag-drop-zone:hover {
-    border-color: var(--teal);
-    background-color: var(--teal-wash);
+    border-color: var(--ink);
+    background-color: var(--tangerine-wash);
 }
 
 .drag-drop-zone.drag-over {
-    border-color: var(--teal);
-    background-color: var(--teal-wash);
+    border-color: var(--ink);
+    background-color: var(--tangerine-wash);
     border-style: solid;
-    transform: scale(1.02);
 }
 
 .drag-drop-zone.has-file {
@@ -2150,7 +2249,7 @@ a.conversation-context-title {
 
 .drag-drop-zone:hover .fa-cloud-upload-alt,
 .drag-drop-zone.drag-over .fa-cloud-upload-alt {
-    color: var(--teal-deep);
+    color: var(--ink);
 }
 
 .drag-drop-zone.has-file .fa-cloud-upload-alt {
@@ -2189,7 +2288,7 @@ a.conversation-context-title {
 
     /* Disable hover effects on touch devices */
     .drag-drop-zone:hover {
-        border-color: var(--line);
+        border-color: var(--tangerine);
         background-color: var(--paper);
     }
 
@@ -2543,10 +2642,6 @@ a.conversation-context-title {
    Landing Page  (anonymous homepage)
    =================================================================== */
 
-html {
-    overflow-x: hidden;
-}
-
 .landing-page {
     padding-top: 0;
     scroll-behavior: smooth;
@@ -2844,15 +2939,15 @@ html {
 }
 
 .multi-image-grid.drag-over {
-    outline: 2px dashed var(--teal);
+    outline: 2px dashed var(--ink);
     outline-offset: 4px;
     border-radius: var(--radius);
 }
 
 .multi-image-grid.drag-over .multi-image-add-btn {
-    border-color: var(--teal);
-    color: var(--teal-deep);
-    background-color: var(--teal-wash);
+    border-color: var(--ink);
+    color: var(--ink);
+    background-color: var(--tangerine-wash);
 }
 
 .multi-image-thumb {
@@ -2959,7 +3054,7 @@ body.multi-image-reordering * {
 
 .multi-image-add-btn {
     aspect-ratio: 1;
-    border: 2px dashed var(--line);
+    border: 2px dashed var(--tangerine);
     border-radius: var(--radius);
     display: flex;
     flex-direction: column;
@@ -2974,9 +3069,9 @@ body.multi-image-reordering * {
 }
 
 .multi-image-add-btn:hover {
-    border-color: var(--teal);
-    color: var(--teal-deep);
-    background-color: var(--teal-wash);
+    border-color: var(--ink);
+    color: var(--ink);
+    background-color: var(--tangerine-wash);
 }
 
 .multi-image-add-btn span {

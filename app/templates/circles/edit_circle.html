@@ -1,184 +1,44 @@
 {% extends "base.html" %}
+{% from "components/circles.html" import circle_fields %}
+{% from "components/forms.html" import check_field, form_field, location_fields, radio_field %}
 
 {% block title %}Edit Circle{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <h1 class="mb-4">Edit Circle</h1>
-            <form method="post" enctype="multipart/form-data">
-                {{ form.csrf_token }}
-                <!-- Name -->
-                <div class="mb-3">
-                    {{ form.name.label(class="form-label") }}
-                    {{ form.name(class="form-control") }}
-                    {% for error in form.name.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                </div>
-                <!-- Description -->
-                <div class="mb-3">
-                    {{ form.description.label(class="form-label") }}
-                    {{ form.description(class="form-control", rows="4") }}
-                    {% for error in form.description.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                </div>
-                <!-- Circle Type -->
-                <div class="mb-3">
-                    {{ form.circle_type.label(class="form-label") }}
-                    {{ form.circle_type(class="form-select") }}
-                    {% for error in form.circle_type.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                    {% if circle.is_regional %}
-                        <div class="alert alert-success py-2 mt-2 mb-2">
-                            <i class="fas fa-map-pin me-2"></i>
-                            This circle is regional. Remove regional status from the circle details page before changing visibility.
-                        </div>
-                    {% endif %}
-                    <small class="form-text text-muted">
-                        <strong>Open:</strong> Anyone can find and join.<br>
-                        <strong>Closed:</strong> Anyone can find it, but requires approval to join.<br>
-                        <strong>Secret:</strong> Cannot be found by search, requires UUID and approval to join.
-                    </small>
-                </div>
-                <!-- Current Image -->
-                {% if circle.image_url %}
-                <div class="mb-3">
-                    <label class="form-label">Current Image</label><br>
-                    <img src="{{ circle.image_url }}" alt="Circle Image" class="img-fluid mb-2" style="max-width: 300px;">
-                </div>
-                <!-- Delete Image -->
-                <div class="mb-3 form-check">
-                    {{ form.delete_image(class="form-check-input", id="deleteCircleImage") }}
-                    {{ form.delete_image.label(class="form-check-label", for_="deleteCircleImage") }}
-                </div>
-                {% endif %}
-                <!-- Image Upload -->
-                <div class="mb-3">
-                    {{ form.image.label(class="form-label") }}
-                    {{ form.image(class="form-control", accept="image/*") }}
-                    {% for error in form.image.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                </div>
+<div class="form-page">
+    <h1>Edit Circle</h1>
+    <form method="post" enctype="multipart/form-data">
+        {{ form.csrf_token }}
 
-                <!-- Location Section -->
-                <div class="mb-4">
-                    <h5 class="mb-3"><i class="fas fa-map-marker-alt me-2"></i>Circle Location</h5>
-                    {% if circle.is_geocoded %}
-                        <div class="alert alert-info">
-                            <small><i class="fas fa-check-circle me-1"></i>Current location: <strong>{{ circle.latitude }}, {{ circle.longitude }}</strong></small>
-                        </div>
-                    {% else %}
-                        <p class="text-muted small mb-3">No location set yet. Adding a location helps members find circles near them.</p>
-                    {% endif %}
+        {% call circle_fields(form) %}
+            {% if circle.is_regional %}
+                <p class="form-note">This circle is regional. Remove regional status from the circle details page before changing visibility.</p>
+            {% endif %}
+        {% endcall %}
 
-                    <!-- Location Method Choice -->
-                    {{ form.location_method.label(class="form-label") }}
-                    {% for subfield in form.location_method %}
-                        <div class="form-check">
-                            {{ subfield(class="form-check-input edit-location-method-radio", id=subfield.id) }}
-                            {{ subfield.label(class="form-check-label", for_=subfield.id) }}
-                        </div>
-                    {% endfor %}
-                    {% for error in form.location_method.errors %}
-                        <div class="text-danger small">{{ error }}</div>
-                    {% endfor %}
-                </div>
-
-                <!-- Address Fields -->
-                <div id="edit-address-fields" class="mb-4" style="display: none;">
-                    <h6 class="mb-3">Enter Address</h6>
-                    <p class="text-muted small mb-3">
-                        Geocoding has been tested with addresses in USA and Canada.
-                    </p>
-                    <div class="row">
-                        <div class="col-12 mb-3">
-                            {{ form.street.label(class="form-label") }}
-                            {{ form.street(class="form-control", placeholder="123 N Main Street") }}
-                            {% for error in form.street.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            {{ form.city.label(class="form-label") }}
-                            {{ form.city(class="form-control", placeholder="Ann Arbor") }}
-                            {% for error in form.city.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            {{ form.state.label(class="form-label") }}
-                            {{ form.state(class="form-control", placeholder="MI") }}
-                            {% for error in form.state.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            {{ form.zip_code.label(class="form-label") }}
-                            {{ form.zip_code(class="form-control", placeholder="48104") }}
-                            {% for error in form.zip_code.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            {{ form.country.label(class="form-label") }}
-                            {{ form.country(class="form-select") }}
-                            {% for error in form.country.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Coordinate Fields -->
-                <div id="edit-coordinate-fields" class="mb-4" style="display: none;">
-                    <h6 class="mb-3">Enter Coordinates</h6>
-                    <div class="alert alert-secondary">
-                        <small>
-                            <strong>Tip:</strong> Find coordinates using Google Maps (right-click → copy coordinates) or your phone's GPS.
-                        </small>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            {{ form.latitude.label(class="form-label") }}
-                            {{ form.latitude(class="form-control", step="any", placeholder="e.g., 42.3601") }}
-                            <div class="form-text">Between -90 and 90</div>
-                            {% for error in form.latitude.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            {{ form.longitude.label(class="form-label") }}
-                            {{ form.longitude(class="form-control", step="any", placeholder="e.g., -71.0589") }}
-                            <div class="form-text">Between -180 and 180</div>
-                            {% for error in form.longitude.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Submit -->
-                <div class="d-grid gap-2">
-                    {{ form.submit(class="btn btn-primary") }}
-                </div>
-            </form>
-            <div class="mt-3 text-center">
-                <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left me-1"></i>
-                    Back to Circle
-                </a>
+        {% if circle.image_url %}
+            <div class="mb-3">
+                <span class="form-label d-block">Current Image</span>
+                <img src="{{ circle.image_url }}" alt="Circle Image" class="form-current-image">
             </div>
+            {{ check_field(form.delete_image, id="deleteCircleImage") }}
+        {% endif %}
+        {{ form_field(form.image, accept="image/*") }}
+
+        <h2 class="form-section-title">Circle Location</h2>
+        {% if circle.is_geocoded %}
+            <p class="text-muted">Current location: <strong>{{ circle.latitude }}, {{ circle.longitude }}</strong></p>
+        {% else %}
+            <p class="text-muted">No location set yet. Adding a location helps members find circles near them.</p>
+        {% endif %}
+        {{ radio_field(form.location_method, input_class="edit-location-method-radio") }}
+        {{ location_fields(form, id_prefix="edit-") }}
+
+        <div class="form-actions">
+            {{ form.submit(class="btn btn-primary") }}
+            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-outline-secondary">Back to Circle</a>
         </div>
-    </div>
+    </form>
 </div>
 
 <script>

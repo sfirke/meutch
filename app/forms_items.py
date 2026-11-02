@@ -24,7 +24,7 @@ class ListItemForm(FlaskForm):
     creation_token = HiddenField("Creation Token", validators=[Optional()])
     delete_images = HiddenField("Delete Images")
     image_order = HiddenField("Image Order")
-    is_giveaway = BooleanField("This is a giveaway (free item)")
+    is_giveaway = BooleanField("This is a giveaway")
     giveaway_visibility = RadioField(
         "Giveaway Visibility",
         choices=[
