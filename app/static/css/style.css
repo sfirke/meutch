@@ -456,7 +456,7 @@ h1 {
     object-fit: cover;
 }
 
-/* The no-photo parcel stays whole in any frame, so it isn't zoomed by a wide crop. */
+/* The no-photo picture stays whole in any frame, so it isn't zoomed by a wide crop. */
 img[src$="/default_item_photo.png"] {
     object-fit: contain;
     background-color: var(--tangerine-wash);
