@@ -161,26 +161,6 @@ footer::before {
     transform: rotate(4deg);
 }
 
-/* Hero Logo (homepage/about page) */
-.hero-logo {
-    width: 160px;
-    height: 160px;
-    object-fit: contain;
-    margin-bottom: 1rem;
-    animation: fadeInDown 0.6s ease-out;
-}
-
-@keyframes fadeInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 .footer-logo {
     width: 28px;
     height: 28px;
@@ -1133,6 +1113,61 @@ footer::before {
     top: 0;
 }
 
+/* A centered row of buttons, under an empty state, error or callout */
+.action-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .5rem;
+    margin-top: 1.25rem;
+}
+
+/* Square art above a page title, such as the handshake logo */
+.page-art {
+    margin-bottom: 1.5rem;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius-card);
+}
+
+/* Reading pages: About, How it works, terms and privacy */
+.prose-page {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 1.5rem 0 1rem;
+}
+
+.prose-page-lead {
+    font-size: 1.2rem;
+    color: var(--muted);
+}
+
+.prose-page h2 {
+    font-size: 1.45rem;
+    margin: 2.25rem 0 .75rem;
+}
+
+.prose-page h3 {
+    font-size: 1.1rem;
+}
+
+.callout {
+    margin: 2.5rem 0;
+    padding: 1.5rem;
+    text-align: center;
+    background: var(--teal-wash);
+    border: 2px solid var(--ink);
+    border-radius: var(--radius-card);
+    box-shadow: 4px 4px 0 var(--ink);
+}
+
+.prose-page .callout h2 {
+    margin-top: 0;
+}
+
+.callout p:last-child {
+    margin-bottom: 0;
+}
+
 /* Error pages */
 .error-page {
     max-width: 36rem;
@@ -1141,22 +1176,8 @@ footer::before {
     text-align: center;
 }
 
-.error-page-art {
-    margin-bottom: 1.5rem;
-    border: 2px solid var(--ink);
-    border-radius: var(--radius-card);
-}
-
 .error-page p {
     color: var(--muted);
-}
-
-.error-page-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: .5rem;
-    margin-top: 1.5rem;
 }
 
 /* Unavailable item */
@@ -1165,7 +1186,7 @@ footer::before {
     margin: 0 auto;
 }
 
-.unavailable-page > .empty-state-actions {
+.unavailable-page > .action-row {
     margin-top: 2rem;
 }
 
@@ -1203,13 +1224,6 @@ footer::before {
     color: var(--muted);
 }
 
-.empty-state-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: .5rem;
-    margin-top: 1.25rem;
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -1219,12 +1233,6 @@ footer::before {
 
     h1 {
         font-size: 2rem;
-    }
-
-    /* Hero logo smaller on mobile */
-    .hero-logo {
-        width: 80px;
-        height: 80px;
     }
 
     .items-grid {
@@ -2922,14 +2930,18 @@ footer::before {
     line-height: 1.25;
 }
 
-/* --- FAQ --- */
-.landing-faq .accordion-item {
+/* --- FAQ, also on About --- */
+.faq .accordion-item {
     overflow: hidden;
     border: 1.5px solid var(--line);
     border-radius: var(--radius-card);
 }
 
-.landing-faq .accordion-button {
+.faq .accordion-item + .accordion-item {
+    margin-top: 1rem;
+}
+
+.faq .accordion-button {
     font-weight: 600;
 }
 

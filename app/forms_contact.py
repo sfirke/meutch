@@ -11,8 +11,8 @@ class ContactForm(FlaskForm):
     category = SelectField(
         "Category",
         choices=[
-            ("bug_report", "Bug Report"),
-            ("feature_suggestion", "Feature Suggestion"),
+            ("bug_report", "Bug report"),
+            ("feature_suggestion", "Feature suggestion"),
             ("question", "Question"),
             ("other", "Other"),
         ],
