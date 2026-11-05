@@ -1,61 +1,38 @@
 {% extends "base.html" %}
+{% from "components/empty.html" import empty_state %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-10 col-xl-9">
-            <div class="card overflow-hidden">
-                <div class="card-body p-4 p-md-5">
-                    <div class="text-center mb-4">
-                        <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light mb-3" style="width: 72px; height: 72px;">
-                            <i class="fas fa-box-open fs-3 text-secondary"></i>
-                        </div>
-                        <h1 class="h3 mb-2">This item has found its new home.</h1>
-                        {% if not (current_user.is_authenticated and current_user.circles|length == 0 and not suggestions) %}
-                            <p class="text-muted mb-0">Check out some other giveaways that are still available.</p>
-                        {% endif %}
-                    </div>
+{% set no_circles = current_user.is_authenticated and current_user.circles|length == 0 %}
+<div class="unavailable-page">
+    {% call empty_state("This item has found its new home.", icon="box-open", heading="h1") %}
+        {% if not (no_circles and not suggestions) %}
+            <p>Check out some other giveaways that are still available.</p>
+        {% endif %}
+    {% endcall %}
 
-                    {% if suggestions %}
-                        <hr class="my-4">
-                        {% set link_to_share_preview = not current_user.is_authenticated %}
-                        {% set show_owner_controls = false %}
-                        {% set delete_forms = None %}
-                        <div class="row row-cols-1 row-cols-md-2 g-3">
-                            {% for item in suggestions %}
-                                <div class="col">
-                                    {% include 'main/_item_card.html' %}
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% elif current_user.is_authenticated and current_user.circles|length == 0 %}
-                        <hr class="my-4">
-                        <div class="alert alert-info mb-0 text-center" role="alert">
-                            <p class="mb-3">Join a circle to discover nearby giveaways from your communities.</p>
-                            <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">
-                                <i class="fas fa-users me-2"></i>Find Circles to Join
-                            </a>
-                        </div>
-                    {% endif %}
-
-                    <hr class="my-4">
-                    <div class="d-flex flex-column flex-sm-row justify-content-center gap-2">
-                        {% if current_user.is_authenticated %}
-                            <a href="{{ url_for('main.index') }}" class="btn btn-primary btn-lg">
-                                <i class="fas fa-home me-2"></i>Back to Home
-                            </a>
-                        {% else %}
-                            <a href="{{ url_for('auth.register', next=url_for('main.index')) }}" class="btn btn-primary btn-lg">
-                                <i class="fas fa-user-plus me-2"></i>Join Meutch
-                            </a>
-                            <a href="{{ url_for('auth.login', next=url_for('main.index')) }}" class="btn btn-outline-secondary btn-lg">
-                                <i class="fas fa-sign-in-alt me-2"></i>Log In
-                            </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+    {% if suggestions %}
+        {% set link_to_share_preview = not current_user.is_authenticated %}
+        {% set show_owner_controls = false %}
+        {% set delete_forms = None %}
+        <div class="items-grid">
+            {% for item in suggestions %}
+                {% include 'main/_item_card.html' %}
+            {% endfor %}
         </div>
+    {% elif no_circles %}
+        <div class="form-note text-center">
+            <p>Join a circle to discover nearby giveaways from your communities.</p>
+            <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">Find circles to join</a>
+        </div>
+    {% endif %}
+
+    <div class="empty-state-actions">
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('main.index') }}" class="btn {{ 'btn-outline-secondary' if no_circles and not suggestions else 'btn-primary' }}">Back to home</a>
+        {% else %}
+            <a href="{{ url_for('auth.register', next=url_for('main.index')) }}" class="btn btn-primary">Join Meutch</a>
+            <a href="{{ url_for('auth.login', next=url_for('main.index')) }}" class="btn btn-outline-secondary">Log in</a>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

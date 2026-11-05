@@ -199,7 +199,7 @@
     </nav>
 
     <!-- Toast Container for JavaScript notifications -->
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
+    <div class="toast-container position-fixed top-0 end-0 p-3"></div>
 
     <!-- Main Content -->
     <main class="main-content">
@@ -208,27 +208,11 @@
             {% if messages %}
                 <div class="container mt-3">
                     {% for category, message in messages %}
-                        {% if category == 'admin-success' %}
-                            <div class="alert alert-success alert-dismissible fade show border-start border-5 border-success" role="alert">
-                                <i class="fas fa-user-shield me-2"></i>
-                                <strong>Admin:</strong> {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% elif category == 'admin-error' %}
-                            <div class="alert alert-danger alert-dismissible fade show border-start border-5 border-danger" role="alert">
-                                <i class="fas fa-user-shield me-2"></i>
-                                <strong>Admin:</strong> {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% else %}
-                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                                {% if 'share-reminder' not in message %}
-                                <i class="fas fa-{{ 'exclamation-triangle' if category == 'warning' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
-                                {% endif %}
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% endif %}
+                        {% set kind = {'error': 'danger', 'message': 'info', 'admin-success': 'success', 'admin-error': 'danger'}.get(category, category) %}
+                        <div class="alert alert-{{ kind }} alert-dismissible fade show" role="alert">
+                            {% if category.startswith('admin-') %}<strong>Admin:</strong> {% endif %}{{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                     {% endfor %}
                 </div>
             {% endif %}
