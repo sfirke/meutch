@@ -141,7 +141,7 @@ Leave it out of nav links, footer links and buttons whose label is already clear
 
 - Item card photos fill their frame. Item pages show the whole photo.
 - Photos in cards and on item pages get an ink outline.
-- Items without a photo show the cut-paper picture frame, `default_item_photo.png`, through
+- Items without a photo show the stitched teal patch, `default_item_photo.png`, through
   `item.image`. Don't write a separate placeholder. It's shown whole on soft orange
   in every frame, rather than cropped like a photo.
 - People without a photo get initials on a colored circle with an ink outline.
