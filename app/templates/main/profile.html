@@ -132,7 +132,7 @@
                     {% if not search_query %}
                         {% call empty_state("You haven't listed anything yet", icon="box-open") %}
                             <p>Add something your neighbors could borrow or keep.</p>
-                            <div class="empty-state-actions">
+                            <div class="action-row">
                                 <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">List an item</a>
                             </div>
                         {% endcall %}
@@ -345,7 +345,7 @@
                     {% else %}
                         {% call empty_state("No requests right now", icon="hand-holding-heart", heading="h3") %}
                             <p>Ask your circles for something you need to borrow or keep.</p>
-                            <div class="empty-state-actions">
+                            <div class="action-row">
                                 <a href="{{ url_for('requests.new') }}" class="btn btn-outline-secondary">Create a request</a>
                             </div>
                         {% endcall %}

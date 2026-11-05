@@ -124,14 +124,14 @@
                 {% if search_query %}
                     {% call empty_state('No items match "' ~ search_query ~ '"', icon="search", heading="h3") %}
                         <p>Try a different search.</p>
-                        <div class="empty-state-actions">
+                        <div class="action-row">
                             <a href="{{ url_for('requests.respond', request_id=item_request.id) }}" class="btn btn-outline-secondary">Clear search</a>
                         </div>
                     {% endcall %}
                 {% else %}
                     {% call empty_state("You haven't listed any items yet", icon="box-open", heading="h3") %}
                         <p>List the item you'd offer, and you'll come right back here.</p>
-                        <div class="empty-state-actions">
+                        <div class="action-row">
                             <a href="{{ url_for('main.list_item', return_to='respond', request_id=item_request.id) }}" class="btn btn-primary">List an item</a>
                         </div>
                     {% endcall %}
