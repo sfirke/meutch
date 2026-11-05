@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/dialogs.html" import confirm_dialog %}
 
 {% block content %}
 <div class="container mt-5 mb-5">
@@ -278,140 +279,39 @@
     </div>
 </div>
 
-<!-- Shared Modals (one per action type, populated dynamically via JS) -->
-
-<!-- Promote Modal -->
-<div class="modal fade" id="promoteModal" tabindex="-1" aria-labelledby="promoteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="promoteModalLabel">Promote to Admin</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to promote <strong class="modal-user-name"></strong> to admin?</p>
-                <p class="text-muted small">They will have full access to the admin panel and can manage other users.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST" action="" class="d-inline modal-action-form">
-                    {{ form.hidden_tag() }}
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-arrow-up"></i> Promote
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Demote Modal -->
-<div class="modal fade" id="demoteModal" tabindex="-1" aria-labelledby="demoteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="demoteModalLabel">Remove Admin Status</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to remove admin status from <strong class="modal-user-name"></strong>?</p>
-                <p class="text-muted small">They will lose access to the admin panel.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST" action="" class="d-inline modal-action-form">
-                    {{ form.hidden_tag() }}
-                    <button type="submit" class="btn btn-warning">
-                        <i class="fas fa-arrow-down"></i> Demote
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="deleteModalLabel">Delete User Account</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p><strong class="text-danger">Warning:</strong> This will permanently delete the account for <strong class="modal-user-name"></strong>.</p>
-                <p class="text-muted small">This action will:</p>
-                <ul class="text-muted small">
-                    <li>Soft-delete the user account</li>
-                    <li>Mark all their items as deleted</li>
-                    <li>Anonymize their email address</li>
-                    <li>This cannot be undone</li>
-                </ul>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST" action="" class="d-inline modal-action-form">
-                    {{ form.hidden_tag() }}
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-trash"></i> Delete Account
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Enable Showcase Modal -->
-<div class="modal fade" id="enableShowcaseModal" tabindex="-1" aria-labelledby="enableShowcaseModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="enableShowcaseModalLabel">Enable Public Showcase</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Enable public showcase for <strong class="modal-user-name"></strong>?</p>
-                <p class="text-muted small">Their items will be visible to unauthenticated visitors on the homepage.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST" action="" class="d-inline modal-action-form">
-                    {{ form.hidden_tag() }}
-                    <button type="submit" class="btn btn-info">
-                        <i class="fas fa-star"></i> Enable Showcase
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Disable Showcase Modal -->
-<div class="modal fade" id="disableShowcaseModal" tabindex="-1" aria-labelledby="disableShowcaseModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="disableShowcaseModalLabel">Disable Public Showcase</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Disable public showcase for <strong class="modal-user-name"></strong>?</p>
-                <p class="text-muted small">Their items will no longer be visible to unauthenticated visitors.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST" action="" class="d-inline modal-action-form">
-                    {{ form.hidden_tag() }}
-                    <button type="submit" class="btn btn-secondary">
-                        <i class="fas fa-star"></i> Disable Showcase
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-{# Populate shared modals dynamically when opened #}
+{# One dialog per action. The page script fills in the person and the form action from the button that opened it. #}
+{% set who %}<strong class="confirm-dialog-subject"></strong>{% endset %}
+{% call(part) confirm_dialog("promoteModal", "Make this person an admin?", action="", form=form, confirm_label="Make admin") %}
+    {% if part == "body" %}
+        <p>{{ who }} will get full access to the admin pages and can manage other members.</p>
+    {% endif %}
+{% endcall %}
+{% call(part) confirm_dialog("demoteModal", "Remove admin access?", action="", form=form, confirm_label="Remove admin access") %}
+    {% if part == "body" %}
+        <p>{{ who }} will lose access to the admin pages.</p>
+    {% endif %}
+{% endcall %}
+{% call(part) confirm_dialog("deleteModal", "Delete this account?", action="", form=form, confirm_label="Delete account", confirm_class="btn-danger") %}
+    {% if part == "body" %}
+        <p>This permanently deletes the account for {{ who }}. It will:</p>
+        <ul>
+            <li>Soft-delete the account</li>
+            <li>Mark all their items as deleted</li>
+            <li>Anonymize their email address</li>
+        </ul>
+        <p class="text-muted small">This can't be undone.</p>
+    {% endif %}
+{% endcall %}
+{% call(part) confirm_dialog("enableShowcaseModal", "Show this member's items publicly?", action="", form=form, confirm_label="Turn on showcase") %}
+    {% if part == "body" %}
+        <p>Items from {{ who }} will be visible to logged-out visitors on the home page.</p>
+    {% endif %}
+{% endcall %}
+{% call(part) confirm_dialog("disableShowcaseModal", "Stop showing this member's items publicly?", action="", form=form, confirm_label="Turn off showcase") %}
+    {% if part == "body" %}
+        <p>Items from {{ who }} will no longer be visible to logged-out visitors.</p>
+    {% endif %}
+{% endcall %}
 {% endblock %}
 
 {% block scripts %}
@@ -422,22 +322,13 @@ document.addEventListener('DOMContentLoaded', function() {
     var mauSeries = {{ mau_series|tojson }};
     var mauChart = null;
 
-    document.querySelectorAll('.modal').forEach(function(modal) {
+    document.querySelectorAll('.confirm-dialog').forEach(function(dialog) {
+        var modal = dialog.closest('.modal');
         modal.addEventListener('show.bs.modal', function(event) {
             var button = event.relatedTarget;
             if (!button) return;
-
-            var userName = button.getAttribute('data-user-name');
-            var actionUrl = button.getAttribute('data-action-url');
-
-            modal.querySelectorAll('.modal-user-name').forEach(function(el) {
-                el.textContent = userName;
-            });
-
-            var form = modal.querySelector('.modal-action-form');
-            if (form && actionUrl) {
-                form.setAttribute('action', actionUrl);
-            }
+            modal.querySelector('.confirm-dialog-subject').textContent = button.dataset.userName;
+            modal.querySelector('.confirm-dialog-form').action = button.dataset.actionUrl;
         });
     });
 

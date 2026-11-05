@@ -308,6 +308,16 @@ footer::before {
     box-shadow: 5px 5px 0 var(--ink);
 }
 
+.modal-title {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.confirm-dialog .modal-body > :last-child {
+    margin-bottom: 0;
+}
+
 /* Account menu */
 .account-name {
     max-width: 8rem;
