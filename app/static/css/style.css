@@ -1180,6 +1180,26 @@ footer::before {
     color: var(--muted);
 }
 
+/* Choosing an item to offer on a request */
+.respond-page {
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.respond-page-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    margin: 2rem 0 1rem;
+}
+
+.respond-page-heading h2 {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
 /* Unavailable item */
 .unavailable-page {
     max-width: 960px;
@@ -1773,6 +1793,12 @@ footer::before {
 .conversation-context-body {
     flex: 1;
     min-width: 0;
+}
+
+.context-label {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 700;
 }
 
 .conversation-context-title {

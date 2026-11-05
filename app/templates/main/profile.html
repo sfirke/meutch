@@ -440,47 +440,23 @@
                 <div class="col-12 mb-4">
                     <div class="card">
                         <div class="card-body">
-                            <h2 class="h6 card-title">Email Digest Settings</h2>
+                            <h2 class="h6 card-title">Email digests</h2>
                             <small class="text-muted d-block mb-3">Choose what activity appears in your digest emails.</small>
 
                             <form method="POST" action="{{ url_for('main.update_digest_settings') }}">
                                 {{ digest_form.csrf_token }}
 
-                                <div class="row g-3 mb-3">
-                                    <div class="col-md-6">
-                                        {{ digest_form.digest_frequency.label(class="form-label") }}
-                                        {{ digest_form.digest_frequency(class="form-select") }}
-                                        {% for error in digest_form.digest_frequency.errors %}
-                                            <div class="text-danger small">{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                    <div class="col-md-6">
-                                        {{ digest_form.digest_radius_miles.label(class="form-label") }}
-                                        {{ digest_form.digest_radius_miles(class="form-control", min="1", max="50") }}
-                                        {% for error in digest_form.digest_radius_miles.errors %}
-                                            <div class="text-danger small">{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
+                                <div class="row g-3">
+                                    {{ form_field(digest_form.digest_frequency, label="How often", wrapper_class="col-md-6 mb-3") }}
+                                    {{ form_field(digest_form.digest_radius_miles, label="Radius (miles)", wrapper_class="col-md-6 mb-3", min="1", max="50") }}
                                 </div>
 
                                 <div class="row g-3 mb-3">
                                     <div class="col-md-6">
-                                        <div class="form-check form-switch mb-2">
-                                            {{ digest_form.digest_include_giveaways(class="form-check-input", id="digestIncludeGiveaways") }}
-                                            {{ digest_form.digest_include_giveaways.label(class="form-check-label", for_="digestIncludeGiveaways") }}
-                                        </div>
-                                        <div class="form-check form-switch mb-2">
-                                            {{ digest_form.digest_include_requests(class="form-check-input", id="digestIncludeRequests") }}
-                                            {{ digest_form.digest_include_requests.label(class="form-check-label", for_="digestIncludeRequests") }}
-                                        </div>
-                                        <div class="form-check form-switch mb-2">
-                                            {{ digest_form.digest_include_circle_joins(class="form-check-input", id="digestIncludeCircleJoins") }}
-                                            {{ digest_form.digest_include_circle_joins.label(class="form-check-label", for_="digestIncludeCircleJoins") }}
-                                        </div>
-                                        <div class="form-check form-switch mb-2">
-                                            {{ digest_form.digest_include_loans(class="form-check-input", id="digestIncludeLoans") }}
-                                            {{ digest_form.digest_include_loans.label(class="form-check-label", for_="digestIncludeLoans") }}
-                                        </div>
+                                        {{ check_field(digest_form.digest_include_giveaways, switch=true, wrapper_class="mb-2") }}
+                                        {{ check_field(digest_form.digest_include_requests, switch=true, wrapper_class="mb-2") }}
+                                        {{ check_field(digest_form.digest_include_circle_joins, switch=true, wrapper_class="mb-2") }}
+                                        {{ check_field(digest_form.digest_include_loans, switch=true, wrapper_class="mb-2") }}
                                     </div>
 
                                     <div class="col-md-6">
@@ -514,7 +490,7 @@
                     <!-- Address Information -->
                     <div class="card h-100">
                         <div class="card-body">
-                            <h2 class="h6 card-title">Location Status</h2>
+                            <h2 class="h6 card-title">Location</h2>
                             {% if current_user.is_geocoded %}
                                 <p class="small mb-3">Your location is set and distances will be shown to other users.</p>
                             {% elif current_user.geocoding_failed %}
@@ -525,14 +501,14 @@
 
                             {% if current_user.can_update_location() %}
                                 <a href="{{ url_for('main.update_location') }}" class="btn btn-outline-secondary btn-sm align-self-start">
-                                    Update Location
+                                    Update location
                                 </a>
                             {% else %}
                                 <div class="text-muted small mb-2">
                                     You can update your location once per successful update per day.
                                 </div>
                                 <button class="btn btn-outline-secondary btn-sm" disabled>
-                                    Update Location (Available Tomorrow)
+                                    Update location (available tomorrow)
                                 </button>
                             {% endif %}
                         </div>
@@ -543,7 +519,7 @@
                     <!-- Vacation Mode -->
                     <div class="card h-100">
                         <div class="card-body">
-                            <h2 class="h6 card-title">Vacation Mode</h2>
+                            <h2 class="h6 card-title">Vacation mode</h2>
                             <small class="text-muted d-block mb-2">
                                 When enabled, your items will be hidden from other users. Active loans and borrows will continue.
                             </small>
@@ -555,9 +531,9 @@
                                            onchange="this.form.submit()">
                                     <label class="form-check-label" for="vacationModeSwitch">
                                         {% if current_user.vacation_mode %}
-                                            <span class="fw-semibold">Vacation Mode is ON</span>
+                                            <span class="fw-semibold">Vacation mode is on</span>
                                         {% else %}
-                                            Vacation Mode is OFF
+                                            Vacation mode is off
                                         {% endif %}
                                     </label>
                                 </div>
@@ -570,9 +546,9 @@
                     <!-- Account Deletion -->
                     <div class="card h-100">
                         <div class="card-body">
-                            <h2 class="h6 card-title text-danger">Danger Zone</h2>
+                            <h2 class="h6 card-title">Delete your account</h2>
                             <a href="{{ url_for('main.delete_account') }}" class="btn btn-outline-danger btn-sm align-self-start">
-                                Delete Account
+                                Delete account
                             </a>
                         </div>
                     </div>
