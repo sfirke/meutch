@@ -220,7 +220,7 @@ class TestProfileRoutes:
             response = client.get("/profile?tab=settings")
             assert response.status_code == 200
             content = response.data.decode("utf-8")
-            assert "Email Digest Settings" in content
+            assert "Email digests" in content
             assert 'value="daily"' in content
             assert "selected" in content
             assert 'name="digest_radius_miles"' in content

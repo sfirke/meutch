@@ -1260,7 +1260,7 @@ class TestAccountDeletion:
             login_user(client, user.email)
             response = client.get("/delete_account")
             assert response.status_code == 200
-            assert b"Outstanding Loans Notice" in response.data
+            assert b"You have loans in progress." in response.data
 
     def test_delete_account_soft_delete_preserves_user_data(self, client, app, auth_user):
         """Test that account deletion uses soft delete to preserve user data for history."""
