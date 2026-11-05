@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/empty.html" import empty_state %}
 {% from "components/forms.html" import check_field, form_field %}
 {% from "components/loans.html" import loan_row %}
 {% from "components/people.html" import avatar, web_link %}
@@ -129,10 +130,12 @@
             {% else %}
                 {% if not active_giveaways and not past_giveaways %}
                     {% if not search_query %}
-                        <p>You haven't listed anything yet. Add something your neighbors could borrow or keep.</p>
-                        <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
-                            List an item
-                        </a>
+                        {% call empty_state("You haven't listed anything yet", icon="box-open") %}
+                            <p>Add something your neighbors could borrow or keep.</p>
+                            <div class="empty-state-actions">
+                                <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">List an item</a>
+                            </div>
+                        {% endcall %}
                     {% endif %}
                 {% endif %}
             {% endif %}
@@ -238,7 +241,9 @@
             {% endif %}
 
             {% if search_query and not active_giveaways and not past_giveaways and not items %}
-                <p>No items found for "{{ search_query }}".</p>
+                {% call empty_state('No items match "' ~ search_query ~ '"', icon="search") %}
+                    <p><a href="{{ url_for('main.profile', tab='my-items') }}">Clear your search</a> to see all your items.</p>
+                {% endcall %}
             {% endif %}
         </div>
 
@@ -338,8 +343,12 @@
                             </ul>
                         {% endif %}
                     {% else %}
-                        <p>You have no active or recently fulfilled requests.</p>
-                        <a href="{{ url_for('requests.new') }}" class="btn btn-sm btn-meutch-orange">Create Request</a>
+                        {% call empty_state("No requests right now", icon="hand-holding-heart", heading="h3") %}
+                            <p>Ask your circles for something you need to borrow or keep.</p>
+                            <div class="empty-state-actions">
+                                <a href="{{ url_for('requests.new') }}" class="btn btn-outline-secondary">Create a request</a>
+                            </div>
+                        {% endcall %}
                     {% endif %}
                 </div>
 

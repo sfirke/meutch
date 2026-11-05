@@ -1,6 +1,7 @@
 <!-- templates/messaging/messages.html -->
 
 {% extends "base.html" %}
+{% from "components/empty.html" import empty_state %}
 {% from "components/people.html" import avatar %}
 
 {% block content %}
@@ -148,27 +149,21 @@
 
     {% else %}
         {# ── Empty State ─────────────────────────────────────────────── #}
-        <div class="empty-state text-center py-5">
-            {% if is_archived_view %}
-                <i class="fas fa-archive text-muted"></i>
-                <h4 class="text-muted mb-2">No Archived Conversations</h4>
-                <p class="text-muted mb-4">
-                    When you archive a conversation, it will appear here. Archived conversations are automatically unarchived when you receive a new reply.
-                </p>
-                <a href="{{ url_for('main.messages', status='inbox') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-inbox me-2"></i>Back to Inbox
-                </a>
-            {% else %}
-                <i class="fas fa-inbox text-muted"></i>
-                <h4 class="text-muted mb-2">No Messages Yet</h4>
-                <p class="text-muted mb-4">
-                    Start a conversation by requesting to borrow an item or reaching out to another user.
-                </p>
-                <a href="{{ url_for('main.index') }}" class="btn btn-primary">
-                    <i class="fas fa-search me-2"></i>Browse Items
-                </a>
-            {% endif %}
-        </div>
+        {% if is_archived_view %}
+            {% call empty_state("No archived conversations", icon="archive") %}
+                <p>Conversations you archive show up here. One comes back to your inbox by itself when someone replies.</p>
+                <div class="empty-state-actions">
+                    <a href="{{ url_for('main.messages', status='inbox') }}" class="btn btn-outline-secondary">Back to inbox</a>
+                </div>
+            {% endcall %}
+        {% else %}
+            {% call empty_state("No messages yet", icon="inbox") %}
+                <p>Start a conversation by asking to borrow an item or answering someone's request.</p>
+                <div class="empty-state-actions">
+                    <a href="{{ url_for('main.find') }}" class="btn btn-primary">Browse items</a>
+                </div>
+            {% endcall %}
+        {% endif %}
     {% endif %}
 
     {# ── Bulk Action Bar (sticky, hidden by default) ─────────────────── #}
