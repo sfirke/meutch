@@ -55,6 +55,7 @@
     --bs-warning-border-subtle: var(--tangerine);
     --bs-warning-text-emphasis: var(--ink);
     --bs-body-font-family: var(--font-body);
+    --bs-code-color: var(--teal-deep);
     --bs-body-font-size: 1.0625rem;
     --bs-body-line-height: 1.6;
     --bs-body-color: var(--ink);
@@ -1178,6 +1179,37 @@ footer::before {
 
 .error-page p {
     color: var(--muted);
+}
+
+/* Admin */
+.admin-stat {
+    font-family: var(--font-display);
+    font-size: 2.25rem;
+    font-weight: 800;
+}
+
+.admin-chart {
+    position: relative;
+    min-height: 320px;
+}
+
+.activity-user-agent {
+    width: 16rem;
+}
+
+/* Admin components page */
+.component-sample {
+    padding: 1.5rem 0;
+    border-top: 1.5px solid var(--line);
+}
+
+.component-sample h2 {
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+}
+
+.component-sample-narrow {
+    max-width: 640px;
 }
 
 /* Choosing an item to offer on a request */

@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container mt-5 mb-5">
     <div class="mb-4">
-        <h1><i class="fas fa-user-shield me-2"></i>Admin Panel</h1>
+        <h1>Admin</h1>
         <p class="text-muted">Platform administration and user management</p>
         <p class="text-muted small mb-0">
             {% if config.GIT_COMMIT_SHA %}
@@ -22,8 +22,8 @@
     <div class="tab-content" id="adminTabContent">
         <div class="tab-pane fade {% if active_tab == 'users' %}show active{% endif %}" id="admin-users" role="tabpanel" aria-labelledby="admin-users-tab">
             <div class="card">
-                <div class="card-header bg-dark text-white">
-                    <h5 class="mb-0 text-white"><i class="fas fa-list me-2"></i>User Management</h5>
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Members</h2>
                 </div>
                 <div class="card-body">
                     {% if users_pagination.items %}
@@ -109,7 +109,7 @@
                                             <td>
                                                 <form method="POST" action="{{ url_for('admin.update_digest_frequency', user_id=user.id) }}" class="d-inline digest-frequency-form">
                                                     {{ form.hidden_tag() }}
-                                                    <select name="digest_frequency" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+                                                    <select name="digest_frequency" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
                                                         <option value="daily" {% if user.digest_frequency == 'daily' %}selected{% endif %}>Daily</option>
                                                         <option value="weekly" {% if user.digest_frequency == 'weekly' %}selected{% endif %}>Weekly</option>
                                                         <option value="none" {% if user.digest_frequency == 'none' %}selected{% endif %}>None</option>
@@ -233,29 +233,26 @@
         <div class="tab-pane fade {% if active_tab == 'analytics' %}show active{% endif %}" id="admin-analytics" role="tabpanel" aria-labelledby="admin-analytics-tab">
             <div class="row g-4 mb-5">
                 <div class="col-md-4">
-                    <div class="card border-primary h-100">
+                    <div class="card h-100">
                         <div class="card-body text-center">
-                            <i class="fas fa-users fa-3x text-primary mb-3"></i>
-                            <h3 class="card-title">{{ total_users }}</h3>
-                            <p class="card-text text-muted">Total Users</p>
+                            <div class="admin-stat">{{ total_users }}</div>
+                            <p class="card-text text-muted">Total users</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="card border-success h-100">
+                    <div class="card h-100">
                         <div class="card-body text-center">
-                            <i class="fas fa-user-check fa-3x text-success mb-3"></i>
-                            <h3 class="card-title">{{ recent_users }}</h3>
-                            <p class="card-text text-muted">Recent Users <small>(30 days)</small></p>
+                            <div class="admin-stat">{{ recent_users }}</div>
+                            <p class="card-text text-muted">New users in the last 30 days</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="card border-info h-100">
+                    <div class="card h-100">
                         <div class="card-body text-center">
-                            <i class="fas fa-box fa-3x text-info mb-3"></i>
-                            <h3 class="card-title">{{ total_items }}</h3>
-                            <p class="card-text text-muted">Total Items</p>
+                            <div class="admin-stat">{{ total_items }}</div>
+                            <p class="card-text text-muted">Total items</p>
                         </div>
                     </div>
                 </div>
@@ -265,13 +262,13 @@
                 <div class="card-body p-4">
                     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-2">
                         <div>
-                            <h4 class="mb-1"><i class="fas fa-chart-line me-2 text-primary"></i>Monthly Active Users</h4>
+                            <h2 class="h5 mb-1">Monthly active users</h2>
                             <p class="text-muted mb-0">Users who were in a circle with at least one other current member and took at least one qualifying action that month.</p>
                         </div>
-                        <span class="badge text-bg-light border">Starting Jan 2026</span>
+                        <span class="small text-muted">Starting Jan 2026</span>
                     </div>
                     <p class="small text-muted mb-4">Qualifying actions include posting a request, adding an item, requesting a loan, taking action on a loan request, replying to someone else's request or giveaway, or expressing interest in someone else's giveaway. Circle eligibility uses join date plus current circle membership because leave history is not stored.</p>
-                    <div class="chart-container" style="position: relative; min-height: 320px;">
+                    <div class="admin-chart">
                         <canvas id="mauChart" aria-label="Monthly active users chart" role="img"></canvas>
                     </div>
                 </div>
@@ -349,6 +346,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        var styles = getComputedStyle(document.documentElement);
+        var chartColor = styles.getPropertyValue('--teal-deep').trim();
+        var chartInk = styles.getPropertyValue('--ink').trim();
+
         Chart.register(ChartDataLabels);
         mauChart = new Chart(canvas, {
             type: 'line',
@@ -357,10 +358,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'Monthly Active Users',
                     data: mauSeries.map(function(point) { return point.count; }),
-                    borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13, 110, 253, 0.15)',
-                    pointBackgroundColor: '#0d6efd',
-                    pointBorderColor: '#ffffff',
+                    borderColor: chartColor,
+                    backgroundColor: chartColor,
+                    pointBackgroundColor: chartColor,
+                    pointBorderColor: chartInk,
                     pointBorderWidth: 2,
                     pointRadius: 5,
                     pointHoverRadius: 6,
@@ -384,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     datalabels: {
                         align: 'top',
                         anchor: 'end',
-                        color: '#0d6efd',
+                        color: chartColor,
                         font: {
                             weight: '600'
                         },
