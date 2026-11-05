@@ -805,7 +805,7 @@ class TestRequestDetail:
             response = client.get(f"/requests/{req.id}/detail")
             assert response.status_code == 200
             assert b"Edit" in response.data
-            assert b"Mark Fulfilled" in response.data
+            assert b"Mark as found" in response.data
 
     def test_circles_only_detail_requires_shared_circle(self, client, app, auth_user):
         """Test that circles-only requests are hidden from users outside the owner's circles."""
@@ -1017,7 +1017,7 @@ class TestRequestConversations:
             assert b"Pending pickup" in response.data
             assert b"Borrowed" not in response.data
             assert b"You are the selected recipient for this giveaway." in response.data
-            assert b"Mark Handoff Complete" not in response.data
+            assert b"Mark handoff complete" not in response.data
 
     def test_view_conversation_claimed_giveaway_shows_rehomed(self, client, app):
         """Claimed giveaways should show Rehomed, not Borrowed, in conversation header."""
@@ -1117,7 +1117,7 @@ class TestRequestConversations:
 
             assert response.status_code == 200
             assert b"Giveaway Pickup" in response.data
-            assert b"Mark Handoff Complete" in response.data
+            assert b"Mark handoff complete" in response.data
             assert b"Change Recipient" in response.data
             assert b"Release to Everyone" in response.data
 
@@ -1155,7 +1155,7 @@ class TestRequestConversations:
             assert b"Choose Recipient" in response.data
             assert b"Give Item to This User" in response.data
             assert b"View Interested Users" in response.data
-            assert b"Mark Handoff Complete" not in response.data
+            assert b"Mark handoff complete" not in response.data
 
     def test_view_conversation_unclaimed_giveaway_shows_shared_circle_links(self, client, app):
         """Owner giveaway conversations should show the circles shared with the requester."""

@@ -469,7 +469,7 @@ class TestRequestSharePreview:
 
             response = client.get(f"/share/request/{req.id}")
             assert response.status_code == 200
-            assert b"This request has already been fulfilled." in response.data
+            assert b"Someone already found this." in response.data
             assert b"Browse current community requests in the activity feed." in response.data
             assert b"/register" in response.data
             assert b"/login" in response.data
@@ -490,7 +490,7 @@ class TestRequestSharePreview:
             response = client.get(f"/share/request/{req.id}")
             assert response.status_code == 200
             assert req.title.encode() in response.data
-            assert b"This request has already been fulfilled." not in response.data
+            assert b"Someone already found this." not in response.data
             assert b"/register" in response.data
             assert b"/login" in response.data
             assert (b'next=%2F"' in response.data) or (b'next=/"' in response.data)
