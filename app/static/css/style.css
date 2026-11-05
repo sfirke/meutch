@@ -95,18 +95,9 @@ a {
     text-underline-offset: 2px;
 }
 
-/* Bootstrap ties this to --bs-primary-rgb, and bright teal isn't readable as text. */
-.text-primary {
-    color: var(--teal-deep) !important;
-}
-
 .bg-purple {
     background-color: var(--purple);
     color: #fff;
-}
-
-.text-purple {
-    color: var(--purple);
 }
 
 /* Running stitch */
@@ -418,13 +409,6 @@ h1 {
     margin-bottom: 1rem;
 }
 
-.card-footer {
-    background: transparent;
-    border: none;
-    padding: 0 1.25rem 1.25rem;
-    margin-top: auto;
-}
-
 /* A card with one destination. The title holds a stretched link. */
 .card-clickable:hover,
 .card-clickable:has(.stretched-link:focus-visible) {
@@ -549,8 +533,7 @@ img[src$="/default_item_photo.png"] {
     box-shadow: none;
 }
 
-.btn-meutch-orange,
-.btn-warning {
+.btn-meutch-orange {
     --bs-btn-color: var(--ink);
     --bs-btn-bg: var(--tangerine);
     --bs-btn-border-color: var(--ink);
@@ -597,7 +580,6 @@ img[src$="/default_item_photo.png"] {
 }
 
 .btn-secondary,
-.btn-info,
 .btn-outline-primary,
 .btn-outline-secondary,
 .btn-outline-success,
@@ -1054,12 +1036,7 @@ input[type="file"]::file-selector-button:hover {
     --bs-toast-bg: var(--tangerine-wash);
 }
 
-/* Search Results */
-.search-card {
-    max-width: none;
-    margin: 0;
-}
-
+/* Find */
 .find-search .form-control {
     border: 2px solid var(--ink);
     border-right: 0;
@@ -1081,12 +1058,6 @@ input[type="file"]::file-selector-button:hover {
     object-fit: cover;
     width: 100%;
     border-radius: var(--radius);
-}
-
-/* Profile Images */
-.profile-picture-small {
-    border-radius: 50%;
-    border: 2px solid white;
 }
 
 /* Sections */
@@ -1283,6 +1254,11 @@ footer::before {
     margin: 2rem 0 1rem;
 }
 
+.request-conversation-text {
+    flex: 1;
+    min-width: 0;
+}
+
 /* Choosing an item to offer on a request */
 .respond-page {
     max-width: 960px;
@@ -1346,7 +1322,6 @@ footer::before {
     margin: 0 auto 1rem;
     color: var(--muted);
 }
-
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -1421,63 +1396,8 @@ footer::before {
 
     .card {
         box-shadow: none;
-        border: 1px solid #ccc;
+        border: 1px solid var(--line);
     }
-}
-
-/* Optional: Ensure images don't have default link styles */
-.item-link img {
-    display: block; /* Removes bottom margin/padding */
-    color: inherit; /* Inherit text color */
-}
-
-/* Ensure inner text doesn't get extra styles from <a> */
-.item-link .card-title,
-.item-link .card-text {
-    color: inherit;
-}
-
-/* Ensure the 'My Items' edit and delete buttons are styled correctly */
-.card-footer a.btn {
-    margin-right: 5px;
-    text-decoration: none; /* Remove underlines from buttons */
-}
-
-/* Optional: Prevent links inside the card footer from affecting the parent link */
-.card-footer a,
-.card-footer form {
-    pointer-events: auto;
-}
-
-/* Remove pointer events from the parent link when interacting with footer elements */
-.card-footer {
-    position: relative;
-}
-
-/* Ensure that the footer buttons are clickable without triggering the parent link */
-.card-footer a.btn,
-.card-footer form {
-    position: relative;
-    z-index: 2;
-}
-
-.profile-picture-small {
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid #fff; /* Optional: Adds a white border around the image */
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); /* Optional: Adds a subtle shadow for depth */
-    cursor: pointer;
-}
-
-.item-image {
-    max-width: 400px; /* Adjust the value as needed */
-    width: 100%;
-    height: auto;
-    object-fit: contain;
-    border: 2px solid #ddd;
-    border-radius: 5px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
 }
 
 /* Item Detail Page Styles */
@@ -3219,7 +3139,7 @@ body.multi-image-reordering * {
 
 .btn-thumb-crop {
     background-color: rgba(255, 255, 255, 0.9);
-    color: #333;
+    color: var(--ink);
 }
 
 .btn-thumb-crop:hover {
@@ -3342,16 +3262,6 @@ body.multi-image-reordering * {
     outline-offset: 2px;
 }
 
-#itemImageCarousel .carousel-indicators {
-    margin-bottom: 0.5rem;
-}
-
-#itemImageCarousel .carousel-indicators button {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-
 /* Mobile carousel adjustments */
 @media (max-width: 768px) {
     #itemImageCarousel .carousel-inner {
@@ -3370,23 +3280,10 @@ body.multi-image-reordering * {
    =========================== */
 
 #cropModal .crop-container {
-    background-color: #f0f0f0;
+    background-color: var(--paper);
     border-radius: var(--radius);
 }
 
 #cropModal .modal-footer {
     flex-wrap: wrap;
-}
-
-/* Multi-image live region (screen reader) */
-.multi-image-sr-live {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
 }

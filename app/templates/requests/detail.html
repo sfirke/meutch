@@ -92,7 +92,7 @@
                 <a href="{{ url_for('main.view_conversation', conversation_id=conv.latest_message.conversation_id) }}" class="list-group-item list-group-item-action">
                     <div class="d-flex w-100 align-items-center gap-2">
                         {{ avatar(conv.other_user.full_name, conv.other_user.profile_image_url) }}
-                        <div class="flex-grow-1 min-width-0">
+                        <div class="request-conversation-text">
                             <strong class="d-block">{{ conv.other_user.full_name }}</strong>
                             <small class="text-muted d-block text-truncate">{{ conv.latest_message.body|truncate(100) }}</small>
                         </div>
