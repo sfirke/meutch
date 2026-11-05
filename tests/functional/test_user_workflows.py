@@ -396,4 +396,4 @@ class TestUserProfileWorkflow:
             # Then verify following redirect lands on login page
             response = client.get(f"/user/{user.id}", follow_redirects=True)
             assert response.status_code == 200
-            assert b"Login" in response.data
+            assert b"Log in" in response.data

@@ -1,12 +1,9 @@
+{% from "components/people.html" import avatar %}
 {% macro nav_active(is_current) -%}
     {% if is_current %} active" aria-current="page{% endif %}
 {%- endmacro -%}
 {% macro account_avatar() -%}
-    {% if current_user.profile_image -%}
-        <img src="{{ current_user.profile_image }}" alt="" class="rounded-circle me-2" width="30" height="30">
-    {%- else -%}
-        <i class="fas fa-user-circle me-2"></i>
-    {%- endif %}
+    {{ avatar(current_user.full_name, current_user.profile_image_url, size="sm", extra_class="me-2") }}
 {%- endmacro -%}
 
 {% macro account_links(mobile=false) -%}
@@ -99,7 +96,7 @@
             </div>
             {% elif not current_user.is_authenticated %}
             <a class="nav-link navbar-mobile-login d-flex d-lg-none align-items-center me-1 px-2" href="{{ url_for('auth.login') }}">
-                <i class="fas fa-sign-in-alt me-1"></i><span class="small fw-semibold">Login</span>
+                <i class="fas fa-sign-in-alt me-1"></i><span class="small fw-semibold">Log in</span>
             </a>
             {% endif %}
 
@@ -151,7 +148,7 @@
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link{{ nav_active(endpoint == 'main.how_it_works') }}" href="{{ url_for('main.how_it_works') }}">
-                                <i class="fas fa-question-circle fa-fw me-1 d-lg-none"></i>How it Works
+                                <i class="fas fa-question-circle fa-fw me-1 d-lg-none"></i>How it works
                             </a>
                         </li>
                     {% endif %}
@@ -184,7 +181,7 @@
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('auth.login') }}">
-                                <i class="fas fa-sign-in-alt fa-fw me-1 d-lg-none"></i>Login
+                                <i class="fas fa-sign-in-alt fa-fw me-1 d-lg-none"></i>Log in
                             </a>
                         </li>
                         <li class="nav-item">
@@ -239,31 +236,31 @@
                     <p class="text-muted small">The actual sharing economy, uncommercialized.</p>
                 </div>
                 <div class="col-md-4 mb-3 mb-md-0">
-                    <h6 class="fw-bold">Learn More</h6>
+                    <h6 class="fw-bold">Learn more</h6>
                     <ul class="list-unstyled small">
                         <li class="mb-2">
                             <a href="{{ url_for('main.how_it_works') }}" class="text-muted text-decoration-none">
-                                How it Works
+                                How it works
                             </a>
                         </li>
                         <li class="mb-2">
                             <a href="{{ url_for('main.about') }}" class="text-muted text-decoration-none">
-                                About Us
+                                About
                             </a>
                         </li>
                         <li class="mb-2">
                             <a href="{{ url_for('main.privacy_policy') }}" class="text-muted text-decoration-none">
-                                Privacy Policy
+                                Privacy policy
                             </a>
                         </li>
                         <li class="mb-2">
                             <a href="{{ url_for('main.terms') }}" class="text-muted text-decoration-none">
-                                Terms &amp; Conditions
+                                Terms and conditions
                             </a>
                         </li>
                         <li class="mb-2">
                             <a href="https://github.com/sfirke/meutch/" target="_blank" rel="noopener noreferrer" class="text-muted text-decoration-none">
-                                Open Source on GitHub
+                                Open source on GitHub
                             </a>
                         </li>
                     </ul>
@@ -275,11 +272,11 @@
                     </p>
                     {% if current_user.is_authenticated %}
                     <a href="{{ url_for('main.contact') }}" class="btn btn-sm btn-outline-secondary">
-                        Contact Us
+                        Contact us
                     </a>
                     {% else %}
                     <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-outline-secondary">
-                        Contact Us
+                        Contact us
                     </a>
                     {% endif %}
                 </div>

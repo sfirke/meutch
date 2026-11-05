@@ -757,7 +757,7 @@ class TestMainRoutes:
         response = client.get("/")
         assert response.status_code == 200
         response_text = response.data.decode("utf-8")
-        assert "Get Started" in response_text
+        assert "Get started" in response_text
         assert "How Meutch Works" in response_text
         assert "See It In Action" in response_text
 
@@ -881,7 +881,7 @@ class TestContactRoutes:
             login_user(client, user.email)
             response = client.get("/contact")
             assert response.status_code == 200
-            assert b"Contact Us" in response.data
+            assert b"Contact us" in response.data
             assert b"Category" in response.data
             assert b"Message" in response.data
             assert b"Send" in response.data
@@ -1008,13 +1008,13 @@ class TestContactRoutes:
             login_user(client, user.email)
             response = client.get("/")
             assert response.status_code == 200
-            assert b'"Contact Us"' in response.data or b"Contact Us" in response.data
+            assert b'"Contact us"' in response.data or b"Contact us" in response.data
 
     def test_footer_shows_contact_for_unauthenticated(self, client):
         """Test footer shows contact link (to login) for unauthenticated users."""
         response = client.get("/")
         assert response.status_code == 200
-        assert b"Contact Us" in response.data
+        assert b"Contact us" in response.data
 
     def test_no_admins_shows_info_message(self, client, app, auth_user):
         """Test when no admins exist, flash an info message and redirect."""
