@@ -1058,6 +1058,30 @@ input[type="file"]::file-selector-button:hover {
     --bs-alert-bg: var(--tangerine-wash);
 }
 
+/* Toasts, from notifications.js */
+.toast {
+    --bs-toast-color: var(--ink);
+    --bs-toast-bg: var(--card-paper);
+    --bs-toast-border-width: 2px;
+    --bs-toast-border-color: var(--ink);
+    --bs-toast-border-radius: var(--radius);
+    --bs-toast-box-shadow: 3px 3px 0 var(--ink);
+    font-weight: 500;
+}
+
+.toast--success,
+.toast--info {
+    --bs-toast-bg: var(--teal-wash);
+}
+
+.toast--danger {
+    --bs-toast-bg: var(--danger-wash);
+}
+
+.toast--warning {
+    --bs-toast-bg: var(--tangerine-wash);
+}
+
 /* Search Results */
 .search-card {
     max-width: none;
@@ -1109,6 +1133,42 @@ footer::before {
     top: 0;
 }
 
+/* Error pages */
+.error-page {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2.5rem 0;
+    text-align: center;
+}
+
+.error-page-art {
+    margin-bottom: 1.5rem;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius-card);
+}
+
+.error-page p {
+    color: var(--muted);
+}
+
+.error-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .5rem;
+    margin-top: 1.5rem;
+}
+
+/* Unavailable item */
+.unavailable-page {
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.unavailable-page > .empty-state-actions {
+    margin-top: 2rem;
+}
+
 /* Empty states */
 .empty-state {
     text-align: center;
@@ -1131,6 +1191,10 @@ footer::before {
 .empty-state-title {
     font-size: 1.3rem;
     margin-bottom: .5rem;
+}
+
+.empty-state h1.empty-state-title {
+    font-size: 1.9rem;
 }
 
 .empty-state p {

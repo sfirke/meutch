@@ -42,8 +42,8 @@ class TestRequestBodyCeiling:
         response = client.post("/login", data={"email": "a" * 4096})
 
         assert response.status_code == 413
-        assert b"That's a lot at once!" in response.data
-        assert b"Go Home" in response.data
+        assert b"That upload is too big" in response.data
+        assert b"Go home" in response.data
 
     def test_api_413_returns_json_not_the_html_page(self, client, app, monkeypatch):
         """API clients get the standard error envelope, not an HTML error page."""
