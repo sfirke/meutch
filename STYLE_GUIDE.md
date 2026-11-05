@@ -9,9 +9,8 @@ The personality is warm, neighborly and a little playful. It should never feel
 childish or careless, because people are trusting Meutch to connect them with
 each other.
 
-This guide describes where the site is headed, and the site is being moved to it
-over several pull requests, so some pages don't match it yet. New work should follow the guide as far as it
-can without making a page look out of place next to its neighbors.
+Admins can see every shared component in each of its states at `/admin/components`.
+Check a change to a component there as well as on the pages that use it.
 
 ## Colors
 
@@ -153,6 +152,10 @@ Leave it out of nav links, footer links and buttons whose label is already clear
   markup. Don't wrap buttons, badges, alerts or cards in macros, because their
   shared CSS classes already do that job. Anything used only once stays where it
   is until a second use appears.
+- Ask before anything that can't be undone with `confirm_dialog` in
+  `components/dialogs.html`. A few older pages still use the browser's `confirm()`;
+  don't add more. Show an empty list with
+  `empty_state` in `components/empty.html`, and put its buttons in an `.action-row`.
 - Build forms from the macros in `components/forms.html`, so labels, help text and
   errors look the same everywhere. A form gets its own page in `.form-page`. Log in,
   register and the password pages use `auth_card`. Upload areas have a dashed
