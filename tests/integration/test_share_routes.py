@@ -75,8 +75,8 @@ class TestGiveawaySharePreview:
 
             response = client.get(f"/share/giveaway/{item.id}")
             assert response.status_code == 200
-            assert b"Sign Up" in response.data
-            assert b"Log In" in response.data
+            assert b"Sign up" in response.data
+            assert b"Log in" in response.data
 
     def test_public_giveaway_preview_has_og_meta(self, client, app):
         """Test that preview includes Open Graph meta tags."""
@@ -394,8 +394,8 @@ class TestRequestSharePreview:
 
             response = client.get(f"/share/request/{req.id}")
             assert response.status_code == 200
-            assert b"Sign Up" in response.data
-            assert b"Log In" in response.data
+            assert b"Sign up" in response.data
+            assert b"Log in" in response.data
 
     def test_public_request_preview_has_og_meta(self, client, app):
         """Test that preview includes Open Graph meta tags."""
@@ -608,8 +608,8 @@ class TestCircleSharePreview:
 
             response = client.get(f"/share/circle/{circle.id}")
             assert response.status_code == 200
-            assert b"Sign Up" in response.data
-            assert b"Log In" in response.data
+            assert b"Sign up" in response.data
+            assert b"Log in" in response.data
 
     def test_circle_preview_has_og_meta(self, client, app):
         """Test that preview includes Open Graph meta tags."""
@@ -859,8 +859,8 @@ class TestItemSharePreview:
             assert response.status_code == 200
             assert b"Shared Drill" in response.data
             assert item.owner.first_name.encode() in response.data
-            assert b"Sign Up" in response.data
-            assert b"Log In" in response.data
+            assert b"Sign up" in response.data
+            assert b"Log in" in response.data
 
     def test_item_share_preview_redirects_authenticated_user_to_item_detail(self, client, app):
         with app.app_context():

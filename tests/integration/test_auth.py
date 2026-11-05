@@ -32,7 +32,7 @@ class TestAuthenticationRoutes:
         """Test login page loads correctly."""
         response = client.get("/login")
         assert response.status_code == 200
-        assert b"Log In" in response.data
+        assert b"Log in" in response.data
 
     def test_login_valid_credentials(self, client, app, auth_user):
         """Test login with valid credentials."""
@@ -1109,7 +1109,7 @@ class TestRedirectAfterLogin:
             # Step 2: Go to login page (should have 'next' parameter)
             response = client.get(login_url)
             assert response.status_code == 200
-            assert b"Log In" in response.data
+            assert b"Log in" in response.data
 
             # Step 3: Login with the 'next' parameter in the URL
             response = client.post(
@@ -1131,7 +1131,7 @@ class TestRedirectAfterLogin:
             assert response.status_code == 200
             # Should show login message
             assert (
-                b"Please log in to access this page" in response.data or b"Log In" in response.data
+                b"Please log in to access this page" in response.data or b"Log in" in response.data
             )
 
     def test_login_form_preserves_next_parameter(self, client, app):

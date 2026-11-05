@@ -194,10 +194,6 @@ footer::before {
     padding: 0.1rem 0.45rem;
 }
 
-.account-toggle img {
-    border: 2px solid var(--ink);
-}
-
 /* Menus */
 .dropdown-menu {
     --bs-dropdown-bg: var(--card-paper);
@@ -305,11 +301,6 @@ footer::before {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.account-toggle img,
-.account-toggle .fa-user-circle {
-    flex-shrink: 0;
 }
 
 .account-divider {
