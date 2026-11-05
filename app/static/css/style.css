@@ -1094,17 +1094,8 @@ input[type="file"]::file-selector-button:hover {
 }
 
 /* Sections */
-.user-circles, .items-section {
+.items-section {
     margin-bottom: 3rem;
-}
-
-.user-circles h2, .items-section h2 {
-    color: var(--ink);
-    font-weight: 600;
-    font-size: 1.75rem;
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--line);
 }
 
 /* Footer */
@@ -1118,17 +1109,42 @@ footer::before {
     top: 0;
 }
 
-/* Empty States */
+/* Empty states */
 .empty-state {
     text-align: center;
-    padding: 3rem 1rem;
+    padding: 2.5rem 1rem;
+}
+
+.empty-state-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 4rem;
+    margin-bottom: 1rem;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    background: var(--tangerine-wash);
+    font-size: 1.5rem;
+}
+
+.empty-state-title {
+    font-size: 1.3rem;
+    margin-bottom: .5rem;
+}
+
+.empty-state p {
+    max-width: 34rem;
+    margin: 0 auto 1rem;
     color: var(--muted);
 }
 
-.empty-state i {
-    font-size: 3rem;
-    color: var(--line);
-    margin-bottom: 1rem;
+.empty-state-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .5rem;
+    margin-top: 1.25rem;
 }
 
 /* Responsive Design */

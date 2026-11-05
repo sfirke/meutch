@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/empty.html" import empty_state %}
 {% from "components/dialogs.html" import confirm_dialog %}
 
 {% block content %}
@@ -223,7 +224,7 @@
                             </nav>
                         {% endif %}
                     {% else %}
-                        <p class="text-muted text-center py-4">No users found.</p>
+                        {{ empty_state("No users found", heading="h3") }}
                     {% endif %}
                 </div>
             </div>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/empty.html" import empty_state %}
 
 {% block title %}Respond to Request{% endblock %}
 
@@ -120,20 +121,21 @@
                     </a>
                 </div>
             {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-box-open text-muted mb-3" style="font-size: 3rem;"></i>
-                    {% if search_query %}
-                        <h5>No items match "{{ search_query }}"</h5>
-                        <p class="text-muted">Try a different search term.</p>
-                        <a href="{{ url_for('requests.respond', request_id=item_request.id) }}" class="btn btn-outline-secondary">Clear Search</a>
-                    {% else %}
-                        <h5>You haven't listed any items yet</h5>
-                        <p class="text-muted">Add your first item to respond to this request!</p>
-                        <a href="{{ url_for('main.list_item', return_to='respond', request_id=item_request.id) }}" class="btn btn-success">
-                            <i class="fas fa-plus me-1"></i>Create New Item
-                        </a>
-                    {% endif %}
-                </div>
+                {% if search_query %}
+                    {% call empty_state('No items match "' ~ search_query ~ '"', icon="search", heading="h3") %}
+                        <p>Try a different search.</p>
+                        <div class="empty-state-actions">
+                            <a href="{{ url_for('requests.respond', request_id=item_request.id) }}" class="btn btn-outline-secondary">Clear search</a>
+                        </div>
+                    {% endcall %}
+                {% else %}
+                    {% call empty_state("You haven't listed any items yet", icon="box-open", heading="h3") %}
+                        <p>List the item you'd offer, and you'll come right back here.</p>
+                        <div class="empty-state-actions">
+                            <a href="{{ url_for('main.list_item', return_to='respond', request_id=item_request.id) }}" class="btn btn-primary">List an item</a>
+                        </div>
+                    {% endcall %}
+                {% endif %}
             {% endif %}
         </div>
     </div>

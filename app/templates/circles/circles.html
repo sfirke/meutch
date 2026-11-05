@@ -1,6 +1,7 @@
 <!-- app/templates/circles/circles.html -->
 
 {% extends "base.html" %}
+{% from "components/empty.html" import empty_state %}
 {% from "components/circles.html" import circle_fields, circle_row %}
 {% from "components/forms.html" import location_fields, radio_field %}
 {% from "components/tags.html" import item_tag %}
@@ -209,7 +210,12 @@
                     {% endfor %}
                 </ul>
             {% elif show_browse %}
-                <p>No circles available. Create one using the <strong>Create Circle</strong> tab!</p>
+                {% call empty_state("No circles to join yet", icon="users", heading="h3") %}
+                    <p>Start one for your street, building or group of friends.</p>
+                    <div class="empty-state-actions">
+                        <button class="btn btn-primary" type="button" data-bs-toggle="tab" data-bs-target="#create-circle">Create a circle</button>
+                    </div>
+                {% endcall %}
             {% endif %}
 
             <!-- Find Secret Circle by UUID -->
