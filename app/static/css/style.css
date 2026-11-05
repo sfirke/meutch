@@ -1212,6 +1212,86 @@ footer::before {
     max-width: 640px;
 }
 
+/* Choosing who gets a giveaway */
+.recipient-list {
+    display: grid;
+    gap: .75rem;
+    margin: 0 0 1.5rem;
+    padding: 0;
+    list-style: none;
+}
+
+.recipient-option {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: .75rem;
+    padding: 1rem;
+}
+
+.recipient-option:has(input:checked) {
+    border-color: var(--ink);
+    background: var(--teal-wash);
+}
+
+.recipient-option > .form-check-input {
+    flex-shrink: 0;
+    margin-top: .6rem;
+}
+
+.recipient-option-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.recipient-option-name {
+    font-weight: 700;
+}
+
+.recipient-option-name::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+}
+
+.recipient-option-quote {
+    margin: .4rem 0 0;
+    overflow-wrap: anywhere;
+}
+
+.recipient-option-message {
+    margin-top: .6rem;
+}
+
+.recipient-option a,
+.recipient-option .recipient-option-message {
+    position: relative;
+    z-index: 1;
+}
+
+/* Request page */
+.request-page {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.request-page-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .75rem;
+}
+
+.request-page-title {
+    margin-bottom: .75rem;
+    overflow-wrap: anywhere;
+}
+
+.request-page-subtitle {
+    font-size: 1.3rem;
+    margin: 2rem 0 1rem;
+}
+
 /* Choosing an item to offer on a request */
 .respond-page {
     max-width: 960px;

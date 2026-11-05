@@ -2633,9 +2633,9 @@ class TestSelectRecipientReassignmentUI:
             response = client.get(f"/item/{giveaway.id}/select-recipient")
 
             assert response.status_code == 200
-            assert b"Select Recipient" in response.data
-            assert b"First Requester" in response.data
-            assert b"Random Selection" in response.data
+            assert b"Choose who gets it" in response.data
+            assert b"First to ask" in response.data
+            assert b"Pick at random" in response.data
 
 
 class TestGiveawayOwnerProfileLink:
