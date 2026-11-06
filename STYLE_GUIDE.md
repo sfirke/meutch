@@ -55,8 +55,11 @@ That's what `--danger` is for.
 
 ## Type
 
-- Headings: **Gabarito**, via `--font-display`. Change the font in that one
+- Headings: **Outfit**, via `--font-display`. Change the font in that one
   variable and the Google Fonts link.
+- Only big headings are heavy: 800 for the landing headline, 700 for `h1` and
+  landing section titles. Everything smaller, including card and dialog titles,
+  uses 600, because heavier weights get crowded at small sizes.
 - Everything else: **Figtree**, via `--font-body`.
 - Page titles are plain `--ink`. No gradients and no colored titles.
 - Each page has one `h1`.
@@ -75,8 +78,14 @@ That's what `--danger` is for.
 A black outline means an object you can press, or something deliberately set
 apart, like a tag or a framed photo.
 
-- **Buttons:** 2px `--ink` outline. Primary buttons are filled teal. Others have
-  no fill. Each view gets one primary button where possible.
+- **Every ink outline is `--outline` wide (1.5px).** That covers buttons, inputs,
+  menus, dialogs, tags, avatars, photos and the logo tile. The one exception is
+  the large landing logo, at twice that. Keyboard focus rings stay 2px so they're
+  easy to see.
+- **Buttons:** `--ink` outline. Primary buttons are filled teal. Others have
+  no fill, except on a colored band such as the landing hero, where they use
+  `btn-light` so they don't disappear into it. Each view gets one primary
+  button where possible.
 - **Plain content cards:** 1.5px `--line` border and no shadow.
 - **Clickable cards:** the same as content cards, with an ink outline and offset
   shadow on hover only. Cards you can't click don't react to hover.

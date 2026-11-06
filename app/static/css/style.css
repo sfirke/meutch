@@ -17,12 +17,13 @@
     --danger: #9d2b2b;
     --danger-wash: #fee6e3;
 
-    --font-display: 'Gabarito', 'Figtree', sans-serif;
+    --font-display: 'Outfit', 'Figtree', sans-serif;
     --font-body: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
     --radius: 10px;
     --radius-card: 14px;
     --radius-tag: 6px;
+    --outline: 1.5px;
 
     --stitch: repeating-linear-gradient(90deg, var(--tangerine) 0 14px, transparent 14px 23px);
     --pinked-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12'%3E%3Cpath d='M0 0H24L12 12Z'/%3E%3C/svg%3E");
@@ -130,7 +131,7 @@ footer::before {
 }
 
 .navbar-toggler {
-    border-width: 2px;
+    border-width: var(--outline);
 }
 
 .navbar-brand {
@@ -143,7 +144,7 @@ footer::before {
     width: 36px;
     height: 36px;
     object-fit: contain;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: 9px;
     transform: rotate(-4deg);
     transition: transform 0.2s ease;
@@ -157,7 +158,7 @@ footer::before {
     width: 28px;
     height: 28px;
     object-fit: contain;
-    border: 1.5px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius-tag);
 }
 
@@ -181,7 +182,7 @@ footer::before {
 }
 
 .navbar-nav .nav-link .badge {
-    border: 1.5px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     padding: 0.1rem 0.45rem;
 }
 
@@ -189,7 +190,7 @@ footer::before {
 .dropdown-menu {
     --bs-dropdown-bg: var(--card-paper);
     --bs-dropdown-border-color: var(--ink);
-    --bs-dropdown-border-width: 2px;
+    --bs-dropdown-border-width: var(--outline);
     --bs-dropdown-border-radius: var(--radius);
     --bs-dropdown-inner-border-radius: 8px;
     --bs-dropdown-divider-bg: var(--line);
@@ -206,7 +207,7 @@ footer::before {
     --bs-nav-link-color: var(--muted);
     --bs-nav-link-hover-color: var(--ink);
     --bs-nav-tabs-border-color: var(--ink);
-    --bs-nav-tabs-border-width: 2px;
+    --bs-nav-tabs-border-width: var(--outline);
     --bs-nav-tabs-border-radius: var(--radius);
     --bs-nav-tabs-link-hover-border-color: transparent;
     --bs-nav-tabs-link-active-color: var(--ink);
@@ -265,7 +266,7 @@ footer::before {
 .modal {
     --bs-modal-bg: var(--card-paper);
     --bs-modal-border-color: var(--ink);
-    --bs-modal-border-width: 2px;
+    --bs-modal-border-width: var(--outline);
     --bs-modal-border-radius: var(--radius-card);
     --bs-modal-inner-border-radius: 12px;
     --bs-modal-header-border-color: var(--line);
@@ -279,7 +280,7 @@ footer::before {
 .modal-title {
     font-family: var(--font-display);
     font-size: 1.3rem;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .confirm-dialog .modal-body > :last-child {
@@ -363,14 +364,14 @@ h1, h2, h3, h4, h5, h6,
 .h1, .h2, .h3, .h4, .h5, .h6,
 .card-title {
     font-family: var(--font-display);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: -0.01em;
     margin-bottom: 1rem;
 }
 
 h1 {
     font-size: clamp(1.9rem, 4vw, 2.5rem);
-    font-weight: 750;
+    font-weight: 700;
 }
 
 /* Cards */
@@ -488,7 +489,7 @@ img[src$="/default_item_photo.png"] {
 /* Buttons */
 .btn {
     --bs-btn-font-weight: 650;
-    --bs-btn-border-width: 2px;
+    --bs-btn-border-width: var(--outline);
     --bs-btn-padding-x: 1rem;
     --bs-btn-padding-y: 0.5rem;
     --bs-btn-focus-shadow-rgb: 79, 209, 199;
@@ -651,7 +652,7 @@ img[src$="/default_item_photo.png"] {
 .item-tag {
     display: inline-block;
     padding: 0.125rem 0.6rem;
-    border: 1.5px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius-tag);
     background: var(--card-paper);
     color: var(--ink);
@@ -692,7 +693,6 @@ img[src$="/default_item_photo.png"] {
     position: absolute;
     top: 0.75rem;
     left: 0.75rem;
-    border-width: 2px;
     box-shadow: 2px 2px 0 var(--ink);
     transform: rotate(-3deg);
 }
@@ -706,7 +706,7 @@ img[src$="/default_item_photo.png"] {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: 50%;
     background: var(--teal);
     color: var(--ink);
@@ -810,7 +810,7 @@ img[src$="/default_item_photo.png"] {
 }
 
 .form-check-input {
-    border: 1.5px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     background-color: var(--card-paper);
 }
 
@@ -858,7 +858,7 @@ input[type="file"]::file-selector-button {
     padding: 0.35rem 0.85rem;
     background: var(--card-paper);
     color: var(--ink);
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius);
     font-weight: 600;
     cursor: pointer;
@@ -914,7 +914,7 @@ input[type="file"]::file-selector-button:hover {
     display: block;
     max-width: 300px;
     width: 100%;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius);
 }
 
@@ -942,7 +942,7 @@ input[type="file"]::file-selector-button:hover {
     margin: 3rem auto 1rem;
     padding: 2rem;
     background: var(--card-paper);
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius-card);
     box-shadow: 4px 4px 0 var(--ink);
 }
@@ -957,7 +957,7 @@ input[type="file"]::file-selector-button:hover {
     height: 72px;
     margin: -4.25rem auto 0.75rem;
     background: var(--card-paper);
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius-card);
 }
 
@@ -992,7 +992,7 @@ input[type="file"]::file-selector-button:hover {
 .alert {
     --bs-alert-color: var(--ink);
     --bs-alert-border-color: var(--ink);
-    --bs-alert-border: 2px solid var(--ink);
+    --bs-alert-border: var(--outline) solid var(--ink);
     --bs-alert-border-radius: var(--radius);
     --bs-alert-link-color: var(--ink);
     font-weight: 500;
@@ -1016,7 +1016,7 @@ input[type="file"]::file-selector-button:hover {
 .toast {
     --bs-toast-color: var(--ink);
     --bs-toast-bg: var(--card-paper);
-    --bs-toast-border-width: 2px;
+    --bs-toast-border-width: var(--outline);
     --bs-toast-border-color: var(--ink);
     --bs-toast-border-radius: var(--radius);
     --bs-toast-box-shadow: 3px 3px 0 var(--ink);
@@ -1038,12 +1038,12 @@ input[type="file"]::file-selector-button:hover {
 
 /* Find */
 .find-search .form-control {
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-right: 0;
 }
 
 #find-form .form-select {
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     font-weight: 650;
 }
 
@@ -1088,7 +1088,7 @@ footer::before {
 /* Square art above a page title, such as the handshake logo */
 .page-art {
     margin-bottom: 1.5rem;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius-card);
 }
 
@@ -1118,7 +1118,7 @@ footer::before {
     padding: 1.5rem;
     text-align: center;
     background: var(--teal-wash);
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius-card);
     box-shadow: 4px 4px 0 var(--ink);
 }
@@ -1302,7 +1302,7 @@ footer::before {
     width: 4rem;
     height: 4rem;
     margin-bottom: 1rem;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: 50%;
     background: var(--tangerine-wash);
     font-size: 1.5rem;
@@ -1409,7 +1409,7 @@ footer::before {
 .item-detail-frame {
     position: relative;
     overflow: hidden;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius-card);
     box-shadow: 4px 4px 0 var(--ink);
     background: var(--tangerine-wash);
@@ -1661,7 +1661,7 @@ footer::before {
     max-width: 100%;
     overflow: hidden;
     padding: 0.05rem 0.5rem;
-    border: 1.5px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius-tag);
     background: var(--card-paper);
     color: var(--ink);
@@ -1806,7 +1806,7 @@ footer::before {
     width: 88px;
     height: 88px;
     flex-shrink: 0;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius);
     background: var(--paper);
     object-fit: cover;
@@ -1829,7 +1829,7 @@ footer::before {
     color: var(--ink);
     font-family: var(--font-display);
     font-size: 1.15rem;
-    font-weight: 700;
+    font-weight: 600;
     overflow-wrap: anywhere;
     text-decoration: none;
 }
@@ -1993,7 +1993,7 @@ footer::before {
 }
 
 .circle-result-thumbnail {
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     object-fit: cover;
 }
 
@@ -2070,7 +2070,7 @@ footer::before {
 
 .attention-panel {
     padding: 1rem 1.125rem;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius-card);
     background: var(--tangerine-wash);
 }
@@ -2135,7 +2135,7 @@ footer::before {
     width: 160px;
     height: 160px;
     flex-shrink: 0;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius-card);
     object-fit: cover;
     transform: rotate(-1.5deg);
@@ -2198,7 +2198,7 @@ footer::before {
     display: block;
     width: 56px;
     height: 56px;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius);
     background: var(--paper);
     object-fit: cover;
@@ -2502,14 +2502,14 @@ footer::before {
    =========================================== */
 
 .share-preview-card {
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     box-shadow: 6px 6px 0 var(--ink);
     overflow: hidden;
 }
 
 .share-preview-media {
     position: relative;
-    border-bottom: 2px solid var(--ink);
+    border-bottom: var(--outline) solid var(--ink);
     background: var(--tangerine-wash);
 }
 
@@ -2684,7 +2684,7 @@ footer::before {
     width: 84px;
     height: 84px;
     flex-shrink: 0;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius);
     object-fit: cover;
     transform: rotate(2deg);
@@ -2781,7 +2781,7 @@ footer::before {
 
     .navbar-nav .nav-link.nav-register {
         background-color: var(--teal);
-        border: 2px solid var(--ink);
+        border: var(--outline) solid var(--ink);
     }
 
     .navbar-nav .nav-link.nav-register:hover,
@@ -2830,7 +2830,7 @@ footer::before {
     width: 320px;
     height: 320px;
     object-fit: contain;
-    border: 3px solid var(--ink);
+    border: calc(var(--outline) * 2) solid var(--ink);
     border-radius: 18px;
     box-shadow: 8px 8px 0 var(--ink);
     transform: rotate(3deg);
@@ -2855,10 +2855,6 @@ footer::before {
 .landing-subheadline {
     font-size: clamp(1.05rem, 2vw, 1.3rem);
     max-width: 480px;
-}
-
-.landing-hero .btn-outline-secondary {
-    --bs-btn-hover-bg: var(--card-paper);
 }
 
 /* --- Sections --- */
@@ -2896,7 +2892,7 @@ footer::before {
     position: relative;
     width: 48px;
     height: 48px;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: 50%;
     background: var(--teal);
     color: var(--ink);
@@ -2952,7 +2948,7 @@ footer::before {
     width: 52px;
     height: 52px;
     flex-shrink: 0;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: 50%;
     background: var(--tangerine-wash);
     color: var(--ink);
@@ -2965,7 +2961,7 @@ footer::before {
 /* --- Quote / image section --- */
 .landing-photo {
     display: block;
-    border: 2px solid var(--ink);
+    border: var(--outline) solid var(--ink);
     border-radius: var(--radius-card);
     box-shadow: 6px 6px 0 var(--ink);
     transform: rotate(-1.5deg);
