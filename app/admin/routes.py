@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 
 from app import db
 from app.admin import bp
+from app.admin import component_samples as samples
 from app.auth.decorators import admin_required
 from app.forms import EmptyForm
 from app.models import (
@@ -318,6 +319,26 @@ def activity():
         retention_days=retention_days,
         oldest_occurred_at=oldest_occurred_at,
         prune_overdue=_prune_is_overdue(oldest_occurred_at, retention_days),
+    )
+
+
+@bp.route("/components")
+@admin_required
+def components():
+    """Every shared template component in each of its states, for checking the look."""
+    return render_template(
+        "admin/components.html",
+        active_tab="components",
+        form=samples.sample_form(),
+        loans=samples.sample_loans(),
+        circles=[
+            samples.sample_circle(),
+            samples.sample_circle(
+                name="Maple School Parents", circle_type="closed", member_count=1
+            ),
+            samples.sample_circle(name="Ann Arbor", is_regional=True, member_count=812),
+        ],
+        sample_link=samples.sample_web_link(),
     )
 
 

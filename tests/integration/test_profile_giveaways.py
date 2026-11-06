@@ -133,7 +133,7 @@ class TestProfileGiveawaysSeparation:
 
             assert response.status_code == 200
             assert b"This giveaway is still pending pickup" in response.data
-            assert b"Mark Handoff Complete" in response.data
+            assert b"Mark handoff complete" in response.data
 
     def test_profile_delete_modal_renders_after_card_markup(self, client, app, auth_user):
         """Profile item cards should render the delete modal outside the card so Bootstrap can own the backdrop."""

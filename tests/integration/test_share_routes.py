@@ -75,8 +75,8 @@ class TestGiveawaySharePreview:
 
             response = client.get(f"/share/giveaway/{item.id}")
             assert response.status_code == 200
-            assert b"Sign Up" in response.data
-            assert b"Log In" in response.data
+            assert b"Sign up" in response.data
+            assert b"Log in" in response.data
 
     def test_public_giveaway_preview_has_og_meta(self, client, app):
         """Test that preview includes Open Graph meta tags."""
@@ -394,8 +394,8 @@ class TestRequestSharePreview:
 
             response = client.get(f"/share/request/{req.id}")
             assert response.status_code == 200
-            assert b"Sign Up" in response.data
-            assert b"Log In" in response.data
+            assert b"Sign up" in response.data
+            assert b"Log in" in response.data
 
     def test_public_request_preview_has_og_meta(self, client, app):
         """Test that preview includes Open Graph meta tags."""
@@ -469,7 +469,7 @@ class TestRequestSharePreview:
 
             response = client.get(f"/share/request/{req.id}")
             assert response.status_code == 200
-            assert b"This request has already been fulfilled." in response.data
+            assert b"Someone already found this." in response.data
             assert b"Browse current community requests in the activity feed." in response.data
             assert b"/register" in response.data
             assert b"/login" in response.data
@@ -490,7 +490,7 @@ class TestRequestSharePreview:
             response = client.get(f"/share/request/{req.id}")
             assert response.status_code == 200
             assert req.title.encode() in response.data
-            assert b"This request has already been fulfilled." not in response.data
+            assert b"Someone already found this." not in response.data
             assert b"/register" in response.data
             assert b"/login" in response.data
             assert (b'next=%2F"' in response.data) or (b'next=/"' in response.data)
@@ -608,8 +608,8 @@ class TestCircleSharePreview:
 
             response = client.get(f"/share/circle/{circle.id}")
             assert response.status_code == 200
-            assert b"Sign Up" in response.data
-            assert b"Log In" in response.data
+            assert b"Sign up" in response.data
+            assert b"Log in" in response.data
 
     def test_circle_preview_has_og_meta(self, client, app):
         """Test that preview includes Open Graph meta tags."""
@@ -859,8 +859,8 @@ class TestItemSharePreview:
             assert response.status_code == 200
             assert b"Shared Drill" in response.data
             assert item.owner.first_name.encode() in response.data
-            assert b"Sign Up" in response.data
-            assert b"Log In" in response.data
+            assert b"Sign up" in response.data
+            assert b"Log in" in response.data
 
     def test_item_share_preview_redirects_authenticated_user_to_item_detail(self, client, app):
         with app.app_context():

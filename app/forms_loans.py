@@ -15,7 +15,7 @@ class LoanRequestForm(FlaskForm):
         validators=[DataRequired(message="Please select an end date.")],
     )
     message = TextAreaField(
-        "Message to Owner",
+        "Message to the owner",
         validators=[
             DataRequired(message="Please include a message with your request."),
             Length(
@@ -40,17 +40,17 @@ class LoanRequestForm(FlaskForm):
 
 class ExtendLoanForm(FlaskForm):
     new_end_date = DateField(
-        "New End Date",
+        "New due date",
         validators=[DataRequired(message="Please select a new end date.")],
     )
     message = TextAreaField(
-        "Include a message to borrower (optional)",
+        "Message to the borrower (optional)",
         validators=[
             Optional(),
             Length(max=1000, message="Message must be under 1000 characters."),
         ],
     )
-    submit = SubmitField("Extend Loan")
+    submit = SubmitField("Extend loan")
 
     def __init__(self, current_end_date=None, *args, **kwargs):
         super(ExtendLoanForm, self).__init__(*args, **kwargs)
@@ -63,11 +63,11 @@ class ExtendLoanForm(FlaskForm):
 
 class RequestExtensionForm(FlaskForm):
     proposed_end_date = DateField(
-        "Proposed New Due Date",
+        "New due date you'd like",
         validators=[DataRequired(message="Please select a proposed new due date.")],
     )
     message = TextAreaField(
-        "Message to Owner",
+        "Message to the owner",
         validators=[
             DataRequired(message="Please include a message with your extension request."),
             Length(
@@ -77,7 +77,7 @@ class RequestExtensionForm(FlaskForm):
             ),
         ],
     )
-    submit = SubmitField("Request Extension")
+    submit = SubmitField("Send request")
 
     def __init__(self, current_end_date=None, *args, **kwargs):
         super(RequestExtensionForm, self).__init__(*args, **kwargs)

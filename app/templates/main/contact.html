@@ -1,39 +1,18 @@
 {% extends "base.html" %}
+{% from "components/forms.html" import form_field %}
 
-{% block title %}Contact Us{% endblock %}
+{% block title %}Contact us{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-3">Contact Us</h2>
-    <p class="text-muted mb-2">
-        Have a question, suggestion, or found a bug? Let us know using the form below.
-        Your message will be sent directly to the Meutch admin team.
-    </p>
-    <p class="text-muted small mb-4">
-        GitHub user? You can also
-        <a href="https://github.com/sfirke/meutch/issues" target="_blank" rel="noopener noreferrer">report issues directly on GitHub</a>.
-    </p>
+<div class="form-page">
+    <h1>Contact us</h1>
+    <p class="text-muted">Have a question, suggestion, or found a bug? Your message goes straight to the Meutch admin team.</p>
+    <p class="text-muted small">GitHub user? You can also <a href="https://github.com/sfirke/meutch/issues" target="_blank" rel="noopener noreferrer">report issues directly on GitHub</a>.</p>
 
-    <form method="POST" action="{{ url_for('main.contact') }}">
+    <form method="post" action="{{ url_for('main.contact') }}" novalidate>
         {{ form.hidden_tag() }}
-
-        <div class="mb-3">
-            {{ form.category.label(class="form-label") }}
-            {{ form.category(class="form-select", aria_describedby="categoryErrors" if form.category.errors else '') }}
-            {% for error in form.category.errors %}
-                <div class="text-danger" id="categoryErrors">{{ error }}</div>
-            {% endfor %}
-        </div>
-
-        <div class="mb-3">
-            {{ form.message.label(class="form-label") }}
-            {{ form.message(class="form-control", placeholder="What's on your mind?", aria_describedby="messageHelp" ~ (' messageErrors' if form.message.errors else '')) }}
-            {% for error in form.message.errors %}
-                <div class="text-danger" id="messageErrors">{{ error }}</div>
-            {% endfor %}
-            <div class="form-text" id="messageHelp">Your message must be between 10 and 2000 characters.</div>
-        </div>
-
+        {{ form_field(form.category) }}
+        {{ form_field(form.message, help="Between 10 and 2,000 characters.", placeholder="What's on your mind?") }}
         {{ form.submit(class="btn btn-primary") }}
     </form>
 </div>

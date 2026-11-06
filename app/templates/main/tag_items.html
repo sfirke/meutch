@@ -1,12 +1,13 @@
 <!-- app/templates/main/tag_items.html -->
 {% extends "base.html" %}
+{% from "components/empty.html" import empty_state %}
 
 {% block title %}Items Tagged "{{ tag.name }}"{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
     <h2>Items Tagged "{{ tag.name }}"</h2>
-    
+
     <!-- Item Type Filter -->
     {% if not no_circles %}
         <div class="mb-3">
@@ -22,7 +23,7 @@
             </form>
         </div>
     {% endif %}
-    
+
     <div id="items-section">
     {% if no_circles %}
     <div class="alert alert-info">
@@ -36,7 +37,7 @@
                 {% include 'main/_item_card.html' %}
             {% endfor %}
         </div>
-        
+
         <!-- Pagination Controls -->
         {% if pagination.pages > 1 %}
             <nav aria-label="Tag items pages" class="mt-4">
@@ -52,7 +53,7 @@
                             <span class="page-link" aria-hidden="true">&laquo;</span>
                         </li>
                     {% endif %}
-                    
+
                     {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
                         {% if p %}
                             {% if p == pagination.page %}
@@ -64,7 +65,7 @@
                             <li class="page-item disabled"><span class="page-link">…</span></li>
                         {% endif %}
                     {% endfor %}
-                    
+
                     {% if pagination.has_next %}
                         <li class="page-item">
                             <a class="page-link" href="{{ url_for('main.tag_items', tag_id=tag.id, page=pagination.next_num, item_type=item_type) }}" aria-label="Next">
@@ -80,7 +81,9 @@
             </nav>
         {% endif %}
     {% else %}
-        <p>No items found with the tag "{{ tag.name }}".</p>
+        {% call empty_state("Nothing here yet", icon="tag") %}
+            <p>No items found with the tag "{{ tag.name }}".</p>
+        {% endcall %}
     {% endif %}
     </div>
 </div>

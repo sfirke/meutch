@@ -55,6 +55,7 @@
     --bs-warning-border-subtle: var(--tangerine);
     --bs-warning-text-emphasis: var(--ink);
     --bs-body-font-family: var(--font-body);
+    --bs-code-color: var(--teal-deep);
     --bs-body-font-size: 1.0625rem;
     --bs-body-line-height: 1.6;
     --bs-body-color: var(--ink);
@@ -94,18 +95,9 @@ a {
     text-underline-offset: 2px;
 }
 
-/* Bootstrap ties this to --bs-primary-rgb, and bright teal isn't readable as text. */
-.text-primary {
-    color: var(--teal-deep) !important;
-}
-
 .bg-purple {
     background-color: var(--purple);
     color: #fff;
-}
-
-.text-purple {
-    color: var(--purple);
 }
 
 /* Running stitch */
@@ -161,26 +153,6 @@ footer::before {
     transform: rotate(4deg);
 }
 
-/* Hero Logo (homepage/about page) */
-.hero-logo {
-    width: 160px;
-    height: 160px;
-    object-fit: contain;
-    margin-bottom: 1rem;
-    animation: fadeInDown 0.6s ease-out;
-}
-
-@keyframes fadeInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 .footer-logo {
     width: 28px;
     height: 28px;
@@ -211,10 +183,6 @@ footer::before {
 .navbar-nav .nav-link .badge {
     border: 1.5px solid var(--ink);
     padding: 0.1rem 0.45rem;
-}
-
-.account-toggle img {
-    border: 2px solid var(--ink);
 }
 
 /* Menus */
@@ -308,17 +276,22 @@ footer::before {
     box-shadow: 5px 5px 0 var(--ink);
 }
 
+.modal-title {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.confirm-dialog .modal-body > :last-child {
+    margin-bottom: 0;
+}
+
 /* Account menu */
 .account-name {
     max-width: 8rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.account-toggle img,
-.account-toggle .fa-user-circle {
-    flex-shrink: 0;
 }
 
 .account-divider {
@@ -434,13 +407,6 @@ h1 {
     color: var(--muted);
     flex: 1;
     margin-bottom: 1rem;
-}
-
-.card-footer {
-    background: transparent;
-    border: none;
-    padding: 0 1.25rem 1.25rem;
-    margin-top: auto;
 }
 
 /* A card with one destination. The title holds a stretched link. */
@@ -567,8 +533,7 @@ img[src$="/default_item_photo.png"] {
     box-shadow: none;
 }
 
-.btn-meutch-orange,
-.btn-warning {
+.btn-meutch-orange {
     --bs-btn-color: var(--ink);
     --bs-btn-bg: var(--tangerine);
     --bs-btn-border-color: var(--ink);
@@ -615,7 +580,6 @@ img[src$="/default_item_photo.png"] {
 }
 
 .btn-secondary,
-.btn-info,
 .btn-outline-primary,
 .btn-outline-secondary,
 .btn-outline-success,
@@ -1048,12 +1012,31 @@ input[type="file"]::file-selector-button:hover {
     --bs-alert-bg: var(--tangerine-wash);
 }
 
-/* Search Results */
-.search-card {
-    max-width: none;
-    margin: 0;
+/* Toasts, from notifications.js */
+.toast {
+    --bs-toast-color: var(--ink);
+    --bs-toast-bg: var(--card-paper);
+    --bs-toast-border-width: 2px;
+    --bs-toast-border-color: var(--ink);
+    --bs-toast-border-radius: var(--radius);
+    --bs-toast-box-shadow: 3px 3px 0 var(--ink);
+    font-weight: 500;
 }
 
+.toast--success,
+.toast--info {
+    --bs-toast-bg: var(--teal-wash);
+}
+
+.toast--danger {
+    --bs-toast-bg: var(--danger-wash);
+}
+
+.toast--warning {
+    --bs-toast-bg: var(--tangerine-wash);
+}
+
+/* Find */
 .find-search .form-control {
     border: 2px solid var(--ink);
     border-right: 0;
@@ -1077,24 +1060,9 @@ input[type="file"]::file-selector-button:hover {
     border-radius: var(--radius);
 }
 
-/* Profile Images */
-.profile-picture-small {
-    border-radius: 50%;
-    border: 2px solid white;
-}
-
 /* Sections */
-.user-circles, .items-section {
+.items-section {
     margin-bottom: 3rem;
-}
-
-.user-circles h2, .items-section h2 {
-    color: var(--ink);
-    font-weight: 600;
-    font-size: 1.75rem;
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--line);
 }
 
 /* Footer */
@@ -1108,17 +1076,251 @@ footer::before {
     top: 0;
 }
 
-/* Empty States */
-.empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
+/* A centered row of buttons, under an empty state, error or callout */
+.action-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .5rem;
+    margin-top: 1.25rem;
+}
+
+/* Square art above a page title, such as the handshake logo */
+.page-art {
+    margin-bottom: 1.5rem;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius-card);
+}
+
+/* Reading pages: About, How it works, terms and privacy */
+.prose-page {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 1.5rem 0 1rem;
+}
+
+.prose-page-lead {
+    font-size: 1.2rem;
     color: var(--muted);
 }
 
-.empty-state i {
-    font-size: 3rem;
-    color: var(--line);
+.prose-page h2 {
+    font-size: 1.45rem;
+    margin: 2.25rem 0 .75rem;
+}
+
+.prose-page h3 {
+    font-size: 1.1rem;
+}
+
+.callout {
+    margin: 2.5rem 0;
+    padding: 1.5rem;
+    text-align: center;
+    background: var(--teal-wash);
+    border: 2px solid var(--ink);
+    border-radius: var(--radius-card);
+    box-shadow: 4px 4px 0 var(--ink);
+}
+
+.prose-page .callout h2 {
+    margin-top: 0;
+}
+
+.callout p:last-child {
+    margin-bottom: 0;
+}
+
+/* Error pages */
+.error-page {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2.5rem 0;
+    text-align: center;
+}
+
+.error-page p {
+    color: var(--muted);
+}
+
+/* Admin */
+.admin-stat {
+    font-family: var(--font-display);
+    font-size: 2.25rem;
+    font-weight: 800;
+}
+
+.admin-chart {
+    position: relative;
+    min-height: 320px;
+}
+
+.activity-user-agent {
+    width: 16rem;
+}
+
+/* Admin components page */
+.component-sample {
+    padding: 1.5rem 0;
+    border-top: 1.5px solid var(--line);
+}
+
+.component-sample h2 {
+    font-size: 1.3rem;
     margin-bottom: 1rem;
+}
+
+.component-sample-narrow {
+    max-width: 640px;
+}
+
+/* Choosing who gets a giveaway */
+.recipient-list {
+    display: grid;
+    gap: .75rem;
+    margin: 0 0 1.5rem;
+    padding: 0;
+    list-style: none;
+}
+
+.recipient-option {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: .75rem;
+    padding: 1rem;
+}
+
+.recipient-option:has(input:checked) {
+    border-color: var(--ink);
+    background: var(--teal-wash);
+}
+
+.recipient-option > .form-check-input {
+    flex-shrink: 0;
+    margin-top: .6rem;
+}
+
+.recipient-option-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.recipient-option-name {
+    font-weight: 700;
+}
+
+.recipient-option-name::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+}
+
+.recipient-option-quote {
+    margin: .4rem 0 0;
+    overflow-wrap: anywhere;
+}
+
+.recipient-option-message {
+    margin-top: .6rem;
+}
+
+.recipient-option a,
+.recipient-option .recipient-option-message {
+    position: relative;
+    z-index: 1;
+}
+
+/* Request page */
+.request-page {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.request-page-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .75rem;
+}
+
+.request-page-title {
+    margin-bottom: .75rem;
+    overflow-wrap: anywhere;
+}
+
+.request-page-subtitle {
+    font-size: 1.3rem;
+    margin: 2rem 0 1rem;
+}
+
+.request-conversation-text {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Choosing an item to offer on a request */
+.respond-page {
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.respond-page-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    margin: 2rem 0 1rem;
+}
+
+.respond-page-heading h2 {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
+/* Unavailable item */
+.unavailable-page {
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.unavailable-page > .action-row {
+    margin-top: 2rem;
+}
+
+/* Empty states */
+.empty-state {
+    text-align: center;
+    padding: 2.5rem 1rem;
+}
+
+.empty-state-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 4rem;
+    margin-bottom: 1rem;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    background: var(--tangerine-wash);
+    font-size: 1.5rem;
+}
+
+.empty-state-title {
+    font-size: 1.3rem;
+    margin-bottom: .5rem;
+}
+
+.empty-state h1.empty-state-title {
+    font-size: 1.9rem;
+}
+
+.empty-state p {
+    max-width: 34rem;
+    margin: 0 auto 1rem;
+    color: var(--muted);
 }
 
 /* Responsive Design */
@@ -1129,12 +1331,6 @@ footer::before {
 
     h1 {
         font-size: 2rem;
-    }
-
-    /* Hero logo smaller on mobile */
-    .hero-logo {
-        width: 80px;
-        height: 80px;
     }
 
     .items-grid {
@@ -1200,63 +1396,8 @@ footer::before {
 
     .card {
         box-shadow: none;
-        border: 1px solid #ccc;
+        border: 1px solid var(--line);
     }
-}
-
-/* Optional: Ensure images don't have default link styles */
-.item-link img {
-    display: block; /* Removes bottom margin/padding */
-    color: inherit; /* Inherit text color */
-}
-
-/* Ensure inner text doesn't get extra styles from <a> */
-.item-link .card-title,
-.item-link .card-text {
-    color: inherit;
-}
-
-/* Ensure the 'My Items' edit and delete buttons are styled correctly */
-.card-footer a.btn {
-    margin-right: 5px;
-    text-decoration: none; /* Remove underlines from buttons */
-}
-
-/* Optional: Prevent links inside the card footer from affecting the parent link */
-.card-footer a,
-.card-footer form {
-    pointer-events: auto;
-}
-
-/* Remove pointer events from the parent link when interacting with footer elements */
-.card-footer {
-    position: relative;
-}
-
-/* Ensure that the footer buttons are clickable without triggering the parent link */
-.card-footer a.btn,
-.card-footer form {
-    position: relative;
-    z-index: 2;
-}
-
-.profile-picture-small {
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid #fff; /* Optional: Adds a white border around the image */
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); /* Optional: Adds a subtle shadow for depth */
-    cursor: pointer;
-}
-
-.item-image {
-    max-width: 400px; /* Adjust the value as needed */
-    width: 100%;
-    height: auto;
-    object-fit: contain;
-    border: 2px solid #ddd;
-    border-radius: 5px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
 }
 
 /* Item Detail Page Styles */
@@ -1675,6 +1816,12 @@ footer::before {
 .conversation-context-body {
     flex: 1;
     min-width: 0;
+}
+
+.context-label {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 700;
 }
 
 .conversation-context-title {
@@ -2832,14 +2979,18 @@ footer::before {
     line-height: 1.25;
 }
 
-/* --- FAQ --- */
-.landing-faq .accordion-item {
+/* --- FAQ, also on About --- */
+.faq .accordion-item {
     overflow: hidden;
     border: 1.5px solid var(--line);
     border-radius: var(--radius-card);
 }
 
-.landing-faq .accordion-button {
+.faq .accordion-item + .accordion-item {
+    margin-top: 1rem;
+}
+
+.faq .accordion-button {
     font-weight: 600;
 }
 
@@ -2988,7 +3139,7 @@ body.multi-image-reordering * {
 
 .btn-thumb-crop {
     background-color: rgba(255, 255, 255, 0.9);
-    color: #333;
+    color: var(--ink);
 }
 
 .btn-thumb-crop:hover {
@@ -3111,16 +3262,6 @@ body.multi-image-reordering * {
     outline-offset: 2px;
 }
 
-#itemImageCarousel .carousel-indicators {
-    margin-bottom: 0.5rem;
-}
-
-#itemImageCarousel .carousel-indicators button {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-
 /* Mobile carousel adjustments */
 @media (max-width: 768px) {
     #itemImageCarousel .carousel-inner {
@@ -3139,23 +3280,10 @@ body.multi-image-reordering * {
    =========================== */
 
 #cropModal .crop-container {
-    background-color: #f0f0f0;
+    background-color: var(--paper);
     border-radius: var(--radius);
 }
 
 #cropModal .modal-footer {
     flex-wrap: wrap;
-}
-
-/* Multi-image live region (screen reader) */
-.multi-image-sr-live {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
 }

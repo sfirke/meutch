@@ -31,8 +31,7 @@
 
         if (toastContainer && typeof bootstrap !== 'undefined' && bootstrap.Toast) {
             const toastEl = document.createElement('div');
-            const isLightFill = type === 'warning';
-            toastEl.className = 'toast align-items-center ' + (isLightFill ? 'text-dark' : 'text-white') + ' bg-' + type + ' border-0';
+            toastEl.className = 'toast align-items-center toast--' + type;
             toastEl.setAttribute('role', 'alert');
             toastEl.setAttribute('aria-live', 'assertive');
             toastEl.setAttribute('aria-atomic', 'true');
@@ -40,7 +39,7 @@
             toastEl.innerHTML = `
                 <div class="d-flex">
                     <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close ${isLightFill ? '' : 'btn-close-white'} me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
             `;
 
