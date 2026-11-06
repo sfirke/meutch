@@ -252,7 +252,7 @@ class TestSearchCircleFiltering:
         response = client.get(url_for("main.find", q="Nonexistent"))
 
         assert response.status_code == 200
-        assert b"No items match your search" in response.data
+        assert b"Nothing matches your search" in response.data
 
     def test_search_multiple_circles_returns_items_from_all(self, client):
         """Test that search returns items from all circles user is in."""
