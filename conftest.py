@@ -7,6 +7,7 @@ import urllib.parse
 from unittest.mock import patch
 
 import pytest
+from flask_login import FlaskLoginClient
 from sqlalchemy.exc import OperationalError
 
 from app import create_app, db
@@ -193,6 +194,11 @@ class TestConfig(Config):
     AUTH_RECOVERY_RATE_LIMIT = "1000 per minute"
 
 
+class CSRFEnabledConfig(TestConfig):
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_CHECK_DEFAULT = True
+
+
 @pytest.fixture(scope="session")
 def app():
     """Create application for testing (session-scoped).
@@ -227,6 +233,19 @@ def app():
 def client(app):
     """Create test client."""
     return app.test_client()
+
+
+@pytest.fixture
+def csrf_app(app):
+    """A second app on the same database with CSRF checks turned on.
+
+    Its test client accepts ``user=`` to start logged in. The app runs as https, so
+    Flask-WTF also wants a same-site Referer on each POST.
+    """
+    csrf_app = create_app(CSRFEnabledConfig)
+    csrf_app.test_client_class = FlaskLoginClient
+    with csrf_app.app_context():
+        yield csrf_app
 
 
 @pytest.fixture

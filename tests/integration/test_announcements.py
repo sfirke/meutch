@@ -3,8 +3,6 @@
 import re
 import uuid
 
-from flask_login import FlaskLoginClient
-
 from app import db
 from app.models import AnnouncementDismissal
 from conftest import login_user
@@ -139,29 +137,17 @@ class TestDismiss:
         assert "/login" in response.location
         assert _dismissal_count(announcement) == 0
 
-    def test_rejects_missing_csrf_token(self, app):
-        from app import create_app
-        from conftest import TestConfig
+    def test_rejects_missing_csrf_token(self, csrf_app):
+        user = UserFactory()
+        announcement = AnnouncementFactory()
+        db.session.commit()
 
-        class CSRFEnabledConfig(TestConfig):
-            WTF_CSRF_ENABLED = True
-            WTF_CSRF_CHECK_DEFAULT = True
+        client = csrf_app.test_client(user=user)
+        token = _csrf_token(client.get(ABOUT_URL).data.decode("utf-8"))
+        referer = {"Referer": f"https://localhost:5000{ABOUT_URL}"}
 
-        csrf_app = create_app(CSRFEnabledConfig)
-        with csrf_app.app_context():
-            user = UserFactory()
-            announcement = AnnouncementFactory()
-            db.session.commit()
+        client.post(_dismiss_url(announcement.id), headers=referer)
+        assert _dismissal_count(announcement) == 0
 
-            csrf_app.test_client_class = FlaskLoginClient
-            client = csrf_app.test_client(user=user)
-            token = _csrf_token(client.get(ABOUT_URL).data.decode("utf-8"))
-
-            # The app runs as https here, so Flask-WTF also requires a same-site Referer.
-            referer = {"Referer": f"https://localhost:5000{ABOUT_URL}"}
-
-            client.post(_dismiss_url(announcement.id), headers=referer)
-            assert _dismissal_count(announcement) == 0
-
-            client.post(_dismiss_url(announcement.id), data={"csrf_token": token}, headers=referer)
-            assert _dismissal_count(announcement) == 1
+        client.post(_dismiss_url(announcement.id), data={"csrf_token": token}, headers=referer)
+        assert _dismissal_count(announcement) == 1
