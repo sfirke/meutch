@@ -1,5 +1,4 @@
 import logging
-from urllib.parse import urlsplit
 
 from flask import current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_user, logout_user
@@ -20,6 +19,7 @@ from app.services import auth_service
 from app.services.exceptions import ConflictError
 from app.utils import activity_events
 from app.utils.activity_log import log_event
+from app.utils.safe_redirect import is_safe_url
 
 logger = logging.getLogger(__name__)
 logger.debug("Loading app.auth.routes")
@@ -37,21 +37,6 @@ CONFIRMATION_SOURCES = {
     CONFIRMATION_SOURCE_REGISTER,
     CONFIRMATION_SOURCE_RESENT,
 }
-
-
-def _is_safe_url(target):
-    """
-    Check if a redirect target is a path on this site (prevents open redirects).
-    Only local paths are accepted: every ``next`` the app generates is one, and
-    browsers read backslashes, extra slashes and stripped whitespace as another host.
-    """
-    if not isinstance(target, str) or not target.startswith("/") or target.startswith("//"):
-        return False
-    # isprintable() rejects control characters and every whitespace except a plain space.
-    if "\\" in target or " " in target or not target.isprintable():
-        return False
-    parsed = urlsplit(target)
-    return not parsed.scheme and not parsed.netloc
 
 
 def _clear_confirmation_page_state():
@@ -111,7 +96,7 @@ def _build_confirmation_page_context(form, *, force_show_resend=False):
 
 
 def _get_post_login_redirect_target(user, next_page=None):
-    if next_page and _is_safe_url(next_page):
+    if next_page and is_safe_url(next_page):
         return next_page
 
     if len(user.circles) == 0:
@@ -154,7 +139,7 @@ def register():
 
     if form.validate_on_submit():
         next_page = request.args.get("next")
-        safe_next = next_page if (next_page and _is_safe_url(next_page)) else None
+        safe_next = next_page if (next_page and is_safe_url(next_page)) else None
         try:
             registration_result = auth_service.register_user(
                 email=form.email.data,
@@ -312,7 +297,7 @@ def confirm_email(token):
         _clear_confirmation_page_state()
         flash("Your email has been confirmed! You can now log in.", "success")
         next_page = request.args.get("next")
-        if next_page and _is_safe_url(next_page):
+        if next_page and is_safe_url(next_page):
             return redirect(url_for("auth.login", next=next_page))
         return redirect(url_for("auth.login"))
     else:

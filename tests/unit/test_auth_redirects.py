@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.auth.routes import _is_safe_url
+from app.utils.safe_redirect import is_safe_url
 
 
 class TestIsSafeUrl:
@@ -20,7 +20,7 @@ class TestIsSafeUrl:
         ],
     )
     def test_accepts_local_paths(self, target):
-        assert _is_safe_url(target) is True
+        assert is_safe_url(target) is True
 
     @pytest.mark.parametrize(
         "target",
@@ -57,4 +57,4 @@ class TestIsSafeUrl:
         ],
     )
     def test_rejects_everything_else(self, target):
-        assert _is_safe_url(target) is False
+        assert is_safe_url(target) is False
