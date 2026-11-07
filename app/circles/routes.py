@@ -372,46 +372,6 @@ def toggle_admin(circle_id, user_id, action):
     return redirect(url_for("circles.view_circle", circle_id=circle_id))
 
 
-@circles_bp.route("/create-circle", methods=["GET", "POST"])
-@login_required
-def create_circle():
-    form = CircleCreateForm()
-    if form.validate_on_submit():
-        try:
-            result = circle_service.create_circle(
-                current_user,
-                name=form.name.data,
-                description=form.description.data,
-                circle_type=form.circle_type.data,
-                image_file=form.image.data,
-                location_method=form.location_method.data,
-                latitude=form.latitude.data,
-                longitude=form.longitude.data,
-                street=form.street.data,
-                city=form.city.data,
-                state=form.state.data,
-                zip_code=form.zip_code.data,
-                country=form.country.data,
-            )
-        except ServiceError as exc:
-            if str(exc) == "A circle with this name already exists.":
-                flash(
-                    "A circle with that name already exists. Please choose a different name.",
-                    "danger",
-                )
-            else:
-                flash(str(exc), exc.flash_category)
-            return render_template("circles/create_circle.html", form=form)
-        except Exception as exc:
-            current_app.logger.error(f"Error creating circle: {str(exc)}")
-            flash("There was an error creating the circle.", "danger")
-            return render_template("circles/create_circle.html", form=form)
-
-        flash(f'Circle "{result["circle"].name}" has been created successfully!', "success")
-        return redirect(url_for("circles.view_circle", circle_id=result["circle"].id))
-    return render_template("circles/create_circle.html", form=form)
-
-
 @circles_bp.route("/<uuid:circle_id>/remove/<uuid:user_id>", methods=["POST"])
 @login_required
 def remove_member(circle_id, user_id):
