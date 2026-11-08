@@ -80,7 +80,7 @@ class TestShareReminderAfterCreation:
                     category,
                     "Public Rake",
                     "public",
-                    submit_and_create_another="List Item & Create Another",
+                    submit_and_create_another="List item and create another",
                 ),
                 follow_redirects=True,
             )

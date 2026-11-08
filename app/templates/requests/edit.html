@@ -1,11 +1,11 @@
 <!-- app/templates/requests/edit.html -->
 {% extends "base.html" %}
 
-{% block title %}Edit Request{% endblock %}
+{% block title %}Edit request{% endblock %}
 
 {% block content %}
 <div class="form-page">
-    <h1>Edit Request</h1>
+    <h1>Edit request</h1>
 
     <form method="POST" action="{{ url_for('requests.edit', request_id=item_request.id) }}">
         {{ form.hidden_tag() }}

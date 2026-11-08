@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% from "components/forms.html" import location_fields, radio_field %}
 
-{% block title %}Update Location{% endblock %}
+{% block title %}Update location{% endblock %}
 
 {% block content %}
 <div class="form-page">
-    <h1>Update Your Location</h1>
+    <h1>Update your location</h1>
     <div class="form-note mb-4">
         <p class="mb-2">
             Your coordinates are used to calculate distances to circles and items you might want to join or borrow.
@@ -41,7 +41,7 @@
 
         <div class="form-actions">
             {{ form.submit(class="btn btn-primary") }}
-            <a href="{{ url_for('main.profile') }}" class="btn btn-outline-secondary">Cancel</a>
+            <a href="{{ url_for('main.profile', tab='settings') }}" class="btn btn-outline-secondary">Cancel</a>
         </div>
     </form>
 </div>

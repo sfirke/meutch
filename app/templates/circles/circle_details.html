@@ -2,16 +2,18 @@
 
 {% extends "base.html" %}
 {% from "components/circles.html" import circle_type_tags %}
+{% from "components/dialogs.html" import confirm_dialog %}
+{% from "components/forms.html" import check_field, form_field %}
 {% from "components/people.html" import avatar %}
 {% from "components/tags.html" import item_tag %}
 
 {% block title %}{{ circle.name }}{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div>
     <header class="circle-header">
         {% if circle.image_url %}
-            <img src="{{ circle.image_url }}" alt="Circle Image" class="circle-header-photo">
+            <img src="{{ circle.image_url }}" alt="" class="circle-header-photo">
         {% endif %}
         <div class="circle-header-main">
             <div class="circle-header-title">
@@ -45,50 +47,34 @@
             {% if is_member %}
                 <div class="circle-actions">
                     {% if circle.is_admin(current_user) %}
-                        <a href="{{ url_for('circles.edit_circle', circle_id=circle.id) }}" class="btn btn-outline-secondary">Edit Circle</a>
+                        <a href="{{ url_for('circles.edit_circle', circle_id=circle.id) }}" class="btn btn-outline-secondary">Edit circle</a>
                     {% endif %}
-                    <form method="post" action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}" id="leave-circle-form">
-                        {{ form.hidden_tag() }}
-                        <button type="submit" class="btn btn-outline-secondary" id="leave-circle-btn">Leave Circle</button>
-                    </form>
+                    {% if is_last_member %}
+                        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#leaveCircleModal">Leave circle</button>
+                    {% else %}
+                        <form method="post" action="{{ url_for('circles.leave_circle', circle_id=circle.id) }}">
+                            {{ form.hidden_tag() }}
+                            <button type="submit" class="btn btn-outline-secondary">Leave circle</button>
+                        </form>
+                    {% endif %}
                 </div>
-
-                {% if is_last_member %}
-                <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const form = document.getElementById('leave-circle-form');
-                    const btn = document.getElementById('leave-circle-btn');
-
-                    form.addEventListener('submit', function(e) {
-                        e.preventDefault();
-
-                        if (confirm('⚠️ Warning: You are the last member of this circle. If you leave, the circle will be permanently deleted. Do you want to continue?')) {
-                            // User confirmed, submit the form
-                            form.submit();
-                        }
-                    });
-                });
-                </script>
-                {% endif %}
             {% elif pending_request %}
                 <p class="mb-2">Your request to join this circle is pending approval.</p>
                 <form method="post" action="{{ url_for('circles.cancel_join_request', circle_id=circle.id) }}">
                     {{ form.hidden_tag() }}  <!-- Using the base form for CSRF -->
-                    <button type="submit" class="btn btn-outline-secondary">Cancel Join Request</button>
+                    <button type="submit" class="btn btn-outline-secondary">Cancel join request</button>
                 </form>
             {% else %}
                 <form method="post" action="{{ url_for('circles.join_circle', circle_id=circle.id) }}" class="circle-join-form">
                     {{ join_form.hidden_tag() if join_form else form.hidden_tag() }}
                     {% if circle.requires_join_approval %}
-                        <div class="mb-3">
-                            {{ join_form.message.label(class="form-label") }} {{ join_form.message(class="form-control") }}
-                        </div>
+                        {{ form_field(join_form.message) }}
                     {% endif %}
                     <button type="submit" class="btn btn-primary">
                         {% if circle.requires_join_approval %}
                             Send Join Request
                         {% else %}
-                            Join Circle
+                            Join circle
                         {% endif %}
                     </button>
                 </form>
@@ -141,7 +127,7 @@
     {% if circle.is_admin(current_user) and circle.join_requests %}
         {% set pending_join_requests = circle.join_requests|selectattr("status", "equalto", "pending")|list %}
         {% if pending_join_requests %}
-            <h2 class="h4">Pending Join Requests</h2>
+            <h2 class="h4">Pending join requests</h2>
             <ul class="list-group mb-4">
                 {% for request in pending_join_requests %}
                     <li class="list-group-item person-row">
@@ -189,21 +175,18 @@
                             {% if is_admin %}
                                 <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='remove') }}" method="POST">
                                     {{ form.csrf_token }}
-                                    <button type="submit" class="btn btn-outline-secondary btn-sm">Remove Admin</button>
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">Remove admin</button>
                                 </form>
                             {% else %}
                                 <form action="{{ url_for('circles.toggle_admin', circle_id=circle.id, user_id=member.id, action='add') }}" method="POST">
                                     {{ form.csrf_token }}
-                                    <button type="submit" class="btn btn-outline-secondary btn-sm">Make Admin</button>
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">Make admin</button>
                                 </form>
                             {% endif %}
-                            <form action="{{ url_for('circles.remove_member', circle_id=circle.id, user_id=member.id) }}" method="POST">
-                                {{ form.csrf_token }}
-                                <button type="submit" class="btn btn-outline-danger btn-sm"
-                                        onclick="return confirm('Are you sure you want to remove this member from the circle?');">
-                                    Remove
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#removeMemberModal"
+                                    data-member-name="{{ member.full_name }}" data-action-url="{{ url_for('circles.remove_member', circle_id=circle.id, user_id=member.id) }}">
+                                Remove
+                            </button>
                         </div>
                     {% endif %}
                 </li>
@@ -262,21 +245,13 @@
         {% set regional_disabled = (circle.circle_type != 'open' or not circle.is_geocoded) and not circle.is_regional %}
         <section class="card mb-4">
             <div class="card-body">
-                <h2 class="h5">Regional Circle Settings</h2>
+                <h2 class="h5">Regional circle settings</h2>
                 <form method="post" action="{{ url_for('circles.update_regional_circle_settings', circle_id=circle.id) }}">
                     {{ regional_form.hidden_tag() }}
-                    <div class="form-check form-switch mb-3">
-                        {{ regional_form.is_regional(class="form-check-input", id="regionalCircleToggle", disabled=regional_disabled) }}
-                        {{ regional_form.is_regional.label(class="form-check-label", for_="regionalCircleToggle") }}
-                    </div>
+                    {{ check_field(regional_form.is_regional, id="regionalCircleToggle", switch=true, disabled=regional_disabled) }}
 
-                    <div id="regional-radius-fields" class="mb-3"{% if not circle.is_regional %} style="display: none;"{% endif %}>
-                        {{ regional_form.regional_radius_miles.label(class="form-label") }}
-                        {{ regional_form.regional_radius_miles(class="form-control", id="regionalRadiusInput", min="1", max="100") }}
-                        {% for error in regional_form.regional_radius_miles.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                        <div class="form-text">Enter a whole number between 1 and 100.</div>
+                    <div id="regional-radius-fields"{% if not circle.is_regional %} style="display: none;"{% endif %}>
+                        {{ form_field(regional_form.regional_radius_miles, help="Enter a whole number between 1 and 100.", min="1", max="100") }}
                     </div>
 
                     {% if regional_disabled %}
@@ -293,6 +268,7 @@
                 </form>
             </div>
         </section>
+
 
         <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -312,5 +288,31 @@
         });
         </script>
     {% endif %}
+
+{% if is_member and is_last_member %}
+    {% call(part) confirm_dialog("leaveCircleModal", "Leave and delete this circle?", action=url_for('circles.leave_circle', circle_id=circle.id), form=form, confirm_label="Leave and delete") %}
+        {% if part == "body" %}
+            <p>You are the last member of {{ circle.name }}. Leaving will delete the circle for good.</p>
+        {% endif %}
+    {% endcall %}
+{% endif %}
+{% if is_member and circle.is_admin(current_user) %}
+    {% call(part) confirm_dialog("removeMemberModal", "Remove this member?", action="", form=form, confirm_label="Remove", confirm_class="btn-danger") %}
+        {% if part == "body" %}
+            <p><strong class="confirm-dialog-subject"></strong> will leave the circle and lose access to its items. They can ask to join again later.</p>
+        {% endif %}
+    {% endcall %}
+    <script>
+        var removeMemberModal = document.getElementById('removeMemberModal');
+        if (removeMemberModal) {
+            removeMemberModal.addEventListener('show.bs.modal', function(event) {
+                var button = event.relatedTarget;
+                if (!button) return;
+                removeMemberModal.querySelector('.confirm-dialog-subject').textContent = button.dataset.memberName;
+                removeMemberModal.querySelector('.confirm-dialog-form').action = button.dataset.actionUrl;
+            });
+        }
+    </script>
+{% endif %}
 </div>
 {% endblock %}

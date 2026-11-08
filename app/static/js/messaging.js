@@ -3,13 +3,13 @@
  *
  * Behaviour:
  *  - The "Select" button shows the checkboxes. Leaving select mode clears them.
- *  - "Select All" toggles every conversation checkbox on the page.
+ *  - "Select all" toggles every conversation checkbox on the page.
  *  - Changing any individual checkbox updates the bulk-action bar.
  *  - Clicking a conversation row navigates to that conversation, but
  *    clicking the checkbox itself does NOT navigate (stopPropagation).
  *  - The bulk-action bar is sticky at the bottom of the viewport;
  *    it slides in/out via CSS class toggling.
- *  - "Mark Read" / "Mark Unread" buttons are shown or hidden based on
+ *  - "Mark read" / "Mark unread" buttons are shown or hidden based on
  *    whether the checked conversations are all-unread, all-read, or mixed.
  *  - All hidden conversation-id inputs are kept in sync.
  */
@@ -79,7 +79,7 @@
         }
 
         /**
-         * Show / hide the Mark Read and Mark Unread buttons based on the
+         * Show / hide the Mark read and Mark unread buttons based on the
          * read state of the checked conversations.
          */
         function updateReadUnreadButtons(state) {
@@ -90,11 +90,11 @@
             markUnreadForm.classList.add('d-none');
 
             if (state === 'all-unread') {
-                // Every checked conversation is unread — only "Mark Read" makes sense.
+                // Every checked conversation is unread — only "Mark read" makes sense.
                 markReadForm.classList.remove('d-none');
                 markUnreadForm.classList.add('d-none');
             } else if (state === 'all-read') {
-                // Every checked conversation is already read — only "Mark Unread".
+                // Every checked conversation is already read — only "Mark unread".
                 markReadForm.classList.add('d-none');
                 markUnreadForm.classList.remove('d-none');
             } else {
@@ -138,7 +138,7 @@
             });
         }
 
-        // "Select All" checkbox
+        // "Select all" checkbox
         if (selectAll) {
             selectAll.addEventListener('change', function () {
                 checkboxes.forEach(function (cb) { cb.checked = selectAll.checked; });

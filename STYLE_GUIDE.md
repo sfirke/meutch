@@ -136,6 +136,9 @@ Write the way a friendly neighbor talks. Be short and specific.
 | Rehomed | Claimed |
 | Ask to borrow this | Request to Borrow |
 
+Everything is sentence case: page titles, headings, tabs, buttons, links and form
+labels. "Loans & requests", not "Loans & Requests". Only names keep their capitals.
+
 **Don't use "free" as a label on an item.** Meutch has no prices, so everything
 on it costs nothing, and calling one thing free implies that others aren't. It's
 fine to describe Meutch itself as free.
@@ -162,8 +165,7 @@ Leave it out of nav links, footer links and buttons whose label is already clear
   shared CSS classes already do that job. Anything used only once stays where it
   is until a second use appears.
 - Ask before anything that can't be undone with `confirm_dialog` in
-  `components/dialogs.html`. A few older pages still use the browser's `confirm()`;
-  don't add more. Show an empty list with
+  `components/dialogs.html`, never the browser's `confirm()`. Show an empty list with
   `empty_state` in `components/empty.html`, and put its buttons in an `.action-row`.
 - Build forms from the macros in `components/forms.html`, so labels, help text and
   errors look the same everywhere. A form gets its own page in `.form-page`. Log in,

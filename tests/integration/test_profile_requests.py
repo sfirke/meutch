@@ -1,4 +1,4 @@
-"""Integration tests for My Requests section on the profile page."""
+"""Integration tests for My requests section on the profile page."""
 
 import re
 import uuid

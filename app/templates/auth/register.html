@@ -15,7 +15,7 @@
             {{ form.website(tabindex="-1", autocomplete="off") }}
         </div>
 
-        <h2 class="form-section-title">Who You Are</h2>
+        <h2 class="form-section-title">Who you are</h2>
         <p class="text-muted">Meutch uses real names for sharing within communities. Other users will see your first and last name.</p>
 
         <div class="row gx-3">
@@ -37,7 +37,7 @@
         {{ form_field(form.password, autocomplete="new-password") }}
         {{ form_field(form.confirm_password, autocomplete="new-password") }}
 
-        <h2 class="form-section-title">Email Updates</h2>
+        <h2 class="form-section-title">Email updates</h2>
         {{ form_field(form.digest_frequency, label="How often would you like a recap?", help="Meutch sends digest emails with a recap of activity in your circles.") }}
 
         <div id="digest-none-warning" class="alert alert-warning" style="display: none;">
@@ -68,7 +68,7 @@
             <p class="mb-0">You can always add your location later from your profile page.</p>
         </div>
 
-        {% set terms_link %}Read our <a href="{{ url_for('main.terms') }}" target="_blank">Terms &amp; Conditions</a>.{% endset %}
+        {% set terms_link %}Read our <a href="{{ url_for('main.terms') }}" target="_blank">Terms and conditions</a>.{% endset %}
         {{ check_field(form.age_confirm, help=terms_link, wrapper_class="mt-4 mb-3") }}
 
         {{ form.submit(class="btn btn-primary w-100") }}

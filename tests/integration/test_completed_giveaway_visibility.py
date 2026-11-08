@@ -429,7 +429,7 @@ class TestCompletedGiveawayVisibility:
 
             # Should appear in past giveaways section
             assert claimed.name in html
-            assert "Past Giveaways" in html
+            assert "past giveaways" in html
 
     def test_claimed_giveaway_hidden_after_90_days_in_profile(self, client, app, auth_user):
         """Test that claimed giveaways disappear from profile after 90 days."""

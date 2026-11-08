@@ -24,7 +24,7 @@
         <div class="activity-row-meta">Due {{ item.current_loan.end_date.strftime('%B %d, %Y') }} {{ due_badge(item.current_loan) }}</div>
     </div>
     <div class="activity-row-actions">
-        <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}" class="btn btn-sm btn-outline-secondary">View Loan</a>
+        <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}" class="btn btn-sm btn-outline-secondary">View loan</a>
     </div>
 </li>
 {% endmacro %}

@@ -4,8 +4,10 @@
 {% from "components/empty.html" import empty_state %}
 {% from "components/people.html" import avatar %}
 
+{% block title %}Messages{% endblock %}
+
 {% block content %}
-<div class="container mt-5 mb-5">
+<div>
     <h1 class="mb-4">Messages</h1>
 
     {% set is_archived_view = (current_status == 'archived') %}
@@ -37,7 +39,7 @@
             <button type="button" class="btn btn-sm btn-outline-secondary" id="select-mode-toggle" aria-pressed="false">Select</button>
             <div class="form-check inbox-toolbar__select">
                 <input class="form-check-input" type="checkbox" id="select-all">
-                <label class="form-check-label" for="select-all">Select All</label>
+                <label class="form-check-label" for="select-all">Select all</label>
             </div>
             <form method="POST" action="{{ url_for('main.mark_all_read', status=current_status, page=pagination.page, sort=current_sort) }}" class="inbox-toolbar__mark-read">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -173,32 +175,24 @@
         <form method="POST" action="{{ url_for('main.bulk_unarchive', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids" value="">
-            <button type="submit" class="btn btn-sm btn-light">
-                <i class="fas fa-inbox me-1"></i>Move to Inbox
-            </button>
+            <button type="submit" class="btn btn-sm btn-light">Move to inbox</button>
         </form>
         {% else %}
         <form method="POST" action="{{ url_for('main.bulk_archive', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids" value="">
-            <button type="submit" class="btn btn-sm btn-light">
-                <i class="fas fa-archive me-1"></i>Archive Selected
-            </button>
+            <button type="submit" class="btn btn-sm btn-light">Archive selected</button>
         </form>
         {% endif %}
         <form method="POST" action="{{ url_for('main.bulk_mark_read', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline" id="bulk-mark-read-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids-mark-read" value="">
-            <button type="submit" class="btn btn-sm btn-light">
-                <i class="fas fa-check me-1"></i>Mark Read
-            </button>
+            <button type="submit" class="btn btn-sm btn-light">Mark read</button>
         </form>
         <form method="POST" action="{{ url_for('main.bulk_mark_unread', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline d-none" id="bulk-mark-unread-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids-mark-unread" value="">
-            <button type="submit" class="btn btn-sm btn-light">
-                <i class="fas fa-envelope me-1"></i>Mark Unread
-            </button>
+            <button type="submit" class="btn btn-sm btn-light">Mark unread</button>
         </form>
     </div>
 </div>

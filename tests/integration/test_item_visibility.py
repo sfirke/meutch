@@ -133,7 +133,7 @@ class TestItemVisibility:
         response_text = response.data.decode("utf-8")
         # Should see the join circle message
         assert "Join a circle to get started" in response_text
-        assert "Find Circles to Join" in response_text
+        assert "Find circles to join" in response_text
 
     def test_authenticated_user_in_circle_with_no_other_members(self, client):
         """Test authenticated user in a circle alone sees Find empty state."""

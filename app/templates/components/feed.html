@@ -2,7 +2,7 @@
 {% from "components/tags.html" import item_tag %}
 
 {% macro feed_card(actor_name, action, when, title, url=none, actor_url=none, avatar_url=none, description=none, tag=none, distance=none, image_url=none, heading="h2") %}
-<article class="card activity-feed-card{% if url %} card-clickable{% endif %}">
+<article class="card{% if url %} card-clickable{% endif %}">
     <div class="card-body feed-card-body">
         <div class="feed-card-main">
             <div class="feed-card-actor">

@@ -325,9 +325,9 @@ footer::before {
     }
 }
 
-/* Main Content */
+/* Main content */
 .main-content {
-    padding: 1rem 0;
+    padding: 2rem 0;
 }
 
 /* Ensure proper navbar spacing */
@@ -1345,10 +1345,6 @@ footer::before {
 }
 
 @media (max-width: 576px) {
-    body {
-        padding-top: 70px;
-    }
-
     .navbar-brand {
         font-size: 1.25rem;
     }
@@ -1427,7 +1423,7 @@ footer::before {
     flex-shrink: 0;
     width: 60px;
     height: 60px;
-    border: 2px solid transparent;
+    border: var(--outline) solid transparent;
     border-radius: var(--radius-tag);
     opacity: 0.7;
     cursor: pointer;
@@ -2332,11 +2328,6 @@ footer::before {
 
 .table th {
     background-color: var(--paper);
-}
-
-/* Main Content */
-.main-content {
-    padding: 2rem 0;
 }
 
 /* Drag and Drop Upload Zones */

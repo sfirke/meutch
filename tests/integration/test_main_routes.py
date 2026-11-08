@@ -92,8 +92,8 @@ class TestMainRoutes:
             assert response.status_code == 200
             content = response.data.decode("utf-8")
             assert 'name="scope"' in content
-            assert "All Activity" in content
-            assert "My Circles" in content
+            assert "All activity" in content
+            assert "My circles" in content
             assert 'name="distance"' in content
             assert 'value="requests"' in content
             assert 'value="giveaways"' in content
@@ -187,7 +187,7 @@ class TestMainRoutes:
             assert "No Circle Public Request" in content
             assert "No Circle Public Giveaway" in content
             assert "Join a circle to get started" in content
-            assert "Find Circles to Join" in content
+            assert "Find circles to join" in content
 
     def test_home_feed_no_circle_viewer_links_recommended_circle_and_hides_zero_counts(
         self, client, app, auth_user
@@ -630,7 +630,7 @@ class TestMainRoutes:
             assert "<strong>Deleted User</strong>" in content
             # Scope the negative assertion to the event card so a profile link elsewhere
             # on the page (e.g. a future addition) doesn't false-positive this test
-            card_start = content.index('<article class="card activity-feed-card')
+            card_start = content.index('<article class="card')
             card_end = content.index("</article>", card_start)
             card_html = content[card_start:card_end]
             assert 'href="/user/' not in card_html
@@ -758,8 +758,8 @@ class TestMainRoutes:
         assert response.status_code == 200
         response_text = response.data.decode("utf-8")
         assert "Get started" in response_text
-        assert "How Meutch Works" in response_text
-        assert "See It In Action" in response_text
+        assert "How Meutch works" in response_text
+        assert "See it in action" in response_text
 
     def test_find_authenticated_user_pagination(self, client, app, auth_user):
         """Test that authenticated users get pagination controls on /find."""

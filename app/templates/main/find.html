@@ -60,9 +60,9 @@
                 </div>
 
                 <select name="item_type" class="form-select form-select-sm w-auto" aria-label="Item type">
-                    <option value="both" {% if item_type == 'both' %}selected{% endif %}>All Items</option>
-                    <option value="loans" {% if item_type == 'loans' %}selected{% endif %}>Loans Only</option>
-                    <option value="giveaways" {% if item_type == 'giveaways' %}selected{% endif %}>Giveaways Only</option>
+                    <option value="both" {% if item_type == 'both' %}selected{% endif %}>All items</option>
+                    <option value="loans" {% if item_type == 'loans' %}selected{% endif %}>Loans only</option>
+                    <option value="giveaways" {% if item_type == 'giveaways' %}selected{% endif %}>Giveaways only</option>
                 </select>
 
                 <div class="dropdown">
@@ -100,7 +100,7 @@
 
         {% if query or selected_categories or selected_circles or item_type != 'both' %}
         <div class="d-flex align-items-center mb-3">
-            <span class="text-muted">
+            <span class="text-muted text-break">
                 <i class="fas fa-filter me-1"></i>
                 {% if query and (selected_categories or selected_circles or item_type != 'both') %}
                     Showing results for "<strong>{{ query }}</strong>" with filters applied

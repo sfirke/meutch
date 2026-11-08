@@ -104,7 +104,7 @@ class TestItemRoutes:
                     "name": "Another Item",
                     "description": "A test item for create another flow",
                     "category": str(category.id),
-                    "submit_and_create_another": "List Item & Create Another",
+                    "submit_and_create_another": "List item and create another",
                 },
                 follow_redirects=False,
             )
@@ -164,7 +164,7 @@ class TestItemRoutes:
                 "description": "A test item",
                 "category": str(category.id),
                 "creation_token": str(creation_token),
-                "submit_and_create_another": "List Item & Create Another",
+                "submit_and_create_another": "List item and create another",
             }
 
             first_response = client.post("/list-item", data=post_data, follow_redirects=True)
@@ -261,7 +261,7 @@ class TestItemRoutes:
 
             response = client.get(f"/item/{item.id}/edit")
             assert response.status_code == 200
-            assert b"Edit Item" in response.data
+            assert b"Edit item" in response.data
 
     def test_edit_item_not_owner(self, client, app, auth_user):
         """Test editing item not owned by user."""
@@ -286,7 +286,7 @@ class TestItemRoutes:
             response = client.post(
                 f"/item/{item.id}/edit",
                 data={
-                    "name": "Updated Item Name",
+                    "name": "Updated Item name",
                     "description": "Updated description",
                     "category": str(category.id),
                     "tags": "updated, tags",
@@ -299,7 +299,7 @@ class TestItemRoutes:
 
             # Verify item was updated
             updated_item = db.session.get(Item, item.id)
-            assert updated_item.name == "Updated Item Name"
+            assert updated_item.name == "Updated Item name"
             assert updated_item.description == "Updated description"
 
     def test_edit_item_redirects_to_item_detail(self, client, app, auth_user):

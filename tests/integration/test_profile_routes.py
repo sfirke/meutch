@@ -31,7 +31,7 @@ class TestProfileRoutes:
             login_user(client, user.email)
             response = client.get("/profile")
             assert response.status_code == 200
-            assert b"About Me" in response.data
+            assert b"About me" in response.data
 
     def test_profile_has_tabs(self, client, app, auth_user):
         """Test profile page has tab navigation."""
@@ -47,7 +47,7 @@ class TestProfileRoutes:
             assert "settings-tab" in content
 
     def test_profile_about_me_read_only_by_default(self, client, app, auth_user):
-        """Test that the About Me section shows read-only view by default."""
+        """Test that the About me section shows read-only view by default."""
         with app.app_context():
             user = auth_user()
             user.about_me = "Test bio content"
@@ -58,7 +58,7 @@ class TestProfileRoutes:
             assert response.status_code == 200
             content = response.data.decode("utf-8")
             # Edit button should be present
-            assert "Edit Profile" in content
+            assert "Edit profile" in content
             # Read-only view is visible (not hidden)
             assert 'id="profile-view"' in content
             assert 'id="profile-view" class="d-none"' not in content
@@ -85,14 +85,14 @@ class TestProfileRoutes:
             )
             assert response.status_code == 200
             content = response.data.decode("utf-8")
-            # About Me tab should be active when form has errors
+            # About me tab should be active when form has errors
             assert "about-me-tab" in content
             # Edit view should be visible and read-only view hidden on validation errors
             assert 'id="profile-view" class="d-none"' in content
             assert 'id="profile-edit" class="d-none"' not in content
 
     def test_profile_active_loans_have_clickable_user_and_item_links(self, client, app, auth_user):
-        """Test active loans tab: item name/thumbnail link to item, View Loan button links to conversation."""
+        """Test active loans tab: item name/thumbnail link to item, View loan button links to conversation."""
         with app.app_context():
             user = auth_user()
             lender = UserFactory()
@@ -113,7 +113,7 @@ class TestProfileRoutes:
             borrowed_loan = LoanRequestFactory(item=borrowed_item, borrower=user, status="approved")
             lent_loan = LoanRequestFactory(item=lent_item, borrower=borrower, status="approved")
 
-            # Create messages so View Loan buttons appear
+            # Create messages so View loan buttons appear
             borrowed_conv = ConversationFactory(context_type="item", context_id=borrowed_item.id)
             borrowed_msg = MessageFactory(
                 sender=user,
@@ -137,12 +137,12 @@ class TestProfileRoutes:
             assert response.status_code == 200
             content = response.data.decode("utf-8")
 
-            # Borrowing section: lender profile + item links (name + thumbnail) + View Loan button
+            # Borrowing section: lender profile + item links (name + thumbnail) + View loan button
             assert f'href="/user/{lender.id}"' in content
             assert f'href="/item/{borrowed_item.id}"' in content
             assert f'href="/conversation/{borrowed_msg.conversation_id}"' in content
 
-            # Lending section: borrower profile + item links (name + thumbnail) + View Loan button
+            # Lending section: borrower profile + item links (name + thumbnail) + View loan button
             assert f'href="/user/{borrower.id}"' in content
             assert f'href="/item/{lent_item.id}"' in content
             assert f'href="/conversation/{lent_msg.conversation_id}"' in content

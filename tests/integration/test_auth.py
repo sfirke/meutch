@@ -46,7 +46,7 @@ class TestAuthenticationRoutes:
 
             assert response.status_code == 200
             assert b"Circles" in response.data
-            assert b"Find Circles" in response.data
+            assert b"Find circles" in response.data
 
     @pytest.mark.filterwarnings("ignore::DeprecationWarning:flask_login")
     def test_login_with_remember_device_sets_cookie(self, client, app, auth_user):
@@ -144,8 +144,8 @@ class TestAuthenticationRoutes:
         """Test registration page loads correctly."""
         response = client.get("/register")
         assert response.status_code == 200
-        assert b"Register" in response.data
-        assert b"Email Updates" in response.data
+        assert b"Sign up" in response.data
+        assert b"Email updates" in response.data
         assert b"digest-none-warning" in response.data
 
     def test_register_page_form_action_preserves_next(self, client):
@@ -914,7 +914,7 @@ class TestPasswordReset:
         """Test forgot password page."""
         response = client.get("/forgot-password")
         assert response.status_code == 200
-        assert b"Forgot Password" in response.data
+        assert b"Forgot password" in response.data
 
     def test_forgot_password_valid_email(self, client, app, auth_user):
         """Test forgot password with valid email."""
@@ -1016,7 +1016,7 @@ class TestRedirectAfterLogin:
 
             assert response.status_code == 200
             assert b"Circles" in response.data
-            assert b"Find Circles" in response.data
+            assert b"Find circles" in response.data
 
     def test_login_without_next_redirects_home_when_user_has_circles(self, client, app, auth_user):
         """Test login without 'next' still redirects members to the homepage."""
@@ -1047,7 +1047,7 @@ class TestRedirectAfterLogin:
 
             assert response.status_code == 200
             # Should be redirected to profile page
-            assert b"My Profile" in response.data or b"Profile" in response.data
+            assert b"My profile" in response.data or b"Profile" in response.data
 
     def test_login_with_external_url_ignores_next(self, client, app, auth_user):
         """Test that external URLs in 'next' parameter are ignored for security."""
@@ -1120,7 +1120,7 @@ class TestRedirectAfterLogin:
 
             assert response.status_code == 200
             # Should be redirected back to circles page
-            assert b"Your Circles" in response.data or b"Circles" in response.data
+            assert b"Your circles" in response.data or b"Circles" in response.data
 
     def test_login_message_shown_on_unauthorized_access(self, client, app):
         """Test that a login message is shown when accessing protected routes."""

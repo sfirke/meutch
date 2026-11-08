@@ -44,7 +44,7 @@
         {{ form_field(form.confirmation, help='Type "DELETE MY ACCOUNT" in capital letters.', placeholder="DELETE MY ACCOUNT", autocomplete="off") }}
 
         <div class="form-actions">
-            {{ form.submit(class="btn btn-danger", onclick="return confirm('Are you absolutely sure you want to delete your account? This cannot be undone.');") }}
+            {{ form.submit(class="btn btn-danger") }}
             <a href="{{ url_for('main.profile', tab='settings') }}" class="btn btn-outline-secondary">Cancel</a>
         </div>
     </form>

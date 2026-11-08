@@ -577,7 +577,7 @@ class TestRequestEditing:
             login_user(client, user.email)
             response = client.get(f"/requests/{req.id}/edit")
             assert response.status_code == 200
-            assert b"Edit Request" in response.data
+            assert b"Edit request" in response.data
 
     def test_edit_request_success(self, client, app, auth_user):
         """Test successfully editing a request."""
@@ -912,7 +912,7 @@ class TestRequestConversations:
             assert response.status_code == 200
             assert b"Looking for a pressure washer" in response.data
             assert b"Ideally electric, needed for a weekend deck project." in response.data
-            assert b"is looking for" in response.data
+            assert b"is looking to" in response.data
 
     def test_conversation_route_redirects_when_thread_exists(self, client, app):
         """Route should redirect to existing conversation instead of creating duplicate."""
@@ -1086,8 +1086,8 @@ class TestRequestConversations:
             assert shared_circle.name in content
             assert f'href="/item/{item.id}"' in content
             assert "Requested dates:" in content
-            assert "Approve Request" in content
-            assert "Deny Request" in content
+            assert "Approve request" in content
+            assert "Deny request" in content
             assert "Borrower:" not in content
 
     def test_view_conversation_pending_pickup_giveaway_owner_sees_handoff_actions(
@@ -1116,10 +1116,10 @@ class TestRequestConversations:
             response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
-            assert b"Giveaway Pickup" in response.data
+            assert b"Giveaway pickup" in response.data
             assert b"Mark handoff complete" in response.data
-            assert b"Change Recipient" in response.data
-            assert b"Release to Everyone" in response.data
+            assert b"Change recipient" in response.data
+            assert b"Release to everyone" in response.data
 
     def test_view_conversation_unclaimed_giveaway_owner_sees_quick_select_actions(
         self, client, app
@@ -1152,9 +1152,9 @@ class TestRequestConversations:
             response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
-            assert b"Choose Recipient" in response.data
-            assert b"Give Item to This User" in response.data
-            assert b"View Interested Users" in response.data
+            assert b"Choose recipient" in response.data
+            assert b"Give item to this user" in response.data
+            assert b"View interested users" in response.data
             assert b"Mark handoff complete" not in response.data
 
     def test_view_conversation_unclaimed_giveaway_shows_shared_circle_links(self, client, app):
@@ -1232,7 +1232,7 @@ class TestRequestConversations:
 
             assert response.status_code == 200
             assert b"2 people are interested in this giveaway." in response.data
-            assert b"View Interested Users" in response.data
+            assert b"View interested users" in response.data
 
     def test_view_conversation_unclaimed_giveaway_recipient_does_not_see_quick_select_actions(
         self, client, app
@@ -1265,8 +1265,8 @@ class TestRequestConversations:
             response = client.get(f"/conversation/{first_message.conversation_id}")
 
             assert response.status_code == 200
-            assert b"Choose Recipient" not in response.data
-            assert b"Give Item to This User" not in response.data
+            assert b"Choose recipient" not in response.data
+            assert b"Give item to this user" not in response.data
 
     def test_view_conversation_unclaimed_giveaway_shows_quick_select_even_without_prior_interest(
         self, client, app
@@ -1294,15 +1294,15 @@ class TestRequestConversations:
 
             assert response.status_code == 200
             # Card should now show for any unclaimed giveaway conversation (owner view)
-            assert b"Choose Recipient" in response.data
-            assert b"Give Item to This User" in response.data
+            assert b"Choose recipient" in response.data
+            assert b"Give item to this user" in response.data
 
 
 class TestRequestNavigation:
     """Test top-level nav links relevant to requests and find."""
 
     def test_nav_links_for_authenticated_user(self, client, app, auth_user):
-        """Test updated authenticated nav shows Home and Find but not Requests/Giveaways/List Item."""
+        """Test updated authenticated nav shows Home and Find but not Requests/Giveaways/List item."""
         with app.app_context():
             user = auth_user()
             login_user(client, user.email)
@@ -1635,7 +1635,7 @@ class TestRespondWithItemFlow:
                     "category": str(category.id),
                     "return_to": "respond",
                     "request_id": str(request_id),
-                    "submit": "List Item",
+                    "submit": "List item",
                 },
             )
 
@@ -1658,7 +1658,7 @@ class TestRespondWithItemFlow:
                     "category": str(category.id),
                     "return_to": "respond",
                     "request_id": "not-a-uuid",
-                    "submit": "List Item",
+                    "submit": "List item",
                 },
             )
 

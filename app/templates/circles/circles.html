@@ -9,7 +9,7 @@
 {% block title %}Circles{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div>
     <h1 class="mb-4">Circles</h1>
 
     {% if show_circle_onboarding %}
@@ -51,13 +51,13 @@
                             {% else %}
                             <p class="small text-muted mb-3">This circle already has {{ featured_circle.member_count }} members and is a strong place to start building local sharing.</p>
                             {% endif %}
-                            <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="btn btn-primary">View Circle</a>
+                            <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="btn btn-primary">View circle</a>
                         </div>
                     {% else %}
                         <div class="circle-suggestion">
                             <h3 class="h5 mb-2">No listed circles yet</h3>
                             <p class="text-muted mb-3">If there isn't a public circle to join yet, you can create one and invite people nearby.</p>
-                            <button class="btn btn-primary" type="button" data-bs-toggle="tab" data-bs-target="#create-circle">Create a Circle</button>
+                            <button class="btn btn-primary" type="button" data-bs-toggle="tab" data-bs-target="#create-circle">Create a circle</button>
                         </div>
                     {% endif %}
                 </div>
@@ -118,7 +118,7 @@
                         <strong>{{ circle.name }}</strong>
                         <span class="text-muted">{{ user_admin_circles[circle.id|string] }} pending request{{ 's' if user_admin_circles[circle.id|string] > 1 }}</span>
                     </div>
-                    <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-primary btn-sm">Review Requests</a>
+                    <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-primary btn-sm">Review requests</a>
                 </li>
                 {% endif %}
             {% endfor %}
@@ -130,7 +130,7 @@
     <ul class="nav nav-tabs mb-4" id="circlesTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="your-circles-tab" data-bs-toggle="tab" data-bs-target="#your-circles" type="button" role="tab" aria-controls="your-circles" aria-selected="true">
-                Your Circles
+                Your circles
                 {% if total_pending > 0 %}
                     <span class="badge rounded-pill bg-purple ms-1">{{ total_pending }}</span>
                 {% endif %}
@@ -138,19 +138,19 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="find-circles-tab" data-bs-toggle="tab" data-bs-target="#find-circles" type="button" role="tab" aria-controls="find-circles" aria-selected="false">
-                Find Circles
+                Find circles
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="create-circle-tab" data-bs-toggle="tab" data-bs-target="#create-circle" type="button" role="tab" aria-controls="create-circle" aria-selected="false">
-                Create Circle
+                Create circle
             </button>
         </li>
     </ul>
 
     <!-- Tab Content -->
     <div class="tab-content" id="circlesTabContent">
-        <!-- Your Circles Tab -->
+        <!-- Your circles Tab -->
         <div class="tab-pane fade show active" id="your-circles" role="tabpanel" aria-labelledby="your-circles-tab">
             {% if user_circles %}
                 <ul class="circle-list">
@@ -159,11 +159,11 @@
                     {% endfor %}
                 </ul>
             {% else %}
-                <p>You are not part of any circles yet. Try the <strong>Find Circles</strong> tab to discover communities!</p>
+                <p>You are not part of any circles yet. Try the <strong>Find circles</strong> tab to discover communities!</p>
             {% endif %}
         </div>
 
-        <!-- Find Circles Tab -->
+        <!-- Find circles Tab -->
         <div class="tab-pane fade" id="find-circles" role="tabpanel" aria-labelledby="find-circles-tab">
             <form method="post" class="mb-4">
                 {{ search_form.csrf_token }}
@@ -172,14 +172,14 @@
                         <label for="{{ search_form.search_query.id }}" class="visually-hidden">Circle name</label>
                         {{ search_form.search_query(class="form-control", placeholder="Circle name") }}
                         {% for error in search_form.search_query.errors %}
-                            <div class="text-danger">{{ error }}</div>
+                            <div class="invalid-feedback d-block">{{ error }}</div>
                         {% endfor %}
                     </div>
                     <div class="col-md-4">
                         <label for="{{ search_form.radius.id }}" class="visually-hidden">Distance</label>
                         {{ search_form.radius(class="form-select") }}
                         {% for error in search_form.radius.errors %}
-                            <div class="text-danger">{{ error }}</div>
+                            <div class="invalid-feedback d-block">{{ error }}</div>
                         {% endfor %}
                     </div>
                     <div class="col-md-2">
@@ -194,16 +194,16 @@
                 </small>
             </form>
 
-            <!-- Display Search Results or Browse Results -->
+            <!-- Display Search results or Browse Results -->
             {% if searched_circles %}
-                <h2 class="h5">Search Results</h2>
+                <h2 class="h5">Search results</h2>
                 <ul class="circle-list">
                     {% for circle in searched_circles %}
                         {{ circle_row(circle, distance=get_distance_to_circle(circle), is_member=circle.id in user_circle_ids, sample_members=searched_circle_samples.get(circle.id, [])) }}
                     {% endfor %}
                 </ul>
             {% elif show_browse and browse_circles %}
-                <h2 class="h5">Available Circles</h2>
+                <h2 class="h5">Available circles</h2>
                 <ul class="circle-list">
                     {% for circle in browse_circles %}
                         {{ circle_row(circle, distance=get_distance_to_circle(circle), is_member=circle.id in user_circle_ids, sample_members=browse_circle_samples.get(circle.id, [])) }}
@@ -230,23 +230,23 @@
                         <button class="btn btn-outline-secondary" type="submit" name="find_by_uuid">{{ uuid_search_form.submit.label.text }}</button>
                     </div>
                     {% for error in uuid_search_form.circle_uuid.errors %}
-                        <div class="text-danger">{{ error }}</div>
+                        <div class="invalid-feedback d-block">{{ error }}</div>
                     {% endfor %}
                 </form>
             </details>
         </div>
 
-        <!-- Create Circle Tab -->
+        <!-- Create circle Tab -->
         <div class="tab-pane fade" id="create-circle" role="tabpanel" aria-labelledby="create-circle-tab">
             <div class="form-page form-page--start">
-                <h2 class="h4">Start a New Circle</h2>
+                <h2 class="h4">Start a new circle</h2>
                 <p class="text-muted mb-4">Create a community for sharing items with friends, neighbors, or colleagues.</p>
                 <form method="post">
                     {{ circle_form.csrf_token }}
 
                     {{ circle_fields(circle_form) }}
 
-                    <h3 class="form-section-title">Circle Location (Optional)</h3>
+                    <h3 class="form-section-title">Circle location (optional)</h3>
                     <p class="text-muted">Setting a location helps members find circles near them. This is optional and can be added or updated later.</p>
                     {{ radio_field(circle_form.location_method, input_class="location-method-radio") }}
                     {{ location_fields(circle_form, id_prefix="create-") }}
@@ -267,12 +267,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Check if we should show a specific tab based on form submissions or search results
     {% if searched_circles or show_browse %}
-        // If there are search results, show the Find Circles tab
+        // If there are search results, show the Find circles tab
         activeTab = 'find-circles-tab';
     {% elif uuid_search_form.errors %}
         activeTab = 'find-circles-tab';
     {% elif circle_form.errors %}
-        // If there are form errors in circle creation, show Create Circle tab
+        // If there are form errors in circle creation, show Create circle tab
         activeTab = 'create-circle-tab';
     {% else %}
         // Otherwise, check localStorage for the last active tab

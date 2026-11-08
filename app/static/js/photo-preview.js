@@ -124,7 +124,7 @@
             style: 'max-height: 60vh; overflow: hidden;'
         }, [cropImage]);
 
-        var titleEl = el('h5', { className: 'modal-title', id: 'cropModalLabel' }, ['Edit Photo']);
+        var titleEl = el('h5', { className: 'modal-title', id: 'cropModalLabel' }, ['Edit photo']);
         var closeBtn = el('button', {
             type: 'button',
             className: 'btn-close',
