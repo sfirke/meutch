@@ -215,7 +215,7 @@ class TestRequestsFeedFiltering:
             assert response.status_code == 200
             assert b"Got my screwdriver" in response.data
             assert b"Found!" in response.data
-            assert b"marked a request fulfilled" in response.data
+            assert b"found &middot;" in response.data
 
     def test_feed_hides_old_fulfilled_requests(self, client, app, auth_user):
         """Test that fulfilled requests from others older than 7 days are hidden."""
@@ -719,7 +719,7 @@ class TestRequestFulfillment:
             response = client.post(f"/requests/{req_id}/fulfill", follow_redirects=True)
 
             assert response.status_code == 200
-            assert b"fulfilled" in response.data.lower()
+            assert b"Marked as found!" in response.data
 
             fulfilled_req = db.session.get(ItemRequest, req_id)
             assert fulfilled_req.status == "fulfilled"
