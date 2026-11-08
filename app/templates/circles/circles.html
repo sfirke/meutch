@@ -2,9 +2,8 @@
 
 {% extends "base.html" %}
 {% from "components/empty.html" import empty_state %}
-{% from "components/circles.html" import circle_fields, circle_row %}
+{% from "components/circles.html" import circle_fields, circle_row, circle_type_tags %}
 {% from "components/forms.html" import location_fields, radio_field %}
-{% from "components/tags.html" import item_tag %}
 
 {% block title %}Circles{% endblock %}
 
@@ -33,11 +32,8 @@
                         {% set featured_distance = get_distance_to_circle(featured_circle) %}
                         <div class="circle-suggestion">
                             <div class="circle-suggestion-tags">
-                                {{ item_tag("open-circle" if featured_circle_recommendation.is_open else "approval") }}
-                                {% if featured_circle_recommendation.is_regional %}
-                                    {{ item_tag("regional") }}
-                                    {% if current_user.is_admin %}<span class="small text-muted">{{ featured_circle_recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
-                                {% endif %}
+                                {{ circle_type_tags(featured_circle) }}
+                                {% if featured_circle_recommendation.is_regional and current_user.is_admin %}<span class="small text-muted">{{ featured_circle_recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
                             </div>
                             <h3 class="h5 mb-1">
                                 <a href="{{ url_for('circles.view_circle', circle_id=featured_circle.id) }}" class="text-decoration-none">{{ featured_circle.name }}</a>
@@ -80,11 +76,8 @@
                     <div class="card card-clickable h-100">
                         <div class="card-body">
                             <div class="circle-suggestion-tags">
-                                {{ item_tag("open-circle" if recommendation.is_open else "approval") }}
-                                {% if recommendation.is_regional %}
-                                    {{ item_tag("regional") }}
-                                    {% if current_user.is_admin %}<span class="small text-muted">{{ recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
-                                {% endif %}
+                                {{ circle_type_tags(recommended_circle) }}
+                                {% if recommendation.is_regional and current_user.is_admin %}<span class="small text-muted">{{ recommendation.regional_radius_miles }}-mile radius</span>{% endif %}
                             </div>
                             <h3 class="h6 mb-1">
                                 <a href="{{ url_for('circles.view_circle', circle_id=recommended_circle.id) }}" class="stretched-link text-decoration-none">{{ recommended_circle.name }}</a>

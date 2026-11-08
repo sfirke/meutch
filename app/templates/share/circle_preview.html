@@ -2,7 +2,7 @@
 {% extends "base.html" %}
 {% from "components/people.html" import avatar %}
 {% from "components/share.html" import share_cta %}
-{% from "components/tags.html" import item_tag %}
+{% from "components/circles.html" import circle_type_tags %}
 
 {% block title %}{{ circle.name }} - Circle{% endblock %}
 
@@ -31,7 +31,7 @@
 
                 <div class="card-body">
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        {{ item_tag("open-circle" if circle.circle_type == 'open' else "closed-circle") }}
+                        {{ circle_type_tags(circle) }}
                         <span class="small text-muted">{{ member_count }} member{{ 's' if member_count != 1 else '' }}</span>
                     </div>
 

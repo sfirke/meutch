@@ -72,13 +72,12 @@
         <div class="conversation-list">
 
             {% for convo in conversations %}
-                <a href="{{ url_for('main.view_conversation', conversation_id=convo.latest_message.conversation_id) }}"
-                   class="conversation-row {% if convo.unread_count > 0 %}conversation-unread{% endif %}">
+                <div class="conversation-row {% if convo.unread_count > 0 %}conversation-unread{% endif %}">
 
-                    {# Checkbox (wrapped in a 48×48 hitbox label) #}
+                    {# Checkbox in a 40px hitbox, sitting above the row's stretched link #}
                     <label class="conv-checkbox-hitbox">
                         <input class="form-check-input conversation-checkbox conv-checkbox" type="checkbox"
-                               value="{{ convo.latest_message.conversation_id }}">
+                               value="{{ convo.latest_message.conversation_id }}" aria-label="Select conversation">
                     </label>
 
                     {# Avatar #}
@@ -89,13 +88,13 @@
                             {% if convo.unread_count > 0 %}
                                 <span class="unread-dot" title="{{ convo.unread_count }} unread"></span>
                             {% endif %}
-                            <span class="conv-name">
+                            <a href="{{ url_for('main.view_conversation', conversation_id=convo.latest_message.conversation_id) }}" class="conv-name stretched-link">
                                 {% if convo.other_user %}
                                     {{ convo.other_user.first_name }} {{ convo.other_user.last_name }}
                                 {% else %}
                                     Unknown User
                                 {% endif %}
-                            </span>
+                            </a>
                             <span class="conv-time">{{ convo.latest_message.timestamp|utc_timestamp('timeago') }}</span>
                         </div>
                         {% if convo.item %}
@@ -107,7 +106,7 @@
                         {% endif %}
                         <span class="conv-preview">{{ convo.latest_message.body }}</span>
                     </div>
-                </a>
+                </div>
             {% endfor %}
         </div>
         </div>
