@@ -116,8 +116,11 @@ inside everyday app pages. Draw it with an SVG mask (`--pinked-down`,
 Tilts of 1 to 5 degrees are allowed on tags, thumbnails, avatars, the logo tile
 and the emphasis strip. Everything else stays straight.
 
-Keep these calm and straight, with no jokes: forms, error messages, anything to
-do with safety, privacy, account deletion, or a problem with a loan.
+Keep these calm and straight, with no jokes: forms, anything to do with safety,
+privacy, account deletion, or a problem with a loan.
+
+Error pages can have some fun ("Ope!"), as long as they still say plainly what
+went wrong and what to do next.
 
 Respect `prefers-reduced-motion`. Motion is short and only responds to something
 the person did.

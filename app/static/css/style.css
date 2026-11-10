@@ -1142,6 +1142,10 @@ footer::before {
     color: var(--muted);
 }
 
+.error-page .page-art {
+    transform: rotate(-4deg);
+}
+
 /* Admin */
 .admin-stat {
     font-family: var(--font-display);

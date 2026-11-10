@@ -12,7 +12,7 @@ class TestCustomErrorPages:
 
         assert response.status_code == 404
         assert b"Page not found" in response.data
-        assert b"We couldn't find that page" in response.data
+        assert b"Looks like this page wandered off" in response.data
         assert b"Go home" in response.data
 
     def test_404_page_has_home_link(self, client, app):

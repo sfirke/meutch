@@ -1,8 +1,8 @@
 {% extends "errors/_layout.html" %}
 
-{% block title %}That upload is too big{% endblock %}
-{% block headline %}That upload is too big{% endblock %}
+{% block title %}Too big!{% endblock %}
+{% block headline %}That's a lot at once!{% endblock %}
 {% block message %}
-    <p>Meutch takes up to {{ config.MAX_CONTENT_LENGTH // (1024 * 1024) }} MB in one submission. Use your browser's Back button, then try again with fewer or smaller photos.</p>
+    <p class="lead">Meutch takes up to {{ config.MAX_CONTENT_LENGTH // (1024 * 1024) }} MB in a single submission, and this one came in bigger than that. Use your browser's Back button, then try again with fewer photos or smaller ones.</p>
     <p class="small">A single photo can be up to {{ item_upload_limits.max_file_size_label }}, but everything you send at once has to fit within the {{ config.MAX_CONTENT_LENGTH // (1024 * 1024) }} MB total.</p>
 {% endblock %}
