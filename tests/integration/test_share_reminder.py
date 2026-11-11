@@ -80,13 +80,13 @@ class TestShareReminderAfterCreation:
                     category,
                     "Public Rake",
                     "public",
-                    submit_and_create_another="List Item & Create Another",
+                    submit_and_create_another="List item and create another",
                 ),
                 follow_redirects=True,
             )
 
             assert response.status_code == 200
-            assert b"List a New Item" in response.data
+            assert b"What can you share?" in response.data
             item = Item.query.filter_by(name="Public Rake").one()
             expected_url = _external_url(app, "share.giveaway_preview", item_id=item.id)
             assert f'data-share-url="{expected_url}"'.encode() in response.data
@@ -206,8 +206,8 @@ class TestShareFieldsConsistency:
             detail_response = client.get(f"/item/{item.id}")
 
             for attr in (
-                b'data-share-title="Matching Lamp (Free Giveaway)"',
-                b'data-share-text="Free giveaway on Meutch: Matching Lamp"',
+                b'data-share-title="Matching Lamp (Giveaway)"',
+                b'data-share-text="Giveaway on Meutch: Matching Lamp"',
             ):
                 assert attr in flash_response.data
                 assert attr in detail_response.data

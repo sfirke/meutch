@@ -66,7 +66,21 @@ class TestAdminDashboardAccess:
 
         response = client.get("/admin/")
         assert response.status_code == 200
-        assert b"Admin Panel" in response.data
+        assert b"Platform administration" in response.data
+
+    def test_components_page_allows_admin(self, client, db_session):
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+        login_user(client, admin.email)
+
+        assert client.get("/admin/components").status_code == 200
+
+    def test_components_page_blocks_non_admin(self, client, db_session):
+        user = UserFactory(is_admin=False)
+        db_session.commit()
+        login_user(client, user.email)
+
+        assert client.get("/admin/components").status_code == 403
 
     def test_dashboard_shows_deployed_commit(self, app, client, db_session, monkeypatch):
         admin = UserFactory(is_admin=True)
@@ -111,7 +125,7 @@ class TestAdminDashboardMetrics:
         assert response.status_code == 200
         # Should show 6 total users (5 + 1 admin)
         assert b"6" in response.data
-        assert b"Total Users" in response.data
+        assert b"Total users" in response.data
 
     def test_dashboard_shows_item_count(self, client, db_session):
         """Test dashboard displays correct item count"""
@@ -123,7 +137,7 @@ class TestAdminDashboardMetrics:
 
         response = client.get("/admin/")
         assert response.status_code == 200
-        assert b"Total Items" in response.data
+        assert b"Total items" in response.data
         assert b"3" in response.data
 
     def test_dashboard_shows_users_and_analytics_tabs(self, client, db_session):
@@ -137,7 +151,7 @@ class TestAdminDashboardMetrics:
         assert response.status_code == 200
         assert b"admin-users-tab" in response.data
         assert b"admin-analytics-tab" in response.data
-        assert b"Monthly Active Users" in response.data
+        assert b"Monthly active users" in response.data
         assert b"Starting Jan 2026" in response.data
 
         content = response.data.decode("utf-8")

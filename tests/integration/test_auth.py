@@ -32,7 +32,7 @@ class TestAuthenticationRoutes:
         """Test login page loads correctly."""
         response = client.get("/login")
         assert response.status_code == 200
-        assert b"Log In" in response.data
+        assert b"Log in" in response.data
 
     def test_login_valid_credentials(self, client, app, auth_user):
         """Test login with valid credentials."""
@@ -46,7 +46,7 @@ class TestAuthenticationRoutes:
 
             assert response.status_code == 200
             assert b"Circles" in response.data
-            assert b"Find Circles" in response.data
+            assert b"Find circles" in response.data
 
     @pytest.mark.filterwarnings("ignore::DeprecationWarning:flask_login")
     def test_login_with_remember_device_sets_cookie(self, client, app, auth_user):
@@ -138,14 +138,14 @@ class TestAuthenticationRoutes:
             response = client.get("/logout", follow_redirects=True)
             assert response.status_code == 200
             # Just verify we're redirected to main page (landing page for anonymous)
-            assert b"What if borrowing from a neighbor" in response.data
+            assert b"from a neighbor was as easy as buying from Amazon?" in response.data
 
     def test_register_page(self, client):
         """Test registration page loads correctly."""
         response = client.get("/register")
         assert response.status_code == 200
-        assert b"Register" in response.data
-        assert b"Email Updates" in response.data
+        assert b"Sign up" in response.data
+        assert b"Email updates" in response.data
         assert b"digest-none-warning" in response.data
 
     def test_register_page_form_action_preserves_next(self, client):
@@ -577,7 +577,7 @@ class TestAuthenticationRoutes:
                 )
 
                 assert response.status_code == 200, f"Failed for email: {email}"
-                assert b"Community Activity" in response.data, f"Failed for email: {email}"
+                assert b"What's happening nearby" in response.data, f"Failed for email: {email}"
 
                 # Logout after each test
                 client.get("/logout")
@@ -914,7 +914,7 @@ class TestPasswordReset:
         """Test forgot password page."""
         response = client.get("/forgot-password")
         assert response.status_code == 200
-        assert b"Forgot Password" in response.data
+        assert b"Forgot password" in response.data
 
     def test_forgot_password_valid_email(self, client, app, auth_user):
         """Test forgot password with valid email."""
@@ -1016,7 +1016,7 @@ class TestRedirectAfterLogin:
 
             assert response.status_code == 200
             assert b"Circles" in response.data
-            assert b"Find Circles" in response.data
+            assert b"Find circles" in response.data
 
     def test_login_without_next_redirects_home_when_user_has_circles(self, client, app, auth_user):
         """Test login without 'next' still redirects members to the homepage."""
@@ -1033,7 +1033,7 @@ class TestRedirectAfterLogin:
             )
 
             assert response.status_code == 200
-            assert b"Community Activity" in response.data
+            assert b"What's happening nearby" in response.data
 
     def test_login_with_valid_next_redirects_correctly(self, client, app, auth_user):
         """Test login with valid 'next' parameter redirects to intended page."""
@@ -1047,7 +1047,7 @@ class TestRedirectAfterLogin:
 
             assert response.status_code == 200
             # Should be redirected to profile page
-            assert b"My Profile" in response.data or b"Profile" in response.data
+            assert b"My profile" in response.data or b"Profile" in response.data
 
     def test_login_with_external_url_ignores_next(self, client, app, auth_user):
         """Test that external URLs in 'next' parameter are ignored for security."""
@@ -1065,7 +1065,7 @@ class TestRedirectAfterLogin:
 
             assert response.status_code == 200
             # Should redirect to home page instead of external URL
-            assert b"Community Activity" in response.data
+            assert b"What's happening nearby" in response.data
 
     def test_login_with_protocol_relative_url_ignores_next(self, client, app, auth_user):
         """Test that protocol-relative URLs are ignored for security."""
@@ -1083,7 +1083,7 @@ class TestRedirectAfterLogin:
 
             assert response.status_code == 200
             # Should redirect to home page instead
-            assert b"Community Activity" in response.data
+            assert b"What's happening nearby" in response.data
 
     def test_full_redirect_flow_after_unauthorized_access(self, client, app, auth_user):
         """Test complete flow: unauthorized access -> login -> redirect back.
@@ -1109,7 +1109,7 @@ class TestRedirectAfterLogin:
             # Step 2: Go to login page (should have 'next' parameter)
             response = client.get(login_url)
             assert response.status_code == 200
-            assert b"Log In" in response.data
+            assert b"Log in" in response.data
 
             # Step 3: Login with the 'next' parameter in the URL
             response = client.post(
@@ -1120,7 +1120,7 @@ class TestRedirectAfterLogin:
 
             assert response.status_code == 200
             # Should be redirected back to circles page
-            assert b"Your Circles" in response.data or b"Circles" in response.data
+            assert b"Your circles" in response.data or b"Circles" in response.data
 
     def test_login_message_shown_on_unauthorized_access(self, client, app):
         """Test that a login message is shown when accessing protected routes."""
@@ -1131,7 +1131,7 @@ class TestRedirectAfterLogin:
             assert response.status_code == 200
             # Should show login message
             assert (
-                b"Please log in to access this page" in response.data or b"Log In" in response.data
+                b"Please log in to access this page" in response.data or b"Log in" in response.data
             )
 
     def test_login_form_preserves_next_parameter(self, client, app):
@@ -1260,7 +1260,7 @@ class TestAccountDeletion:
             login_user(client, user.email)
             response = client.get("/delete_account")
             assert response.status_code == 200
-            assert b"Outstanding Loans Notice" in response.data
+            assert b"You have loans in progress." in response.data
 
     def test_delete_account_soft_delete_preserves_user_data(self, client, app, auth_user):
         """Test that account deletion uses soft delete to preserve user data for history."""

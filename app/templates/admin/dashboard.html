@@ -1,9 +1,14 @@
 {% extends "base.html" %}
+{% from "components/empty.html" import empty_state %}
+{% from "components/dialogs.html" import confirm_dialog %}
+{% from "components/people.html" import avatar %}
+
+{% block title %}Admin{% endblock %}
 
 {% block content %}
-<div class="container mt-5 mb-5">
+<div>
     <div class="mb-4">
-        <h1><i class="fas fa-user-shield me-2"></i>Admin Panel</h1>
+        <h1>Admin</h1>
         <p class="text-muted">Platform administration and user management</p>
         <p class="text-muted small mb-0">
             {% if config.GIT_COMMIT_SHA %}
@@ -20,8 +25,8 @@
     <div class="tab-content" id="adminTabContent">
         <div class="tab-pane fade {% if active_tab == 'users' %}show active{% endif %}" id="admin-users" role="tabpanel" aria-labelledby="admin-users-tab">
             <div class="card">
-                <div class="card-header bg-dark text-white">
-                    <h5 class="mb-0 text-white"><i class="fas fa-list me-2"></i>User Management</h5>
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Members</h2>
                 </div>
                 <div class="card-body">
                     {% if users_pagination.items %}
@@ -61,7 +66,7 @@
                                         </th>
                                         <th>
                                             <a href="{{ url_for('admin.dashboard', active_tab='users', sort_by='last_login', order='asc' if current_sort == 'last_login' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
-                                                Last Active
+                                                Last active
                                                 {% if current_sort == 'last_login' %}
                                                     <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
                                                 {% else %}
@@ -80,8 +85,7 @@
                                         <tr>
                                             <td>
                                                 <div class="d-flex align-items-center">
-                                                    <img src="{{ user.profile_image }}" alt="{{ user.full_name }}"
-                                                         class="rounded-circle me-2" width="40" height="40">
+                                                    {{ avatar(user.full_name, user.profile_image_url, size="lg", extra_class="me-2") }}
                                                     <a href="{{ url_for('main.user_profile', user_id=user.id) }}" class="text-decoration-none">
                                                         <strong>{{ user.full_name }}</strong>
                                                     </a>
@@ -107,7 +111,7 @@
                                             <td>
                                                 <form method="POST" action="{{ url_for('admin.update_digest_frequency', user_id=user.id) }}" class="d-inline digest-frequency-form">
                                                     {{ form.hidden_tag() }}
-                                                    <select name="digest_frequency" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+                                                    <select name="digest_frequency" class="form-select form-select-sm w-auto" aria-label="Digest frequency for {{ user.full_name }}" onchange="this.form.submit()">
                                                         <option value="daily" {% if user.digest_frequency == 'daily' %}selected{% endif %}>Daily</option>
                                                         <option value="weekly" {% if user.digest_frequency == 'weekly' %}selected{% endif %}>Weekly</option>
                                                         <option value="none" {% if user.digest_frequency == 'none' %}selected{% endif %}>None</option>
@@ -123,7 +127,7 @@
                                             </td>
                                             <td>
                                                 {% if user.is_deleted %}
-                                                    <span class="badge bg-danger">Deleted</span>
+                                                    <span class="badge bg-secondary">Deleted</span>
                                                 {% elif user.is_admin %}
                                                     <span class="badge bg-warning text-dark">
                                                         <i class="fas fa-shield-alt"></i> Admin
@@ -141,7 +145,7 @@
                                                 <div class="d-flex flex-wrap gap-1 justify-content-end" role="group">
                                                     {% if user.id != current_user.id %}
                                                         {% if not user.is_admin %}
-                                                            <button type="button" class="btn btn-sm btn-outline-success"
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary"
                                                                     data-bs-toggle="modal"
                                                                     data-bs-target="#promoteModal"
                                                                     data-user-name="{{ user.full_name }}"
@@ -149,7 +153,7 @@
                                                                 <i class="fas fa-arrow-up"></i> Promote
                                                             </button>
                                                         {% else %}
-                                                            <button type="button" class="btn btn-sm btn-outline-warning"
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary"
                                                                     data-bs-toggle="modal"
                                                                     data-bs-target="#demoteModal"
                                                                     data-user-name="{{ user.full_name }}"
@@ -160,12 +164,12 @@
                                                     {% endif %}
 
                                                     {% if not user.is_public_showcase %}
-                                                        <button type="button" class="btn btn-sm btn-outline-info"
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary"
                                                                 data-bs-toggle="modal"
                                                                 data-bs-target="#enableShowcaseModal"
                                                                 data-user-name="{{ user.full_name }}"
                                                                 data-action-url="{{ url_for('admin.enable_showcase', user_id=user.id) }}">
-                                                            <i class="fas fa-star"></i> Enable Showcase
+                                                            <i class="fas fa-star"></i> Enable showcase
                                                         </button>
                                                     {% else %}
                                                         <button type="button" class="btn btn-sm btn-outline-secondary"
@@ -173,7 +177,7 @@
                                                                 data-bs-target="#disableShowcaseModal"
                                                                 data-user-name="{{ user.full_name }}"
                                                                 data-action-url="{{ url_for('admin.disable_showcase', user_id=user.id) }}">
-                                                            <i class="fas fa-star"></i> Disable Showcase
+                                                            <i class="fas fa-star"></i> Disable showcase
                                                         </button>
                                                     {% endif %}
 
@@ -222,7 +226,7 @@
                             </nav>
                         {% endif %}
                     {% else %}
-                        <p class="text-muted text-center py-4">No users found.</p>
+                        {{ empty_state("No users found", heading="h3") }}
                     {% endif %}
                 </div>
             </div>
@@ -231,45 +235,42 @@
         <div class="tab-pane fade {% if active_tab == 'analytics' %}show active{% endif %}" id="admin-analytics" role="tabpanel" aria-labelledby="admin-analytics-tab">
             <div class="row g-4 mb-5">
                 <div class="col-md-4">
-                    <div class="card border-primary h-100">
+                    <div class="card h-100">
                         <div class="card-body text-center">
-                            <i class="fas fa-users fa-3x text-primary mb-3"></i>
-                            <h3 class="card-title">{{ total_users }}</h3>
-                            <p class="card-text text-muted">Total Users</p>
+                            <div class="admin-stat">{{ total_users }}</div>
+                            <p class="card-text text-muted">Total users</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="card border-success h-100">
+                    <div class="card h-100">
                         <div class="card-body text-center">
-                            <i class="fas fa-user-check fa-3x text-success mb-3"></i>
-                            <h3 class="card-title">{{ recent_users }}</h3>
-                            <p class="card-text text-muted">Recent Users <small>(30 days)</small></p>
+                            <div class="admin-stat">{{ recent_users }}</div>
+                            <p class="card-text text-muted">New users in the last 30 days</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="card border-info h-100">
+                    <div class="card h-100">
                         <div class="card-body text-center">
-                            <i class="fas fa-box fa-3x text-info mb-3"></i>
-                            <h3 class="card-title">{{ total_items }}</h3>
-                            <p class="card-text text-muted">Total Items</p>
+                            <div class="admin-stat">{{ total_items }}</div>
+                            <p class="card-text text-muted">Total items</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm">
+            <div class="card">
                 <div class="card-body p-4">
                     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-2">
                         <div>
-                            <h4 class="mb-1"><i class="fas fa-chart-line me-2 text-primary"></i>Monthly Active Users</h4>
+                            <h2 class="h5 mb-1">Monthly active users</h2>
                             <p class="text-muted mb-0">Users who were in a circle with at least one other current member and took at least one qualifying action that month.</p>
                         </div>
-                        <span class="badge text-bg-light border">Starting Jan 2026</span>
+                        <span class="small text-muted">Starting Jan 2026</span>
                     </div>
                     <p class="small text-muted mb-4">Qualifying actions include posting a request, adding an item, requesting a loan, taking action on a loan request, replying to someone else's request or giveaway, or expressing interest in someone else's giveaway. Circle eligibility uses join date plus current circle membership because leave history is not stored.</p>
-                    <div class="chart-container" style="position: relative; min-height: 320px;">
+                    <div class="admin-chart">
                         <canvas id="mauChart" aria-label="Monthly active users chart" role="img"></canvas>
                     </div>
                 </div>
@@ -278,140 +279,39 @@
     </div>
 </div>
 
-<!-- Shared Modals (one per action type, populated dynamically via JS) -->
-
-<!-- Promote Modal -->
-<div class="modal fade" id="promoteModal" tabindex="-1" aria-labelledby="promoteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="promoteModalLabel">Promote to Admin</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to promote <strong class="modal-user-name"></strong> to admin?</p>
-                <p class="text-muted small">They will have full access to the admin panel and can manage other users.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST" action="" class="d-inline modal-action-form">
-                    {{ form.hidden_tag() }}
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-arrow-up"></i> Promote
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Demote Modal -->
-<div class="modal fade" id="demoteModal" tabindex="-1" aria-labelledby="demoteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="demoteModalLabel">Remove Admin Status</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to remove admin status from <strong class="modal-user-name"></strong>?</p>
-                <p class="text-muted small">They will lose access to the admin panel.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST" action="" class="d-inline modal-action-form">
-                    {{ form.hidden_tag() }}
-                    <button type="submit" class="btn btn-warning">
-                        <i class="fas fa-arrow-down"></i> Demote
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="deleteModalLabel">Delete User Account</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p><strong class="text-danger">Warning:</strong> This will permanently delete the account for <strong class="modal-user-name"></strong>.</p>
-                <p class="text-muted small">This action will:</p>
-                <ul class="text-muted small">
-                    <li>Soft-delete the user account</li>
-                    <li>Mark all their items as deleted</li>
-                    <li>Anonymize their email address</li>
-                    <li>This cannot be undone</li>
-                </ul>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST" action="" class="d-inline modal-action-form">
-                    {{ form.hidden_tag() }}
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-trash"></i> Delete Account
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Enable Showcase Modal -->
-<div class="modal fade" id="enableShowcaseModal" tabindex="-1" aria-labelledby="enableShowcaseModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="enableShowcaseModalLabel">Enable Public Showcase</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Enable public showcase for <strong class="modal-user-name"></strong>?</p>
-                <p class="text-muted small">Their items will be visible to unauthenticated visitors on the homepage.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST" action="" class="d-inline modal-action-form">
-                    {{ form.hidden_tag() }}
-                    <button type="submit" class="btn btn-info">
-                        <i class="fas fa-star"></i> Enable Showcase
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Disable Showcase Modal -->
-<div class="modal fade" id="disableShowcaseModal" tabindex="-1" aria-labelledby="disableShowcaseModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="disableShowcaseModalLabel">Disable Public Showcase</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Disable public showcase for <strong class="modal-user-name"></strong>?</p>
-                <p class="text-muted small">Their items will no longer be visible to unauthenticated visitors.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST" action="" class="d-inline modal-action-form">
-                    {{ form.hidden_tag() }}
-                    <button type="submit" class="btn btn-secondary">
-                        <i class="fas fa-star"></i> Disable Showcase
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-{# Populate shared modals dynamically when opened #}
+{# One dialog per action. The page script fills in the person and the form action from the button that opened it. #}
+{% set who %}<strong class="confirm-dialog-subject"></strong>{% endset %}
+{% call(part) confirm_dialog("promoteModal", "Make this person an admin?", action="", form=form, confirm_label="Make admin") %}
+    {% if part == "body" %}
+        <p>{{ who }} will get full access to the admin pages and can manage other members.</p>
+    {% endif %}
+{% endcall %}
+{% call(part) confirm_dialog("demoteModal", "Remove admin access?", action="", form=form, confirm_label="Remove admin access") %}
+    {% if part == "body" %}
+        <p>{{ who }} will lose access to the admin pages.</p>
+    {% endif %}
+{% endcall %}
+{% call(part) confirm_dialog("deleteModal", "Delete this account?", action="", form=form, confirm_label="Delete account", confirm_class="btn-danger") %}
+    {% if part == "body" %}
+        <p>This permanently deletes the account for {{ who }}. It will:</p>
+        <ul>
+            <li>Soft-delete the account</li>
+            <li>Mark all their items as deleted</li>
+            <li>Anonymize their email address</li>
+        </ul>
+        <p class="text-muted small">This can't be undone.</p>
+    {% endif %}
+{% endcall %}
+{% call(part) confirm_dialog("enableShowcaseModal", "Show this member's items publicly?", action="", form=form, confirm_label="Turn on showcase") %}
+    {% if part == "body" %}
+        <p>Items from {{ who }} will be visible to logged-out visitors on the home page.</p>
+    {% endif %}
+{% endcall %}
+{% call(part) confirm_dialog("disableShowcaseModal", "Stop showing this member's items publicly?", action="", form=form, confirm_label="Turn off showcase") %}
+    {% if part == "body" %}
+        <p>Items from {{ who }} will no longer be visible to logged-out visitors.</p>
+    {% endif %}
+{% endcall %}
 {% endblock %}
 
 {% block scripts %}
@@ -422,22 +322,13 @@ document.addEventListener('DOMContentLoaded', function() {
     var mauSeries = {{ mau_series|tojson }};
     var mauChart = null;
 
-    document.querySelectorAll('.modal').forEach(function(modal) {
+    document.querySelectorAll('.confirm-dialog').forEach(function(dialog) {
+        var modal = dialog.closest('.modal');
         modal.addEventListener('show.bs.modal', function(event) {
             var button = event.relatedTarget;
             if (!button) return;
-
-            var userName = button.getAttribute('data-user-name');
-            var actionUrl = button.getAttribute('data-action-url');
-
-            modal.querySelectorAll('.modal-user-name').forEach(function(el) {
-                el.textContent = userName;
-            });
-
-            var form = modal.querySelector('.modal-action-form');
-            if (form && actionUrl) {
-                form.setAttribute('action', actionUrl);
-            }
+            modal.querySelector('.confirm-dialog-subject').textContent = button.dataset.userName;
+            modal.querySelector('.confirm-dialog-form').action = button.dataset.actionUrl;
         });
     });
 
@@ -457,6 +348,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        var styles = getComputedStyle(document.documentElement);
+        var chartColor = styles.getPropertyValue('--teal-deep').trim();
+        var chartInk = styles.getPropertyValue('--ink').trim();
+
         Chart.register(ChartDataLabels);
         mauChart = new Chart(canvas, {
             type: 'line',
@@ -465,10 +360,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'Monthly Active Users',
                     data: mauSeries.map(function(point) { return point.count; }),
-                    borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13, 110, 253, 0.15)',
-                    pointBackgroundColor: '#0d6efd',
-                    pointBorderColor: '#ffffff',
+                    borderColor: chartColor,
+                    backgroundColor: chartColor,
+                    pointBackgroundColor: chartColor,
+                    pointBorderColor: chartInk,
                     pointBorderWidth: 2,
                     pointRadius: 5,
                     pointHoverRadius: 6,
@@ -492,7 +387,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     datalabels: {
                         align: 'top',
                         anchor: 'end',
-                        color: '#0d6efd',
+                        color: chartColor,
                         font: {
                             weight: '600'
                         },

@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 
 from app import db
-from app.models import CircleJoinRequest, Conversation, Message, circle_members
+from app.models import Circle, CircleJoinRequest, Conversation, Message, circle_members
 from app.services import circle_service
 from app.services.exceptions import (
     AuthorizationError,
@@ -16,6 +16,26 @@ from tests.factories import CircleFactory, UserFactory
 
 
 class TestCircleService:
+    def test_create_circle_does_not_create_circle_when_image_upload_fails(self, app):
+        with app.app_context():
+            creator = UserFactory()
+            db.session.commit()
+
+            with (
+                patch("app.services.circle_service.is_valid_file_upload", return_value=True),
+                patch("app.services.circle_service.upload_circle_image", return_value=None),
+                pytest.raises(InvalidActionError, match="Image upload failed"),
+            ):
+                circle_service.create_circle(
+                    creator,
+                    name="Bad Image Circle",
+                    description="",
+                    circle_type="open",
+                    image_file=object(),
+                )
+
+            assert Circle.query.filter_by(name="Bad Image Circle").first() is None
+
     def test_create_circle_with_address_uses_structured_geocoding(self, app):
         with app.app_context():
             creator = UserFactory()

@@ -1,154 +1,49 @@
 {% extends "base.html" %}
+{% from "components/forms.html" import location_fields, radio_field %}
 
-{% block title %}Update Location{% endblock %}
+{% block title %}Update location{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h3><i class="fas fa-map-marker-alt me-2"></i>Update Your Location</h3>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <h6><i class="fas fa-info-circle me-2"></i>How we use your location</h6>
-                        <p class="mb-2">
-                            Your coordinates are used to calculate distances to circles and items you might want to join or borrow.
-                            This helps you find circles and items near you and helps others see how close they are to your items.
-                        </p>
-                        <p class="mb-2">
-                            <strong>Privacy note:</strong> We only store your latitude and longitude coordinates, not your address.
-                            Your exact location will never be shown to other users - they'll only see approximate distances.
-                        </p>
-                        <p class="mb-0">
-                            <strong>Note:</strong> Location updates are limited to once per day when successful.
-                        </p>
-                    </div>
+<div class="form-page">
+    <h1>Update your location</h1>
+    <div class="form-note mb-4">
+        <p class="mb-2">
+            Your coordinates are used to calculate distances to circles and items you might want to join or borrow.
+            This helps you find circles and items near you and helps others see how close they are to your items.
+        </p>
+        <p class="mb-2">
+            <strong>Privacy note:</strong> We only store your latitude and longitude coordinates, not your address.
+            Your exact location will never be shown to other users - they'll only see approximate distances.
+        </p>
+        <p class="mb-0">
+            <strong>Note:</strong> Location updates are limited to once per day when successful.
+        </p>
+    </div>
 
-                    <form method="post" id="locationForm">
-                        {{ form.csrf_token }}
+    <form method="post" id="locationForm">
+        {{ form.csrf_token }}
 
-                        <!-- Location Method Choice -->
-                        <div class="mb-4">
-                            {{ form.location_method.label(class="form-label fw-bold") }}
-                            {% for subfield in form.location_method %}
-                                <div class="form-check">
-                                    {{ subfield(class="form-check-input", id=subfield.id) }}
-                                    {{ subfield.label(class="form-check-label", for_=subfield.id) }}
-                                </div>
-                            {% endfor %}
-                            {% for error in form.location_method.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </div>
+        {{ radio_field(form.location_method) }}
+        {{ location_fields(form) }}
 
-                        <!-- Address Fields (shown when address method is selected) -->
-                        <div id="address-fields" class="mb-4">
-                            <h5 class="mb-3">Enter Address</h5>
-                            <p class="text-muted small mb-3">
-                                Geocoding has been tested with addresses in USA and Canada.
-                            </p>
-                            <div class="row">
-                                <div class="col-12 mb-3">
-                                    {{ form.street.label(class="form-label") }}
-                                    {{ form.street(class="form-control") }}
-                                    {% for error in form.street.errors %}
-                                        <div class="text-danger small">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    {{ form.city.label(class="form-label") }}
-                                    {{ form.city(class="form-control") }}
-                                    {% for error in form.city.errors %}
-                                        <div class="text-danger small">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    {{ form.state.label(class="form-label") }}
-                                    {{ form.state(class="form-control") }}
-                                    {% for error in form.state.errors %}
-                                        <div class="text-danger small">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    {{ form.zip_code.label(class="form-label") }}
-                                    {{ form.zip_code(class="form-control") }}
-                                    {% for error in form.zip_code.errors %}
-                                        <div class="text-danger small">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    {{ form.country.label(class="form-label") }}
-                                    {{ form.country(class="form-select") }}
-                                    {% for error in form.country.errors %}
-                                        <div class="text-danger small">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Coordinate Fields (shown when coordinate method is selected) -->
-                        <div id="coordinate-fields" class="mb-4" style="display: none;">
-                            <h5 class="mb-3">Enter Coordinates</h5>
-                            <div class="alert alert-secondary">
-                                <small>
-                                    <strong>Tip:</strong> You can find your coordinates by:
-                                    <ul class="mb-0 mt-2">
-                                        <li>Using Google Maps: right-click on your location and copy the coordinates</li>
-                                        <li>Using your phone's GPS coordinates in the camera or maps app</li>
-                                        <li>Using online coordinate lookup tools</li>
-                                    </ul>
-                                </small>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    {{ form.latitude.label(class="form-label") }}
-                                    {{ form.latitude(class="form-control", step="any", placeholder="e.g., 40.7128") }}
-                                    <div class="form-text">Between -90 and 90 degrees</div>
-                                    {% for error in form.latitude.errors %}
-                                        <div class="text-danger small">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    {{ form.longitude.label(class="form-label") }}
-                                    {{ form.longitude(class="form-control", step="any", placeholder="e.g., -74.0060") }}
-                                    <div class="form-text">Between -180 and 180 degrees</div>
-                                    {% for error in form.longitude.errors %}
-                                        <div class="text-danger small">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Remove Location Section (shown when remove method is selected) -->
-                        <div id="remove-fields" class="mb-4" style="display: none;">
-                            <div class="alert alert-warning">
-                                <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Warning</h5>
+        <!-- Remove Location Section (shown when remove method is selected) -->
+        <div id="remove-fields" class="mb-4" style="display: none;">
+            <div class="alert alert-warning">
                                 <p class="mb-2">If you remove your location, you will:</p>
-                                <ul class="mb-2">
-                                    <li><strong>No longer see circles near you</strong> - distance sorting for circles will not be available</li>
-                                    <li><strong>No longer see distances to items</strong> - you won't be able to tell how far away items are from you</li>
-                                    <li><strong>No longer appear in distance-based searches</strong> - other users won't see how close your items are to them</li>
-                                </ul>
-                                <p class="mb-0">You can always add your location back later.</p>
-                            </div>
-                        </div>
-
-                        <div class="d-flex gap-2">
-                            {{ form.submit(class="btn btn-primary") }}
-                            <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Cancel</a>
-                        </div>
-                    </form>
-                </div>
+                <ul class="mb-2">
+                    <li><strong>No longer see circles near you</strong> - distance sorting for circles will not be available</li>
+                    <li><strong>No longer see distances to items</strong> - you won't be able to tell how far away items are from you</li>
+                    <li><strong>No longer appear in distance-based searches</strong> - other users won't see how close your items are to them</li>
+                </ul>
+                <p class="mb-0">You can always add your location back later.</p>
             </div>
         </div>
-    </div>
+
+        <div class="form-actions">
+            {{ form.submit(class="btn btn-primary") }}
+            <a href="{{ url_for('main.profile', tab='settings') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
 </div>
 
 <script>
