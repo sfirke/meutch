@@ -206,8 +206,8 @@ class TestShareFieldsConsistency:
             detail_response = client.get(f"/item/{item.id}")
 
             for attr in (
-                b'data-share-title="Matching Lamp (Free Giveaway)"',
-                b'data-share-text="Free giveaway on Meutch: Matching Lamp"',
+                b'data-share-title="Matching Lamp (Giveaway)"',
+                b'data-share-text="Giveaway on Meutch: Matching Lamp"',
             ):
                 assert attr in flash_response.data
                 assert attr in detail_response.data

@@ -4,6 +4,10 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ## November 2026
 
+### Features
+**Minor**:
+- The rest of the home page for logged-out visitors has its new look, and so do the pages people see when they open a shared giveaway, item, request or circle link. Giveaways no longer say "free" in their titles, link previews or share text, because everything on Meutch is free ([#597](https://github.com/sfirke/meutch/pull/597)).
+
 ### Developer Experience
 - Removed the old standalone Create Circle page at `/circles/create-circle`. Nothing had linked to it since March 2026, when circles were already being created from the Create tab on the Circles page ([#601](https://github.com/sfirke/meutch/pull/601)).
 
