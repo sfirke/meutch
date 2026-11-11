@@ -81,7 +81,7 @@ class LoginForm(FlaskForm):
         ],
     )
     remember_device = BooleanField("Remember this device for 30 days")
-    submit = SubmitField("Log In")
+    submit = SubmitField("Log in")
 
 
 class RegistrationForm(FlaskForm):
@@ -305,7 +305,7 @@ class ForgotPasswordForm(FlaskForm):
             Length(max=120, message="Email must be under 120 characters."),
         ],
     )
-    submit = SubmitField("Send Reset Link")
+    submit = SubmitField("Send reset link")
 
 
 class ResetPasswordForm(FlaskForm):
@@ -327,7 +327,7 @@ class ResetPasswordForm(FlaskForm):
             EqualTo("password", message="Passwords must match."),
         ],
     )
-    submit = SubmitField("Reset Password")
+    submit = SubmitField("Reset password")
 
 
 class ResendConfirmationForm(FlaskForm):
@@ -339,4 +339,4 @@ class ResendConfirmationForm(FlaskForm):
             Length(max=120, message="Email must be under 120 characters."),
         ],
     )
-    submit = SubmitField("Resend Confirmation Email")
+    submit = SubmitField("Resend confirmation email")

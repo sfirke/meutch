@@ -1187,7 +1187,7 @@ class TestConversationGiveawaySelection:
 
             assert response.status_code == 200
             assert b"Giveaway Pickup" in response.data
-            assert b"Mark Handoff Complete" in response.data
+            assert b"Mark handoff complete" in response.data
 
             db.session.refresh(giveaway)
             db.session.refresh(interest)
@@ -2276,7 +2276,7 @@ class TestItemDetailPageForGiveaways:
             assert response.status_code == 200
             assert b"Change Recipient" in response.data
             assert b"Release to Everyone" in response.data
-            assert b"Mark Handoff Complete" in response.data
+            assert b"Mark handoff complete" in response.data
             assert b"Recipient:" in response.data
             assert b"John Doe" in response.data
 
@@ -2442,7 +2442,7 @@ class TestItemDetailPageForGiveaways:
             # Should NOT show action buttons for claimed items
             assert b"Change Recipient" not in response.data
             assert b"Release to Everyone" not in response.data
-            assert b"Mark Handoff Complete" not in response.data
+            assert b"Mark handoff complete" not in response.data
             assert b"Edit Item" not in response.data
             assert b"Delete Item" not in response.data
             assert b"View Active Loan" not in response.data
@@ -2633,9 +2633,9 @@ class TestSelectRecipientReassignmentUI:
             response = client.get(f"/item/{giveaway.id}/select-recipient")
 
             assert response.status_code == 200
-            assert b"Select Recipient" in response.data
-            assert b"First Requester" in response.data
-            assert b"Random Selection" in response.data
+            assert b"Choose who gets it" in response.data
+            assert b"First to ask" in response.data
+            assert b"Pick at random" in response.data
 
 
 class TestGiveawayOwnerProfileLink:

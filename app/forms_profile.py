@@ -238,7 +238,7 @@ class DeleteAccountForm(FlaskForm):
             Length(max=50, message="Confirmation phrase is too long."),
         ],
     )
-    submit = SubmitField("Delete My Account")
+    submit = SubmitField("Delete my account")
 
     def validate_confirmation(self, field):
         if field.data != "DELETE MY ACCOUNT":
@@ -270,4 +270,4 @@ class DigestSettingsForm(FlaskForm):
     digest_include_loans = BooleanField("Loans in my circles")
     digest_giveaways_include_public = BooleanField("Include public giveaways within radius")
     digest_requests_include_public = BooleanField("Include public requests within radius")
-    submit = SubmitField("Save Digest Settings")
+    submit = SubmitField("Save digest settings")

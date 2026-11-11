@@ -218,7 +218,7 @@
             <div class="conversation-panel-actions">
                 <form method="POST" action="{{ url_for('main.confirm_handoff', item_id=giveaway_handoff_item.id) }}">
                     {{ giveaway_handoff_form.hidden_tag() }}
-                    <button type="submit" class="btn btn-primary">Mark Handoff Complete</button>
+                    <button type="submit" class="btn btn-primary">Mark handoff complete</button>
                 </form>
                 <a href="{{ url_for('main.select_recipient', item_id=giveaway_handoff_item.id) }}" class="btn btn-outline-secondary">Change Recipient</a>
                 <form method="POST" action="{{ url_for('main.release_to_all', item_id=giveaway_handoff_item.id) }}" onsubmit="return confirm('Release this giveaway back to everyone? The item will reappear in the feed and all interested users will remain in the pool.');">
@@ -234,11 +234,11 @@
 
     {% if fulfillable_request %}
     <section class="conversation-panel">
-        <h2 class="h5">Request Fulfillment</h2>
-        <p class="mb-3">If this request has been satisfied, mark it as fulfilled.</p>
+        <h2 class="h5">Found what you needed?</h2>
+        <p class="mb-3">If this request worked out, mark it as found.</p>
         <form method="POST" action="{{ url_for('requests.fulfill', request_id=fulfillable_request.id) }}">
             {{ request_fulfill_form.hidden_tag() }}
-            <button type="submit" class="btn btn-primary">Mark Request Fulfilled</button>
+            <button type="submit" class="btn btn-primary">Mark as found</button>
         </form>
     </section>
     {% endif %}

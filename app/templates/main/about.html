@@ -3,182 +3,118 @@
 {% block title %}About{% endblock %}
 
 {% block content %}
-    <!-- Hero Section -->
-    <div class="row mb-5">
-        <div class="col-12 text-center">
-            <img src="{{ url_for('static', filename='img/logo_handshake.png') }}" alt="Meutch - Share with your community" class="hero-logo mb-3">
-            <h1 class="display-4 mb-3">About Meutch</h1>
-            <p class="lead text-muted">Help a neighbor, help the world.</p>
-        </div>
+<div class="prose-page">
+    <div class="text-center">
+        <img src="{{ url_for('static', filename='img/logo_handshake.png') }}" alt="" class="page-art" width="120" height="120">
+        <h1>About Meutch</h1>
+        <p class="prose-page-lead">Help a neighbor, help the world.</p>
     </div>
 
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <!-- Mission Statement -->
-            <div class="card mb-5">
-                <div class="card-body p-4">
-                    <h2 class="h4 text-primary mb-3">
-                        <i class="fas fa-bullseye me-2"></i>Our Mission
-                    </h2>
-                    <p class="mb-3">
-                        1-click ordering from Amazon is convenient, but bad for the planet and our souls.
-                        <strong>Meutch levels the playing field, making it easy to borrow the item from a neighbor.</strong>
-                    </p>
-                    <p class="text-muted">
-                        Humans thriving has always come from working together. Meutch unites people to address problems big and small.
-                    </p>
+    <h2>Our mission</h2>
+    <p>
+        1-click ordering from Amazon is convenient, but bad for the planet and our souls.
+        <strong>Meutch levels the playing field, making it easy to borrow the item from a neighbor.</strong>
+    </p>
+    <p>Humans thriving has always come from working together. Meutch unites people to address problems big and small.</p>
+
+    <div class="row g-3 mt-2">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h3>On a practical scale</h3>
+                    <ul class="mb-0">
+                        <li class="mb-2"><strong>We often need something just for a weekend.</strong> A ladder, a camping tent, a booster seat for when our niece visits. It doesn't make sense to buy these things if you'll never use them again.</li>
+                        <li><strong>Many of us have items that yearn to be used more.</strong> A canning pot, a sewing kit, a bike repair stand: these useful things sit idle 99% of the time.</li>
+                    </ul>
                 </div>
             </div>
-
-            <div class="row mb-5">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body p-4">
-                            <h3 class="h5 text-primary mb-3">
-                                <i class="fas fa-tools me-2"></i>On a Practical Scale
-                            </h3>
-                            <ul class="list-unstyled">
-                                <li class="mb-3">
-                                    <i class="fas fa-check-circle text-success me-2"></i>
-                                    <strong>We often need something just for a weekend.</strong> A ladder, a camping tent, a booster seat for when our niece visits. It doesn't make sense to buy these things if you'll never use them again.
-                                </li>
-                                <li>
-                                    <i class="fas fa-check-circle text-success me-2"></i>
-                                    <strong>Many of us have items that yearn to be used more.</strong> A canning pot, a sewing kit, a bike repair stand: these useful things sit idle 99% of the time.
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body p-4">
-                            <h3 class="h5 text-primary mb-3">
-                                <i class="fas fa-globe me-2"></i>And Writ Large
-                            </h3>
-                            <ul class="list-unstyled">
-                                <li class="mb-3">
-                                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
-                                    <strong>Consumerism empties our wallets and trashes the planet.</strong> We can't go on like this.
-                                </li>
-                                <li>
-                                    <i class="fas fa-heart text-purple me-2"></i>
-                                    <strong>We're surrounded by objects yet lack relationships with our neighbors.</strong>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Call to Action -->
-            <div class="alert alert-primary text-center mb-5" role="alert">
-                <h4 class="alert-heading">
-                    <i class="fas fa-hands-helping me-2"></i>Let's Build Community Together
-                </h4>
-                <p class="mb-0">
-                    Together we can build community trust, save money, and slow the engine of consumerism.
-                    <strong>Let's stop shopping and start sharing.</strong>
-                </p>
-            </div>
-
-            <!-- Open Source Section -->
-            <div class="card mb-5 bg-light">
-                <div class="card-body p-4">
-                    <h2 class="h4 text-primary mb-3">
-                        <i class="fab fa-github me-2"></i>Open Source & Community Driven
-                    </h2>
-                    <p class="mb-3">
-                        <strong>Meutch is open-source software.</strong> All of our code is available on GitHub, and we welcome bug reports, feature requests, and contributions from the community.
-                    </p>
-                    <p class="mb-0">
-                        <a href="https://github.com/sfirke/meutch/" target="_blank" class="btn btn-primary">
-                            <i class="fab fa-github me-2"></i>View on GitHub
-                        </a>
-                    </p>
-                </div>
-            </div>
-
-            <!-- FAQ Section -->
-            <h2 class="mb-4">
-                <i class="fas fa-question-circle text-primary me-2"></i>Frequently Asked Questions
-            </h2>
-
-            <div class="accordion" id="faqAccordion">
-                <div class="accordion-item">
-                    <h3 class="accordion-header" id="headingOne">
-                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-                            "Meutch"?
-                        </button>
-                    </h3>
-                    <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
-                        <div class="accordion-body">
-                            It's short for "<a href="https://en.wikipedia.org/wiki/Mutual_aid" target="_blank" class="text-primary">mutual aid</a>". That's why it's pronounced "mewch," like the start of "mutual." Peter Kropotkin popularized the term in his essay arguing that humans (and other animals) helping each other has been key to their evolutionary success.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="accordion-item">
-                    <h3 class="accordion-header" id="headingTwo">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-                            What's the funding model?
-                        </button>
-                    </h3>
-                    <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
-                        <div class="accordion-body">
-                            <p>Meutch does not make money and will never be commercialized. Users aren't surveilled, data isn't sold, there are no ads.</p>
-                            <p class="mb-0">Hosting costs are currently paid by Sam out of pocket. If this thing takes off, we'll set up a crowdfunding model.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="accordion-item">
-                    <h3 class="accordion-header" id="headingThree">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
-                            I'm worried that someone will steal my stuff.
-                        </button>
-                    </h3>
-                    <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
-                        <div class="accordion-body">
-                            <p>We have set up trust structures to mitigate this, like using real names and the ability to share only with people you are connected to.</p>
-                            <p class="mb-0">But this attitude is part of the problem we are trying to work through. Despite what TV tells us, humans are generally good and cooperative. The fear of the worst has driven us apart.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="accordion-item">
-                    <h3 class="accordion-header" id="headingFour">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
-                            How is this different than a Buy Nothing group on Facebook?
-                        </button>
-                    </h3>
-                    <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#faqAccordion">
-                        <div class="accordion-body">
-                            <p>Buy Nothing and Freecycle groups were a good start! Meutch aims to improve on those in a few ways:</p>
-                            <ul class="mb-0">
-                                <li><strong>Structured and searchable.</strong> Instead of scrolling a feed of random objects, you can search for what you need.</li>
-                                <li><strong>More privacy.</strong> You can choose to share with people you know, or people they know.</li>
-                                <li><strong>Open to anyone,</strong> including those who are Facebook-free.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Credits -->
-            <div class="card mt-5 bg-light">
-                <div class="card-body p-4">
-                    <h2 class="h5 mb-3">
-                        Credits
-                    </h2>
-                    <p class="mb-2">
-                        <strong>Meutch</strong> was created by <a href="https://www.samfirke.com" class="text-primary">Sam Firke</a>. Logo and favicon designed by Ilana Firke.
-                    </p>
-                    <p class="small text-muted mb-0">
-                        <a href="https://www.flaticon.com/free-icons/user" title="user icons" class="text-muted">Icons created by kmg design - Flaticon</a>
-                    </p>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h3>And writ large</h3>
+                    <ul class="mb-0">
+                        <li class="mb-2"><strong>Consumerism empties our wallets and trashes the planet.</strong> We can't go on like this.</li>
+                        <li><strong>We're surrounded by objects yet lack relationships with our neighbors.</strong></li>
+                    </ul>
                 </div>
             </div>
         </div>
     </div>
+
+    <div class="callout">
+        <h2>Let's build community together</h2>
+        <p>
+            Together we can build community trust, save money, and slow the engine of consumerism.
+            <strong>Let's stop shopping and start sharing.</strong>
+        </p>
+    </div>
+
+    <h2>Open source and community driven</h2>
+    <p><strong>Meutch is open-source software.</strong> All of our code is available on GitHub, and we welcome bug reports, feature requests, and contributions from the community.</p>
+    <p><a href="https://github.com/sfirke/meutch/" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary">View on GitHub</a></p>
+
+    <h2>Questions</h2>
+    <div class="accordion faq" id="faqAccordion">
+        <div class="accordion-item">
+            <h3 class="accordion-header" id="faqHeading1">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1" aria-expanded="true" aria-controls="faq1">
+                    "Meutch"?
+                </button>
+            </h3>
+            <div id="faq1" class="accordion-collapse collapse show" aria-labelledby="faqHeading1" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                    It's short for "<a href="https://en.wikipedia.org/wiki/Mutual_aid" target="_blank" rel="noopener noreferrer">mutual aid</a>". That's why it's pronounced "mewch," like the start of "mutual." Peter Kropotkin popularized the term in his essay arguing that humans (and other animals) helping each other has been key to their evolutionary success.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h3 class="accordion-header" id="faqHeading2">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2" aria-expanded="false" aria-controls="faq2">
+                    What's the funding model?
+                </button>
+            </h3>
+            <div id="faq2" class="accordion-collapse collapse" aria-labelledby="faqHeading2" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                    <p>Meutch does not make money and will never be commercialized. Users aren't surveilled, data isn't sold, there are no ads.</p>
+                    <p class="mb-0">Hosting costs are currently paid by Sam out of pocket. If this thing takes off, we'll set up a crowdfunding model.</p>
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h3 class="accordion-header" id="faqHeading3">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3" aria-expanded="false" aria-controls="faq3">
+                    I'm worried that someone will steal my stuff.
+                </button>
+            </h3>
+            <div id="faq3" class="accordion-collapse collapse" aria-labelledby="faqHeading3" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                    <p>We have set up trust structures to mitigate this, like using real names and the ability to share only with people you are connected to.</p>
+                    <p class="mb-0">But this attitude is part of the problem we are trying to work through. Despite what TV tells us, humans are generally good and cooperative. The fear of the worst has driven us apart.</p>
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h3 class="accordion-header" id="faqHeading4">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4" aria-expanded="false" aria-controls="faq4">
+                    How is this different than a Buy Nothing group on Facebook?
+                </button>
+            </h3>
+            <div id="faq4" class="accordion-collapse collapse" aria-labelledby="faqHeading4" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                    <p>Buy Nothing and Freecycle groups were a good start! Meutch aims to improve on those in a few ways:</p>
+                    <ul class="mb-0">
+                        <li><strong>Structured and searchable.</strong> Instead of scrolling a feed of random objects, you can search for what you need.</li>
+                        <li><strong>More privacy.</strong> You can choose to share with people you know, or people they know.</li>
+                        <li><strong>Open to anyone,</strong> including those who are Facebook-free.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2>Credits</h2>
+    <p><strong>Meutch</strong> was created by <a href="https://www.samfirke.com">Sam Firke</a>. Logo and favicon designed by Ilana Firke.</p>
+    <p class="small text-muted"><a href="https://www.flaticon.com/free-icons/user" title="user icons" class="text-muted">Icons created by kmg design - Flaticon</a></p>
+</div>
 {% endblock %}

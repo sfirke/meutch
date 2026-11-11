@@ -33,10 +33,10 @@
     </div>
 {% endmacro %}
 
-{% macro check_field(field, help=none, id=none, wrapper_class="mb-3") %}
+{% macro check_field(field, help=none, id=none, wrapper_class="mb-3", switch=false) %}
     {%- set input_id = id or field.id %}
     <div class="{{ wrapper_class }}">
-        <div class="form-check">
+        <div class="form-check{% if switch %} form-switch{% endif %}">
             {{ field(class="form-check-input" ~ (" is-invalid" if field.errors else ""), id=input_id, **kwargs) }}
             {{ field.label(class="form-check-label", for_=input_id) }}
         </div>

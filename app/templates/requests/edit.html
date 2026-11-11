@@ -21,11 +21,11 @@
     {% if item_request.status == 'open' and not item_request.is_expired %}
         <div class="form-note form-note--action mt-4">
             <div>
-                <strong>Has this request been fulfilled?</strong> Mark it as fulfilled instead of editing.
+                <strong>Found what you needed?</strong> Mark it as found instead of editing it.
             </div>
             <form method="POST" action="{{ url_for('requests.fulfill', request_id=item_request.id) }}">
                 {{ fulfill_form.hidden_tag() }}
-                <button type="submit" class="btn btn-outline-secondary btn-sm">Mark Fulfilled</button>
+                <button type="submit" class="btn btn-outline-secondary btn-sm">Mark as found</button>
             </form>
         </div>
     {% endif %}
