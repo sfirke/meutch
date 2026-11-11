@@ -40,13 +40,18 @@ def _normalize_sort_by(sort_by):
 
 
 def _selected_circle_user_ids_query(user, selected_circle_ids=None):
-    if selected_circle_ids:
-        return (
-            select(circle_members.c.user_id)
-            .where(circle_members.c.circle_id.in_(selected_circle_ids))
-            .distinct()
-        )
-    return user.get_shared_circle_user_ids_query()
+    if not selected_circle_ids:
+        return user.get_shared_circle_user_ids_query()
+
+    # The filter can only narrow to circles the user belongs to. Anything else
+    # is dropped, so a selection with no valid circle matches nothing.
+    selected = {str(circle_id) for circle_id in selected_circle_ids if circle_id}
+    scoped_circle_ids = [circle.id for circle in user.circles if str(circle.id) in selected]
+    return (
+        select(circle_members.c.user_id)
+        .where(circle_members.c.circle_id.in_(scoped_circle_ids))
+        .distinct()
+    )
 
 
 def _available_items_filter():

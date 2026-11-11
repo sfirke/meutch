@@ -233,3 +233,75 @@ class TestAuthService:
             assert result.status == auth_service.PASSWORD_RESET_STATUS_EXPIRED
             assert user.password_reset_token == token
             assert user.check_password(TEST_PASSWORD) is True
+
+
+class TestDeletedAccounts:
+    """A deleted row is treated as no account by every sign-in and recovery flow."""
+
+    @staticmethod
+    def _deleted_user(**kwargs):
+        user = UserFactory(is_deleted=True, **kwargs)
+        db.session.commit()
+        return user
+
+    def test_authenticate_user_treats_deleted_account_as_unknown(self, app):
+        with app.app_context():
+            user = self._deleted_user()
+
+            result = auth_service.authenticate_user(user.email, TEST_PASSWORD)
+
+            assert result.status == auth_service.LOGIN_STATUS_INVALID_CREDENTIALS
+            assert result.user is None
+            assert user.last_login is None
+
+    def test_authenticate_user_does_not_count_attempts_on_deleted_account(self, app):
+        with app.app_context():
+            user = self._deleted_user()
+
+            for _ in range(auth_service.MAX_FAILED_LOGIN_ATTEMPTS + 1):
+                result = auth_service.authenticate_user(user.email, "wrong-password")
+
+            assert result.status == auth_service.LOGIN_STATUS_INVALID_CREDENTIALS
+            assert user.failed_login_attempts == 0
+            assert user.locked_until is None
+
+    def test_request_password_reset_ignores_deleted_account(self, app):
+        with app.app_context():
+            user = self._deleted_user()
+
+            result = auth_service.request_password_reset(user.email)
+
+            assert result.status == auth_service.PASSWORD_RESET_REQUEST_STATUS_NOT_FOUND
+            assert user.password_reset_token is None
+
+    def test_reset_password_rejects_token_of_deleted_account(self, app):
+        with app.app_context():
+            user = self._deleted_user()
+            token = user.generate_password_reset_token()
+            db.session.commit()
+
+            status = auth_service.get_password_reset_token_status(token)
+            result = auth_service.reset_password(token, "a-new-password-123")
+
+            assert status.status == auth_service.PASSWORD_RESET_TOKEN_STATUS_INVALID
+            assert result.status == auth_service.PASSWORD_RESET_STATUS_INVALID
+            assert user.check_password(TEST_PASSWORD) is True
+
+    def test_confirm_email_rejects_token_of_deleted_account(self, app):
+        with app.app_context():
+            user = self._deleted_user(email_confirmed=False)
+            token = user.generate_confirmation_token()
+            db.session.commit()
+
+            result = auth_service.confirm_email_token(token)
+
+            assert result.status == auth_service.CONFIRM_EMAIL_STATUS_INVALID_LINK
+            assert user.email_confirmed is False
+
+    def test_resend_confirmation_ignores_deleted_account(self, app):
+        with app.app_context():
+            user = self._deleted_user(email_confirmed=False)
+
+            result = auth_service.resend_confirmation_email_for_user(user.email)
+
+            assert result.status == auth_service.RESEND_CONFIRMATION_STATUS_NOT_FOUND

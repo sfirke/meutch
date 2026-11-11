@@ -1,74 +1,38 @@
 <!-- request_loan.html -->
 
 {% extends "base.html" %}
+{% from "components/forms.html" import form_field %}
 
-{% block title %}Request to Borrow: {{ item.name }}{% endblock %}
+{% block title %}Ask to borrow: {{ item.name }}{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row">
-        <div class="col-md-8">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h2>Request to Borrow</h2>
-                </div>
-                <div class="card-body">
-                    <!-- Item Details Card -->
-                    <div class="item-card mb-4">
-                        {% if item.image %}
-                            <img src="{{ item.image }}"
-                                 class="item-thumbnail mb-3"
-                                 alt="{{ item.name }}"
-                                 width="200"
-                                 height="150">
-                        {% endif %}
-                        <h4>{{ item.name }}</h4>
-                        <p>{{ item.description|linkify }}</p>
-                        <p><strong>Owner:</strong> {{ item.owner.first_name }} {{ item.owner.last_name }}</p>
-                    </div>
+<div class="form-page">
+    <h1>Ask to borrow this</h1>
 
-                    <!-- Loan Request Form -->
-                    <form method="post" action="{{ url_for('main.request_item', item_id=item.id, share_token=share_token) if share_token else url_for('main.request_item', item_id=item.id) }}" novalidate>
-                        {{ form.hidden_tag() }}
-
-                        <!-- Date Fields -->
-                        <div class="form-row">
-                            <div>
-                                {{ form.start_date.label(class="form-label") }}
-                                {{ form.start_date(class="form-control form-control-small") }}
-                                {% for error in form.start_date.errors %}
-                                    <div class="text-danger">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            <div>
-                                {{ form.end_date.label(class="form-label") }}
-                                {{ form.end_date(class="form-control form-control-small") }}
-                                {% for error in form.end_date.errors %}
-                                    <div class="text-danger">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                        </div>
-
-                        <!-- Message Section -->
-                        <div class="mb-3">
-                            {{ form.message.label(class="form-label") }}
-                            <span class="text-danger">*</span>
-                            {{ form.message(class="form-control" + (" is-invalid" if form.message.errors else ""), rows="8", required=False) }}
-                            {% for error in form.message.errors %}
-                                <div class="invalid-feedback">{{ error }}</div>
-                            {% endfor %}
-                            <small class="text-muted">
-                                Please include any relevant details about pickup/return and preferred contact method.
-                            </small>
-                        </div>
-
-                        <!-- Form Buttons -->
-                        <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
-                        <a href="{{ url_for('main.item_detail', item_id=item.id, share_token=share_token) if share_token else url_for('main.item_detail', item_id=item.id) }}" class="btn btn-secondary">Cancel</a>
-                    </form>
-                </div>
-            </div>
+    <section class="card conversation-context mb-4">
+        <img src="{{ item.image }}" alt="{{ item.name }}" class="conversation-context-photo">
+        <div class="conversation-context-body">
+            <div class="conversation-context-title">{{ item.name }}</div>
+            {% if item.description %}
+                <p class="conversation-context-description feed-line-clamp-2">{{ item.description|linkify }}</p>
+            {% endif %}
+            <div class="small text-muted">From {{ item.owner.full_name }}</div>
         </div>
-    </div>
+    </section>
+
+    <form method="post" action="{{ url_for('main.request_item', item_id=item.id, share_token=share_token) if share_token else url_for('main.request_item', item_id=item.id) }}" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="row gx-3">
+            {{ form_field(form.start_date, wrapper_class="col-sm-6 mb-3") }}
+            {{ form_field(form.end_date, wrapper_class="col-sm-6 mb-3") }}
+        </div>
+        {{ form_field(form.message, help="Please include any relevant details about pickup/return and preferred contact method.", rows="6", required=False) }}
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+            <a href="{{ url_for('main.item_detail', item_id=item.id, share_token=share_token) if share_token else url_for('main.item_detail', item_id=item.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
 </div>
 {% endblock %}

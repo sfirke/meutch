@@ -204,7 +204,7 @@ class TestApiFeed:
         assert "Other API giveaway" in hidden_titles
 
     def test_feed_show_claimed_giveaways_toggle(self, client, app):
-        """API feed hides claimed giveaways by default and can include them."""
+        """API feed includes claimed giveaways by default and can hide them."""
         with app.app_context():
             viewer = UserFactory(email_confirmed=True)
             owner = UserFactory()
@@ -238,13 +238,13 @@ class TestApiFeed:
         assert default_response.status_code == 200
         default_titles = {e["title"] for e in default_response.get_json()["events"]}
         assert "API unclaimed giveaway" in default_titles
-        assert "API claimed giveaway" not in default_titles
+        assert "API claimed giveaway" in default_titles
 
-        shown_response = client.get(
-            "/api/v1/feed?types=giveaways&show_claimed_giveaways=true",
+        hidden_response = client.get(
+            "/api/v1/feed?types=giveaways&show_claimed_giveaways=false",
             headers=auth_headers(access_token),
         )
-        assert shown_response.status_code == 200
-        shown_titles = {e["title"] for e in shown_response.get_json()["events"]}
-        assert "API unclaimed giveaway" in shown_titles
-        assert "API claimed giveaway" in shown_titles
+        assert hidden_response.status_code == 200
+        hidden_titles = {e["title"] for e in hidden_response.get_json()["events"]}
+        assert "API unclaimed giveaway" in hidden_titles
+        assert "API claimed giveaway" not in hidden_titles

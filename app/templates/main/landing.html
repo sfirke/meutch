@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/feed.html" import feed_card %}
 
 {% block title %}Meutch{% endblock %}
 
@@ -10,26 +11,26 @@
      ============================================ -->
 <section class="landing-hero d-flex align-items-center">
     <div class="container">
-        <div class="row align-items-center g-5">
+        <div class="row align-items-center gy-4 gx-lg-5">
             <!-- Left: text + CTAs -->
             <div class="col-lg-7 text-center text-lg-start">
                 <h1 class="landing-headline mb-3">
-                    What if borrowing from a neighbor was as easy as buying from Amazon?
+                    What if <span class="paper-strip">borrowing</span> from a neighbor was as easy as buying from Amazon?
                 </h1>
                 <p class="landing-subheadline mb-4">
                     Meutch supports the <i>actual</i> sharing economy. Tech for good: no cost, no ads, no catch.
                 </p>
                 <div class="d-flex gap-3 justify-content-center justify-content-lg-start flex-wrap">
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-lg landing-btn-primary">
-                        <i class="fas fa-user-plus me-2"></i>Get Started
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-lg btn-primary">
+                        Get started
                     </a>
-                    <a href="#how-it-works" class="btn btn-lg landing-btn-outline">
-                        See How It Works
+                    <a href="#how-it-works" class="btn btn-lg btn-light">
+                        See how it works
                     </a>
                 </div>
             </div>
             <!-- Right: large logo -->
-            <div class="col-lg-5 d-none d-lg-flex justify-content-center align-items-center">
+            <div class="col-lg-5 d-flex justify-content-center align-items-center">
                 <img src="{{ url_for('static', filename='img/logo_handshake.png') }}"
                      alt="Meutch handshake logo" class="landing-hero-logo">
             </div>
@@ -45,142 +46,25 @@
      ============================================ -->
 <section class="landing-section">
     <div class="container">
-        <h2 class="landing-section-title text-center mb-2">See It In Action</h2>
+        <h2 class="landing-section-title text-center mb-2">See it in action</h2>
         <p class="text-center text-muted mb-5">Here's what a typical day on Meutch looks like.</p>
 
         <div class="row justify-content-center">
             <div class="col-lg-7">
-                <div class="landing-mock-feed">
-                    <!-- Lent -->
-                    <div class="card shadow-sm border-0 border-start border-4 border-secondary mb-3">
-                        <div class="card-body py-3">
-                            <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
-                                <span class="activity-feed-avatar-fallback flex-shrink-0" style="background-color: #e0f2f1; color: #0d6e6e; width: 28px; height: 28px; font-size: 0.72rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center;">NS</span>
-                                <div class="text-truncate"><strong class="text-body">Nicki S.</strong> lent out</div>
-                                <div class="ms-auto text-nowrap" style="font-size: 0.8rem;">3 h ago</div>
-                            </div>
-                            <div class="d-flex w-100">
-                                <div class="flex-grow-1" style="min-width: 0;">
-                                    <div class="d-block mb-1">
-                                        <h3 class="h5 mb-1 d-inline">Sawhorses</h3>
-                                        <span class="badge rounded-pill text-bg-light border text-secondary ms-1" style="font-size: 0.65rem; vertical-align: middle;">
-                                            <i class="fas fa-handshake me-1"></i>Lent
-                                        </span>
-                                    </div>
-                                    <p class="text-muted small mb-2 text-break" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                        Pair of Toughbuilt C700 sawhorses / job site table. Comes with a scrap of OSB that works as a current table top.
-                                    </p>
-                                    <div class="mt-2">
-                                        <span class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none" style="cursor: default;">
-                                            View Item <i class="fas fa-chevron-right small ms-1"></i>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="flex-shrink-0 ms-3">
-                                    <img src="{{ url_for('static', filename='img/sawhorses.jpg') }}" alt="Sawhorse in garage" class="rounded border" style="width: 72px; height: 72px; object-fit: cover;">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Giveaway -->
-                    <div class="card shadow-sm border-0 border-start border-4 border-success mb-3">
-                        <div class="card-body py-3">
-                            <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
-                                <span class="activity-feed-avatar-fallback flex-shrink-0" style="background-color: #d1fae5; color: #065f46; width: 28px; height: 28px; font-size: 0.72rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center;">GH</span>
-                                <div class="text-truncate"><strong class="text-body">George H.</strong> listed a giveaway</div>
-                                <div class="ms-auto text-nowrap" style="font-size: 0.8rem;">6 h ago</div>
-                            </div>
-                            <div class="d-flex w-100">
-                                <div class="flex-grow-1" style="min-width: 0;">
-                                    <div class="d-block mb-1">
-                                        <h3 class="h5 mb-1 d-inline">Wavelength party game</h3>
-                                        <span class="badge rounded-pill text-bg-light border text-success ms-1" style="font-size: 0.65rem; vertical-align: middle;">
-                                            <i class="fas fa-gift me-1"></i>Giveaway
-                                        </span>
-                                        <span class="badge bg-info ms-1" style="font-size: 0.65rem; vertical-align: middle;">
-                                            <i class="fas fa-map-marker-alt me-1"></i>0.8 mi
-                                        </span>
-                                    </div>
-                                    <p class="text-muted small mb-2 text-break" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                        Complete and in great shape, we just never play it anymore. Would love it to go to a good home.
-                                    </p>
-                                    <div class="mt-2">
-                                        <span class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none" style="cursor: default;">
-                                            View Item <i class="fas fa-chevron-right small ms-1"></i>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="flex-shrink-0 ms-3">
-                                    <img src="{{ url_for('static', filename='img/wavelength_game.jpg') }}" alt="Wavelength boardgame" class="rounded border" style="width: 72px; height: 72px; object-fit: cover;">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Circle join -->
-                    <div class="card shadow-sm border-0 border-start border-4 border-info mb-3">
-                        <div class="card-body py-3">
-                            <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
-                                <img src="{{ url_for('static', filename='img/sam_avatar.jpg') }}" alt="Sam F. avatar" class="rounded-circle flex-shrink-0" style="width: 28px; height: 28px; object-fit: cover;">
-                                <div class="text-truncate"><strong class="text-body">Sam F.</strong> joined a circle</div>
-                                <div class="ms-auto text-nowrap" style="font-size: 0.8rem;">1 d ago</div>
-                            </div>
-                            <div class="d-flex w-100">
-                                <div class="flex-grow-1" style="min-width: 0;">
-                                    <div class="d-block mb-1">
-                                        <h3 class="h5 mb-1 d-inline">Workantile Co-working</h3>
-                                        <span class="badge rounded-pill text-bg-light border text-info ms-1" style="font-size: 0.65rem; vertical-align: middle;">
-                                            <i class="fas fa-users me-1"></i>Circle
-                                        </span>
-                                    </div>
-                                    <p class="text-muted small mb-2 text-break" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                        Members and alumni of Ann Arbor's member-run co-working community.
-                                    </p>
-                                    <div class="mt-2">
-                                        <span class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none" style="cursor: default;">
-                                            View Circle <i class="fas fa-chevron-right small ms-1"></i>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="flex-shrink-0 ms-3">
-                                    <img src="{{ url_for('static', filename='img/workantile_coworking.jpg') }}" alt="Workantile Co-working front entrance" class="rounded border" style="width: 72px; height: 72px; object-fit: cover;">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Request -->
-                    <div class="card shadow-sm border-0 border-start border-4 border-primary">
-                        <div class="card-body py-3">
-                            <div class="d-flex align-items-center mb-2 gap-2 text-muted" style="font-size: 0.9rem;">
-                                <span class="activity-feed-avatar-fallback flex-shrink-0" style="background-color: #e9d5ff; color: #6b21a8; width: 28px; height: 28px; font-size: 0.72rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center;">CW</span>
-                                <div class="text-truncate"><strong class="text-body">Cory W.</strong> posted a request</div>
-                                <div class="ms-auto text-nowrap" style="font-size: 0.8rem;">2 d ago</div>
-                            </div>
-                            <div class="d-flex w-100">
-                                <div class="flex-grow-1" style="min-width: 0;">
-                                    <div class="d-block mb-1">
-                                        <h3 class="h5 mb-1 d-inline">Milk cartons for a kids craft</h3>
-                                        <span class="badge rounded-pill text-bg-light border text-primary ms-1" style="font-size: 0.65rem; vertical-align: middle;">
-                                            <i class="fas fa-hand-holding-heart me-1"></i>Request
-                                        </span>
-                                        <span class="badge bg-info ms-1" style="font-size: 0.65rem; vertical-align: middle;">
-                                            <i class="fas fa-map-marker-alt me-1"></i>1.4 mi
-                                        </span>
-                                    </div>
-                                    <p class="text-muted small mb-2 text-break" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                        The kids want to build a mouse village. The instructions call for milk cartons (the kind with a peaked roof).
-                                    </p>
-                                    <div class="mt-2">
-                                        <span class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none" style="cursor: default;">
-                                            View Request <i class="fas fa-chevron-right small ms-1"></i>
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="d-grid gap-3">
+                    {{ feed_card("Nicki S.", "lent out", "3 h ago", "Sawhorses",
+                        description="Pair of Toughbuilt C700 sawhorses / job site table. Comes with a scrap of OSB that works as a current table top.",
+                        tag="on_loan", image_url=url_for('static', filename='img/sawhorses.jpg'), heading="h3") }}
+                    {{ feed_card("George H.", "listed a giveaway", "6 h ago", "Wavelength party game",
+                        description="Complete and in great shape, we just never play it anymore. Would love it to go to a good home.",
+                        tag="giveaway", distance="0.8 mi", image_url=url_for('static', filename='img/wavelength_game.jpg'), heading="h3") }}
+                    {{ feed_card("Sam F.", "joined a circle", "1 d ago", "Workantile Co-working",
+                        avatar_url=url_for('static', filename='img/sam_avatar.jpg'),
+                        description="Members and alumni of Ann Arbor's member-run co-working community.",
+                        tag="circle", image_url=url_for('static', filename='img/workantile_coworking.jpg'), heading="h3") }}
+                    {{ feed_card("Cory W.", "posted a request", "2 d ago", "Milk cartons for a kids craft",
+                        description="The kids want to build a mouse village. The instructions call for milk cartons (the kind with a peaked roof).",
+                        tag="wanted", distance="1.4 mi", heading="h3") }}
                 </div>
             </div>
         </div>
@@ -192,11 +76,11 @@
      ============================================ -->
 <section class="landing-section landing-section-alt">
     <div class="container">
-        <div class="row align-items-center g-5">
+        <div class="row align-items-center gy-4 gx-md-5">
             <div class="col-md-6">
                 <img src="{{ url_for('static', filename='img/sashiko_hands_share.jpg') }}"
                      alt="One person's hand giving a spool of sashiko thread to another outstretched hand"
-                     class="img-fluid rounded shadow-sm">
+                     class="img-fluid landing-photo">
             </div>
             <div class="col-md-6">
                 <blockquote class="landing-quote">
@@ -216,29 +100,29 @@
      ============================================ -->
 <section class="landing-section" id="faq">
     <div class="container">
-        <h2 class="landing-section-title text-center mb-5">Common Questions</h2>
+        <h2 class="landing-section-title text-center mb-5">Common questions</h2>
 
         <div class="row justify-content-center">
             <div class="col-lg-8">
-                <div class="accordion" id="landingFaq">
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded overflow-hidden">
+                <div class="accordion faq" id="landingFaq">
+                    <div class="accordion-item">
                         <h3 class="accordion-header">
                             <button class="accordion-button collapsed" type="button"
-                                    data-bs-toggle="collapse" data-bs-target="#faq1">
+                                    data-bs-toggle="collapse" data-bs-target="#faq1" aria-expanded="false" aria-controls="faq1">
                                 &ldquo;Meutch&rdquo;?
                             </button>
                         </h3>
                         <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#landingFaq">
                             <div class="accordion-body">
-                                It's short for "mutual aid", so it's pronounced "mewch." Peter Kropotkin popularized the term in his essay arguing that humans (and other animals) helping each other has been key to their evolutionary success. 
+                                It's short for "mutual aid", so it's pronounced "mewch." Peter Kropotkin popularized the term in his essay arguing that humans (and other animals) helping each other has been key to their evolutionary success.
                             </div>
                         </div>
                     </div>
 
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded overflow-hidden">
+                    <div class="accordion-item">
                         <h3 class="accordion-header">
                             <button class="accordion-button collapsed" type="button"
-                                    data-bs-toggle="collapse" data-bs-target="#faq2">
+                                    data-bs-toggle="collapse" data-bs-target="#faq2" aria-expanded="false" aria-controls="faq2">
                                 What if someone doesn't return my item?
                             </button>
                         </h3>
@@ -249,10 +133,10 @@
                         </div>
                     </div>
 
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded overflow-hidden">
+                    <div class="accordion-item">
                         <h3 class="accordion-header">
                             <button class="accordion-button collapsed" type="button"
-                                    data-bs-toggle="collapse" data-bs-target="#faq3">
+                                    data-bs-toggle="collapse" data-bs-target="#faq3" aria-expanded="false" aria-controls="faq3">
                                 How is this different from Buy Nothing groups?
                             </button>
                         </h3>
@@ -263,10 +147,10 @@
                         </div>
                     </div>
 
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded overflow-hidden">
+                    <div class="accordion-item">
                         <h3 class="accordion-header">
                             <button class="accordion-button collapsed" type="button"
-                                    data-bs-toggle="collapse" data-bs-target="#faq4">
+                                    data-bs-toggle="collapse" data-bs-target="#faq4" aria-expanded="false" aria-controls="faq4">
                                 Is this free? What's the catch?
                             </button>
                         </h3>
@@ -277,10 +161,10 @@
                         </div>
                     </div>
 
-                    <div class="accordion-item border-0 mb-3 shadow-sm rounded overflow-hidden">
+                    <div class="accordion-item">
                         <h3 class="accordion-header">
                             <button class="accordion-button collapsed" type="button"
-                                    data-bs-toggle="collapse" data-bs-target="#faq5">
+                                    data-bs-toggle="collapse" data-bs-target="#faq5" aria-expanded="false" aria-controls="faq5">
                                 Where can I use Meutch?
                             </button>
                         </h3>
@@ -296,37 +180,5 @@
     </div>
 </section>
 
-<!-- ============================================
-     FINAL CTA
-     ============================================ -->
-<section class="landing-cta">
-    <div class="container text-center">
-        <h2 class="text-white mb-3">Ready to start sharing?</h2>
-        <p class="text-white-50 mb-4">Join your friends and neighbors in building caring, resilient communities.</p>
-        <a href="{{ url_for('auth.register') }}" class="btn btn-lg landing-btn-cta">
-            <i class="fas fa-user-plus me-2"></i>Create Your Account
-        </a>
-    </div>
-</section>
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<script>
-(function () {
-    'use strict';
-    var navbar = document.querySelector('.navbar');
-    if (!document.body.classList.contains('landing-page') || !navbar) return;
-
-    function onScroll() {
-        if (window.scrollY > 50) {
-            navbar.classList.add('scrolled');
-        } else {
-            navbar.classList.remove('scrolled');
-        }
-    }
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-})();
-</script>
+{% include 'share/_final_cta.html' %}
 {% endblock %}

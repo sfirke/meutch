@@ -2,12 +2,12 @@
 
 {% extends "base.html" %}
 
-{% block title %}List Item{% endblock %}
+{% block title %}List item{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2>List a New Item</h2>
-    <form method="post" enctype="multipart/form-data" data-single-submit="true">
+<div class="form-page">
+    <h1>What can you share?</h1>
+    <form method="post" enctype="multipart/form-data">
         {{ form.csrf_token }}
         {{ form.creation_token() }}
         {% if return_request_id %}
@@ -16,130 +16,16 @@
             <input type="hidden" name="request_id" value="{{ return_request_id }}">
         {% endif %}
 
-        <!-- Item Name -->
-        <div class="mb-3">
-            {{ form.name.label(class="form-label") }}
-            {{ form.name(class="form-control", placeholder="Enter item name", autocapitalize="words") }}
-            {% for error in form.name.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
-        </div>
+        {% include "main/_item_fields.html" %}
 
-        <!-- Description -->
-        <div class="mb-3">
-            {{ form.description.label(class="form-label") }}
-            {{ form.description(class="form-control", placeholder="Describe the item. Include manufacturer and model, if applicable, as well as limitations or special powers.", rows="3") }}
-            {% for error in form.description.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
-        </div>
-
-        <!-- Images -->
-        <div class="mb-3 multi-image-upload"
-             data-max-images="{{ item_upload_limits.max_images }}"
-             data-max-file-size-bytes="{{ item_upload_limits.max_file_size_bytes }}"
-             data-max-file-size-label="{{ item_upload_limits.max_file_size_label }}"
-             data-max-source-image-pixels="{{ item_upload_limits.max_source_image_pixels }}"
-             data-max-source-image-label="{{ item_upload_limits.max_source_image_label }}"
-             data-max-source-image-example-dimensions="{{ item_upload_limits.max_source_image_example_dimensions }}"
-             data-compress-max-width="{{ item_upload_limits.compressed_max_width }}"
-             data-compress-max-height="{{ item_upload_limits.compressed_max_height }}"
-             data-compression-quality="{{ item_upload_limits.compression_quality }}">
-            <label class="form-label">Images <small class="text-muted">(up to {{ item_upload_limits.max_images }})</small></label>
-            {{ form.image(class="form-control", accept="image/*", multiple=True, style="display:none") }}
-            {{ form.delete_images() }}
-            {{ form.image_order() }}
-            <div class="multi-image-container"></div>
-            <div class="form-text">
-                <small class="text-muted">Supported formats: JPG, PNG, GIF, BMP, WebP. Up to {{ item_upload_limits.max_file_size_label }} per photo before compression. Drag to reorder.</small>
-            </div>
-            {% for error in form.image.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
-        </div>
-
-        <!-- Category -->
-        <div class="mb-3">
-            {{ form.category.label(class="form-label") }}
-            {{ form.category(class="form-select") }}
-            {% for error in form.category.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
-        </div>
-
-        <!-- Tags -->
-        <div class="mb-3">
-            {{ form.tags.label(class="form-label") }}
-            {{ form.tags(class="form-control", placeholder="Enter tags separated by commas") }}
-            {% for error in form.tags.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
-        </div>
-
-        <!-- Giveaway Option -->
-        <div class="mb-3">
-            <div class="form-check">
-                {{ form.is_giveaway(class="form-check-input", id="isGiveawayCheckbox") }}
-                {{ form.is_giveaway.label(class="form-check-label", for_="isGiveawayCheckbox") }}
-            </div>
-            {% for error in form.is_giveaway.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
-        </div>
-
-        <!-- Giveaway Visibility (conditional) -->
-        <div class="mb-3" id="giveawayVisibilitySection" style="display: none;">
-            {{ form.giveaway_visibility.label(class="form-label") }}
-            {% for subfield in form.giveaway_visibility %}
-                <div class="form-check">
-                    {{ subfield(class="form-check-input") }}
-                    {{ subfield.label(class="form-check-label") }}
-                </div>
-            {% endfor %}
-            {% for error in form.giveaway_visibility.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
-        </div>
-
-        <!-- Submit Buttons -->
-        <div class="mb-3 d-grid gap-2 d-md-flex justify-content-md-start">
+        <div class="form-actions">
             {{ form.submit(class="btn btn-primary") }}
             {% if not return_request_id %}
-                {{ form.submit_and_create_another(class="btn btn-outline-primary") }}
+                {{ form.submit_and_create_another(class="btn btn-outline-secondary") }}
             {% endif %}
         </div>
     </form>
 </div>
 
-<script>
-    // Show/hide giveaway visibility options based on checkbox state
-    document.addEventListener('DOMContentLoaded', function() {
-        const giveawayCheckbox = document.getElementById('isGiveawayCheckbox');
-        const visibilitySection = document.getElementById('giveawayVisibilitySection');
-
-        function toggleVisibilitySection() {
-            if (giveawayCheckbox.checked) {
-                visibilitySection.style.display = 'block';
-            } else {
-                visibilitySection.style.display = 'none';
-            }
-        }
-
-        // Initialize on page load
-        toggleVisibilitySection();
-
-        // Update when checkbox changes
-        giveawayCheckbox.addEventListener('change', toggleVisibilitySection);
-    });
-</script>
-
-<!-- Cropper.js CSS and JS -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" integrity="sha512-UtLOu9C7NuThQhuXXrGwx9Jb/z9zPQJctuAgNUBK3Z6kkSYT9wJ+2+dh6klS+TDBCV9kNPBbAxbVD+vCcfGPaA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" integrity="sha512-JyCZjCOZoyeQZSd5+YEAcFgz2fowJ1F1hyJOXgtKu4llIa0KneLcidn5bwfutiehUTiOuK87A986BZJMko0eWQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
-<!-- Multi-Image Upload -->
-<script src="{{ static_url_for('js/multi-image-upload.js') }}"></script>
-
-<!-- Photo Preview (Crop Modal) -->
-<script src="{{ static_url_for('js/photo-preview.js') }}"></script>
+{% include "main/_item_form_scripts.html" %}
 {% endblock %}

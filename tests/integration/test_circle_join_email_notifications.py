@@ -13,7 +13,7 @@ def get_single_email_by_subject(mock, subject_substring):
     subject contains *subject_substring*. Asserts exactly one match."""
     matches = [call.args for call in mock.call_args_list if subject_substring in call.args[1]]
     assert len(matches) == 1, (
-        f"Expected 1 email with subject containing {subject_substring!r}, " f"got {len(matches)}"
+        f"Expected 1 email with subject containing {subject_substring!r}, got {len(matches)}"
     )
     return matches[0]
 

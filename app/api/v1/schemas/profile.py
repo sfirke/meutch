@@ -2,6 +2,7 @@
 
 from marshmallow import ValidationError, fields, validate, validates_schema
 
+from app.api.v1.schemas.auth import validate_plausible_name
 from app.api.v1.schemas.base import (
     ApiBoolean,
     ApiDateTime,
@@ -29,6 +30,12 @@ class UserWebLinkSchema(ApiSchema):
 _USER_WEB_LINKS_SCHEMA = UserWebLinkSchema(many=True)
 
 
+def dump_web_links(user):
+    """Dump a user's external links in display order."""
+    ordered_links = sorted(user.web_links, key=lambda link: link.display_order)
+    return _USER_WEB_LINKS_SCHEMA.dump(ordered_links)
+
+
 class UserProfileSchema(UserIdentitySchema):
     """Expanded authenticated-user profile data."""
 
@@ -44,8 +51,7 @@ class UserProfileSchema(UserIdentitySchema):
 
     def get_web_links(self, user):
         """Return ordered external links for the profile."""
-        ordered_links = sorted(user.web_links, key=lambda link: link.display_order)
-        return _USER_WEB_LINKS_SCHEMA.dump(ordered_links)
+        return dump_web_links(user)
 
 
 class CurrentUserProfileResponseSchema(ApiSchema):
@@ -108,6 +114,8 @@ class UserWebLinkWriteSchema(ApiSchema):
 class ProfileUpdateSchema(ApiSchema):
     """Write payload for the authenticated user's profile."""
 
+    first_name = fields.String(validate=[validate.Length(min=1, max=50), validate_plausible_name])
+    last_name = fields.String(validate=[validate.Length(min=1, max=50), validate_plausible_name])
     about_me = fields.String(allow_none=True, validate=validate.Length(max=500))
     delete_image = ApiBoolean(load_default=False)
     profile_image = ApiUploadedFile(allow_none=True)

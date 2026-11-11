@@ -1,20 +1,31 @@
 """Unit tests for API Marshmallow schemas."""
 
 from datetime import UTC, date, datetime, timedelta
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 from marshmallow import ValidationError
+from marshmallow.experimental.context import Context
 
 from app import db
+from app.api.v1 import profile_flags
 from app.api.v1.schemas import ItemSummarySchema, UserSummarySchema
-from app.api.v1.schemas.circles import CircleWritePayloadSchema
+from app.api.v1.schemas.circles import CircleSummarySchema, CircleWritePayloadSchema
 from app.api.v1.schemas.items import ItemWritePayloadSchema
-from app.api.v1.schemas.loans import LoanRequestCreateSchema
+from app.api.v1.schemas.loans import LoanExtensionRequestCreateSchema, LoanRequestCreateSchema
 from app.api.v1.schemas.messaging import MessageStartSchema
 from app.api.v1.schemas.profile import LocationUpdateSchema, ProfileUpdateSchema
 from app.api.v1.schemas.requests import RequestWritePayloadSchema
-from tests.factories import CategoryFactory, ItemFactory, ItemImageFactory, TagFactory, UserFactory
+from app.api.v1.schemas.users import UserIdentitySchema
+from tests.factories import (
+    CategoryFactory,
+    CircleFactory,
+    ItemFactory,
+    ItemImageFactory,
+    TagFactory,
+    UserFactory,
+)
 
 
 class TestApiSchemas:
@@ -38,6 +49,7 @@ class TestApiSchemas:
             "last_name": "Lovelace",
             "full_name": "Ada Lovelace",
             "profile_image_url": "https://example.com/profiles/ada.png",
+            "profile_viewable": False,
         }
         assert "email" not in payload
         assert "password_hash" not in payload
@@ -91,6 +103,7 @@ class TestApiSchemas:
                 "last_name": "Hopper",
                 "full_name": "Grace Hopper",
                 "profile_image_url": "https://example.com/profiles/grace.png",
+                "profile_viewable": False,
             },
             "category": {
                 "id": str(category.id),
@@ -117,6 +130,75 @@ class TestApiSchemas:
             payload = ItemSummarySchema().dump(item)
 
         assert payload["image_url"] is None
+
+
+class TestProfileViewableFlag:
+    """Test the context-driven profile_viewable flag on nested users."""
+
+    def test_true_when_id_in_context(self, app):
+        with app.app_context():
+            viewable, hidden = UserFactory(), UserFactory()
+            with Context({"viewable_user_ids": {viewable.id}}):
+                payload = UserSummarySchema().dump([viewable, hidden], many=True)
+
+        assert [entry["profile_viewable"] for entry in payload] == [True, False]
+
+    def test_matches_string_ids_and_dict_objects(self):
+        user_id = uuid4()
+        user = {
+            "id": user_id,
+            "first_name": "Ada",
+            "last_name": "Lovelace",
+            "full_name": "Ada Lovelace",
+            "profile_image_url": None,
+        }
+        with Context({"viewable_user_ids": [str(user_id).upper()]}):
+            payload = UserSummarySchema().dump(user)
+
+        assert payload["profile_viewable"] is True
+
+    def test_identity_schema_has_no_flag(self):
+        assert "profile_viewable" not in UserIdentitySchema().fields
+
+    def test_dump_helper_marks_viewable_users(self, app, monkeypatch):
+        with app.app_context():
+            viewer, member, stranger = UserFactory(), UserFactory(), UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([viewer, member])
+            db.session.commit()
+            monkeypatch.setattr(profile_flags, "current_user", viewer)
+
+            users = [viewer, member, stranger]
+            payload = profile_flags.dump_with_viewable_profiles(
+                UserSummarySchema(),
+                users,
+                [user.id for user in users] + [member.id, None],
+                many=True,
+            )
+
+        assert [entry["profile_viewable"] for entry in payload] == [False, True, False]
+
+
+class TestCircleDistanceSerialization:
+    """Circle distance is reported as a range, never as an exact figure."""
+
+    @staticmethod
+    def _dump(distance):
+        circle = SimpleNamespace(api_distance_miles=distance)
+        schema = CircleSummarySchema(only=("distance_miles", "distance"))
+        return schema.dump(circle)
+
+    def test_distance_is_reported_as_bucket_floor_and_label(self):
+        assert self._dump(3.14159) == {"distance_miles": 2, "distance": "2-5 mi"}
+        assert self._dump(0.37) == {"distance_miles": 0, "distance": "< 1 mi"}
+        assert self._dump(61.8) == {"distance_miles": 25, "distance": "25+ mi"}
+
+    def test_distances_in_the_same_bucket_serialize_identically(self):
+        assert self._dump(2.01) == self._dump(4.99)
+        assert self._dump(0.0) == self._dump(0.99)
+
+    def test_missing_distance_serializes_as_null(self):
+        assert self._dump(None) == {"distance_miles": None, "distance": None}
 
 
 class TestApiWriteSchemas:
@@ -156,21 +238,39 @@ class TestApiWriteSchemas:
             "request_id": ["Provide exactly one of item_id or request_id."],
         }
 
-    def test_item_write_schema_requires_giveaway_visibility_for_giveaways(self):
+    def test_item_write_schema_requires_giveaway_visibility_for_giveaways(self, app):
         schema = ItemWritePayloadSchema()
 
-        with pytest.raises(ValidationError) as excinfo:
-            schema.load(
-                {
-                    "name": "Leaf blower",
-                    "category_id": str(uuid4()),
-                    "is_giveaway": True,
-                }
-            )
+        with app.app_context():
+            category = CategoryFactory()
+            category_id = str(category.id)
+
+            with pytest.raises(ValidationError) as excinfo:
+                schema.load(
+                    {
+                        "name": "Leaf blower",
+                        "category_id": category_id,
+                        "is_giveaway": True,
+                    }
+                )
 
         assert excinfo.value.messages == {
             "giveaway_visibility": ["This field is required when is_giveaway is true."]
         }
+
+    def test_item_write_schema_rejects_unknown_category(self, app):
+        schema = ItemWritePayloadSchema()
+
+        with app.app_context(), pytest.raises(ValidationError) as excinfo:
+            schema.load(
+                {
+                    "name": "Leaf blower",
+                    "category_id": str(uuid4()),
+                    "is_giveaway": False,
+                }
+            )
+
+        assert excinfo.value.messages == {"category_id": ["Choose a category."]}
 
     def test_location_update_schema_requires_coordinates_for_coordinate_mode(self):
         schema = LocationUpdateSchema()
@@ -236,6 +336,38 @@ class TestApiWriteSchemas:
 
         assert excinfo.value.messages == {
             "end_date": ["End date must be on or after the start date."]
+        }
+
+    def test_loan_request_create_schema_rejects_past_start_date(self):
+        schema = LoanRequestCreateSchema()
+
+        with pytest.raises(ValidationError) as excinfo:
+            schema.load(
+                {
+                    "start_date": date.today() - timedelta(days=1),
+                    "end_date": date.today() + timedelta(days=5),
+                    "message": "Could I borrow this next week?",
+                }
+            )
+
+        assert excinfo.value.messages == {"start_date": ["Start date cannot be in the past."]}
+
+    def test_loan_extension_request_create_schema_validates_date_and_message(self):
+        schema = LoanExtensionRequestCreateSchema()
+        message = "Could I keep it a bit longer?"
+
+        with pytest.raises(ValidationError) as past_excinfo:
+            schema.load({"proposed_end_date": date.today() - timedelta(days=1), "message": message})
+        with pytest.raises(ValidationError) as short_excinfo:
+            schema.load({"proposed_end_date": date.today(), "message": "Too short"})
+
+        assert past_excinfo.value.messages == {
+            "proposed_end_date": ["Proposed due date cannot be in the past."]
+        }
+        assert list(short_excinfo.value.messages) == ["message"]
+        assert schema.load({"proposed_end_date": date.today(), "message": message}) == {
+            "proposed_end_date": date.today(),
+            "message": message,
         }
 
     def test_item_write_schema_rejects_blank_name(self):

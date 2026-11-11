@@ -27,7 +27,7 @@ class RequestConversationSummarySchema(ApiSchema):
 
 
 class ItemRequestSummarySchema(ApiSchema):
-    """Serialized request resource for list and detail reads."""
+    """Serialized request resource for detail and write responses."""
 
     id = fields.UUID(required=True)
     title = fields.String(required=True)
@@ -40,10 +40,6 @@ class ItemRequestSummarySchema(ApiSchema):
     created_at = ApiDateTime(required=True)
     updated_at = ApiDateTime(required=True)
     user = fields.Nested(UserSummarySchema(), required=True)
-    distance = fields.Method("get_distance", allow_none=True)
-
-    def get_distance(self, item_request):
-        return getattr(item_request, "api_distance", None)
 
 
 class ItemRequestDetailResponseSchema(ApiSchema):

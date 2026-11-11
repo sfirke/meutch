@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% from "components/circles.html" import circle_row %}
+{% from "components/dialogs.html" import confirm_dialog %}
+{% from "components/empty.html" import empty_state %}
+{% from "components/feed.html" import feed_card %}
+{% from "components/forms.html" import check_field, form_field, radio_field %}
+{% from "components/loans.html" import due_badge, status_badge %}
+{% from "components/people.html" import avatar, web_link %}
+{% from "components/tags.html" import ITEM_TAG_LABELS, item_tag %}
+
+{% block title %}Components{% endblock %}
+
+{% block content %}
+<div>
+    <div class="mb-4">
+        <h1>Admin</h1>
+        <p class="text-muted">Platform administration and user management</p>
+    </div>
+
+    {% include "admin/_tab_bar.html" %}
+
+    <p class="text-muted">Every shared piece of the site in each of its states, made up rather than real. See <code>STYLE_GUIDE.md</code> for when to use each.</p>
+
+    <section class="component-sample">
+        <h2>Buttons</h2>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-primary">Primary</button>
+            <button type="button" class="btn btn-outline-secondary">Outline</button>
+            <button type="button" class="btn btn-danger">Delete</button>
+            <button type="button" class="btn btn-outline-danger">Delete, quieter</button>
+            <button type="button" class="btn btn-primary btn-sm">Small</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm">Small outline</button>
+            <button type="button" class="btn btn-primary" disabled>Disabled</button>
+        </div>
+    </section>
+
+    <section class="component-sample">
+        <h2>Alerts and flash messages</h2>
+        {% for kind, text in [('success', 'Your item is listed.'), ('info', 'Your request will stay up for 30 days.'), ('warning', 'This item is listed for loan, not as a giveaway.'), ('danger', "We couldn't save that. Please try again.")] %}
+            <div class="alert alert-{{ kind }} alert-dismissible" role="alert">
+                {{ text }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+        <div class="alert alert-success" role="alert"><strong>Admin:</strong> A message flashed after an admin action.</div>
+    </section>
+
+    <section class="component-sample">
+        <h2>Tags and badges</h2>
+        <p class="small text-muted mb-2"><code>item_tag</code>, every kind</p>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for kind in ITEM_TAG_LABELS %}{{ item_tag(kind) }}{% endfor %}
+        </div>
+        <p class="small text-muted mb-2"><code>due_badge</code>, <code>status_badge</code> and an unread count</p>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            {% for loan in loans %}{{ due_badge(loan) }}{% endfor %}
+            {{ status_badge('pending') }}
+            {{ status_badge('approved') }}
+            {{ status_badge('denied') }}
+            <span class="badge rounded-pill bg-purple">3</span>
+        </div>
+    </section>
+
+    <section class="component-sample">
+        <h2>People</h2>
+        <p class="small text-muted mb-2"><code>avatar</code>: each size, each initials color, a one-word name and a photo</p>
+        <div class="d-flex flex-wrap gap-3 align-items-center mb-3">
+            {{ avatar("Maya Chen", size="sm") }}
+            {{ avatar("Maya Chen") }}
+            {{ avatar("Maya Chen", size="lg") }}
+            {{ avatar("Maya Chen", size="xl") }}
+            {{ avatar("Tom Ruiz", size="lg") }}
+            {{ avatar("Priya Natarajan", size="lg") }}
+            {{ avatar("Cher", size="lg") }}
+            {{ avatar("Maya Chen", url_for('static', filename='img/logo_handshake.png'), size="lg") }}
+        </div>
+        <p class="small text-muted mb-2"><code>web_link</code></p>
+        <div class="web-links">{{ web_link(sample_link) }}</div>
+    </section>
+
+    <section class="component-sample">
+        <h2>Feed cards</h2>
+        <div class="component-sample-narrow">
+            {{ feed_card("Maya Chen", "posted a giveaway", "2 hours ago", "Box of canning jars", url="#", description="About 30 pint jars, no lids.", tag="giveaway", distance="< 1 mi", image_url=url_for('static', filename='img/default_item_photo.png')) }}
+            {{ feed_card("Tom Ruiz", "requested", "yesterday", "Folding table for a yard sale", description="Just need it for Saturday morning.", tag="wanted") }}
+        </div>
+    </section>
+
+    <section class="component-sample">
+        <h2>Circle rows</h2>
+        <ul class="circle-list">
+            {% for circle in circles %}
+                {{ circle_row(circle, distance="2 mi" if loop.first else none, is_member=loop.first, pending_count=2 if loop.index == 2 else 0) }}
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="component-sample">
+        <h2>Form fields</h2>
+        <div class="component-sample-narrow">
+            {{ form_field(form.name, placeholder="e.g., Cordless drill") }}
+            {{ form_field(form.description, help="Help text sits under the field.", rows="3") }}
+            {{ form_field(form.category) }}
+            {{ form_field(form.missing) }}
+            {{ check_field(form.agree) }}
+            {{ check_field(form.switch, switch=true) }}
+            {{ radio_field(form.kind) }}
+            <div class="form-note">A <code>.form-note</code>, for a quiet word before or after the fields.</div>
+        </div>
+    </section>
+
+    <section class="component-sample">
+        <h2>Empty state</h2>
+        {% call empty_state("No archived conversations", icon="archive") %}
+            <p>Conversations you archive show up here.</p>
+            <div class="action-row">
+                <a href="#" class="btn btn-outline-secondary">Back to inbox</a>
+            </div>
+        {% endcall %}
+    </section>
+
+    <section class="component-sample">
+        <h2>Confirm dialog</h2>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#sampleConfirm">Open a confirm dialog</button>
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#sampleDelete">Open a delete dialog</button>
+        </div>
+    </section>
+</div>
+
+{# The sample buttons only close the dialog. A real one passes action= and form=. #}
+{% call(part) confirm_dialog("sampleConfirm", "Mark as rehomed?") %}
+    {% if part == "body" %}
+        <p>The message goes here. Keep it short and say what will happen.</p>
+    {% else %}
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Mark as rehomed</button>
+    {% endif %}
+{% endcall %}
+{% call(part) confirm_dialog("sampleDelete", "Delete Box of canning jars?") %}
+    {% if part == "body" %}
+        <p>This will permanently delete <strong>Box of canning jars</strong>.</p>
+        <p class="text-muted small">This can't be undone.</p>
+    {% else %}
+        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Delete item</button>
+    {% endif %}
+{% endcall %}
+{% endblock %}

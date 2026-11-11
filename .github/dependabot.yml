@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    # Bumps land on staging first so they deploy there before reaching main.
+    target-branch: staging
+    schedule:
+      interval: weekly
+    # Wait a week after a release so bad or hijacked versions get pulled first.
+    # Security updates ignore this.
+    cooldown:
+      default-days: 7
+    groups:
+      # One PR for routine bumps; majors still arrive individually for review.
+      pip-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    # Actions only run in CI, which PRs already exercise, so skip staging.
+    target-branch: main
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7

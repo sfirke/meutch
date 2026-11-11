@@ -17,10 +17,10 @@ def test_verify_item_share_token_valid(app):
 
 def test_verify_item_share_token_invalid(app):
     with app.app_context():
-        resolved_item, error = verify_item_share_token('invalid-token')
+        resolved_item, error = verify_item_share_token("invalid-token")
 
         assert resolved_item is None
-        assert error == 'invalid'
+        assert error == "invalid"
 
 
 def test_verify_item_share_token_expired(app):
@@ -32,7 +32,4 @@ def test_verify_item_share_token_expired(app):
         resolved_item, error = verify_item_share_token(token, max_age_seconds=0)
 
         assert resolved_item is None
-        assert error == 'expired'
-
-
-
+        assert error == "expired"

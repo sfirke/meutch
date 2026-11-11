@@ -32,7 +32,7 @@ class TestProfileGiveawaysSeparation:
             response = client.get("/profile")
 
             assert response.status_code == 200
-            assert b"My Active Giveaways" in response.data
+            assert b"My active giveaways" in response.data
             assert b"Unclaimed Item" in response.data
 
     def test_profile_claimed_giveaways_cannot_be_deleted(self, client, app, auth_user):
@@ -61,15 +61,15 @@ class TestProfileGiveawaysSeparation:
             response = client.get("/profile")
             assert response.status_code == 200
             assert b"Claimed Giveaway" in response.data
-            assert b"My Past Giveaways" in response.data
+            assert b"My past giveaways" in response.data
 
             # Verify no edit or delete buttons are present on page
-            assert (
-                b"btn-warning" not in response.data
-            ), "Edit button should not appear for past giveaways"
-            assert (
-                b"btn-danger" not in response.data
-            ), "Delete button should not appear for past giveaways"
+            assert b"btn-warning" not in response.data, (
+                "Edit button should not appear for past giveaways"
+            )
+            assert b"btn-danger" not in response.data, (
+                "Delete button should not appear for past giveaways"
+            )
 
             # Try to delete the claimed giveaway via POST
             response = client.post(f"/item/{item_id}/delete", follow_redirects=True)
@@ -106,7 +106,7 @@ class TestProfileGiveawaysSeparation:
             response = client.get("/profile")
 
             assert response.status_code == 200
-            assert b"My Active Giveaways" in response.data
+            assert b"My active giveaways" in response.data
             assert b"Pending Pickup Item" in response.data
 
     def test_profile_pending_pickup_delete_modal_offers_handoff_completion(
@@ -133,7 +133,7 @@ class TestProfileGiveawaysSeparation:
 
             assert response.status_code == 200
             assert b"This giveaway is still pending pickup" in response.data
-            assert b"Mark Handoff Complete" in response.data
+            assert b"Mark handoff complete" in response.data
 
     def test_profile_delete_modal_renders_after_card_markup(self, client, app, auth_user):
         """Profile item cards should render the delete modal outside the card so Bootstrap can own the backdrop."""
@@ -179,10 +179,10 @@ class TestProfileGiveawaysSeparation:
             response = client.get("/profile")
 
             assert response.status_code == 200
-            assert b"My Past Giveaways" in response.data
-            # Check that the visible "My Active Giveaways" heading is NOT present
+            assert b"My past giveaways" in response.data
+            # Check that the visible "My active giveaways" heading is NOT present
             # (the HTML comment contains this text, so we check for the actual h4 heading)
-            assert b">My Active Giveaways<" not in response.data
+            assert b">My active giveaways<" not in response.data
             assert b"Recently Claimed Item" in response.data
 
     def test_profile_hides_old_claimed_giveaways(self, client, app, auth_user):
@@ -233,7 +233,7 @@ class TestProfileGiveawaysSeparation:
             response = client.get("/profile")
 
             assert response.status_code == 200
-            assert b"My Past Giveaways" in response.data
+            assert b"My past giveaways" in response.data
             assert b"Ninety Day Item" in response.data
 
     def test_profile_shows_both_active_and_past_giveaways(self, client, app, auth_user):
@@ -268,8 +268,8 @@ class TestProfileGiveawaysSeparation:
             response = client.get("/profile")
 
             assert response.status_code == 200
-            assert b"My Active Giveaways" in response.data
-            assert b"My Past Giveaways" in response.data
+            assert b"My active giveaways" in response.data
+            assert b"My past giveaways" in response.data
             assert b"Active Item" in response.data
             assert b"Past Item" in response.data
 
@@ -362,14 +362,14 @@ class TestProfileGiveawayPagination:
             response = client.get("/profile")
             assert response.status_code == 200
             content = response.data.decode("utf-8")
-            assert "My Active Giveaways" in content
+            assert "My active giveaways" in content
             assert "giveaway_page=2" in content
 
             # Second page should show remaining 2 items
             response = client.get("/profile?giveaway_page=2&tab=my-items")
             assert response.status_code == 200
             content = response.data.decode("utf-8")
-            assert "My Active Giveaways" in content
+            assert "My active giveaways" in content
 
     def test_past_giveaways_paginate_at_12(self, client, app, auth_user):
         """Test that past giveaways paginate in pages of 12."""
@@ -397,18 +397,18 @@ class TestProfileGiveawayPagination:
             response = client.get("/profile")
             assert response.status_code == 200
             content = response.data.decode("utf-8")
-            assert "My Past Giveaways" in content
+            assert "My past giveaways" in content
             assert "past_giveaway_page=2" in content
 
             # Second page should show remaining items
             response = client.get("/profile?past_giveaway_page=2&tab=my-items")
             assert response.status_code == 200
             content = response.data.decode("utf-8")
-            assert "My Past Giveaways" in content
+            assert "My past giveaways" in content
 
 
 class TestProfileMyItemsSearch:
-    """Test searching within My Items on profile page."""
+    """Test searching within My items on profile page."""
 
     def test_profile_search_filters_matching_own_item_names(self, client, app, auth_user):
         """Search should filter to current user's matching item names only."""
@@ -480,7 +480,7 @@ class TestProfileMyItemsSearch:
             assert "Hammer" not in content
 
     def test_profile_search_applies_to_active_past_and_regular_items(self, client, app, auth_user):
-        """Search should filter all three My Items sections."""
+        """Search should filter all three My items sections."""
         with app.app_context():
             user = auth_user()
             recipient = UserFactory()
@@ -552,7 +552,7 @@ class TestProfileMyItemsSearch:
             assert "Other Lending Item" not in content
 
     def test_profile_search_pagination_links_include_search_param(self, client, app, auth_user):
-        """When searching, all My Items pagination links should preserve search query."""
+        """When searching, all My items pagination links should preserve search query."""
         with app.app_context():
             user = auth_user()
             recipient = UserFactory()

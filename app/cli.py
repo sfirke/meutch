@@ -153,7 +153,7 @@ def status():
             click.echo(f"{name:20}: Error - {str(e)}")
 
     click.echo("─" * 40)
-    click.echo(f'{"Total":15}: {total:5} records')
+    click.echo(f"{'Total':15}: {total:5} records")
 
 
 def _seed_basic_data():
@@ -245,11 +245,11 @@ def _seed_development_data():
     dev_password_hash = generate_password_hash(DEV_PASSWORD)
 
     for i in range(12):
-        email = f"user{i+1}@example.com"
+        email = f"user{i + 1}@example.com"
         if email not in existing_emails:
             user = User(
                 email=email,
-                first_name=f"User{i+1}",
+                first_name=f"User{i + 1}",
                 last_name="Test",
                 latitude=40.7128 + (i * 0.01),  # Spread users around NYC area
                 longitude=-74.0060 + (i * 0.01),
@@ -1777,43 +1777,43 @@ def check_loan_reminders(force_digest, force_loan_reminders, today_override, dig
     if stats["total_loans"] == 0:
         click.echo("  No approved loans found.")
     else:
-        click.echo(f'  Found {stats["total_loans"]} approved loan(s)')
+        click.echo(f"  Found {stats['total_loans']} approved loan(s)")
 
         # Print any errors
         for error in stats["errors"]:
             click.echo(f"    ⚠ {error}")
 
     click.echo("\n📊 Summary:")
-    click.echo(f'  • 3-day reminders sent: {stats["due_soon"]}')
-    click.echo(f'  • Due date reminders sent: {stats["due_today"]}')
-    click.echo(f'  • Overdue reminders sent: {stats["overdue"]}')
-    click.echo(f'  • Skipped (already sent): {stats["skipped"]}')
+    click.echo(f"  • 3-day reminders sent: {stats['due_soon']}")
+    click.echo(f"  • Due date reminders sent: {stats['due_today']}")
+    click.echo(f"  • Overdue reminders sent: {stats['overdue']}")
+    click.echo(f"  • Skipped (already sent): {stats['skipped']}")
     if stats["errors"]:
-        click.echo(f'  • Errors: {len(stats["errors"])}')
+        click.echo(f"  • Errors: {len(stats['errors'])}")
 
     digest_stats = stats["digest"]
     click.echo("\n📰 Digest Summary:")
-    click.echo(f'  • Users evaluated: {digest_stats["total_users"]}')
-    click.echo(f'  • Sent: {digest_stats["sent"]}')
-    click.echo(f'  • Skipped: {digest_stats["skipped"]}')
-    click.echo(f'  • Errors: {len(digest_stats["errors"])}')
+    click.echo(f"  • Users evaluated: {digest_stats['total_users']}")
+    click.echo(f"  • Sent: {digest_stats['sent']}")
+    click.echo(f"  • Skipped: {digest_stats['skipped']}")
+    click.echo(f"  • Errors: {len(digest_stats['errors'])}")
     click.echo(
-        '  • Daily (sent/skipped/errors): '
-        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_DAILY]["sent"]}/'
-        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_DAILY]["skipped"]}/'
-        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_DAILY]["errors"]}'
+        "  • Daily (sent/skipped/errors): "
+        f"{digest_stats['by_cadence'][User.DIGEST_FREQUENCY_DAILY]['sent']}/"
+        f"{digest_stats['by_cadence'][User.DIGEST_FREQUENCY_DAILY]['skipped']}/"
+        f"{digest_stats['by_cadence'][User.DIGEST_FREQUENCY_DAILY]['errors']}"
     )
     click.echo(
-        '  • Weekly (sent/skipped/errors): '
-        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_WEEKLY]["sent"]}/'
-        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_WEEKLY]["skipped"]}/'
-        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_WEEKLY]["errors"]}'
+        "  • Weekly (sent/skipped/errors): "
+        f"{digest_stats['by_cadence'][User.DIGEST_FREQUENCY_WEEKLY]['sent']}/"
+        f"{digest_stats['by_cadence'][User.DIGEST_FREQUENCY_WEEKLY]['skipped']}/"
+        f"{digest_stats['by_cadence'][User.DIGEST_FREQUENCY_WEEKLY]['errors']}"
     )
     click.echo(
-        '  • None (sent/skipped/errors): '
-        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_NONE]["sent"]}/'
-        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_NONE]["skipped"]}/'
-        f'{digest_stats["by_cadence"][User.DIGEST_FREQUENCY_NONE]["errors"]}'
+        "  • None (sent/skipped/errors): "
+        f"{digest_stats['by_cadence'][User.DIGEST_FREQUENCY_NONE]['sent']}/"
+        f"{digest_stats['by_cadence'][User.DIGEST_FREQUENCY_NONE]['skipped']}/"
+        f"{digest_stats['by_cadence'][User.DIGEST_FREQUENCY_NONE]['errors']}"
     )
     click.echo("✅ Done!")
 

@@ -37,7 +37,7 @@ export FLASK_APP=app.py
 ```bash
 # For development with Docker PostgreSQL
 export FLASK_ENV=development
-export SECRET_KEY=dev-secret-key 
+export SECRET_KEY=dev-secret-key
 export DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meutch_dev
 
 # Run migrations
@@ -60,7 +60,7 @@ export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meu
 # Unit tests (fastest)
 ./run_tests.sh -u -c  # Takes ~5 seconds - NEVER CANCEL
 
-# Integration tests  
+# Integration tests
 ./run_tests.sh -i     # Takes ~120 seconds - NEVER CANCEL
 
 # Functional tests
@@ -90,7 +90,7 @@ export TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/meu
 # 1. Start database if needed
 docker ps | grep meutch-test-db || docker compose -f docker-compose.test.yml up -d
 
-# 2. Run full test suite - NEVER CANCEL - takes ~85 seconds  
+# 2. Run full test suite - NEVER CANCEL - takes ~85 seconds
 ./run_tests.sh -c
 
 # 3. Start app and validate endpoints
@@ -109,7 +109,7 @@ docker ps | grep meutch-test-db
 # Start database
 docker start meutch-test-db || docker compose -f docker-compose.test.yml up -d
 
-# Stop database  
+# Stop database
 docker stop meutch-test-db
 
 # Reset database (clean slate)
@@ -129,6 +129,9 @@ docker compose -f docker-compose.test.yml up -d
 3. **Make small, focused changes**
 4. **Run affected test suites immediately** after changes
 5. **Document the PR's purpose** in CHANGELOG.md
+
+### UI changes
+Follow `STYLE_GUIDE.md` at the repo root for any change to a page, template or stylesheet.
 
 ### Common Change Scenarios
 - **Model changes:** Run unit tests (`./run_tests.sh -u`), then integration tests (`./run_tests.sh -i`)

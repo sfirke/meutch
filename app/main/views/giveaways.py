@@ -136,7 +136,7 @@ def give_to_user(item_id, user_id):
     if conversation_message_id:
         try:
             conversation_message = db.session.get(Message, UUID(conversation_message_id))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             conversation_message = None
 
     if not form.validate_on_submit():

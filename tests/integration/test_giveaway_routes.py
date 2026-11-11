@@ -106,7 +106,7 @@ class TestGiveawayItemCreation:
             content = response.data.decode("utf-8")
             assert "Starter Giveaway" in content
             assert "Your giveaway is live. Join a circle to unlock the rest of Meutch." in content
-            assert "Find Circles to Join" in content
+            assert "Find circles to join" in content
 
     def test_create_loan_item(self, client, app, auth_user):
         """Test creating a regular loan item (not giveaway)."""
@@ -581,9 +581,9 @@ class TestGiveawaysFeed:
             new_pos = response.data.find(b"New Giveaway")
             old_pos = response.data.find(b"Old Giveaway")
             assert new_pos != -1 and old_pos != -1, "Both giveaways should be found in response"
-            assert (
-                new_pos < old_pos
-            ), "New Giveaway should appear before Old Giveaway when sorting by date"
+            assert new_pos < old_pos, (
+                "New Giveaway should appear before Old Giveaway when sorting by date"
+            )
 
     def test_public_giveaway_visible_without_shared_circles(self, client, app, auth_user):
         """Test that public giveaways are visible to users who don't share circles with owner."""
@@ -628,12 +628,12 @@ class TestGiveawaysFeed:
             response = client.get("/?distance=")
 
             assert response.status_code == 200
-            assert (
-                b"Public Free Item" in response.data
-            ), "Public giveaway should be visible to all circle members"
-            assert (
-                b"Circles Only Free Item" not in response.data
-            ), "Default visibility giveaway should not be visible without shared circles"
+            assert b"Public Free Item" in response.data, (
+                "Public giveaway should be visible to all circle members"
+            )
+            assert b"Circles Only Free Item" not in response.data, (
+                "Default visibility giveaway should not be visible without shared circles"
+            )
 
     def test_public_giveaway_visible_in_search_without_shared_circles(self, client, app, auth_user):
         """Test that public giveaways appear in search for users who don't share circles with owner."""
@@ -681,12 +681,12 @@ class TestGiveawaysFeed:
             response = client.get("/find?q=Searchable&item_type=giveaways")
 
             assert response.status_code == 200
-            assert (
-                b"Searchable Public Giveaway" in response.data
-            ), "Public giveaway should appear in search for all circle members"
-            assert (
-                b"Searchable Default Giveaway" not in response.data
-            ), "Default visibility giveaway should not appear in search without shared circles"
+            assert b"Searchable Public Giveaway" in response.data, (
+                "Public giveaway should appear in search for all circle members"
+            )
+            assert b"Searchable Default Giveaway" not in response.data, (
+                "Default visibility giveaway should not appear in search without shared circles"
+            )
 
 
 class TestSearchFiltering:
@@ -794,10 +794,10 @@ class TestSearchFiltering:
             assert b"Drill for Loan" in response.data
             assert b"Free Drill" in response.data
             response_text = response.data.decode("utf-8")
-            assert response_text.count("giveaway-ribbon") == 1
+            assert response_text.count("Up for grabs") == 1
             loan_index = response_text.index("Drill for Loan")
             loan_card_snippet = response_text[max(0, loan_index - 500) : loan_index + 200]
-            assert "giveaway-ribbon" not in loan_card_snippet
+            assert "Up for grabs" not in loan_card_snippet
 
 
 class TestCategoryAndTagFiltering:
@@ -936,6 +936,41 @@ class TestRecipientSelection:
             # Verify non-selected user remains in pool
             db.session.refresh(interest1)
             assert interest1.status == "active"
+
+    def test_manual_selection_rejects_member_who_has_not_asked(self, client, app, auth_user):
+        """Manual selection only accepts someone who has asked about the giveaway."""
+        with app.app_context():
+            owner = auth_user()
+            interested = UserFactory()
+            bystander = UserFactory()
+            giveaway = ItemFactory(
+                owner=owner,
+                category=CategoryFactory(),
+                is_giveaway=True,
+                claim_status="unclaimed",
+            )
+            GiveawayInterestFactory(item=giveaway, user=interested, status="active")
+            db.session.commit()
+
+            login_user(client, owner.email)
+            response = client.post(
+                f"/item/{giveaway.id}/select-recipient",
+                data={"selection_method": "manual", "user_id": str(bystander.id)},
+                follow_redirects=True,
+            )
+
+            assert response.status_code == 200
+            assert (
+                b"You can only select someone who has asked about this giveaway." in response.data
+            )
+            assert b"has been selected" not in response.data
+
+            db.session.refresh(giveaway)
+            assert giveaway.claim_status == "unclaimed"
+            assert giveaway.claimed_by_id is None
+            assert GiveawayInterest.query.filter_by(user_id=bystander.id).count() == 0
+            assert Conversation.query.filter_by(context_id=giveaway.id).count() == 0
+            assert Message.query.count() == 0
 
     def test_first_requester_selection(self, client, app, auth_user):
         """Test owner can select first (earliest) requester."""
@@ -1151,8 +1186,8 @@ class TestConversationGiveawaySelection:
             )
 
             assert response.status_code == 200
-            assert b"Giveaway Pickup" in response.data
-            assert b"Mark Handoff Complete" in response.data
+            assert b"Giveaway pickup" in response.data
+            assert b"Mark handoff complete" in response.data
 
             db.session.refresh(giveaway)
             db.session.refresh(interest)
@@ -1249,6 +1284,12 @@ class TestConversationGiveawaySelection:
             # Interest should be created on-the-fly and recipient selected
             assert giveaway.claim_status == "pending_pickup"
             assert giveaway.claimed_by_id == requester.id
+            interest = GiveawayInterest.query.filter_by(
+                item_id=giveaway.id, user_id=requester.id
+            ).one()
+            assert interest.status == "selected"
+            # The selection message lands in the existing conversation.
+            assert Conversation.query.filter_by(context_id=giveaway.id).count() == 1
 
     def test_cannot_select_from_conversation_once_pickup_is_pending(self, client, app, auth_user):
         """Quick-select route should refuse giveaways that already moved past selection."""
@@ -2201,19 +2242,19 @@ class TestConfirmHandoff:
             response = client.get("/?distance=")
 
             assert response.status_code == 200
-            assert (
-                b"Available Public Item" in response.data
-            ), "Unclaimed public giveaway should appear"
-            assert (
-                b"Pending Public Item" not in response.data
-            ), "Pending pickup giveaway should NOT appear to other users"
+            assert b"Available Public Item" in response.data, (
+                "Unclaimed public giveaway should appear"
+            )
+            assert b"Pending Public Item" not in response.data, (
+                "Pending pickup giveaway should NOT appear to other users"
+            )
 
 
 class TestItemDetailPageForGiveaways:
     """Test item detail page UI for different giveaway states."""
 
     def test_owner_sees_pending_pickup_controls(self, client, app, auth_user):
-        """Test owner sees Change Recipient, Release to Everyone, and Confirm Handoff buttons."""
+        """Test owner sees Change recipient, Release to everyone, and Confirm Handoff buttons."""
         with app.app_context():
             owner = auth_user()
             requester = UserFactory(first_name="John", last_name="Doe")
@@ -2233,9 +2274,9 @@ class TestItemDetailPageForGiveaways:
             response = client.get(f"/item/{giveaway.id}")
 
             assert response.status_code == 200
-            assert b"Change Recipient" in response.data
-            assert b"Release to Everyone" in response.data
-            assert b"Mark Handoff Complete" in response.data
+            assert b"Change recipient" in response.data
+            assert b"Release to everyone" in response.data
+            assert b"Mark handoff complete" in response.data
             assert b"Recipient:" in response.data
             assert b"John Doe" in response.data
 
@@ -2399,12 +2440,12 @@ class TestItemDetailPageForGiveaways:
             # Check the alert message shows the recipient name
             assert b"Given to" in response.data
             # Should NOT show action buttons for claimed items
-            assert b"Change Recipient" not in response.data
-            assert b"Release to Everyone" not in response.data
-            assert b"Mark Handoff Complete" not in response.data
-            assert b"Edit Item" not in response.data
-            assert b"Delete Item" not in response.data
-            assert b"View Active Loan" not in response.data
+            assert b"Change recipient" not in response.data
+            assert b"Release to everyone" not in response.data
+            assert b"Mark handoff complete" not in response.data
+            assert b"Edit item" not in response.data
+            assert b"Delete item" not in response.data
+            assert b"View loan" not in response.data
 
 
 class TestDataIntegrity:
@@ -2570,7 +2611,7 @@ class TestSelectRecipientReassignmentUI:
     """Test the select_recipient page shows correct UI for reassignment."""
 
     def test_select_recipient_page_shows_initial_selection_ui(self, client, app, auth_user):
-        """Test select recipient page shows 'Select Recipient' header for initial selection."""
+        """Test select recipient page shows 'Select recipient' header for initial selection."""
         with app.app_context():
             owner = auth_user()
             requester = UserFactory()
@@ -2592,9 +2633,9 @@ class TestSelectRecipientReassignmentUI:
             response = client.get(f"/item/{giveaway.id}/select-recipient")
 
             assert response.status_code == 200
-            assert b"Select Recipient" in response.data
-            assert b"First Requester" in response.data
-            assert b"Random Selection" in response.data
+            assert b"Choose who gets it" in response.data
+            assert b"First to ask" in response.data
+            assert b"Pick at random" in response.data
 
 
 class TestGiveawayOwnerProfileLink:

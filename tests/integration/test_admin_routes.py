@@ -66,7 +66,48 @@ class TestAdminDashboardAccess:
 
         response = client.get("/admin/")
         assert response.status_code == 200
-        assert b"Admin Panel" in response.data
+        assert b"Platform administration" in response.data
+
+    def test_components_page_allows_admin(self, client, db_session):
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+        login_user(client, admin.email)
+
+        assert client.get("/admin/components").status_code == 200
+
+    def test_components_page_blocks_non_admin(self, client, db_session):
+        user = UserFactory(is_admin=False)
+        db_session.commit()
+        login_user(client, user.email)
+
+        assert client.get("/admin/components").status_code == 403
+
+    def test_dashboard_shows_deployed_commit(self, app, client, db_session, monkeypatch):
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+        login_user(client, admin.email)
+
+        monkeypatch.setitem(app.config, "GIT_COMMIT_SHA", None)
+        assert b"Deployed commit unknown" in client.get("/admin/").data
+
+        monkeypatch.setitem(
+            app.config, "GIT_COMMIT_SHA", "0204d3c6a1b2c3d4e5f60718293a4b5c6d7e8f90"
+        )
+        content = client.get("/admin/").data
+        assert b">0204d3c</code>" in content
+        assert b"Deployed commit unknown" not in content
+
+    def test_dashboard_shows_server_start_time(self, app, client, db_session, monkeypatch):
+        admin = UserFactory(is_admin=True)
+        db_session.commit()
+        login_user(client, admin.email)
+
+        monkeypatch.setitem(
+            app.config, "SERVER_STARTED_AT", datetime(2026, 10, 25, 19, 12, tzinfo=UTC)
+        )
+        content = client.get("/admin/").data
+        assert b"Server started" in content
+        assert b'data-utc-timestamp="2026-10-25T19:12:00+00:00"' in content
 
 
 class TestAdminDashboardMetrics:
@@ -84,7 +125,7 @@ class TestAdminDashboardMetrics:
         assert response.status_code == 200
         # Should show 6 total users (5 + 1 admin)
         assert b"6" in response.data
-        assert b"Total Users" in response.data
+        assert b"Total users" in response.data
 
     def test_dashboard_shows_item_count(self, client, db_session):
         """Test dashboard displays correct item count"""
@@ -96,7 +137,7 @@ class TestAdminDashboardMetrics:
 
         response = client.get("/admin/")
         assert response.status_code == 200
-        assert b"Total Items" in response.data
+        assert b"Total items" in response.data
         assert b"3" in response.data
 
     def test_dashboard_shows_users_and_analytics_tabs(self, client, db_session):
@@ -110,7 +151,7 @@ class TestAdminDashboardMetrics:
         assert response.status_code == 200
         assert b"admin-users-tab" in response.data
         assert b"admin-analytics-tab" in response.data
-        assert b"Monthly Active Users" in response.data
+        assert b"Monthly active users" in response.data
         assert b"Starting Jan 2026" in response.data
 
         content = response.data.decode("utf-8")
@@ -504,7 +545,7 @@ class TestAdminNavbarLink:
 
         response = client.get("/")
         assert response.status_code == 200
-        assert b"Admin Panel" in response.data
+        assert b'href="/admin/"' in response.data
 
     def test_admin_link_hidden_from_regular_users(self, client, db_session):
         """Test that admin link does not appear for regular users"""
@@ -515,7 +556,7 @@ class TestAdminNavbarLink:
 
         response = client.get("/")
         assert response.status_code == 200
-        assert b"Admin Panel" not in response.data
+        assert b'href="/admin/"' not in response.data
 
 
 class TestAdminFlashMessages:
