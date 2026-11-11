@@ -368,7 +368,19 @@ class TestMessageNotifications:
 
             assert expected_subject in self._subject_for(message)
 
-    def test_borrower_wording_on_a_new_loan_request_stays_a_loan_request(self, app):
+    @pytest.mark.parametrize(
+        "borrower_message",
+        [
+            "Extension requested for 'Canoe' if the trip runs long, otherwise a week.",
+            "Your extension request for 'Canoe' has been approved. Kidding, may I borrow it?",
+            "Your extension request for 'Canoe' was denied. Kidding, may I borrow it?",
+            "Hoping the loan of 'Canoe' has been extended past last year's trip.",
+            "I hear the due date for 'Canoe' has been updated, can I borrow it?",
+        ],
+    )
+    def test_borrower_wording_on_a_new_loan_request_stays_a_loan_request(
+        self, app, borrower_message
+    ):
         """A loan request's opening message is free text and must not be sniffed."""
         with app.app_context():
             borrower = UserFactory()
@@ -380,7 +392,7 @@ class TestMessageNotifications:
                     borrower.id,
                     date.today() + timedelta(days=1),
                     date.today() + timedelta(days=8),
-                    "Extension requested for 'Canoe' if the trip runs long, otherwise a week.",
+                    borrower_message,
                 )
 
             assert "New Loan Request for Canoe" in self._subject_for(message)

@@ -215,16 +215,18 @@ def send_message_notification_email(message):
     # Determine the subject and email content based on message type
     if message.is_loan_request_message:
         item_name = conversation.item.name if conversation.item else "Unknown Item"
-        body_lower = (message.body or "").lower()
-        message_body_lower = _generated_prefix(message.body)
-        # The borrower's extension request is linked to its row.  Every other
-        # loan event has to be read back out of the wording the app used when
-        # it wrote the message.  Match the whole app-written sentence, item
+        # The borrower's extension request is linked to its row.  The owner's
+        # extension decisions and due date changes have to be read back out of
+        # the wording the app used when it wrote the message.  Only the owner's
+        # messages are read: a loan request's opening message is entirely the
+        # borrower's free text.  Match the whole app-written sentence, item
         # name included, rather than bare words: the item name is user-typed
-        # too, and a loan request's opening message is entirely free text.
-        # extend_loan() writes the "has been extended" wording for pending
+        # too.  extend_loan() writes the "has been extended" wording for pending
         # loans too (the owner can move a still-pending request's dates
         # before it's approved), so that check isn't gated on loan status.
+        sent_by_owner = message.sender_id == conversation.item.owner_id
+        body_lower = (message.body or "").lower() if sent_by_owner else ""
+        message_body_lower = _generated_prefix(message.body) if sent_by_owner else ""
         decision_prefix = f"your extension request for '{item_name.lower()}'"
         if message.loan_extension_request is not None:
             subject = f"Meutch - Extension Request for {item_name}"
@@ -943,7 +945,7 @@ def send_digest_email(user, digest_payload):
 def _more_time_hint(loan):
     """Tell the borrower how to get more time, or that they already asked.
 
-    The loan page only offers "Request Extension" while no request is
+    The loan page only offers "Request extension" while no request is
     pending, so a reminder must not promise it while one is.
     """
     if loan.has_pending_extension:
