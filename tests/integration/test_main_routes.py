@@ -45,6 +45,15 @@ class TestMainRoutes:
         assert response.status_code == 200
         assert b"from a neighbor was as easy as buying from Amazon?" in response.data
 
+    def test_index_link_preview_uses_wide_default_image(self, client, app):
+        """Test that links to meutch.com get the wide default preview image."""
+        response = client.get("/")
+        assert b'<meta name="twitter:card" content="summary_large_image">' in response.data
+        assert b'img/og_default.png">' in response.data
+        assert b'<meta property="og:image:width" content="1200">' in response.data
+        assert b'<meta property="og:image:height" content="630">' in response.data
+        assert b'<meta name="theme-color" content="#fff9ef">' in response.data
+
     def test_index_with_authenticated_user(self, client, app, auth_user):
         """Test index page with authenticated user."""
         with app.app_context():

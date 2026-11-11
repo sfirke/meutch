@@ -161,6 +161,13 @@ Leave it out of nav links, footer links and buttons whose label is already clear
 - People without a photo get initials on a colored circle with an ink outline.
   Initials are the first letters of the first and last names.
 
+## Link previews
+
+Pages without a photo of their own use `app/static/img/og_default.png` as the
+preview image for links shared in messages and chat apps. Its edges are `--paper`,
+because apps tint the space around a preview with a color taken from the image.
+Rebuild it with `python scripts/make_og_image.py` instead of editing it by hand.
+
 ## Building pages
 
 - Use an existing component in `app/templates/components/` before writing new
