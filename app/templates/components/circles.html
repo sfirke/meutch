@@ -1,0 +1,37 @@
+{% from "components/people.html" import avatar %}
+{% from "components/tags.html" import item_tag %}
+
+{% macro circle_type_tags(circle) -%}
+    {%- if circle.circle_type == "closed" -%}{{ item_tag("closed-circle") }}{%- elif circle.circle_type == "secret" -%}{{ item_tag("secret-circle") }}{%- endif -%}
+    {%- if circle.is_regional %} {{ item_tag("regional") }}{% endif -%}
+{%- endmacro %}
+
+{% macro circle_row(circle, distance=none, is_member=false, pending_count=0, sample_members=[]) %}
+<li class="card card-clickable circle-row">
+    {% if circle.image_url %}
+        <img src="{{ circle.image_url }}" alt="" class="circle-result-thumbnail" loading="lazy">
+    {% else %}
+        <div class="circle-result-thumbnail-placeholder" aria-hidden="true"><i class="fas fa-users"></i></div>
+    {% endif %}
+    <div class="circle-result-content">
+        <h3 class="circle-result-title">
+            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="stretched-link">{{ circle.name }}</a>
+        </h3>
+        {% if circle.description %}
+            <p class="circle-result-description feed-line-clamp-2">{{ circle.description|linkify }}</p>
+        {% endif %}
+        <div class="circle-result-meta">
+            <span>{{ circle.member_count }} member{{ "s" if circle.member_count != 1 }}{% if distance %} &middot; {{ distance }} away{% endif %}</span>
+            {{ circle_type_tags(circle) }}
+            {% if is_member %}{{ item_tag("member") }}{% endif %}
+            {% if pending_count %}<span class="badge bg-purple">{{ pending_count }} pending request{{ "s" if pending_count > 1 }}</span>{% endif %}
+        </div>
+    </div>
+    {% set photos = sample_members|selectattr("profile_image_url")|list %}
+    {% if photos %}
+        <div class="avatar-stack">
+            {% for member in photos[:3] %}{{ avatar(member.first_name, member.profile_image_url, size="sm") }}{% endfor %}
+        </div>
+    {% endif %}
+</li>
+{% endmacro %}

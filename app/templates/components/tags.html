@@ -8,6 +8,12 @@
     "circle": "Circle",
     "open-circle": "Open circle",
     "closed-circle": "Closed circle",
+    "secret-circle": "Secret circle",
+    "regional": "Regional circle",
+    "approval": "Approval required",
+    "member": "Member",
+    "admin": "Admin",
+    "mine": "Your item",
     "expired": "Expired",
 } %}
 
@@ -15,15 +21,15 @@
     <span class="item-tag item-tag--{{ kind }}{% if on_photo %} item-tag--on-photo{% endif %}">{{ ITEM_TAG_LABELS[kind] }}</span>
 {%- endmacro %}
 
-{# The one tag that describes where an item stands, shown over its photo. #}
-{% macro item_status_tag(item) -%}
+{# The one tag that describes where an item stands. #}
+{% macro item_status_tag(item, on_photo=true) -%}
     {%- if item.is_giveaway and item.claim_status == "claimed" -%}
-        {{ item_tag("rehomed", on_photo=true) }}
+        {{ item_tag("rehomed", on_photo=on_photo) }}
     {%- elif item.is_giveaway and not item.available -%}
-        {{ item_tag("pending", on_photo=true) }}
+        {{ item_tag("pending", on_photo=on_photo) }}
     {%- elif item.is_giveaway -%}
-        {{ item_tag("giveaway", on_photo=true) }}
+        {{ item_tag("giveaway", on_photo=on_photo) }}
     {%- elif not item.available -%}
-        {{ item_tag("on_loan", on_photo=true) }}
+        {{ item_tag("on_loan", on_photo=on_photo) }}
     {%- endif -%}
 {%- endmacro %}

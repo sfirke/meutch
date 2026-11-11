@@ -14,3 +14,13 @@
         {{ picture }}
     {%- endif -%}
 {% endmacro %}
+
+{% macro web_link(link) %}
+    <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" class="web-link">
+        <i class="{{ link.icon_class }} web-link-icon" aria-hidden="true"></i>
+        <span class="web-link-text">
+            <span class="web-link-name">{{ link.display_name }}</span>
+            <span class="web-link-url">{{ link.url|replace('https://', '')|replace('http://', '')|replace('www.', '') }}</span>
+        </span>
+    </a>
+{% endmacro %}
