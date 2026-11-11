@@ -7,7 +7,7 @@
 {% block content %}
 <div class="form-page">
     <h1>What can you share?</h1>
-    <form method="post" enctype="multipart/form-data" data-single-submit="true">
+    <form method="post" enctype="multipart/form-data">
         {{ form.csrf_token }}
         {{ form.creation_token() }}
         {% if return_request_id %}
