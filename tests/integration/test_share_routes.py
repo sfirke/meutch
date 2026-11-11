@@ -937,7 +937,7 @@ class TestItemSharePreview:
 
             assert response.status_code == 200
             assert b"You are viewing this item through a shared link" in response.data
-            assert b"Request to Borrow" in response.data
+            assert b"Ask to borrow this" in response.data
 
     def test_request_item_forbidden_without_shared_circle_or_token(self, client, app):
         with app.app_context():

@@ -749,7 +749,7 @@ class TestMainRoutes:
             login_user(client, user.email)
             response = client.get("/find")
             assert response.status_code == 200
-            assert b"Find Items" in response.data
+            assert b"What do you need to borrow?" in response.data
             assert b"Join a circle to get started" in response.data
 
     def test_index_anonymous_user_sees_landing_page(self, client, app):
