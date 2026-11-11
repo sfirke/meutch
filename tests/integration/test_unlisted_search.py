@@ -130,7 +130,7 @@ def test_distance_filter_results_sorted_by_membership_desc(client, app):
         )
         assert response.status_code == 200
         html = response.data.decode("utf-8")
-        search_results_section = html.split("Search Results", 1)[1].split("Find Secret Circle", 1)[
+        search_results_section = html.split("Search results", 1)[1].split("Find Secret Circle", 1)[
             0
         ]
 

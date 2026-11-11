@@ -17,7 +17,7 @@ from app.forms_shared import COUNTRY_CHOICES, COUNTRY_DEFAULT, CountryChoice, Op
 
 class CircleCreateForm(FlaskForm):
     name = StringField(
-        "Circle Name",
+        "Circle name",
         validators=[
             DataRequired(message="Circle name is required."),
             Length(max=100, message="Circle name must be under 100 characters."),
@@ -28,7 +28,7 @@ class CircleCreateForm(FlaskForm):
         validators=[Length(max=500, message="Description must be under 500 characters.")],
     )
     circle_type = SelectField(
-        "Circle Type",
+        "Circle type",
         choices=[
             ("open", "Open - Anyone can find and join"),
             ("closed", "Closed - Anyone can find it, but requires approval to join."),
@@ -41,7 +41,7 @@ class CircleCreateForm(FlaskForm):
         validators=[DataRequired()],
     )
     image = FileField(
-        "Circle Image",
+        "Circle photo",
         validators=[
             OptionalFileAllowed(
                 ["jpg", "jpeg", "png", "gif", "bmp", "webp"],
@@ -49,7 +49,7 @@ class CircleCreateForm(FlaskForm):
             )
         ],
     )
-    delete_image = BooleanField("Delete current image")
+    delete_image = BooleanField("Remove the current photo")
 
     location_method = RadioField(
         "How would you like to set the circle location?",
@@ -63,7 +63,7 @@ class CircleCreateForm(FlaskForm):
     )
 
     street = StringField(
-        "Street Address",
+        "Street address",
         validators=[
             Optional(),
             Length(max=200, message="Street address must be under 200 characters."),
@@ -84,10 +84,10 @@ class CircleCreateForm(FlaskForm):
         ],
     )
     zip_code = StringField(
-        "Postal Code",
+        "Postal code",
         validators=[
             Optional(),
-            Length(max=20, message="Postal Code must be under 20 characters."),
+            Length(max=20, message="Postal code must be under 20 characters."),
         ],
     )
     country = SelectField(
@@ -118,7 +118,7 @@ class CircleCreateForm(FlaskForm):
         ],
     )
 
-    submit = SubmitField("Create Circle")
+    submit = SubmitField("Create circle")
 
     def validate(self, extra_validators=None):
         """Custom validation to ensure required fields are filled based on location method"""
@@ -179,7 +179,7 @@ class CircleUuidSearchForm(FlaskForm):
             Length(min=36, max=36, message="A circle ID is exactly 36 characters."),
         ],
     )
-    submit = SubmitField("Find Circle")
+    submit = SubmitField("Find circle")
 
 
 class CircleJoinRequestForm(FlaskForm):
@@ -187,13 +187,13 @@ class CircleJoinRequestForm(FlaskForm):
         "Message to Circle Admins",
         validators=[Optional(), Length(max=500)],
     )
-    submit = SubmitField("Request to Join")
+    submit = SubmitField("Request to join")
 
 
 class CircleRegionalSettingsForm(FlaskForm):
     is_regional = BooleanField("This is a regional circle")
     regional_radius_miles = IntegerField("Circle's radius in miles", validators=[Optional()])
-    submit = SubmitField("Save Regional Settings")
+    submit = SubmitField("Save regional settings")
 
     def validate(self, extra_validators=None):
         rv = FlaskForm.validate(self, extra_validators)

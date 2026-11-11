@@ -325,9 +325,9 @@ footer::before {
     }
 }
 
-/* Main Content */
+/* Main content */
 .main-content {
-    padding: 1rem 0;
+    padding: 2rem 0;
 }
 
 /* Ensure proper navbar spacing */
@@ -674,8 +674,7 @@ img[src$="/default_item_photo.png"] {
     background: var(--tangerine-wash);
 }
 
-.item-tag--circle,
-.item-tag--open-circle {
+.item-tag--circle {
     background: var(--teal);
 }
 
@@ -1143,6 +1142,10 @@ footer::before {
     color: var(--muted);
 }
 
+.error-page .page-art {
+    transform: rotate(-4deg);
+}
+
 /* Admin */
 .admin-stat {
     font-family: var(--font-display);
@@ -1345,10 +1348,6 @@ footer::before {
 }
 
 @media (max-width: 576px) {
-    body {
-        padding-top: 70px;
-    }
-
     .navbar-brand {
         font-size: 1.25rem;
     }
@@ -1427,7 +1426,7 @@ footer::before {
     flex-shrink: 0;
     width: 60px;
     height: 60px;
-    border: 2px solid transparent;
+    border: var(--outline) solid transparent;
     border-radius: var(--radius-tag);
     opacity: 0.7;
     cursor: pointer;
@@ -1536,14 +1535,14 @@ footer::before {
     margin-bottom: 2rem;
 }
 
+/* The name holds a stretched link, so the whole row opens the conversation. */
 .conversation-row {
+    position: relative;
     display: flex;
     align-items: flex-start;
     gap: 0.85rem;
     padding: 1rem 1.125rem;
     border-bottom: 1px solid var(--line);
-    color: inherit;
-    text-decoration: none;
 }
 
 .conversation-row:last-child {
@@ -1557,7 +1556,7 @@ footer::before {
     color: inherit;
 }
 
-.conversation-row:focus-visible {
+.conversation-row:has(.stretched-link:focus-visible) {
     outline: 2px solid var(--ink);
     outline-offset: -2px;
 }
@@ -1573,6 +1572,8 @@ footer::before {
 }
 
 .inbox-selecting .conversation-row .conv-checkbox-hitbox {
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1615,6 +1616,8 @@ footer::before {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: inherit;
+    text-decoration: none;
 }
 
 .conversation-row .conv-time {
@@ -2334,11 +2337,6 @@ footer::before {
     background-color: var(--paper);
 }
 
-/* Main Content */
-.main-content {
-    padding: 2rem 0;
-}
-
 /* Drag and Drop Upload Zones */
 .drag-drop-zone {
     border: 2px dashed var(--tangerine);
@@ -2639,17 +2637,6 @@ footer::before {
     min-width: 0;
 }
 
-.activity-feed-actor-link {
-    position: relative;
-    z-index: 2;
-    text-decoration: none;
-}
-
-.activity-feed-actor-link:hover,
-.activity-feed-actor-link:focus-visible {
-    text-decoration: underline;
-}
-
 .feed-card-title {
     font-size: 1.25rem;
     margin: 0.5rem 0 0.15rem;
@@ -2690,9 +2677,16 @@ footer::before {
     transform: rotate(2deg);
 }
 
-/* Given-away giveaways: a quiet row with no link */
+/* Given-away giveaways: a faded row with no link */
 .giveaway-card-claimed {
     --bs-card-bg: var(--paper);
+    opacity: 0.6;
+    border-style: dashed;
+}
+
+.giveaway-card-claimed .avatar,
+.giveaway-card-claimed .feed-compact-thumb {
+    filter: grayscale(1);
 }
 
 .feed-compact-row {

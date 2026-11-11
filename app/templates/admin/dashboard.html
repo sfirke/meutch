@@ -3,8 +3,10 @@
 {% from "components/dialogs.html" import confirm_dialog %}
 {% from "components/people.html" import avatar %}
 
+{% block title %}Admin{% endblock %}
+
 {% block content %}
-<div class="container mt-5 mb-5">
+<div>
     <div class="mb-4">
         <h1>Admin</h1>
         <p class="text-muted">Platform administration and user management</p>
@@ -64,7 +66,7 @@
                                         </th>
                                         <th>
                                             <a href="{{ url_for('admin.dashboard', active_tab='users', sort_by='last_login', order='asc' if current_sort == 'last_login' and current_order == 'desc' else 'desc', page=users_pagination.page) }}" class="text-decoration-none text-dark">
-                                                Last Active
+                                                Last active
                                                 {% if current_sort == 'last_login' %}
                                                     <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
                                                 {% else %}
@@ -109,7 +111,7 @@
                                             <td>
                                                 <form method="POST" action="{{ url_for('admin.update_digest_frequency', user_id=user.id) }}" class="d-inline digest-frequency-form">
                                                     {{ form.hidden_tag() }}
-                                                    <select name="digest_frequency" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                                                    <select name="digest_frequency" class="form-select form-select-sm w-auto" aria-label="Digest frequency for {{ user.full_name }}" onchange="this.form.submit()">
                                                         <option value="daily" {% if user.digest_frequency == 'daily' %}selected{% endif %}>Daily</option>
                                                         <option value="weekly" {% if user.digest_frequency == 'weekly' %}selected{% endif %}>Weekly</option>
                                                         <option value="none" {% if user.digest_frequency == 'none' %}selected{% endif %}>None</option>
@@ -125,7 +127,7 @@
                                             </td>
                                             <td>
                                                 {% if user.is_deleted %}
-                                                    <span class="badge bg-danger">Deleted</span>
+                                                    <span class="badge bg-secondary">Deleted</span>
                                                 {% elif user.is_admin %}
                                                     <span class="badge bg-warning text-dark">
                                                         <i class="fas fa-shield-alt"></i> Admin
@@ -143,7 +145,7 @@
                                                 <div class="d-flex flex-wrap gap-1 justify-content-end" role="group">
                                                     {% if user.id != current_user.id %}
                                                         {% if not user.is_admin %}
-                                                            <button type="button" class="btn btn-sm btn-outline-success"
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary"
                                                                     data-bs-toggle="modal"
                                                                     data-bs-target="#promoteModal"
                                                                     data-user-name="{{ user.full_name }}"
@@ -151,7 +153,7 @@
                                                                 <i class="fas fa-arrow-up"></i> Promote
                                                             </button>
                                                         {% else %}
-                                                            <button type="button" class="btn btn-sm btn-outline-warning"
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary"
                                                                     data-bs-toggle="modal"
                                                                     data-bs-target="#demoteModal"
                                                                     data-user-name="{{ user.full_name }}"
@@ -162,12 +164,12 @@
                                                     {% endif %}
 
                                                     {% if not user.is_public_showcase %}
-                                                        <button type="button" class="btn btn-sm btn-outline-info"
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary"
                                                                 data-bs-toggle="modal"
                                                                 data-bs-target="#enableShowcaseModal"
                                                                 data-user-name="{{ user.full_name }}"
                                                                 data-action-url="{{ url_for('admin.enable_showcase', user_id=user.id) }}">
-                                                            <i class="fas fa-star"></i> Enable Showcase
+                                                            <i class="fas fa-star"></i> Enable showcase
                                                         </button>
                                                     {% else %}
                                                         <button type="button" class="btn btn-sm btn-outline-secondary"
@@ -175,7 +177,7 @@
                                                                 data-bs-target="#disableShowcaseModal"
                                                                 data-user-name="{{ user.full_name }}"
                                                                 data-action-url="{{ url_for('admin.disable_showcase', user_id=user.id) }}">
-                                                            <i class="fas fa-star"></i> Disable Showcase
+                                                            <i class="fas fa-star"></i> Disable showcase
                                                         </button>
                                                     {% endif %}
 

@@ -5,32 +5,21 @@
 {% block title %}Items in "{{ category.name }}"{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2>Items in "{{ category.name }}"</h2>
+    <h1 class="mb-3">Items in "{{ category.name }}"</h1>
 
-    <!-- Item Type Filter -->
     {% if not no_circles %}
-        <div class="mb-3">
-            <form method="get" action="{{ url_for('main.category_items', category_id=category.id) }}" class="row g-3 align-items-end">
-                <div class="col-auto">
-                    <label for="item_type" class="form-label">Show:</label>
-                    <select name="item_type" id="item_type" class="form-select" onchange="this.form.submit()">
-                        <option value="both" {% if item_type == 'both' %}selected{% endif %}>All Items</option>
-                        <option value="loans" {% if item_type == 'loans' %}selected{% endif %}>Loans Only</option>
-                        <option value="giveaways" {% if item_type == 'giveaways' %}selected{% endif %}>Giveaways Only</option>
-                    </select>
-                </div>
-            </form>
-        </div>
+        <form method="get" action="{{ url_for('main.category_items', category_id=category.id) }}" class="mb-4">
+            <select name="item_type" class="form-select form-select-sm w-auto" aria-label="Item type" onchange="this.form.submit()">
+                <option value="both" {% if item_type == 'both' %}selected{% endif %}>All items</option>
+                <option value="loans" {% if item_type == 'loans' %}selected{% endif %}>Loans only</option>
+                <option value="giveaways" {% if item_type == 'giveaways' %}selected{% endif %}>Giveaways only</option>
+            </select>
+        </form>
     {% endif %}
 
     <div id="items-section">
     {% if no_circles %}
-    <div class="alert alert-info">
-        <h5><i class="bi bi-info-circle"></i> Join a circle to see items</h5>
-        <p>You need to join at least one lending circle to browse items from other members.</p>
-        <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">Find Circles to Join</a>
-    </div>
+        {% include 'main/_join_circle_prompt.html' %}
     {% elif items %}
         <div class="items-grid">
             {% for item in items %}
@@ -82,9 +71,8 @@
         {% endif %}
     {% else %}
         {% call empty_state("Nothing here yet", icon="box-open") %}
-            <p>No items found in the "{{ category.name }}" category.</p>
+            <p>No items in "{{ category.name }}" yet.</p>
         {% endcall %}
     {% endif %}
     </div>
-</div>
 {% endblock %}

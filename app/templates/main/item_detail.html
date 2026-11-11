@@ -54,7 +54,7 @@
             <div class="item-detail-content">
                 <div class="item-detail-summary">
                     <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
-                        <h1 class="mb-0">{{ item.name }}</h1>
+                        <h1 class="mb-0 text-break">{{ item.name }}</h1>
                         {% if item.is_giveaway and item.giveaway_visibility == 'public' %}
                             {% set share_url, share_title, share_text = giveaway_share_fields(item) %}
                             {% include 'share/_share_button.html' %}
@@ -75,7 +75,7 @@
                             {% else %}
                                 <span class="item-owner-name">{{ item.owner.full_name }}</span>
                             {% endif %}
-                            <div class="small text-muted">{% if distance %}{{ distance }} from you{% else %}Owner{% endif %}</div>
+                            <div class="small text-muted">{% if distance %}{{ distance }} away{% else %}Owner{% endif %}</div>
                         </div>
                     </div>
 
@@ -88,7 +88,7 @@
 
                     {% if has_token_access and not shares_circle_with_owner %}
                         <div class="alert alert-info" role="alert">
-                            <i class="fas fa-link me-2"></i>You are viewing this item through a shared link that will expire 30 days after its creation. You can request to borrow it even though you do not share a circle with the owner.
+                            <i class="fas fa-link me-2"></i>You are viewing this item through a shared link that will expire {{ item_share_valid_days }} days after its creation. You can request to borrow it even though you do not share a circle with the owner.
                         </div>
                     {% endif %}
 
@@ -108,7 +108,7 @@
                                         {% endif %}
                                     {% elif item.claim_status == 'claimed' %}
                                         <div class="alert alert-info mb-0" role="alert">
-                                            <i class="fas fa-check-circle me-2"></i>This giveaway was claimed{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}.
+                                            <i class="fas fa-check-circle me-2"></i>This giveaway was rehomed{% if item.claimed_at %} on {{ item.claimed_at|utc_timestamp('date') }}{% endif %}.
                                         </div>
                                     {% endif %}
                                 {% else %}
@@ -128,7 +128,7 @@
                                     {% if item.claim_status in [None, 'unclaimed'] and interested_count > 0 %}
                                         <a href="{{ url_for('main.select_recipient', item_id=item.id) }}"
                                            class="btn btn-primary btn-lg">
-                                            View Interested Users
+                                            View interested users
                                             <span class="badge bg-light text-dark ms-2">{{ interested_count }}</span>
                                         </a>
 
@@ -161,17 +161,12 @@
                                                 <div class="d-flex gap-2">
                                                     <a href="{{ url_for('main.select_recipient', item_id=item.id) }}"
                                                        class="btn btn-outline-secondary btn-sm flex-fill">
-                                                        Change Recipient
+                                                        Change recipient
                                                     </a>
-                                                    <form action="{{ url_for('main.release_to_all', item_id=item.id) }}"
-                                                          method="post"
-                                                          class="flex-fill"
-                                                          onsubmit="return confirm('Release this giveaway back to everyone? The item will reappear in the feed and all interested users will remain in the pool.');">
-                                                        {{ release_to_all_form.hidden_tag() }}
-                                                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
-                                                            Release to Everyone
-                                                        </button>
-                                                    </form>
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm flex-fill"
+                                                            data-bs-toggle="modal" data-bs-target="#releaseToAllModal">
+                                                        Release to everyone
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
@@ -228,23 +223,23 @@
                         <div class="d-flex flex-wrap gap-2 mt-4 pt-3 border-top">
                             <a href="{{ url_for('main.edit_item', item_id=item.id) }}"
                                class="btn btn-sm btn-outline-secondary">
-                                Edit Item
+                                Edit item
                             </a>
                             {% if item.is_giveaway and item.claim_status in [None, 'unclaimed'] %}
                             <button type="button" class="btn btn-sm btn-outline-secondary"
                                     data-bs-toggle="modal" data-bs-target="#markGivenAwayModal">
-                                Mark as Rehomed
+                                Mark as rehomed
                             </button>
                             {% endif %}
                             {% if item.current_loan %}
                             <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}"
                                class="btn btn-sm btn-outline-secondary">
-                                View Active Loan
+                                View loan
                             </a>
                             {% endif %}
                             <button type="button" class="btn btn-sm btn-outline-danger"
                                     data-bs-toggle="modal" data-bs-target="#deleteItemModal-{{ item.id }}">
-                                Delete Item
+                                Delete item
                             </button>
                         </div>
                         {% endif %}
@@ -265,13 +260,9 @@
                                         <p class="text-muted small mb-2">Ask a question or express your interest - the item owner can select anyone who sends them a message.</p>
                                     {% endif %}
                                     {{ form.body(class="form-control", rows="4", placeholder="Hi! I'm interested in this item. When could I pick it up?" if item.is_giveaway else "What do you want to know about the item or lending it?") }}
-                                    {% if form.body.errors %}
-                                        <div class="text-danger mt-2">
-                                            {% for error in form.body.errors %}
-                                                <small>{{ error }}</small>
-                                            {% endfor %}
-                                        </div>
-                                    {% endif %}
+                                    {% for error in form.body.errors %}
+                                        <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
                                 </div>
 
                                 <button type="submit" class="btn btn-primary">
@@ -298,9 +289,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     thumbnails.forEach(function(thumb) {
-        thumb.addEventListener('click', function() {
+        function show() {
             var bsCarousel = bootstrap.Carousel.getOrCreateInstance(carousel);
             bsCarousel.to(parseInt(thumb.dataset.bsSlideTo));
+        }
+        thumb.addEventListener('click', show);
+        thumb.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                show();
+            }
         });
     });
 });
@@ -314,13 +312,23 @@ document.addEventListener('DOMContentLoaded', function() {
     {% set item_confirm_handoff_form = confirm_handoff_form %}
     {% include 'main/_delete_item_modal.html' %}
 
+    {% if item.is_giveaway and item.claim_status == 'pending_pickup' %}
+    {% call(part) confirm_dialog("releaseToAllModal", "Release this giveaway to everyone?",
+            action=url_for('main.release_to_all', item_id=item.id), form=release_to_all_form,
+            confirm_label="Release to everyone") %}
+        {% if part == "body" %}
+            <p>The item will reappear in the feed and everyone who asked for it stays in the pool.</p>
+        {% endif %}
+    {% endcall %}
+    {% endif %}
+
     {% if item.is_giveaway and item.claim_status in [None, 'unclaimed'] %}
     {% call(part) confirm_dialog("markGivenAwayModal", "Mark as rehomed?",
             action=url_for('main.mark_given_away', item_id=item.id), form=mark_given_away_form,
             confirm_label="Mark as rehomed") %}
         {% if part == "body" %}
             <p>This marks your item as rehomed <strong>without recording who got it</strong>. Use it only if you gave the item away outside Meutch.</p>
-            <p class="text-muted small">If the person messaged you here, open your conversation with them and use "Give Item to This User" instead. That keeps a record and helps the community.</p>
+            <p class="text-muted small">If the person messaged you here, open your conversation with them and use "Give item to this user" instead. That keeps a record and helps the community.</p>
         {% endif %}
     {% endcall %}
     {% endif %}

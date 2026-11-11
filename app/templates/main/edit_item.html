@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 
+{% block title %}Edit item{% endblock %}
+
 {% block content %}
 <div class="form-page">
-    <h1>Edit Item</h1>
+    <h1>Edit item</h1>
     <form method="post" enctype="multipart/form-data">
         {{ form.csrf_token }}
 

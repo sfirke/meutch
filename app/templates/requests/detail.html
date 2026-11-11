@@ -47,10 +47,7 @@
                     {% else %}
                         <span class="item-owner-name">{{ item_request.user.full_name }}</span>
                     {% endif %}
-                    is looking to
-                    {%- if item_request.seeking == 'loan' %} borrow this
-                    {%- elif item_request.seeking == 'giveaway' %} find one to keep
-                    {%- else %} borrow or keep one{% endif %}
+                    {{ 'wants to borrow this' if item_request.seeking == 'loan' else 'is looking for this' }}
                     <div class="small text-muted">
                         Posted {{ item_request.created_at|utc_timestamp('date') if item_request.created_at else '' }}
                         &middot; {{ 'Public' if item_request.visibility == 'public' else 'Circles only' }}

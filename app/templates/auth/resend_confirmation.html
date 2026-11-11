@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "components/forms.html" import form_field %}
 
-{% block title %}Confirm Your Email{% endblock %}
+{% block title %}Confirm your email{% endblock %}
 
 {% block content %}
 {% set email_address = confirmation_email or form.email.data %}
@@ -108,12 +108,12 @@
         <div class="card-body p-4">
             <h2 class="h5 mb-2">Wrong email address?</h2>
             <p class="mb-3">If you signed up with a typo or the wrong email address, Meutch cannot change the email on an unconfirmed account. Create a new account with the correct email address instead.</p>
-            <a class="btn btn-outline-dark align-self-start" href="{{ url_for('auth.register') }}">Start over with a different email</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('auth.register') }}">Start over with a different email</a>
         </div>
     </div>
 
     <p class="mb-0">
-        <a href="{{ url_for('auth.login') }}">Back to login</a>
+        <a href="{{ url_for('auth.login') }}">Back to log in</a>
     </p>
 </div>
 {% endblock %}

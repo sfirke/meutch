@@ -449,9 +449,9 @@ def edit_circle(circle_id):
             return render_template("circles/edit_circle.html", form=form, circle=circle)
 
         if result["image_removed"]:
-            flash("Circle image has been removed.", "success")
+            flash("Circle photo removed.", "success")
         if result["image_updated"]:
-            flash("Circle image updated.", "success")
+            flash("Circle photo updated.", "success")
 
         # Provide appropriate feedback based on location update
         if result["geocoding_failed"]:

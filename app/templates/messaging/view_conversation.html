@@ -1,7 +1,11 @@
 {% extends "base.html" %}
+{% from "components/dialogs.html" import confirm_dialog %}
+{% from "components/forms.html" import form_field %}
 {% from "components/loans.html" import due_badge, status_badge %}
 {% from "components/people.html" import avatar %}
 {% from "components/tags.html" import item_status_tag, item_tag %}
+
+{% block title %}Conversation with {{ thread_messages[0].other_user.full_name }}{% endblock %}
 
 {% block content %}
     {% set conversation_item = thread_messages[0].conversation.item if thread_messages else None %}
@@ -32,11 +36,11 @@
 
     {% if conversation_item %}
         <section class="card card-clickable conversation-context">
-            <img src="{{ conversation_item.image }}" alt="{{ conversation_item.name }}" class="conversation-context-photo">
+            <img src="{{ conversation_item.image }}" alt="" class="conversation-context-photo">
             <div class="conversation-context-body">
                 <a href="{{ url_for('main.item_detail', item_id=conversation_item.id) }}" class="conversation-context-title stretched-link">{{ conversation_item.name }}</a>
                 {% if conversation_item.description %}
-                    <p class="conversation-context-description feed-line-clamp-2">{{ conversation_item.description|linkify }}</p>
+                    <p class="conversation-context-description text-break feed-line-clamp-2">{{ conversation_item.description|linkify }}</p>
                 {% endif %}
                 <div class="conversation-context-tags">
                     {% if is_item_owner %}{{ item_tag("mine") }}{% endif %}
@@ -81,17 +85,17 @@
                         <div class="conversation-panel-actions">
                             <form method="POST" action="{{ url_for('main.process_loan', loan_id=active_loan.id, action='approve') }}">
                                 {{ loan_action_form.hidden_tag() }}
-                                <button type="submit" class="btn btn-primary">Approve Request</button>
+                                <button type="submit" class="btn btn-primary">Approve request</button>
                             </form>
                             <form method="POST" action="{{ url_for('main.process_loan', loan_id=active_loan.id, action='deny') }}">
                                 {{ loan_action_form.hidden_tag() }}
-                                <button type="submit" class="btn btn-outline-secondary">Deny Request</button>
+                                <button type="submit" class="btn btn-outline-secondary">Deny request</button>
                             </form>
                         </div>
                     {% elif active_loan.borrower_id == current_user.id %}
                         <form method="POST" action="{{ url_for('main.cancel_loan_request', loan_id=active_loan.id) }}">
                             {{ loan_action_form.hidden_tag() }}
-                            <button type="submit" class="btn btn-outline-secondary">Cancel Request</button>
+                            <button type="submit" class="btn btn-outline-secondary">Cancel request</button>
                         </form>
                     {% endif %}
                 {% elif is_item_owner %}
@@ -112,11 +116,11 @@
                             <div class="conversation-panel-actions">
                                 <form method="POST" action="{{ url_for('main.process_extension_request', extension_id=pending_extension_request.id, action='approve') }}">
                                     {{ loan_action_form.hidden_tag() }}
-                                    <button type="submit" class="btn btn-primary">Approve Extension</button>
+                                    <button type="submit" class="btn btn-primary">Approve extension</button>
                                 </form>
                                 <form method="POST" action="{{ url_for('main.process_extension_request', extension_id=pending_extension_request.id, action='deny') }}">
                                     {{ loan_action_form.hidden_tag() }}
-                                    <button type="submit" class="btn btn-outline-secondary">Deny Extension</button>
+                                    <button type="submit" class="btn btn-outline-secondary">Deny extension</button>
                                 </form>
                             </div>
                         </div>
@@ -124,14 +128,14 @@
                     <div class="conversation-panel-actions">
                         <form method="POST" action="{{ url_for('main.complete_loan', loan_id=active_loan.id) }}">
                             {{ loan_action_form.hidden_tag() }}
-                            <button type="submit" class="btn {{ 'btn-outline-secondary' if pending_extension_request else 'btn-primary' }}">Mark as Returned</button>
+                            <button type="submit" class="btn {{ 'btn-outline-secondary' if pending_extension_request else 'btn-primary' }}">Mark as returned</button>
                         </form>
                         {% if not pending_extension_request %}
-                            <a href="{{ url_for('main.extend_loan', loan_id=active_loan.id) }}" class="btn btn-outline-secondary">Extend Loan Period</a>
+                            <a href="{{ url_for('main.extend_loan', loan_id=active_loan.id) }}" class="btn btn-outline-secondary">Extend loan period</a>
                         {% endif %}
                         <form method="POST" action="{{ url_for('main.owner_cancel_loan', loan_id=active_loan.id) }}">
                             {{ loan_action_form.hidden_tag() }}
-                            <button type="submit" class="btn btn-outline-secondary">Cancel Loan</button>
+                            <button type="submit" class="btn btn-outline-secondary">Cancel loan</button>
                         </form>
                     </div>
                 {% elif active_loan.borrower_id == current_user.id %}
@@ -151,7 +155,7 @@
                             Waiting for {{ conversation_item.owner.first_name }} to respond.
                         </p>
                     {% else %}
-                        <a href="{{ url_for('main.request_extension', loan_id=active_loan.id) }}" class="btn btn-outline-secondary">Request Extension</a>
+                        <a href="{{ url_for('main.request_extension', loan_id=active_loan.id) }}" class="btn btn-outline-secondary">Request extension</a>
                     {% endif %}
                 {% endif %}
             </section>
@@ -161,7 +165,7 @@
             <div class="conversation-context-body">
                 <a href="{{ url_for('requests.detail', request_id=conversation_request.id) }}" class="conversation-context-title stretched-link">{{ conversation_request.title }}</a>
                 {% if conversation_request.description %}
-                    <p class="conversation-context-description feed-line-clamp-2">{{ conversation_request.description }}</p>
+                    <p class="conversation-context-description text-break feed-line-clamp-2">{{ conversation_request.description }}</p>
                 {% endif %}
                 <div class="conversation-context-tags">
                     {{ item_tag("wanted") }}
@@ -180,7 +184,7 @@
 
     {% if giveaway_selection_item %}
     <section class="conversation-panel">
-        <h2 class="h5">Choose Recipient</h2>
+        <h2 class="h5">Choose recipient</h2>
         {% if giveaway_selection_direct %}
             <p class="mb-3">
                 <strong>{{ thread_messages[0].other_user.full_name }}</strong> messaged you about this giveaway. If you've arranged to give it to them, you can select them as the recipient here.
@@ -198,10 +202,10 @@
             <form method="POST" action="{{ url_for('main.give_to_user', item_id=giveaway_selection_item.id, user_id=thread_messages[0].other_user.id) }}">
                 {{ giveaway_selection_form.hidden_tag() }}
                 <input type="hidden" name="message_id" value="{{ message.id }}">
-                <button type="submit" class="btn btn-primary">Give Item to This User</button>
+                <button type="submit" class="btn btn-primary">Give item to this user</button>
             </form>
             {% if giveaway_selection_interested_count > 0 %}
-            <a href="{{ url_for('main.select_recipient', item_id=giveaway_selection_item.id) }}" class="btn btn-outline-secondary">View Interested Users</a>
+            <a href="{{ url_for('main.select_recipient', item_id=giveaway_selection_item.id) }}" class="btn btn-outline-secondary">View interested users</a>
             {% endif %}
         </div>
     </section>
@@ -209,7 +213,7 @@
 
     {% if giveaway_handoff_item %}
     <section class="conversation-panel">
-        <h2 class="h5">Giveaway Pickup</h2>
+        <h2 class="h5">Giveaway pickup</h2>
         <p class="mb-2">
             <strong>Recipient:</strong> {{ giveaway_handoff_item.claimed_by_name }}
         </p>
@@ -220,11 +224,8 @@
                     {{ giveaway_handoff_form.hidden_tag() }}
                     <button type="submit" class="btn btn-primary">Mark handoff complete</button>
                 </form>
-                <a href="{{ url_for('main.select_recipient', item_id=giveaway_handoff_item.id) }}" class="btn btn-outline-secondary">Change Recipient</a>
-                <form method="POST" action="{{ url_for('main.release_to_all', item_id=giveaway_handoff_item.id) }}" onsubmit="return confirm('Release this giveaway back to everyone? The item will reappear in the feed and all interested users will remain in the pool.');">
-                    {{ giveaway_release_form.hidden_tag() }}
-                    <button type="submit" class="btn btn-outline-secondary">Release to Everyone</button>
-                </form>
+                <a href="{{ url_for('main.select_recipient', item_id=giveaway_handoff_item.id) }}" class="btn btn-outline-secondary">Change recipient</a>
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#releaseToAllModal">Release to everyone</button>
             </div>
         {% elif giveaway_handoff_item.claimed_by_id == current_user.id %}
             <p class="mb-0">You are the selected recipient for this giveaway. Use this conversation to coordinate pickup, and the owner will mark the handoff complete once you have the item.</p>
@@ -265,7 +266,7 @@
                 {% if msg.is_loan_request_message and msg.loan_request.messages[0] == msg %}
                     <div class="loan-request-details">
                         <div class="conversation-panel-heading">
-                            <h3 class="h6">Loan Request Details</h3>
+                            <h3 class="h6">Loan request details</h3>
                             {{ status_badge(msg.loan_request.status) }}
                             {% if msg.loan_request.status == 'approved' %}{{ due_badge(msg.loan_request) }}{% endif %}
                         </div>
@@ -278,7 +279,7 @@
                 {% if extension_request %}
                     <div class="loan-request-details">
                         <div class="conversation-panel-heading">
-                            <h3 class="h6">Extension Request</h3>
+                            <h3 class="h6">Extension request</h3>
                             {{ status_badge(extension_request.status) }}
                         </div>
                         <p>
@@ -301,18 +302,16 @@
         <div class="card-body">
             <form method="POST">
                 {{ form.hidden_tag() }}
-                <div class="mb-3">
-                    {{ form.body(class="form-control", rows="3", placeholder="Type your reply...") }}
-                </div>
+                {{ form_field(form.body, label="Your reply", rows="3", placeholder="Type your reply...") }}
                 <div>
-                    <button type="submit" class="btn btn-primary">Send Reply</button>
+                    <button type="submit" class="btn btn-primary">Send reply</button>
                 </div>
             </form>
         </div>
     </div>
 
     <div class="d-flex flex-wrap justify-content-between align-items-center mt-4 gap-2">
-        <a href="{{ url_for('main.messages') }}" class="btn btn-outline-secondary">Back to Inbox</a>
+        <a href="{{ url_for('main.messages') }}" class="btn btn-outline-secondary">Back to inbox</a>
         {% if viewer_participant and viewer_participant.is_archived %}
             <form method="POST" action="{{ url_for('main.unarchive_conversation', conversation_id=conversation.id) }}" class="d-inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -326,6 +325,16 @@
         {% endif %}
     </div>
 </div>
+
+{% if giveaway_handoff_item and giveaway_handoff_item.owner_id == current_user.id %}
+    {% call(part) confirm_dialog("releaseToAllModal", "Release this giveaway to everyone?",
+            action=url_for('main.release_to_all', item_id=giveaway_handoff_item.id), form=giveaway_release_form,
+            confirm_label="Release to everyone") %}
+        {% if part == "body" %}
+            <p>The item will reappear in the feed and everyone who asked for it stays in the pool.</p>
+        {% endif %}
+    {% endcall %}
+{% endif %}
 
 <!-- Scroll to the end of the thread only if there are unread messages -->
 <script>

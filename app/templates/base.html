@@ -77,7 +77,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Outfit:wght@500..800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400..800&family=Outfit:wght@500..800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ static_url_for('css/style.css') }}">
 </head>
 <body {% block body_attrs %}{% endblock %}>
@@ -186,7 +186,7 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link nav-register" href="{{ url_for('auth.register') }}">
-                                <i class="fas fa-user-plus fa-fw me-1 d-lg-none"></i>Register
+                                <i class="fas fa-user-plus fa-fw me-1 d-lg-none"></i>Sign up
                             </a>
                         </li>
                     {% endif %}
@@ -231,12 +231,12 @@
                 <div class="col-md-4 mb-3 mb-md-0">
                     <div class="d-flex align-items-center mb-2">
                         <img src="{{ url_for('static', filename='img/logo_m.png') }}" alt="Meutch Logo" class="footer-logo me-2" width="28" height="28">
-                        <h6 class="fw-bold mb-0">Meutch</h6>
+                        <h6 class="mb-0">Meutch</h6>
                     </div>
                     <p class="text-muted small">The actual sharing economy, uncommercialized.</p>
                 </div>
                 <div class="col-md-4 mb-3 mb-md-0">
-                    <h6 class="fw-bold">Learn more</h6>
+                    <h6>Learn more</h6>
                     <ul class="list-unstyled small">
                         <li class="mb-2">
                             <a href="{{ url_for('main.how_it_works') }}" class="text-muted text-decoration-none">
@@ -266,7 +266,7 @@
                     </ul>
                 </div>
                 <div class="col-md-4">
-                    <h6 class="fw-bold">Connect</h6>
+                    <h6>Connect</h6>
                     <p class="text-muted small mb-2">
                         Questions? Suggestions? Found a bug?
                     </p>

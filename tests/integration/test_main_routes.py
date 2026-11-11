@@ -3,7 +3,7 @@
 import html
 import re
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
@@ -11,7 +11,6 @@ import pytest
 
 from app import db
 from app.models import Circle
-from app.services import loan_service
 from conftest import login_user
 from tests.factories import (
     CategoryFactory,
@@ -92,8 +91,8 @@ class TestMainRoutes:
             assert response.status_code == 200
             content = response.data.decode("utf-8")
             assert 'name="scope"' in content
-            assert "All Activity" in content
-            assert "My Circles" in content
+            assert "All activity" in content
+            assert "My circles" in content
             assert 'name="distance"' in content
             assert 'value="requests"' in content
             assert 'value="giveaways"' in content
@@ -187,7 +186,7 @@ class TestMainRoutes:
             assert "No Circle Public Request" in content
             assert "No Circle Public Giveaway" in content
             assert "Join a circle to get started" in content
-            assert "Find Circles to Join" in content
+            assert "Find circles to join" in content
 
     def test_home_feed_no_circle_viewer_links_recommended_circle_and_hides_zero_counts(
         self, client, app, auth_user
@@ -531,14 +530,17 @@ class TestMainRoutes:
             assert f'href="/circles/{circle.id}"' in content
             assert "activity-feed-meta" not in content
 
-    def test_feed_actor_name_is_link_when_actor_id_present(self, client, app, auth_user):
-        """Home feed renders actor name as a clickable profile link when actor_id is present."""
+    def test_feed_actor_is_not_a_profile_link(self, client, app, auth_user):
+        """Feed cards keep the focus on the activity, so neither the name nor avatar links out."""
+        avatar_url = "https://example.com/avatars/actor.png"
         with app.app_context():
             viewer = auth_user()
-            requester = UserFactory(first_name="Linkable", last_name="Actor")
+            requester = UserFactory(
+                first_name="Circle", last_name="Mate", profile_image_url=avatar_url
+            )
             circle = CircleFactory()
             circle.members.extend([viewer, requester])
-            ItemRequestFactory(user=requester, title="Linkable Actor Request", visibility="public")
+            ItemRequestFactory(user=requester, title="Circle Mate Request", visibility="public")
             db.session.commit()
 
             login_user(client, viewer.email)
@@ -546,94 +548,8 @@ class TestMainRoutes:
             content = response.data.decode("utf-8")
 
             assert response.status_code == 200
-            assert "Linkable Actor" in content
-            assert f'href="/user/{requester.id}"' in content
-
-    def test_feed_actor_name_is_plain_text_when_profile_not_viewable(self, client, app, auth_user):
-        """A public-request actor outside the viewer's circles is not linked (dead-end link)."""
-        with app.app_context():
-            viewer = auth_user()
-            stranger = UserFactory(first_name="Public", last_name="Stranger")
-            viewer_circle = CircleFactory(name="Viewer Only Circle")
-            stranger_circle = CircleFactory(name="Stranger Only Circle")
-            viewer_circle.members.append(viewer)
-            stranger_circle.members.append(stranger)
-            ItemRequestFactory(user=stranger, title="Stranger Request", visibility="public")
-            db.session.commit()
-
-            login_user(client, viewer.email)
-            response = client.get("/")
-            content = response.data.decode("utf-8")
-
-            assert response.status_code == 200
-            assert "Stranger Request" in content
-            assert f'href="/user/{stranger.id}"' not in content
-
-    def test_feed_actor_name_is_link_when_access_is_via_conversation(self, client, app, auth_user):
-        """An actor the viewer can reach only through a conversation is still linked."""
-        with app.app_context():
-            viewer = auth_user()
-            borrower = UserFactory(first_name="Loan", last_name="Actor")
-            viewer_circle = CircleFactory(name="Conversation Viewer Circle")
-            borrower_circle = CircleFactory(name="Conversation Borrower Circle")
-            viewer_circle.members.append(viewer)
-            borrower_circle.members.append(borrower)
-            item = ItemFactory(owner=viewer, category=CategoryFactory(), name="Loaned Drill")
-            db.session.commit()
-
-            loan_service.create_loan_request(
-                item,
-                borrower.id,
-                date.today(),
-                date.today() + timedelta(days=3),
-                "May I borrow this?",
-            )
-            ItemRequestFactory(user=borrower, title="Borrower Request", visibility="public")
-            db.session.commit()
-
-            login_user(client, viewer.email)
-            response = client.get("/")
-            content = response.data.decode("utf-8")
-
-            assert response.status_code == 200
-            assert "Borrower Request" in content
-            assert f'href="/user/{borrower.id}"' in content
-
-    def test_feed_actor_name_is_plain_text_when_no_actor_id(self, client, app, auth_user):
-        """Home feed renders plain text when actor_id is None (deleted actor)."""
-
-        with app.app_context():
-            viewer = auth_user()
-            login_user(client, viewer.email)
-
-            event = {
-                "event_type": "request",
-                "created_at": datetime.now(UTC),
-                "request_id": uuid.uuid4(),
-                "title": "Deleted Actor Request",
-                "description": None,
-                "status": "open",
-                "actor_name": "Deleted User",
-                "actor_avatar_url": None,
-                "actor_id": None,
-                "image_url": None,
-                "action": "requested",
-                "visibility": "public",
-                "distance": None,
-            }
-            with patch("app.main.views.browse.build_homepage_feed_events", return_value=[event]):
-                response = client.get("/")
-                content = response.data.decode("utf-8")
-
-            assert response.status_code == 200
-            assert "Deleted User" in content
-            assert "<strong>Deleted User</strong>" in content
-            # Scope the negative assertion to the event card so a profile link elsewhere
-            # on the page (e.g. a future addition) doesn't false-positive this test
-            card_start = content.index('<article class="card activity-feed-card')
-            card_end = content.index("</article>", card_start)
-            card_html = content[card_start:card_end]
-            assert 'href="/user/' not in card_html
+            assert "<strong>Circle Mate</strong>" in content
+            assert f'href="/user/{requester.id}"' not in content
 
     @pytest.mark.parametrize(
         "actor_name, expected_initials",
@@ -672,43 +588,6 @@ class TestMainRoutes:
 
             assert response.status_code == 200
             assert f">{expected_initials}<" in response.data.decode("utf-8")
-
-    def test_feed_actor_name_not_linked_for_current_user(self, client, app, auth_user):
-        """Current user's own feed activity is not linked to their own profile."""
-        with app.app_context():
-            viewer = auth_user()
-            ItemRequestFactory(user=viewer, title="My Own Feed Request", visibility="public")
-            db.session.commit()
-
-            login_user(client, viewer.email)
-            response = client.get("/")
-            content = response.data.decode("utf-8")
-
-            assert response.status_code == 200
-            assert "My Own Feed Request" in content
-            assert f'href="/user/{viewer.id}"' not in content
-
-    def test_feed_avatar_image_is_link_when_actor_id_present(self, client, app, auth_user):
-        """Home feed wraps the actor avatar <img> in a profile link when actor_id is present."""
-        avatar_url = "https://example.com/avatars/actor.png"
-        with app.app_context():
-            viewer = auth_user()
-            requester = UserFactory(
-                first_name="Avatar", last_name="Actor", profile_image_url=avatar_url
-            )
-            circle = CircleFactory()
-            circle.members.extend([viewer, requester])
-            ItemRequestFactory(user=requester, title="Avatar Actor Request", visibility="public")
-            db.session.commit()
-
-            login_user(client, viewer.email)
-            response = client.get("/")
-            content = response.data.decode("utf-8")
-
-            assert response.status_code == 200
-            assert f'href="/user/{requester.id}"' in content
-            # Linked avatar branch blanks the img alt; the non-linked branch uses alt=actor_name
-            assert f'<img src="{avatar_url}" alt=""' in content
 
     def test_feed_description_urls_are_clickable(self, client, app, auth_user):
         """A URL in a request description is a link in the home feed card."""
@@ -758,8 +637,8 @@ class TestMainRoutes:
         assert response.status_code == 200
         response_text = response.data.decode("utf-8")
         assert "Get started" in response_text
-        assert "How Meutch Works" in response_text
-        assert "See It In Action" in response_text
+        assert "How Meutch works" in response_text
+        assert "See it in action" in response_text
 
     def test_find_authenticated_user_pagination(self, client, app, auth_user):
         """Test that authenticated users get pagination controls on /find."""

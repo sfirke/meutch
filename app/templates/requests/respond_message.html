@@ -16,7 +16,7 @@
             <div class="conversation-context-title">{{ item.name }}</div>
             <div class="small text-muted">{{ "A giveaway" if item.is_giveaway else "A loan" }}</div>
             {% if item.description %}
-                <p class="conversation-context-description feed-line-clamp-2">{{ item.description }}</p>
+                <p class="conversation-context-description text-break feed-line-clamp-2">{{ item.description }}</p>
             {% endif %}
             <a href="{{ url_for('requests.respond', request_id=item_request.id) }}" class="small">Choose a different item</a>
         </div>

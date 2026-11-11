@@ -7,11 +7,11 @@ from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
 class LoanRequestForm(FlaskForm):
     start_date = DateField(
-        "Start Date",
+        "Start date",
         validators=[DataRequired(message="Please select a start date.")],
     )
     end_date = DateField(
-        "End Date",
+        "End date",
         validators=[DataRequired(message="Please select an end date.")],
     )
     message = TextAreaField(
@@ -25,7 +25,7 @@ class LoanRequestForm(FlaskForm):
             ),
         ],
     )
-    submit = SubmitField("Submit Request")
+    submit = SubmitField("Submit request")
 
     def validate_end_date(self, field):
         if field.data < self.start_date.data:

@@ -1,12 +1,12 @@
 {% extends "errors/_layout.html" %}
 
-{% block title %}You can't open this page{% endblock %}
-{% block headline %}You can't open this page{% endblock %}
+{% block title %}Ope!{% endblock %}
+{% block headline %}Ope!{% endblock %}
 {% block message %}
     {% if current_user.is_authenticated %}
-        <p>Your account doesn't have access to it.</p>
+        <p class="lead">Looks like this one isn't for you. Why don't you go find something else?</p>
     {% else %}
-        <p>You may need to log in first.</p>
+        <p class="lead">You don't have permission to view this page. Try logging in or heading back to the community.</p>
     {% endif %}
 {% endblock %}
 {% block actions %}

@@ -7,24 +7,24 @@
 {% block title %}Profile{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h1 class="mb-4">My Profile</h1>
+<div>
+    <h1 class="mb-4">My profile</h1>
 
     <!-- Tabbed Navigation -->
     <ul class="nav nav-tabs mb-4" id="profileTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link {% if active_tab == 'my-items' %}active{% endif %}" id="my-items-tab" data-bs-toggle="tab" data-bs-target="#my-items" type="button" role="tab" aria-controls="my-items" aria-selected="{{ 'true' if active_tab == 'my-items' else 'false' }}">
-                My Items
+                My items
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link {% if active_tab == 'my-activity' %}active{% endif %}" id="my-activity-tab" data-bs-toggle="tab" data-bs-target="#my-activity" type="button" role="tab" aria-controls="my-activity" aria-selected="{{ 'true' if active_tab == 'my-activity' else 'false' }}">
-                Loans &amp; Requests
+                Loans &amp; requests
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link {% if active_tab == 'about-me' %}active{% endif %}" id="about-me-tab" data-bs-toggle="tab" data-bs-target="#about-me" type="button" role="tab" aria-controls="about-me" aria-selected="{{ 'true' if active_tab == 'about-me' else 'false' }}">
-                About Me
+                About me
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -59,10 +59,10 @@
                 </div>
             </form>
 
-            <!-- My Active Giveaways Section -->
+            <!-- My active giveaways Section -->
             {% if active_giveaways %}
                 <div class="mb-4">
-                    <h2 class="h4 mb-2">My Active Giveaways</h2>
+                    <h2 class="h4 mb-2">My active giveaways</h2>
                     <p class="text-muted small">Items available for claiming or pending pickup</p>
                     <div class="items-grid">
                         {% for item in active_giveaways %}
@@ -119,7 +119,7 @@
             <!-- Regular Items Section -->
             {% if items %}
                 {% if active_giveaways or past_giveaways %}
-                    <h2 class="h4 mb-3 mt-4">Items for Lending</h2>
+                    <h2 class="h4 mb-3 mt-4">Items for lending</h2>
                 {% endif %}
                 <div class="items-grid">
                     {% for item in items %}
@@ -183,11 +183,11 @@
                 </nav>
             {% endif %}
 
-            <!-- My Past Giveaways Section -->
+            <!-- My past giveaways Section -->
             {% if past_giveaways %}
                 <details class="my-4"{% if past_giveaways_expanded %} open{% endif %}>
-                    <summary class="h4 mb-3">My Past Giveaways ({{ past_giveaways_pagination.total }})</summary>
-                    <p class="text-muted small">Items claimed within the last 90 days</p>
+                    <summary class="h4 mb-3">My past giveaways ({{ past_giveaways_pagination.total }})</summary>
+                    <p class="text-muted small">Items rehomed within the last 90 days</p>
                     <div class="items-grid">
                         {% for item in past_giveaways %}
                             {% set show_owner_controls = true %}
@@ -279,9 +279,9 @@
                     {% endif %}
                 </div>
 
-                <!-- My Requests -->
+                <!-- My requests -->
                 <div class="mb-5">
-                    <h2 class="h4">My Requests</h2>
+                    <h2 class="h4">My requests</h2>
                     {% if active_requests.items or past_requests.items %}
                         {% if active_requests.items %}
                             <h3 class="h6 text-muted mb-2">Active</h3>
@@ -290,7 +290,7 @@
                                     <li class="activity-row">
                                         <div class="activity-row-main">
                                             <a href="{{ url_for('requests.detail', request_id=req.id) }}" class="activity-row-title">{{ req.title }}</a>
-                                            <div class="activity-row-meta">{{ 'My Circles' if req.visibility == 'circles' else 'Public' }} &middot; Expires {{ req.expires_at.strftime('%B %d, %Y') }}</div>
+                                            <div class="activity-row-meta">{{ 'My circles' if req.visibility == 'circles' else 'Public' }} &middot; Expires {{ req.expires_at.strftime('%B %d, %Y') }}</div>
                                         </div>
                                         <div class="activity-row-actions">
                                             <a href="{{ url_for('requests.edit', request_id=req.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
@@ -336,7 +336,7 @@
                                     <li class="activity-row">
                                         <div class="activity-row-main">
                                             <a href="{{ url_for('requests.detail', request_id=req.id) }}" class="activity-row-title">{{ req.title }}</a>
-                                            <div class="activity-row-meta">{{ 'My Circles' if req.visibility == 'circles' else 'Public' }} &middot; Found {{ req.fulfilled_at.strftime('%B %d, %Y') }}</div>
+                                            <div class="activity-row-meta">{{ 'My circles' if req.visibility == 'circles' else 'Public' }} &middot; Found {{ req.fulfilled_at.strftime('%B %d, %Y') }}</div>
                                         </div>
                                     </li>
                                 {% endfor %}
@@ -367,7 +367,7 @@
                         {% if current_user.about_me %}
                             <p>{{ current_user.about_me|linkify }}</p>
                         {% else %}
-                            <p class="text-muted">No bio set yet. Click "Edit Profile" to add one.</p>
+                            <p class="text-muted">No bio set yet. Click "Edit profile" to add one.</p>
                         {% endif %}
 
                         {% if current_user.web_links %}
@@ -377,7 +377,7 @@
                             </div>
                         {% endif %}
 
-                        <button type="button" class="btn btn-outline-secondary mt-4" id="edit-profile-btn">Edit Profile</button>
+                        <button type="button" class="btn btn-outline-secondary mt-4" id="edit-profile-btn">Edit profile</button>
                     </div>
                 </div>
             </div>
@@ -460,21 +460,25 @@
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label d-block">Giveaways scope</label>
-                                        <div class="d-flex flex-wrap gap-2 mb-3">
-                                            <input class="btn-check" type="radio" name="digest_giveaways_include_public" id="digest-giveaways-circles-only" value="" autocomplete="off" {% if not digest_form.digest_giveaways_include_public.data %}checked{% endif %}>
-                                            <label class="btn btn-sm btn-outline-secondary rounded-pill" for="digest-giveaways-circles-only">Circles only</label>
-                                            <input class="btn-check" type="radio" name="digest_giveaways_include_public" id="digest-giveaways-include-public" value="y" autocomplete="off" {% if digest_form.digest_giveaways_include_public.data %}checked{% endif %}>
-                                            <label class="btn btn-sm btn-outline-secondary rounded-pill" for="digest-giveaways-include-public">Include public within radius</label>
-                                        </div>
+                                        <fieldset class="mb-3">
+                                            <legend class="form-label">Giveaways scope</legend>
+                                            <div class="d-flex flex-wrap gap-2">
+                                                <input class="btn-check" type="radio" name="digest_giveaways_include_public" id="digest-giveaways-circles-only" value="" autocomplete="off" {% if not digest_form.digest_giveaways_include_public.data %}checked{% endif %}>
+                                                <label class="btn btn-sm btn-outline-secondary" for="digest-giveaways-circles-only">Circles only</label>
+                                                <input class="btn-check" type="radio" name="digest_giveaways_include_public" id="digest-giveaways-include-public" value="y" autocomplete="off" {% if digest_form.digest_giveaways_include_public.data %}checked{% endif %}>
+                                                <label class="btn btn-sm btn-outline-secondary" for="digest-giveaways-include-public">Include public within radius</label>
+                                            </div>
+                                        </fieldset>
 
-                                        <label class="form-label d-block">Requests scope</label>
-                                        <div class="d-flex flex-wrap gap-2">
-                                            <input class="btn-check" type="radio" name="digest_requests_include_public" id="digest-requests-circles-only" value="" autocomplete="off" {% if not digest_form.digest_requests_include_public.data %}checked{% endif %}>
-                                            <label class="btn btn-sm btn-outline-secondary rounded-pill" for="digest-requests-circles-only">Circles only</label>
-                                            <input class="btn-check" type="radio" name="digest_requests_include_public" id="digest-requests-include-public" value="y" autocomplete="off" {% if digest_form.digest_requests_include_public.data %}checked{% endif %}>
-                                            <label class="btn btn-sm btn-outline-secondary rounded-pill" for="digest-requests-include-public">Include public within radius</label>
-                                        </div>
+                                        <fieldset>
+                                            <legend class="form-label">Requests scope</legend>
+                                            <div class="d-flex flex-wrap gap-2">
+                                                <input class="btn-check" type="radio" name="digest_requests_include_public" id="digest-requests-circles-only" value="" autocomplete="off" {% if not digest_form.digest_requests_include_public.data %}checked{% endif %}>
+                                                <label class="btn btn-sm btn-outline-secondary" for="digest-requests-circles-only">Circles only</label>
+                                                <input class="btn-check" type="radio" name="digest_requests_include_public" id="digest-requests-include-public" value="y" autocomplete="off" {% if digest_form.digest_requests_include_public.data %}checked{% endif %}>
+                                                <label class="btn btn-sm btn-outline-secondary" for="digest-requests-include-public">Include public within radius</label>
+                                            </div>
+                                        </fieldset>
                                     </div>
                                 </div>
 
@@ -516,7 +520,7 @@
                 </div>
 
                 <div class="col-md-4">
-                    <!-- Vacation Mode -->
+                    <!-- Vacation mode -->
                     <div class="card h-100">
                         <div class="card-body">
                             <h2 class="h6 card-title">Vacation mode</h2>

@@ -46,7 +46,7 @@ def test_edit_circle_image(mock_upload, mock_valid, client, app):
         assert response.status_code == 200
         db.session.refresh(circle)
         assert circle.image_url == "https://example.com/new-circle.jpg"
-        assert b"Circle image updated." in response.data
+        assert b"Circle photo updated." in response.data
 
 
 @patch("app.services.circle_service.delete_file")
@@ -68,7 +68,7 @@ def test_remove_circle_image(mock_delete, client, app):
         assert response.status_code == 200
         db.session.refresh(circle)
         assert circle.image_url is None
-        assert b"Circle image has been removed." in response.data
+        assert b"Circle photo removed." in response.data
         mock_delete.assert_called_once_with("https://example.com/old.jpg")
 
 
@@ -175,12 +175,12 @@ class TestPaginatedCircleMembers:
             response = client.get(url_for("circles.view_circle", circle_id=circle.id))
             html = response.data.decode()
 
-            leave_pos = html.find("Leave Circle")
+            leave_pos = html.find("Leave circle")
             members_heading_pos = html.find("Members (6)")
-            assert leave_pos != -1, "Leave Circle button not found"
+            assert leave_pos != -1, "Leave circle button not found"
             assert members_heading_pos != -1, "Members heading not found"
             assert leave_pos < members_heading_pos, (
-                f"Leave Circle button (at {leave_pos}) should appear before "
+                f"Leave circle button (at {leave_pos}) should appear before "
                 f"Members heading (at {members_heading_pos})"
             )
 

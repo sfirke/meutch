@@ -27,8 +27,8 @@
                 <div class="col-12 col-lg-4">
                     <label for="feed-scope" class="form-label fw-semibold">Scope</label>
                     <select id="feed-scope" name="scope" class="form-select">
-                        <option value="all" {% if selected_feed_scope == 'all' %}selected{% endif %}>All Activity</option>
-                        <option value="circles" {% if selected_feed_scope == 'circles' %}selected{% endif %}>My Circles</option>
+                        <option value="all" {% if selected_feed_scope == 'all' %}selected{% endif %}>All activity</option>
+                        <option value="circles" {% if selected_feed_scope == 'circles' %}selected{% endif %}>My circles</option>
                     </select>
                 </div>
                 <div class="col-12 col-lg-4">
@@ -42,7 +42,7 @@
                 </div>
                 <div class="col-12 col-lg-4">
                     <button type="submit" class="btn btn-primary w-100">
-                        Apply Filters
+                        Apply filters
                     </button>
                 </div>
 
@@ -74,18 +74,13 @@
     {% if feed_events %}
         <div class="d-grid gap-3 mb-4 activity-feed-list">
             {% for event in feed_events %}
-                {% set actor_url = url_for('main.user_profile', user_id=event.actor_id) if event.actor_id in linkable_actor_ids|default([]) else None %}
                 {% if event.event_type == 'giveaway' and event.claim_status == 'claimed' %}
                     {# Compact row with no link: the item is gone. The name is capped so the title always shows. #}
-                    <article class="card activity-feed-card giveaway-card-claimed">
+                    <article class="card giveaway-card-claimed">
                         <div class="card-body feed-compact-row">
-                            {{ avatar(event.actor_name, event.actor_avatar_url, size="sm", href=actor_url) }}
+                            {{ avatar(event.actor_name, event.actor_avatar_url, size="sm") }}
                             <div class="feed-compact-text text-break feed-line-clamp-3" title="{{ event.actor_name }} {{ event.action }} {{ event.title }}">
-                                {% if actor_url %}
-                                    <a href="{{ actor_url }}" class="activity-feed-actor-link d-inline-block text-truncate feed-compact-actor"><strong>{{ event.actor_name }}</strong></a>
-                                {% else %}
-                                    <strong class="d-inline-block text-truncate feed-compact-actor">{{ event.actor_name }}</strong>
-                                {% endif %}
+                                <strong class="d-inline-block text-truncate feed-compact-actor">{{ event.actor_name }}</strong>
                                 {{ event.action }}
                                 <span class="feed-compact-title">{{ event.title }}</span>
                             </div>
@@ -117,7 +112,6 @@
                         event.created_at|utc_timestamp('timeago'),
                         event.title,
                         url=event_url,
-                        actor_url=actor_url,
                         avatar_url=event.actor_avatar_url,
                         description=event.description|linkify(br=False, shorten=40) if event.description else None,
                         tag=event_tag,
@@ -132,7 +126,7 @@
         {% call empty_state("No recent activity yet", icon="stream") %}
             <p>Activity from your circles will show up here as people post requests, share giveaways and lend items.</p>
             <div class="action-row">
-                <a href="{{ url_for('main.find') }}" class="btn btn-outline-secondary">Browse Find</a>
+                <a href="{{ url_for('main.find') }}" class="btn btn-outline-secondary">Find items</a>
                 <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">List an item</a>
             </div>
         {% endcall %}

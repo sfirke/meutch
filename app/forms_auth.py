@@ -94,21 +94,21 @@ class RegistrationForm(FlaskForm):
         ],
     )
     first_name = StringField(
-        "First Name",
+        "First name",
         validators=[
             DataRequired(message="First name is required."),
             Length(max=50, message="First name must be under 50 characters."),
         ],
     )
     last_name = StringField(
-        "Last Name",
+        "Last name",
         validators=[
             DataRequired(message="Last name is required."),
             Length(max=50, message="Last name must be under 50 characters."),
         ],
     )
     digest_frequency = SelectField(
-        "Email Digest Frequency",
+        "Email digest frequency",
         choices=DIGEST_FREQUENCY_CHOICES,
         default=User.DIGEST_FREQUENCY_WEEKLY,
         validators=[DataRequired()],
@@ -126,7 +126,7 @@ class RegistrationForm(FlaskForm):
     )
 
     street = StringField(
-        "Street Address",
+        "Street address",
         validators=[
             Optional(),
             Length(max=200, message="Street address must be under 200 characters."),
@@ -147,10 +147,10 @@ class RegistrationForm(FlaskForm):
         ],
     )
     zip_code = StringField(
-        "Postal Code",
+        "Postal code",
         validators=[
             Optional(),
-            Length(max=20, message="Postal Code must be under 20 characters."),
+            Length(max=20, message="Postal code must be under 20 characters."),
         ],
     )
     country = SelectField(
@@ -193,7 +193,7 @@ class RegistrationForm(FlaskForm):
         ],
     )
     confirm_password = PasswordField(
-        "Confirm Password",
+        "Confirm password",
         validators=[
             DataRequired(message="Please confirm your password."),
             EqualTo("password", message="Passwords must match."),
@@ -205,7 +205,7 @@ class RegistrationForm(FlaskForm):
             DataRequired(message="You must be at least 13 years old to use Meutch."),
         ],
     )
-    submit = SubmitField("Register")
+    submit = SubmitField("Sign up")
 
     # Bot traps, checked by bot_trap_reason() before the rest of validation. People
     # never see `website`, so anything in it was filled in by a script. `started`
@@ -310,7 +310,7 @@ class ForgotPasswordForm(FlaskForm):
 
 class ResetPasswordForm(FlaskForm):
     password = PasswordField(
-        "New Password",
+        "New password",
         validators=[
             DataRequired(message="Password is required."),
             Length(
@@ -321,7 +321,7 @@ class ResetPasswordForm(FlaskForm):
         ],
     )
     confirm_password = PasswordField(
-        "Confirm New Password",
+        "Confirm new password",
         validators=[
             DataRequired(message="Please confirm your password."),
             EqualTo("password", message="Passwords must match."),
@@ -332,7 +332,7 @@ class ResetPasswordForm(FlaskForm):
 
 class ResendConfirmationForm(FlaskForm):
     email = StringField(
-        "Email Address",
+        "Email address",
         validators=[
             DataRequired(message="Email is required."),
             Email(message="Invalid email format."),

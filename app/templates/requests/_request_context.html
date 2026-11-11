@@ -6,12 +6,11 @@
         <div class="context-label" id="request-context-label">The request you're answering</div>
         <a href="{{ url_for('requests.detail', request_id=item_request.id) }}" class="conversation-context-title" target="_blank" rel="noopener">{{ item_request.title }}</a>
         <div class="small text-muted">
-            {{ item_request.user.full_name }} is looking for
-            {% if item_request.seeking == 'loan' %}a loan{% elif item_request.seeking == 'giveaway' %}a giveaway{% else %}a loan or giveaway{% endif %}
+            {{ item_request.user.full_name }} {{ 'wants to borrow this' if item_request.seeking == 'loan' else 'is looking for this' }}
             {%- if item_request.status == 'open' and not item_request.is_expired %} &middot; expires {{ item_request.expires_at.strftime('%b %d, %Y') }}{% endif %}
         </div>
         {% if item_request.description %}
-            <p class="conversation-context-description">{{ item_request.description }}</p>
+            <p class="conversation-context-description text-break">{{ item_request.description }}</p>
         {% endif %}
     </div>
 </section>

@@ -16,7 +16,7 @@ from app.models import Category
 
 
 class ListItemForm(FlaskForm):
-    name = StringField("Item Name", validators=[DataRequired(), Length(max=100)])
+    name = StringField("Item name", validators=[DataRequired(), Length(max=100)])
     description = TextAreaField("Description", validators=[Length(max=500)])
     category = SelectField("Category", coerce=str, validators=[DataRequired()])
     tags = StringField("Tags (comma-separated)", validators=[Length(max=200)])
@@ -26,7 +26,7 @@ class ListItemForm(FlaskForm):
     image_order = HiddenField("Image Order")
     is_giveaway = BooleanField("This is a giveaway")
     giveaway_visibility = RadioField(
-        "Giveaway Visibility",
+        "Giveaway visibility",
         choices=[
             ("default", "Circles only - Only visible to users in my circles"),
             ("public", "Public - Visible to all users on the platform"),
@@ -34,8 +34,8 @@ class ListItemForm(FlaskForm):
         default="default",
         validators=[Optional()],
     )
-    submit = SubmitField("List Item")
-    submit_and_create_another = SubmitField("List Item & Create Another")
+    submit = SubmitField("List item")
+    submit_and_create_another = SubmitField("List item and create another")
 
     def __init__(self, *args, **kwargs):
         super(ListItemForm, self).__init__(*args, **kwargs)
@@ -74,7 +74,7 @@ class DeleteItemForm(FlaskForm):
 
 class SelectRecipientForm(FlaskForm):
     selection_method = RadioField(
-        "Selection Method",
+        "Selection method",
         choices=[
             ("first", "First Requester"),
             ("random", "Random Selection"),
@@ -83,14 +83,14 @@ class SelectRecipientForm(FlaskForm):
         validators=[DataRequired(message="Please select a method.")],
     )
     user_id = StringField("Selected User ID")
-    submit = SubmitField("Select Recipient")
+    submit = SubmitField("Select recipient")
 
 
 class ChangeRecipientForm(FlaskForm):
     """Form for changing the recipient of a giveaway that's pending pickup."""
 
     selection_method = RadioField(
-        "Selection Method",
+        "Selection method",
         choices=[
             ("next", "Next in Line"),
             ("random", "Random from Remaining"),
@@ -99,16 +99,16 @@ class ChangeRecipientForm(FlaskForm):
         validators=[DataRequired(message="Please select a method.")],
     )
     user_id = StringField("Selected User ID")
-    submit = SubmitField("Change Recipient")
+    submit = SubmitField("Change recipient")
 
 
 class ReleaseToAllForm(FlaskForm):
     """Form for releasing a giveaway back to unclaimed status."""
 
-    submit = SubmitField("Release to Everyone")
+    submit = SubmitField("Release to everyone")
 
 
 class ConfirmHandoffForm(FlaskForm):
     """Form for confirming the handoff of a giveaway."""
 
-    submit = SubmitField("Confirm Handoff Complete")
+    submit = SubmitField("Confirm handoff complete")

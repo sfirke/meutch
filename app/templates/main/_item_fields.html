@@ -13,7 +13,7 @@
      data-compress-max-width="{{ item_upload_limits.compressed_max_width }}"
      data-compress-max-height="{{ item_upload_limits.compressed_max_height }}"
      data-compression-quality="{{ item_upload_limits.compression_quality }}">
-    <label class="form-label">Photos <small class="text-muted">(up to {{ item_upload_limits.max_images }})</small></label>
+    <label class="form-label" for="{{ form.image.id }}">Photos <small class="text-muted">(up to {{ item_upload_limits.max_images }})</small></label>
     {{ form.image(class="form-control", accept="image/*", multiple=True, style="display:none") }}
     {{ form.delete_images() }}
     {{ form.image_order() }}

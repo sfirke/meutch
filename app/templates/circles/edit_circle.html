@@ -2,11 +2,11 @@
 {% from "components/circles.html" import circle_fields %}
 {% from "components/forms.html" import check_field, form_field, location_fields, radio_field %}
 
-{% block title %}Edit Circle{% endblock %}
+{% block title %}Edit circle{% endblock %}
 
 {% block content %}
 <div class="form-page">
-    <h1>Edit Circle</h1>
+    <h1>Edit circle</h1>
     <form method="post" enctype="multipart/form-data">
         {{ form.csrf_token }}
 
@@ -18,14 +18,14 @@
 
         {% if circle.image_url %}
             <div class="mb-3">
-                <span class="form-label d-block">Current Image</span>
-                <img src="{{ circle.image_url }}" alt="Circle Image" class="form-current-image">
+                <span class="form-label d-block">Current photo</span>
+                <img src="{{ circle.image_url }}" alt="" class="form-current-image">
             </div>
             {{ check_field(form.delete_image, id="deleteCircleImage") }}
         {% endif %}
         {{ form_field(form.image, accept="image/*") }}
 
-        <h2 class="form-section-title">Circle Location</h2>
+        <h2 class="form-section-title">Circle location</h2>
         {% if circle.is_geocoded %}
             <p class="text-muted">Current location: <strong>{{ circle.latitude }}, {{ circle.longitude }}</strong></p>
         {% else %}
@@ -36,7 +36,7 @@
 
         <div class="form-actions">
             {{ form.submit(class="btn btn-primary") }}
-            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-outline-secondary">Back to Circle</a>
+            <a href="{{ url_for('circles.view_circle', circle_id=circle.id) }}" class="btn btn-outline-secondary">Back to circle</a>
         </div>
     </form>
 </div>

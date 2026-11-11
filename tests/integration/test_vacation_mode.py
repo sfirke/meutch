@@ -21,7 +21,7 @@ class TestVacationModeToggle:
         response = client.get(url_for("main.profile"))
 
         assert response.status_code == 200
-        assert b"Vacation Mode" in response.data
+        assert b"Vacation mode" in response.data
         assert b"vacationModeSwitch" in response.data
 
     def test_enable_vacation_mode(self, client):

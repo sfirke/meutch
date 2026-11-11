@@ -107,7 +107,7 @@ class TestSearchCircleFiltering:
 
             assert response.status_code == 200
             assert b"Join a circle" in response.data
-            assert b"Find Circles to Join" in response.data
+            assert b"Find circles to join" in response.data
 
     def test_manage_circles_highlights_recommended_circle_when_user_has_no_circles(self, client):
         """The circles page should spotlight a recommended circle for zero-circle users."""
@@ -163,9 +163,9 @@ class TestSearchCircleFiltering:
         assert "1 borrowable item" in content
         assert "2 giveaways" in content
         assert "2 requests" in content
-        assert "View Circle" in content
-        assert "Join Circle" not in content
-        assert "Request to Join" not in content
+        assert "View circle" in content
+        assert "Join circle" not in content
+        assert "Request to join" not in content
 
     def test_manage_circles_pins_regional_circles_first(self, client):
         user = UserFactory(latitude=40.7128, longitude=-74.0060)
@@ -224,7 +224,7 @@ class TestSearchCircleFiltering:
             data={"search_circles": True, "search_query": "Library", "radius": "5"},
         )
         content = response.data.decode("utf-8")
-        search_results_section = content.split("Search Results", 1)[1]
+        search_results_section = content.split("Search results", 1)[1]
 
         assert response.status_code == 200
         assert "Join a circle before you browse Meutch" in content

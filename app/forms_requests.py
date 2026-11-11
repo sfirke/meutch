@@ -41,7 +41,7 @@ class ItemRequestForm(FlaskForm):
         default="public",
         validators=[DataRequired()],
     )
-    submit = SubmitField("Post Request")
+    submit = SubmitField("Post request")
 
     def validate_expires_at(self, field):
         """Expiration must be between today and 6 months from today."""

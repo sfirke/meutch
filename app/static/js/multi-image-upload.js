@@ -99,7 +99,7 @@
     addBtn.appendChild(addIcon);
 
     var addLabel = document.createElement('span');
-    addLabel.textContent = 'Add Photo';
+    addLabel.textContent = 'Add photo';
     addBtn.appendChild(addLabel);
 
     var counter = document.createElement('small');
@@ -136,7 +136,7 @@
     cameraIcon.className = 'fas fa-camera fa-2x';
     cameraBtn.appendChild(cameraIcon);
     var cameraLabel = document.createElement('span');
-    cameraLabel.textContent = 'Take Photo';
+    cameraLabel.textContent = 'Take photo';
     cameraBtn.appendChild(cameraLabel);
     grid.appendChild(cameraBtn);
 

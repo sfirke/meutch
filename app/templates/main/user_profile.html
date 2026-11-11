@@ -1,10 +1,11 @@
 {% extends "base.html" %}
+{% from "components/empty.html" import empty_state %}
 {% from "components/people.html" import avatar, web_link %}
 
 {% block title %}{{ user.first_name }} {{ user.last_name }}'s Profile{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div>
     <div class="profile-summary">
         {{ avatar(user.first_name ~ ' ' ~ user.last_name, user.profile_image_url, size="xl") }}
         <div class="profile-summary-body">
@@ -87,7 +88,7 @@
                 </nav>
             {% endif %}
         {% else %}
-            <p>{{ user.first_name }} has not listed any items yet.</p>
+            {{ empty_state(user.first_name ~ " hasn't listed anything yet", icon="box-open", heading="h3") }}
         {% endif %}
     </div>
     {% endif %}

@@ -1,11 +1,15 @@
 {% extends "base.html" %}
 {% from "components/empty.html" import empty_state %}
 
+{% block title %}Item unavailable{% endblock %}
+
 {% block content %}
 {% set no_circles = current_user.is_authenticated and current_user.circles|length == 0 %}
 <div class="unavailable-page">
     {% call empty_state("This item has found its new home.", icon="box-open", heading="h1") %}
-        {% if not (no_circles and not suggestions) %}
+        {% if no_circles and not suggestions %}
+            <p>Join a circle to discover nearby giveaways from your communities.</p>
+        {% else %}
             <p>Check out some other giveaways that are still available.</p>
         {% endif %}
     {% endcall %}
@@ -19,18 +23,16 @@
                 {% include 'main/_item_card.html' %}
             {% endfor %}
         </div>
-    {% elif no_circles %}
-        <div class="form-note text-center">
-            <p>Join a circle to discover nearby giveaways from your communities.</p>
-            <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">Find circles to join</a>
-        </div>
     {% endif %}
 
     <div class="action-row">
-        {% if current_user.is_authenticated %}
-            <a href="{{ url_for('main.index') }}" class="btn {{ 'btn-outline-secondary' if no_circles and not suggestions else 'btn-primary' }}">Back to home</a>
+        {% if no_circles and not suggestions %}
+            <a href="{{ url_for('circles.manage_circles') }}#find-circles-tab" class="btn btn-primary">Find circles to join</a>
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">Back to home</a>
+        {% elif current_user.is_authenticated %}
+            <a href="{{ url_for('main.index') }}" class="btn btn-primary">Back to home</a>
         {% else %}
-            <a href="{{ url_for('auth.register', next=url_for('main.index')) }}" class="btn btn-primary">Join Meutch</a>
+            <a href="{{ url_for('auth.register', next=url_for('main.index')) }}" class="btn btn-primary">Sign up</a>
             <a href="{{ url_for('auth.login', next=url_for('main.index')) }}" class="btn btn-outline-secondary">Log in</a>
         {% endif %}
     </div>

@@ -1,19 +1,14 @@
 {% from "components/people.html" import avatar %}
 {% from "components/tags.html" import item_tag %}
 
-{% macro feed_card(actor_name, action, when, title, url=none, actor_url=none, avatar_url=none, description=none, tag=none, distance=none, image_url=none, heading="h2") %}
-<article class="card activity-feed-card{% if url %} card-clickable{% endif %}">
+{% macro feed_card(actor_name, action, when, title, url=none, avatar_url=none, description=none, tag=none, distance=none, image_url=none, heading="h2") %}
+<article class="card{% if url %} card-clickable{% endif %}">
     <div class="card-body feed-card-body">
         <div class="feed-card-main">
             <div class="feed-card-actor">
-                {{ avatar(actor_name, avatar_url, href=actor_url) }}
+                {{ avatar(actor_name, avatar_url) }}
                 <div class="feed-card-actor-text">
-                    {% if actor_url %}
-                        <a href="{{ actor_url }}" class="activity-feed-actor-link"><strong>{{ actor_name }}</strong></a>
-                    {% else %}
-                        <strong>{{ actor_name }}</strong>
-                    {% endif %}
-                    {{ action }} &middot; {{ when }}
+                    <strong>{{ actor_name }}</strong> {{ action }} &middot; {{ when }}
                 </div>
             </div>
             <{{ heading }} class="feed-card-title">
