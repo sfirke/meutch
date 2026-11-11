@@ -1,7 +1,8 @@
 <!-- app/templates/circles/circles.html -->
 
 {% extends "base.html" %}
-{% from "components/circles.html" import circle_row %}
+{% from "components/circles.html" import circle_fields, circle_row %}
+{% from "components/forms.html" import location_fields, radio_field %}
 {% from "components/tags.html" import item_tag %}
 
 {% block title %}Circles{% endblock %}
@@ -231,138 +232,24 @@
 
         <!-- Create Circle Tab -->
         <div class="tab-pane fade" id="create-circle" role="tabpanel" aria-labelledby="create-circle-tab">
-            <h2 class="h4">Start a New Circle</h2>
-            <p class="text-muted mb-4">Create a community for sharing items with friends, neighbors, or colleagues.</p>
-            <form method="post">
-        {{ circle_form.csrf_token }}
+            <div class="form-page form-page--start">
+                <h2 class="h4">Start a New Circle</h2>
+                <p class="text-muted mb-4">Create a community for sharing items with friends, neighbors, or colleagues.</p>
+                <form method="post">
+                    {{ circle_form.csrf_token }}
 
-        <!-- Circle Name -->
-        <div class="mb-3">
-            {{ circle_form.name.label(class="form-label") }}
-            {{ circle_form.name(class="form-control", placeholder="Enter circle name") }}
-            {% for error in circle_form.name.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
-        </div>
+                    {{ circle_fields(circle_form) }}
 
-        <!-- Description -->
-        <div class="mb-3">
-            {{ circle_form.description.label(class="form-label") }}
-            {{ circle_form.description(class="form-control", placeholder="Enter description (optional)", rows="3") }}
-            {% for error in circle_form.description.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
-        </div>
+                    <h3 class="form-section-title">Circle Location (Optional)</h3>
+                    <p class="text-muted">Setting a location helps members find circles near them. This is optional and can be added or updated later.</p>
+                    {{ radio_field(circle_form.location_method, input_class="location-method-radio") }}
+                    {{ location_fields(circle_form, id_prefix="create-") }}
 
-        <!-- Circle Type -->
-        <div class="mb-3">
-            {{ circle_form.circle_type.label(class="form-label") }}
-            {{ circle_form.circle_type(class="form-select") }}
-            {% for error in circle_form.circle_type.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
-        </div>
-
-        <!-- Location Section -->
-        <div class="mb-4">
-            <h3 class="h5 mb-3">Circle Location (Optional)</h3>
-            <p class="text-muted small mb-3">Setting a location helps members find circles near them. This is optional and can be added or updated later.</p>
-
-            <!-- Location Method Choice -->
-            {{ circle_form.location_method.label(class="form-label") }}
-            {% for subfield in circle_form.location_method %}
-                <div class="form-check">
-                    {{ subfield(class="form-check-input location-method-radio", id=subfield.id) }}
-                    {{ subfield.label(class="form-check-label", for_=subfield.id) }}
-                </div>
-            {% endfor %}
-            {% for error in circle_form.location_method.errors %}
-                <div class="text-danger small">{{ error }}</div>
-            {% endfor %}
-        </div>
-
-        <!-- Address Fields -->
-        <div id="create-address-fields" class="mb-4" style="display: none;">
-            <h6 class="mb-3">Enter Address</h6>
-            <p class="text-muted small mb-3">
-                Geocoding has been tested with addresses in USA and Canada.
-            </p>
-            <div class="row">
-                <div class="col-12 mb-3">
-                    {{ circle_form.street.label(class="form-label") }}
-                    {{ circle_form.street(class="form-control", placeholder="123 Main Street") }}
-                    {% for error in circle_form.street.errors %}
-                        <div class="text-danger small">{{ error }}</div>
-                    {% endfor %}
-                </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" name="create_circle">{{ circle_form.submit.label.text }}</button>
+                    </div>
+                </form>
             </div>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    {{ circle_form.city.label(class="form-label") }}
-                    {{ circle_form.city(class="form-control", placeholder="Boston") }}
-                    {% for error in circle_form.city.errors %}
-                        <div class="text-danger small">{{ error }}</div>
-                    {% endfor %}
-                </div>
-                <div class="col-md-3 mb-3">
-                    {{ circle_form.state.label(class="form-label") }}
-                    {{ circle_form.state(class="form-control", placeholder="MA") }}
-                    {% for error in circle_form.state.errors %}
-                        <div class="text-danger small">{{ error }}</div>
-                    {% endfor %}
-                </div>
-                <div class="col-md-3 mb-3">
-                    {{ circle_form.zip_code.label(class="form-label") }}
-                    {{ circle_form.zip_code(class="form-control", placeholder="02101") }}
-                    {% for error in circle_form.zip_code.errors %}
-                        <div class="text-danger small">{{ error }}</div>
-                    {% endfor %}
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    {{ circle_form.country.label(class="form-label") }}
-                    {{ circle_form.country(class="form-select") }}
-                    {% for error in circle_form.country.errors %}
-                        <div class="text-danger small">{{ error }}</div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Coordinate Fields -->
-        <div id="create-coordinate-fields" class="mb-4" style="display: none;">
-            <h6 class="mb-3">Enter Coordinates</h6>
-            <div class="alert alert-secondary">
-                <small>
-                    <strong>Tip:</strong> Find coordinates using Google Maps (right-click → copy coordinates) or your phone's GPS.
-                </small>
-            </div>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    {{ circle_form.latitude.label(class="form-label") }}
-                    {{ circle_form.latitude(class="form-control", step="any", placeholder="e.g., 42.3601") }}
-                    <div class="form-text">Between -90 and 90</div>
-                    {% for error in circle_form.latitude.errors %}
-                        <div class="text-danger small">{{ error }}</div>
-                    {% endfor %}
-                </div>
-                <div class="col-md-6 mb-3">
-                    {{ circle_form.longitude.label(class="form-label") }}
-                    {{ circle_form.longitude(class="form-control", step="any", placeholder="e.g., -71.0589") }}
-                    <div class="form-text">Between -180 and 180</div>
-                    {% for error in circle_form.longitude.errors %}
-                        <div class="text-danger small">{{ error }}</div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-                <!-- Submit Button -->
-                <div class="mb-3">
-                    <button type="submit" class="btn btn-primary" name="create_circle">{{ circle_form.submit.label.text }}</button>
-                </div>
-            </form>
         </div>
     </div>
 </div>

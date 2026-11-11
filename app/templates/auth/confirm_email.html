@@ -1,30 +1,18 @@
 {% extends "base.html" %}
+{% from "components/forms.html" import auth_card %}
 
 {% block title %}Confirm Email{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="mb-0">Confirm Your Email</h4>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted mb-4">
-                        One more step: click the button below to confirm <strong>{{ email }}</strong>
-                        and enable your Meutch account.
-                    </p>
+{% call auth_card("Confirm your email") %}
+    <p class="text-muted">
+        One more step: click the button below to confirm <strong>{{ email }}</strong>
+        and enable your Meutch account.
+    </p>
 
-                    <form method="POST" action="{{ url_for('auth.confirm_email', token=token, next=next_page) }}">
-                        {{ form.hidden_tag() }}
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">Confirm email</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+    <form method="POST" action="{{ url_for('auth.confirm_email', token=token, next=next_page) }}">
+        {{ form.hidden_tag() }}
+        <button type="submit" class="btn btn-primary w-100">Confirm email</button>
+    </form>
+{% endcall %}
 {% endblock %}

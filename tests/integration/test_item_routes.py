@@ -37,7 +37,7 @@ class TestItemRoutes:
             login_user(client, user.email)
             response = client.get("/list-item")
             assert response.status_code == 200
-            assert b"List a New Item" in response.data
+            assert b"What can you share?" in response.data
 
     def test_list_item_post_valid(self, client, app, auth_user):
         """Test creating a new item."""
@@ -169,12 +169,12 @@ class TestItemRoutes:
 
             first_response = client.post("/list-item", data=post_data, follow_redirects=True)
             assert first_response.status_code == 200
-            assert b"List a New Item" in first_response.data
+            assert b"What can you share?" in first_response.data
 
             second_response = client.post("/list-item", data=post_data, follow_redirects=True)
 
             assert second_response.status_code == 200
-            assert b"List a New Item" in second_response.data
+            assert b"What can you share?" in second_response.data
             assert (
                 b"We already listed this item from your earlier submission" in second_response.data
             )

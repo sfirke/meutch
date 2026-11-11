@@ -1,3 +1,4 @@
+{% from "components/forms.html" import form_field %}
 {% from "components/people.html" import avatar %}
 {% from "components/tags.html" import item_tag %}
 
@@ -34,4 +35,16 @@
         </div>
     {% endif %}
 </li>
+{% endmacro %}
+
+{% macro circle_fields(form) %}
+    {{ form_field(form.name) }}
+    {{ form_field(form.description, rows="4", placeholder="What is this circle about? (optional)") }}
+    {% set type_help %}
+        <strong>Open:</strong> Anyone can find and join.<br>
+        <strong>Closed:</strong> Anyone can find it, but requires approval to join.<br>
+        <strong>Secret:</strong> Cannot be found by search, requires the circle ID and approval to join.
+    {% endset %}
+    {{ form_field(form.circle_type, help=type_help) }}
+    {%- if caller %}{{ caller() }}{% endif %}
 {% endmacro %}
