@@ -48,12 +48,10 @@
                         <div class="item-owner-row">
                             {{ avatar(item_request.user.first_name, item_request.user.profile_image_url, size="lg") }}
                             <div>
-                                {% if item_request.status == 'open' and not item_request.is_expired and item_request.seeking == 'loan' %}
-                                    <span class="item-owner-name">{{ item_request.user.first_name }}</span> wants to borrow this
-                                {% elif item_request.status == 'open' and not item_request.is_expired and item_request.seeking == 'giveaway' %}
-                                    <span class="item-owner-name">{{ item_request.user.first_name }}</span> wants one to keep
-                                {% else %}
+                                {% if item_request.status != 'open' or item_request.is_expired %}
                                     Posted by <span class="item-owner-name">{{ item_request.user.first_name }}</span>
+                                {% else %}
+                                    <span class="item-owner-name">{{ item_request.user.first_name }}</span> {{ 'wants to borrow this' if item_request.seeking == 'loan' else 'is looking for this' }}
                                 {% endif %}
                                 <div class="small text-muted">
                                     Posted {{ item_request.created_at|utc_timestamp('date') if item_request.created_at else '' }}{% if item_request.status == 'open' and not item_request.is_expired %} &middot; Expires {{ item_request.expires_at.strftime('%B %d, %Y') }}{% endif %}

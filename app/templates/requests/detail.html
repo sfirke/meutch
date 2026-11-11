@@ -42,14 +42,12 @@
             <div class="item-owner-row">
                 {{ avatar(item_request.user.full_name, item_request.user.profile_image_url, size="lg", href=author_url) }}
                 <div>
-                    {% if item_request.seeking not in ('loan', 'giveaway') %}Posted by {% endif %}
-                    {%- if author_url %}
+                    {% if author_url %}
                         <a href="{{ author_url }}" class="item-owner-name text-decoration-none">{{ item_request.user.full_name }}</a>
-                    {%- else %}
+                    {% else %}
                         <span class="item-owner-name">{{ item_request.user.full_name }}</span>
-                    {%- endif %}
-                    {%- if item_request.seeking == 'loan' %} wants to borrow this
-                    {%- elif item_request.seeking == 'giveaway' %} wants one to keep{% endif %}
+                    {% endif %}
+                    {{ 'wants to borrow this' if item_request.seeking == 'loan' else 'is looking for this' }}
                     <div class="small text-muted">
                         Posted {{ item_request.created_at|utc_timestamp('date') if item_request.created_at else '' }}
                         &middot; {{ 'Public' if item_request.visibility == 'public' else 'Circles only' }}
