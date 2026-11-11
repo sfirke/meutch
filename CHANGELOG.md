@@ -6,6 +6,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Features
 **Minor**:
+- Headings use a lighter font that's easier to read on cards, outlines around buttons, photos and the logo are a little thinner, and the second button at the top of the home page no longer blends into the orange ([#604](https://github.com/sfirke/meutch/pull/604)).
 - The rest of Meutch has its new look: confirmation dialogs, empty pages, error pages, About, How it works, Contact, the terms and privacy pages, request pages, choosing who gets a giveaway, and the forms for extending a loan, messaging people and deleting your account. Requests now say "found" instead of "fulfilled", and the menu says "Log in" instead of "Login" ([#603](https://github.com/sfirke/meutch/pull/603)).
 - Items without a photo now show a stitched teal patch in the site's colors instead of a stock picture of mountains, including when you share a link to one ([#602](https://github.com/sfirke/meutch/pull/602)).
 - Logging in, registering and the forms for items, requests, circles, borrowing and your location have their new look. Register now fits on a phone, and every field shows its own error when something needs fixing. The giveaway form no longer says "free", because everything on Meutch is free ([#600](https://github.com/sfirke/meutch/pull/600)).
