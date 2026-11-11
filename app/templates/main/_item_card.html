@@ -1,102 +1,35 @@
+{% from "components/tags.html" import item_status_tag %}
 {% set item_url %}{% if link_to_share_preview|default(false) and item.is_giveaway %}{{ url_for('share.giveaway_preview', item_id=item.id) }}{% else %}{{ url_for('main.item_detail', item_id=item.id) }}{% endif %}{% endset %}
-<div class="card h-100">
-    {% if item.image %}
-        <a href="{{ item_url }}" class="text-decoration-none">
-            <div class="position-relative">
-                <img src="{{ item.image }}" class="card-img-top" alt="{{ item.name }}">
-                {% if item.images|length > 1 %}
-                    <span class="position-absolute bottom-0 start-0 m-2 badge bg-dark bg-opacity-75"><i class="fas fa-camera me-1"></i>{{ item.images|length }}</span>
-                {% endif %}
-                <!-- Giveaway badge -->
-                {% if item.is_giveaway %}
-                    <span class="giveaway-ribbon">
-                        GIVEAWAY
-                    </span>
-                {% endif %}
-                <!-- Availability status badge -->
-                {% if not item.available %}
-                    {% if item.is_giveaway and item.claim_status == 'claimed' %}
-                        <span class="position-absolute top-0 end-0 m-2 badge bg-success">
-                            <i class="fas fa-heart me-1"></i>Rehomed
-                        </span>
-                    {% else %}
-                        <span class="position-absolute top-0 end-0 m-2 badge bg-warning">
-                            <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Pending Pickup{% else %}Borrowed{% endif %}
-                        </span>
-                    {% endif %}
-                {% endif %}
-            </div>
-        </a>
-    {% else %}
-        <a href="{{ item_url }}" class="text-decoration-none">
-            <div class="card-img-top d-flex align-items-center justify-content-center bg-light position-relative" style="height: 200px;">
-                <i class="fas fa-image text-muted" style="font-size: 3rem;"></i>
-                <!-- Giveaway badge for items without images -->
-                {% if item.is_giveaway %}
-                    <span class="giveaway-ribbon">
-                        GIVEAWAY
-                    </span>
-                {% endif %}
-                <!-- Availability status badge for items without images -->
-                {% if not item.available %}
-                    {% if item.is_giveaway and item.claim_status == 'claimed' %}
-                        <span class="position-absolute top-0 end-0 m-2 badge bg-success">
-                            <i class="fas fa-heart me-1"></i>Rehomed
-                        </span>
-                    {% else %}
-                        <span class="position-absolute top-0 end-0 m-2 badge bg-warning">
-                            <i class="fas fa-clock me-1"></i>{% if item.is_giveaway %}Pending Pickup{% else %}Borrowed{% endif %}
-                        </span>
-                    {% endif %}
-                {% endif %}
-            </div>
-        </a>
-    {% endif %}
+<div class="card h-100 item-card card-clickable">
+    <div class="position-relative">
+        <img src="{{ item.image }}" class="card-img-top item-card-photo" alt="{{ item.name }}">
+        {% if item.images|length > 1 %}
+            <span class="position-absolute bottom-0 start-0 m-2 badge bg-dark bg-opacity-75"><i class="fas fa-camera me-1"></i>{{ item.images|length }}</span>
+        {% endif %}
+        {{ item_status_tag(item) }}
+    </div>
 
-    <div class="card-body d-flex flex-column">
-        <h5 class="card-title">
-            <a href="{{ item_url }}" class="text-decoration-none text-reset">{{ item.name }}</a>
+    <div class="card-body">
+        <h5 class="card-title item-card-title">
+            <a href="{{ item_url }}" class="stretched-link">{{ item.name }}</a>
         </h5>
-        <p class="card-text text-muted">{{ item.description|truncate(100) }}</p>
+        {% if item.description %}
+            <p class="item-card-description text-break feed-line-clamp-2">{{ item.description }}</p>
+        {% endif %}
 
-        <!-- Distance indicator (only for other users' items) -->
-        <div class="mb-2">
+        <div class="item-card-meta">
             {% if current_user.is_authenticated and current_user.id != item.owner_id %}
                 {% set distance = get_distance_to_item(item) %}
-                {% if distance %}
-                    <span class="badge bg-info ms-1">
-                        <i class="fas fa-map-marker-alt me-1"></i>{{ distance }}
-                    </span>
-                {% endif %}
+                {% if distance %}<span>{{ distance }} away</span>{% if item.category %} &middot;{% endif %}{% endif %}
+            {% endif %}
+            {% if item.category %}
+                <a href="{{ url_for('main.category_items', category_id=item.category.id) }}">{{ item.category.name }}</a>
             {% endif %}
         </div>
 
-        {% if item.category %}
-            <div class="mb-2">
-                <a href="{{ url_for('main.category_items', category_id=item.category.id) }}" class="category text-decoration-none">
-                    <i class="fas fa-folder me-1"></i>{{ item.category.name }}
-                </a>
-            </div>
-        {% endif %}
-
-        {% if item.tags %}
-            <div class="mb-3">
-                {% for tag in item.tags[:3] %}
-                    <a href="{{ url_for('main.tag_items', tag_id=tag.id) }}" class="tag text-decoration-none">
-                        <i class="fas fa-tag me-1"></i>{{ tag.name }}
-                    </a>
-                {% endfor %}
-                {% if item.tags|length > 3 %}
-                    <span class="tag">
-                        <i class="fas fa-tag me-1"></i>+{{ item.tags|length - 3 }} more
-                    </span>
-                {% endif %}
-            </div>
-        {% endif %}
-
         {% if show_owner_controls and delete_forms %}
             <!-- Owner controls: Loan (if active), Edit, Delete -->
-            <div class="mt-auto d-flex gap-2 justify-content-end">
+            <div class="item-card-controls d-flex gap-2 justify-content-end">
                 {% if item.current_loan %}
                     <a href="{{ url_for('main.view_conversation', conversation_id=item.current_loan.messages[0].conversation_id) }}" class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" title="View active loan">
                         <i class="fas fa-exchange-alt me-1"></i>Loan

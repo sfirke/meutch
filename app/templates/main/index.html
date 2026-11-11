@@ -1,16 +1,23 @@
 {% extends "base.html" %}
+{% from "components/feed.html" import feed_card %}
+{% from "components/people.html" import avatar %}
 
 {% block title %}Home{% endblock %}
 
 {% block content %}
     <div class="activity-feed-page position-relative">
-    <section class="activity-feed-header mb-3">
-        <h1 class="h3 mb-0">Community Activity</h1>
-        <button class="btn btn-link btn-sm text-decoration-none activity-feed-filters-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
-            <i class="fas fa-filter me-1"></i>Filters
+    <section class="activity-feed-header">
+        <h1 class="mb-0">What's happening nearby</h1>
+        <button class="btn btn-outline-secondary btn-sm activity-feed-filters-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#feedFiltersCollapse" aria-expanded="false" aria-controls="feedFiltersCollapse">
+            Filters
         </button>
-        <p class="text-muted mb-0 small">Recent requests, giveaways, and lending activity.</p>
     </section>
+
+    <nav class="feed-chips" aria-label="Filter by type">
+        {% for chip in feed_chips %}
+            <a class="feed-chip{% if chip.selected %} is-selected{% endif %}" href="{{ chip.url }}"{% if chip.selected %} aria-current="true"{% endif %}>{{ chip.label }}</a>
+        {% endfor %}
+    </nav>
 
     <section class="collapse mb-3" id="feedFiltersCollapse">
         <div class="activity-feed-filters card">
@@ -34,7 +41,7 @@
                 </div>
                 <div class="col-12 col-lg-4">
                     <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-filter me-1"></i>Apply Filters
+                        Apply Filters
                     </button>
                 </div>
 
@@ -42,21 +49,10 @@
                     <input type="hidden" name="types_present" value="1">
                     <input type="hidden" name="own_activity_present" value="1">
                     <input type="hidden" name="claimed_giveaways_present" value="1">
-                    <span class="form-label d-block fw-semibold mb-2">Show activity types</span>
-                    <div class="d-flex flex-wrap gap-2">
-                        <input class="btn-check" type="checkbox" id="feed-type-requests" name="types" value="requests" autocomplete="off" {% if 'requests' in selected_feed_types %}checked{% endif %}>
-                        <label class="btn btn-sm feed-type-pill feed-type-pill--requests rounded-pill" for="feed-type-requests"><i class="fas fa-hand-holding-heart me-1"></i>Requests</label>
-
-                        <input class="btn-check" type="checkbox" id="feed-type-giveaways" name="types" value="giveaways" autocomplete="off" {% if 'giveaways' in selected_feed_types %}checked{% endif %}>
-                        <label class="btn btn-sm feed-type-pill feed-type-pill--giveaways rounded-pill" for="feed-type-giveaways"><i class="fas fa-gift me-1"></i>Giveaways</label>
-
-                        <input class="btn-check" type="checkbox" id="feed-type-circle-joins" name="types" value="circle_joins" autocomplete="off" {% if 'circle_joins' in selected_feed_types %}checked{% endif %}>
-                        <label class="btn btn-sm feed-type-pill feed-type-pill--circle-joins rounded-pill" for="feed-type-circle-joins"><i class="fas fa-users me-1"></i>Circle Joins</label>
-
-                        <input class="btn-check" type="checkbox" id="feed-type-loans" name="types" value="loans" autocomplete="off" {% if 'loans' in selected_feed_types %}checked{% endif %}>
-                        <label class="btn btn-sm feed-type-pill feed-type-pill--loans rounded-pill" for="feed-type-loans"><i class="fas fa-handshake me-1"></i>Loans</label>
-                    </div>
-                    <div class="form-check form-switch mt-3">
+                    {% for feed_type in selected_feed_types %}
+                        <input type="hidden" name="types" value="{{ feed_type }}">
+                    {% endfor %}
+                    <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" role="switch" id="feed-show-own-activity" name="show_own_activity" value="1" {% if selected_show_own_activity %}checked{% endif %}>
                         <label class="form-check-label" for="feed-show-own-activity">Show my own activity</label>
                     </div>
@@ -77,118 +73,57 @@
     {% if feed_events %}
         <div class="d-grid gap-3 mb-4 activity-feed-list">
             {% for event in feed_events %}
-                {% set name_letters = event.actor_name.split()|map('first')|list %}
-                {% set actor_initials = ((name_letters[0] ~ name_letters[-1]) if name_letters|length > 1 else name_letters|join)|upper %}
-                {% set is_claimed_giveaway = event.event_type == 'giveaway' and event.claim_status == 'claimed' %}
-                {% set border_class = '' %}
-                {% if event.event_type == 'request' %}
-                    {% set border_class = 'border-start border-4 border-primary' %}
-                {% elif is_claimed_giveaway %}
-                    {% set border_class = 'border-start border-4 border-secondary' %}
-                {% elif event.event_type == 'giveaway' %}
-                    {% set border_class = 'border-start border-4 border-success' %}
-                {% elif event.event_type == 'lent' %}
-                    {% set border_class = 'border-start border-4 border-secondary' %}
-                {% elif event.event_type == 'circle_join' %}
-                    {% set border_class = 'border-start border-4 border-info' %}
+                {% set actor_url = url_for('main.user_profile', user_id=event.actor_id) if event.actor_id in linkable_actor_ids|default([]) else None %}
+                {% if event.event_type == 'giveaway' and event.claim_status == 'claimed' %}
+                    {# Compact row with no link: the item is gone. The name is capped so the title always shows. #}
+                    <article class="card activity-feed-card giveaway-card-claimed">
+                        <div class="card-body feed-compact-row">
+                            {{ avatar(event.actor_name, event.actor_avatar_url, size="sm", href=actor_url) }}
+                            <div class="feed-compact-text text-break feed-line-clamp-3" title="{{ event.actor_name }} {{ event.action }} {{ event.title }}">
+                                {% if actor_url %}
+                                    <a href="{{ actor_url }}" class="activity-feed-actor-link d-inline-block text-truncate feed-compact-actor"><strong>{{ event.actor_name }}</strong></a>
+                                {% else %}
+                                    <strong class="d-inline-block text-truncate feed-compact-actor">{{ event.actor_name }}</strong>
+                                {% endif %}
+                                {{ event.action }}
+                                <span class="feed-compact-title">{{ event.title }}</span>
+                            </div>
+                            {% if event.image_url %}
+                                <img src="{{ event.image_url }}" alt="" class="feed-compact-thumb">
+                            {% endif %}
+                            <div class="feed-compact-when">{{ event.created_at|utc_timestamp('timeago') }}</div>
+                        </div>
+                    </article>
+                {% else %}
+                    {% set event_url = None %}
+                    {% set event_tag = None %}
+                    {% if event.event_type == 'request' %}
+                        {% set event_tag = 'found' if event.status == 'fulfilled' else 'wanted' %}
+                        {% if event.request_id %}{% set event_url = url_for('requests.detail', request_id=event.request_id) %}{% endif %}
+                    {% elif event.event_type == 'giveaway' %}
+                        {% set event_tag = 'giveaway' %}
+                        {% if event.item_id %}{% set event_url = url_for('main.item_detail', item_id=event.item_id) %}{% endif %}
+                    {% elif event.event_type == 'lent' %}
+                        {% set event_tag = 'on_loan' %}
+                        {% if event.item_id %}{% set event_url = url_for('main.item_detail', item_id=event.item_id) %}{% endif %}
+                    {% elif event.event_type == 'circle_join' %}
+                        {% set event_tag = 'circle' %}
+                        {% if event.circle_id %}{% set event_url = url_for('circles.view_circle', circle_id=event.circle_id) %}{% endif %}
+                    {% endif %}
+                    {{ feed_card(
+                        event.actor_name,
+                        event.action,
+                        event.created_at|utc_timestamp('timeago'),
+                        event.title,
+                        url=event_url,
+                        actor_url=actor_url,
+                        avatar_url=event.actor_avatar_url,
+                        description=event.description|linkify(br=False, shorten=40) if event.description else None,
+                        tag=event_tag,
+                        distance=event.distance if event.event_type in ('request', 'giveaway') else None,
+                        image_url=event.image_url,
+                    ) }}
                 {% endif %}
-                <article class="card border-0 activity-feed-card{% if is_claimed_giveaway %} giveaway-card-claimed{% endif %} {{ border_class }}">
-                    <div class="card-body {{ 'py-2' if is_claimed_giveaway else 'py-3' }}">
-                        <div class="d-flex gap-2 text-muted {{ 'align-items-start' if is_claimed_giveaway else 'align-items-center mb-2' }}" style="font-size: 0.9rem;">
-                            {% set actor_profile_url = url_for('main.user_profile', user_id=event.actor_id) if event.actor_id in linkable_actor_ids|default([]) else None %}
-                            {% if event.actor_avatar_url %}
-                                {% if actor_profile_url %}
-                                    <a href="{{ actor_profile_url }}" class="flex-shrink-0" aria-hidden="true" tabindex="-1">
-                                        <img src="{{ event.actor_avatar_url }}" alt="" class="rounded-circle" style="width: 28px; height: 28px; object-fit: cover;">
-                                    </a>
-                                {% else %}
-                                    <img src="{{ event.actor_avatar_url }}" alt="{{ event.actor_name }}" class="rounded-circle flex-shrink-0" style="width: 28px; height: 28px; object-fit: cover;">
-                                {% endif %}
-                            {% else %}
-                                {% if actor_profile_url %}
-                                    <a href="{{ actor_profile_url }}" class="activity-feed-avatar-fallback flex-shrink-0 text-decoration-none" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true" tabindex="-1">{{ actor_initials or '?' }}</a>
-                                {% else %}
-                                    <span class="activity-feed-avatar-fallback flex-shrink-0" style="width: 28px; height: 28px; font-size: 0.8rem;" aria-hidden="true">{{ actor_initials or '?' }}</span>
-                                {% endif %}
-                            {% endif %}
-                            {% if is_claimed_giveaway %}
-                            {# Compact row: wraps to three lines, with the name capped so the title always shows #}
-                            <div class="flex-grow-1 text-break feed-line-clamp-3" style="min-width: 0;" title="{{ event.actor_name }} {{ event.action }} {{ event.title }}">
-                                {% if actor_profile_url %}
-                                    <a href="{{ actor_profile_url }}" class="text-body text-decoration-none activity-feed-actor-link d-inline-block text-truncate feed-compact-actor"><strong>{{ event.actor_name }}</strong></a>
-                                {% else %}
-                                    <strong class="text-body d-inline-block text-truncate feed-compact-actor">{{ event.actor_name }}</strong>
-                                {% endif %}
-                                {{ event.action }}
-                                <span class="text-body fw-semibold">{{ event.title }}</span>
-                            </div>
-                            {% if event.image_url %}
-                                <img src="{{ event.image_url }}" alt="" class="rounded border flex-shrink-0" style="width: 32px; height: 32px; object-fit: cover;">
-                            {% endif %}
-                            {% else %}
-                            <div class="text-truncate">
-                                {% if actor_profile_url %}
-                                    <a href="{{ actor_profile_url }}" class="text-body text-decoration-none activity-feed-actor-link"><strong>{{ event.actor_name }}</strong></a>
-                                {% else %}
-                                    <strong class="text-body">{{ event.actor_name }}</strong>
-                                {% endif %}
-                                {{ event.action }}
-                            </div>
-                            {% endif %}
-                            <div class="ms-auto flex-shrink-0 text-nowrap" style="font-size: 0.8rem;">
-                                {{ event.created_at|utc_timestamp('timeago') }}
-                            </div>
-                        </div>
-
-                        {% if not is_claimed_giveaway %}
-                        <div class="d-flex w-100">
-                            <div class="flex-grow-1" style="min-width: 0;">
-                                <div class="d-block mb-1">
-                                    <h2 class="h5 mb-1 d-inline">{{ event.title }}</h2>
-                                    {% if event.event_type == 'request' %}
-                                        <span class="badge rounded-pill text-bg-light border text-primary ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-hand-holding-heart me-1"></i>Request</span>
-                                        {% if event.status == 'fulfilled' %}
-                                            <span class="badge bg-success ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-check-circle me-1"></i>Fulfilled</span>
-                                        {% endif %}
-                                    {% elif event.event_type == 'giveaway' %}
-                                        <span class="badge rounded-pill text-bg-light border text-success ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-gift me-1"></i>Giveaway</span>
-                                    {% elif event.event_type == 'lent' %}
-                                        <span class="badge rounded-pill text-bg-light border text-secondary ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-handshake me-1"></i>Lent</span>
-                                    {% elif event.event_type == 'circle_join' %}
-                                        <span class="badge rounded-pill text-bg-light border text-info ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-users me-1"></i>Circle</span>
-                                    {% endif %}
-                                    {% if event.distance and event.event_type in ('request', 'giveaway') %}
-                                        <span class="badge bg-info ms-1" style="font-size: 0.65rem; vertical-align: middle;"><i class="fas fa-map-marker-alt me-1"></i>{{ event.distance }}</span>
-                                    {% endif %}
-                                </div>
-
-                                {% if event.description %}
-                                    <p class="text-muted small mb-2 text-break feed-line-clamp-2">
-                                        {{ event.description|linkify(br=False, shorten=40) }}
-                                    </p>
-                                {% endif %}
-
-                                <div class="mt-2">
-                                    {% if event.event_type == 'request' and event.request_id %}
-                                        <a href="{{ url_for('requests.detail', request_id=event.request_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Request <i class="fas fa-chevron-right small ms-1"></i></a>
-                                    {% elif event.event_type == 'giveaway' and event.item_id %}
-                                        <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
-                                    {% elif event.event_type == 'lent' and event.item_id %}
-                                        <a href="{{ url_for('main.item_detail', item_id=event.item_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Item <i class="fas fa-chevron-right small ms-1"></i></a>
-                                    {% elif event.event_type == 'circle_join' and event.circle_id %}
-                                        <a href="{{ url_for('circles.view_circle', circle_id=event.circle_id) }}" class="btn btn-sm text-primary p-0 border-0 fw-semibold text-decoration-none">View Circle <i class="fas fa-chevron-right small ms-1"></i></a>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% if event.image_url %}
-                            <div class="flex-shrink-0 ms-3">
-                                <img src="{{ event.image_url }}" alt="" class="rounded border" style="width: 72px; height: 72px; object-fit: cover;">
-                            </div>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                    </div>
-                </article>
             {% endfor %}
 
         </div>
@@ -198,10 +133,10 @@
             <h4>No recent activity yet</h4>
             <p>Activity from your circles will appear here as people post requests, share giveaways, and lend items.</p>
             <a href="{{ url_for('main.find') }}" class="btn btn-outline-primary me-2">
-                <i class="fas fa-search me-1"></i>Browse Find
+                Browse Find
             </a>
             <a href="{{ url_for('main.list_item') }}" class="btn btn-primary">
-                <i class="fas fa-plus me-1"></i>List an Item
+                List an Item
             </a>
         </div>
     {% endif %}

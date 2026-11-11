@@ -12,6 +12,7 @@ from app.utils.profile_visibility import viewable_profile_user_ids
 from .helpers import (
     HOMEPAGE_DISTANCE_OPTIONS,
     _build_find_context,
+    _build_homepage_feed_chips,
     _parse_homepage_feed_filters,
 )
 
@@ -67,6 +68,7 @@ def index():
         featured_circle_recommendation=featured_circle_recommendation,
         selected_feed_scope=filter_state["scope"],
         selected_feed_types=filter_state["selected_feed_types"],
+        feed_chips=_build_homepage_feed_chips(filter_state),
         selected_feed_distance=filter_state["distance_param_value"],
         selected_show_own_activity=filter_state["show_own_activity"],
         selected_show_claimed_giveaways=filter_state["show_claimed_giveaways"],

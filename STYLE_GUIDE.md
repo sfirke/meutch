@@ -145,6 +145,10 @@ Leave it out of nav links, footer links and buttons whose label is already clear
 
 ## Building pages
 
+- Use an existing component in `app/templates/components/` before writing new
+  markup. Don't wrap buttons, badges, alerts or cards in macros, because their
+  shared CSS classes already do that job. Anything used only once stays where it
+  is until a second use appears.
 - Use the variables and shared classes in `app/static/css/style.css`. Avoid inline
   `style` attributes and new `!important` rules.
 - Restyle Bootstrap through its `--bs-*` variables where it has one.
