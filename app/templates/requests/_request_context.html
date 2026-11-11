@@ -6,8 +6,9 @@
         <div class="context-label" id="request-context-label">The request you're answering</div>
         <a href="{{ url_for('requests.detail', request_id=item_request.id) }}" class="conversation-context-title" target="_blank" rel="noopener">{{ item_request.title }}</a>
         <div class="small text-muted">
-            {{ item_request.user.full_name }} is looking to
-            {% if item_request.seeking == 'loan' %}borrow this{% elif item_request.seeking == 'giveaway' %}find one to keep{% else %}borrow or keep one{% endif %}
+            {% if item_request.seeking == 'loan' %}{{ item_request.user.full_name }} wants to borrow this
+            {%- elif item_request.seeking == 'giveaway' %}{{ item_request.user.full_name }} wants one to keep
+            {%- else %}Posted by {{ item_request.user.full_name }}{% endif %}
             {%- if item_request.status == 'open' and not item_request.is_expired %} &middot; expires {{ item_request.expires_at.strftime('%b %d, %Y') }}{% endif %}
         </div>
         {% if item_request.description %}

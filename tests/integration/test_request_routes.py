@@ -912,7 +912,7 @@ class TestRequestConversations:
             assert response.status_code == 200
             assert b"Looking for a pressure washer" in response.data
             assert b"Ideally electric, needed for a weekend deck project." in response.data
-            assert b"is looking to" in response.data
+            assert b"wants to borrow this" in response.data
 
     def test_conversation_route_redirects_when_thread_exists(self, client, app):
         """Route should redirect to existing conversation instead of creating duplicate."""
