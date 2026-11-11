@@ -55,20 +55,21 @@ def main():
     img = Image.new("RGB", (W * S, H * S), PAPER)
     d = ImageDraw.Draw(img)
 
-    tile = logo_tile(300 * S)
-    img.paste(tile, (110 * S, (H * S - tile.height) // 2), tile)
+    # Keep everything in a small central block: Slack crops the image to the
+    # centre square, and iMessage on iOS trims the top and bottom.
+    tile = logo_tile(200 * S)
+    img.paste(tile, ((W * S - tile.width) // 2, 128 * S), tile)
 
-    x = 500 * S
-    d.text((x, 150 * S), "Meutch", font=font("outfit", 128, 700), fill=INK)
+    # The tagline is left out because apps show it as the card's title.
+    wordmark = font("outfit", 96, 700)
+    d.text((W * S // 2, 372 * S), "Meutch", font=wordmark, fill=INK, anchor="mt")
 
     # Running stitch: 14px on, 9px off, 3px tall on the site; doubled here.
-    y = 318 * S
-    for sx in range(x, x + 560 * S, 46 * S):
+    y, n = 486 * S, 7
+    x0 = (W * S - (n * 46 - 18) * S) // 2
+    for i in range(n):
+        sx = x0 + i * 46 * S
         d.rectangle((sx, y, sx + 28 * S - 1, y + 6 * S - 1), fill=TANGERINE)
-
-    tagline = font("figtree", 44, 600)
-    d.text((x, 360 * S), "The actual sharing economy,", font=tagline, fill=INK)
-    d.text((x, 418 * S), "uncommercialized.", font=tagline, fill=INK)
 
     # Plain sRGB PNG with no gamma/chromaticity/metadata chunks.
     img.resize((W, H), Image.LANCZOS).save(OUT, optimize=True)
