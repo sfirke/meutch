@@ -13,6 +13,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 ### Developer Experience
 - Removed the old standalone Create Circle page at `/circles/create-circle`. Nothing had linked to it since March 2026, when circles were already being created from the Create tab on the Circles page ([#601](https://github.com/sfirke/meutch/pull/601)).
 
+### Bug fixes
+- Tapping a button twice no longer sends the same message twice. After you submit a form anywhere on the site, extra taps are ignored until the page finishes loading ([#585](https://github.com/sfirke/meutch/pull/585)).
+
 ## October 2026
 
 ### Features
@@ -27,7 +30,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Bug fixes
 - Times shown on the site now have the right timezone label for their date. Before, the label always matched today, so in October a December time was marked EDT instead of EST. The times themselves were already correct ([#588](https://github.com/sfirke/meutch/pull/588)).
-- Tapping a button twice no longer sends the same message twice. After you submit a form anywhere on the site, extra taps are ignored until the page finishes loading ([#585](https://github.com/sfirke/meutch/pull/585)).
 - A giveaway can now only be handed to someone who has asked about it: a member who is on its list of interested people, or who already has a conversation with you about that item. Before, the manual selection step did not check this ([#563](https://github.com/sfirke/meutch/pull/563)).
 - Deleting an account now signs it out everywhere. Before, a deleted account could stay signed in on the website or in the mobile app, and could still be logged into afterwards. Deletion now ends every session on every device, the old password and any password-reset or confirmation links stop working, and a deleted admin loses admin access ([#562](https://github.com/sfirke/meutch/pull/562)).
 - After you log in or confirm your email, Meutch now only sends you on to one of its own pages. Before, a specially made link to the login or sign-up page could send you to a different website afterwards ([#560](https://github.com/sfirke/meutch/pull/560)).
