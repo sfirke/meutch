@@ -8,7 +8,7 @@
     {% set is_item_owner = conversation_item and conversation_item.owner_id == current_user.id %}
 
     {% if conversation_item %}
-        <div class="card conversation-summary-card mb-4 border-0 shadow-sm">
+        <div class="card conversation-summary-card mb-4 border-0">
             <div class="row g-0">
                 <div class="col-md-4 col-lg-3">
                     <a href="{{ url_for('main.item_detail', item_id=conversation_item.id) }}" class="conversation-summary-media text-decoration-none">
@@ -144,7 +144,7 @@
                                                 </form>
                                                 <form method="POST" action="{{ url_for('main.process_loan', loan_id=active_loan.id, action='deny') }}" class="d-inline">
                                                     {{ loan_action_form.hidden_tag() }}
-                                                    <button type="submit" class="btn btn-danger">
+                                                    <button type="submit" class="btn btn-outline-secondary">
                                                         <i class="fas fa-times me-1"></i>Deny Request
                                                     </button>
                                                 </form>
@@ -188,7 +188,7 @@
                                                         </form>
                                                         <form method="POST" action="{{ url_for('main.process_extension_request', extension_id=pending_extension_request.id, action='deny') }}">
                                                             {{ loan_action_form.hidden_tag() }}
-                                                            <button type="submit" class="btn btn-danger w-100">
+                                                            <button type="submit" class="btn btn-outline-secondary w-100">
                                                                 <i class="fas fa-times me-1"></i>Deny Extension
                                                             </button>
                                                         </form>
@@ -307,7 +307,7 @@
     {% endif %}
 
     {% if giveaway_selection_item %}
-    <div class="card mb-4 border-success shadow-sm">
+    <div class="card mb-4 border-success">
         <div class="card-header bg-success text-white">
             <h5 class="mb-0">
                 <i class="fas fa-user-check me-2"></i>Choose Recipient
@@ -346,7 +346,7 @@
     {% endif %}
 
     {% if giveaway_handoff_item %}
-    <div class="card mb-4 border-warning shadow-sm">
+    <div class="card mb-4 border-warning">
         <div class="card-header bg-warning text-dark">
             <h5 class="mb-0">
                 <i class="fas fa-gift me-2"></i>Giveaway Pickup
@@ -386,7 +386,7 @@
     {% endif %}
 
     {% if fulfillable_request %}
-    <div class="card mb-4 border-success shadow-sm">
+    <div class="card mb-4 border-success">
         <div class="card-header bg-success text-white">
             <h5 class="mb-0">
                 <i class="fas fa-check-circle me-2"></i>Request Fulfillment

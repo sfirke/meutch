@@ -28,7 +28,7 @@ class TestMainRoutes:
         """Test index page loads correctly for anonymous users (landing page)."""
         response = client.get("/")
         assert response.status_code == 200
-        assert b"What if borrowing from a neighbor" in response.data
+        assert b"from a neighbor was as easy as buying from Amazon?" in response.data
 
     def test_index_with_authenticated_user(self, client, app, auth_user):
         """Test index page with authenticated user."""
@@ -38,6 +38,27 @@ class TestMainRoutes:
             response = client.get("/")
             assert response.status_code == 200
             assert b"Community Activity" in response.data
+
+    @pytest.mark.parametrize("path", ["/", "/find", "/circles/", "/messages"])
+    def test_nav_marks_the_current_page(self, client, app, auth_user, path):
+        """Only the nav link for the page being viewed is marked as current."""
+        with app.app_context():
+            login_user(client, auth_user().email)
+
+            content = client.get(path).data.decode()
+
+            assert content.count('aria-current="page"') == 1
+            assert f'aria-current="page" href="{path}"' in content
+
+    def test_nav_marks_nothing_on_a_page_with_no_route(self, client, app, auth_user):
+        """A 404 has no endpoint, so no nav link is current."""
+        with app.app_context():
+            login_user(client, auth_user().email)
+
+            response = client.get("/no-such-page")
+
+            assert response.status_code == 404
+            assert 'aria-current="page"' not in response.data.decode()
 
     def test_index_with_authenticated_user_renders_feed_filter_controls(
         self, client, app, auth_user
@@ -416,7 +437,7 @@ class TestMainRoutes:
             assert '<strong class="text-body">Deleted User</strong>' in content
             # Scope the negative assertion to the event card so a profile link elsewhere
             # on the page (e.g. a future addition) doesn't false-positive this test
-            card_start = content.index('<article class="card shadow-sm border-0 activity-feed-card')
+            card_start = content.index('<article class="card border-0 activity-feed-card')
             card_end = content.index("</article>", card_start)
             card_html = content[card_start:card_end]
             assert 'href="/user/' not in card_html
