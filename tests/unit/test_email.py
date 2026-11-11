@@ -261,6 +261,38 @@ class TestEmailUtils:
                 # send_email should never be called
                 mock_send_email.assert_not_called()
 
+    def test_digest_claimed_giveaway_has_no_link(self, app):
+        """Claimed giveaways are only viewable by giver and recipient, so the digest omits the link."""
+        with app.app_context():
+            user = UserFactory(first_name="Digest", digest_frequency="daily")
+            item_id = uuid.uuid4()
+            payload = {
+                "summary_stats": {"total_new_items": 1, "giveaways_count": 1},
+                "giveaways": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": item_id,
+                        "actor_name": "Alex",
+                        "title": "Free Chair",
+                        "claim_status": "claimed",
+                        "digest_variant": "resolved-in-window",
+                        "action": "posted a giveaway",
+                    }
+                ],
+            }
+
+            content = build_digest_email_content(
+                user,
+                payload,
+                manage_url="https://example.com/digest/manage/token123",
+                unsubscribe_url="https://example.com/digest/unsubscribe/token123",
+            )
+
+            assert "Free Chair offered by Alex was claimed" in content["text"]
+            assert str(item_id) not in content["text"]
+            assert str(item_id) not in content["html"]
+            assert "View activity" not in content["html"]
+
     def test_build_digest_email_content_adds_same_window_resolution_labels(self, app):
         with app.app_context():
             user = UserFactory(first_name="Digest", digest_frequency="daily")
@@ -528,17 +560,17 @@ class TestEmailUtils:
             new_req_pos = content["text"].find("New Request")
             old_req_pos = content["text"].find("Old Request")
             assert new_req_pos != -1 and old_req_pos != -1
-            assert (
-                new_req_pos < old_req_pos
-            ), "new-resolved-in-window request should appear before resolved-in-window"
+            assert new_req_pos < old_req_pos, (
+                "new-resolved-in-window request should appear before resolved-in-window"
+            )
 
             # Same ordering check for giveaways in claimed section.
             new_gw_pos = content["text"].find("New Giveaway")
             old_gw_pos = content["text"].find("Old Giveaway")
             assert new_gw_pos != -1 and old_gw_pos != -1
-            assert (
-                new_gw_pos < old_gw_pos
-            ), "new-resolved-in-window giveaway should appear before resolved-in-window"
+            assert new_gw_pos < old_gw_pos, (
+                "new-resolved-in-window giveaway should appear before resolved-in-window"
+            )
 
     def test_send_digest_email_sends_when_payload_has_only_resolution_events(self, app):
         with app.app_context():

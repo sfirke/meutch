@@ -1,6 +1,6 @@
 """Request read and write endpoints for API v1."""
 
-from flask import abort, request
+from flask import abort
 from flask_jwt_extended import jwt_required
 
 from app import db
@@ -8,9 +8,10 @@ from app.api.v1 import bp
 from app.api.v1.jwt_auth import current_user
 from app.api.v1.operational import mutation_limit, read_limit
 from app.api.v1.parsing import load_query_data, load_request_data
+from app.api.v1.profile_flags import dump_with_viewable_profiles
 from app.api.v1.responses import build_collection_response
 from app.api.v1.schemas.messaging import MessageResponseSchema
-from app.api.v1.schemas.query import RequestListQuerySchema
+from app.api.v1.schemas.query import MyRequestsQuerySchema
 from app.api.v1.schemas.requests import (
     ItemRequestDetailResponseSchema,
     ItemRequestResponseSchema,
@@ -24,14 +25,8 @@ from app.models import Item, ItemRequest
 from app.services import message_service, request_service
 from app.services.exceptions import AuthorizationError
 from app.utils.messaging_queries import build_request_conversation_summaries
-from app.utils.request_queries import (
-    build_visible_requests_pagination,
-    can_view_request,
-    describe_seeking_mismatch,
-)
+from app.utils.request_queries import can_view_request, describe_seeking_mismatch
 
-REQUEST_LIST_QUERY_SCHEMA = RequestListQuerySchema()
-ITEM_REQUEST_SUMMARY_SCHEMA = ItemRequestSummarySchema(many=True)
 ITEM_REQUEST_DETAIL_RESPONSE_SCHEMA = ItemRequestDetailResponseSchema()
 ITEM_REQUEST_RESPONSE_SCHEMA = ItemRequestResponseSchema()
 ITEM_REQUEST_STATUS_RESPONSE_SCHEMA = ItemRequestStatusResponseSchema()
@@ -39,35 +34,19 @@ REQUEST_WRITE_PAYLOAD_SCHEMA = RequestWritePayloadSchema()
 REQUEST_RESPOND_SCHEMA = RequestRespondSchema()
 REQUEST_RESPOND_DRAFT_RESPONSE_SCHEMA = RequestRespondDraftResponseSchema()
 MESSAGE_RESPONSE_SCHEMA = MessageResponseSchema()
-DEFAULT_GEOLOCATED_REQUEST_DISTANCE = 20
+MY_REQUESTS_QUERY_SCHEMA = MyRequestsQuerySchema()
+ITEM_REQUEST_SUMMARY_SCHEMA = ItemRequestSummarySchema(many=True)
 
 
-@bp.get("/requests")
-@jwt_required()
-@read_limit()
-def list_requests():
-    """Return paginated visible requests for the authenticated user."""
-    query_data = load_query_data(REQUEST_LIST_QUERY_SCHEMA)
-    distance_explicit = "distance" in request.args
-    selected_distance = query_data["distance"]
-    if not distance_explicit and current_user.is_geocoded:
-        selected_distance = DEFAULT_GEOLOCATED_REQUEST_DISTANCE
-
-    pagination = build_visible_requests_pagination(
-        current_user,
-        selected_circle_ids=query_data["circles"],
-        scope=query_data["scope"],
-        distance=selected_distance,
-        distance_explicit=distance_explicit,
-        page=query_data["page"],
-        per_page=query_data["per_page"],
+def _request_candidate_ids(item_request, conversations=()):
+    """User ids nested in a request dump: the requester and conversation partners."""
+    ids = [item_request.user_id]
+    ids.extend(
+        conversation["other_user"].id
+        for conversation in conversations
+        if conversation.get("other_user")
     )
-
-    return build_collection_response(
-        "requests",
-        ITEM_REQUEST_SUMMARY_SCHEMA.dump(pagination.items),
-        pagination=pagination,
-    )
+    return ids
 
 
 def _get_live_request_or_404(request_id):
@@ -76,6 +55,25 @@ def _get_live_request_or_404(request_id):
     if not item_request or item_request.status == "deleted":
         abort(404)
     return item_request
+
+
+@bp.get("/me/requests")
+@jwt_required()
+@read_limit()
+def list_my_requests():
+    """Return the authenticated user's active or recently fulfilled requests."""
+    query_data = load_query_data(MY_REQUESTS_QUERY_SCHEMA)
+    pagination = request_service.list_user_requests(
+        current_user,
+        status=query_data["status"],
+        page=query_data["page"],
+        per_page=query_data["per_page"],
+    )
+    return build_collection_response(
+        "requests",
+        ITEM_REQUEST_SUMMARY_SCHEMA.dump(pagination.items),
+        pagination=pagination,
+    )
 
 
 @bp.get("/requests/<uuid:request_id>")
@@ -91,11 +89,13 @@ def get_request(request_id):
     if current_user.id == item_request.user_id:
         conversations = build_request_conversation_summaries(item_request.id, current_user.id)
 
-    return ITEM_REQUEST_DETAIL_RESPONSE_SCHEMA.dump(
+    return dump_with_viewable_profiles(
+        ITEM_REQUEST_DETAIL_RESPONSE_SCHEMA,
         {
             "request": item_request,
             "conversations": conversations,
-        }
+        },
+        _request_candidate_ids(item_request, conversations),
     )
 
 
@@ -113,7 +113,14 @@ def create_request():
         data["seeking"],
         data["visibility"],
     )
-    return ITEM_REQUEST_RESPONSE_SCHEMA.dump({"request": item_request}), 201
+    return (
+        dump_with_viewable_profiles(
+            ITEM_REQUEST_RESPONSE_SCHEMA,
+            {"request": item_request},
+            _request_candidate_ids(item_request),
+        ),
+        201,
+    )
 
 
 @bp.patch("/requests/<uuid:request_id>")
@@ -132,7 +139,11 @@ def update_request(request_id):
         data["seeking"],
         data["visibility"],
     )
-    return ITEM_REQUEST_RESPONSE_SCHEMA.dump({"request": item_request})
+    return dump_with_viewable_profiles(
+        ITEM_REQUEST_RESPONSE_SCHEMA,
+        {"request": item_request},
+        _request_candidate_ids(item_request),
+    )
 
 
 @bp.delete("/requests/<uuid:request_id>")

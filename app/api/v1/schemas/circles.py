@@ -11,6 +11,7 @@ from app.api.v1.schemas.base import (
     validate_location_method_fields,
 )
 from app.api.v1.schemas.users import UserSummarySchema
+from app.utils.geocoding import distance_bucket_floor, format_distance
 
 
 class PendingJoinRequestSchema(ApiSchema):
@@ -52,6 +53,7 @@ class CircleSummarySchema(ApiSchema):
     has_pending_join_request = fields.Method("get_has_pending_join_request")
     pending_join_request_count = fields.Method("get_pending_join_request_count")
     distance_miles = fields.Method("get_distance_miles", allow_none=True)
+    distance = fields.Method("get_distance", allow_none=True)
 
     def get_member_count(self, circle):
         return circle.member_count
@@ -69,10 +71,18 @@ class CircleSummarySchema(ApiSchema):
         return getattr(circle, "api_pending_join_request_count", 0)
 
     def get_distance_miles(self, circle):
+        """Lower bound of the distance range, never the exact distance."""
         distance = getattr(circle, "api_distance_miles", None)
         if distance is None:
             return None
-        return round(distance, 2)
+        return distance_bucket_floor(distance)
+
+    def get_distance(self, circle):
+        """Same range label the website and the feed show, e.g. "2-5 mi"."""
+        distance = getattr(circle, "api_distance_miles", None)
+        if distance is None:
+            return None
+        return format_distance(distance)
 
 
 class CircleDetailSchema(CircleSummarySchema):

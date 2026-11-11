@@ -1,4 +1,5 @@
 import logging
+import secrets
 from datetime import UTC, date, datetime
 
 from sqlalchemy import and_, select
@@ -13,6 +14,7 @@ from app.models import (
     Message,
     circle_members,
 )
+from app.services import api_token_service
 from app.utils.email import send_account_deletion_email
 from app.utils.storage import delete_file
 
@@ -118,4 +120,19 @@ def delete_user_account(user):
     user.is_deleted = True
     user.deleted_at = datetime.now(UTC)
     user.email = f"deleted_{user.id}@deleted.meutch"
+    _revoke_account_access(user)
     db.session.commit()
+
+
+def _revoke_account_access(user):
+    """Leave a deleted account with nothing it could sign in or act with."""
+    # The column is not nullable, so the password becomes one nobody knows.
+    user.set_password(secrets.token_urlsafe(32))
+    user.is_admin = False
+    user.password_reset_token = None
+    user.password_reset_sent_at = None
+    user.email_confirmation_token = None
+    user.email_confirmation_sent_at = None
+    api_token_service.revoke_all_token_families(
+        user, reason=api_token_service.REVOKE_REASON_ACCOUNT_DELETED
+    )

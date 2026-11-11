@@ -25,6 +25,7 @@ from app.utils.giveaway_visibility import get_unavailable_giveaway_suggestions
 from app.utils.item_share import ITEM_SHARE_TOKEN_MAX_AGE_DAYS
 from app.utils.item_visibility import build_item_access_state
 from app.utils.profile_visibility import can_view_profile
+from app.utils.share_reminder import flash_item_created
 from app.utils.storage import MAX_ITEM_IMAGE_COUNT
 
 from .helpers import (
@@ -38,7 +39,7 @@ from .helpers import (
 def _ensure_item_creation_token(form):
     try:
         creation_token = uuid.UUID(str(form.creation_token.data))
-    except (AttributeError, TypeError, ValueError):
+    except AttributeError, TypeError, ValueError:
         creation_token = uuid.uuid4()
 
     form.creation_token.data = str(creation_token)
@@ -58,7 +59,7 @@ def _respond_flow_request_id():
     raw_request_id = request.args.get("request_id") or request.form.get("request_id")
     try:
         return str(uuid.UUID(str(raw_request_id)))
-    except (AttributeError, TypeError, ValueError):
+    except AttributeError, TypeError, ValueError:
         return None
 
 
@@ -155,7 +156,7 @@ def list_item():
             'Item "<a href="{}" class="alert-link">{}</a>" has been listed successfully!'
         ).format(item_link, escape(creation_result.item.name))
 
-        flash(message, "success")
+        flash_item_created(creation_result.item, message)
         return _item_created_redirect(
             creation_result.item,
             form.submit_and_create_another.data,

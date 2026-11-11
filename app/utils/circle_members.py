@@ -8,10 +8,10 @@ def sample_circle_members(members, limit=8, rng=None):
 
     members_list = list(members)
     members_with_custom_avatar = [
-        member for member in members_list if getattr(member, 'profile_image_url', None)
+        member for member in members_list if getattr(member, "profile_image_url", None)
     ]
     members_without_custom_avatar = [
-        member for member in members_list if not getattr(member, 'profile_image_url', None)
+        member for member in members_list if not getattr(member, "profile_image_url", None)
     ]
 
     randomizer = rng or random
@@ -33,11 +33,11 @@ def build_circle_member_samples(circles, limit=5, user_circle_ids=None):
         return {}
 
     user_circle_ids = user_circle_ids or set()
-    
+
     samples = {}
     for circle in circles:
         # Only show member samples for open circles or if user is a member
-        if circle.circle_type == 'open' or circle.id in user_circle_ids:
+        if circle.circle_type == "open" or circle.id in user_circle_ids:
             samples[circle.id] = sample_circle_members(circle.members, limit=limit)
-    
+
     return samples

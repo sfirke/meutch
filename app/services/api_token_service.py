@@ -11,6 +11,8 @@ from app import db
 from app.models import ApiTokenBlocklist, ApiTokenFamily, User
 from app.services import auth_service
 from app.services.exceptions import AuthenticationError, AuthorizationError, ConflictError
+from app.utils import activity_events
+from app.utils.activity_log import log_event
 
 TOKEN_TYPE_ACCESS = "access"
 TOKEN_TYPE_REFRESH = "refresh"
@@ -138,7 +140,7 @@ def issue_login_tokens(email, password):
 def rotate_refresh_token(user, refresh_token_payload):
     """Rotate a refresh token and issue a fresh access/refresh pair."""
     token_family = _get_token_family(refresh_token_payload)
-    if token_family is None or token_family.revoked_at is not None:
+    if user.is_deleted or token_family is None or token_family.revoked_at is not None:
         raise AuthenticationError("The supplied token is invalid.")
 
     _add_blocklist_entry(refresh_token_payload, reason=REVOKE_REASON_ROTATED)
@@ -168,6 +170,34 @@ def revoke_token_family(token_payload, *, reason=REVOKE_REASON_LOGOUT):
     db.session.commit()
 
 
+def revoke_all_token_families(user, *, reason):
+    """Revoke every live API session a user has. The caller commits."""
+    for token_family in ApiTokenFamily.query.filter_by(user_id=user.id, revoked_at=None):
+        token_family.revoke(reason)
+
+
+def _revoke_family_for_reuse(token_family, *, reason):
+    """Kill a live family whose superseded refresh token was presented, and log it.
+
+    A family that is already revoked (logout, account deletion, an earlier reuse)
+    is left alone and nothing is logged: a stale token after that point is a client
+    retrying, not evidence that a token was stolen. The actor is passed explicitly
+    because this runs inside the JWT blocklist callback, before flask_jwt_extended
+    has an authenticated user to resolve.
+    """
+    if token_family.revoked_at is not None:
+        return
+
+    token_family.revoke(REVOKE_REASON_REUSED)
+    db.session.commit()
+    log_event(
+        activity_events.AUTH_TOKEN_REUSE_DETECTED,
+        actor=token_family.user_id,
+        subject=token_family.user_id,
+        context={"reason": reason},
+    )
+
+
 def is_token_revoked(token_payload):
     """Return True when a JWT should no longer be honored."""
     blocked_token = ApiTokenBlocklist.query.filter_by(jti=token_payload["jti"]).first()
@@ -175,8 +205,7 @@ def is_token_revoked(token_payload):
 
     if blocked_token is not None:
         if token_payload["type"] == TOKEN_TYPE_REFRESH and token_family is not None:
-            token_family.revoke(REVOKE_REASON_REUSED)
-            db.session.commit()
+            _revoke_family_for_reuse(token_family, reason=blocked_token.reason)
         return True
 
     if token_family is None:
@@ -189,8 +218,7 @@ def is_token_revoked(token_payload):
         token_payload["type"] == TOKEN_TYPE_REFRESH
         and token_payload["jti"] != token_family.current_refresh_jti
     ):
-        token_family.revoke(REVOKE_REASON_REUSED)
-        db.session.commit()
+        _revoke_family_for_reuse(token_family, reason="superseded")
         return True
 
     return False

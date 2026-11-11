@@ -1,8 +1,8 @@
 {# Share button partial - include with: {% include 'share/_share_button.html' %} #}
 {# Required variables: share_url (str), share_title (str) #}
-{# Optional variable: share_text (str) #}
-<button type="button" 
-        class="btn btn-outline-primary share-btn"
+{# Optional variables: share_text (str), share_btn_size (e.g. 'sm') #}
+<button type="button"
+        class="btn btn-outline-primary share-btn{% if share_btn_size %} btn-{{ share_btn_size }}{% endif %}"
         data-share-url="{{ share_url }}"
         data-share-title="{{ share_title }}"
     data-share-text="{{ share_text|default(share_title, true) }}"
@@ -10,4 +10,3 @@
         onclick="shareLink(this)">
     <i class="fas fa-share-nodes me-1"></i>Share
 </button>
-

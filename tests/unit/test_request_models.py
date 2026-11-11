@@ -1,8 +1,9 @@
 """Unit tests for ItemRequest model."""
-import pytest
-from datetime import datetime, UTC, timedelta
+
+from datetime import UTC, datetime, timedelta
+
 from app.models import ItemRequest
-from tests.factories import UserFactory, ItemRequestFactory
+from tests.factories import ItemRequestFactory, UserFactory
 
 
 class TestItemRequestCreation:
@@ -15,9 +16,9 @@ class TestItemRequestCreation:
             assert req.id is not None
             assert req.user_id is not None
             assert req.title is not None
-            assert req.status == 'open'
-            assert req.seeking == 'either'
-            assert req.visibility == 'public'
+            assert req.status == "open"
+            assert req.seeking == "either"
+            assert req.visibility == "public"
             assert req.fulfilled_at is None
 
     def test_item_request_with_custom_fields(self, app):
@@ -26,24 +27,24 @@ class TestItemRequestCreation:
             user = UserFactory()
             req = ItemRequestFactory(
                 user=user,
-                title='Melon baller',
-                description='Need one for a party',
-                seeking='giveaway',
-                visibility='public',
+                title="Melon baller",
+                description="Need one for a party",
+                seeking="giveaway",
+                visibility="public",
             )
-            assert req.title == 'Melon baller'
-            assert req.description == 'Need one for a party'
-            assert req.seeking == 'giveaway'
-            assert req.visibility == 'public'
+            assert req.title == "Melon baller"
+            assert req.description == "Need one for a party"
+            assert req.seeking == "giveaway"
+            assert req.visibility == "public"
             assert req.user == user
 
     def test_item_request_repr(self, app):
         """Test string representation."""
         with app.app_context():
-            req = ItemRequestFactory(title='Test Item')
+            req = ItemRequestFactory(title="Test Item")
             repr_str = repr(req)
-            assert 'Test Item' in repr_str
-            assert 'ItemRequest' in repr_str
+            assert "Test Item" in repr_str
+            assert "ItemRequest" in repr_str
 
     def test_item_request_user_relationship(self, app):
         """Test that requests are linked to users via backref."""
@@ -75,7 +76,7 @@ class TestItemRequestExpiration:
         """Test is_active for open, non-expired request."""
         with app.app_context():
             req = ItemRequestFactory(
-                status='open',
+                status="open",
                 expires_at=datetime.now(UTC) + timedelta(days=30),
             )
             assert req.is_active is True
@@ -84,7 +85,7 @@ class TestItemRequestExpiration:
         """Test is_active for open but expired request."""
         with app.app_context():
             req = ItemRequestFactory(
-                status='open',
+                status="open",
                 expires_at=datetime.now(UTC) - timedelta(days=1),
             )
             assert req.is_active is False
@@ -92,7 +93,7 @@ class TestItemRequestExpiration:
     def test_is_active_fulfilled(self, app):
         """Test is_active for fulfilled request."""
         with app.app_context():
-            req = ItemRequestFactory(status='fulfilled')
+            req = ItemRequestFactory(status="fulfilled")
             assert req.is_active is False
 
 
@@ -102,13 +103,13 @@ class TestItemRequestFulfillment:
     def test_is_fulfilled(self, app):
         """Test is_fulfilled property."""
         with app.app_context():
-            req = ItemRequestFactory(status='fulfilled')
+            req = ItemRequestFactory(status="fulfilled")
             assert req.is_fulfilled is True
 
     def test_is_not_fulfilled(self, app):
         """Test is_fulfilled for open request."""
         with app.app_context():
-            req = ItemRequestFactory(status='open')
+            req = ItemRequestFactory(status="open")
             assert req.is_fulfilled is False
 
 
@@ -119,7 +120,7 @@ class TestItemRequestShowInFeed:
         """Test active request shows in feed."""
         with app.app_context():
             req = ItemRequestFactory(
-                status='open',
+                status="open",
                 expires_at=datetime.now(UTC) + timedelta(days=30),
             )
             assert req.show_in_feed is True
@@ -128,7 +129,7 @@ class TestItemRequestShowInFeed:
         """Test expired request doesn't show in feed."""
         with app.app_context():
             req = ItemRequestFactory(
-                status='open',
+                status="open",
                 expires_at=datetime.now(UTC) - timedelta(days=1),
             )
             assert req.show_in_feed is False
@@ -137,7 +138,7 @@ class TestItemRequestShowInFeed:
         """Test fulfilled request older than 7 days doesn't show."""
         with app.app_context():
             req = ItemRequestFactory(
-                status='fulfilled',
+                status="fulfilled",
                 fulfilled_at=datetime.now(UTC) - timedelta(days=8),
             )
             assert req.show_in_feed is False
@@ -145,14 +146,14 @@ class TestItemRequestShowInFeed:
     def test_show_in_feed_deleted_request(self, app):
         """Test deleted request doesn't show in feed."""
         with app.app_context():
-            req = ItemRequestFactory(status='deleted')
+            req = ItemRequestFactory(status="deleted")
             assert req.show_in_feed is False
 
     def test_show_in_feed_fulfilled_at_boundary(self, app):
         """Test fulfilled request at exactly 6 days shows in feed."""
         with app.app_context():
             req = ItemRequestFactory(
-                status='fulfilled',
+                status="fulfilled",
                 fulfilled_at=datetime.now(UTC) - timedelta(days=6),
             )
             assert req.show_in_feed is True
@@ -165,13 +166,13 @@ class TestItemRequestSeeking:
         """Test that SEEKING_CHOICES is defined."""
         assert len(ItemRequest.SEEKING_CHOICES) == 3
         values = [c[0] for c in ItemRequest.SEEKING_CHOICES]
-        assert 'loan' in values
-        assert 'giveaway' in values
-        assert 'either' in values
+        assert "loan" in values
+        assert "giveaway" in values
+        assert "either" in values
 
     def test_visibility_choices_exist(self, app):
         """Test that VISIBILITY_CHOICES is defined."""
         assert len(ItemRequest.VISIBILITY_CHOICES) == 2
         values = [c[0] for c in ItemRequest.VISIBILITY_CHOICES]
-        assert 'circles' in values
-        assert 'public' in values
+        assert "circles" in values
+        assert "public" in values

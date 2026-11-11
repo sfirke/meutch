@@ -87,6 +87,31 @@ class TestApiCircles:
         assert response.get_json()["circle"]["can_view_members"] is False
         assert response.get_json()["circle"]["members"] == []
 
+    def test_circle_detail_marks_other_member_profile_viewable(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            other_member = UserFactory()
+            circle = CircleFactory(circle_type="open")
+            circle.members.append(viewer)
+            circle.members.append(other_member)
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            circle_id = circle.id
+            viewer_id = viewer.id
+            other_member_id = other_member.id
+
+        response = client.get(
+            f"/api/v1/circles/{circle_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert response.status_code == 200
+        members_by_id = {
+            member["user"]["id"]: member for member in response.get_json()["circle"]["members"]
+        }
+        assert members_by_id[str(other_member_id)]["user"]["profile_viewable"] is True
+        assert members_by_id[str(viewer_id)]["user"]["profile_viewable"] is False
+
     def test_circle_detail_returns_404_for_secret_circle_non_member(self, client, app):
         with app.app_context():
             viewer = UserFactory(email_confirmed=True)
@@ -127,6 +152,88 @@ class TestApiCircles:
         payload = response.get_json()["circle"]
         assert payload["is_regional"] is True
         assert payload["regional_radius_miles"] == 25
+
+    def _circle_distance_fields(self, client, app, *, viewer_coords, circle_coords):
+        """Return the list and detail distance fields a viewer gets for one circle."""
+        with app.app_context():
+            viewer_lat, viewer_lon = viewer_coords
+            circle_lat, circle_lon = circle_coords
+            viewer = UserFactory(email_confirmed=True, latitude=viewer_lat, longitude=viewer_lon)
+            circle = CircleFactory(circle_type="closed", latitude=circle_lat, longitude=circle_lon)
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            circle_id = str(circle.id)
+
+        list_response = client.get(
+            "/api/v1/circles?membership=discoverable&per_page=50",
+            headers=auth_headers(access_token),
+        )
+        detail_response = client.get(
+            f"/api/v1/circles/{circle_id}",
+            headers=auth_headers(access_token),
+        )
+
+        assert list_response.status_code == 200
+        assert detail_response.status_code == 200
+        listed = next(
+            entry for entry in list_response.get_json()["circles"] if entry["id"] == circle_id
+        )
+        detail = detail_response.get_json()["circle"]
+        return (
+            {key: listed[key] for key in ("distance_miles", "distance")},
+            {key: detail[key] for key in ("distance_miles", "distance")},
+        )
+
+    def test_circle_distance_is_reported_as_a_range(self, client, app):
+        # About 2.8 miles north of the circle.
+        listed, detail = self._circle_distance_fields(
+            client,
+            app,
+            viewer_coords=(42.3208, -83.7430),
+            circle_coords=(42.2808, -83.7430),
+        )
+
+        assert listed == {"distance_miles": 2, "distance": "2-5 mi"}
+        assert detail == listed
+
+    def test_circle_distance_is_identical_within_a_range(self, client, app):
+        circle_coords = (42.2808, -83.7430)
+        # About 2.8 and 4.1 miles away: both in the 2-5 mile range.
+        nearer = self._circle_distance_fields(
+            client, app, viewer_coords=(42.3208, -83.7430), circle_coords=circle_coords
+        )
+        farther = self._circle_distance_fields(
+            client, app, viewer_coords=(42.3408, -83.7430), circle_coords=circle_coords
+        )
+
+        assert nearer == farther
+
+    def test_circle_distance_is_null_without_coordinates(self, client, app):
+        missing = {"distance_miles": None, "distance": None}
+
+        no_viewer_location = self._circle_distance_fields(
+            client, app, viewer_coords=(None, None), circle_coords=(42.2808, -83.7430)
+        )
+        no_circle_location = self._circle_distance_fields(
+            client, app, viewer_coords=(42.3208, -83.7430), circle_coords=(None, None)
+        )
+
+        assert no_viewer_location == (missing, missing)
+        assert no_circle_location == (missing, missing)
+
+    def test_circles_list_radius_accepts_only_the_website_choices(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True, latitude=40.7128, longitude=-74.0060)
+            CircleFactory(name="Nearby Circle", latitude=40.7528, longitude=-74.0060)
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+
+        allowed = client.get("/api/v1/circles?radius=5", headers=auth_headers(access_token))
+        rejected = client.get("/api/v1/circles?radius=3", headers=auth_headers(access_token))
+
+        assert allowed.status_code == 200
+        assert [circle["name"] for circle in allowed.get_json()["circles"]] == ["Nearby Circle"]
+        assert rejected.status_code == 422
 
     def test_circles_list_requires_authentication(self, client, app):
         response = client.get("/api/v1/circles")
@@ -181,10 +288,13 @@ class TestApiCircles:
                 name="Repair Neighbors",
                 image_url="https://cdn.example.com/original.png",
             )
+            member = UserFactory()
             _add_circle_membership(circle, admin, is_admin=True)
+            circle.members.append(member)
             db.session.commit()
             access_token = login_api_user(client, admin.email)
             circle_id = circle.id
+            member_id = str(member.id)
 
         with (
             patch("app.services.circle_service.geocode_address", return_value=None),
@@ -213,6 +323,10 @@ class TestApiCircles:
         assert payload["geocoding_failed"] is True
         assert payload["image_removed"] is True
         assert payload["image_updated"] is False
+        viewable = {
+            m["user"]["id"]: m["user"]["profile_viewable"] for m in payload["circle"]["members"]
+        }
+        assert viewable[member_id] is True
         assert payload["circle"]["name"] == "Repair Neighbors Updated"
         assert payload["circle"]["circle_type"] == "closed"
         mock_delete_file.assert_called_once_with("https://cdn.example.com/original.png")

@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -396,3 +397,78 @@ class TestItemService:
 
             with pytest.raises(ConflictError, match="claimed and handed off"):
                 item_service.delete_item(item, item.owner)
+
+    def _create_list_user_items_fixture(self):
+        now = datetime.now(UTC)
+        owner = UserFactory()
+        recipient = UserFactory()
+        ItemFactory(owner=owner, name="Drill", created_at=now - timedelta(days=2))
+        ItemFactory(owner=owner, name="Ladder", created_at=now - timedelta(days=1))
+        ItemFactory(
+            owner=owner,
+            name="Couch",
+            is_giveaway=True,
+            claim_status=None,
+            created_at=now - timedelta(days=3),
+        )
+        ItemFactory(
+            owner=owner,
+            name="Lamp",
+            is_giveaway=True,
+            claim_status="pending_pickup",
+            claimed_by=recipient,
+            created_at=now - timedelta(days=4),
+        )
+        ItemFactory(
+            owner=owner,
+            name="Rug",
+            is_giveaway=True,
+            claim_status="claimed",
+            claimed_by=recipient,
+            claimed_at=now - timedelta(days=60),
+            created_at=now - timedelta(hours=1),
+        )
+        ItemFactory(
+            owner=owner,
+            name="Desk",
+            is_giveaway=True,
+            claim_status="claimed",
+            claimed_by=recipient,
+            claimed_at=now - timedelta(days=10),
+            created_at=now - timedelta(days=50),
+        )
+        ItemFactory(
+            owner=owner,
+            name="Chair",
+            is_giveaway=True,
+            claim_status="claimed",
+            claimed_by=recipient,
+            claimed_at=now - timedelta(days=120),
+            created_at=now - timedelta(days=150),
+        )
+        ItemFactory(name="Someone Elses Saw")
+        return owner
+
+    @pytest.mark.parametrize(
+        ("kind", "expected"),
+        [
+            (None, ["Rug", "Ladder", "Drill", "Couch", "Lamp", "Desk", "Chair"]),
+            ("lending", ["Ladder", "Drill"]),
+            ("active_giveaways", ["Couch", "Lamp"]),
+            ("past_giveaways", ["Desk", "Rug"]),
+        ],
+    )
+    def test_list_user_items_filters_by_kind(self, app, kind, expected):
+        with app.app_context():
+            owner = self._create_list_user_items_fixture()
+
+            pagination = item_service.list_user_items(owner, kind=kind)
+
+            assert [item.name for item in pagination.items] == expected
+
+    def test_list_user_items_rejects_unknown_kind(self, app):
+        with app.app_context():
+            owner = UserFactory()
+
+            with pytest.raises(ValueError):
+                item_service.list_user_items(owner, kind="bogus")

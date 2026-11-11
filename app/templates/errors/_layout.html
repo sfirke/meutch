@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="error-page">
+    <img src="{{ url_for('static', filename='img/logo_handshake.png') }}" alt="" class="page-art" width="120" height="120">
+    <h1>{% block headline %}{% endblock %}</h1>
+    {% block message %}{% endblock %}
+    <div class="action-row">
+        {% block actions %}
+            <a href="{{ url_for('main.index') }}" class="btn btn-primary">Go home</a>
+        {% endblock %}
+    </div>
+</div>
+{% endblock %}

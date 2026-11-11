@@ -168,6 +168,44 @@ Set this to `2` if another proxy (Cloudflare, an nginx front end) is added ahead
 
 Before changing it, confirm the real hop count rather than guessing: log the raw `X-Forwarded-For` header on staging for a day and count the addresses.
 
+### Optional: Deployed Commit
+
+```bash
+# Shown under the heading on the admin panel.
+GIT_COMMIT_SHA=${_self.COMMIT_HASH}
+```
+
+On DigitalOcean App Platform, add this to the web service component's environment
+variables (Settings, then the component, then Environment Variables) with run-time scope.
+`_self` means "this component", so it is rejected as an app-level variable. If it is
+unset, the admin panel says the deployed commit is unknown.
+
+The admin panel also shows when the server process started, which is usually the last
+deploy but also changes when the platform restarts the container.
+
+### Optional: Activity Log
+
+```bash
+# Turn the first-party activity log off without a code deploy. Default: true.
+ACTIVITY_LOG_ENABLED=true
+
+# How long an entry is kept, in days. Default: 90.
+ACTIVITY_LOG_RETENTION_DAYS=90
+```
+
+Our own record of things that happen on the site, kept in the `activity_log` table.
+Admins browse it at `/admin/activity`. Entries are written on their own database
+connection, so a logging failure cannot break the request that triggered it; failures
+are logged at `WARNING`.
+
+`ACTIVITY_LOG_ENABLED=false` stops all writes. The page keeps working and shows
+whatever is already there.
+
+`ACTIVITY_LOG_RETENTION_DAYS` **does not delete anything by itself** — a scheduled prune
+job enforces it. The table holds IP addresses, so that job is not optional in the long
+run. Until it exists the Activity page shows a warning once the oldest entry is more than
+ten days past the window.
+
 ### Optional: API Maintenance
 
 ```bash

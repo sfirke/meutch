@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from datetime import UTC, datetime
 from uuid import UUID
 
 from flask import Flask, flash, redirect, render_template, request, url_for
@@ -17,6 +18,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from app.context_processors import (
     inject_distance_utils,
     inject_item_upload_limits,
+    inject_share_fields,
     inject_static_url_for,
     inject_total_pending,
     inject_unread_messages_count,
@@ -40,6 +42,7 @@ def create_app(config_class=None):
         config_class = config.get(flask_env, config["default"])
 
     app.config.from_object(config_class)
+    app.config["SERVER_STARTED_AT"] = datetime.now(UTC)
 
     # Trust the platform's reverse proxy so request.remote_addr is the client rather
     # than the load balancer. Everything that keys on the caller's address depends on
@@ -135,7 +138,11 @@ def create_app(config_class=None):
             uuid_obj = UUID(user_id, version=4)
         except ValueError:
             return None
-        return db.session.get(User, uuid_obj)
+        user = db.session.get(User, uuid_obj)
+        # A deleted account ends every session it had.
+        if user is None or user.is_deleted:
+            return None
+        return user
 
     # Register the context processor
     app.context_processor(inject_unread_messages_count)
@@ -143,6 +150,7 @@ def create_app(config_class=None):
     app.context_processor(inject_distance_utils)
     app.context_processor(inject_static_url_for)
     app.context_processor(inject_item_upload_limits)
+    app.context_processor(inject_share_fields)
 
     # Register custom Jinja filters
     from app.template_filters import register_filters

@@ -14,7 +14,7 @@ This README is focused on developing and contributing to the codebase. But compu
 
 *Pre-requisite: install docker compose. Meutch runs as a Python flask app but there's a Postgres database users for local development that deploys with docker compose.*
 
-Start by cloning and pulling the repo to your machine. Set up a Python virtual environment in the `venv/` directory.
+Start by cloning and pulling the repo to your machine. Meutch targets **Python 3.14** (see `.python-version`); CI runs on that version, and older interpreters will fail to import the code. Set up a Python 3.14 virtual environment in the `venv/` directory, for example `python3.14 -m venv venv`.
 
 Install the application and contributor dependencies into that environment:
 

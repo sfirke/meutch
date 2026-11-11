@@ -1,10 +1,13 @@
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
+
 from app import db
 from app.models import LoanRequest
 from app.utils.home_feed import (
     build_circle_join_events,
     build_digest_payload,
+    build_digest_request_events,
     build_recent_lent_events,
     build_visible_giveaway_events,
     build_visible_requests_events,
@@ -235,7 +238,7 @@ def test_build_visible_giveaway_events_defaults_to_20_miles(app):
         assert far_item.id in explicit_item_ids
 
 
-def test_build_visible_giveaway_events_hides_claimed_items_by_default(app):
+def test_build_visible_giveaway_events_can_hide_claimed_items(app):
     with app.app_context():
         viewer = UserFactory()
         owner = UserFactory()
@@ -268,6 +271,7 @@ def test_build_visible_giveaway_events_hides_claimed_items_by_default(app):
         events = build_visible_giveaway_events(
             viewer,
             scoped_circle_ids={circle.id},
+            include_claimed_giveaways=False,
         )
 
         item_ids = {event["item_id"] for event in events}
@@ -275,7 +279,7 @@ def test_build_visible_giveaway_events_hides_claimed_items_by_default(app):
         assert unclaimed_item.id in item_ids
 
 
-def test_build_visible_giveaway_events_can_include_recently_claimed_items(app):
+def test_build_visible_giveaway_events_includes_recently_claimed_items_by_default(app):
     with app.app_context():
         viewer = UserFactory()
         owner = UserFactory()
@@ -310,7 +314,6 @@ def test_build_visible_giveaway_events_can_include_recently_claimed_items(app):
         events = build_visible_giveaway_events(
             viewer,
             scoped_circle_ids={circle.id},
-            include_claimed_giveaways=True,
         )
 
         item_ids = {event["item_id"] for event in events}
@@ -377,6 +380,36 @@ def test_build_visible_giveaway_events_include_public_giveaway_from_no_circle_ow
         events = build_visible_giveaway_events(viewer, scoped_circle_ids={circle.id}, scope="all")
 
         assert public_item.id in {event["item_id"] for event in events}
+
+
+@pytest.mark.parametrize(
+    "status, expected_count",
+    [("approved", 1), ("completed", 1), ("pending", 0), ("denied", 0), ("canceled", 0)],
+)
+def test_build_recent_lent_events_by_loan_status(app, status, expected_count):
+    with app.app_context():
+        viewer = UserFactory()
+        owner = UserFactory()
+        borrower = UserFactory()
+        category = CategoryFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner, borrower])
+
+        item = ItemFactory(owner=owner, category=category)
+        db.session.add(
+            LoanRequest(
+                item_id=item.id,
+                borrower_id=borrower.id,
+                start_date=date.today(),
+                end_date=date.today(),
+                status=status,
+            )
+        )
+        db.session.commit()
+
+        events = build_recent_lent_events(viewer, scoped_circle_ids={circle.id})
+
+        assert len(events) == expected_count
 
 
 def test_build_recent_lent_events_hides_borrower_identity(app):
@@ -983,3 +1016,50 @@ def test_giveaway_feed_applies_the_distance_cap_but_keeps_owners_without_coordin
         assert near_item.id in item_ids
         assert ungeocoded_item.id in item_ids
         assert far_item.id not in item_ids
+
+
+def test_requests_feed_shows_request_through_expiration_day(app):
+    with app.app_context():
+        viewer = UserFactory()
+        requester = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, requester])
+        today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+        expires_today = ItemRequestFactory(user=requester, expires_at=today)
+        expired_yesterday = ItemRequestFactory(user=requester, expires_at=today - timedelta(days=1))
+        db.session.commit()
+
+        events = build_visible_requests_events(
+            viewer,
+            scoped_circle_ids={circle.id},
+            scope="all",
+            max_distance=None,
+            distance_explicit=True,
+        )
+        request_ids = {event["request_id"] for event in events}
+
+        assert expires_today.id in request_ids
+        assert expired_yesterday.id not in request_ids
+
+
+def test_digest_request_events_show_request_through_expiration_day(app):
+    with app.app_context():
+        viewer = UserFactory()
+        requester = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, requester])
+        today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+        expires_today = ItemRequestFactory(user=requester, expires_at=today)
+        expired_yesterday = ItemRequestFactory(user=requester, expires_at=today - timedelta(days=1))
+        db.session.commit()
+
+        events = build_digest_request_events(
+            viewer,
+            scoped_circle_ids={circle.id},
+            since=datetime.now(UTC) - timedelta(days=1),
+            until=datetime.now(UTC) + timedelta(days=1),
+        )
+        request_ids = {event["request_id"] for event in events}
+
+        assert expires_today.id in request_ids
+        assert expired_yesterday.id not in request_ids

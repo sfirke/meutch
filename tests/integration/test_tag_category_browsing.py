@@ -48,7 +48,7 @@ class TestTagAndCategoryBrowsing:
 
             response = client.get(f"/tag/{tag.id}")
             assert response.status_code == 200
-            assert b'Items Tagged "electronics"' in response.data
+            assert b'Items tagged "electronics"' in response.data
             assert b"Laptop" in response.data
             assert b"Phone" in response.data
             assert excluded_item.name.encode() not in response.data
@@ -78,8 +78,8 @@ class TestTagAndCategoryBrowsing:
 
             response = client.get(f"/tag/{tag.id}")
             assert response.status_code == 200
-            assert b'Items Tagged "unused-tag"' in response.data
-            assert b'No items found with the tag "unused-tag"' in response.data
+            assert b'Items tagged "unused-tag"' in response.data
+            assert b'No items have the tag "unused-tag"' in response.data
 
     def test_tag_items_pagination(self, client, app):
         """Test tag items page pagination."""
@@ -185,7 +185,7 @@ class TestTagAndCategoryBrowsing:
             response = client.get(f"/category/{category.id}")
             assert response.status_code == 200
             assert f'Items in "{category.name}"'.encode() in response.data
-            assert f'No items found in the "{category.name}" category'.encode() in response.data
+            assert f'No items in "{category.name}" yet'.encode() in response.data
 
     def test_category_items_pagination(self, client, app):
         """Test category items page pagination."""
