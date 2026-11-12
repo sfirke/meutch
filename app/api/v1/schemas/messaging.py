@@ -97,6 +97,12 @@ class MessageMarkReadResponseSchema(ApiSchema):
     has_unread_messages = fields.Boolean(required=True)
 
 
+class UnreadCountResponseSchema(ApiSchema):
+    """How many received messages the user has not read yet."""
+
+    unread_count = fields.Integer(required=True)
+
+
 class ConversationBulkActionSchema(ApiSchema):
     """Write payload for the bulk conversation actions."""
 
