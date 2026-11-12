@@ -22,6 +22,7 @@ from app.api.v1.schemas.messaging import (
     MessageResponseSchema,
     MessageStartSchema,
     MessageThreadResponseSchema,
+    UnreadCountResponseSchema,
 )
 from app.api.v1.schemas.query import ConversationListQuerySchema
 from app.models import Conversation, ConversationParticipant, Item, ItemRequest, Message, User
@@ -46,6 +47,7 @@ CONVERSATION_ARCHIVE_STATE_RESPONSE_SCHEMA = ConversationArchiveStateResponseSch
 CONVERSATIONS_ARCHIVED_RESPONSE_SCHEMA = ConversationsArchivedResponseSchema()
 CONVERSATIONS_UNARCHIVED_RESPONSE_SCHEMA = ConversationsUnarchivedResponseSchema()
 CONVERSATIONS_MARKED_RESPONSE_SCHEMA = ConversationsMarkedResponseSchema()
+UNREAD_COUNT_RESPONSE_SCHEMA = UnreadCountResponseSchema()
 
 
 @bp.get("/messages")
@@ -80,6 +82,15 @@ def list_conversations():
         ),
         pagination=pagination,
     )
+
+
+@bp.get("/messages/unread-count")
+@jwt_required()
+@read_limit()
+def get_unread_count():
+    """Return how many received messages are unread, for the app's inbox badge."""
+    unread_count = message_service.count_unread_messages(current_user.id)
+    return UNREAD_COUNT_RESPONSE_SCHEMA.dump({"unread_count": unread_count})
 
 
 @bp.get("/messages/<uuid:message_id>")

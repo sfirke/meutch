@@ -22,6 +22,15 @@ from app.utils.request_queries import can_view_request
 logger = logging.getLogger(__name__)
 
 
+def count_unread_messages(user_id):
+    """Count unread messages received by a user, across all their conversations."""
+    return Message.query.filter(
+        Message.recipient_id == user_id,
+        Message.is_read.is_(False),
+        Message.sender_id != user_id,
+    ).count()
+
+
 def get_item_conversation_recipient_id(item, sender, *, share_token=None):
     if item.owner_id == sender.id:
         raise InvalidActionError("You cannot message yourself about your own item.")
