@@ -49,7 +49,7 @@ class TestMainRoutes:
         """Test that links to meutch.com get the wide default preview image."""
         response = client.get("/")
         assert b'<meta name="twitter:card" content="summary_large_image">' in response.data
-        assert b'img/og_default.png">' in response.data
+        assert b"img/og_default.png?v=" in response.data
         assert b'<meta property="og:image:width" content="1200">' in response.data
         assert b'<meta property="og:image:height" content="630">' in response.data
         assert b'<meta name="theme-color" content="#fff9ef">' in response.data
