@@ -11,11 +11,6 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Items without a photo show a stitched teal patch instead of a stock picture of mountains ([#602](https://github.com/sfirke/meutch/pull/602)).
 - The wording is simpler and consistent: sentence case everywhere, "Sign up" and "Log in", requests are "found" rather than "fulfilled", and giveaways no longer say "free", because everything on Meutch is free ([#597](https://github.com/sfirke/meutch/pull/597), [#600](https://github.com/sfirke/meutch/pull/600), [#603](https://github.com/sfirke/meutch/pull/603), [#607](https://github.com/sfirke/meutch/pull/607)).
 
-### Features
-
-**Minor**
-- Emails about a loan extension request now say what they are in the subject line: "Extension Request", "Extension Approved" or "Extension Denied", instead of "Loan Request Approved". Due date reminder emails now mention that you can request an extension from the loan page ([#508](https://github.com/sfirke/meutch/pull/508)).
-
 ### API development
 - Added `GET /api/v1/messages/unread-count` so the mobile app can show how many unread messages you have as soon as you log in, without loading the inbox first. It's the same count as the web navbar ([#610](https://github.com/sfirke/meutch/pull/610)).
 
@@ -27,6 +22,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Bug fixes
 - Tapping a button twice no longer sends the same message twice. After you submit a form anywhere on the site, extra taps are ignored until the page finishes loading ([#585](https://github.com/sfirke/meutch/pull/585)).
+- Emails about a loan extension request now say what they are in the subject line: "Extension Request", "Extension Approved" or "Extension Denied", instead of "Loan Request Approved". Due date reminder emails now mention that you can request an extension from the loan page ([#508](https://github.com/sfirke/meutch/pull/508)).
 
 ## October 2026
 
