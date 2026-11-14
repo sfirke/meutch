@@ -209,6 +209,8 @@
 
     <!-- Main Content -->
     <main class="main-content">
+        {% include "_announcement_banner.html" %}
+
         <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -307,6 +309,7 @@
     <script src="{{ static_url_for('js/timezone.js') }}"></script>
     <script src="{{ static_url_for('js/pagination.js') }}"></script>
     <script src="{{ static_url_for('js/share.js') }}"></script>
+    <script src="{{ static_url_for('js/announcements.js') }}"></script>
     <script src="{{ static_url_for('js/single-submit.js') }}"></script>
     <script src="{{ static_url_for('js/landing-nav.js') }}"></script>
 
