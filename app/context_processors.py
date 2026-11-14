@@ -168,3 +168,9 @@ def inject_share_fields():
         giveaway_share_fields=giveaway_share_fields,
         request_share_fields=request_share_fields,
     )
+
+
+def inject_announcement():
+    from app.utils.announcements import current_announcement_for
+
+    return {"current_announcement": current_announcement_for(current_user)}
