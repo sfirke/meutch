@@ -12,7 +12,9 @@
 
 {% block twitter_title %}{{ item_request.title }} - Request on Meutch{% endblock %}
 {% block twitter_description %}{{ item_request.description|truncate(200) if item_request.description else item_request.user.first_name + ' is looking for help! Join Meutch to respond.' }}{% endblock %}
-{% block twitter_card %}summary{% endblock %}
+{# A face cropped into a wide card looks bad, so avatars get the small card. #}
+{% block twitter_card %}{{ 'summary' if item_request.user.profile_image_url else 'summary_large_image' }}{% endblock %}
+{% block og_image_details %}{% if not item_request.user.profile_image_url %}{{ super() }}{% endif %}{% endblock %}
 {% block twitter_image %}{{ preview_image_url }}{% endblock %}
 
 {% block body_attrs %}class="landing-page"{% endblock %}
