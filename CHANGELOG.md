@@ -15,11 +15,13 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Added `GET /api/v1/messages/unread-count` so the mobile app can show how many unread messages you have as soon as you log in, without loading the inbox first. It's the same count as the web navbar ([#610](https://github.com/sfirke/meutch/pull/610)).
 
 ### Developer Experience
-- Removed the old standalone Create Circle page at `/circles/create-circle`. Nothing had linked to it since March 2026, when circles were already being created from the Create tab on the Circles page ([#601](https://github.com/sfirke/meutch/pull/601)).
+
+- Removed the old standalone Create Circle page at `/circles/create-circle`. This was dead code; nothing had linked to it since March 2026, when circles were already being created from the Create tab on the Circles page ([#601](https://github.com/sfirke/meutch/pull/601)).
 - The migration check that runs before pushing and in CI now also fails when the database migrations have more than one latest version, which happens when two branches each add a migration. Before, this only surfaced after merging ([#584](https://github.com/sfirke/meutch/pull/584)).
 
 ### Bug fixes
 - Tapping a button twice no longer sends the same message twice. After you submit a form anywhere on the site, extra taps are ignored until the page finishes loading ([#585](https://github.com/sfirke/meutch/pull/585)).
+- Emails about a loan extension request now say what they are in the subject line: "Extension Request", "Extension Approved" or "Extension Denied", instead of "Loan Request Approved". Due date reminder emails now mention that you can request an extension from the loan page ([#508](https://github.com/sfirke/meutch/pull/508)).
 
 ## October 2026
 
