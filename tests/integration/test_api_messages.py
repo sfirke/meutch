@@ -363,6 +363,58 @@ class TestApiMessaging:
 
         assert response.status_code == 401
 
+    def test_unread_count_counts_unread_received_messages(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            partner = UserFactory()
+            other = UserFactory()
+            conv1 = ConversationFactory()
+            conv2 = ConversationFactory()
+            MessageFactory(sender=partner, recipient=viewer, conversation=conv1, is_read=False)
+            MessageFactory(sender=partner, recipient=viewer, conversation=conv1, is_read=False)
+            MessageFactory(sender=other, recipient=viewer, conversation=conv2, is_read=False)
+            MessageFactory(sender=partner, recipient=viewer, conversation=conv1, is_read=True)
+            MessageFactory(sender=viewer, recipient=partner, conversation=conv1, is_read=False)
+            MessageFactory(sender=partner, recipient=other, is_read=False)
+            db.session.commit()
+            archive_conversation(viewer.id, conv2.id)
+            access_token = login_api_user(client, viewer.email)
+
+        response = client.get("/api/v1/messages/unread-count", headers=auth_headers(access_token))
+
+        assert response.status_code == 200
+        assert response.get_json() == {"unread_count": 3}
+
+    def test_unread_count_drops_after_mark_read(self, client, app):
+        with app.app_context():
+            viewer = UserFactory(email_confirmed=True)
+            partner = UserFactory()
+            conversation = ConversationFactory()
+            ConversationParticipantFactory(conversation=conversation, user=viewer)
+            MessageFactory(
+                sender=partner, recipient=viewer, conversation=conversation, is_read=False
+            )
+            db.session.commit()
+            access_token = login_api_user(client, viewer.email)
+            conversation_id = str(conversation.id)
+
+        headers = auth_headers(access_token)
+        before = client.get("/api/v1/messages/unread-count", headers=headers).get_json()
+        client.post(
+            "/api/v1/conversations/bulk-mark-read",
+            json={"conversation_ids": [conversation_id]},
+            headers=headers,
+        )
+        after = client.get("/api/v1/messages/unread-count", headers=headers).get_json()
+
+        assert before == {"unread_count": 1}
+        assert after == {"unread_count": 0}
+
+    def test_unread_count_requires_authentication(self, client, app):
+        response = client.get("/api/v1/messages/unread-count")
+
+        assert response.status_code == 401
+
 
 class TestApiMessagingProfileViewable:
     """Exercise the profile_viewable flag on nested users in messaging reads."""
