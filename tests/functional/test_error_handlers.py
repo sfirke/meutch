@@ -11,9 +11,9 @@ class TestCustomErrorPages:
         response = client.get("/nonexistent-page-that-does-not-exist")
 
         assert response.status_code == 404
-        assert b"Page Not Found" in response.data
+        assert b"Page not found" in response.data
         assert b"Looks like this page wandered off" in response.data
-        assert b"Go Home" in response.data
+        assert b"Go home" in response.data
 
     def test_404_page_has_home_link(self, client, app):
         """Test that the 404 page links back to the home page."""

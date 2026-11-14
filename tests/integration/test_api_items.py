@@ -1,7 +1,7 @@
 """Integration tests for API item endpoints."""
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from io import BytesIO
 from unittest.mock import patch
 
@@ -189,7 +189,14 @@ class TestApiItems:
             circle = CircleFactory()
             circle.members.extend([owner, borrower, circle_mate])
             item = ItemFactory(owner=owner, category=CategoryFactory(), name="Loaned ladder")
-            loan = LoanRequestFactory(item=item, borrower=borrower, status="approved")
+            # Past dates, so they can't match the item's created_at in the response.
+            loan = LoanRequestFactory(
+                item=item,
+                borrower=borrower,
+                status="approved",
+                start_date=date(2020, 3, 10),
+                end_date=date(2020, 3, 20),
+            )
             db.session.commit()
             item_id = item.id
             borrower_id = str(borrower.id)

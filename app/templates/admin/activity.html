@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% from "components/empty.html" import empty_state %}
 
-{% block title %}Activity Log{% endblock %}
+{% block title %}Activity log{% endblock %}
 
 {% block content %}
-<div class="container mt-5 mb-5">
+<div>
     <div class="mb-4">
-        <h1><i class="fas fa-user-shield me-2"></i>Admin Panel</h1>
+        <h1>Admin</h1>
         <p class="text-muted">Platform administration and user management</p>
     </div>
 
@@ -22,8 +23,8 @@
     {% endif %}
 
     <div class="card">
-        <div class="card-header bg-dark text-white">
-            <h5 class="mb-0 text-white"><i class="fas fa-clipboard-list me-2"></i>Activity Log</h5>
+        <div class="card-header">
+            <h2 class="h5 mb-0">Activity log</h2>
         </div>
         <div class="card-body">
             <p class="text-muted small">
@@ -104,7 +105,7 @@
                                         {% if entry.user_agent %}
                                             <details>
                                                 <summary class="text-nowrap">{{ entry.user_agent|user_agent_family }}</summary>
-                                                <div class="text-break text-start ms-auto mt-1" style="width: 16rem;">{{ entry.user_agent }}</div>
+                                                <div class="activity-user-agent text-break text-start ms-auto mt-1">{{ entry.user_agent }}</div>
                                             </details>
                                         {% endif %}
                                     </td>
@@ -142,7 +143,7 @@
                     </nav>
                 {% endif %}
             {% else %}
-                <p class="text-muted text-center py-4">No activity recorded yet.</p>
+                {{ empty_state("No activity recorded yet", heading="h3") }}
             {% endif %}
         </div>
     </div>

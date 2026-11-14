@@ -44,7 +44,7 @@ def test_public_circle_join_flow(client, app):
         assert response.status_code == 200
         assert b"Public Circle Test" in response.data
         # Page should show a join button for public circles
-        assert b"Join Circle" in response.data
+        assert b"Join circle" in response.data
 
         # For public circles, POST to join should immediately add the member
         response = client.post(f"/circles/join/{circle.id}", follow_redirects=True)

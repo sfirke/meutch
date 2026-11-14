@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 
 from app import db
 from app.admin import bp
+from app.admin import component_samples as samples
 from app.auth.decorators import admin_required
 from app.forms import EmptyForm
 from app.forms_admin import ANNOUNCEMENT_TIMEZONE, AnnouncementForm
@@ -406,6 +407,26 @@ def end_announcement(announcement_id):
 
     flash("Announcement ended", "admin-success")
     return redirect(url_for("admin.announcements"))
+
+
+@bp.route("/components")
+@admin_required
+def components():
+    """Every shared template component in each of its states, for checking the look."""
+    return render_template(
+        "admin/components.html",
+        active_tab="components",
+        form=samples.sample_form(),
+        loans=samples.sample_loans(),
+        circles=[
+            samples.sample_circle(),
+            samples.sample_circle(
+                name="Maple School Parents", circle_type="closed", member_count=1
+            ),
+            samples.sample_circle(name="Ann Arbor", is_regional=True, member_count=812),
+        ],
+        sample_link=samples.sample_web_link(),
+    )
 
 
 @bp.route("/users/<uuid:user_id>/promote", methods=["POST"])

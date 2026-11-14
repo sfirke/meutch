@@ -296,7 +296,7 @@ def build_visible_requests_events(
         )
         if not _within_time_window(event_time, since=since, until=until):
             continue
-        action = "marked a request fulfilled" if item_request.status == "fulfilled" else "requested"
+        action = "found" if item_request.status == "fulfilled" else "requested"
         distance = format_actor_distance(user, item_request.user)
         events.append(
             {

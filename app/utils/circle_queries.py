@@ -187,7 +187,7 @@ def _build_circle_recommendation(circle):
         "is_open": circle.circle_type == "open",
         "is_regional": circle.is_regional,
         "regional_radius_miles": circle.regional_radius_miles,
-        "join_label": "Join Circle" if circle.circle_type == "open" else "Request to Join",
+        "join_label": "Join circle" if circle.circle_type == "open" else "Request to join",
         "member_activity_counts": member_activity_counts,
         "visible_display_counts": visible_display_counts,
         "visible_display_text": _join_human_readable(

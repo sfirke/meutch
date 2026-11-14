@@ -1092,13 +1092,13 @@ class ItemRequest(db.Model):
         return False
 
     SEEKING_CHOICES = [
-        ("either", "Loan or Giveaway"),
-        ("loan", "Loan Only"),
-        ("giveaway", "Giveaway Only"),
+        ("either", "Loan or giveaway"),
+        ("loan", "Loan only"),
+        ("giveaway", "Giveaway only"),
     ]
 
     VISIBILITY_CHOICES = [
-        ("circles", "My Circles"),
+        ("circles", "My circles"),
         ("public", "Public"),
     ]
 

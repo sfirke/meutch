@@ -106,7 +106,7 @@ class TestGiveawayItemCreation:
             content = response.data.decode("utf-8")
             assert "Starter Giveaway" in content
             assert "Your giveaway is live. Join a circle to unlock the rest of Meutch." in content
-            assert "Find Circles to Join" in content
+            assert "Find circles to join" in content
 
     def test_create_loan_item(self, client, app, auth_user):
         """Test creating a regular loan item (not giveaway)."""
@@ -794,10 +794,10 @@ class TestSearchFiltering:
             assert b"Drill for Loan" in response.data
             assert b"Free Drill" in response.data
             response_text = response.data.decode("utf-8")
-            assert response_text.count("giveaway-ribbon") == 1
+            assert response_text.count("Up for grabs") == 1
             loan_index = response_text.index("Drill for Loan")
             loan_card_snippet = response_text[max(0, loan_index - 500) : loan_index + 200]
-            assert "giveaway-ribbon" not in loan_card_snippet
+            assert "Up for grabs" not in loan_card_snippet
 
 
 class TestCategoryAndTagFiltering:
@@ -1186,8 +1186,8 @@ class TestConversationGiveawaySelection:
             )
 
             assert response.status_code == 200
-            assert b"Giveaway Pickup" in response.data
-            assert b"Mark Handoff Complete" in response.data
+            assert b"Giveaway pickup" in response.data
+            assert b"Mark handoff complete" in response.data
 
             db.session.refresh(giveaway)
             db.session.refresh(interest)
@@ -2254,7 +2254,7 @@ class TestItemDetailPageForGiveaways:
     """Test item detail page UI for different giveaway states."""
 
     def test_owner_sees_pending_pickup_controls(self, client, app, auth_user):
-        """Test owner sees Change Recipient, Release to Everyone, and Confirm Handoff buttons."""
+        """Test owner sees Change recipient, Release to everyone, and Confirm Handoff buttons."""
         with app.app_context():
             owner = auth_user()
             requester = UserFactory(first_name="John", last_name="Doe")
@@ -2274,9 +2274,9 @@ class TestItemDetailPageForGiveaways:
             response = client.get(f"/item/{giveaway.id}")
 
             assert response.status_code == 200
-            assert b"Change Recipient" in response.data
-            assert b"Release to Everyone" in response.data
-            assert b"Mark Handoff Complete" in response.data
+            assert b"Change recipient" in response.data
+            assert b"Release to everyone" in response.data
+            assert b"Mark handoff complete" in response.data
             assert b"Recipient:" in response.data
             assert b"John Doe" in response.data
 
@@ -2440,12 +2440,12 @@ class TestItemDetailPageForGiveaways:
             # Check the alert message shows the recipient name
             assert b"Given to" in response.data
             # Should NOT show action buttons for claimed items
-            assert b"Change Recipient" not in response.data
-            assert b"Release to Everyone" not in response.data
-            assert b"Mark Handoff Complete" not in response.data
-            assert b"Edit Item" not in response.data
-            assert b"Delete Item" not in response.data
-            assert b"View Active Loan" not in response.data
+            assert b"Change recipient" not in response.data
+            assert b"Release to everyone" not in response.data
+            assert b"Mark handoff complete" not in response.data
+            assert b"Edit item" not in response.data
+            assert b"Delete item" not in response.data
+            assert b"View loan" not in response.data
 
 
 class TestDataIntegrity:
@@ -2611,7 +2611,7 @@ class TestSelectRecipientReassignmentUI:
     """Test the select_recipient page shows correct UI for reassignment."""
 
     def test_select_recipient_page_shows_initial_selection_ui(self, client, app, auth_user):
-        """Test select recipient page shows 'Select Recipient' header for initial selection."""
+        """Test select recipient page shows 'Select recipient' header for initial selection."""
         with app.app_context():
             owner = auth_user()
             requester = UserFactory()
@@ -2633,9 +2633,9 @@ class TestSelectRecipientReassignmentUI:
             response = client.get(f"/item/{giveaway.id}/select-recipient")
 
             assert response.status_code == 200
-            assert b"Select Recipient" in response.data
-            assert b"First Requester" in response.data
-            assert b"Random Selection" in response.data
+            assert b"Choose who gets it" in response.data
+            assert b"First to ask" in response.data
+            assert b"Pick at random" in response.data
 
 
 class TestGiveawayOwnerProfileLink:

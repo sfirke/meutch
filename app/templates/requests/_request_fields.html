@@ -1,0 +1,13 @@
+{% from "components/forms.html" import form_field %}
+
+{{ form_field(form.title, help="A short description of what you're looking for (max 100 characters)", placeholder="e.g., Melon baller, Small scrap of drywall") }}
+{{ form_field(form.description, help="Any additional context or details (max 1000 characters)", rows="4", placeholder="e.g., I need to patch a 6-inch circular hole in my drywall and don't want to buy a whole sheet") }}
+{{ form_field(form.seeking) }}
+
+{% set visibility_help %}
+    <strong>My circles:</strong> Only visible to members of your circles.
+    <strong>Public:</strong> Visible to all users on the platform.
+{% endset %}
+{{ form_field(form.visibility, help=visibility_help) }}
+
+{{ form_field(form.expires_at, help="Your request will be automatically hidden after this date. Maximum 6 months from today.") }}
