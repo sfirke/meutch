@@ -12,7 +12,7 @@
 
 {% block twitter_title %}{{ item.name }} - Giveaway on Meutch{% endblock %}
 {% block twitter_description %}{{ item.description|truncate(200) if item.description else 'Someone is giving away ' + item.name + '. Join Meutch to claim it.' }}{% endblock %}
-{% block twitter_card %}{{ 'summary_large_image' if item.images else 'summary' }}{% endblock %}
+{% block og_image_details %}{% if not item.images %}{{ super() }}{% endif %}{% endblock %}
 {% block twitter_image %}{{ preview_image_url }}{% endblock %}
 
 {% block body_attrs %}class="landing-page"{% endblock %}

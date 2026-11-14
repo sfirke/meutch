@@ -129,8 +129,8 @@ class TestGiveawaySharePreview:
             assert response.status_code == 200
             assert b'<meta name="twitter:card" content="summary_large_image">' in response.data
 
-    def test_public_giveaway_preview_uses_summary_twitter_card_without_image(self, client, app):
-        """Test that giveaway preview uses summary when no image exists."""
+    def test_public_giveaway_preview_uses_default_wide_image_without_photo(self, client, app):
+        """Test that a giveaway without a photo gets the wide default preview image."""
         with app.app_context():
             user = UserFactory()
             item = ItemFactory(
@@ -143,7 +143,9 @@ class TestGiveawaySharePreview:
 
             response = client.get(f"/share/giveaway/{item.id}")
             assert response.status_code == 200
-            assert b'<meta name="twitter:card" content="summary">' in response.data
+            assert b'<meta name="twitter:card" content="summary_large_image">' in response.data
+            assert b"img/og_default.png" in response.data
+            assert b'<meta property="og:image:width" content="1200">' in response.data
 
     def test_non_public_giveaway_returns_404(self, client, app):
         """Test that a giveaway with default visibility returns 404."""
@@ -429,6 +431,19 @@ class TestRequestSharePreview:
             response = client.get(f"/share/request/{req.id}")
             assert response.status_code == 200
             assert b'<meta name="twitter:card" content="summary">' in response.data
+            assert b"og:image:width" not in response.data
+
+    def test_public_request_preview_without_avatar_uses_default_wide_image(self, client, app):
+        """Test that a request from someone without a photo gets the wide default image."""
+        with app.app_context():
+            user = UserFactory(profile_image_url=None)
+            req = ItemRequestFactory(user=user, visibility="public", title="Need a ladder")
+            db.session.commit()
+
+            response = client.get(f"/share/request/{req.id}")
+            assert response.status_code == 200
+            assert b'<meta name="twitter:card" content="summary_large_image">' in response.data
+            assert b"img/og_default.png" in response.data
 
     def test_circles_only_request_returns_404(self, client, app):
         """Test that a circles-only request returns 404."""
@@ -645,15 +660,16 @@ class TestCircleSharePreview:
             assert response.status_code == 200
             assert b'<meta name="twitter:card" content="summary_large_image">' in response.data
 
-    def test_circle_preview_uses_summary_twitter_card_without_image(self, client, app):
-        """Test that circle preview uses summary when no image exists."""
+    def test_circle_preview_uses_default_wide_image_without_photo(self, client, app):
+        """Test that a circle without a photo gets the wide default preview image."""
         with app.app_context():
             circle = CircleFactory(circle_type="open", image_url=None)
             db.session.commit()
 
             response = client.get(f"/share/circle/{circle.id}")
             assert response.status_code == 200
-            assert b'<meta name="twitter:card" content="summary">' in response.data
+            assert b'<meta name="twitter:card" content="summary_large_image">' in response.data
+            assert b"img/og_default.png" in response.data
 
     def test_nonexistent_circle_returns_404(self, client, app):
         """Test that a non-existent circle ID returns 404."""
