@@ -848,7 +848,7 @@ class ConversationParticipant(db.Model):
         UUID(as_uuid=True), db.ForeignKey("conversations.id"), nullable=False
     )
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False)
-    is_archived = db.Column(db.Boolean, default=False)
+    is_archived = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
     archived_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=func.now())
     user = db.relationship("User", backref="conversation_participants")
@@ -1092,13 +1092,13 @@ class ItemRequest(db.Model):
         return False
 
     SEEKING_CHOICES = [
-        ("either", "Loan or Giveaway"),
-        ("loan", "Loan Only"),
-        ("giveaway", "Giveaway Only"),
+        ("either", "Loan or giveaway"),
+        ("loan", "Loan only"),
+        ("giveaway", "Giveaway only"),
     ]
 
     VISIBILITY_CHOICES = [
-        ("circles", "My Circles"),
+        ("circles", "My circles"),
         ("public", "Public"),
     ]
 

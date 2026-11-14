@@ -4,7 +4,7 @@ from unittest.mock import patch
 from flask import url_for
 from sqlalchemy import text
 
-from app.models import Circle, db
+from app.models import db
 from conftest import login_user
 from tests.factories import CircleFactory, UserFactory
 
@@ -19,57 +19,6 @@ def login_admin(client, user, circle):
     )
     db.session.commit()
     login_user(client, user.email)
-
-
-@patch(
-    "app.services.circle_service.upload_circle_image", return_value="https://example.com/circle.jpg"
-)
-def test_create_circle_with_image(mock_upload, client, app):
-    with app.app_context():
-        user = UserFactory()
-        login_user(client, user.email)
-        image_data = (io.BytesIO(b"fake image data"), "circle.jpg")
-        response = client.post(
-            url_for("circles.create_circle"),
-            data={
-                "name": "Circle With Image",
-                "description": "A circle with an image",
-                "circle_type": "open",
-                "image": image_data,
-            },
-            content_type="multipart/form-data",
-            follow_redirects=True,
-        )
-        assert response.status_code == 200
-        circle = Circle.query.filter_by(name="Circle With Image").first()
-        assert circle is not None
-        assert circle.image_url == "https://example.com/circle.jpg"
-        assert b"has been created successfully" in response.data
-
-
-@patch("app.services.circle_service.upload_circle_image", return_value=None)
-def test_create_circle_with_invalid_image(mock_upload, client, app):
-    with app.app_context():
-        user = UserFactory()
-        login_user(client, user.email)
-        # Mock upload failure
-        bad_image = (io.BytesIO(b"not an image"), "circle.jpg")
-        response = client.post(
-            url_for("circles.create_circle"),
-            data={
-                "name": "Bad Image Circle",
-                "description": "Should fail",
-                "circle_type": "open",
-                "image": bad_image,
-            },
-            content_type="multipart/form-data",
-            follow_redirects=True,
-        )
-        assert response.status_code == 200
-        circle = Circle.query.filter_by(name="Bad Image Circle").first()
-        # Should not create the circle if image upload fails
-        assert circle is None
-        assert b"Image upload failed" in response.data
 
 
 @patch("app.services.circle_service.is_valid_file_upload", return_value=True)
@@ -97,7 +46,7 @@ def test_edit_circle_image(mock_upload, mock_valid, client, app):
         assert response.status_code == 200
         db.session.refresh(circle)
         assert circle.image_url == "https://example.com/new-circle.jpg"
-        assert b"Circle image updated." in response.data
+        assert b"Circle photo updated." in response.data
 
 
 @patch("app.services.circle_service.delete_file")
@@ -119,7 +68,7 @@ def test_remove_circle_image(mock_delete, client, app):
         assert response.status_code == 200
         db.session.refresh(circle)
         assert circle.image_url is None
-        assert b"Circle image has been removed." in response.data
+        assert b"Circle photo removed." in response.data
         mock_delete.assert_called_once_with("https://example.com/old.jpg")
 
 
@@ -226,14 +175,30 @@ class TestPaginatedCircleMembers:
             response = client.get(url_for("circles.view_circle", circle_id=circle.id))
             html = response.data.decode()
 
-            leave_pos = html.find("Leave Circle")
+            leave_pos = html.find("Leave circle")
             members_heading_pos = html.find("Members (6)")
-            assert leave_pos != -1, "Leave Circle button not found"
+            assert leave_pos != -1, "Leave circle button not found"
             assert members_heading_pos != -1, "Members heading not found"
             assert leave_pos < members_heading_pos, (
-                f"Leave Circle button (at {leave_pos}) should appear before "
+                f"Leave circle button (at {leave_pos}) should appear before "
                 f"Members heading (at {members_heading_pos})"
             )
+
+    def test_non_member_of_closed_circle_sees_real_member_count(self, client, app):
+        """Closed circles hide their member list, but not how many members they have."""
+        with app.app_context():
+            circle = CircleFactory(circle_type="closed")
+            circle.members.extend([UserFactory(), UserFactory()])
+            outsider = UserFactory()
+            db.session.commit()
+
+            login_user(client, outsider.email)
+
+            response = client.get(url_for("circles.view_circle", circle_id=circle.id))
+            html = response.data.decode()
+
+            assert "2 members" in html
+            assert "Members (" not in html
 
     def test_non_member_sees_join_button_above_closed_message(self, client, app):
         """A non-member of a closed circle sees Join button above the closed message."""

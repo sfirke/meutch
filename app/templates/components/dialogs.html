@@ -1,0 +1,28 @@
+{#- The caller is called twice: caller("body") for the message, caller("actions") for buttons after Cancel.
+    With action= set, the dialog adds its own confirm form after those actions. Leave action="" for
+    a dialog whose page script fills in the form's action when it opens. -#}
+{% macro confirm_dialog(id, title, action=none, form=none, confirm_label=none, confirm_class="btn-primary", cancel_label="Cancel") %}
+    <div class="modal fade" id="{{ id }}" tabindex="-1" aria-labelledby="{{ id }}Label" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered confirm-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="{{ id }}Label">{{ title }}</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {{ caller("body") }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ cancel_label }}</button>
+                    {{ caller("actions") }}
+                    {%- if action is not none %}
+                        <form method="post" action="{{ action }}" class="confirm-dialog-form">
+                            {{ form.hidden_tag() }}
+                            <button type="submit" class="btn {{ confirm_class }}">{{ confirm_label }}</button>
+                        </form>
+                    {%- endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endmacro %}

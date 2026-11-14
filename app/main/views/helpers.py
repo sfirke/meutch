@@ -1,7 +1,7 @@
 import json
 from datetime import UTC, datetime
 
-from flask import request, session
+from flask import request, session, url_for
 from flask_login import current_user
 
 from app.models import Category
@@ -17,6 +17,12 @@ from app.utils.storage import (
 )
 
 HOMEPAGE_DISTANCE_OPTIONS = {5, 10, 20, 25, 50}
+HOMEPAGE_FEED_CHIPS = (
+    ("Requests", "requests"),
+    ("Giveaways", "giveaways"),
+    ("Lending", "loans"),
+    ("Circles", "circle_joins"),
+)
 
 
 def _build_item_detail_url(item_id, share_token=None):
@@ -104,14 +110,15 @@ def _parse_homepage_feed_filters(user):
 
     selected_types_raw = request.args.getlist("types")
     types_explicit = "types_present" in request.args
+    selected_feed_types = []
     if types_explicit:
         selected_feed_types = [
             event_type
             for event_type in selected_types_raw
             if event_type in HOMEPAGE_FEED_EVENT_TYPES
         ]
-    else:
-        selected_feed_types = ["requests", "giveaways", "circle_joins", "loans"]
+    if not selected_feed_types:
+        selected_feed_types = [value for _, value in HOMEPAGE_FEED_CHIPS]
 
     distance_explicit = "distance" in request.args
     distance_value_raw = request.args.get("distance")
@@ -144,6 +151,41 @@ def _parse_homepage_feed_filters(user):
         "show_own_activity": show_own_activity,
         "show_claimed_giveaways": show_claimed_giveaways,
     }
+
+
+def _build_homepage_feed_chips(filter_state):
+    """Filter chips for the feed, each linking to the view you get by tapping it."""
+    kept_args = {}
+    if filter_state["scope"] != "all":
+        kept_args["scope"] = filter_state["scope"]
+    if filter_state["distance_explicit"]:
+        kept_args["distance"] = filter_state["distance_param_value"]
+    if not filter_state["show_own_activity"]:
+        kept_args["own_activity_present"] = 1
+    if not filter_state["show_claimed_giveaways"]:
+        kept_args["claimed_giveaways_present"] = 1
+
+    all_types = {value for _, value in HOMEPAGE_FEED_CHIPS}
+    selected = filter_state["selected_feed_types"]
+    everything = set(selected) == all_types
+
+    chips = [
+        {"label": "Everything", "url": url_for("main.index", **kept_args), "selected": everything}
+    ]
+    for label, value in HOMEPAGE_FEED_CHIPS:
+        if everything:
+            next_types = [value]
+        elif value in selected:
+            next_types = [event_type for event_type in selected if event_type != value]
+        else:
+            next_types = [*selected, value]
+
+        if next_types and set(next_types) != all_types:
+            url = url_for("main.index", types_present=1, types=next_types, **kept_args)
+        else:
+            url = url_for("main.index", **kept_args)
+        chips.append({"label": label, "url": url, "selected": not everything and value in selected})
+    return chips
 
 
 def _build_find_context(user):

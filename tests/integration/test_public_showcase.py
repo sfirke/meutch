@@ -136,7 +136,7 @@ class TestAdminDashboardShowcaseUI:
         assert b"Showcase" in response.data
 
     def test_dashboard_shows_enable_showcase_button(self, client, db_session):
-        """Test that non-showcase users have 'Enable Showcase' button"""
+        """Test that non-showcase users have 'Enable showcase' button"""
         admin = UserFactory(is_admin=True)
         UserFactory(is_public_showcase=False)
         db_session.commit()
@@ -145,10 +145,10 @@ class TestAdminDashboardShowcaseUI:
 
         response = client.get("/admin/")
         assert response.status_code == 200
-        assert b"Enable Showcase" in response.data
+        assert b"Enable showcase" in response.data
 
     def test_dashboard_shows_disable_showcase_button(self, client, db_session):
-        """Test that showcase users have 'Disable Showcase' button"""
+        """Test that showcase users have 'Disable showcase' button"""
         admin = UserFactory(is_admin=True)
         UserFactory(is_public_showcase=True)
         db_session.commit()
@@ -157,4 +157,4 @@ class TestAdminDashboardShowcaseUI:
 
         response = client.get("/admin/")
         assert response.status_code == 200
-        assert b"Disable Showcase" in response.data
+        assert b"Disable showcase" in response.data

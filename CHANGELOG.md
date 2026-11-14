@@ -2,6 +2,22 @@
 
 Stay up on what's happening with Meutch. Improvements are constantly pushed to the main instance at https://meutch.com - this lets you know what changed since the last time you logged in.
 
+## November 2026
+
+### UI Redesign
+- Meutch has a whole new look, inspired by cut paper and visible mending. New fonts, colors, buttons and cards run through every page, from the home feed, Find and item pages to messages, circles, profiles, forms and the previews people see when they open a shared link ([#591](https://github.com/sfirke/meutch/pull/591), [#595](https://github.com/sfirke/meutch/pull/595), [#596](https://github.com/sfirke/meutch/pull/596), [#597](https://github.com/sfirke/meutch/pull/597), [#598](https://github.com/sfirke/meutch/pull/598), [#600](https://github.com/sfirke/meutch/pull/600), [#603](https://github.com/sfirke/meutch/pull/603), [#604](https://github.com/sfirke/meutch/pull/604)).
+- It's easier to use on a phone. Tap anywhere on a card or circle to open it, filter the home page with chips you can combine, see each form error right next to its field, and confirm things in proper dialogs ([#595](https://github.com/sfirke/meutch/pull/595), [#598](https://github.com/sfirke/meutch/pull/598), [#600](https://github.com/sfirke/meutch/pull/600), [#603](https://github.com/sfirke/meutch/pull/603), [#607](https://github.com/sfirke/meutch/pull/607)).
+- Links to Meutch shared by text message, Slack and other apps show a new preview card in the new look, instead of an all-orange square that some apps paired with a second, slightly different orange. Shared items, circles and requests without a photo get the same card ([#609](https://github.com/sfirke/meutch/pull/609)).
+- Items without a photo show a stitched teal patch instead of a stock picture of mountains ([#602](https://github.com/sfirke/meutch/pull/602)).
+- The wording is simpler and consistent: sentence case everywhere, "Sign up" and "Log in", requests are "found" rather than "fulfilled", and giveaways no longer say "free", because everything on Meutch is free ([#597](https://github.com/sfirke/meutch/pull/597), [#600](https://github.com/sfirke/meutch/pull/600), [#603](https://github.com/sfirke/meutch/pull/603), [#607](https://github.com/sfirke/meutch/pull/607)).
+
+### Developer Experience
+- Removed the old standalone Create Circle page at `/circles/create-circle`. Nothing had linked to it since March 2026, when circles were already being created from the Create tab on the Circles page ([#601](https://github.com/sfirke/meutch/pull/601)).
+- The migration check that runs before pushing and in CI now also fails when the database migrations have more than one latest version, which happens when two branches each add a migration. Before, this only surfaced after merging ([#584](https://github.com/sfirke/meutch/pull/584)).
+
+### Bug fixes
+- Tapping a button twice no longer sends the same message twice. After you submit a form anywhere on the site, extra taps are ignored until the page finishes loading ([#585](https://github.com/sfirke/meutch/pull/585)).
+
 ## October 2026
 
 ### Features
@@ -15,12 +31,15 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - There's now a "Create" button at the top of every page for listing an item or creating a request, so you no longer have to go back to the home page to add something. On a phone it's the round "+" next to the menu button. The home page's own create buttons are gone since this replaces them ([#546](https://github.com/sfirke/meutch/pull/546)).
 
 ### Bug fixes
+- Times shown on the site now have the right timezone label for their date. Before, the label always matched today, so in October a December time was marked EDT instead of EST. The times themselves were already correct ([#588](https://github.com/sfirke/meutch/pull/588)).
 - A giveaway can now only be handed to someone who has asked about it: a member who is on its list of interested people, or who already has a conversation with you about that item. Before, the manual selection step did not check this ([#563](https://github.com/sfirke/meutch/pull/563)).
 - Deleting an account now signs it out everywhere. Before, a deleted account could stay signed in on the website or in the mobile app, and could still be logged into afterwards. Deletion now ends every session on every device, the old password and any password-reset or confirmation links stop working, and a deleted admin loses admin access ([#562](https://github.com/sfirke/meutch/pull/562)).
 - After you log in or confirm your email, Meutch now only sends you on to one of its own pages. Before, a specially made link to the login or sign-up page could send you to a different website afterwards ([#560](https://github.com/sfirke/meutch/pull/560)).
 - The circle filter on Find, and the matching `circles` filter on `GET /api/v1/items`, now only applies to circles you belong to. Before, a hand-edited link naming another circle could list that circle's items; opening those items was already blocked. A malformed circle value in a Find link no longer causes an error page.
 - A request now stays in your profile, the Community Activity feed and the circle counts through its whole expiration date. Before, it disappeared from those lists at the start of that day even though it could still be opened and answered ([#555](https://github.com/sfirke/meutch/pull/555)).
 - On your profile, clicking to the next page of your active requests now shows that page. Before, it jumped back to the My Items tab ([#553](https://github.com/sfirke/meutch/pull/553)).
+- The headline, text and buttons at the top of the landing page are no longer dimmed. A dark overlay meant for the background was painting over them ([#590](https://github.com/sfirke/meutch/pull/590)).
+- Community Activity now shows the right initials for people without a profile photo: Maya Chen shows "MC". Before, it used the first two letters of the name, "MA" ([#590](https://github.com/sfirke/meutch/pull/590)).
 
 ### API development
 - Added `GET /api/v1/users/<id>` endpoint to retrieve a member's public profile, shared circles, and why access was granted; denied and unknown ids return 404. Nested users in item, message, circle, and request responses now include a `profile_viewable` flag so the mobile app knows which names to make tappable ([#517](https://github.com/sfirke/meutch/pull/517)).
@@ -32,7 +51,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Borrowers can now ask for more time on a loan through `POST /api/v1/loans/<id>/extension-requests`, and owners answer with `POST /api/v1/loan-extension-requests/<id>/approve` or `/deny`, the same as on the website. Loan lists, loan details and a conversation's active loan now include any pending extension request so the mobile app can show it; item details do not, since others can see that loan and the borrower's note is private. A loan request with a start date in the past is now rejected, as it is on the website ([#565](https://github.com/sfirke/meutch/pull/565)).
 
 ### Developer Experience
-- The migration check that runs before pushing and in CI now also fails when the database migrations have more than one latest version, which happens when two branches each add a migration. Before, this only surfaced after merging ([#584](https://github.com/sfirke/meutch/pull/584)).
+- Added `STYLE_GUIDE.md`, which describes the look the site is moving to and should be followed for any UI change ([#590](https://github.com/sfirke/meutch/pull/590)).
 
 ## September 2026
 
@@ -61,6 +80,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### API development (continued)
 - Cut the query cost of circle, request, and feed reads across the app and the API ([#480](https://github.com/sfirke/meutch/pull/480)).
+- The conversation list in the API now always says whether a conversation is archived. Before, conversations started before the messaging overhaul returned an empty value there instead of "not archived" ([#513](https://github.com/sfirke/meutch/pull/513)).
 - Removed the `GET /api/v1/requests` list endpoint, the API counterpart of the old requests browse page. `GET /api/v1/feed?types=requests` returns the same requests ([#515](https://github.com/sfirke/meutch/pull/515)).
 
 ### Developer Experience

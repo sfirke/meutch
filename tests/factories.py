@@ -1,7 +1,7 @@
 """Test factories for creating test data."""
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import factory
 from factory.alchemy import SQLAlchemyModelFactory
@@ -131,7 +131,7 @@ class LoanRequestFactory(SQLAlchemyModelFactory):
     item = factory.SubFactory(ItemFactory)
     borrower = factory.SubFactory(UserFactory)
     start_date = factory.LazyAttribute(lambda obj: fake.date_this_month())
-    end_date = factory.LazyAttribute(lambda obj: fake.date_this_year())
+    end_date = factory.LazyFunction(lambda: date.today() + timedelta(days=14))
     status = "pending"
 
 

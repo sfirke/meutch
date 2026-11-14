@@ -173,7 +173,7 @@ def fulfill(request_id):
     except ConflictError:
         abort(404)
 
-    flash("Request marked as fulfilled! 🎉 It will remain visible for a week.", "success")
+    flash("Marked as found! 🎉 It will stay up for a week.", "success")
     return redirect(url_for("main.index"))
 
 

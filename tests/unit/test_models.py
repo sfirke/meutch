@@ -1,8 +1,14 @@
 """Unit tests for models."""
 
+import uuid
 from datetime import UTC, datetime
 
+import pytest
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
+
 from app import db
+from app.models import ConversationParticipant
 from conftest import TEST_PASSWORD
 from tests.factories import (
     CategoryFactory,
@@ -421,3 +427,39 @@ class TestMessage:
             message = MessageFactory(sender=sender, recipient=recipient)
             expected = f"<Message from {sender.id} to {recipient.id} at {message.timestamp}>"
             assert repr(message) == expected
+
+
+class TestConversationParticipant:
+    """Test ConversationParticipant model."""
+
+    def test_is_archived_defaults_to_false_in_the_database(self, app):
+        """A row inserted without the ORM still reads as not archived."""
+        with app.app_context():
+            conversation = ConversationFactory()
+            user = UserFactory()
+            participant_id = uuid.uuid4()
+            db.session.execute(
+                text(
+                    "INSERT INTO conversation_participants (id, conversation_id, user_id) "
+                    "VALUES (:id, :conversation_id, :user_id)"
+                ),
+                {"id": participant_id, "conversation_id": conversation.id, "user_id": user.id},
+            )
+
+            participant = db.session.get(ConversationParticipant, participant_id)
+            assert participant.is_archived is False
+
+    def test_is_archived_rejects_null(self, app):
+        with app.app_context():
+            conversation = ConversationFactory()
+            user = UserFactory()
+            with pytest.raises(IntegrityError):
+                db.session.execute(
+                    text(
+                        "INSERT INTO conversation_participants "
+                        "(id, conversation_id, user_id, is_archived) "
+                        "VALUES (:id, :conversation_id, :user_id, NULL)"
+                    ),
+                    {"id": uuid.uuid4(), "conversation_id": conversation.id, "user_id": user.id},
+                )
+            db.session.rollback()

@@ -224,7 +224,7 @@ class TestLoanExtension:
             assert custom_msg in message.body
 
     def test_owner_does_not_see_extend_button_for_pending_loan(self, app, client):
-        """Owners should not see the 'Extend Loan Period' button when viewing a conversation
+        """Owners should not see the 'Extend loan period' button when viewing a conversation
         with a pending loan request — only Approve and Deny."""
         with app.app_context():
             owner = UserFactory()
@@ -254,13 +254,13 @@ class TestLoanExtension:
             )
 
             assert response.status_code == 200
-            assert b"Approve Request" in response.data
-            assert b"Deny Request" in response.data
-            assert b"Extend Loan Period" not in response.data
+            assert b"Approve request" in response.data
+            assert b"Deny request" in response.data
+            assert b"Extend loan period" not in response.data
 
     def test_owner_decides_pending_extension_instead_of_extending(self, app, client):
         """While a borrower's extension request is pending, the owner is offered
-        Approve/Deny Extension rather than a separate 'Extend Loan Period'."""
+        Approve/Deny extension rather than a separate 'Extend loan period'."""
         with app.app_context():
             owner = UserFactory()
             borrower = UserFactory()
@@ -286,16 +286,16 @@ class TestLoanExtension:
             conversation_url = url_for("main.view_conversation", conversation_id=conversation.id)
 
             response = client.get(conversation_url)
-            assert b"Extend Loan Period" in response.data
-            assert b"Approve Extension" not in response.data
+            assert b"Extend loan period" in response.data
+            assert b"Approve extension" not in response.data
 
             LoanExtensionRequestFactory(loan_request=loan)
             db.session.commit()
 
             response = client.get(conversation_url)
-            assert b"Approve Extension" in response.data
-            assert b"Deny Extension" in response.data
-            assert b"Extend Loan Period" not in response.data
+            assert b"Approve extension" in response.data
+            assert b"Deny extension" in response.data
+            assert b"Extend loan period" not in response.data
 
     def test_pending_loan_conversation_shows_shared_circle_links(self, app, client):
         """Pending loan conversations should show the circles both users share."""

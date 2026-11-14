@@ -68,7 +68,7 @@ class TestItemDetailLoanLink:
     """Test loan link on item detail page for owner."""
 
     def test_item_detail_shows_loan_link_for_owner_with_active_loan(self, client, app, auth_user):
-        """Owner sees 'View Active Loan' button on item detail when item is on loan."""
+        """Owner sees 'View loan' button on item detail when item is on loan."""
         with app.app_context():
             owner = auth_user()
             borrower = UserFactory()
@@ -94,11 +94,11 @@ class TestItemDetailLoanLink:
             response = client.get(f"/item/{item.id}")
             assert response.status_code == 200
             content = response.data.decode("utf-8")
-            assert "View Active Loan" in content
+            assert "View loan" in content
             assert f'href="/conversation/{msg.conversation_id}"' in content
 
     def test_item_detail_hides_loan_link_when_no_active_loan(self, client, app, auth_user):
-        """Owner does not see 'View Active Loan' button when item has no active loan."""
+        """Owner does not see 'View loan' button when item has no active loan."""
         with app.app_context():
             owner = auth_user()
             category = CategoryFactory()
@@ -109,14 +109,14 @@ class TestItemDetailLoanLink:
             response = client.get(f"/item/{item.id}")
             assert response.status_code == 200
             content = response.data.decode("utf-8")
-            assert "View Active Loan" not in content
+            assert "View loan" not in content
 
 
 class TestMyActivityConversationLinks:
     """Test that Loans & Requests tab links item names to conversations."""
 
     def test_borrowing_table_item_name_links_to_conversation(self, client, app, auth_user):
-        """In borrowing table, item name and thumbnail link to item; View Loan button links to conversation."""
+        """In borrowing table, item name and thumbnail link to item; View loan button links to conversation."""
         with app.app_context():
             borrower = auth_user()
             owner = UserFactory()
@@ -149,12 +149,12 @@ class TestMyActivityConversationLinks:
 
             # Both item name and thumbnail link to item detail
             assert f'href="/item/{item.id}"' in content
-            # Dedicated View Loan button links to conversation
+            # Dedicated View loan button links to conversation
             assert f'href="/conversation/{msg.conversation_id}"' in content
-            assert "View Loan" in content
+            assert "View loan" in content
 
     def test_lending_table_item_name_links_to_conversation(self, client, app, auth_user):
-        """In lending table, item name and thumbnail link to item; View Loan button links to conversation."""
+        """In lending table, item name and thumbnail link to item; View loan button links to conversation."""
         with app.app_context():
             owner = auth_user()
             borrower = UserFactory()
@@ -187,12 +187,12 @@ class TestMyActivityConversationLinks:
 
             # Both item name and thumbnail link to item detail
             assert f'href="/item/{item.id}"' in content
-            # Dedicated View Loan button links to conversation
+            # Dedicated View loan button links to conversation
             assert f'href="/conversation/{msg.conversation_id}"' in content
-            assert "View Loan" in content
+            assert "View loan" in content
 
     def test_view_loan_links_to_current_active_loan_not_old_loan(self, client, app, auth_user):
-        """When an item has been loaned multiple times, the View Loan button on the
+        """When an item has been loaned multiple times, the View loan button on the
         lending table links to the current active loan's conversation, not an old
         completed one."""
         with app.app_context():
@@ -245,8 +245,8 @@ class TestMyActivityConversationLinks:
             assert response.status_code == 200
             content = response.data.decode("utf-8")
 
-            # View Loan button must link to the current active loan's conversation
+            # View loan button must link to the current active loan's conversation
             assert f'href="/conversation/{msg2.conversation_id}"' in content
-            # View Loan button must NOT link to the old completed loan's conversation
+            # View loan button must NOT link to the old completed loan's conversation
             assert f'href="/conversation/{msg1.conversation_id}"' not in content
-            assert "View Loan" in content
+            assert "View loan" in content

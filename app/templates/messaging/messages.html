@@ -1,18 +1,19 @@
 <!-- templates/messaging/messages.html -->
 
 {% extends "base.html" %}
+{% from "components/empty.html" import empty_state %}
+{% from "components/people.html" import avatar %}
+
+{% block title %}Messages{% endblock %}
 
 {% block content %}
-<div class="container mt-5 mb-5">
-    <div class="mb-4">
-        <h1>Messages</h1>
-        <p class="text-muted">View and manage your conversations about shared items.</p>
-    </div>
+<div>
+    <h1 class="mb-4">Messages</h1>
 
     {% set is_archived_view = (current_status == 'archived') %}
 
     {# ── Tabs ────────────────────────────────────────────────────────── #}
-    <div class="messaging-toolbar">
+    <div class="mb-3">
         <ul class="nav nav-tabs">
             <li class="nav-item">
                 <a class="nav-link {% if not is_archived_view %}active{% endif %}"
@@ -33,22 +34,23 @@
     {% if conversations %}
 
         {# ── Consolidated Control Bar ────────────────────────────────── #}
+        <div id="inbox">
         <div class="inbox-toolbar">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="select-mode-toggle" aria-pressed="false">Select</button>
             <div class="form-check inbox-toolbar__select">
                 <input class="form-check-input" type="checkbox" id="select-all">
-                <label class="form-check-label" for="select-all">Select All</label>
+                <label class="form-check-label" for="select-all">Select all</label>
             </div>
             <form method="POST" action="{{ url_for('main.mark_all_read', status=current_status, page=pagination.page, sort=current_sort) }}" class="inbox-toolbar__mark-read">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-link text-muted text-decoration-none">
-                    <i class="fas fa-check-double me-1"></i>Mark all read
+                    Mark all read
                 </button>
             </form>
             <div class="inbox-toolbar__spacer"></div>
             <div class="dropdown sort-dropdown">
                 <button class="btn btn-sm btn-link text-muted text-decoration-none dropdown-toggle" type="button"
                         data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-sort me-1"></i>
                     {% if current_sort == 'oldest' %}Oldest
                     {% elif current_sort == 'unread' %}Unread first
                     {% elif current_sort == 'name_asc' %}Name A–Z
@@ -70,41 +72,30 @@
         <div class="conversation-list">
 
             {% for convo in conversations %}
-                <a href="{{ url_for('main.view_conversation', conversation_id=convo.latest_message.conversation_id) }}"
-                   class="conversation-row {% if convo.unread_count > 0 %}conversation-unread{% endif %}">
+                <div class="conversation-row {% if convo.unread_count > 0 %}conversation-unread{% endif %}">
 
-                    {# Checkbox (wrapped in a 48×48 hitbox label) #}
+                    {# Checkbox in a 40px hitbox, sitting above the row's stretched link #}
                     <label class="conv-checkbox-hitbox">
                         <input class="form-check-input conversation-checkbox conv-checkbox" type="checkbox"
-                               value="{{ convo.latest_message.conversation_id }}">
+                               value="{{ convo.latest_message.conversation_id }}" aria-label="Select conversation">
                     </label>
 
                     {# Avatar #}
-                    <div class="conv-avatar">
-                        {% if convo.other_user %}
-                            {% if convo.other_user.profile_image_url %}
-                                <img src="{{ convo.other_user.profile_image_url }}" alt="{{ convo.other_user.first_name }} {{ convo.other_user.last_name }}" class="conv-avatar-img">
-                            {% else %}
-                                {{ convo.other_user.first_name[0]|upper }}{{ convo.other_user.last_name[0]|upper }}
-                            {% endif %}
-                        {% else %}
-                            <i class="fas fa-user"></i>
-                        {% endif %}
-                    </div>
+                    {{ avatar(convo.other_user.full_name if convo.other_user else none, convo.other_user.profile_image_url if convo.other_user else none, size="lg", extra_class="conv-avatar") }}
 
-                    {# Body: vertically stacked name → context tag → preview #}
                     <div class="conv-body">
                         <div class="conv-body__header">
                             {% if convo.unread_count > 0 %}
                                 <span class="unread-dot" title="{{ convo.unread_count }} unread"></span>
                             {% endif %}
-                            <span class="conv-name">
+                            <a href="{{ url_for('main.view_conversation', conversation_id=convo.latest_message.conversation_id) }}" class="conv-name stretched-link">
                                 {% if convo.other_user %}
                                     {{ convo.other_user.first_name }} {{ convo.other_user.last_name }}
                                 {% else %}
                                     Unknown User
                                 {% endif %}
-                            </span>
+                            </a>
+                            <span class="conv-time">{{ convo.latest_message.timestamp|utc_timestamp('timeago') }}</span>
                         </div>
                         {% if convo.item %}
                             <span class="context-badge context-badge--item">{{ convo.item.name|truncate(60) }}</span>
@@ -115,13 +106,9 @@
                         {% endif %}
                         <span class="conv-preview">{{ convo.latest_message.body }}</span>
                     </div>
-
-                    {# Meta: timestamp gutter #}
-                    <div class="conv-meta">
-                        <span class="conv-time">{{ convo.latest_message.timestamp|utc_timestamp('timeago') }}</span>
-                    </div>
-                </a>
+                </div>
             {% endfor %}
+        </div>
         </div>
 
         {# ── Pagination ──────────────────────────────────────────────── #}
@@ -163,27 +150,21 @@
 
     {% else %}
         {# ── Empty State ─────────────────────────────────────────────── #}
-        <div class="empty-state text-center py-5">
-            {% if is_archived_view %}
-                <i class="fas fa-archive text-muted" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                <h4 class="text-muted mb-2">No Archived Conversations</h4>
-                <p class="text-muted mb-4">
-                    When you archive a conversation, it will appear here. Archived conversations are automatically unarchived when you receive a new reply.
-                </p>
-                <a href="{{ url_for('main.messages', status='inbox') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-inbox me-2"></i>Back to Inbox
-                </a>
-            {% else %}
-                <i class="fas fa-inbox text-muted" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                <h4 class="text-muted mb-2">No Messages Yet</h4>
-                <p class="text-muted mb-4">
-                    Start a conversation by requesting to borrow an item or reaching out to another user.
-                </p>
-                <a href="{{ url_for('main.index') }}" class="btn btn-primary">
-                    <i class="fas fa-search me-2"></i>Browse Items
-                </a>
-            {% endif %}
-        </div>
+        {% if is_archived_view %}
+            {% call empty_state("No archived conversations", icon="archive") %}
+                <p>Conversations you archive show up here. One comes back to your inbox by itself when someone replies.</p>
+                <div class="action-row">
+                    <a href="{{ url_for('main.messages', status='inbox') }}" class="btn btn-outline-secondary">Back to inbox</a>
+                </div>
+            {% endcall %}
+        {% else %}
+            {% call empty_state("No messages yet", icon="inbox") %}
+                <p>Start a conversation by asking to borrow an item or answering someone's request.</p>
+                <div class="action-row">
+                    <a href="{{ url_for('main.find') }}" class="btn btn-primary">Browse items</a>
+                </div>
+            {% endcall %}
+        {% endif %}
     {% endif %}
 
     {# ── Bulk Action Bar (sticky, hidden by default) ─────────────────── #}
@@ -193,32 +174,24 @@
         <form method="POST" action="{{ url_for('main.bulk_unarchive', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids" value="">
-            <button type="submit" class="btn btn-sm btn-light">
-                <i class="fas fa-inbox me-1"></i>Move to Inbox
-            </button>
+            <button type="submit" class="btn btn-sm btn-light">Move to inbox</button>
         </form>
         {% else %}
         <form method="POST" action="{{ url_for('main.bulk_archive', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids" value="">
-            <button type="submit" class="btn btn-sm btn-light">
-                <i class="fas fa-archive me-1"></i>Archive Selected
-            </button>
+            <button type="submit" class="btn btn-sm btn-light">Archive selected</button>
         </form>
         {% endif %}
         <form method="POST" action="{{ url_for('main.bulk_mark_read', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline" id="bulk-mark-read-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids-mark-read" value="">
-            <button type="submit" class="btn btn-sm btn-light">
-                <i class="fas fa-check me-1"></i>Mark Read
-            </button>
+            <button type="submit" class="btn btn-sm btn-light">Mark read</button>
         </form>
         <form method="POST" action="{{ url_for('main.bulk_mark_unread', status=current_status, page=pagination.page, sort=current_sort) }}" class="d-inline d-none" id="bulk-mark-unread-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversation_ids" id="conversation-ids-mark-unread" value="">
-            <button type="submit" class="btn btn-sm btn-light">
-                <i class="fas fa-envelope me-1"></i>Mark Unread
-            </button>
+            <button type="submit" class="btn btn-sm btn-light">Mark unread</button>
         </form>
     </div>
 </div>

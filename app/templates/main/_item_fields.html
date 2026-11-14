@@ -1,0 +1,38 @@
+{% from "components/forms.html" import check_field, form_field, radio_field %}
+
+{{ form_field(form.name, placeholder="What is it called?", autocapitalize="words") }}
+{{ form_field(form.description, placeholder="Include the make and model, if it has one, as well as limitations or special powers.", rows="3") }}
+
+<div class="mb-3 multi-image-upload"
+     data-max-images="{{ item_upload_limits.max_images }}"
+     data-max-file-size-bytes="{{ item_upload_limits.max_file_size_bytes }}"
+     data-max-file-size-label="{{ item_upload_limits.max_file_size_label }}"
+     data-max-source-image-pixels="{{ item_upload_limits.max_source_image_pixels }}"
+     data-max-source-image-label="{{ item_upload_limits.max_source_image_label }}"
+     data-max-source-image-example-dimensions="{{ item_upload_limits.max_source_image_example_dimensions }}"
+     data-compress-max-width="{{ item_upload_limits.compressed_max_width }}"
+     data-compress-max-height="{{ item_upload_limits.compressed_max_height }}"
+     data-compression-quality="{{ item_upload_limits.compression_quality }}">
+    <label class="form-label" for="{{ form.image.id }}">Photos <small class="text-muted">(up to {{ item_upload_limits.max_images }})</small></label>
+    {{ form.image(class="form-control", accept="image/*", multiple=True, style="display:none") }}
+    {{ form.delete_images() }}
+    {{ form.image_order() }}
+    <div class="multi-image-container"{% if item %} data-existing-images='{{ item.images | tojson_images }}'{% endif %}></div>
+    <div class="form-text">Supported formats: JPG, PNG, GIF, BMP, WebP. Up to {{ item_upload_limits.max_file_size_label }} per photo before compression. Drag to reorder.</div>
+    {% for error in form.image.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+    {% endfor %}
+</div>
+
+{{ form_field(form.category) }}
+{{ form_field(form.tags) }}
+
+{% set giveaway_help %}
+    A giveaway goes to its new owner for good, rather than being loaned.
+    {% if item %}Items with pending or active loan requests cannot be converted to giveaways until those loan requests are resolved.{% endif %}
+{% endset %}
+{{ check_field(form.is_giveaway, help=giveaway_help, id="isGiveawayCheckbox") }}
+
+<div id="giveawayVisibilitySection"{% if not form.is_giveaway.data %} style="display: none;"{% endif %}>
+    {{ radio_field(form.giveaway_visibility) }}
+</div>

@@ -49,9 +49,7 @@ class TestCircleLeave:
             response = client.get(f"/circles/{circle.id}")
 
             assert response.status_code == 200
-            # Check that the warning script is present in the page
-            assert b"You are the last member of this circle" in response.data
-            assert b"the circle will be permanently deleted" in response.data
+            assert b"Leaving will delete the circle for good" in response.data
 
     def test_no_warning_for_non_last_member(self, client, app):
         """Test that no warning is displayed when there are multiple members."""
