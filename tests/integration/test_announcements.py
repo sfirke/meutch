@@ -68,7 +68,7 @@ class TestDismiss:
         login_user(client, user.email)
 
         response = client.post(
-            _dismiss_url(announcement.id), headers={"Referer": f"http://localhost:5000{ABOUT_URL}"}
+            _dismiss_url(announcement.id), headers={"Referer": f"https://localhost:5000{ABOUT_URL}"}
         )
 
         assert response.status_code == 302

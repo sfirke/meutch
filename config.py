@@ -334,8 +334,9 @@ class TestingConfig(Config):
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SECRET_KEY = "test-secret-key"
     STORAGE_BACKEND = "local"  # Tests always use local storage
+    # Keep host and scheme in sync with TestConfig in conftest.py, which is what pytest uses.
     SERVER_NAME = "localhost:5000"
-    PREFERRED_URL_SCHEME = "http"
+    PREFERRED_URL_SCHEME = "https"
     SESSION_COOKIE_SECURE = False
     REMEMBER_COOKIE_SECURE = False
     REGISTRATION_MIN_FILL_SECONDS = 0
