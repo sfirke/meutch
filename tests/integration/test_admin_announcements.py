@@ -1,6 +1,6 @@
 """Integration tests for the admin Announcements page."""
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -9,6 +9,10 @@ from conftest import login_user
 from tests.factories import AnnouncementDismissalFactory, AnnouncementFactory, UserFactory
 
 PAGE_URL = "/admin/announcements"
+
+# Dates in the tests below fall next year so they stay in the future. December is in EST
+# (UTC-5) and July in EDT (UTC-4), so the pair covers both sides of daylight saving time.
+NEXT_YEAR = datetime.now(UTC).year + 1
 
 
 def _login_admin(client, db_session):
@@ -68,8 +72,8 @@ class TestCreate:
     @pytest.mark.parametrize(
         "ends_at, expected_utc",
         [
-            ("2030-12-04", datetime(2030, 12, 5, 5, 0)),
-            ("2030-07-04", datetime(2030, 7, 5, 4, 0)),
+            (f"{NEXT_YEAR}-12-04", datetime(NEXT_YEAR, 12, 5, 5, 0)),
+            (f"{NEXT_YEAR}-07-04", datetime(NEXT_YEAR, 7, 5, 4, 0)),
         ],
     )
     def test_end_date_runs_through_that_day_eastern(
@@ -84,9 +88,9 @@ class TestCreate:
     def test_start_date_begins_at_eastern_midnight(self, client, db_session):
         _login_admin(client, db_session)
 
-        client.post(PAGE_URL, data=_form_data(starts_at="2030-12-04"))
+        client.post(PAGE_URL, data=_form_data(starts_at=f"{NEXT_YEAR}-12-04"))
 
-        assert Announcement.query.one().starts_at == datetime(2030, 12, 4, 5, 0)
+        assert Announcement.query.one().starts_at == datetime(NEXT_YEAR, 12, 4, 5, 0)
 
     def test_future_start_is_scheduled(self, client, db_session):
         _login_admin(client, db_session)
@@ -117,9 +121,12 @@ class TestCreate:
     def test_rejects_end_before_start(self, client, db_session):
         _login_admin(client, db_session)
 
+        starts_at = datetime.now(UTC).date() + timedelta(days=30)
+        ends_at = starts_at - timedelta(days=1)
+
         response = client.post(
             PAGE_URL,
-            data=_form_data(starts_at=date(2030, 5, 2).isoformat(), ends_at="2030-05-01"),
+            data=_form_data(starts_at=starts_at.isoformat(), ends_at=ends_at.isoformat()),
         )
 
         assert response.status_code == 400
