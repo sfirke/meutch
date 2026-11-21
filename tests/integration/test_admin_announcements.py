@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from app.forms_admin import ANNOUNCEMENT_TIMEZONE
 from app.models import Announcement
 from conftest import login_user
 from tests.factories import AnnouncementDismissalFactory, AnnouncementFactory, UserFactory
@@ -191,3 +192,33 @@ class TestListAndEnd:
         content = client.get(PAGE_URL).data.decode("utf-8")
 
         assert content.index("Started today") < content.index("Started yesterday")
+
+
+class TestEndDateMinimum:
+    """The end date input can't be set before the start date in the browser."""
+
+    def test_end_date_min_defaults_to_today_eastern(self, client, db_session):
+        _login_admin(client, db_session)
+
+        response = client.get(PAGE_URL)
+
+        today = datetime.now(ANNOUNCEMENT_TIMEZONE).date().isoformat()
+        html = response.get_data(as_text=True)
+        assert f'min="{today}"' in html
+        assert f'data-today="{today}"' in html
+        assert "js/announcement-dates.js" in html
+
+    def test_end_date_min_follows_submitted_start_date(self, client, db_session):
+        _login_admin(client, db_session)
+
+        starts_at = datetime.now(UTC).date() + timedelta(days=30)
+        response = client.post(
+            PAGE_URL,
+            data=_form_data(
+                starts_at=starts_at.isoformat(),
+                ends_at=(starts_at - timedelta(days=1)).isoformat(),
+            ),
+        )
+
+        assert response.status_code == 400
+        assert f'min="{starts_at.isoformat()}"' in response.get_data(as_text=True)
