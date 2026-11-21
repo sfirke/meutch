@@ -50,6 +50,11 @@ Drag and drop enhancement for file inputs.
 - **Usage:** Add `drag-drop-upload` class to file inputs
 - **Pages:** list_item.html, edit_item.html
 
+### announcement-dates.js
+Keeps the end date on the admin announcement form from falling before the start date.
+- **Usage:** Add `data-announcement-form` to the form; the end date input needs a `data-today` ISO date
+- **Pages:** admin/announcements.html
+
 ## Adding New Utilities
 
 1. **Site-wide utility:** Add to `app/templates/base.html` in the "Core JavaScript utilities" section

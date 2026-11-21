@@ -349,6 +349,7 @@ def _render_announcements(form):
         form=form,
         end_form=EmptyForm(),
         rows=rows,
+        today=datetime.now(ANNOUNCEMENT_TIMEZONE).date(),
     )
 
 

@@ -31,7 +31,7 @@
                 Announcements can't be edited: to change one, end it and post a new one. Dates are
                 in US Eastern time.
             </p>
-            <form method="post" action="{{ url_for('admin.create_announcement') }}" novalidate>
+            <form method="post" action="{{ url_for('admin.create_announcement') }}" novalidate data-announcement-form>
                 {{ form.hidden_tag() }}
                 <div class="mb-3">
                     {{ field_with_errors(form.message, rows="2", maxlength="280") }}
@@ -52,7 +52,7 @@
                         {{ field_with_errors(form.starts_at) }}
                     </div>
                     <div class="col-md-4">
-                        {{ field_with_errors(form.ends_at) }}
+                        {{ field_with_errors(form.ends_at, min=(form.starts_at.data or today).isoformat(), data_today=today.isoformat()) }}
                     </div>
                 </div>
                 <div class="form-check mb-3">
@@ -138,4 +138,8 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ static_url_for('js/announcement-dates.js') }}"></script>
 {% endblock %}
