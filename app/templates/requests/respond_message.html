@@ -1,95 +1,48 @@
 {% extends "base.html" %}
+{% from "components/forms.html" import form_field %}
 
-{% block title %}Respond with Item{% endblock %}
+{% block title %}Offer an item{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <!-- Back link -->
-    <a href="{{ url_for('requests.respond', request_id=item_request.id) }}" class="btn btn-outline-secondary btn-sm mb-3">
-        <i class="fas fa-arrow-left me-1"></i>Choose a different item
-    </a>
+<div class="form-page">
+    <h1>Offer {{ item.name }}</h1>
 
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <!-- Request context -->
-            {% include 'requests/_request_context.html' %}
+    {% include 'requests/_request_context.html' %}
 
-            <!-- Selected item -->
-            <div class="card mb-4">
-                <div class="row g-0">
-                    <div class="col-md-4">
-                        {% if item.image %}
-                            <img src="{{ item.image }}" class="img-fluid rounded-start w-100 h-100 bg-light" alt="{{ item.name }}" style="object-fit: contain; min-height: 120px; max-height: 320px;">
-                        {% else %}
-                            <div class="d-flex align-items-center justify-content-center bg-light h-100 rounded-start" style="min-height: 120px;">
-                                <i class="fas fa-image text-muted" style="font-size: 2rem;"></i>
-                            </div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-8">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ item.name }}</h5>
-                            {% if item.description %}
-                                <p class="card-text text-muted small">{{ item.description|truncate(120) }}</p>
-                            {% endif %}
-                            <p class="card-text">
-                                {% if item.is_giveaway %}
-                                    <span class="badge bg-success"><i class="fas fa-gift me-1"></i>Giveaway</span>
-                                {% else %}
-                                    <span class="badge bg-info"><i class="fas fa-handshake me-1"></i>Loan</span>
-                                {% endif %}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {% if seeking_mismatch %}
-                <div class="alert alert-warning d-flex align-items-start" role="alert">
-                    <i class="fas fa-triangle-exclamation me-2 mt-1"></i>
-                    <div>
-                        {{ seeking_mismatch }}
-                        You can still offer it, just tell them what you have in mind.
-                    </div>
-                </div>
+    <section class="card conversation-context" aria-labelledby="offered-item-label">
+        <img src="{{ item.image }}" alt="" class="conversation-context-photo">
+        <div class="conversation-context-body">
+            <div class="context-label" id="offered-item-label">What you're offering</div>
+            <div class="conversation-context-title">{{ item.name }}</div>
+            <div class="small text-muted">{{ "A giveaway" if item.is_giveaway else "A loan" }}</div>
+            {% if item.description %}
+                <p class="conversation-context-description text-break feed-line-clamp-2">{{ item.description }}</p>
             {% endif %}
-
-            {% if visibility_gap %}
-                <div class="alert alert-warning d-flex align-items-start" role="alert">
-                    <i class="fas fa-eye-slash me-2 mt-1"></i>
-                    <div>
-                        {{ visibility_gap }}
-                        You can still offer it, or invite them to a circle so they can see it.
-                    </div>
-                </div>
-            {% endif %}
-
-            <!-- Message form -->
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title mb-1">Your Message</h5>
-                    <p class="text-muted small mb-3">Feel free to edit this text.</p>
-                    <form method="POST">
-                        {{ form.hidden_tag() }}
-                        <div class="mb-3">
-                            {{ form.body.label(class="form-label visually-hidden") }}
-                            {{ form.body(class="form-control", rows="6") }}
-                            {% for error in form.body.errors %}
-                                <div class="text-danger mt-1">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-paper-plane me-1"></i>Send Message
-                            </button>
-                            <a href="{{ url_for('requests.respond', request_id=item_request.id) }}" class="btn btn-outline-secondary">
-                                Cancel
-                            </a>
-                        </div>
-                    </form>
-                </div>
-            </div>
+            <a href="{{ url_for('requests.respond', request_id=item_request.id) }}" class="small">Choose a different item</a>
         </div>
-    </div>
+    </section>
+
+    {% if seeking_mismatch %}
+        <div class="alert alert-warning" role="alert">
+            {{ seeking_mismatch }}
+            You can still offer it, just tell them what you have in mind.
+        </div>
+    {% endif %}
+
+    {% if visibility_gap %}
+        <div class="alert alert-warning" role="alert">
+            {{ visibility_gap }}
+            You can still offer it, or invite them to a circle so they can see it.
+        </div>
+    {% endif %}
+
+    <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        {{ form_field(form.body, label="Your message", help="Feel free to edit this text.", rows="6") }}
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Send message</button>
+            <a href="{{ url_for('requests.respond', request_id=item_request.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
 </div>
 {% endblock %}

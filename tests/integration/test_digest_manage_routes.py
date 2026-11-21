@@ -20,7 +20,7 @@ class TestDigestManageRoutes:
             response = client.get(f"/digest/manage/{token}")
 
             assert response.status_code == 200
-            assert b"Manage Digest Emails" in response.data
+            assert b"Manage digest emails" in response.data
             assert b"One-click unsubscribe" in response.data
             assert b"Switch to daily" in response.data
             assert b"Switch to weekly" not in response.data  # Already on weekly

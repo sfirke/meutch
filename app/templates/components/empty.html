@@ -1,0 +1,10 @@
+{#- Content and buttons go in the call block. Put buttons in a div.action-row. -#}
+{% macro empty_state(title, icon=none, heading="h2") %}
+    <div class="empty-state">
+        {%- if icon %}
+            <span class="empty-state-icon" aria-hidden="true"><i class="fas fa-{{ icon }}"></i></span>
+        {%- endif %}
+        <{{ heading }} class="empty-state-title">{{ title }}</{{ heading }}>
+        {%- if caller %}{{ caller() }}{% endif %}
+    </div>
+{% endmacro %}

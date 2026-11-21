@@ -36,7 +36,7 @@ class UpdateLocationForm(FlaskForm):
     )
 
     street = StringField(
-        "Street Address",
+        "Street address",
         validators=[
             Optional(),
             Length(max=200, message="Street address must be under 200 characters."),
@@ -57,10 +57,10 @@ class UpdateLocationForm(FlaskForm):
         ],
     )
     zip_code = StringField(
-        "Postal Code",
+        "Postal code",
         validators=[
             Optional(),
-            Length(max=20, message="Postal Code must be under 20 characters."),
+            Length(max=20, message="Postal code must be under 20 characters."),
         ],
     )
     country = SelectField(
@@ -91,7 +91,7 @@ class UpdateLocationForm(FlaskForm):
         ],
     )
 
-    submit = SubmitField("Update Location")
+    submit = SubmitField("Update location")
 
     def validate(self, extra_validators=None):
         """Custom validation to ensure required fields are filled based on location method"""
@@ -122,22 +122,22 @@ class UpdateLocationForm(FlaskForm):
 
 class EditProfileForm(FlaskForm):
     first_name = StringField(
-        "First Name",
+        "First name",
         validators=[
             DataRequired(message="First name is required."),
             Length(max=50, message="First name must be under 50 characters."),
         ],
     )
     last_name = StringField(
-        "Last Name",
+        "Last name",
         validators=[
             DataRequired(message="Last name is required."),
             Length(max=50, message="Last name must be under 50 characters."),
         ],
     )
-    about_me = TextAreaField("About Me", validators=[Length(max=500)])
+    about_me = TextAreaField("About me", validators=[Length(max=500)])
     profile_image = FileField(
-        "Profile Picture",
+        "Profile picture",
         validators=[
             OptionalFileAllowed(
                 ["jpg", "jpeg", "png", "gif", "bmp", "webp"],
@@ -149,40 +149,40 @@ class EditProfileForm(FlaskForm):
 
     link_1_platform = SelectField("Platform 1", choices=[], validators=[Optional()])
     link_1_custom_name = StringField(
-        "Custom Name 1",
+        "Custom name 1",
         validators=[Optional(), Length(max=50)],
     )
     link_1_url = StringField("URL 1", validators=[OptionalURL()])
 
     link_2_platform = SelectField("Platform 2", choices=[], validators=[Optional()])
     link_2_custom_name = StringField(
-        "Custom Name 2",
+        "Custom name 2",
         validators=[Optional(), Length(max=50)],
     )
     link_2_url = StringField("URL 2", validators=[OptionalURL()])
 
     link_3_platform = SelectField("Platform 3", choices=[], validators=[Optional()])
     link_3_custom_name = StringField(
-        "Custom Name 3",
+        "Custom name 3",
         validators=[Optional(), Length(max=50)],
     )
     link_3_url = StringField("URL 3", validators=[OptionalURL()])
 
     link_4_platform = SelectField("Platform 4", choices=[], validators=[Optional()])
     link_4_custom_name = StringField(
-        "Custom Name 4",
+        "Custom name 4",
         validators=[Optional(), Length(max=50)],
     )
     link_4_url = StringField("URL 4", validators=[OptionalURL()])
 
     link_5_platform = SelectField("Platform 5", choices=[], validators=[Optional()])
     link_5_custom_name = StringField(
-        "Custom Name 5",
+        "Custom name 5",
         validators=[Optional(), Length(max=50)],
     )
     link_5_url = StringField("URL 5", validators=[OptionalURL()])
 
-    submit = SubmitField("Update Profile")
+    submit = SubmitField("Update profile")
 
     def __init__(self, *args, **kwargs):
         super(EditProfileForm, self).__init__(*args, **kwargs)
@@ -238,7 +238,7 @@ class DeleteAccountForm(FlaskForm):
             Length(max=50, message="Confirmation phrase is too long."),
         ],
     )
-    submit = SubmitField("Delete My Account")
+    submit = SubmitField("Delete my account")
 
     def validate_confirmation(self, field):
         if field.data != "DELETE MY ACCOUNT":
@@ -246,18 +246,18 @@ class DeleteAccountForm(FlaskForm):
 
 
 class VacationModeForm(FlaskForm):
-    vacation_mode = BooleanField("Vacation Mode")
+    vacation_mode = BooleanField("Vacation mode")
     submit = SubmitField("Update")
 
 
 class DigestSettingsForm(FlaskForm):
     digest_frequency = SelectField(
-        "Digest Frequency",
+        "Digest frequency",
         choices=DIGEST_FREQUENCY_CHOICES,
         validators=[DataRequired()],
     )
     digest_radius_miles = IntegerField(
-        "Digest Radius (miles)",
+        "Digest radius (miles)",
         validators=[
             DataRequired(),
             NumberRange(min=1, max=50, message="Radius must be between 1 and 50 miles."),
@@ -270,4 +270,4 @@ class DigestSettingsForm(FlaskForm):
     digest_include_loans = BooleanField("Loans in my circles")
     digest_giveaways_include_public = BooleanField("Include public giveaways within radius")
     digest_requests_include_public = BooleanField("Include public requests within radius")
-    submit = SubmitField("Save Digest Settings")
+    submit = SubmitField("Save digest settings")

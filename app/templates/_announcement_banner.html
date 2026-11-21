@@ -1,7 +1,7 @@
 {% if current_announcement %}
 {% set announcement = current_announcement %}
 <div class="container mt-3">
-    <div class="alert alert-{{ announcement.level }}{% if announcement.dismissible %} alert-dismissible pe-5{% endif %} mb-0" role="status" data-announcement-banner>
+    <div class="alert alert-{{ announcement.level }}{% if announcement.dismissible %} alert-dismissible pe-5{% endif %}" role="status" data-announcement-banner>
         <i class="fas fa-bullhorn me-2" aria-hidden="true"></i>
         {{ announcement.message }}
         {% if announcement.link_url %}

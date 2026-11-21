@@ -27,19 +27,10 @@ _static_hash_cache = {}
 
 
 def inject_unread_messages_count():
-    # Import models at function level to avoid circular imports
-    from app.models import Message
+    from app.services.message_service import count_unread_messages
 
     if current_user.is_authenticated:
-        # Count all unread messages where the current user is the recipient
-        # This includes both regular messages and loan request messages (approvals, denials, etc.)
-        unread_messages = Message.query.filter(
-            Message.recipient_id == current_user.id,
-            Message.is_read.is_(False),
-            Message.sender_id != current_user.id,  # Exclude self-sent messages
-        ).count()
-
-        return dict(unread_messages_count=unread_messages)
+        return dict(unread_messages_count=count_unread_messages(current_user.id))
     return dict(unread_messages_count=0)
 
 

@@ -30,7 +30,7 @@ class ItemRequestForm(FlaskForm):
         validators=[DataRequired(message="Please select an expiration date.")],
     )
     seeking = SelectField(
-        "What are you looking for?",
+        "Do you want to borrow it or keep it?",
         choices=ItemRequest.SEEKING_CHOICES,
         default="either",
         validators=[DataRequired()],
@@ -41,7 +41,7 @@ class ItemRequestForm(FlaskForm):
         default="public",
         validators=[DataRequired()],
     )
-    submit = SubmitField("Post Request")
+    submit = SubmitField("Post request")
 
     def validate_expires_at(self, field):
         """Expiration must be between today and 6 months from today."""

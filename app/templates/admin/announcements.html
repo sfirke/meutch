@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/empty.html" import empty_state %}
 
 {% block title %}Announcements{% endblock %}
 
@@ -11,24 +12,24 @@
 {% endmacro %}
 
 {% block content %}
-<div class="container mt-5 mb-5">
+<div>
     <div class="mb-4">
-        <h1><i class="fas fa-user-shield me-2"></i>Admin Panel</h1>
+        <h1>Admin</h1>
         <p class="text-muted">Platform administration and user management</p>
     </div>
 
     {% include "admin/_tab_bar.html" %}
 
     <div class="card mb-4">
-        <div class="card-header bg-dark text-white">
-            <h5 class="mb-0 text-white"><i class="fas fa-bullhorn me-2"></i>New announcement</h5>
+        <div class="card-header">
+            <h2 class="h5 mb-0">New announcement</h2>
         </div>
         <div class="card-body">
             <p class="text-muted small">
                 Shows as a banner at the top of every page for logged-in members. Only the active
                 one with the latest start date that a member hasn't dismissed is shown.
                 Announcements can't be edited: to change one, end it and post a new one. Dates are
-                in UTC.
+                in US Eastern time.
             </p>
             <form method="post" action="{{ url_for('admin.create_announcement') }}" novalidate>
                 {{ form.hidden_tag() }}
@@ -64,8 +65,8 @@
     </div>
 
     <div class="card">
-        <div class="card-header bg-dark text-white">
-            <h5 class="mb-0 text-white"><i class="fas fa-list me-2"></i>All announcements</h5>
+        <div class="card-header">
+            <h2 class="h5 mb-0">All announcements</h2>
         </div>
         <div class="card-body">
             {% if rows %}
@@ -132,7 +133,7 @@
                     </table>
                 </div>
             {% else %}
-                <p class="text-muted mb-0">No announcements yet.</p>
+                {{ empty_state("No announcements yet", heading="h3") }}
             {% endif %}
         </div>
     </div>

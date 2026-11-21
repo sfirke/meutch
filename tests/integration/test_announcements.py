@@ -66,7 +66,7 @@ class TestDismiss:
         login_user(client, user.email)
 
         response = client.post(
-            _dismiss_url(announcement.id), headers={"Referer": f"http://localhost:5000{ABOUT_URL}"}
+            _dismiss_url(announcement.id), headers={"Referer": f"https://localhost:5000{ABOUT_URL}"}
         )
 
         assert response.status_code == 302
@@ -144,6 +144,8 @@ class TestDismiss:
 
         client = csrf_app.test_client(user=user)
         token = _csrf_token(client.get(ABOUT_URL).data.decode("utf-8"))
+
+        # The app runs as https here, so Flask-WTF also requires a same-site Referer.
         referer = {"Referer": f"https://localhost:5000{ABOUT_URL}"}
 
         client.post(_dismiss_url(announcement.id), headers=referer)

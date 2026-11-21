@@ -24,10 +24,15 @@ from app.utils.item_share import (
 def _absolute_image_url(image_url):
     """Return an absolute URL for OG/Twitter image tags."""
     if not image_url:
-        return url_for("static", filename="img/logo_m.png", _external=True)
+        return url_for("static", filename="img/og_default.png", _external=True)
     if image_url.startswith("http://") or image_url.startswith("https://"):
         return image_url
     return urljoin(request.url_root, image_url.lstrip("/"))
+
+
+def _item_photo_url(item):
+    """The item's first photo, or None. Item.image falls back to a placeholder."""
+    return item.images[0].url if item.images else None
 
 
 def _item_share_session_key(item_id):
@@ -60,7 +65,7 @@ def giveaway_preview(item_id):
     return render_template(
         "share/giveaway_preview.html",
         item=item,
-        preview_image_url=_absolute_image_url(item.image),
+        preview_image_url=_absolute_image_url(_item_photo_url(item)),
         auth_next_url=auth_next_url,
     )
 
@@ -138,7 +143,7 @@ def item_preview(token):
     return render_template(
         "share/item_preview.html",
         item=item,
-        preview_image_url=_absolute_image_url(item.image),
+        preview_image_url=_absolute_image_url(_item_photo_url(item)),
         auth_next_url=auth_next_url,
         item_share_valid_days=ITEM_SHARE_TOKEN_MAX_AGE_DAYS,
     )
