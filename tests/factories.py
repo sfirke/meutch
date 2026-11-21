@@ -12,6 +12,8 @@ from app import db
 from app.models import (
     ActivityLog,
     AdminAction,
+    Announcement,
+    AnnouncementDismissal,
     Category,
     Circle,
     CircleJoinRequest,
@@ -330,3 +332,33 @@ class ItemRequestFactory(SQLAlchemyModelFactory):
     seeking = "either"
     visibility = "public"
     status = "open"
+
+
+class AnnouncementFactory(SQLAlchemyModelFactory):
+    """Factory for Announcement model. Active from a minute ago, with no end."""
+
+    class Meta:
+        model = Announcement
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+
+    message = factory.Sequence(lambda n: f"Announcement {n}")
+    level = Announcement.LEVEL_INFO
+    starts_at = factory.LazyFunction(
+        lambda: datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1)
+    )
+    ends_at = None
+    dismissible = True
+    created_by = factory.SubFactory(UserFactory, is_admin=True)
+
+
+class AnnouncementDismissalFactory(SQLAlchemyModelFactory):
+    """Factory for AnnouncementDismissal model."""
+
+    class Meta:
+        model = AnnouncementDismissal
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+
+    user = factory.SubFactory(UserFactory)
+    announcement = factory.SubFactory(AnnouncementFactory)

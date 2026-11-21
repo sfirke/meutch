@@ -16,6 +16,7 @@ from flask_wtf.csrf import CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.context_processors import (
+    inject_announcement,
     inject_distance_utils,
     inject_item_upload_limits,
     inject_share_fields,
@@ -151,6 +152,7 @@ def create_app(config_class=None):
     app.context_processor(inject_static_url_for)
     app.context_processor(inject_item_upload_limits)
     app.context_processor(inject_share_fields)
+    app.context_processor(inject_announcement)
 
     # Register custom Jinja filters
     from app.template_filters import register_filters
