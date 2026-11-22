@@ -86,6 +86,20 @@ Operational notes:
 - `POST /api/v1/auth/logout` revokes the whole current token family (session). Reusing an already-rotated refresh token also revokes that family and forces the user to log in again.
 - If `JWT_SECRET_KEY` is unset, the app falls back to `SECRET_KEY`, but production deployments should set a dedicated JWT secret explicitly.
 
+### Optional: Impact Estimates (item-appraiser)
+
+Used only by the scheduled appraisal job, not by the web app. Set the key for the provider named in `IMPACT_APPRAISER_PROVIDER`.
+
+```bash
+# "claude" (default) or "deepseek"
+IMPACT_APPRAISER_PROVIDER=claude
+ANTHROPIC_API_KEY=<your-anthropic-api-key>
+DEEPSEEK_API_KEY=<your-deepseek-api-key>
+
+# Optional model override; unset uses the item-appraiser library default
+IMPACT_APPRAISER_MODEL=
+```
+
 ### Optional: API Rollout Controls And Rate Limiting
 
 These variables harden the `/api/v1` surface for mobile clients and give deploys an operational rollback path without removing routes from the codebase.

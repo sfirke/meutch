@@ -8,6 +8,7 @@ Flask-Login==0.6.3
 Flask-Migrate==4.1.0
 Flask-WTF==1.3.0
 gunicorn==26.2.0
+item-appraiser[claude,deepseek]==0.1.0
 marshmallow==4.4.0
 psycopg[binary]==3.3.8
 Pillow==13.0.0
