@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from datetime import datetime, timedelta
 
 import pytest
@@ -122,3 +124,17 @@ class TestBuildAppraiser:
                 DEEPSEEK_API_KEY="test-key",
             )
             assert impact_service.build_appraiser().fingerprint
+
+
+def test_app_startup_does_not_load_provider_sdks():
+    code = (
+        "import sys\n"
+        "from app import create_app\n"
+        "from config import TestingConfig\n"
+        "create_app(TestingConfig)\n"
+        "print(sorted(m for m in ('anthropic', 'openai') if m in sys.modules))\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=True
+    )
+    assert result.stdout.strip().splitlines()[-1] == "[]"

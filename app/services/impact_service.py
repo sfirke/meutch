@@ -1,19 +1,14 @@
 import logging
 from dataclasses import dataclass
 
-import anthropic
-import openai
 from flask import current_app
 from item_appraiser import (
     Appraisal,
     AppraisalError,
     Appraiser,
-    ClaudeAppraiser,
-    DeepSeekAppraiser,
     Impact,
     Listing,
 )
-from item_appraiser.deepseek import BASE_URL as DEEPSEEK_BASE_URL
 from sqlalchemy.orm import selectinload
 
 from app import db
@@ -35,6 +30,13 @@ class AppraisalSummary:
 
 
 def build_appraiser() -> Appraiser:
+    # pylint: disable=import-outside-toplevel
+    # Provider SDKs are heavy; load them only when the job runs.
+    import anthropic
+    import openai
+    from item_appraiser import ClaudeAppraiser, DeepSeekAppraiser
+    from item_appraiser.deepseek import BASE_URL as DEEPSEEK_BASE_URL
+
     provider = current_app.config["IMPACT_APPRAISER_PROVIDER"]
     options = {"impacts": [Impact.MONEY, Impact.CLIMATE]}
     model = current_app.config["IMPACT_APPRAISER_MODEL"]
