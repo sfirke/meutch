@@ -121,12 +121,13 @@ def create_app(config_class=None):
 
     # Register CLI commands
     try:
-        from app.cli import api, check_loan_reminders, seed, user
+        from app.cli import api, check_loan_reminders, impact, seed, user
 
         app.cli.add_command(seed)
         app.cli.add_command(user)
         app.cli.add_command(api)
         app.cli.add_command(check_loan_reminders)
+        app.cli.add_command(impact)
     except ImportError as e:
         print(f"Warning: Could not import CLI commands: {e}")
 

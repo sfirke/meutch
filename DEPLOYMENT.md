@@ -317,6 +317,51 @@ jobs:
 
 Ensure all required environment variables are set in your DigitalOcean app configuration.
 
+## Impact Estimate Appraisal Job
+
+Item value and CO2 estimates are produced by a scheduled CLI job (`flask impact appraise`), never during a web request. Each run appraises items that have no estimate yet or whose name, description, category or photos changed since the last one, oldest first, and commits after every item so a failure partway through keeps earlier work. An item that fails is logged and retried on the next run.
+
+The job needs the variables in [Optional: Impact Estimates (item-appraiser)](#optional-impact-estimates-item-appraiser) in addition to `DATABASE_URL` and `SECRET_KEY`.
+
+```bash
+flask impact appraise              # up to 200 items
+flask impact appraise --limit 50   # cap the items appraised in this run
+flask impact appraise --dry-run    # count items and estimate cost; no API calls
+```
+
+### One-Time Backfill
+
+After the first deploy every existing item needs an estimate:
+
+1. Run `flask impact appraise --dry-run --limit 5000` and check the item count and estimated cost.
+2. Run `flask impact appraise --limit 5000` once (raise `--limit` to cover the dry-run count). It can take a while, since each item takes several seconds.
+3. Run the dry run again; it should report 0 items. Anything that failed is picked up by the hourly job.
+
+### Automated Scheduling
+
+```yaml
+jobs:
+  - name: impact-appraisals
+    kind: SCHEDULED
+    run_command: flask impact appraise
+    schedule: "0 * * * *"  # Hourly
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+      - key: SECRET_KEY
+        scope: RUN_TIME
+      - key: IMPACT_APPRAISER_PROVIDER
+        scope: RUN_TIME
+      - key: ANTHROPIC_API_KEY
+        scope: RUN_TIME
+      - key: DEEPSEEK_API_KEY
+        scope: RUN_TIME
+      - key: IMPACT_APPRAISER_MODEL
+        scope: RUN_TIME
+```
+
+Only the key for the chosen provider is required.
+
 ## Database Migrations
 
 After deploying new code, always run migrations:
