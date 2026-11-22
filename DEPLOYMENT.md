@@ -86,6 +86,20 @@ Operational notes:
 - `POST /api/v1/auth/logout` revokes the whole current token family (session). Reusing an already-rotated refresh token also revokes that family and forces the user to log in again.
 - If `JWT_SECRET_KEY` is unset, the app falls back to `SECRET_KEY`, but production deployments should set a dedicated JWT secret explicitly.
 
+### Optional: Impact Estimates (item-appraiser)
+
+Used only by the scheduled appraisal job, not by the web app. Set the key for the provider named in `IMPACT_APPRAISER_PROVIDER`.
+
+```bash
+# "claude" (default) or "deepseek"
+IMPACT_APPRAISER_PROVIDER=claude
+ANTHROPIC_API_KEY=<your-anthropic-api-key>
+DEEPSEEK_API_KEY=<your-deepseek-api-key>
+
+# Optional model override; unset uses the item-appraiser library default
+IMPACT_APPRAISER_MODEL=
+```
+
 ### Optional: API Rollout Controls And Rate Limiting
 
 These variables harden the `/api/v1` surface for mobile clients and give deploys an operational rollback path without removing routes from the codebase.
@@ -302,6 +316,57 @@ jobs:
 ```
 
 Ensure all required environment variables are set in your DigitalOcean app configuration.
+
+## Impact Estimate Appraisal Job
+
+Item value and CO2 estimates are produced by a scheduled CLI job (`flask impact appraise`), never during a web request. Each run appraises items that have no estimate yet or whose name, description, category or photos changed since the last one, oldest first, and commits after every item so a failure partway through keeps earlier work. An item that fails is logged and retried on the next run.
+
+The job needs the variables in [Optional: Impact Estimates (item-appraiser)](#optional-impact-estimates-item-appraiser) in addition to `DATABASE_URL` and `SECRET_KEY`.
+
+```bash
+flask impact appraise              # up to 200 items
+flask impact appraise --limit 50   # cap the items appraised in this run
+flask impact appraise --dry-run    # count items and estimate cost; no API calls
+```
+
+### One-Time Backfill
+
+After the first deploy every existing item needs an estimate:
+
+1. Run `flask impact appraise --dry-run --limit 5000` and check the item count and estimated cost.
+2. Run `flask impact appraise --limit 5000` once (raise `--limit` to cover the dry-run count). It can take a while, since each item takes several seconds.
+3. Run the dry run again; it should report 0 items. Anything that failed is picked up by the hourly job.
+
+Don't let two runs overlap: if both appraise the same item, the second fails on the unique `item_id` and stops (the next run picks up the rest). Start the backfill a few minutes after the hour, or add the scheduled job once the backfill is done.
+
+### Automated Scheduling
+
+Set this up like the loan reminder job: a scheduled job in the same app, built from the same source. Only the provider settings are new.
+
+```yaml
+jobs:
+  - name: impact-appraisals
+    kind: SCHEDULED
+    run_command: flask impact appraise
+    schedule: "0 * * * *"  # Hourly; UTC is fine
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+      - key: SECRET_KEY
+        scope: RUN_TIME
+      - key: IMPACT_APPRAISER_PROVIDER
+        value: claude
+        scope: RUN_TIME
+      - key: ANTHROPIC_API_KEY
+        type: SECRET
+        value: <your-anthropic-api-key>
+        scope: RUN_TIME
+```
+
+- Put the API key on this job only, as an encrypted secret. The web app never calls the provider.
+- For DeepSeek, set `IMPACT_APPRAISER_PROVIDER=deepseek` and a `DEEPSEEK_API_KEY` secret instead. Set `IMPACT_APPRAISER_MODEL` only to override the library default.
+- Runs with no new or edited items make no API calls. At the default `--limit 200`, a full run takes roughly 10 minutes.
+- Each run prints `Appraised`, `Failed` and `Up to date (skipped)` counts; failures are logged as `Appraisal failed for item <id>`.
 
 ## Database Migrations
 

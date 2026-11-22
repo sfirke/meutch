@@ -325,6 +325,14 @@ class Config:
     JWT_HEADER_TYPE = "Bearer"
     JWT_ERROR_MESSAGE_KEY = "message"
 
+    # Impact estimates (item-appraiser). Keys are only needed by the scheduled
+    # appraisal job, never by the web app or tests.
+    IMPACT_APPRAISER_PROVIDER = os.environ.get("IMPACT_APPRAISER_PROVIDER", "claude")
+    ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+    DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
+    # None means the item-appraiser library's default model for the provider.
+    IMPACT_APPRAISER_MODEL = os.environ.get("IMPACT_APPRAISER_MODEL")
+
 
 class TestingConfig(Config):
     """Configuration for testing environment"""

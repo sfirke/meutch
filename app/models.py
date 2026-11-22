@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 from flask import url_for
 from flask_login import UserMixin
+from item_appraiser import Appraisal
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -436,6 +437,13 @@ class Item(db.Model):
         passive_deletes=True,
         lazy="select",
     )
+    appraisal = db.relationship(
+        "ItemAppraisal",
+        back_populates="item",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     @property
     def image(self):
@@ -496,6 +504,79 @@ class ItemImage(db.Model):
 
     def __repr__(self):
         return f"<ItemImage item_id={self.item_id} position={self.position}>"
+
+
+class ItemAppraisal(db.Model):
+    """The current item_appraiser estimate for an item. Derived values come from the library."""
+
+    __tablename__ = "item_appraisal"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    item_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("item.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    new_price_usd = db.Column(db.Numeric(12, 2), nullable=False)
+    unit_new_price_usd = db.Column(db.Numeric(12, 4), nullable=True)
+    quantity = db.Column(db.Integer, nullable=True)
+    condition = db.Column(db.String(16), nullable=False)
+    resale_demand = db.Column(db.String(16), nullable=False)
+    confidence = db.Column(db.String(16), nullable=True)
+    footprint_category = db.Column(db.String(64), nullable=True)
+    assumption = db.Column(db.Text, nullable=False, default="")
+    # Sorted, comma-separated Impact values, e.g. "climate,money".
+    impacts = db.Column(db.String(64), nullable=False)
+    fingerprint = db.Column(db.String(64), nullable=False, index=True)
+    model_version = db.Column(db.String(100), nullable=False)
+    model_fingerprint = db.Column(db.String(100), nullable=True)
+    estimated_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(db.DateTime, default=func.now(), nullable=False)
+    updated_at = db.Column(db.DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    item = db.relationship("Item", back_populates="appraisal")
+
+    def update_from_appraisal(self, appraisal):
+        """Copy an item_appraiser.Appraisal's raw fields onto this row."""
+        data = appraisal.to_dict()
+        self.new_price_usd = data["new_price_usd"]
+        self.unit_new_price_usd = data["unit_new_price_usd"]
+        self.quantity = data["quantity"]
+        self.condition = data["condition"]
+        self.resale_demand = data["resale_demand"]
+        self.confidence = data["confidence"]
+        self.footprint_category = data["footprint_category"]
+        self.assumption = data["assumption"]
+        self.impacts = ",".join(data["impacts"])
+        self.fingerprint = data["fingerprint"]
+        self.model_version = data["model_version"]
+        self.model_fingerprint = data["model_fingerprint"]
+        self.estimated_at = appraisal.estimated_at
+
+    def to_appraisal(self):
+        """Rebuild the item_appraiser.Appraisal this row was stored from."""
+        unit_price = self.unit_new_price_usd
+        return Appraisal.from_dict(
+            {
+                "new_price_usd": float(self.new_price_usd),
+                "unit_new_price_usd": float(unit_price) if unit_price is not None else None,
+                "quantity": self.quantity,
+                "condition": self.condition,
+                "resale_demand": self.resale_demand,
+                "confidence": self.confidence,
+                "footprint_category": self.footprint_category,
+                "assumption": self.assumption,
+                "impacts": self.impacts.split(",") if self.impacts else [],
+                "fingerprint": self.fingerprint,
+                "model_version": self.model_version,
+                "model_fingerprint": self.model_fingerprint,
+                "estimated_at": self.estimated_at,
+            }
+        )
+
+    def __repr__(self):
+        return f"<ItemAppraisal item_id={self.item_id}>"
 
 
 class GiveawayInterest(db.Model):

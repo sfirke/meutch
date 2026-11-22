@@ -1818,5 +1818,41 @@ def check_loan_reminders(force_digest, force_loan_reminders, today_override, dig
     click.echo("✅ Done!")
 
 
+@click.group()
+def impact():
+    """Impact estimate commands."""
+    pass
+
+
+@impact.command("appraise")
+@click.option(
+    "--limit",
+    default=200,
+    show_default=True,
+    type=click.IntRange(min=1),
+    help="Maximum number of items to appraise in this run.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Count items needing appraisal and estimate the cost without calling the API.",
+)
+@with_appcontext
+def appraise(limit, dry_run):
+    """Appraise items that are new or changed since their last appraisal."""
+    from app.services import impact_service
+
+    appraiser = impact_service.build_appraiser()
+    summary = impact_service.appraise_pending(limit, appraiser, dry_run=dry_run)
+
+    if dry_run:
+        click.echo(f"Dry run: {summary.pending} item(s) would be appraised")
+        click.echo(f"  Estimated cost: up to ${summary.estimated_cost_usd:.4f}")
+    else:
+        click.echo(f"Appraised: {summary.appraised}")
+        click.echo(f"Failed: {summary.failed}")
+    click.echo(f"Up to date (skipped): {summary.skipped}")
+
+
 if __name__ == "__main__":
     seed()
