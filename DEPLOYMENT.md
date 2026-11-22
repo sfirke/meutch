@@ -337,30 +337,36 @@ After the first deploy every existing item needs an estimate:
 2. Run `flask impact appraise --limit 5000` once (raise `--limit` to cover the dry-run count). It can take a while, since each item takes several seconds.
 3. Run the dry run again; it should report 0 items. Anything that failed is picked up by the hourly job.
 
+Don't let two runs overlap: if both appraise the same item, the second fails on the unique `item_id` and stops (the next run picks up the rest). Start the backfill a few minutes after the hour, or add the scheduled job once the backfill is done.
+
 ### Automated Scheduling
+
+Set this up like the loan reminder job: a scheduled job in the same app, built from the same source. Only the provider settings are new.
 
 ```yaml
 jobs:
   - name: impact-appraisals
     kind: SCHEDULED
     run_command: flask impact appraise
-    schedule: "0 * * * *"  # Hourly
+    schedule: "0 * * * *"  # Hourly; UTC is fine
     envs:
       - key: DATABASE_URL
         scope: RUN_TIME
       - key: SECRET_KEY
         scope: RUN_TIME
       - key: IMPACT_APPRAISER_PROVIDER
+        value: claude
         scope: RUN_TIME
       - key: ANTHROPIC_API_KEY
-        scope: RUN_TIME
-      - key: DEEPSEEK_API_KEY
-        scope: RUN_TIME
-      - key: IMPACT_APPRAISER_MODEL
+        type: SECRET
+        value: <your-anthropic-api-key>
         scope: RUN_TIME
 ```
 
-Only the key for the chosen provider is required.
+- Put the API key on this job only, as an encrypted secret. The web app never calls the provider.
+- For DeepSeek, set `IMPACT_APPRAISER_PROVIDER=deepseek` and a `DEEPSEEK_API_KEY` secret instead. Set `IMPACT_APPRAISER_MODEL` only to override the library default.
+- Runs with no new or edited items make no API calls. At the default `--limit 200`, a full run takes roughly 10 minutes.
+- Each run prints `Appraised`, `Failed` and `Up to date (skipped)` counts; failures are logged as `Appraisal failed for item <id>`.
 
 ## Database Migrations
 
