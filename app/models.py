@@ -579,6 +579,71 @@ class ItemAppraisal(db.Model):
         return f"<ItemAppraisal item_id={self.item_id}>"
 
 
+class ImpactEvent(db.Model):
+    """One completed loan or giveaway. Rows outlive the item, loan and users they point to."""
+
+    __tablename__ = "impact_event"
+    __table_args__ = (
+        db.CheckConstraint("kind IN ('loan', 'giveaway')", name="ck_impact_event_kind"),
+        db.Index(
+            "uq_impact_event_giveaway_item",
+            "item_id",
+            unique=True,
+            postgresql_where=db.text("kind = 'giveaway'"),
+        ),
+    )
+
+    KIND_LOAN = "loan"
+    KIND_GIVEAWAY = "giveaway"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kind = db.Column(db.String(16), nullable=False)
+    occurred_at = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    item_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("item.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    loan_request_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("loan_request.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+    )
+    beneficiary_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    provider_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    item_name = db.Column(db.String(100), nullable=False)
+    category_name = db.Column(db.String(50), nullable=False)
+    # Appraisal inputs, NULL until the event is filled.
+    new_price_usd = db.Column(db.Numeric(12, 2), nullable=True)
+    quantity = db.Column(db.Integer, nullable=True)
+    condition = db.Column(db.String(16), nullable=True)
+    resale_demand = db.Column(db.String(16), nullable=True)
+    footprint_category = db.Column(db.String(64), nullable=True)
+    model_version = db.Column(db.String(100), nullable=True)
+    usd_saved = db.Column(db.Numeric(12, 2), nullable=True)
+    kg_co2e_avoided = db.Column(db.Numeric(12, 3), nullable=True)
+    policy_version = db.Column(db.String(32), nullable=True)
+    created_at = db.Column(db.DateTime, default=func.now(), nullable=False)
+
+    # No backrefs, so ORM deletes of these rows leave events to the database's SET NULL.
+    item = db.relationship("Item")
+    loan_request = db.relationship("LoanRequest")
+    beneficiary = db.relationship("User", foreign_keys=[beneficiary_id])
+    provider = db.relationship("User", foreign_keys=[provider_id])
+
+    def __repr__(self):
+        return f"<ImpactEvent {self.kind} item_id={self.item_id}>"
+
+
 class GiveawayInterest(db.Model):
     """Track users who have expressed interest in claiming a giveaway item"""
 
