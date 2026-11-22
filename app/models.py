@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 from flask import url_for
 from flask_login import UserMixin
+from item_appraiser import Appraisal
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -555,9 +556,6 @@ class ItemAppraisal(db.Model):
 
     def to_appraisal(self):
         """Rebuild the item_appraiser.Appraisal this row was stored from."""
-        # Imported here so web workers don't load the provider SDKs.
-        from item_appraiser import Appraisal  # pylint: disable=import-outside-toplevel
-
         unit_price = self.unit_new_price_usd
         return Appraisal.from_dict(
             {

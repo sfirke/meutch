@@ -7,7 +7,7 @@ Report the money and CO2 that Meutch saves:
 - **site-wide:** totals on the logged-out homepage;
 - **per year:** for a later "year in review".
 
-The estimates come from Sam's package `item-appraiser` (PyPI 0.1.0; source at `/home/sam/git/item-appraiser`; read its `README.md` and `src/item_appraiser/{models,policy,climate,claude,deepseek}.py`).
+The estimates come from Sam's package `item-appraiser` (PyPI 0.1.1; source at `/home/sam/git/item-appraiser`; read its `README.md` and `src/item_appraiser/{models,policy,climate,claude,deepseek}.py`).
 
 **What the package does:**
 - `Listing(name, description, image_urls, item_id)` goes into `appraiser.appraise(listing)`, which returns an `Appraisal`.
@@ -19,6 +19,7 @@ The estimates come from Sam's package `item-appraiser` (PyPI 0.1.0; source at `/
 - Pass `impacts` including `Impact.climate` or no CO2 is computed.
 - `appraiser.fingerprint(listing)` vs the stored `appraisal.fingerprint` tells you when an item needs re-appraising.
 - Each call takes several seconds and costs about $0.003 (Claude Sonnet) or $0.0003 (DeepSeek Flash). It raises `AppraisalError` on retryable failures. Use a client with `timeout=60`.
+- Since 0.1.1, `import item_appraiser` doesn't load the `anthropic`/`openai` SDKs (about 75 MB per process); `ClaudeAppraiser` and `DeepSeekAppraiser` load on first use. Keep the SDK and appraiser imports inside `impact_service.build_appraiser()` so web workers never load them.
 - Report the figures as "estimated avoided emissions", never subtracted from anyone's footprint.
 
 **Facts about Meutch that the design depends on** (verified):
@@ -60,7 +61,7 @@ Site totals are sums over events, so each event counts once.
 - Orchestrator verification: the decisions and counting rules match section 2 exactly.
 
 ### Task 1.2: Dependency and config (Difficulty: Low; parallel with 1.3)
-- Add `item-appraiser[claude,deepseek]==0.1.0` to `requirements.txt`.
+- Add `item-appraiser[claude,deepseek]==0.1.1` to `requirements.txt`.
 - In `config.py`, add:
   - `IMPACT_APPRAISER_PROVIDER` (default `"claude"`)
   - `ANTHROPIC_API_KEY` and `DEEPSEEK_API_KEY` (default None)
