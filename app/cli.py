@@ -1818,10 +1818,6 @@ def check_loan_reminders(force_digest, force_loan_reminders, today_override, dig
     click.echo("✅ Done!")
 
 
-if __name__ == "__main__":
-    seed()
-
-
 @click.group()
 def impact():
     """Impact estimate commands."""
@@ -1856,3 +1852,7 @@ def appraise(limit, dry_run):
         click.echo(f"Appraised: {summary.appraised}")
         click.echo(f"Failed: {summary.failed}")
     click.echo(f"Up to date (skipped): {summary.skipped}")
+
+
+if __name__ == "__main__":
+    seed()
