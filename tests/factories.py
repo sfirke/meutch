@@ -21,6 +21,7 @@ from app.models import (
     ConversationParticipant,
     GiveawayInterest,
     Item,
+    ItemAppraisal,
     ItemImage,
     ItemRequest,
     LoanExtensionRequest,
@@ -105,6 +106,27 @@ class ItemImageFactory(SQLAlchemyModelFactory):
     item = factory.SubFactory(ItemFactory)
     url = factory.LazyAttribute(lambda obj: f"https://example.com/items/{uuid.uuid4()}.jpg")
     position = factory.Sequence(lambda n: n)
+
+
+class ItemAppraisalFactory(SQLAlchemyModelFactory):
+    """Factory for ItemAppraisal model."""
+
+    class Meta:
+        model = ItemAppraisal
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+
+    item = factory.SubFactory(ItemFactory)
+    new_price_usd = 120
+    condition = "used"
+    resale_demand = "typical"
+    confidence = "medium"
+    footprint_category = "power tools"
+    assumption = "Priced as a mid-range cordless drill."
+    impacts = "climate,money"
+    fingerprint = factory.LazyFunction(lambda: uuid.uuid4().hex * 2)
+    model_version = "stub/p4"
+    estimated_at = factory.LazyFunction(lambda: datetime.now(UTC))
 
 
 class CircleFactory(SQLAlchemyModelFactory):
