@@ -79,11 +79,12 @@ class TestItemAppraisalModel:
                 db.session.expire(row)
                 assert row.to_appraisal().footprint_category == category
 
-    def test_delete_item_with_cleanup_removes_appraisal(self, app):
+    def test_orm_cascade_removes_loaded_appraisal(self, app):
         with app.app_context():
             row = ItemAppraisalFactory()
             db.session.commit()
             item, row_id = row.item, row.id
+            assert item.appraisal is row
 
             with patch("app.services.item_service.delete_item_images"):
                 item_service.delete_item_with_cleanup(item)
