@@ -5,7 +5,7 @@ from uuid import UUID
 
 from app import db
 from app.models import Conversation, GiveawayInterest, Message, User
-from app.services import message_service
+from app.services import impact_service, message_service
 from app.services.exceptions import (
     AuthorizationError,
     ConflictError,
@@ -411,6 +411,7 @@ def confirm_handoff(item, owner_id):
     item.claim_status = "claimed"
     item.claimed_at = datetime.now(UTC)
     item.available = False
+    impact_service.record_giveaway_completed(item, item.claimed_by_id)
     db.session.commit()
 
 
@@ -428,4 +429,5 @@ def mark_given_away(item, owner_id):
     item.claimed_at = datetime.now(UTC)
     item.claimed_by_id = None
     item.available = False
+    impact_service.record_giveaway_completed(item, None)
     db.session.commit()

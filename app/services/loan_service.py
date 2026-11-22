@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models import LoanExtensionRequest, LoanRequest, Message
-from app.services import message_service
+from app.services import impact_service, message_service
 from app.services.exceptions import (
     AuthorizationError,
     ConflictError,
@@ -167,6 +167,7 @@ def complete_loan(loan, owner_id):
     loan.status = "completed"
     loan.item.available = True
     _close_pending_extension_request(loan)
+    impact_service.record_loan_completed(loan)
 
     return message_service.create_message(
         owner_id,

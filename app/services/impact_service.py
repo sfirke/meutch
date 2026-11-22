@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from flask import current_app
 from item_appraiser import (
@@ -8,11 +9,15 @@ from item_appraiser import (
     Appraiser,
     Impact,
     Listing,
+    __version__,
 )
+from item_appraiser.climate import appraisal_giveaway_kg_co2e, appraisal_loan_kg_co2e
+from item_appraiser.policy import appraisal_buy_value, appraisal_loan_value
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from app import db
-from app.models import Item, ItemAppraisal
+from app.models import ImpactEvent, Item, ItemAppraisal
 
 logger = logging.getLogger(__name__)
 
@@ -121,3 +126,58 @@ def appraise_pending(limit: int, appraiser: Appraiser, dry_run: bool = False) ->
             logger.exception("Appraisal failed for item %s", item_id)
             summary.failed += 1
     return summary
+
+
+def fill_event(event: ImpactEvent, appraisal_row: ItemAppraisal) -> None:
+    """Copy the appraisal inputs onto the event and compute its savings."""
+    appraisal = appraisal_row.to_appraisal()
+    event.new_price_usd = appraisal_row.new_price_usd
+    event.quantity = appraisal_row.quantity
+    event.condition = appraisal_row.condition
+    event.resale_demand = appraisal_row.resale_demand
+    event.footprint_category = appraisal_row.footprint_category
+    event.model_version = appraisal_row.model_version
+    if event.kind == ImpactEvent.KIND_LOAN:
+        event.usd_saved = appraisal_loan_value(appraisal)
+        event.kg_co2e_avoided = appraisal_loan_kg_co2e(appraisal)
+    else:
+        event.usd_saved = appraisal_buy_value(appraisal)
+        event.kg_co2e_avoided = appraisal_giveaway_kg_co2e(appraisal)
+    event.policy_version = __version__
+
+
+def record_loan_completed(loan) -> None:
+    _record_event(
+        ImpactEvent.KIND_LOAN,
+        loan.item,
+        loan_request_id=loan.id,
+        beneficiary_id=loan.borrower_id,
+    )
+
+
+def record_giveaway_completed(item: Item, recipient_id) -> None:
+    _record_event(ImpactEvent.KIND_GIVEAWAY, item, beneficiary_id=recipient_id)
+
+
+def _record_event(kind, item: Item, *, beneficiary_id, loan_request_id=None) -> None:
+    """Add a ledger row in a savepoint so a failure here never blocks the completion."""
+    item_id = item.id
+    event = ImpactEvent(
+        kind=kind,
+        occurred_at=datetime.now(UTC),
+        item_id=item_id,
+        loan_request_id=loan_request_id,
+        beneficiary_id=beneficiary_id,
+        provider_id=item.owner_id,
+        item_name=item.name,
+        category_name=item.category.name,
+    )
+    if item.appraisal is not None:
+        fill_event(event, item.appraisal)
+    # Flush the completion itself first, so its errors aren't swallowed below.
+    db.session.flush()
+    try:
+        with db.session.begin_nested():
+            db.session.add(event)
+    except SQLAlchemyError:
+        logger.exception("Could not record %s impact event for item %s", kind, item_id)
