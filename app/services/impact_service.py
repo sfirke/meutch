@@ -1,6 +1,8 @@
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time
+from decimal import Decimal
+from typing import NamedTuple
 
 from flask import current_app
 from item_appraiser import (
@@ -13,11 +15,12 @@ from item_appraiser import (
 )
 from item_appraiser.climate import appraisal_giveaway_kg_co2e, appraisal_loan_kg_co2e
 from item_appraiser.policy import appraisal_buy_value, appraisal_loan_value
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from app import db
-from app.models import ImpactEvent, Item, ItemAppraisal
+from app.models import ImpactEvent, Item, ItemAppraisal, LoanRequest
 
 logger = logging.getLogger(__name__)
 
@@ -159,13 +162,13 @@ def record_giveaway_completed(item: Item, recipient_id) -> None:
     _record_event(ImpactEvent.KIND_GIVEAWAY, item, beneficiary_id=recipient_id)
 
 
-def _record_event(kind, item: Item, *, beneficiary_id, loan_request_id=None) -> None:
-    """Add a ledger row in a savepoint so a failure here never blocks the completion."""
-    item_id = item.id
+def _build_event(
+    kind, item: Item, *, occurred_at, beneficiary_id, loan_request_id=None
+) -> ImpactEvent:
     event = ImpactEvent(
         kind=kind,
-        occurred_at=datetime.now(UTC),
-        item_id=item_id,
+        occurred_at=occurred_at,
+        item_id=item.id,
         loan_request_id=loan_request_id,
         beneficiary_id=beneficiary_id,
         provider_id=item.owner_id,
@@ -174,6 +177,19 @@ def _record_event(kind, item: Item, *, beneficiary_id, loan_request_id=None) -> 
     )
     if item.appraisal is not None:
         fill_event(event, item.appraisal)
+    return event
+
+
+def _record_event(kind, item: Item, *, beneficiary_id, loan_request_id=None) -> None:
+    """Add a ledger row in a savepoint so a failure here never blocks the completion."""
+    item_id = item.id
+    event = _build_event(
+        kind,
+        item,
+        occurred_at=datetime.now(UTC),
+        beneficiary_id=beneficiary_id,
+        loan_request_id=loan_request_id,
+    )
     # Flush the completion itself first, so its errors aren't swallowed below.
     db.session.flush()
     try:
@@ -181,3 +197,124 @@ def _record_event(kind, item: Item, *, beneficiary_id, loan_request_id=None) -> 
             db.session.add(event)
     except SQLAlchemyError:
         logger.exception("Could not record %s impact event for item %s", kind, item_id)
+
+
+def fill_pending_events() -> int:
+    """Fill pending events whose item now has an appraisal; return how many."""
+    rows = (
+        db.session.query(ImpactEvent, ItemAppraisal)
+        .join(ItemAppraisal, ItemAppraisal.item_id == ImpactEvent.item_id)
+        .filter(ImpactEvent.usd_saved.is_(None))
+        .all()
+    )
+    for event, appraisal_row in rows:
+        fill_event(event, appraisal_row)
+    db.session.commit()
+    return len(rows)
+
+
+@dataclass
+class BackfillSummary:
+    loans: int = 0
+    giveaways: int = 0
+    filled: int = 0
+    dry_run: bool = False
+
+
+def _utc_noon(day: date) -> datetime:
+    return datetime.combine(day, time(12), tzinfo=UTC)
+
+
+def backfill_events(dry_run: bool = False) -> BackfillSummary:
+    """Create events for completed loans and claimed giveaways that have none."""
+    summary = BackfillSummary(dry_run=dry_run)
+    loans = (
+        LoanRequest.query.filter(
+            LoanRequest.status == "completed",
+            ~db.session.query(ImpactEvent.id)
+            .filter(ImpactEvent.loan_request_id == LoanRequest.id)
+            .exists(),
+        )
+        .options(selectinload(LoanRequest.item).selectinload(Item.appraisal))
+        .all()
+    )
+    giveaways = (
+        Item.query.filter(
+            Item.is_giveaway.is_(True),
+            Item.claim_status == "claimed",
+            ~db.session.query(ImpactEvent.id)
+            .filter(ImpactEvent.item_id == Item.id, ImpactEvent.kind == ImpactEvent.KIND_GIVEAWAY)
+            .exists(),
+        )
+        .options(selectinload(Item.appraisal))
+        .all()
+    )
+    summary.loans = len(loans)
+    summary.giveaways = len(giveaways)
+    if dry_run:
+        return summary
+
+    events = [
+        _build_event(
+            ImpactEvent.KIND_LOAN,
+            loan.item,
+            occurred_at=_utc_noon(loan.end_date),
+            beneficiary_id=loan.borrower_id,
+            loan_request_id=loan.id,
+        )
+        for loan in loans
+    ]
+    events += [
+        _build_event(
+            ImpactEvent.KIND_GIVEAWAY,
+            item,
+            occurred_at=(item.claimed_at or item.created_at).replace(tzinfo=UTC),
+            beneficiary_id=item.claimed_by_id,
+        )
+        for item in giveaways
+    ]
+    summary.filled = sum(event.usd_saved is not None for event in events)
+    db.session.add_all(events)
+    db.session.commit()
+    return summary
+
+
+class SiteTotals(NamedTuple):
+    usd: Decimal
+    kg: Decimal
+    event_count: int
+
+
+class UserTotals(NamedTuple):
+    saved_usd: Decimal
+    saved_kg: Decimal
+    helped_usd: Decimal
+    helped_kg: Decimal
+
+
+def _sums(*filters):
+    # pylint: disable=not-callable,assignment-from-no-return
+    usd = func.coalesce(func.sum(ImpactEvent.usd_saved), 0)
+    kg = func.coalesce(func.sum(ImpactEvent.kg_co2e_avoided), 0)
+    row = (
+        db.session.query(usd, kg, func.count(ImpactEvent.id))
+        .filter(ImpactEvent.usd_saved.isnot(None), *filters)
+        .one()
+    )
+    return Decimal(row[0]), Decimal(row[1]), row[2]
+
+
+def site_totals() -> SiteTotals:
+    return SiteTotals(*_sums())
+
+
+def user_totals(user_id, start=None, end=None) -> UserTotals:
+    """Saved (as beneficiary) and helped-others (as provider) sums; start inclusive, end exclusive."""
+    window = []
+    if start is not None:
+        window.append(ImpactEvent.occurred_at >= start)
+    if end is not None:
+        window.append(ImpactEvent.occurred_at < end)
+    saved_usd, saved_kg, _ = _sums(ImpactEvent.beneficiary_id == user_id, *window)
+    helped_usd, helped_kg, _ = _sums(ImpactEvent.provider_id == user_id, *window)
+    return UserTotals(saved_usd, saved_kg, helped_usd, helped_kg)

@@ -285,6 +285,17 @@ flask check-loan-reminders
 
 This runs loan reminders and digest sends in the same execution flow.
 
+### One-Time Event Backfill
+
+After deploying the impact ledger, create events for loans and giveaways that completed earlier. Run the dry run first, then the real run. Both are safe to repeat; the second run creates nothing.
+
+```bash
+flask impact backfill-events --dry-run
+flask impact backfill-events
+```
+
+Events for items without an estimate yet are filled by `flask impact appraise` once the item is appraised.
+
 ### Automated Scheduling
 
 #### DigitalOcean App Platform
