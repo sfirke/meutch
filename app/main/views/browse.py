@@ -4,6 +4,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.main import bp as main_bp
 from app.models import Category, Item, Tag
+from app.services import impact_service
 from app.utils.circle_queries import build_circle_recommendations
 from app.utils.home_feed import build_homepage_feed_events
 from app.utils.item_queries import build_category_items_pagination, build_tag_items_pagination
@@ -19,7 +20,7 @@ from .helpers import (
 @main_bp.route("/")
 def index():
     if not current_user.is_authenticated:
-        return render_template("main/landing.html")
+        return render_template("main/landing.html", landing_impact=impact_service.landing_impact())
 
     show_public_giveaway_nudge = False
     featured_circle_recommendation = None

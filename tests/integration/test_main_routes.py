@@ -4,6 +4,7 @@ import html
 import re
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
@@ -11,11 +12,13 @@ import pytest
 
 from app import db
 from app.models import Circle
+from app.services import impact_service
 from conftest import login_user
 from tests.factories import (
     CategoryFactory,
     CircleFactory,
     CircleJoinRequestFactory,
+    ImpactEventFactory,
     ItemFactory,
     ItemRequestFactory,
     LoanRequestFactory,
@@ -648,6 +651,30 @@ class TestMainRoutes:
         assert "Get started" in response_text
         assert "How Meutch works" in response_text
         assert "See it in action" in response_text
+
+    def test_landing_page_hides_impact_totals_without_enough_events(self, client, app, monkeypatch):
+        monkeypatch.setattr(impact_service, "_landing_cache", None)
+        with app.app_context():
+            ImpactEventFactory(usd_saved=Decimal("10"), kg_co2e_avoided=Decimal("2"))
+            db.session.commit()
+
+        response = client.get("/")
+
+        assert response.status_code == 200
+        assert "How we estimate this" not in response.data.decode()
+
+    def test_landing_page_shows_impact_totals(self, client, app, monkeypatch):
+        monkeypatch.setattr(impact_service, "_landing_cache", None)
+        with app.app_context():
+            for _ in range(impact_service.LANDING_MIN_EVENTS):
+                ImpactEventFactory(usd_saved=Decimal("10"), kg_co2e_avoided=Decimal("2"))
+            db.session.commit()
+
+        text = re.sub(r"<[^>]+>", "", client.get("/").data.decode())
+
+        assert "$100" in text
+        assert "20 kg CO2e" in text
+        assert "How we estimate this" in text
 
     def test_find_authenticated_user_pagination(self, client, app, auth_user):
         """Test that authenticated users get pagination controls on /find."""

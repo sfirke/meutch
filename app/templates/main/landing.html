@@ -38,6 +38,32 @@
     </div>
 </section>
 
+{% if landing_impact %}
+<section class="landing-impact" aria-labelledby="landing-impact-title">
+    <div class="container text-center">
+        <h2 id="landing-impact-title" class="landing-impact-title mb-4">Sharing adds up</h2>
+        <div class="landing-impact-stats">
+            <div>
+                <p class="landing-impact-number mb-1">&asymp; ${{ "{:,}".format(landing_impact.usd) }}</p>
+                <p class="text-muted mb-0">saved by borrowing and rehoming instead of buying</p>
+            </div>
+            <div>
+                <p class="landing-impact-number mb-1">&asymp; {{ "{:,}".format(landing_impact.kg) }} <span class="landing-impact-unit">kg CO<sub>2</sub>e</span></p>
+                <p class="text-muted mb-0">of estimated avoided emissions</p>
+            </div>
+        </div>
+        <details class="landing-impact-method mt-4">
+            <summary>How we estimate this</summary>
+            <p class="text-muted mt-2 mb-0">
+                An AI model estimates what each item would cost to buy, from its description and photos.
+                A giveaway counts its used value and a loan counts a share of it. Emissions are estimated
+                from what it takes to make the item new, and count as avoided because nobody had to buy one.
+            </p>
+        </details>
+    </div>
+</section>
+{% endif %}
+
 {% set show_cta = false %}
 {% include 'share/_meutch_pitch.html' %}
 
