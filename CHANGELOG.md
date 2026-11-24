@@ -17,6 +17,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Developer Experience
 
+- Staging deploys work again after production got a Postgres security update that staging didn't have yet. The production copy staging loads at startup included a new internal column setting that the older staging database rejected ([#624](https://github.com/sfirke/meutch/pull/624)).
 - Removed the old standalone Create Circle page at `/circles/create-circle`. This was dead code; nothing had linked to it since March 2026, when circles were already being created from the Create tab on the Circles page ([#601](https://github.com/sfirke/meutch/pull/601)).
 - The migration check that runs before pushing and in CI now also fails when the database migrations have more than one latest version, which happens when two branches each add a migration. Before, this only surfaced after merging ([#584](https://github.com/sfirke/meutch/pull/584)).
 
