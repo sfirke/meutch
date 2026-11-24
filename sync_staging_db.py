@@ -10,12 +10,29 @@ with the same security controls as production.
 """
 
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime
 from urllib.parse import urlparse
 
 import click
+
+_COLUMN_OPTIONS = re.compile(r"^(ALTER TABLE .* ALTER COLUMN .* SET \()(.*)(\);)$")
+
+
+def strip_pg_attver(sql):
+    """Drop the internal pg_attver column option, which unpatched Postgres servers reject."""
+    lines = []
+    for line in sql.splitlines(keepends=True):
+        match = _COLUMN_OPTIONS.match(line.rstrip("\n"))
+        if match and "pg_attver=" in match.group(2):
+            options = [o for o in match.group(2).split(", ") if not o.startswith("pg_attver=")]
+            if not options:
+                continue
+            line = f"{match.group(1)}{', '.join(options)}{match.group(3)}\n"
+        lines.append(line)
+    return "".join(lines)
 
 
 @click.command()
@@ -94,6 +111,11 @@ def sync_staging_db():
 
         dump_size = os.path.getsize(dump_file)
         click.echo(f"📊 Created dump: {dump_size / 1024:.1f} KB")
+
+        with open(dump_file) as f:
+            dump_sql = f.read()
+        with open(dump_file, "w") as f:
+            f.write(strip_pg_attver(dump_sql))
 
         # Wiping the schema also removes tables from branches that never reached production.
         # It's one transaction, so a failed restore leaves staging as it was.
