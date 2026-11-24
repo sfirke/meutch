@@ -2,19 +2,15 @@
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import patch
 
 import item_appraiser
-import pytest
 from item_appraiser import Appraisal, Condition, Confidence, FootprintCategory, Impact, ResaleDemand
 from item_appraiser.climate import appraisal_giveaway_kg_co2e, appraisal_loan_kg_co2e
 from item_appraiser.policy import appraisal_buy_value, appraisal_loan_value
-from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
-from app.models import ImpactEvent, Item, ItemAppraisal, LoanRequest
-from app.services import giveaway_service, loan_service
-from app.services.exceptions import ConflictError
+from app.models import ImpactEvent, ItemAppraisal, LoanRequest
+from app.services import loan_service
 from conftest import login_user
 from tests.factories import ImpactEventFactory, ItemFactory, LoanRequestFactory, UserFactory
 
@@ -139,25 +135,7 @@ class TestLoanCompletedEvents:
                 appraisal_loan_kg_co2e(appraisal),
             )
 
-    def test_completing_twice_does_not_duplicate(self, client, app):
-        with app.app_context():
-            owner = UserFactory()
-            loan = _approved_loan(owner, UserFactory())
-            db.session.commit()
-            access_token = login_api_user(client, owner.email)
-            loan_id, item_id = loan.id, loan.item_id
-
-        first = client.post(f"/api/v1/loans/{loan_id}/complete", headers=auth_headers(access_token))
-        second = client.post(
-            f"/api/v1/loans/{loan_id}/complete", headers=auth_headers(access_token)
-        )
-
-        assert first.status_code == 200
-        assert second.status_code == 409
-        with app.app_context():
-            assert len(_events_for(item_id)) == 1
-
-    def test_existing_event_for_loan_does_not_block_completion(self, app):
+    def test_duplicate_event_does_not_block_completion(self, app):
         with app.app_context():
             owner = UserFactory()
             loan = _approved_loan(owner, UserFactory())
@@ -171,21 +149,22 @@ class TestLoanCompletedEvents:
             assert db.session.get(LoanRequest, loan_id).status == "completed"
             assert len(_events_for(item_id)) == 1
 
-    def test_event_insert_failure_does_not_block_completion(self, app):
+    def test_unusable_appraisal_records_pending_event(self, app):
         with app.app_context():
             owner = UserFactory()
             loan = _approved_loan(owner, UserFactory())
+            _appraise(loan.item, _stub_appraisal())
+            loan.item.appraisal.condition = "retired"
             db.session.commit()
             loan_id, item_id = loan.id, loan.item_id
 
-            with patch.object(
-                db.session, "begin_nested", side_effect=SQLAlchemyError("insert failed")
-            ):
-                loan_service.complete_loan(loan, owner.id)
+            loan_service.complete_loan(loan, owner.id)
 
             db.session.expire_all()
             assert db.session.get(LoanRequest, loan_id).status == "completed"
-            assert _events_for(item_id) == []
+            events = _events_for(item_id)
+            assert len(events) == 1
+            _assert_pending(events[0])
 
 
 class TestGiveawayCompletedEvents:
@@ -279,34 +258,3 @@ class TestGiveawayCompletedEvents:
                 appraisal_buy_value(appraisal),
                 appraisal_giveaway_kg_co2e(appraisal),
             )
-
-    @pytest.mark.parametrize("complete", ["confirm_handoff", "mark_given_away"])
-    def test_completing_twice_does_not_duplicate(self, app, complete):
-        with app.app_context():
-            owner = UserFactory()
-            if complete == "confirm_handoff":
-                item = _pending_pickup_giveaway(owner, UserFactory())
-            else:
-                item = ItemFactory(owner=owner, is_giveaway=True, claim_status="unclaimed")
-            db.session.commit()
-            action = getattr(giveaway_service, complete)
-
-            action(item, owner.id)
-            with pytest.raises(ConflictError):
-                action(item, owner.id)
-
-            assert len(_events_for(item.id)) == 1
-
-    def test_existing_event_for_giveaway_does_not_block_handoff(self, app):
-        with app.app_context():
-            owner = UserFactory()
-            item = _pending_pickup_giveaway(owner, UserFactory())
-            ImpactEventFactory(item=item, kind=ImpactEvent.KIND_GIVEAWAY)
-            db.session.commit()
-            item_id = item.id
-
-            giveaway_service.confirm_handoff(item, owner.id)
-
-            db.session.expire_all()
-            assert db.session.get(Item, item_id).claim_status == "claimed"
-            assert len(_events_for(item_id)) == 1

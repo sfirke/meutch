@@ -16,11 +16,11 @@ from item_appraiser import (
 from item_appraiser.climate import appraisal_giveaway_kg_co2e, appraisal_loan_kg_co2e
 from item_appraiser.policy import appraisal_buy_value, appraisal_loan_value
 from sqlalchemy import func
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from app import db
-from app.models import ImpactEvent, Item, ItemAppraisal, LoanRequest
+from app.models import ImpactEvent, Item, ItemAppraisal, LoanRequest, Message
 
 logger = logging.getLogger(__name__)
 
@@ -134,19 +134,31 @@ def appraise_pending(limit: int, appraiser: Appraiser, dry_run: bool = False) ->
 def fill_event(event: ImpactEvent, appraisal_row: ItemAppraisal) -> None:
     """Copy the appraisal inputs onto the event and compute its savings."""
     appraisal = appraisal_row.to_appraisal()
+    if event.kind == ImpactEvent.KIND_LOAN:
+        usd_saved = appraisal_loan_value(appraisal)
+        kg_co2e_avoided = appraisal_loan_kg_co2e(appraisal)
+    else:
+        usd_saved = appraisal_buy_value(appraisal)
+        kg_co2e_avoided = appraisal_giveaway_kg_co2e(appraisal)
     event.new_price_usd = appraisal_row.new_price_usd
     event.quantity = appraisal_row.quantity
     event.condition = appraisal_row.condition
     event.resale_demand = appraisal_row.resale_demand
     event.footprint_category = appraisal_row.footprint_category
     event.model_version = appraisal_row.model_version
-    if event.kind == ImpactEvent.KIND_LOAN:
-        event.usd_saved = appraisal_loan_value(appraisal)
-        event.kg_co2e_avoided = appraisal_loan_kg_co2e(appraisal)
-    else:
-        event.usd_saved = appraisal_buy_value(appraisal)
-        event.kg_co2e_avoided = appraisal_giveaway_kg_co2e(appraisal)
+    event.usd_saved = usd_saved
+    event.kg_co2e_avoided = kg_co2e_avoided
     event.policy_version = __version__
+
+
+def _try_fill(event: ImpactEvent, appraisal_row: ItemAppraisal) -> bool:
+    """Fill the event, leaving it pending if its appraisal can't be used."""
+    try:
+        fill_event(event, appraisal_row)
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Could not fill impact event for item %s", appraisal_row.item_id)
+        return False
+    return True
 
 
 def record_loan_completed(loan) -> None:
@@ -176,7 +188,7 @@ def _build_event(
         category_name=item.category.name,
     )
     if item.appraisal is not None:
-        fill_event(event, item.appraisal)
+        _try_fill(event, item.appraisal)
     return event
 
 
@@ -207,10 +219,9 @@ def fill_pending_events() -> int:
         .filter(ImpactEvent.usd_saved.is_(None))
         .all()
     )
-    for event, appraisal_row in rows:
-        fill_event(event, appraisal_row)
+    filled = sum(_try_fill(event, appraisal_row) for event, appraisal_row in rows)
     db.session.commit()
-    return len(rows)
+    return filled
 
 
 @dataclass
@@ -223,6 +234,18 @@ class BackfillSummary:
 
 def _utc_noon(day: date) -> datetime:
     return datetime.combine(day, time(12), tzinfo=UTC)
+
+
+def _loan_returned_times(loans) -> dict:
+    """When each loan was marked returned: the time of its last loan message."""
+    # pylint: disable=not-callable
+    rows = (
+        db.session.query(Message.loan_request_id, func.max(Message.timestamp))
+        .filter(Message.loan_request_id.in_([loan.id for loan in loans]))
+        .group_by(Message.loan_request_id)
+        .all()
+    )
+    return {loan_id: timestamp.replace(tzinfo=UTC) for loan_id, timestamp in rows}
 
 
 def backfill_events(dry_run: bool = False) -> BackfillSummary:
@@ -249,16 +272,18 @@ def backfill_events(dry_run: bool = False) -> BackfillSummary:
         .options(selectinload(Item.appraisal))
         .all()
     )
-    summary.loans = len(loans)
-    summary.giveaways = len(giveaways)
     if dry_run:
+        summary.loans = len(loans)
+        summary.giveaways = len(giveaways)
         return summary
 
+    now = datetime.now(UTC)
+    returned_at = _loan_returned_times(loans)
     events = [
         _build_event(
             ImpactEvent.KIND_LOAN,
             loan.item,
-            occurred_at=_utc_noon(loan.end_date),
+            occurred_at=min(returned_at.get(loan.id) or _utc_noon(loan.end_date), now),
             beneficiary_id=loan.borrower_id,
             loan_request_id=loan.id,
         )
@@ -273,8 +298,18 @@ def backfill_events(dry_run: bool = False) -> BackfillSummary:
         )
         for item in giveaways
     ]
-    summary.filled = sum(event.usd_saved is not None for event in events)
-    db.session.add_all(events)
+    for event in events:
+        # A loan or giveaway completed while this runs already has its event.
+        try:
+            with db.session.begin_nested():
+                db.session.add(event)
+        except IntegrityError:
+            continue
+        if event.kind == ImpactEvent.KIND_LOAN:
+            summary.loans += 1
+        else:
+            summary.giveaways += 1
+        summary.filled += event.usd_saved is not None
     db.session.commit()
     return summary
 

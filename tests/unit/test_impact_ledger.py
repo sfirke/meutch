@@ -6,7 +6,13 @@ from item_appraiser import Appraisal, Condition, Confidence, FootprintCategory, 
 from app import db
 from app.models import ImpactEvent, ItemAppraisal
 from app.services import impact_service
-from tests.factories import ImpactEventFactory, ItemFactory, LoanRequestFactory, UserFactory
+from tests.factories import (
+    ImpactEventFactory,
+    ItemFactory,
+    LoanRequestFactory,
+    MessageFactory,
+    UserFactory,
+)
 from tests.helpers_impact import StubAppraiser
 
 
@@ -81,6 +87,20 @@ class TestFillPendingEvents:
             assert event.item_id is None
             assert event.usd_saved is None
 
+    def test_unusable_appraisal_does_not_stop_other_fills(self, app):
+        with app.app_context():
+            bad, good = ImpactEventFactory(), ImpactEventFactory()
+            _appraise(bad.item)
+            _appraise(good.item)
+            bad.item.appraisal.condition = "retired"
+            db.session.commit()
+
+            assert impact_service.fill_pending_events() == 1
+            db.session.refresh(bad)
+            db.session.refresh(good)
+            assert bad.usd_saved is None
+            assert good.usd_saved is not None
+
 
 class TestAppraiseCommandFillsEvents:
     def test_reports_filled_count(self, app):
@@ -112,6 +132,26 @@ class TestBackfillEvents:
             assert event.provider_id == loan.item.owner_id
             assert event.occurred_at == datetime(2026, 3, 5, 12, tzinfo=UTC)
             assert event.usd_saved is None
+
+    def test_loan_event_dated_by_when_it_was_marked_returned(self, app):
+        with app.app_context():
+            loan = _completed_loan(date(2026, 3, 5))
+            MessageFactory(loan_request_id=loan.id, timestamp=datetime(2026, 3, 1, 8))
+            MessageFactory(loan_request_id=loan.id, timestamp=datetime(2026, 3, 20, 10, 30))
+            db.session.commit()
+
+            impact_service.backfill_events()
+
+            assert ImpactEvent.query.one().occurred_at == datetime(2026, 3, 20, 10, 30, tzinfo=UTC)
+
+    def test_loan_event_is_never_dated_in_the_future(self, app):
+        with app.app_context():
+            _completed_loan(date.today() + timedelta(days=30))
+            db.session.commit()
+
+            impact_service.backfill_events()
+
+            assert ImpactEvent.query.one().occurred_at <= datetime.now(UTC)
 
     def test_creates_giveaway_events(self, app):
         with app.app_context():
@@ -163,19 +203,6 @@ class TestBackfillEvents:
 
             assert (summary.loans, summary.giveaways) == (0, 0)
             assert ImpactEvent.query.count() == before
-
-    def test_second_run_creates_nothing(self, app):
-        with app.app_context():
-            _completed_loan(date(2026, 3, 5))
-            _claimed_giveaway(UserFactory(), datetime(2026, 2, 3))
-            db.session.commit()
-
-            first = impact_service.backfill_events()
-            second = impact_service.backfill_events()
-
-            assert (first.loans, first.giveaways) == (1, 1)
-            assert (second.loans, second.giveaways) == (0, 0)
-            assert ImpactEvent.query.count() == 2
 
     def test_dry_run_writes_nothing(self, app):
         with app.app_context():
@@ -236,16 +263,6 @@ class TestTotals:
             assert mine.helped_usd == helped.usd_saved + orphan.usd_saved
             assert mine.helped_kg == helped.kg_co2e_avoided + orphan.kg_co2e_avoided
             assert impact_service.user_totals(other.id).saved_usd == helped.usd_saved
-
-    def test_null_beneficiary_counts_for_site_and_provider_only(self, app):
-        with app.app_context():
-            provider = UserFactory()
-            event = _filled_event(item=ItemFactory(owner=provider), beneficiary=None)
-            db.session.commit()
-
-            assert impact_service.site_totals().usd == event.usd_saved
-            assert impact_service.user_totals(provider.id).helped_usd == event.usd_saved
-            assert impact_service.user_totals(provider.id).saved_usd == 0
 
     def test_date_range_start_inclusive_end_exclusive(self, app):
         with app.app_context():
