@@ -18,6 +18,7 @@ from tests.factories import (
     CircleFactory,
     CircleJoinRequestFactory,
     ItemFactory,
+    ItemImageFactory,
     ItemRequestFactory,
     UserFactory,
 )
@@ -1063,3 +1064,107 @@ def test_digest_request_events_show_request_through_expiration_day(app):
 
         assert expires_today.id in request_ids
         assert expired_yesterday.id not in request_ids
+
+
+def test_build_digest_payload_includes_own_giveaway_and_request_without_circles(app):
+    with app.app_context():
+        viewer = UserFactory(
+            digest_include_circle_joins=False,
+            digest_include_loans=False,
+            digest_giveaways_include_public=False,
+            digest_requests_include_public=False,
+        )
+        now = datetime.now(UTC)
+        own_giveaway = ItemFactory(
+            owner=viewer,
+            category=CategoryFactory(),
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="unclaimed",
+            created_at=now - timedelta(hours=2),
+        )
+        own_request = ItemRequestFactory(
+            user=viewer, visibility="circles", created_at=now - timedelta(hours=1)
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(viewer, since=now - timedelta(days=1), until=now)
+
+        assert [event["item_id"] for event in payload["giveaways"]] == [own_giveaway.id]
+        assert [event["request_id"] for event in payload["requests"]] == [own_request.id]
+        assert payload["giveaways"][0]["actor_id"] == viewer.id
+
+
+def test_build_digest_payload_includes_own_loan_but_not_own_circle_join(app):
+    with app.app_context():
+        viewer = UserFactory(digest_include_giveaways=False, digest_include_requests=False)
+        borrower = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, borrower])
+        item = ItemFactory(owner=viewer, category=CategoryFactory())
+        db.session.add(
+            LoanRequest(
+                item_id=item.id,
+                borrower_id=borrower.id,
+                start_date=date.today(),
+                end_date=date.today(),
+                status="approved",
+            )
+        )
+        CircleJoinRequestFactory(circle=circle, user=viewer, status="approved")
+        CircleJoinRequestFactory(circle=circle, user=borrower, status="approved")
+        db.session.commit()
+
+        now = datetime.now(UTC)
+        payload = build_digest_payload(
+            viewer, since=now - timedelta(days=1), until=now + timedelta(minutes=1)
+        )
+
+        assert [event["item_id"] for event in payload["loans"]] == [item.id]
+        assert [event["actor_id"] for event in payload["circle_joins"]] == [borrower.id]
+
+
+def test_build_digest_payload_sends_only_real_item_photos(app):
+    with app.app_context():
+        viewer = UserFactory(digest_include_requests=False, digest_include_circle_joins=False)
+        owner = UserFactory()
+        borrower = UserFactory()
+        circle = CircleFactory()
+        circle.members.extend([viewer, owner, borrower])
+        category = CategoryFactory()
+        now = datetime.now(UTC)
+        bare = ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="unclaimed",
+            created_at=now - timedelta(hours=2),
+        )
+        pictured = ItemFactory(
+            owner=owner,
+            category=category,
+            is_giveaway=True,
+            giveaway_visibility="default",
+            claim_status="unclaimed",
+            created_at=now - timedelta(hours=1),
+        )
+        photo = ItemImageFactory(item=pictured, position=0)
+        lent = ItemFactory(owner=owner, category=category)
+        db.session.add(
+            LoanRequest(
+                item_id=lent.id,
+                borrower_id=borrower.id,
+                start_date=date.today(),
+                end_date=date.today(),
+                status="approved",
+            )
+        )
+        db.session.commit()
+
+        payload = build_digest_payload(
+            viewer, since=now - timedelta(days=1), until=now + timedelta(minutes=1)
+        )
+
+        images = {event["item_id"]: event["image_url"] for event in payload["events"]}
+        assert images == {bare.id: None, pictured.id: photo.url, lent.id: None}

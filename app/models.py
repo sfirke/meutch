@@ -446,10 +446,13 @@ class Item(db.Model):
     )
 
     @property
+    def photo_url(self):
+        """The item's first real photo, or None (no placeholder)."""
+        return self.images[0].url if self.images else None
+
+    @property
     def image(self):
-        if self.images:
-            return self.images[0].url
-        return url_for("static", filename="img/default_item_photo.png")
+        return self.photo_url or url_for("static", filename="img/default_item_photo.png")
 
     @property
     def current_loan(self):

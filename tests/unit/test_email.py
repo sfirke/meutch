@@ -102,6 +102,7 @@ class TestEmailUtils:
                 "giveaways": [
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
                         "item_id": uuid.uuid4(),
                         "actor_name": "Alex",
                         "title": "Free Chair",
@@ -113,6 +114,7 @@ class TestEmailUtils:
                 "requests": [
                     {
                         "event_type": "request",
+                        "actor_id": None,
                         "request_id": uuid.uuid4(),
                         "actor_name": "Taylor",
                         "title": "Need a ladder",
@@ -125,6 +127,8 @@ class TestEmailUtils:
                 "loans": [
                     {
                         "event_type": "lent",
+                        "actor_id": None,
+                        "description": None,
                         "item_id": uuid.uuid4(),
                         "actor_name": "Morgan",
                         "title": "Power Drill",
@@ -177,6 +181,8 @@ class TestEmailUtils:
                 "circle_joins": [
                     {
                         "event_type": "circle_join",
+                        "actor_id": None,
+                        "description": None,
                         "circle_id": circle_x_id,
                         "title": "Circle X",
                         "actor_name": "Alice",
@@ -185,6 +191,8 @@ class TestEmailUtils:
                     },
                     {
                         "event_type": "circle_join",
+                        "actor_id": None,
+                        "description": None,
                         "circle_id": circle_x_id,
                         "title": "Circle X",
                         "actor_name": "Bob",
@@ -193,6 +201,8 @@ class TestEmailUtils:
                     },
                     {
                         "event_type": "circle_join",
+                        "actor_id": None,
+                        "description": None,
                         "circle_id": circle_x_id,
                         "title": "Circle X",
                         "actor_name": "Celeste",
@@ -201,6 +211,8 @@ class TestEmailUtils:
                     },
                     {
                         "event_type": "circle_join",
+                        "actor_id": None,
+                        "description": None,
                         "circle_id": circle_y_id,
                         "title": "Circle Y",
                         "actor_name": "Alice",
@@ -223,14 +235,8 @@ class TestEmailUtils:
             assert text.count("Circle X") == 1, "Circle X should not be repeated per joiner"
             assert text.count("Circle Y") == 1, "Circle Y should not be repeated per joiner"
 
-            # Should show correct plural/singular phrasing
-            assert "3 people" in text
-            assert "1 person" in text
-
-            # All joiner names should be listed
-            assert "Alice" in text
-            assert "Bob" in text
-            assert "Celeste" in text
+            assert "- Circle X — Alice, Bob, and Celeste" in text
+            assert "- Circle Y — Alice" in text
 
             # HTML should say "View circle", not "View activity", for circle joins
             assert "View circle" in html
@@ -271,6 +277,9 @@ class TestEmailUtils:
                 "giveaways": [
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
+                        "description": None,
+                        "image_url": None,
                         "item_id": item_id,
                         "actor_name": "Alex",
                         "title": "Free Chair",
@@ -288,10 +297,37 @@ class TestEmailUtils:
                 unsubscribe_url="https://example.com/digest/unsubscribe/token123",
             )
 
-            assert "Free Chair offered by Alex was claimed" in content["text"]
+            assert "- Free Chair — Alex" in content["text"]
             assert str(item_id) not in content["text"]
             assert str(item_id) not in content["html"]
             assert "View activity" not in content["html"]
+
+    def test_digest_labels_members_own_activity_as_you(self, app):
+        with app.app_context():
+            user = UserFactory(first_name="Digest")
+            payload = {
+                "giveaways": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": uuid.uuid4(),
+                        "actor_id": user.id,
+                        "actor_name": user.full_name,
+                        "title": "Bread machine",
+                        "description": None,
+                        "image_url": None,
+                    }
+                ],
+            }
+
+            content = build_digest_email_content(
+                user,
+                payload,
+                manage_url="https://example.com/manage",
+                unsubscribe_url="https://example.com/unsubscribe",
+            )
+
+            assert "- Bread machine — you" in content["text"]
+            assert "<strong>Bread machine</strong> — you" in content["html"]
 
     def test_build_digest_email_content_adds_same_window_resolution_labels(self, app):
         with app.app_context():
@@ -305,6 +341,7 @@ class TestEmailUtils:
                 "events": [
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
                         "item_id": uuid.uuid4(),
                         "actor_name": "Alex",
                         "title": "Free Chair",
@@ -316,6 +353,7 @@ class TestEmailUtils:
                     },
                     {
                         "event_type": "request",
+                        "actor_id": None,
                         "request_id": uuid.uuid4(),
                         "actor_name": "Taylor",
                         "title": "Need a ladder",
@@ -329,6 +367,7 @@ class TestEmailUtils:
                 "giveaways": [
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
                         "item_id": uuid.uuid4(),
                         "actor_name": "Alex",
                         "title": "Free Chair",
@@ -342,6 +381,7 @@ class TestEmailUtils:
                 "requests": [
                     {
                         "event_type": "request",
+                        "actor_id": None,
                         "request_id": uuid.uuid4(),
                         "actor_name": "Taylor",
                         "title": "Need a ladder",
@@ -363,8 +403,8 @@ class TestEmailUtils:
                 unsubscribe_url="https://example.com/digest/unsubscribe/token123",
             )
 
-            assert "Free Chair offered by Alex was claimed [New]" in content["text"]
-            assert "Taylor: Need a ladder was marked fulfilled [New]" in content["text"]
+            assert "Giveaways rehomed:\n- Free Chair — Alex [New]" in content["text"]
+            assert "Requests found:\n- Need a ladder — Taylor [New]" in content["text"]
             # Descriptions should be included for new-resolved-in-window items
             assert "Great chair in good condition" in content["text"]
             assert "Need for one weekend project" in content["text"]
@@ -387,6 +427,7 @@ class TestEmailUtils:
                 "events": [
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
                         "item_id": giveaway_id,
                         "actor_name": "Alex",
                         "title": "Free Chair",
@@ -398,6 +439,7 @@ class TestEmailUtils:
                     },
                     {
                         "event_type": "request",
+                        "actor_id": None,
                         "request_id": request_id,
                         "actor_name": "Taylor",
                         "title": "Need a ladder",
@@ -411,6 +453,7 @@ class TestEmailUtils:
                 "giveaways": [
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
                         "item_id": giveaway_id,
                         "actor_name": "Alex",
                         "title": "Free Chair",
@@ -424,6 +467,7 @@ class TestEmailUtils:
                 "requests": [
                     {
                         "event_type": "request",
+                        "actor_id": None,
                         "request_id": request_id,
                         "actor_name": "Taylor",
                         "title": "Need a ladder",
@@ -445,13 +489,13 @@ class TestEmailUtils:
                 unsubscribe_url="https://example.com/digest/unsubscribe/token123",
             )
 
-            assert "Free Chair offered by Alex was claimed" in content["text"]
-            assert "Need a ladder was marked fulfilled" in content["text"]
+            assert "Giveaways rehomed:\n- Free Chair — Alex\n" in content["text"]
+            assert "Requests found:\n- Need a ladder — Taylor\n" in content["text"]
             assert "This should not be repeated" not in content["text"]
             # Claimed giveaways should not show images
             assert "Image: https://example.com/chair.jpg" not in content["text"]
-            assert "Free Chair offered by Alex was claimed" in content["html"]
-            assert "Need a ladder was marked fulfilled" in content["html"]
+            assert "<strong>Free Chair</strong> — Alex" in content["html"]
+            assert "<strong>Need a ladder</strong> — Taylor" in content["html"]
 
     def test_build_digest_email_content_orders_new_in_window_items_first(self, app):
         with app.app_context():
@@ -469,6 +513,9 @@ class TestEmailUtils:
                 "events": [
                     {
                         "event_type": "request",
+                        "actor_id": None,
+                        "description": None,
+                        "image_url": None,
                         "request_id": fulfilled_old_id,
                         "actor_name": "After",
                         "title": "Old Request",
@@ -478,6 +525,9 @@ class TestEmailUtils:
                     },
                     {
                         "event_type": "request",
+                        "actor_id": None,
+                        "description": None,
+                        "image_url": None,
                         "request_id": fulfilled_new_id,
                         "actor_name": "First",
                         "title": "New Request",
@@ -487,6 +537,9 @@ class TestEmailUtils:
                     },
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
+                        "description": None,
+                        "image_url": None,
                         "item_id": claimed_new_id,
                         "actor_name": "Early",
                         "title": "New Giveaway",
@@ -496,6 +549,9 @@ class TestEmailUtils:
                     },
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
+                        "description": None,
+                        "image_url": None,
                         "item_id": claimed_old_id,
                         "actor_name": "Late",
                         "title": "Old Giveaway",
@@ -507,6 +563,9 @@ class TestEmailUtils:
                 "requests": [
                     {
                         "event_type": "request",
+                        "actor_id": None,
+                        "description": None,
+                        "image_url": None,
                         "request_id": fulfilled_old_id,
                         "actor_name": "After",
                         "title": "Old Request",
@@ -516,6 +575,9 @@ class TestEmailUtils:
                     },
                     {
                         "event_type": "request",
+                        "actor_id": None,
+                        "description": None,
+                        "image_url": None,
                         "request_id": fulfilled_new_id,
                         "actor_name": "First",
                         "title": "New Request",
@@ -527,6 +589,9 @@ class TestEmailUtils:
                 "giveaways": [
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
+                        "description": None,
+                        "image_url": None,
                         "item_id": claimed_old_id,
                         "actor_name": "Late",
                         "title": "Old Giveaway",
@@ -536,6 +601,9 @@ class TestEmailUtils:
                     },
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
+                        "description": None,
+                        "image_url": None,
                         "item_id": claimed_new_id,
                         "actor_name": "Early",
                         "title": "New Giveaway",
@@ -584,6 +652,9 @@ class TestEmailUtils:
                 "events": [
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
+                        "description": None,
+                        "image_url": None,
                         "item_id": uuid.uuid4(),
                         "actor_name": "Alex",
                         "title": "Free Chair",
@@ -595,6 +666,9 @@ class TestEmailUtils:
                 "giveaways": [
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
+                        "description": None,
+                        "image_url": None,
                         "item_id": uuid.uuid4(),
                         "actor_name": "Alex",
                         "title": "Free Chair",
@@ -629,6 +703,7 @@ class TestEmailUtils:
                 "giveaways": [
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
                         "item_id": uuid.uuid4(),
                         "actor_name": "<b>Alex</b>",
                         "title": "<script>evil()</script>",
@@ -683,6 +758,8 @@ class TestEmailUtils:
                 "circle_joins": [
                     {
                         "event_type": "circle_join",
+                        "actor_id": None,
+                        "description": None,
                         "circle_id": circle_x_id,
                         "title": "Circle <b>X</b>",
                         "actor_name": "Alice <script>bad()</script>",
@@ -720,6 +797,7 @@ class TestEmailUtils:
                 "giveaways": [
                     {
                         "event_type": "giveaway",
+                        "actor_id": None,
                         "item_id": uuid.uuid4(),
                         "actor_name": "Alex",
                         "title": "Drill",

@@ -620,18 +620,36 @@ def _digest_event_has_link(event):
     return not (event.get("event_type") == "giveaway" and event.get("claim_status") == "claimed")
 
 
-def _digest_event_title(event):
-    return event["title"]
+def _digest_entry(event, user, include_description=False, include_image=True):
+    """One digest line, "item — person", plus what goes under it."""
+    variant = event.get("digest_variant")
+    is_resolution_only = variant in ("resolved-in-window", "new-resolved-in-window")
+    is_new = variant == "new-resolved-in-window"
+    show_description = (not is_resolution_only and include_description) or is_new
+    return {
+        "title": event["title"],
+        "person": "you" if event["actor_id"] == user.id else event["actor_name"],
+        "is_new": is_new,
+        "description": event["description"] if show_description else None,
+        "image_url": event["image_url"] if include_image else None,
+        "link": _digest_event_url(event) if _digest_event_has_link(event) else None,
+        "link_label": "View activity",
+    }
 
 
-def _digest_resolution_only_text(event):
-    title = _digest_event_title(event)
-    if event["event_type"] == "request":
-        return f"{title} was marked fulfilled"
-    if event["event_type"] == "giveaway":
-        actor = event.get("actor_name", "Unknown")
-        return f"{title} offered by {actor} was claimed"
-    return title
+def _digest_circle_join_entries(circle_joins):
+    return [
+        {
+            "title": group["circle_name"],
+            "person": _format_names_list(group["actors"]),
+            "is_new": False,
+            "description": None,
+            "image_url": group["image_url"],
+            "link": _digest_event_url(group["event"]),
+            "link_label": "View circle",
+        }
+        for group in _group_circle_joins_for_digest(circle_joins)
+    ]
 
 
 def _digest_cadence_label(user):
@@ -725,58 +743,37 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         text_lines.extend(summary_lines)
         text_lines.append("")
 
-    def append_text_section(section_title, events, include_description=False, include_image=True):
-        if not events:
-            return
-        text_lines.append(f"{section_title}:")
-        for event in events:
-            actor = event["actor_name"]
-            is_resolution_only = event.get("digest_variant") in (
-                "resolved-in-window",
-                "new-resolved-in-window",
-            )
-            is_new_in_window = event.get("digest_variant") == "new-resolved-in-window"
-            if is_resolution_only:
-                # For giveaways, the message already includes the actor name
-                if event["event_type"] == "giveaway":
-                    line = f"- {_digest_resolution_only_text(event)}"
-                else:
-                    line = f"- {actor}: {_digest_resolution_only_text(event)}"
-            else:
-                title = _digest_event_title(event)
-                action = event["action"]
-                line = f"- {actor} {action}: {title}"
-            if is_new_in_window:
+    def entries(events, **kwargs):
+        return [_digest_entry(event, user, **kwargs) for event in events]
+
+    # The heading says what happened, so each line is just "item — person".
+    sections = [
+        ("Giveaways posted", entries(posted_giveaways, include_description=True)),
+        (
+            "Giveaways rehomed",
+            entries(claimed_giveaways, include_description=True, include_image=False),
+        ),
+        ("Requests posted", entries(posted_requests, include_description=True)),
+        ("Requests found", entries(fulfilled_requests)),
+        ("Circle joins", _digest_circle_join_entries(circle_joins)),
+        ("Items lent out", entries(loans)),
+    ]
+    sections = [(heading, section) for heading, section in sections if section]
+
+    for heading, section in sections:
+        text_lines.append(f"{heading}:")
+        for entry in section:
+            line = f"- {entry['title']} \u2014 {entry['person']}"
+            if entry["is_new"]:
                 line = f"{line} [New]"
             text_lines.append(line)
-            show_desc = (not is_resolution_only and include_description) or is_new_in_window
-            if show_desc and event.get("description"):
-                text_lines.append(f"  {event['description']}")
-            if include_image and event.get("image_url"):
-                text_lines.append(f"  Image: {event['image_url']}")
-            if _digest_event_has_link(event):
-                text_lines.append(f"  {_digest_event_url(event)}")
+            if entry["description"]:
+                text_lines.append(f"  {entry['description']}")
+            if entry["image_url"]:
+                text_lines.append(f"  Image: {entry['image_url']}")
+            if entry["link"]:
+                text_lines.append(f"  {entry['link']}")
         text_lines.append("")
-
-    append_text_section("Giveaways \u2014 Posted", posted_giveaways, include_description=True)
-    append_text_section(
-        "Giveaways \u2014 Claimed", claimed_giveaways, include_description=True, include_image=False
-    )
-    append_text_section("Requests \u2014 Posted", posted_requests, include_description=True)
-    append_text_section("Requests \u2014 Fulfilled", fulfilled_requests, include_description=False)
-
-    if circle_joins:
-        grouped_joins = _group_circle_joins_for_digest(circle_joins)
-        text_lines.append("Circle Joins:")
-        for group in grouped_joins:
-            count = len(group["actors"])
-            label = f"{count} {'person' if count == 1 else 'people'}"
-            names = _format_names_list(group["actors"])
-            text_lines.append(f"- {label} joined {group['circle_name']}: {names}")
-            text_lines.append(f"  {_digest_event_url(group['event'])}")
-        text_lines.append("")
-
-    append_text_section("Loans", loans)
 
     text_lines.extend(
         [
@@ -789,59 +786,37 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
         ]
     )
 
-    def build_html_section(title, events, include_description=False, include_image=True):
-        if not events:
-            return ""
-
+    def build_html_section(heading, section):
         items_html = []
-        for event in events:
-            actor = event["actor_name"]
-            link_html = (
-                f'<a href="{_digest_event_url(event)}" style="color: #007bff; text-decoration: none;">View activity</a>'
-                if _digest_event_has_link(event)
+        for entry in section:
+            new_html = (
+                ' <span style="color: #6c757d; font-size: 12px;">New</span>'
+                if entry["is_new"]
                 else ""
             )
-            is_resolution_only = event.get("digest_variant") in (
-                "resolved-in-window",
-                "new-resolved-in-window",
+            description_html = (
+                f'<p style="margin: 6px 0 0 0; color: #555;">{escape(entry["description"])}</p>'
+                if entry["description"]
+                else ""
             )
-            is_new_in_window = event.get("digest_variant") == "new-resolved-in-window"
-            show_desc = (not is_resolution_only and include_description) or is_new_in_window
-            description_html = ""
-            if show_desc and event.get("description"):
-                description_html = (
-                    f'<p style="margin: 6px 0 0 0; color: #555;">{escape(event["description"])}</p>'
-                )
-
-            image_html = ""
-            if include_image and event.get("image_url"):
-                image_html = (
-                    f'<div style="margin: 8px 0;">'
-                    f'<img src="{escape(event["image_url"])}" alt="Activity image" '
-                    f'style="max-width: 100%; width: 220px; height: auto; border-radius: 8px;">'
-                    f"</div>"
-                )
-
-            if is_resolution_only:
-                # For giveaways, the message already includes the actor name
-                if event["event_type"] == "giveaway":
-                    activity_html = f"{escape(_digest_resolution_only_text(event))}"
-                else:
-                    activity_html = f"<strong>{escape(actor)}</strong>: {escape(_digest_resolution_only_text(event))}"
-                if is_new_in_window:
-                    activity_html += ' <span style="color: #6c757d; font-size: 12px;">New</span>'
-                activity_html += "<br>"
-            else:
-                item_title = _digest_event_title(event)
-                action = event["action"]
-                activity_html = (
-                    f"<strong>{escape(actor)}</strong> {escape(action)}: {escape(item_title)}<br>"
-                )
-
+            image_html = (
+                f'<div style="margin: 8px 0;">'
+                f'<img src="{escape(entry["image_url"])}" alt="Photo" '
+                f'style="max-width: 100%; width: 220px; height: auto; border-radius: 8px;">'
+                f"</div>"
+                if entry["image_url"]
+                else ""
+            )
+            link_html = (
+                f'<a href="{escape(entry["link"])}" style="color: #007bff; text-decoration: none;">'
+                f"{entry['link_label']}</a>"
+                if entry["link"]
+                else ""
+            )
             items_html.append(
                 f"""
                 <li style=\"margin-bottom: 10px;\">
-                    {activity_html}
+                    <strong>{escape(entry["title"])}</strong> — {escape(entry["person"])}{new_html}<br>
                     {description_html}
                     {image_html}
                     {link_html}
@@ -850,41 +825,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
             )
 
         return f"""
-        <h3 style=\"margin-top: 24px; color: #333;\">{title}</h3>
-        <ul style=\"padding-left: 20px;\">
-            {"".join(items_html)}
-        </ul>
-        """
-
-    def _build_circle_joins_html_section(circle_join_events):
-        if not circle_join_events:
-            return ""
-        grouped = _group_circle_joins_for_digest(circle_join_events)
-        items_html = []
-        for group in grouped:
-            count = len(group["actors"])
-            label = f"{count} {'person' if count == 1 else 'people'}"
-            names = _format_names_list(group["actors"])
-            link = _digest_event_url(group["event"])
-            image_html = ""
-            if group["image_url"]:
-                image_html = (
-                    f'<div style="margin: 8px 0;">'
-                    f'<img src="{escape(group["image_url"])}" alt="Circle image" '
-                    f'style="max-width: 100%; width: 220px; height: auto; border-radius: 8px;">'
-                    f"</div>"
-                )
-            items_html.append(
-                f"""
-                <li style=\"margin-bottom: 10px;\">
-                    <strong>{label}</strong> joined {escape(group["circle_name"])}: {escape(names)}<br>
-                    {image_html}
-                    <a href=\"{link}\" style=\"color: #007bff; text-decoration: none;\">View circle</a>
-                </li>
-                """
-            )
-        return f"""
-        <h3 style=\"margin-top: 24px; color: #333;\">Circle Joins</h3>
+        <h3 style=\"margin-top: 24px; color: #333;\">{heading}</h3>
         <ul style=\"padding-left: 20px;\">
             {"".join(items_html)}
         </ul>
@@ -911,12 +852,7 @@ def build_digest_email_content(user, digest_payload, manage_url, unsubscribe_url
 
         {summary_html}
 
-        {build_html_section("Giveaways \u2014 Posted", posted_giveaways, include_description=True)}
-        {build_html_section("Giveaways \u2014 Claimed", claimed_giveaways, include_description=True, include_image=False)}
-        {build_html_section("Requests \u2014 Posted", posted_requests, include_description=True)}
-        {build_html_section("Requests \u2014 Fulfilled", fulfilled_requests, include_description=False)}
-        {_build_circle_joins_html_section(circle_joins)}
-        {build_html_section("Loans", loans)}
+        {"".join(build_html_section(heading, section) for heading, section in sections)}
 
         <hr style=\"margin: 28px 0; border: none; border-top: 1px solid #ddd;\">
         <p style=\"font-size: 14px; color: #666;\">
