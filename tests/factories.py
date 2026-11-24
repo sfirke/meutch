@@ -20,6 +20,7 @@ from app.models import (
     Conversation,
     ConversationParticipant,
     GiveawayInterest,
+    ImpactEvent,
     Item,
     ItemAppraisal,
     ItemImage,
@@ -127,6 +128,22 @@ class ItemAppraisalFactory(SQLAlchemyModelFactory):
     fingerprint = factory.LazyFunction(lambda: uuid.uuid4().hex * 2)
     model_version = "stub/p4"
     estimated_at = factory.LazyFunction(lambda: datetime.now(UTC))
+
+
+class ImpactEventFactory(SQLAlchemyModelFactory):
+    """Factory for ImpactEvent model. Pending (unfilled) by default."""
+
+    class Meta:
+        model = ImpactEvent
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "flush"
+
+    kind = ImpactEvent.KIND_LOAN
+    occurred_at = factory.LazyFunction(lambda: datetime.now(UTC))
+    item = factory.SubFactory(ItemFactory)
+    provider = factory.LazyAttribute(lambda obj: obj.item.owner)
+    item_name = factory.LazyAttribute(lambda obj: obj.item.name)
+    category_name = factory.LazyAttribute(lambda obj: obj.item.category.name)
 
 
 class CircleFactory(SQLAlchemyModelFactory):

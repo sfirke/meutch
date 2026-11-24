@@ -1851,7 +1851,23 @@ def appraise(limit, dry_run):
     else:
         click.echo(f"Appraised: {summary.appraised}")
         click.echo(f"Failed: {summary.failed}")
+        filled = impact_service.fill_pending_events()
+        click.echo(f"Impact events filled: {filled}")
     click.echo(f"Up to date (skipped): {summary.skipped}")
+
+
+@impact.command("backfill-events")
+@click.option("--dry-run", is_flag=True, help="Count events that would be created; write nothing.")
+@with_appcontext
+def backfill_events(dry_run):
+    """Create impact events for past completed loans and claimed giveaways."""
+    from app.services import impact_service
+
+    summary = impact_service.backfill_events(dry_run=dry_run)
+    prefix = "Dry run: would create" if dry_run else "Created"
+    click.echo(f"{prefix} {summary.loans} loan event(s), {summary.giveaways} giveaway event(s)")
+    if not dry_run:
+        click.echo(f"Filled immediately: {summary.filled}")
 
 
 if __name__ == "__main__":
