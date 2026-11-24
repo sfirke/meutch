@@ -13,6 +13,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### API development
 - Added `GET /api/v1/messages/unread-count` so the mobile app can show how many unread messages you have as soon as you log in, without loading the inbox first. It's the same count as the web navbar ([#610](https://github.com/sfirke/meutch/pull/610)).
+- Added `GET /api/v1/announcements/current` and `POST /api/v1/announcements/<id>/dismiss` so the mobile app can show the same announcement banner as the website and let you dismiss it. Dismissing on either one hides it on both ([#621](https://github.com/sfirke/meutch/pull/621)).
 
 ### Developer Experience
 
