@@ -3,12 +3,12 @@ from uuid import UUID
 
 from flask import abort, redirect, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy.dialects.postgresql import insert
 
 from app import db
 from app.forms import EmptyForm
 from app.main import bp as main_bp
-from app.models import Announcement, AnnouncementDismissal
+from app.models import Announcement
+from app.utils.announcements import record_dismissal
 from app.utils.safe_redirect import is_safe_url
 
 
@@ -32,12 +32,7 @@ def dismiss_announcement(announcement_id: UUID):
     if not announcement.dismissible:
         abort(400)
 
-    db.session.execute(
-        insert(AnnouncementDismissal)
-        .values(user_id=current_user.id, announcement_id=announcement.id)
-        .on_conflict_do_nothing()
-    )
-    db.session.commit()
+    record_dismissal(current_user, announcement)
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return {"dismissed": True}

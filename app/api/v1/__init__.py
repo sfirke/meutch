@@ -86,6 +86,7 @@ def log_api_response(response):
     return response
 
 
+import_module("app.api.v1.announcements")
 import_module("app.api.v1.auth")
 import_module("app.api.v1.circles")
 import_module("app.api.v1.discovery")

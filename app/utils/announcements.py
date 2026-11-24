@@ -1,3 +1,5 @@
+from sqlalchemy.dialects.postgresql import insert
+
 from app import db
 from app.models import Announcement, AnnouncementDismissal, utc_now_naive
 
@@ -22,3 +24,13 @@ def current_announcement_for(user):
         .order_by(Announcement.starts_at.desc(), Announcement.id.desc())
         .limit(1)
     ).first()
+
+
+def record_dismissal(user, announcement):
+    """Mark the announcement dismissed for this user. Repeat calls are a no-op."""
+    db.session.execute(
+        insert(AnnouncementDismissal)
+        .values(user_id=user.id, announcement_id=announcement.id)
+        .on_conflict_do_nothing()
+    )
+    db.session.commit()
