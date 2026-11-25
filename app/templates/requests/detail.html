@@ -27,7 +27,7 @@
                         {{ item_tag("wanted") }}
                     {% endif %}
                 </div>
-                {% if item_request.visibility == 'public' %}
+                {% if item_request.visibility == 'public' and not item_request.is_fulfilled %}
                     {% set share_url, share_title, share_text = request_share_fields(item_request) %}
                     {% include 'share/_share_button.html' %}
                 {% endif %}

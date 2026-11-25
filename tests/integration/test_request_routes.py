@@ -773,6 +773,34 @@ class TestRequestDetail:
                 'rel="noopener noreferrer nofollow">https://example.com/dp/B012345</a>'
             ) in content
 
+    def test_detail_shows_share_button_for_open_public_request(self, client, app, auth_user):
+        """An open public request can be shared."""
+        with app.app_context():
+            user = auth_user()
+            req = ItemRequestFactory(user=user, visibility="public")
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get(f"/requests/{req.id}/detail")
+            assert b"data-share-url" in response.data
+
+    def test_detail_hides_share_button_for_fulfilled_request(self, client, app, auth_user):
+        """A fulfilled public request has nothing left to share."""
+        with app.app_context():
+            user = auth_user()
+            req = ItemRequestFactory(
+                user=user,
+                visibility="public",
+                status="fulfilled",
+                fulfilled_at=datetime.now(UTC),
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get(f"/requests/{req.id}/detail")
+            assert response.status_code == 200
+            assert b"data-share-url" not in response.data
+
     def test_detail_deleted_request_returns_404(self, client, app, auth_user):
         """Test that viewing a deleted request returns 404."""
         with app.app_context():
