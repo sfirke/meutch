@@ -26,6 +26,7 @@ def _stub_appraisal(**overrides):
         impacts=frozenset({Impact.MONEY, Impact.CLIMATE}),
         fingerprint="a" * 64,
         model_fingerprint="fp_123",
+        release_year=2019,
     )
     values.update(overrides)
     return Appraisal(**values)
