@@ -11,7 +11,8 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Items without a photo show a stitched teal patch instead of a stock picture of mountains ([#602](https://github.com/sfirke/meutch/pull/602)).
 - The wording is simpler and consistent: sentence case everywhere, "Sign up" and "Log in", requests are "found" rather than "fulfilled", and giveaways no longer say "free", because everything on Meutch is free ([#597](https://github.com/sfirke/meutch/pull/597), [#600](https://github.com/sfirke/meutch/pull/600), [#603](https://github.com/sfirke/meutch/pull/603), [#607](https://github.com/sfirke/meutch/pull/607)).
 
-### Digest emails
+### Features
+**Minor**:
 - The digest email is easier to skim. Each section heading says what happened ("Giveaways posted", "Requests found") and each line is just the item and who posted it. Items without a photo no longer show the placeholder patch. Your own giveaways, requests and loans now appear too, marked "you", so you can see your post went out ([#625](https://github.com/sfirke/meutch/pull/625)).
 
 ### API development
