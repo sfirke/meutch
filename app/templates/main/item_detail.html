@@ -55,7 +55,7 @@
                 <div class="item-detail-summary">
                     <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
                         <h1 class="mb-0 text-break">{{ item.name }}</h1>
-                        {% if item.is_giveaway and item.giveaway_visibility == 'public' %}
+                        {% if item.is_giveaway and item.giveaway_visibility == 'public' and item.claim_status == 'unclaimed' %}
                             {% set share_url, share_title, share_text = giveaway_share_fields(item) %}
                             {% include 'share/_share_button.html' %}
                         {% endif %}

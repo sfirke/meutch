@@ -801,6 +801,22 @@ class TestRequestDetail:
             assert response.status_code == 200
             assert b"data-share-url" not in response.data
 
+    def test_detail_hides_share_button_for_expired_request(self, client, app, auth_user):
+        """An expired public request can't be acted on, so it isn't shareable."""
+        with app.app_context():
+            user = auth_user()
+            req = ItemRequestFactory(
+                user=user,
+                visibility="public",
+                expires_at=datetime.now(UTC) - timedelta(days=2),
+            )
+            db.session.commit()
+
+            login_user(client, user.email)
+            response = client.get(f"/requests/{req.id}/detail")
+            assert response.status_code == 200
+            assert b"data-share-url" not in response.data
+
     def test_detail_deleted_request_returns_404(self, client, app, auth_user):
         """Test that viewing a deleted request returns 404."""
         with app.app_context():
