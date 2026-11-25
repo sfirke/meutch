@@ -329,6 +329,36 @@ class TestEmailUtils:
             assert "- Bread machine — you" in content["text"]
             assert "<strong>Bread machine</strong> — you" in content["html"]
 
+    def test_digest_links_members_own_claimed_giveaway(self, app):
+        with app.app_context():
+            user = UserFactory(first_name="Digest")
+            item_id = uuid.uuid4()
+            payload = {
+                "giveaways": [
+                    {
+                        "event_type": "giveaway",
+                        "item_id": item_id,
+                        "actor_id": user.id,
+                        "actor_name": user.full_name,
+                        "title": "Floor lamp",
+                        "description": None,
+                        "image_url": None,
+                        "claim_status": "claimed",
+                        "digest_variant": "resolved-in-window",
+                    }
+                ],
+            }
+
+            content = build_digest_email_content(
+                user,
+                payload,
+                manage_url="https://example.com/manage",
+                unsubscribe_url="https://example.com/unsubscribe",
+            )
+
+            assert str(item_id) in content["text"]
+            assert str(item_id) in content["html"]
+
     def test_build_digest_email_content_adds_same_window_resolution_labels(self, app):
         with app.app_context():
             user = UserFactory(first_name="Digest", digest_frequency="daily")

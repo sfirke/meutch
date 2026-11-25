@@ -688,12 +688,19 @@ def build_recent_lent_events(
     until=None,
     placeholder_image=True,
 ):
-    if not scoped_circle_ids:
+    if not scoped_circle_ids and not include_own_activity:
         return []
 
     recent_cutoff = _utc(since) or (datetime.now(UTC) - timedelta(days=days))
     until_utc = _utc(until)
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
+    # The member's own loans always show, even with no circles.
+    own_loan = Item.owner_id == user.id
+    owner_filter = (
+        own_loan
+        if shared_circle_user_ids is None
+        else or_(own_loan, Item.owner_id.in_(shared_circle_user_ids))
+    )
 
     base_query = (
         LoanRequest.query.join(Item, LoanRequest.item_id == Item.id)
@@ -703,7 +710,7 @@ def build_recent_lent_events(
             LoanRequest.borrower_id.isnot(None),
             LoanRequest.created_at >= recent_cutoff,
             User.vacation_mode.is_(False),
-            Item.owner_id.in_(shared_circle_user_ids),
+            owner_filter,
         )
     )
     if not include_own_activity:

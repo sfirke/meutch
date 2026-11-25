@@ -615,9 +615,12 @@ def _digest_event_url(event):
     return url_for("main.index", _external=True)
 
 
-def _digest_event_has_link(event):
+def _digest_event_has_link(event, user):
     # Claimed giveaways are only viewable by the giver and recipient.
-    return not (event.get("event_type") == "giveaway" and event.get("claim_status") == "claimed")
+    is_claimed_giveaway = (
+        event.get("event_type") == "giveaway" and event.get("claim_status") == "claimed"
+    )
+    return not is_claimed_giveaway or event["actor_id"] == user.id
 
 
 def _digest_entry(event, user, include_description=False, include_image=True):
@@ -632,7 +635,7 @@ def _digest_entry(event, user, include_description=False, include_image=True):
         "is_new": is_new,
         "description": event["description"] if show_description else None,
         "image_url": event["image_url"] if include_image else None,
-        "link": _digest_event_url(event) if _digest_event_has_link(event) else None,
+        "link": _digest_event_url(event) if _digest_event_has_link(event, user) else None,
         "link_label": "View activity",
     }
 

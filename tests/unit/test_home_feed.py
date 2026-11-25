@@ -1124,6 +1124,29 @@ def test_build_digest_payload_includes_own_loan_but_not_own_circle_join(app):
         assert [event["actor_id"] for event in payload["circle_joins"]] == [borrower.id]
 
 
+def test_build_digest_payload_includes_own_loan_without_circles(app):
+    with app.app_context():
+        viewer = UserFactory(digest_include_giveaways=False, digest_include_requests=False)
+        item = ItemFactory(owner=viewer, category=CategoryFactory())
+        db.session.add(
+            LoanRequest(
+                item_id=item.id,
+                borrower_id=UserFactory().id,
+                start_date=date.today(),
+                end_date=date.today(),
+                status="approved",
+            )
+        )
+        db.session.commit()
+
+        now = datetime.now(UTC)
+        payload = build_digest_payload(
+            viewer, since=now - timedelta(days=1), until=now + timedelta(minutes=1)
+        )
+
+        assert [event["item_id"] for event in payload["loans"]] == [item.id]
+
+
 def test_build_digest_payload_sends_only_real_item_photos(app):
     with app.app_context():
         viewer = UserFactory(digest_include_requests=False, digest_include_circle_joins=False)
