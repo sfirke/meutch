@@ -2804,3 +2804,39 @@ class TestGiveawayRequesterProfileLinks:
             assert response.status_code == 200
             assert "Unknown Requester" in content
             assert f'href="/user/{stranger.id}"' not in content
+
+
+class TestGiveawayShareButton:
+    """The giveaway detail page only offers Share while the giveaway can still be claimed."""
+
+    def _owner_detail(self, client, app, auth_user, claim_status):
+        user = auth_user()
+        recipient = UserFactory() if claim_status != "unclaimed" else None
+        item = ItemFactory(
+            owner=user,
+            claimed_by=recipient,
+            is_giveaway=True,
+            giveaway_visibility="public",
+            claim_status=claim_status,
+        )
+        db.session.commit()
+        login_user(client, user.email)
+        return client.get(f"/item/{item.id}")
+
+    def test_unclaimed_public_giveaway_shows_share_button(self, client, app, auth_user):
+        with app.app_context():
+            response = self._owner_detail(client, app, auth_user, "unclaimed")
+            assert response.status_code == 200
+            assert b"data-share-url" in response.data
+
+    def test_pending_pickup_giveaway_hides_share_button(self, client, app, auth_user):
+        with app.app_context():
+            response = self._owner_detail(client, app, auth_user, "pending_pickup")
+            assert response.status_code == 200
+            assert b"data-share-url" not in response.data
+
+    def test_claimed_giveaway_hides_share_button(self, client, app, auth_user):
+        with app.app_context():
+            response = self._owner_detail(client, app, auth_user, "claimed")
+            assert response.status_code == 200
+            assert b"data-share-url" not in response.data
