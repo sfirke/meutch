@@ -25,6 +25,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - The migration check that runs before pushing and in CI now also fails when the database migrations have more than one latest version, which happens when two branches each add a migration. Before, this only surfaced after merging ([#584](https://github.com/sfirke/meutch/pull/584)).
 
 ### Bug fixes
+- The Share button no longer shows on requests that have been found or have expired, or on giveaways that are pending pickup or already claimed, since a shared link to them no longer leads anywhere useful ([#626](https://github.com/sfirke/meutch/pull/626)).
 - When an admin posts an announcement, the end date picker no longer offers dates before the start date, and the form says so right away if an earlier end date is typed in, instead of only after posting ([#615](https://github.com/sfirke/meutch/pull/615)).
 - Tapping a button twice no longer sends the same message twice. After you submit a form anywhere on the site, extra taps are ignored until the page finishes loading ([#585](https://github.com/sfirke/meutch/pull/585)).
 - Emails about a loan extension request now say what they are in the subject line: "Extension Request", "Extension Approved" or "Extension Denied", instead of "Loan Request Approved". Due date reminder emails now mention that you can request an extension from the loan page ([#508](https://github.com/sfirke/meutch/pull/508)).
