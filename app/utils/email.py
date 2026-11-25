@@ -620,7 +620,7 @@ def _digest_event_has_link(event, user):
     is_claimed_giveaway = (
         event.get("event_type") == "giveaway" and event.get("claim_status") == "claimed"
     )
-    return not is_claimed_giveaway or event["actor_id"] == user.id
+    return not is_claimed_giveaway or user.id in (event["actor_id"], event["claimed_by_id"])
 
 
 def _digest_entry(event, user, include_description=False, include_image=True):

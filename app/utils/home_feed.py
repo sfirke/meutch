@@ -668,6 +668,7 @@ def build_digest_giveaway_events(
                 "title": item.name,
                 "description": item.description,
                 "claim_status": item.claim_status,
+                "claimed_by_id": item.claimed_by_id,
                 "actor_name": item.owner.full_name if item.owner else "Deleted User",
                 "actor_avatar_url": item.owner.profile_image_url if item.owner else None,
                 "actor_id": item.owner_id if item.owner else None,

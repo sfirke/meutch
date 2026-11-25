@@ -1,6 +1,7 @@
 """Unit tests for email utilities."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -12,7 +13,10 @@ from app.utils.email import (
     send_digest_email,
     send_email,
 )
+from app.utils.home_feed import build_digest_payload
 from tests.factories import (
+    CategoryFactory,
+    CircleFactory,
     ConversationFactory,
     ItemFactory,
     LoanRequestFactory,
@@ -284,6 +288,7 @@ class TestEmailUtils:
                         "actor_name": "Alex",
                         "title": "Free Chair",
                         "claim_status": "claimed",
+                        "claimed_by_id": None,
                         "digest_variant": "resolved-in-window",
                         "action": "posted a giveaway",
                     }
@@ -344,6 +349,7 @@ class TestEmailUtils:
                         "description": None,
                         "image_url": None,
                         "claim_status": "claimed",
+                        "claimed_by_id": None,
                         "digest_variant": "resolved-in-window",
                     }
                 ],
@@ -358,6 +364,36 @@ class TestEmailUtils:
 
             assert str(item_id) in content["text"]
             assert str(item_id) in content["html"]
+
+    def test_digest_links_claimed_giveaway_for_its_recipient(self, app):
+        with app.app_context():
+            recipient = UserFactory(first_name="Digest")
+            giver = UserFactory()
+            circle = CircleFactory()
+            circle.members.extend([recipient, giver])
+            now = datetime.now(UTC)
+            item = ItemFactory(
+                owner=giver,
+                category=CategoryFactory(),
+                is_giveaway=True,
+                giveaway_visibility="default",
+                claim_status="claimed",
+                claimed_by=recipient,
+                available=False,
+                created_at=now - timedelta(days=3),
+                claimed_at=now - timedelta(hours=3),
+            )
+            db.session.commit()
+
+            content = build_digest_email_content(
+                recipient,
+                build_digest_payload(recipient, since=now - timedelta(days=1), until=now),
+                manage_url="https://example.com/manage",
+                unsubscribe_url="https://example.com/unsubscribe",
+            )
+
+            assert str(item.id) in content["text"]
+            assert str(item.id) in content["html"]
 
     def test_build_digest_email_content_adds_same_window_resolution_labels(self, app):
         with app.app_context():
