@@ -11,6 +11,9 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 - Items without a photo show a stitched teal patch instead of a stock picture of mountains ([#602](https://github.com/sfirke/meutch/pull/602)).
 - The wording is simpler and consistent: sentence case everywhere, "Sign up" and "Log in", requests are "found" rather than "fulfilled", and giveaways no longer say "free", because everything on Meutch is free ([#597](https://github.com/sfirke/meutch/pull/597), [#600](https://github.com/sfirke/meutch/pull/600), [#603](https://github.com/sfirke/meutch/pull/603), [#607](https://github.com/sfirke/meutch/pull/607)).
 
+### Features
+- The homepage now shows roughly how much money Meutch members have saved by borrowing and rehoming things instead of buying them, and the estimated emissions that avoided. The numbers are estimates made from each item's description and photos, and there's a short note on how they're worked out ([#617](https://github.com/sfirke/meutch/pull/617), [#620](https://github.com/sfirke/meutch/pull/620), [#623](https://github.com/sfirke/meutch/pull/623)).
+
 ### API development
 - Added `GET /api/v1/messages/unread-count` so the mobile app can show how many unread messages you have as soon as you log in, without loading the inbox first. It's the same count as the web navbar ([#610](https://github.com/sfirke/meutch/pull/610)).
 - Added `GET /api/v1/announcements/current` and `POST /api/v1/announcements/<id>/dismiss` so the mobile app can show the same announcement banner as the website and let you dismiss it. Dismissing on either one hides it on both ([#621](https://github.com/sfirke/meutch/pull/621)).

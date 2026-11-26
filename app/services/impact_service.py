@@ -1,7 +1,8 @@
 import logging
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
+from time import monotonic
 from typing import NamedTuple
 
 from flask import current_app
@@ -364,3 +365,39 @@ def user_totals(user_id, start=None, end=None) -> UserTotals:
     saved_usd, saved_kg, _ = _sums(ImpactEvent.beneficiary_id == user_id, *window)
     helped_usd, helped_kg, _ = _sums(ImpactEvent.provider_id == user_id, *window)
     return UserTotals(saved_usd, saved_kg, helped_usd, helped_kg)
+
+
+LANDING_MIN_EVENTS = 10
+LANDING_CACHE_SECONDS = 3600
+_landing_cache: tuple[float, "LandingImpact | None"] | None = None
+
+
+class LandingImpact(NamedTuple):
+    usd: int
+    kg: int
+
+
+def _round_for_display(value: Decimal) -> int:
+    """Whole numbers under 100, two significant figures above."""
+    whole = int(value.to_integral_value(ROUND_HALF_UP))
+    if whole < 100:
+        return whole
+    places = len(str(whole)) - 2
+    return int(Decimal(whole).scaleb(-places).quantize(1, ROUND_HALF_UP).scaleb(places))
+
+
+def landing_impact() -> LandingImpact | None:
+    """Rounded site totals for the landing page, or None until there are enough events.
+
+    Cached per process for an hour.
+    """
+    global _landing_cache  # pylint: disable=global-statement
+    now = monotonic()
+    if _landing_cache is not None and _landing_cache[0] > now:
+        return _landing_cache[1]
+    totals = site_totals()
+    result = None
+    if totals.event_count >= LANDING_MIN_EVENTS:
+        result = LandingImpact(_round_for_display(totals.usd), _round_for_display(totals.kg))
+    _landing_cache = (now + LANDING_CACHE_SECONDS, result)
+    return result
