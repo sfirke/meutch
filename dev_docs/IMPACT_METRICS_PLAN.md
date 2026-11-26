@@ -7,13 +7,14 @@ Report the money and CO2 that Meutch saves:
 - **site-wide:** totals on the logged-out homepage;
 - **per year:** for a later "year in review".
 
-The estimates come from Sam's package `item-appraiser` (PyPI 0.1.1; source at `/home/sam/git/item-appraiser`; read its `README.md` and `src/item_appraiser/{models,policy,climate,claude,deepseek}.py`).
+The estimates come from Sam's package `item-appraiser` (PyPI 0.2.0; source at `/home/sam/git/item-appraiser`; read its `README.md` and `src/item_appraiser/{models,policy,climate,claude,deepseek}.py`).
 
 **What the package does:**
 - `Listing(name, description, image_urls, item_id)` goes into `appraiser.appraise(listing)`, which returns an `Appraisal`.
-- An `Appraisal` stores raw facts: `new_price_usd`, `condition`, `resale_demand`, `confidence`, `assumption`, `quantity`, `unit_new_price_usd`, `footprint_category`, `impacts`, `fingerprint`, `model_version`, `estimated_at`.
+- An `Appraisal` stores raw facts: `new_price_usd`, `condition`, `resale_demand`, `confidence`, `assumption`, `quantity`, `unit_new_price_usd`, `footprint_category`, `release_year`, `impacts`, `fingerprint`, `model_version`, `estimated_at`.
 - Derived values come from policy functions, so history can be recomputed without re-appraising:
-  - `buy_value(new_price_usd, condition, resale_demand)` and `loan_value(buy_value_usd)`
+  - `buy_value(new_price_usd, condition, resale_demand, release_year, as_of)` and `loan_value(buy_value_usd)`
+  - Since 0.2.0, phones, tablets, laptops and smartwatches have a `release_year` and are valued by age on the `as_of` date. Meutch values each event as of its `occurred_at` date, so its value doesn't fall later.
   - `new_item_kg_co2e(new_price_usd, category, quantity)`
   - `giveaway_kg_co2e(new_item_kg, condition)` and `loan_kg_co2e(new_item_kg)`, which is 25% of the new footprint per loan
 - Pass `impacts` including `Impact.climate` or no CO2 is computed.
@@ -139,7 +140,7 @@ Fields:
   - `loan_request_id` (unique when not null)
   - `beneficiary_id` and `provider_id` (both indexed)
 - Snapshots: `item_name`, `category_name`
-- Copied appraisal inputs: `new_price_usd`, `quantity`, `condition`, `resale_demand`, `footprint_category`, `model_version`
+- Copied appraisal inputs: `new_price_usd`, `quantity`, `condition`, `resale_demand`, `footprint_category`, `release_year`, `model_version`
 - Derived values: `usd_saved`, `kg_co2e_avoided` (Numeric; NULL while pending), `policy_version` (string; set it from the library version)
 - For giveaways: a unique constraint on `item_id` where `kind='giveaway'`, so the same handoff can't be recorded twice. Implement it as a partial unique index.
 

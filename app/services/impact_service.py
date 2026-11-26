@@ -15,7 +15,7 @@ from item_appraiser import (
 )
 from item_appraiser.climate import appraisal_giveaway_kg_co2e, appraisal_loan_kg_co2e
 from item_appraiser.policy import appraisal_buy_value, appraisal_loan_value
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
@@ -132,19 +132,21 @@ def appraise_pending(limit: int, appraiser: Appraiser, dry_run: bool = False) ->
 
 
 def fill_event(event: ImpactEvent, appraisal_row: ItemAppraisal) -> None:
-    """Copy the appraisal inputs onto the event and compute its savings."""
+    """Copy the appraisal inputs onto the event and compute its savings as of when it happened."""
     appraisal = appraisal_row.to_appraisal()
+    as_of = event.occurred_at.date()
     if event.kind == ImpactEvent.KIND_LOAN:
-        usd_saved = appraisal_loan_value(appraisal)
+        usd_saved = appraisal_loan_value(appraisal, as_of)
         kg_co2e_avoided = appraisal_loan_kg_co2e(appraisal)
     else:
-        usd_saved = appraisal_buy_value(appraisal)
+        usd_saved = appraisal_buy_value(appraisal, as_of)
         kg_co2e_avoided = appraisal_giveaway_kg_co2e(appraisal)
     event.new_price_usd = appraisal_row.new_price_usd
     event.quantity = appraisal_row.quantity
     event.condition = appraisal_row.condition
     event.resale_demand = appraisal_row.resale_demand
     event.footprint_category = appraisal_row.footprint_category
+    event.release_year = appraisal_row.release_year
     event.model_version = appraisal_row.model_version
     event.usd_saved = usd_saved
     event.kg_co2e_avoided = kg_co2e_avoided
@@ -212,11 +214,20 @@ def _record_event(kind, item: Item, *, beneficiary_id, loan_request_id=None) -> 
 
 
 def fill_pending_events() -> int:
-    """Fill pending events whose item now has an appraisal; return how many."""
+    """Fill pending events whose item now has an appraisal, and re-price events whose
+    item was re-appraised by a different model or prompt; return how many.
+
+    An item edit keeps the same model_version, so it doesn't re-price past events.
+    """
     rows = (
         db.session.query(ImpactEvent, ItemAppraisal)
         .join(ItemAppraisal, ItemAppraisal.item_id == ImpactEvent.item_id)
-        .filter(ImpactEvent.usd_saved.is_(None))
+        .filter(
+            or_(
+                ImpactEvent.usd_saved.is_(None),
+                ImpactEvent.model_version != ItemAppraisal.model_version,
+            )
+        )
         .all()
     )
     filled = sum(_try_fill(event, appraisal_row) for event, appraisal_row in rows)

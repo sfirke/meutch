@@ -525,6 +525,7 @@ class ItemAppraisal(db.Model):
     resale_demand = db.Column(db.String(16), nullable=False)
     confidence = db.Column(db.String(16), nullable=True)
     footprint_category = db.Column(db.String(64), nullable=True)
+    release_year = db.Column(db.Integer, nullable=True)
     assumption = db.Column(db.Text, nullable=False, default="")
     # Sorted, comma-separated Impact values, e.g. "climate,money".
     impacts = db.Column(db.String(64), nullable=False)
@@ -547,6 +548,7 @@ class ItemAppraisal(db.Model):
         self.resale_demand = data["resale_demand"]
         self.confidence = data["confidence"]
         self.footprint_category = data["footprint_category"]
+        self.release_year = data["release_year"]
         self.assumption = data["assumption"]
         self.impacts = ",".join(data["impacts"])
         self.fingerprint = data["fingerprint"]
@@ -566,6 +568,7 @@ class ItemAppraisal(db.Model):
                 "resale_demand": self.resale_demand,
                 "confidence": self.confidence,
                 "footprint_category": self.footprint_category,
+                "release_year": self.release_year,
                 "assumption": self.assumption,
                 "impacts": self.impacts.split(",") if self.impacts else [],
                 "fingerprint": self.fingerprint,
@@ -628,6 +631,7 @@ class ImpactEvent(db.Model):
     condition = db.Column(db.String(16), nullable=True)
     resale_demand = db.Column(db.String(16), nullable=True)
     footprint_category = db.Column(db.String(64), nullable=True)
+    release_year = db.Column(db.Integer, nullable=True)
     model_version = db.Column(db.String(100), nullable=True)
     usd_saved = db.Column(db.Numeric(12, 2), nullable=True)
     kg_co2e_avoided = db.Column(db.Numeric(12, 3), nullable=True)

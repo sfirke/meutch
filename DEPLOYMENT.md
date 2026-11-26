@@ -350,6 +350,10 @@ After the first deploy every existing item needs an estimate:
 
 Don't let two runs overlap: if both appraise the same item, the second fails on the unique `item_id` and stops (the next run picks up the rest). Start the backfill a few minutes after the hour, or add the scheduled job once the backfill is done.
 
+### After Upgrading item-appraiser
+
+A new prompt or model changes every item's fingerprint, so every item needs appraising again. Follow the same steps as the one-time backfill. In the same run, impact events whose item now has an estimate from a different model or prompt are re-priced, valued as of the day each event happened. Events for deleted items keep their old value.
+
 ### Automated Scheduling
 
 Set this up like the loan reminder job: a scheduled job in the same app, built from the same source. Only the provider settings are new.

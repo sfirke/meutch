@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
 
 from item_appraiser import Appraisal, Condition, Confidence, FootprintCategory, Impact, ResaleDemand
+from item_appraiser.policy import buy_value
 
 from app import db
 from app.models import ImpactEvent, ItemAppraisal
@@ -16,9 +17,10 @@ from tests.factories import (
 from tests.helpers_impact import StubAppraiser
 
 
-def _appraise(item):
+def _appraise(item, new_price_usd=80.0, release_year=None):
     appraisal = Appraisal(
-        new_price_usd=80.0,
+        new_price_usd=new_price_usd,
+        release_year=release_year,
         condition=Condition.USED,
         resale_demand=ResaleDemand.TYPICAL,
         confidence=Confidence.MEDIUM,
@@ -101,6 +103,51 @@ class TestFillPendingEvents:
             assert bad.usd_saved is None
             assert good.usd_saved is not None
 
+    def test_reprices_event_when_model_version_changes(self, app):
+        with app.app_context():
+            event = _filled_event()
+            old_usd = event.usd_saved
+            event.item.appraisal.new_price_usd = 200
+            event.item.appraisal.model_version = "stub/p2"
+            db.session.commit()
+
+            assert impact_service.fill_pending_events() == 1
+            db.session.refresh(event)
+            assert event.usd_saved > old_usd
+            assert event.model_version == "stub/p2"
+
+    def test_item_edit_with_same_model_version_keeps_event_value(self, app):
+        with app.app_context():
+            event = _filled_event()
+            old_usd = event.usd_saved
+            event.item.appraisal.new_price_usd = 200
+            db.session.commit()
+
+            assert impact_service.fill_pending_events() == 0
+            db.session.refresh(event)
+            assert event.usd_saved == old_usd
+
+
+class TestFillEventPricesByAge:
+    def test_device_is_valued_as_of_when_the_event_happened(self, app):
+        with app.app_context():
+            past = datetime(2024, 6, 1, 12, tzinfo=UTC)
+            then_item, now_item = ItemFactory(), ItemFactory()
+            _appraise(then_item, new_price_usd=800.0, release_year=2019)
+            _appraise(now_item, new_price_usd=800.0, release_year=2019)
+            then_event = ImpactEventFactory(
+                item=then_item, kind=ImpactEvent.KIND_GIVEAWAY, occurred_at=past
+            )
+            now_event = ImpactEventFactory(item=now_item, kind=ImpactEvent.KIND_GIVEAWAY)
+
+            impact_service.fill_event(then_event, then_item.appraisal)
+            impact_service.fill_event(now_event, now_item.appraisal)
+
+            expected = buy_value(800.0, Condition.USED, ResaleDemand.TYPICAL, 2019, past.date())
+            assert then_event.usd_saved == expected
+            assert then_event.release_year == 2019
+            assert then_event.usd_saved > now_event.usd_saved
+
 
 class TestAppraiseCommandFillsEvents:
     def test_reports_filled_count(self, app):
@@ -111,7 +158,7 @@ class TestAppraiseCommandFillsEvents:
                 result = app.test_cli_runner().invoke(args=["impact", "appraise"])
 
             assert result.exit_code == 0, result.output
-            assert "Impact events filled: 1" in result.output
+            assert "Impact events filled or re-priced: 1" in result.output
             assert ImpactEvent.query.filter(ImpactEvent.usd_saved.is_(None)).count() == 0
 
 

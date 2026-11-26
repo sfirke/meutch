@@ -1852,7 +1852,7 @@ def appraise(limit, dry_run):
         click.echo(f"Appraised: {summary.appraised}")
         click.echo(f"Failed: {summary.failed}")
         filled = impact_service.fill_pending_events()
-        click.echo(f"Impact events filled: {filled}")
+        click.echo(f"Impact events filled or re-priced: {filled}")
     click.echo(f"Up to date (skipped): {summary.skipped}")
 
 
