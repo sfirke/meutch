@@ -1,4 +1,4 @@
 -r requirements.txt
 pre-commit==4.7.0
-ruff==0.17.5
-pylint==4.1.3
+ruff==0.17.6
+pylint==4.1.4
