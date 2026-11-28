@@ -17,6 +17,7 @@ Stay up on what's happening with Meutch. Improvements are constantly pushed to t
 
 ### Developer Experience
 
+- Impact estimates now credit less avoided CO2 for older phones, tablets, laptops and smartwatches, figured as of the day each loan or giveaway happened. A new `flask impact reprice-events` command updates past events after an item-appraiser upgrade that only changes the math ([#630](https://github.com/sfirke/meutch/pull/630)).
 - Removed the old standalone Create Circle page at `/circles/create-circle`. This was dead code; nothing had linked to it since March 2026, when circles were already being created from the Create tab on the Circles page ([#601](https://github.com/sfirke/meutch/pull/601)).
 - The migration check that runs before pushing and in CI now also fails when the database migrations have more than one latest version, which happens when two branches each add a migration. Before, this only surfaced after merging ([#584](https://github.com/sfirke/meutch/pull/584)).
 
