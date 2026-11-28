@@ -465,9 +465,15 @@ def build_digest_request_events(
     until_utc = _utc(until)
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
     normalized_scope = _normalize_scope(scope)
+    # The member's own requests always show, whatever the scope.
+    own_request = ItemRequest.user_id == user.id
+    visibility_filter = _build_request_visibility_filter(shared_circle_user_ids, normalized_scope)
+    visibility_filter = (
+        own_request if visibility_filter is None else or_(own_request, visibility_filter)
+    )
 
     base_query = ItemRequest.query.join(User, ItemRequest.user_id == User.id).filter(
-        ItemRequest.user_id != user.id,
+        visibility_filter,
         User.is_deleted.is_(False),
         User.vacation_mode.is_(False),
         or_(
@@ -516,24 +522,6 @@ def build_digest_request_events(
                 ),
             )
         )
-
-    if normalized_scope == "circles":
-        if shared_circle_user_ids is None:
-            return []
-        base_query = base_query.filter(ItemRequest.user_id.in_(shared_circle_user_ids))
-    else:
-        if shared_circle_user_ids is None:
-            base_query = base_query.filter(ItemRequest.visibility == "public")
-        else:
-            base_query = base_query.filter(
-                or_(
-                    ItemRequest.visibility == "public",
-                    and_(
-                        ItemRequest.visibility == "circles",
-                        ItemRequest.user_id.in_(shared_circle_user_ids),
-                    ),
-                )
-            )
 
     effective_distance = effective_feed_distance(max_distance, distance_explicit)
     base_query = _apply_distance_prefilter(base_query, user, effective_distance)
@@ -594,15 +582,17 @@ def build_digest_giveaway_events(
     until_utc = _utc(until)
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
     normalized_scope = _normalize_scope(scope)
+    # The member's own giveaways always show, whatever the scope.
+    own_giveaway = Item.owner_id == user.id
     visibility_filter = _build_giveaway_visibility_filter(shared_circle_user_ids, normalized_scope)
-    if visibility_filter is None:
-        return []
+    visibility_filter = (
+        own_giveaway if visibility_filter is None else or_(own_giveaway, visibility_filter)
+    )
 
     base_query = Item.query.join(User, Item.owner_id == User.id).filter(
         Item.is_giveaway.is_(True),
         User.vacation_mode.is_(False),
         visibility_filter,
-        Item.owner_id != user.id,
         or_(
             Item.claim_status.is_(None),
             Item.claim_status == "unclaimed",
@@ -678,10 +668,11 @@ def build_digest_giveaway_events(
                 "title": item.name,
                 "description": item.description,
                 "claim_status": item.claim_status,
+                "claimed_by_id": item.claimed_by_id,
                 "actor_name": item.owner.full_name if item.owner else "Deleted User",
                 "actor_avatar_url": item.owner.profile_image_url if item.owner else None,
                 "actor_id": item.owner_id if item.owner else None,
-                "image_url": item.image,
+                "image_url": item.photo_url,
                 "action": "posted a giveaway",
                 "distance": distance,
             }
@@ -696,13 +687,21 @@ def build_recent_lent_events(
     include_own_activity=True,
     since=None,
     until=None,
+    placeholder_image=True,
 ):
-    if not scoped_circle_ids:
+    if not scoped_circle_ids and not include_own_activity:
         return []
 
     recent_cutoff = _utc(since) or (datetime.now(UTC) - timedelta(days=days))
     until_utc = _utc(until)
     shared_circle_user_ids = _shared_circle_user_ids_query(scoped_circle_ids)
+    # The member's own loans always show, even with no circles.
+    own_loan = Item.owner_id == user.id
+    owner_filter = (
+        own_loan
+        if shared_circle_user_ids is None
+        else or_(own_loan, Item.owner_id.in_(shared_circle_user_ids))
+    )
 
     base_query = (
         LoanRequest.query.join(Item, LoanRequest.item_id == Item.id)
@@ -712,7 +711,7 @@ def build_recent_lent_events(
             LoanRequest.borrower_id.isnot(None),
             LoanRequest.created_at >= recent_cutoff,
             User.vacation_mode.is_(False),
-            Item.owner_id.in_(shared_circle_user_ids),
+            owner_filter,
         )
     )
     if not include_own_activity:
@@ -742,7 +741,7 @@ def build_recent_lent_events(
                 "actor_name": owner_name,
                 "actor_avatar_url": item.owner.profile_image_url if item.owner else None,
                 "actor_id": item.owner_id if item.owner else None,
-                "image_url": item.image,
+                "image_url": item.image if placeholder_image else item.photo_url,
                 "action": "lent out",
             }
         )
@@ -1015,9 +1014,9 @@ def build_digest_payload(user, since=None, until=None, max_events=200):
             build_recent_lent_events(
                 user,
                 scoped_circle_ids=scoped_circle_ids,
-                include_own_activity=False,
                 since=window_start,
                 until=window_end,
+                placeholder_image=False,
             )
         )
     if "circle_joins" in included_event_types:
