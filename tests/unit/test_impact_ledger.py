@@ -1,7 +1,9 @@
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
 
 from item_appraiser import Appraisal, Condition, Confidence, FootprintCategory, Impact, ResaleDemand
+from item_appraiser.climate import appraisal_giveaway_kg_co2e, appraisal_loan_kg_co2e
 from item_appraiser.policy import buy_value
 
 from app import db
@@ -17,7 +19,12 @@ from tests.factories import (
 from tests.helpers_impact import StubAppraiser
 
 
-def _appraise(item, new_price_usd=80.0, release_year=None):
+def _appraise(
+    item,
+    new_price_usd=80.0,
+    release_year=None,
+    footprint_category=FootprintCategory.SMALL_ELECTRONICS,
+):
     appraisal = Appraisal(
         new_price_usd=new_price_usd,
         release_year=release_year,
@@ -28,7 +35,7 @@ def _appraise(item, new_price_usd=80.0, release_year=None):
         model_version="stub/p1",
         estimated_at=datetime.now(UTC),
         quantity=1,
-        footprint_category=FootprintCategory.SMALL_ELECTRONICS,
+        footprint_category=footprint_category,
         impacts=frozenset({Impact.MONEY, Impact.CLIMATE}),
         fingerprint="b" * 64,
     )
@@ -147,6 +154,35 @@ class TestFillEventPricesByAge:
             assert then_event.usd_saved == expected
             assert then_event.release_year == 2019
             assert then_event.usd_saved > now_event.usd_saved
+
+    def test_old_phone_co2_is_reduced_as_of_when_the_event_happened(self, app):
+        with app.app_context():
+            past = datetime(2024, 6, 1, 12, tzinfo=UTC)
+
+            def filled(kind, **kwargs):
+                item = ItemFactory()
+                _appraise(
+                    item,
+                    new_price_usd=399.0,
+                    release_year=2019,
+                    footprint_category=FootprintCategory.SMARTPHONE,
+                )
+                event = ImpactEventFactory(item=item, kind=kind, **kwargs)
+                impact_service.fill_event(event, item.appraisal)
+                return event, item.appraisal.to_appraisal()
+
+            for kind, kg_co2e in (
+                (ImpactEvent.KIND_GIVEAWAY, appraisal_giveaway_kg_co2e),
+                (ImpactEvent.KIND_LOAN, appraisal_loan_kg_co2e),
+            ):
+                then_event, appraisal = filled(kind, occurred_at=past)
+                now_event, _ = filled(kind)
+                unaged = replace(appraisal, release_year=None)
+
+                expected = kg_co2e(appraisal, past.date())
+                assert then_event.kg_co2e_avoided == expected
+                assert expected < kg_co2e(unaged)
+                assert then_event.kg_co2e_avoided > now_event.kg_co2e_avoided
 
 
 class TestAppraiseCommandFillsEvents:

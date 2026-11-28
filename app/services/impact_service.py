@@ -137,10 +137,10 @@ def fill_event(event: ImpactEvent, appraisal_row: ItemAppraisal) -> None:
     as_of = event.occurred_at.date()
     if event.kind == ImpactEvent.KIND_LOAN:
         usd_saved = appraisal_loan_value(appraisal, as_of)
-        kg_co2e_avoided = appraisal_loan_kg_co2e(appraisal)
+        kg_co2e_avoided = appraisal_loan_kg_co2e(appraisal, as_of)
     else:
         usd_saved = appraisal_buy_value(appraisal, as_of)
-        kg_co2e_avoided = appraisal_giveaway_kg_co2e(appraisal)
+        kg_co2e_avoided = appraisal_giveaway_kg_co2e(appraisal, as_of)
     event.new_price_usd = appraisal_row.new_price_usd
     event.quantity = appraisal_row.quantity
     event.condition = appraisal_row.condition

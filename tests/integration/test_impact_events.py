@@ -1,5 +1,6 @@
 """Integration tests for impact events recorded when loans and giveaways complete."""
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -258,3 +259,56 @@ class TestGiveawayCompletedEvents:
                 appraisal_buy_value(appraisal),
                 appraisal_giveaway_kg_co2e(appraisal),
             )
+
+
+def _old_phone_appraisal():
+    return replace(
+        _stub_appraisal(),
+        new_price_usd=399.0,
+        condition=Condition.USED,
+        footprint_category=FootprintCategory.SMARTPHONE,
+        release_year=2019,
+    )
+
+
+class TestOldPhoneEvents:
+    def test_loan_records_age_reduced_co2(self, client, app):
+        appraisal = _old_phone_appraisal()
+        with app.app_context():
+            owner = UserFactory()
+            loan = _approved_loan(owner, UserFactory())
+            _appraise(loan.item, appraisal)
+            db.session.commit()
+            access_token = login_api_user(client, owner.email)
+            loan_id, item_id = loan.id, loan.item_id
+
+        response = client.post(
+            f"/api/v1/loans/{loan_id}/complete", headers=auth_headers(access_token)
+        )
+
+        assert response.status_code == 200
+        with app.app_context():
+            (event,) = _events_for(item_id)
+            as_of = event.occurred_at.date()
+            kg = appraisal_loan_kg_co2e(appraisal, as_of)
+            _assert_filled(event, appraisal, appraisal_loan_value(appraisal, as_of), kg)
+            assert kg < appraisal_loan_kg_co2e(replace(appraisal, release_year=None))
+
+    def test_giveaway_records_age_reduced_co2(self, client, app):
+        appraisal = _old_phone_appraisal()
+        with app.app_context():
+            owner = UserFactory()
+            item = _pending_pickup_giveaway(owner, UserFactory())
+            _appraise(item, appraisal)
+            db.session.commit()
+            login_user(client, owner.email)
+            item_id = item.id
+
+        client.post(f"/item/{item_id}/confirm-handoff")
+
+        with app.app_context():
+            (event,) = _events_for(item_id)
+            as_of = event.occurred_at.date()
+            kg = appraisal_giveaway_kg_co2e(appraisal, as_of)
+            _assert_filled(event, appraisal, appraisal_buy_value(appraisal, as_of), kg)
+            assert kg < appraisal_giveaway_kg_co2e(replace(appraisal, release_year=None))
