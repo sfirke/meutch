@@ -9,12 +9,15 @@ from item_appraiser import (
     Appraisal,
     AppraisalError,
     Appraiser,
+    Condition,
+    FootprintCategory,
     Impact,
     Listing,
+    ResaleDemand,
     __version__,
 )
-from item_appraiser.climate import appraisal_giveaway_kg_co2e, appraisal_loan_kg_co2e
-from item_appraiser.policy import appraisal_buy_value, appraisal_loan_value
+from item_appraiser.climate import giveaway_kg_co2e, loan_kg_co2e, new_item_kg_co2e
+from item_appraiser.policy import buy_value, loan_value
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import selectinload
@@ -131,16 +134,32 @@ def appraise_pending(limit: int, appraiser: Appraiser, dry_run: bool = False) ->
     return summary
 
 
+def _savings(event: ImpactEvent, inputs: ItemAppraisal | ImpactEvent) -> tuple[float, float | None]:
+    """usd_saved and kg_co2e_avoided for the event as of when it happened, from appraisal
+    inputs stored on an ItemAppraisal or on the event itself (same column names)."""
+    as_of = event.occurred_at.date()
+    new_price = float(inputs.new_price_usd)
+    condition = Condition(inputs.condition)
+    usd_saved = buy_value(
+        new_price, condition, ResaleDemand(inputs.resale_demand), inputs.release_year, as_of
+    )
+    new_item_kg = None
+    if inputs.footprint_category is not None:
+        new_item_kg = new_item_kg_co2e(
+            new_price, FootprintCategory(inputs.footprint_category), inputs.quantity
+        )
+    if event.kind == ImpactEvent.KIND_LOAN:
+        usd_saved = loan_value(usd_saved)
+        if new_item_kg is not None:
+            return usd_saved, loan_kg_co2e(new_item_kg, inputs.release_year, as_of)
+    elif new_item_kg is not None:
+        return usd_saved, giveaway_kg_co2e(new_item_kg, condition, inputs.release_year, as_of)
+    return usd_saved, None
+
+
 def fill_event(event: ImpactEvent, appraisal_row: ItemAppraisal) -> None:
     """Copy the appraisal inputs onto the event and compute its savings as of when it happened."""
-    appraisal = appraisal_row.to_appraisal()
-    as_of = event.occurred_at.date()
-    if event.kind == ImpactEvent.KIND_LOAN:
-        usd_saved = appraisal_loan_value(appraisal, as_of)
-        kg_co2e_avoided = appraisal_loan_kg_co2e(appraisal, as_of)
-    else:
-        usd_saved = appraisal_buy_value(appraisal, as_of)
-        kg_co2e_avoided = appraisal_giveaway_kg_co2e(appraisal, as_of)
+    usd_saved, kg_co2e_avoided = _savings(event, appraisal_row)
     event.new_price_usd = appraisal_row.new_price_usd
     event.quantity = appraisal_row.quantity
     event.condition = appraisal_row.condition
@@ -148,8 +167,7 @@ def fill_event(event: ImpactEvent, appraisal_row: ItemAppraisal) -> None:
     event.footprint_category = appraisal_row.footprint_category
     event.release_year = appraisal_row.release_year
     event.model_version = appraisal_row.model_version
-    event.usd_saved = usd_saved
-    event.kg_co2e_avoided = kg_co2e_avoided
+    event.usd_saved, event.kg_co2e_avoided = usd_saved, kg_co2e_avoided
     event.policy_version = __version__
 
 
@@ -322,6 +340,36 @@ def backfill_events(dry_run: bool = False) -> BackfillSummary:
             summary.giveaways += 1
         summary.filled += event.usd_saved is not None
     db.session.commit()
+    return summary
+
+
+@dataclass
+class RepriceSummary:
+    repriced: int = 0
+    changed: int = 0
+    dry_run: bool = False
+
+
+def reprice_events(dry_run: bool = False) -> RepriceSummary:
+    """Recompute filled events valued under an older item-appraiser policy from their stored
+    inputs, so a policy-only upgrade reaches past events, including those for deleted items."""
+    summary = RepriceSummary(dry_run=dry_run)
+    events = ImpactEvent.query.filter(
+        ImpactEvent.usd_saved.isnot(None), ImpactEvent.policy_version != __version__
+    ).all()
+    for event in events:
+        usd_saved, kg_co2e_avoided = _savings(event, event)
+        new = (
+            Decimal(str(usd_saved)),
+            None if kg_co2e_avoided is None else Decimal(str(kg_co2e_avoided)),
+        )
+        summary.repriced += 1
+        summary.changed += new != (event.usd_saved, event.kg_co2e_avoided)
+        if not dry_run:
+            event.usd_saved, event.kg_co2e_avoided = usd_saved, kg_co2e_avoided
+            event.policy_version = __version__
+    if not dry_run:
+        db.session.commit()
     return summary
 
 
