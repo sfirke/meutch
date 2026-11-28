@@ -354,6 +354,13 @@ Don't let two runs overlap: if both appraise the same item, the second fails on 
 
 A new prompt or model changes every item's fingerprint, so every item needs appraising again. Follow the same steps as the one-time backfill. In the same run, impact events whose item now has an estimate from a different model or prompt are re-priced, valued as of the day each event happened. Events for deleted items keep their old value.
 
+A release that only changes how values or CO2 are calculated, with the same prompt and model, leaves every fingerprint alone, so `flask impact appraise` re-prices nothing. Re-price past events from the inputs stored on each one instead. This also covers events for deleted items. Run it after any upgrade, after the appraise run if there is one; it only touches events valued under an older version, so it's safe to repeat.
+
+```bash
+flask impact reprice-events --dry-run
+flask impact reprice-events
+```
+
 ### Automated Scheduling
 
 Set this up like the loan reminder job: a scheduled job in the same app, built from the same source. Only the provider settings are new.

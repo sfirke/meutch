@@ -1,7 +1,11 @@
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from unittest.mock import patch
 
+import item_appraiser
 from item_appraiser import Appraisal, Condition, Confidence, FootprintCategory, Impact, ResaleDemand
+from item_appraiser.climate import appraisal_giveaway_kg_co2e, appraisal_loan_kg_co2e
 from item_appraiser.policy import buy_value
 
 from app import db
@@ -17,7 +21,12 @@ from tests.factories import (
 from tests.helpers_impact import StubAppraiser
 
 
-def _appraise(item, new_price_usd=80.0, release_year=None):
+def _appraise(
+    item,
+    new_price_usd=80.0,
+    release_year=None,
+    footprint_category=FootprintCategory.SMALL_ELECTRONICS,
+):
     appraisal = Appraisal(
         new_price_usd=new_price_usd,
         release_year=release_year,
@@ -28,7 +37,7 @@ def _appraise(item, new_price_usd=80.0, release_year=None):
         model_version="stub/p1",
         estimated_at=datetime.now(UTC),
         quantity=1,
-        footprint_category=FootprintCategory.SMALL_ELECTRONICS,
+        footprint_category=footprint_category,
         impacts=frozenset({Impact.MONEY, Impact.CLIMATE}),
         fingerprint="b" * 64,
     )
@@ -147,6 +156,35 @@ class TestFillEventPricesByAge:
             assert then_event.usd_saved == expected
             assert then_event.release_year == 2019
             assert then_event.usd_saved > now_event.usd_saved
+
+    def test_old_phone_co2_is_reduced_as_of_when_the_event_happened(self, app):
+        with app.app_context():
+            past = datetime(2024, 6, 1, 12, tzinfo=UTC)
+
+            def filled(kind, **kwargs):
+                item = ItemFactory()
+                _appraise(
+                    item,
+                    new_price_usd=399.0,
+                    release_year=2019,
+                    footprint_category=FootprintCategory.SMARTPHONE,
+                )
+                event = ImpactEventFactory(item=item, kind=kind, **kwargs)
+                impact_service.fill_event(event, item.appraisal)
+                return event, item.appraisal.to_appraisal()
+
+            for kind, kg_co2e in (
+                (ImpactEvent.KIND_GIVEAWAY, appraisal_giveaway_kg_co2e),
+                (ImpactEvent.KIND_LOAN, appraisal_loan_kg_co2e),
+            ):
+                then_event, appraisal = filled(kind, occurred_at=past)
+                now_event, _ = filled(kind)
+                unaged = replace(appraisal, release_year=None)
+
+                expected = kg_co2e(appraisal, past.date())
+                assert then_event.kg_co2e_avoided == expected
+                assert expected < kg_co2e(unaged)
+                assert then_event.kg_co2e_avoided > now_event.kg_co2e_avoided
 
 
 class TestAppraiseCommandFillsEvents:
@@ -273,6 +311,93 @@ class TestBackfillEvents:
             assert result.exit_code == 0, result.output
             assert "Created 1 loan event(s)" in result.output
             assert ImpactEvent.query.count() == 1
+
+
+class TestRepriceEvents:
+    def _stale_old_phone_event(self, kind, occurred_at):
+        """An old phone's event valued under 0.2.0, which ignored age for CO2."""
+        item = ItemFactory()
+        _appraise(
+            item,
+            new_price_usd=399.0,
+            release_year=2019,
+            footprint_category=FootprintCategory.SMARTPHONE,
+        )
+        appraisal = item.appraisal.to_appraisal()
+        event = ImpactEventFactory(item=item, kind=kind, occurred_at=occurred_at)
+        impact_service.fill_event(event, item.appraisal)
+        unaged = replace(appraisal, release_year=None)
+        stale = (
+            appraisal_loan_kg_co2e if kind == ImpactEvent.KIND_LOAN else appraisal_giveaway_kg_co2e
+        )
+        event.kg_co2e_avoided = stale(unaged)
+        event.policy_version = "0.2.0"
+        db.session.flush()
+        return event, appraisal
+
+    def test_reprices_old_phone_co2_as_of_event_date_even_after_item_deleted(self, app):
+        with app.app_context():
+            past = datetime(2024, 6, 1, 12, tzinfo=UTC)
+            giveaway, appraisal = self._stale_old_phone_event(ImpactEvent.KIND_GIVEAWAY, past)
+            loan, _ = self._stale_old_phone_event(ImpactEvent.KIND_LOAN, past)
+            usd_before = giveaway.usd_saved
+            db.session.delete(giveaway.item)
+            db.session.commit()
+
+            summary = impact_service.reprice_events()
+
+            assert (summary.repriced, summary.changed) == (2, 2)
+            db.session.expire_all()
+            assert giveaway.item_id is None
+            assert giveaway.kg_co2e_avoided == Decimal(
+                str(appraisal_giveaway_kg_co2e(appraisal, past.date()))
+            )
+            assert loan.kg_co2e_avoided == Decimal(
+                str(appraisal_loan_kg_co2e(appraisal, past.date()))
+            )
+            assert giveaway.usd_saved == Decimal(str(usd_before))
+            assert {giveaway.policy_version, loan.policy_version} == {item_appraiser.__version__}
+
+    def test_leaves_current_and_pending_events_alone(self, app):
+        with app.app_context():
+            current = _filled_event()
+            ImpactEventFactory()
+            db.session.commit()
+            kg_before = current.kg_co2e_avoided
+
+            summary = impact_service.reprice_events()
+
+            assert summary.repriced == 0
+            db.session.refresh(current)
+            assert current.kg_co2e_avoided == Decimal(str(kg_before))
+
+    def test_unchanged_value_is_repriced_but_not_counted_as_changed(self, app):
+        with app.app_context():
+            event = _filled_event()
+            event.policy_version = "0.1.1"
+            db.session.commit()
+
+            summary = impact_service.reprice_events()
+
+            assert (summary.repriced, summary.changed) == (1, 0)
+            db.session.refresh(event)
+            assert event.policy_version == item_appraiser.__version__
+
+    def test_dry_run_command_writes_nothing(self, app):
+        with app.app_context():
+            event, _ = self._stale_old_phone_event(
+                ImpactEvent.KIND_GIVEAWAY, datetime(2024, 6, 1, 12, tzinfo=UTC)
+            )
+            db.session.commit()
+            kg_before = event.kg_co2e_avoided
+
+            result = app.test_cli_runner().invoke(args=["impact", "reprice-events", "--dry-run"])
+
+            assert result.exit_code == 0, result.output
+            assert "would re-price 1 event(s); 1 with a new value" in result.output
+            db.session.expire_all()
+            assert event.kg_co2e_avoided == Decimal(str(kg_before))
+            assert event.policy_version == "0.2.0"
 
 
 class TestTotals:

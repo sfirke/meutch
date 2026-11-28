@@ -1870,5 +1870,19 @@ def backfill_events(dry_run):
         click.echo(f"Filled immediately: {summary.filled}")
 
 
+@impact.command("reprice-events")
+@click.option(
+    "--dry-run", is_flag=True, help="Count events that would be re-priced; write nothing."
+)
+@with_appcontext
+def reprice_events(dry_run):
+    """Re-price impact events valued under an older item-appraiser policy."""
+    from app.services import impact_service
+
+    summary = impact_service.reprice_events(dry_run=dry_run)
+    prefix = "Dry run: would re-price" if dry_run else "Re-priced"
+    click.echo(f"{prefix} {summary.repriced} event(s); {summary.changed} with a new value")
+
+
 if __name__ == "__main__":
     seed()
